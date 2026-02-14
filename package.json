@@ -1,0 +1,60 @@
+{
+  "name": "amoxsql",
+  "license": "SEE LICENSE IN LICENSE",
+  "version": "1.1.0",
+  "description": "The Modern Codex for Local Data Analysis",
+  "author": {
+    "name": "Flavio Sandoval",
+    "email": "dsandovalflavio@gmail.com",
+    "url": "https://github.com/dsandovalflavio"
+  },
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "concurrently -k \"npm run client:dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "client:dev": "cd client && npm run dev",
+    "client:build": "cd client && npm run build",
+    "dist": "npm run client:build && electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "^1.4.4-r.1",
+    "cors": "^2.8.6",
+    "electron-squirrel-startup": "^1.0.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "nodemon": "^3.1.11",
+    "wait-on": "^8.0.2"
+  },
+  "build": {
+    "appId": "com.amoxsql.ide",
+    "productName": "AmoxSQL",
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "!server/models/*.gguf",
+      "client/dist/**/*",
+      "!**/*.map",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

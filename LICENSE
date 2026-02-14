@@ -1,0 +1,23 @@
+AmoxSQL Community License (v1.0)
+Copyright (c) 2026 Flavio Sandoval
+
+PERMISSIONS:
+You are free to:
+
+1.  **View, copy, and modify** the source code for personal, educational, or internal business evaluation purposes.
+2.  **Compile the software** from source for your own private use.
+3.  **Contribute code**, bug fixes, and improvements to the repository.
+
+RESTRICTIONS:
+
+1.  **COMMERCIAL REDISTRIBUTION**: You may NOT redistribute this software, in binary or source form, for a fee or as part of a commercial product or service.
+2.  **SAAS PROHIBITION**: You may NOT use this software to provide a service to others (SaaS/PaaS) where the software constitutes the primary value.
+3.  **BINARY DISTRIBUTION**: You may NOT distribute pre-compiled binaries (installers, executables) of this software publicly without express written permission from the copyright holder.
+
+TRADEMARKS AND BRANDING:
+This license does NOT grant you any rights to use the trademarks, service marks, trade names, logos, or product names of the Licensor (AmoxSQL, or related logos), except as required for reasonable and customary use in describing the origin of the software.
+
+If you distribute a modified version of this software, you must remove all references to "AmoxSQL" and associated logos/icons, unless you have written permission from the Licensor.
+
+WARRANTY:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

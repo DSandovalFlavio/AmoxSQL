@@ -1,0 +1,395 @@
+:root {
+  --bg-color: #1e1f22;
+  /* Dashboard Dark Theme */
+  --sidebar-bg: #141517;
+  /* Very deep dark */
+  --editor-bg: #1e1f22;
+  --text-color: #909296;
+  /* Softer text */
+  --text-active: #ffffff;
+  --accent-color-user: #00ffff;
+
+  --sidebar-item-active-bg: #25262b;
+  /* Lighter active state */
+  --sidebar-item-hover-bg: #1A1B1E;
+  --border-color: #2C2E33;
+  /* Dark subtle borders */
+
+  --header-bg: #141517;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar {
+  width: 260px;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+}
+
+.sidebar-header {
+  padding: 16px 20px 8px 20px;
+  font-weight: 600;
+  color: var(--text-active);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: none;
+  /* Removed border for clean look */
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 8px 0;
+  margin: 0;
+}
+
+/* Dashboard Style Items: Rounded Floating Rectangles */
+.file-item {
+  padding: 8px 12px;
+  margin: 2px 14px;
+  /* Floating look */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-color);
+  border-radius: 6px;
+  /* Rounded corners */
+  border-left: none;
+  /* Remove old stripe */
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.file-item:hover {
+  background-color: var(--sidebar-item-hover-bg);
+  color: var(--text-active);
+}
+
+.file-item.active {
+  background-color: var(--sidebar-item-active-bg);
+  color: #fff;
+  /* Optional: faint shadow or inner highlight */
+}
+
+.icon {
+  width: 16px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--editor-bg);
+}
+
+.toolbar {
+  height: 40px;
+  padding: 0 16px;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toolbar-title {
+  font-weight: 500;
+  color: var(--text-active);
+}
+
+button {
+  background-color: var(--accent-color-user);
+  /* User's green accent */
+  color: #1e1f22;
+  /* Dark text on bright green */
+  font-weight: 600;
+  border: none;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: filter 0.2s;
+}
+
+button:hover {
+  filter: brightness(1.1);
+}
+
+button:disabled {
+  background-color: #4e5157;
+  color: #8c8c8c;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.editor-container {
+  overflow: hidden;
+  border-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--editor-bg);
+}
+
+.resizer-handle {
+  height: 5px;
+  /* Thinner handle */
+  background-color: var(--editor-bg);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  /* Double border look */
+  cursor: row-resize;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.resizer-handle:hover {
+  background-color: var(--accent-color-user);
+  border-color: var(--accent-color-user);
+}
+
+.results-container {
+  height: 300px;
+  overflow: auto;
+  background-color: var(--editor-bg);
+}
+
+/* Table Styles */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+th,
+td {
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+th {
+  background-color: var(--header-bg);
+  position: sticky;
+  top: 0;
+  color: var(--text-active);
+  font-weight: 600;
+  z-index: 1;
+  border-top: none;
+}
+
+tr:hover td {
+  background-color: var(--hover-color);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4e5157;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5f6269;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* --- REPORT MODE STYLES --- */
+.report-card {
+  background-color: #25262b;
+  border: 1px solid #2C2E33;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.report-mode-container {
+  padding: 20px !important;
+  width: 98% !important;
+  /* Force nearly full width */
+  max-width: none !important;
+  margin: 0 auto;
+}
+
+.report-header {
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #c1c2c5;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 8px;
+}
+
+/* --- PRINT / EXPORT STYLES --- */
+@media print {
+  body {
+    background-color: #fff;
+    color: #000;
+    overflow: auto;
+    height: auto;
+  }
+
+  /* Hide everything */
+  .sidebar,
+  .toolbar,
+  .resizer-handle,
+  button,
+  .app-container>*:not(.main-content) {
+    display: none !important;
+  }
+
+  /* Hide non-report things in main area if needed, though we rely on hiding parent containers */
+  /* Target the notebook container explicitly */
+  .notebook-container,
+  .report-mode-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background-color: white !important;
+    color: black !important;
+    position: static !important;
+    display: block !important;
+  }
+
+  /* Ensure app container allows flow */
+  .app-container,
+  #root,
+  .main-content {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Styling for Print */
+  .report-card {
+    background-color: #fff !important;
+    color: #000 !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    /* Prevent page break inside cards */
+    margin-bottom: 20px !important;
+    padding: 10px !important;
+  }
+
+  /* Texts */
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  div {
+    color: #000 !important;
+  }
+
+  /* Charts might need specific handling to force them to print if they are canvas/svg */
+  /* Recharts usually prints okay as SVG */
+
+  /* Tables */
+  table,
+  th,
+  td {
+    border: 1px solid #ccc !important;
+    color: #000 !important;
+  }
+
+  th {
+    background-color: #f0f0f0 !important;
+  }
+
+  /* CTE Debugger Glyph */
+  .cte-debug-glyph {
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cte-debug-glyph::after {
+    content: '👁️';
+    /* Eye icon */
+    font-size: 12px;
+    color: #00ffff;
+  }
+
+  .cte-debug-glyph:hover::after {
+    color: #fff;
+    filter: drop-shadow(0 0 2px #00ffff);
+  }
+
+  /* Hide scrollbars */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
