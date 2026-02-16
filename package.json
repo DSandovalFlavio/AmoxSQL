@@ -20,7 +20,8 @@
     "@duckdb/node-api": "^1.4.4-r.1",
     "cors": "^2.8.6",
     "electron-squirrel-startup": "^1.0.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
