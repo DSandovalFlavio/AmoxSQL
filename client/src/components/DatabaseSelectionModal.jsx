@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { LuFolderOpen, LuSparkles, LuBrain, LuRocket } from "react-icons/lu";
 
 const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
     if (!isOpen) return null;
@@ -89,9 +90,9 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
 
                 {/* Tabs */}
                 <div style={{ display: 'flex', borderBottom: '1px solid #2C2E33', backgroundColor: '#1A1B1E' }}>
-                    {dbFiles.length > 0 && renderTabButton('EXISTING', 'Open Existing', '📂')}
-                    {renderTabButton('CREATE', 'Create New', '✨')}
-                    {renderTabButton('MEMORY', 'In-Memory', '🧠')}
+                    {dbFiles.length > 0 && renderTabButton('EXISTING', 'Open Existing', <LuFolderOpen size={16} />)}
+                    {renderTabButton('CREATE', 'Create New', <LuSparkles size={16} />)}
+                    {renderTabButton('MEMORY', 'In-Memory', <LuBrain size={16} />)}
                 </div>
 
                 {/* Content Area */}
@@ -167,7 +168,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                     {/* --- TAB: MEMORY --- */}
                     {activeTab === 'MEMORY' && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', paddingTop: '20px' }}>
-                            <div style={{ fontSize: '40px', marginBottom: '15px' }}>🧠</div>
+                            <div style={{ marginBottom: '15px', color: '#888' }}><LuBrain size={48} /></div>
                             <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>In-Memory Session</h4>
                             <p style={{ fontSize: '13px', color: '#999', maxWidth: '300px', lineHeight: '1.5' }}>
                                 Run queries and analyze data without creating any files. All data will be lost when you close the app.
@@ -191,7 +192,9 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                         }}
                         disabled={activeTab === 'CREATE' && !newDbName.trim()}
                     >
-                        {activeTab === 'CREATE' ? 'Create & Connect 🚀' : 'Start Session 🚀'}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {activeTab === 'CREATE' ? 'Create & Connect' : 'Start Session'} <LuRocket size={16} />
+                        </span>
                     </button>
                 </div>
             </div>

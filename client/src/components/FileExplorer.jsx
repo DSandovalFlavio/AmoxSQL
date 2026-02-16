@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
-    LuTable, LuDatabase, LuFile
+    LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet
 } from "react-icons/lu";
 
 const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile }) => {
@@ -83,11 +83,13 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
     };
 
     const getIcon = (file) => {
+        const lowerName = file.name.toLowerCase();
         if (file.isDirectory) return <LuFolder size={14} color="#E8BD36" />;
-        if (file.name.toLowerCase().endsWith('.sql')) return <LuFileCode size={14} color="#4FC1FF" />;
-        if (file.name.toLowerCase().endsWith('.sqlnb')) return <LuBookOpen size={14} color="#9CDCFE" />;
-        if (file.name.match(/\.(csv|parquet|json)$/i)) return <LuTable size={14} color="#CE9178" />;
-        if (file.name.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="#DCDCAA" />;
+        if (lowerName.endsWith('.sql')) return <LuFileCode size={14} color="#4FC1FF" />;
+        if (lowerName.endsWith('.sqlnb')) return <LuBookOpen size={14} color="#9CDCFE" />;
+        if (lowerName.match(/\.(xlsx|xls|csv)$/i)) return <LuFileSpreadsheet size={14} color="#217346" />; // Green for Excel
+        if (lowerName.match(/\.(parquet|json)$/i)) return <LuTable size={14} color="#CE9178" />;
+        if (lowerName.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="#DCDCAA" />;
         return <LuFile size={14} color="#CCCCCC" />;
     };
 

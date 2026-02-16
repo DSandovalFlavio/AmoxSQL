@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet } from "react-icons/lu";
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 
@@ -204,11 +205,11 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             {/* View Switcher */}
                             <div style={{ display: 'flex', backgroundColor: '#1e1f22', borderRadius: '4px', padding: '2px' }}>
-                                <button onClick={() => setViewMode('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? '#00ffff' : 'transparent', color: viewMode === 'table' ? '#1e1f22' : '#888', borderRadius: '3px' }}>
-                                    📅 Table
+                                <button onClick={() => setViewMode('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? '#00ffff' : 'transparent', color: viewMode === 'table' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <LuTable size={14} /> Table
                                 </button>
-                                <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? '#00ffff' : 'transparent', color: viewMode === 'chart' ? '#1e1f22' : '#888', borderRadius: '3px' }}>
-                                    📊 Chart
+                                <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? '#00ffff' : 'transparent', color: viewMode === 'chart' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <LuChartBar size={14} /> Chart
                                 </button>
                             </div>
 
@@ -225,7 +226,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="text"
-                                        placeholder="🔍 Global Search..."
+                                        placeholder="Global Search..."
                                         value={globalSearch}
                                         onChange={(e) => { setGlobalSearch(e.target.value); setCurrentPage(1); }}
                                         style={{
@@ -233,16 +234,18 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                             padding: '4px 8px 4px 28px', borderRadius: '4px', fontSize: '12px', width: '180px'
                                         }}
                                     />
-                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', opacity: 0.5 }}>🔎</span>
+                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', opacity: 0.5, display: 'flex', alignItems: 'center' }}>
+                                        <LuSearch size={14} />
+                                    </span>
                                 </div>
                             )}
 
                             {/* Export / Save */}
-                            <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                                Save As
+                            <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <LuSave size={14} /> Save As
                             </button>
-                            <button onClick={handleExportCsv} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                                Export CSV
+                            <button onClick={handleExportCsv} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <LuFileSpreadsheet size={14} /> Export CSV
                             </button>
                         </div>
                     </div>
@@ -273,15 +276,14 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                 </div>
             )}
 
-            {/* Content Area */}
-            <div style={{ flex: 1, overflow: 'auto' }}>
+            {/* Results Content */}
+            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : 'auto', border: '1px solid #333', marginTop: '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
                 {viewMode === 'table' ? (
                     <table style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                             <tr>
                                 {columns.map((col) => {
                                     const isSorted = sortConfig?.key === col;
-                                    const sortIcon = isSorted ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
 
                                     return (
                                         <th
@@ -298,7 +300,9 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <span>{col}</span>
-                                                <span style={{ fontSize: '10px', opacity: 0.7 }}>{sortIcon}</span>
+                                                <span style={{ fontSize: '10px', opacity: 0.7, display: 'flex', alignItems: 'center' }}>
+                                                    {isSorted && (sortConfig.direction === 'asc' ? <LuChevronUp size={10} /> : <LuChevronDown size={10} />)}
+                                                </span>
                                             </div>
                                         </th>
                                     );

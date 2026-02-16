@@ -4,6 +4,7 @@ import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, LabelList
 } from 'recharts';
+import { LuDownload, LuCalendar, LuGitMerge, LuCircle } from "react-icons/lu";
 
 // Distinctive color palette
 const COLORS = [
@@ -864,7 +865,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 display: 'flex', alignItems: 'center', gap: '4px'
                             }}
                         >
-                            <span>⬇</span> PNG
+                            <LuDownload size={14} /> PNG
                         </button>
                     </div>
 
@@ -959,8 +960,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                     {/* --- ADVANCED DATA OPTIONS --- */}
                     {isDateColumn && (
                         <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <label style={{ display: 'block', fontSize: '11px', color: '#00ffff', marginBottom: '8px', fontWeight: '600' }}>
-                                📅 Date Aggregation
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#00ffff', marginBottom: '8px', fontWeight: '600' }}>
+                                <LuCalendar size={12} /> Date Aggregation
                             </label>
                             <select
                                 value={dateAggregation}
@@ -976,8 +977,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {chartType !== 'donut' && (
                         <div style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
-                                🔀 Split By Column
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                                <LuGitMerge size={12} /> Split By Column
                             </label>
                             <select
                                 value={splitByKey}
@@ -992,8 +993,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {chartType === 'scatter' && (
                         <div style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
-                                🔵 Bubble Size
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                                <LuCircle size={12} /> Bubble Size
                             </label>
                             <select
                                 value={bubbleSizeKey}

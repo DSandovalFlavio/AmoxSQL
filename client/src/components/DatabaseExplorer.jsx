@@ -366,7 +366,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         </div>
                     ) : (
                         <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#555' }}>
-                            <div style={{ fontSize: '24px', marginBottom: '5px' }}>🔍</div>
+                            <div style={{ marginBottom: '10px', opacity: 0.5 }}><LuSearch size={40} /></div>
                             <div style={{ fontSize: '12px' }}>Select a table</div>
                             <div style={{ fontSize: '12px' }}>to view details</div>
                         </div>

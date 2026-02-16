@@ -18,7 +18,7 @@ import DatabaseSelectionModal from './components/DatabaseSelectionModal';
 import AiSidebar from './components/AiSidebar';
 
 
-import { LuBot, LuX } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity } from "react-icons/lu";
 
 import './index.css';
 
@@ -346,15 +346,19 @@ function App() {
             {/* Global Toolbar can drive LayoutManager */}
             <div className="toolbar">
               <div className="toolbar-left">
-                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)">Run</button>
-                <button onClick={() => layoutRef.current?.handleTriggerSave()} style={{ backgroundColor: '#2f425f', color: '#fff' }}>Save</button>
+                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <LuPlay size={14} fill="currentColor" /> Run
+                </button>
+                <button onClick={() => layoutRef.current?.handleTriggerSave()} style={{ backgroundColor: '#2f425f', color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <LuSave size={14} /> Save
+                </button>
                 <div style={{ width: '1px', height: '20px', backgroundColor: '#333', margin: '0 5px' }}></div>
                 <button
                   onClick={() => layoutRef.current?.handleTriggerAnalyze()}
                   title="Analyze Query Plan"
-                  style={{ backgroundColor: 'transparent', color: '#d0b0ff', border: '1px solid #d0b0ff' }}
+                  style={{ backgroundColor: 'transparent', color: '#d0b0ff', border: '1px solid #d0b0ff', display: 'flex', alignItems: 'center', gap: '5px' }}
                 >
-                  Analyze
+                  <LuActivity size={14} /> Analyze
                 </button>
                 <div style={{ width: '1px', height: '20px', backgroundColor: '#333', margin: '0 5px' }}></div>
                 <button

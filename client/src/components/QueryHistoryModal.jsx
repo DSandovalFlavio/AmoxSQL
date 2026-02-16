@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { LuX, LuClipboard } from "react-icons/lu";
 
 const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
     const [history, setHistory] = useState([]);
@@ -101,9 +102,9 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                                 <button
                                     onClick={(e) => handleCopy(item.query, e)}
                                     title="Copy to Clipboard"
-                                    style={{ background: 'transparent', border: 'none', color: '#00ffff', cursor: 'pointer' }}
+                                    style={{ background: 'transparent', border: 'none', color: '#00ffff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                 >
-                                    📋
+                                    <LuClipboard size={14} />
                                 </button>
                             </div>
                             <div style={{

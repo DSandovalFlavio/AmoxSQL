@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { LuTable, LuX } from "react-icons/lu";
 
 const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
     const [activeTab, setActiveTab] = useState('schema'); // schema, details, preview, ddl
@@ -252,13 +253,13 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                     <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '20px' }}>🗃️</span>
+                        <LuTable size={20} color="#00ffff" />
                         {tableName}
                     </h2>
                     <button
                         onClick={onClose}
-                        style={{ background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer' }}
-                    >×</button>
+                        style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    ><LuX size={24} /></button>
                 </div>
 
                 {/* Tabs */}

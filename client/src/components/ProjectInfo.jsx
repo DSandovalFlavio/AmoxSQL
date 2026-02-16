@@ -1,9 +1,11 @@
+import { LuBrain, LuDatabase, LuX } from "react-icons/lu";
+
 const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
     // Extract folder name
     const projectName = projectPath ? projectPath.split(/[/\\]/).pop() : 'Untitled';
 
     // Determine Mode Label
-    let connectionInfo = { label: 'In-Memory', color: '#909296', icon: '🧠', status: 'Active' };
+    let connectionInfo = { label: 'In-Memory', color: '#909296', icon: <LuBrain size={14} />, status: 'Active' };
 
     // Safety check: ensure currentDb is a string
     const isAttached = currentDb && typeof currentDb === 'string' && currentDb !== ':memory:';
@@ -12,7 +14,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
         const dbName = currentDb.split(/[/\\]/).pop();
         const modeLabel = readOnly ? 'Read Only' : 'Read/Write';
         const modeColor = readOnly ? '#FFA500' : '#00ffff'; // Orange for RO, Cyan for RW
-        connectionInfo = { label: dbName, color: modeColor, icon: '🦆', status: 'Connected', mode: modeLabel };
+        connectionInfo = { label: dbName, color: modeColor, icon: <LuDatabase size={14} />, status: 'Connected', mode: modeLabel };
     }
 
     return (
@@ -106,7 +108,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
                         justifyContent: 'center'
                     }}
                 >
-                    <span style={{ fontSize: '16px' }}>✕</span>
+                    <LuX size={16} />
                 </button>
             </div>
         </div>

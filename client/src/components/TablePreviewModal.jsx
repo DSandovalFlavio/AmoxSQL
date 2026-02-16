@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { LuSearch, LuX } from "react-icons/lu";
 
 const TablePreviewModal = ({ tableName, onClose }) => {
     const [data, setData] = useState([]);
@@ -90,7 +91,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                     borderTopRightRadius: '8px'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '18px' }}>🔍</span>
+                        <LuSearch size={18} />
                         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>
                             Preview: <span style={{ color: '#00ffff', fontFamily: 'monospace' }}>{tableName}</span>
                         </h2>
@@ -106,10 +107,12 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                             color: '#ccc',
                             fontSize: '20px',
                             cursor: 'pointer',
-                            padding: '0 5px'
+                            padding: '0 5px',
+                            display: 'flex',
+                            alignItems: 'center'
                         }}
                     >
-                        ✕
+                        <LuX size={20} />
                     </button>
                 </div>
 
