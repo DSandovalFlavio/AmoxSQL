@@ -29,6 +29,50 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     }, [props.onDebugCte]);
 
     const handleEditorDidMount = (editor, monaco) => {
+        // --- KEYBOARD SHORTCUTS ---
+
+        // 1. Run Query (Ctrl+Enter)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            // If debugging CTE, we might want to run that? No, standard run.
+            if (props.onRunQuery) {
+                // Check for selection
+                const selection = editor.getSelection();
+                const model = editor.getModel();
+                let queryToRun = model.getValue(); // Default to all
+
+                if (selection && !selection.isEmpty()) {
+                    queryToRun = model.getValueInRange(selection);
+                }
+
+                // If prop expects (tabId, query), we are inside SqlEditor so we just pass data?
+                // EditorPane wrapper defines: () => onRunQuery(tabId, content)
+                // But we want to run SPECIFIC content (selection).
+                // The prop in EditorPane is: onRunQuery={() => onRunQuery(activeTab.id, activeTab.content)}
+                // This ignores selection. We need to update EditorPane to accept query override or handle it here.
+                // Actually, EditorPane's closure captures `activeTab.content`, which is state.
+                // If we want to run selection, we should pass the selection to the handler.
+
+                // Ideally props.onRunQuery should be a function that takes (optionalQuery).
+                // Let's assume we update EditorPane to: (q) => onRunQuery(activeTab.id, q || activeTab.content)
+                props.onRunQuery(queryToRun);
+            }
+        });
+
+        // 2. Save (Ctrl+S)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+            if (props.onSave) {
+                props.onSave();
+                // Prevent browser save
+            }
+        });
+
+        // 3. Analyze / Explain (Ctrl+E)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE, () => {
+            if (props.onAnalyze) {
+                props.onAnalyze();
+            }
+        });
+
         // Inject CSS for CTE Debug Glpyh
         const styleId = 'cte-debug-styles';
         if (!document.getElementById(styleId)) {

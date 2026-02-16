@@ -285,33 +285,156 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
         }
     }));
 
-    const toggleSplit = () => {
+    // Drag & Drop State
+    const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
+    const [dragOverZone, setDragOverZone] = useState(null); // 'left-edge', 'right-edge', 'left-pane', 'right-pane'
+
+    const handleDragStart = (e, tabId, paneId) => {
+        setDraggedTab({ tabId, sourcePane: paneId });
+        e.dataTransfer.effectAllowed = 'move';
+        // Create a ghost image if needed, or default
+    };
+
+    const handleDragEnd = () => {
+        setDraggedTab(null);
+        setDragOverZone(null);
+    };
+
+    const handleGlobalDragOver = (e) => {
+        e.preventDefault();
+        if (!draggedTab) return;
+
+        const width = window.innerWidth;
+        const x = e.clientX;
+        const edgeThreshold = 100; // px
+
+        // Global Edge Detection (Priority)
+        if (x > width - edgeThreshold) {
+            setDragOverZone('right-edge');
+            return;
+        }
+        if (x < edgeThreshold) {
+            setDragOverZone('left-edge');
+            return;
+        }
+
+        // If not on edge, check which pane we are over (if split)
+        // Simple heuristic: which side of screen center?
         if (splitEnabled) {
-            setLeftTabs(prev => [...prev, ...rightTabs]);
-            setRightTabs([]);
-            setSplitEnabled(false);
-            setActivePane('left');
+            if (x < width / 2) setDragOverZone('left-pane');
+            else setDragOverZone('right-pane');
         } else {
-            setSplitEnabled(true);
-            setRightTabs([]);
-            setActivePane('right');
+            setDragOverZone('center'); // Just reordering in current pane effectively
         }
     };
 
+    const handleGlobalDrop = (e) => {
+        e.preventDefault();
+        if (!draggedTab || !dragOverZone) {
+            handleDragEnd();
+            return;
+        }
+
+        const { tabId, sourcePane } = draggedTab;
+        const targetZone = dragOverZone;
+
+        // Logic based on Zone
+        if (targetZone === 'right-edge') {
+            // 1. Enable Split (if not already)
+            // 2. Move tab to Right Pane
+            moveTabToPane(tabId, sourcePane, 'right');
+            setSplitEnabled(true);
+            setActivePane('right');
+            setRightActiveId(tabId);
+        } else if (targetZone === 'left-edge') {
+            // Move to Left Pane
+            moveTabToPane(tabId, sourcePane, 'left');
+            // If we were split, we stay split unless we want to auto-merge?
+            // User didn't ask for auto-merge, but standard behavior is usually keep split.
+            // If moving to left edge, usually implies "Dock Left".
+            setActivePane('left');
+            setLeftActiveId(tabId);
+        } else if (targetZone === 'right-pane' && sourcePane === 'left') {
+            moveTabToPane(tabId, 'left', 'right');
+            setActivePane('right');
+            setRightActiveId(tabId);
+        } else if (targetZone === 'left-pane' && sourcePane === 'right') {
+            moveTabToPane(tabId, 'right', 'left');
+            setActivePane('left');
+            setLeftActiveId(tabId);
+        }
+
+        handleDragEnd();
+    };
+
+    const moveTabToPane = (tabId, fromPane, toPane) => {
+        if (fromPane === toPane) return;
+
+        let tabToMove = null;
+        if (fromPane === 'left') {
+            tabToMove = leftTabs.find(t => t.id === tabId);
+            const newLeft = leftTabs.filter(t => t.id !== tabId);
+            setLeftTabs(newLeft);
+            // Fix active ID if needed
+            if (leftActiveId === tabId) {
+                setLeftActiveId(newLeft.length > 0 ? newLeft[newLeft.length - 1].id : null);
+            }
+        } else {
+            tabToMove = rightTabs.find(t => t.id === tabId);
+            const newRight = rightTabs.filter(t => t.id !== tabId);
+            setRightTabs(newRight);
+            if (rightActiveId === tabId) {
+                setRightActiveId(newRight.length > 0 ? newRight[newRight.length - 1].id : null);
+            }
+        }
+
+        if (tabToMove) {
+            if (toPane === 'left') {
+                setLeftTabs(prev => [...prev, tabToMove]);
+                setLeftActiveId(tabId); // Auto-focus moved tab
+            } else {
+                setRightTabs(prev => [...prev, tabToMove]);
+                setRightActiveId(tabId);
+            }
+        }
+    };
+
+    // Tab Reordering (Intra-pane)
+    const handleReorder = (dragTabId, targetTabId, paneId) => {
+        const sourceId = dragTabId || draggedTab?.tabId;
+        if (!sourceId || sourceId === targetTabId) return;
+
+        const setTabs = paneId === 'left' ? setLeftTabs : setRightTabs;
+
+        setTabs(prev => {
+            const tabs = [...prev];
+            const dragIdx = tabs.findIndex(t => t.id === sourceId);
+            const targetIdx = tabs.findIndex(t => t.id === targetTabId);
+
+            if (dragIdx === -1 || targetIdx === -1) return prev;
+
+            const [removed] = tabs.splice(dragIdx, 1);
+            tabs.splice(targetIdx, 0, removed);
+            return tabs;
+        });
+    };
+
+    /* const toggleSplit = ... REMOVED (Toolbar removed) */
+
     return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-            <div className="toolbar" style={{ borderBottom: '1px solid #333', background: '#141517', padding: '5px 10px', display: 'flex', justifyContent: 'space-between' }}>
-                <div className="toolbar-left">
-                    <span style={{ fontSize: '11px', color: '#666', marginRight: '10px' }}>
-                        {getActiveTab() ? getActiveTab().name : 'No File'}
-                    </span>
-                </div>
-                <div>
-                    <button onClick={toggleSplit} title={splitEnabled ? "Merge Split" : "Split Editor"} style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
-                        {splitEnabled ? <><LuMaximize2 size={14} /> Merge</> : <><LuColumns2 size={14} /> Split</>}
-                    </button>
-                </div>
-            </div>
+        <div
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}
+            onDragOver={handleGlobalDragOver}
+            onDrop={handleGlobalDrop}
+            onDragEnd={handleDragEnd}
+        >
+            {/* Visual Overlays for Drop Zones */}
+            {dragOverZone === 'left-edge' && (
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '50%', height: '100%', background: 'rgba(0, 255, 255, 0.1)', borderRight: '2px solid #00ffff', zIndex: 9999, pointerEvents: 'none' }} />
+            )}
+            {dragOverZone === 'right-edge' && (
+                <div style={{ position: 'absolute', top: 0, right: 0, width: '50%', height: '100%', background: 'rgba(0, 255, 255, 0.1)', borderLeft: '2px solid #00ffff', zIndex: 9999, pointerEvents: 'none' }} />
+            )}
 
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                 <EditorPane
@@ -322,7 +445,12 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                     onTabClose={handleTabClose}
                     onContentChange={handleContentChange}
                     onRunQuery={executeQuery}
+                    onSave={handleSaveActive}
+                    onAnalyze={handleAnalyzeActive}
                     onDbChange={onDbChange}
+                    // DnD Props
+                    onDragStart={handleDragStart}
+                    onReorder={handleReorder}
                 />
 
                 {splitEnabled && (
@@ -334,7 +462,12 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                         onTabClose={handleTabClose}
                         onContentChange={handleContentChange}
                         onRunQuery={executeQuery}
+                        onSave={handleSaveActive}
+                        onAnalyze={handleAnalyzeActive}
                         onDbChange={onDbChange}
+                        // DnD Props
+                        onDragStart={handleDragStart}
+                        onReorder={handleReorder}
                     />
                 )}
             </div>

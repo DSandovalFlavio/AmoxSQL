@@ -14,7 +14,10 @@ const EditorPane = ({
     onContentChange, // (tabId, newContent)
     onRunQuery,      // (tabId, queryToRun) -> returns Promise<Result>
     onSave,           // Trigger save needed? Actually App handles save button. This is just for internal updates.
-    onDbChange
+    onAnalyze,
+    onDbChange,
+    onDragStart,
+    onReorder
 }) => {
     const [resultsHeight, setResultsHeight] = useState(300);
     const isResizing = useRef(false);
@@ -135,7 +138,15 @@ const EditorPane = ({
 
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#1e1e1e', borderLeft: '1px solid #333', overflow: 'hidden' }}>
-            <TabBar tabs={tabs} activeTabId={activeTabId} onTabClick={onTabClick} onTabClose={onTabClose} />
+            <TabBar
+                tabs={tabs}
+                activeTabId={activeTabId}
+                onTabClick={onTabClick}
+                onTabClose={onTabClose}
+                paneId={paneId}
+                onDragStart={onDragStart}
+                onReorder={onReorder}
+            />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
 
@@ -154,6 +165,9 @@ const EditorPane = ({
                                 value={activeTab.content}
                                 onChange={(val) => onContentChange(activeTab.id, val)}
                                 onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
+                                onRunQuery={(overrideQuery) => onRunQuery(activeTab.id, overrideQuery || activeTab.content)}
+                                onSave={() => onSave && onSave()}
+                                onAnalyze={() => onAnalyze && onAnalyze()}
                             />
                         </div>
 
