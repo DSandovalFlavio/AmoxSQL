@@ -1,13 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import TablePreviewModal from './TablePreviewModal'; // Legacy Preview? Can enable this one or use new one
+import TablePreviewModal from './TablePreviewModal';
 import TableDetailsModal from './TableDetailsModal';
+import QueryHistoryModal from './QueryHistoryModal';
 
-const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded }) => {
+const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery }) => {
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedTable, setSelectedTable] = useState(null);
     const [previewTable, setPreviewTable] = useState(null); // Simple preview
     const [detailsTable, setDetailsTable] = useState(null); // Full Details Modal
+
+    // History Modal State
+    const [showHistory, setShowHistory] = useState(false);
+    const [showHeaderMenu, setShowHeaderMenu] = useState(false);
 
     // Resizing State
     const [tableListHeight, setTableListHeight] = useState(200);
@@ -18,7 +23,10 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded }) => {
     const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName }
 
     useEffect(() => {
-        const handleClickOutside = () => setContextMenu(null);
+        const handleClickOutside = () => {
+            setContextMenu(null);
+            setShowHeaderMenu(false);
+        };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
     }, []);
@@ -132,11 +140,50 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', borderTop: '1px solid #2C2E33' }}>
             {/* Header */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px' }}>
+            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', position: 'relative' }}>
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: '#00ffff' }}>Database Schema</span>
-                <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', fontSize: '14px' }}>
-                    ↻
-                </button>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                    <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', fontSize: '14px' }}>
+                        ↻
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); }}
+                        title="Options"
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', fontSize: '14px', fontWeight: 'bold' }}
+                    >
+                        ⋮
+                    </button>
+
+                    {/* Header Menu */}
+                    {showHeaderMenu && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '30px',
+                            right: '10px',
+                            background: '#25262B',
+                            border: '1px solid #333',
+                            borderRadius: '4px',
+                            zIndex: 9999,
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            padding: '4px 0',
+                            minWidth: '120px'
+                        }}>
+                            <div
+                                style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: '#d4d4d4', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                onMouseOver={(e) => e.currentTarget.style.background = '#37373d'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                onClick={() => {
+                                    setShowHistory(true);
+                                    setShowHeaderMenu(false);
+                                }}
+                            >
+                                <span>📜</span> Query History
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Content Container - Split View */}
@@ -183,7 +230,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded }) => {
                             <span
                                 onClick={(e) => { handleCopy(e, table.name); }}
                                 title="Copy Table Name"
-                                style={{ fontSize: '10px', color: '#666', opacity: 0.6 }}
+                                style={{ fontSize: '10px', color: '#666', opacity: 0.6, marginLeft: 'auto' }}
                             >
                                 📋
                             </span>
@@ -333,6 +380,13 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded }) => {
                 isOpen={!!detailsTable}
                 tableName={detailsTable}
                 onClose={() => setDetailsTable(null)}
+            />
+
+            {/* Query History Modal */}
+            <QueryHistoryModal
+                isOpen={showHistory}
+                onClose={() => setShowHistory(false)}
+                onSelect={onSelectQuery} // Pass select handler if parent supports it
             />
 
             {/* Custom Context Menu */}

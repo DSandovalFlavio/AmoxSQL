@@ -334,6 +334,7 @@ function App() {
                 currentDb={currentDb}
                 onRefresh={refreshDbTrigger}
                 onTablesLoaded={setAvailableTables}
+                onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
               />
             </div>
           </div>

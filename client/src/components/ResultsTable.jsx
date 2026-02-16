@@ -162,6 +162,22 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
     const formatValue = (val) => {
         try {
             if (val === null || val === undefined) return <span style={{ color: '#555', fontStyle: 'italic' }}>NULL</span>;
+
+            if (typeof val === 'number') {
+                if (Number.isInteger(val)) {
+                    return val.toLocaleString();
+                }
+                // Floats: Limit decimals but show full value on hover
+                // Using 'en-US' or undefined to get dot/comma based on locale, but typically dot for decimals in dev tools is preferred. 
+                // Let's use undefined to respect browser locale or force standard if needed. 
+                const formatted = val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+                return (
+                    <span title={String(val)} style={{ cursor: 'help', borderBottom: '1px dotted #555' }}>
+                        {formatted}
+                    </span>
+                );
+            }
+
             if (typeof val === 'string') {
                 if (/^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z?$/.test(val)) {
                     return val.split('T')[0];

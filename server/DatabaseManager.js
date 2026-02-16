@@ -116,6 +116,11 @@ class DatabaseManager {
 
             console.log("[DB Manager] Attach successful.");
 
+            // --- QUERY HISTORY INITIALIZATION (RW ONLY) ---
+            if (!options.readOnly) {
+                await this._initHistory();
+            }
+
             // Log tables for debug
             // const tables = await this.query("SHOW TABLES");
             // console.log("Tables:", tables);
@@ -124,6 +129,71 @@ class DatabaseManager {
             console.error("[DB Manager] Attach failed:", e);
             await this.reinitializeSystem();
             throw e;
+        }
+    }
+
+    async _initHistory() {
+        try {
+            // Create hidden history table
+            await this.query(`CREATE TABLE IF NOT EXISTS amox_query_history (query TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+
+            // Prune old records (> 30 days)
+            await this.query(`DELETE FROM amox_query_history WHERE executed_at < CURRENT_DATE - INTERVAL '30 days'`);
+            console.log("[DB Manager] Query History initialized and pruned.");
+        } catch (e) {
+            console.warn("[DB Manager] Failed to init history table:", e.message);
+        }
+    }
+
+    async _logQuery(sql) {
+        if (!this.attachedPath) return; // Don't log memory-only session queries necessarily or if no DB attached
+
+        // Filter out system queries and self-logging
+        const trimmed = sql.trim().toUpperCase();
+        if (trimmed.startsWith('SELECT * FROM "AMOX_QUERY_HISTORY"')) return; // Viewer
+        if (trimmed.startsWith('INSERT INTO AMOX_QUERY_HISTORY')) return; // Self
+        if (trimmed.startsWith('PRAGMA')) return;
+        if (trimmed.startsWith('EXPLAIN')) return;
+
+        // Exclude system schema queries
+        if (trimmed.includes('FROM INFORMATION_SCHEMA')) return;
+        if (trimmed.includes('FROM "INFORMATION_SCHEMA"')) return;
+
+        // We only want to log user queries, but distinguishing them 100% fits "everything else"
+        // We run this "fire and forget" so it doesn't block the main query return
+
+        // Escape single quotes for SQL string
+        const escapedSql = sql.replace(/'/g, "''");
+
+        // Use a separate async call, don't await it in the main flow if possible, 
+        // OR await it but catch errors so main query doesn't fail.
+        this.query(`INSERT INTO amox_query_history (query) VALUES ('${escapedSql}')`).catch(e => {
+            // console.warn("Failed to log query:", e.message); 
+            // Silent fail is better for loggers
+        });
+    }
+
+    async query(sql) {
+        if (!this.connection) await this._initSystem();
+
+        // Log it (fire & forget logic inside)
+        // Only log if we have an attached DB (implicit check in _logQuery)
+        // And ensure we don't cause infinite text loop
+        if (!sql.includes('amox_query_history')) {
+            this._logQuery(sql);
+        }
+
+        try {
+            // Neo API: run() returns a Reader, which is async iterable or has methods
+            const reader = await this.connection.run(sql);
+
+            // Neo API: run() returns a Reader. We want Objects for the API.
+            // getRowObjectsJson() handles BigInts safely (as strings) and maps headers.
+            const rows = await reader.getRowObjectsJson();
+            return rows;
+
+        } catch (err) {
+            throw new Error(err.message);
         }
     }
 

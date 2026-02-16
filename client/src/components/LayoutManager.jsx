@@ -85,7 +85,13 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
 
             if (response.ok) {
                 updateTab(pane, tabId, { results: data, resultsError: null });
-                if (onDbChange) onDbChange();
+
+                // Only refresh DB schema if query might have changed it
+                const upperQuery = query.trim().toUpperCase();
+                if (upperQuery.match(/^(CREATE|DROP|ALTER|UPDATE|INSERT|DELETE|ATTACH|DETACH|COPY)/) || upperQuery.includes('INTO')) {
+                    if (onDbChange) onDbChange();
+                }
+
                 return { data: data.data, executionTime: data.executionTime };
             } else {
                 updateTab(pane, tabId, { results: null, resultsError: data.error });
@@ -221,15 +227,15 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                 }
             }
         },
-        createNew: (type) => {
+        createNew: (type, initialContent) => {
             const newTab = {
                 id: Date.now().toString(),
                 path: '',
                 name: type === 'sqlnb' ? 'Untitled.sqlnb' : 'Untitled.sql',
                 type: type,
-                content: type === 'sqlnb'
+                content: initialContent || (type === 'sqlnb'
                     ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
-                    : 'SELECT 1;',
+                    : 'SELECT 1;'),
                 results: null,
                 dirty: true
             };

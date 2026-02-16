@@ -133,6 +133,9 @@ app.get('/api/db/tables', async (req, res) => {
         const result = [];
         for (const t of tables) {
             const tableName = t.table_name;
+            // Hide internal history table and memory-specific tables if any
+            if (tableName === 'amox_query_history') continue;
+
             const columns = await dbManager.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${tableName}'`);
             result.push({ name: tableName, columns: columns });
         }
@@ -140,6 +143,22 @@ app.get('/api/db/tables', async (req, res) => {
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch tables', details: err.message });
+    }
+});
+
+app.get('/api/db/history', async (req, res) => {
+    try {
+        // Check if history table exists first to avoid error
+        const check = await dbManager.query("SELECT count(*) as cnt FROM information_schema.tables WHERE table_name = 'amox_query_history'");
+        if (check[0].cnt == 0) {
+            return res.json([]);
+        }
+
+        const history = await dbManager.query("SELECT * FROM amox_query_history ORDER BY executed_at DESC LIMIT 1000");
+        res.json(history);
+    } catch (err) {
+        console.error("Failed to fetch history:", err);
+        res.status(500).json({ error: 'Failed to fetch history', details: err.message });
     }
 });
 
