@@ -18,6 +18,8 @@ import DatabaseSelectionModal from './components/DatabaseSelectionModal';
 import AiSidebar from './components/AiSidebar';
 
 
+import { LuBot, LuX } from "react-icons/lu";
+
 import './index.css';
 
 // App Phases
@@ -357,10 +359,10 @@ function App() {
                 <div style={{ width: '1px', height: '20px', backgroundColor: '#333', margin: '0 5px' }}></div>
                 <button
                   onClick={() => setShowAiSidebar(!showAiSidebar)}
-                  style={{ backgroundColor: showAiSidebar ? '#1A1B1E' : 'transparent', color: '#00ffff', border: '1px solid #00ffff' }}
                   title="Toggle AI Assistant"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: showAiSidebar ? '#1A1B1E' : 'transparent', color: '#00ffff', border: '1px solid #00ffff' }}
                 >
-                  {showAiSidebar ? 'Close AI' : '🤖 AI Assistant'}
+                  {showAiSidebar ? <><LuX /> Close AI</> : <><LuBot /> AI Assistant</>}
                 </button>
               </div>
               <div style={{ fontSize: '12px', color: '#666', fontWeight: '600' }}>AmoxSQL v1.0</div>

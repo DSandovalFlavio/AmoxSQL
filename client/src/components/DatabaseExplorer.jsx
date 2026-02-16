@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import TablePreviewModal from './TablePreviewModal';
 import TableDetailsModal from './TableDetailsModal';
 import QueryHistoryModal from './QueryHistoryModal';
+import {
+    LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
+    LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
+    LuClipboard, LuInfo, LuSearch
+} from "react-icons/lu";
 
 const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery }) => {
     const [tables, setTables] = useState([]);
@@ -90,12 +95,12 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
     // 123 (Int), # (Float), T (Text), 📅 (Date), ☑ (Bool)
     const getTypeMeta = (type) => {
         const t = type.toUpperCase();
-        if (t.includes('INT')) return { icon: '123', color: '#9cdcfe', label: 'Integer' };
-        if (t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('DECIMAL')) return { icon: '#', color: '#b5cea8', label: 'Number' };
-        if (t.includes('CHAR') || t.includes('TEXT') || t.includes('STRING')) return { icon: 'T', color: '#ce9178', label: 'Text' };
-        if (t.includes('DATE') || t.includes('TIME')) return { icon: '📅', color: '#569cd6', label: 'Date/Time' };
-        if (t.includes('BOOL')) return { icon: '☑', color: '#c586c0', label: 'Boolean' };
-        return { icon: '{}', color: '#dcdcaa', label: type };
+        if (t.includes('INT')) return { icon: <LuHash size={12} />, color: '#9cdcfe', label: 'Integer' };
+        if (t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('DECIMAL')) return { icon: <LuHash size={12} />, color: '#b5cea8', label: 'Number' };
+        if (t.includes('CHAR') || t.includes('TEXT') || t.includes('STRING')) return { icon: <LuType size={12} />, color: '#ce9178', label: 'Text' };
+        if (t.includes('DATE') || t.includes('TIME')) return { icon: <LuCalendar size={12} />, color: '#569cd6', label: 'Date/Time' };
+        if (t.includes('BOOL')) return { icon: <LuSquareCheck size={12} />, color: '#c586c0', label: 'Boolean' };
+        return { icon: <LuCode size={12} />, color: '#dcdcaa', label: type };
     };
 
     const handleCopy = (e, text) => {
@@ -143,15 +148,15 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', position: 'relative' }}>
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: '#00ffff' }}>Database Schema</span>
                 <div style={{ display: 'flex', gap: '5px' }}>
-                    <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', fontSize: '14px' }}>
-                        ↻
+                    <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', display: 'flex', alignItems: 'center' }}>
+                        <LuRefreshCw size={14} />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); }}
                         title="Options"
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', fontSize: '14px', fontWeight: 'bold' }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', display: 'flex', alignItems: 'center' }}
                     >
-                        ⋮
+                        <LuEllipsisVertical size={14} />
                     </button>
 
                     {/* Header Menu */}
@@ -179,7 +184,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                     setShowHeaderMenu(false);
                                 }}
                             >
-                                <span>📜</span> Query History
+                                <LuHistory size={14} /> <span>Query History</span>
                             </div>
                         </div>
                     )}
@@ -223,16 +228,16 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                 });
                             }}
                         >
-                            <span>🗃️</span>
+                            <LuTable size={14} color="#00ffff" />
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{table.name}</span>
 
                             {/* Copy Button (on hover or always visible to start) */}
                             <span
                                 onClick={(e) => { handleCopy(e, table.name); }}
                                 title="Copy Table Name"
-                                style={{ fontSize: '10px', color: '#666', opacity: 0.6, marginLeft: 'auto' }}
+                                style={{ fontSize: '10px', color: '#666', opacity: 0.6, marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
                             >
-                                📋
+                                <LuClipboard size={12} />
                             </span>
                         </div>
                     ))}
@@ -298,7 +303,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                     onMouseOver={(e) => e.target.style.backgroundColor = '#37373d'}
                                     onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
                                 >
-                                    <span style={{ fontSize: '14px' }}>🔎</span>
+                                    <LuSearch size={14} />
                                 </button>
                             </div>
 
@@ -323,7 +328,10 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                                     textAlign: 'center',
                                                     color: meta.color,
                                                     fontWeight: 'bold',
-                                                    fontSize: '10px'
+                                                    fontSize: '10px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
                                                 }}>
                                                     {meta.icon}
                                                 </div>
@@ -346,9 +354,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                                     onClick={(e) => handleCopy(e, col.column_name)}
                                                     title="Copy Column Name"
                                                     className="copy-icon"
-                                                    style={{ cursor: 'pointer', opacity: 0.5, fontSize: '12px' }}
+                                                    style={{ cursor: 'pointer', opacity: 0.5, fontSize: '12px', display: 'flex', alignItems: 'center' }}
                                                 >
-                                                    📋
+                                                    <LuClipboard size={12} />
                                                 </span>
                                             </div>
                                         </div>
@@ -413,7 +421,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                             setContextMenu(null);
                         }}
                     >
-                        <span>📋</span> Copy Name
+                        <LuClipboard size={14} /> Copy Name
                     </div>
                     <div
                         style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -424,7 +432,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                             setContextMenu(null);
                         }}
                     >
-                        <span>ℹ️</span> View Details
+                        <LuInfo size={14} /> View Details
                     </div>
                 </div>
             )}

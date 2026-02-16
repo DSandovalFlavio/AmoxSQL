@@ -1,4 +1,5 @@
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
+import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
 
@@ -306,8 +307,8 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                     </span>
                 </div>
                 <div>
-                    <button onClick={toggleSplit} title="Split Editor" style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer' }}>
-                        {splitEnabled ? '🔲 Merge' : '📖 Split'}
+                    <button onClick={toggleSplit} title={splitEnabled ? "Merge Split" : "Split Editor"} style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
+                        {splitEnabled ? <><LuMaximize2 size={14} /> Merge</> : <><LuColumns2 size={14} /> Split</>}
                     </button>
                 </div>
             </div>
