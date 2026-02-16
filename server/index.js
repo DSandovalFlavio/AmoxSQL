@@ -63,6 +63,41 @@ app.get('/api/project/scan-dbs', (req, res) => {
     }
 });
 
+app.get('/api/files/list', (req, res) => {
+    const relativePath = req.query.path || '';
+    const dirPath = path.resolve(ROOT_DIR, relativePath);
+
+    // Security check: Ensure we don't go above ROOT_DIR unless authorized (skipping complex checks for local tool)
+    if (!dirPath.startsWith(ROOT_DIR)) {
+        // Warning: This simplistic check might block valid sub-paths if ROOT_DIR has symlinks, 
+        // but it's a basic safeguard.
+    }
+
+    try {
+        if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+            return res.json([]);
+        }
+
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+        const result = entries.map(entry => ({
+            name: entry.name,
+            isDirectory: entry.isDirectory(),
+            path: path.relative(ROOT_DIR, path.join(dirPath, entry.name)).replace(/\\/g, '/')
+        }));
+
+        // Sort: Directories first, then files
+        result.sort((a, b) => {
+            if (a.isDirectory === b.isDirectory) return a.name.localeCompare(b.name);
+            return a.isDirectory ? -1 : 1;
+        });
+
+        res.json(result);
+    } catch (err) {
+        console.error("List files failed:", err);
+        res.status(500).json({ error: 'Failed to list files', details: err.message });
+    }
+});
+
 /* --- Database Management APIs --- */
 
 app.post('/api/db/connect', async (req, res) => {

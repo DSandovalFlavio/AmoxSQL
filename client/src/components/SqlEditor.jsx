@@ -22,7 +22,6 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     };
 
     // Use a ref to ensure the event listener always has access to the latest prop
-    // without needing to remove/re-add the listener on every render.
     const onDebugCteRef = React.useRef(props.onDebugCte);
 
     React.useEffect(() => {
@@ -95,29 +94,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             try {
                 if (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
                     if (!e.target.position) return;
-
                     const line = e.target.position.lineNumber;
                     const model = editor.getModel();
                     if (!model) return;
-
-                    // Get decorations on this line
                     const decorations = model.getLinesDecorations(line, line);
                     const target = decorations.find(d => d.options.glyphMarginClassName === 'cte-debug-glyph');
-
                     if (target) {
-                        // Try to extract name from line content
                         const lineContent = model.getLineContent(line);
-                        // Added 'i' flag for case insensitivity (AS vs as)
                         const m = /\b(\w+)\s+AS\s*\(/i.exec(lineContent);
-
-                        const callback = onDebugCteRef.current; // Use the REF
-
+                        const callback = onDebugCteRef.current;
                         if (m && m[1]) {
-                            if (callback) {
-                                callback(m[1]);
-                            }
+                            if (callback) callback(m[1]);
                         } else {
-                            // Fallback: Try to get name from hover message if regex fails
                             const hoverVal = target.options?.glyphMarginHoverMessage?.value;
                             if (hoverVal) {
                                 const nameMatch = /\*\*(\w+)\*\*/.exec(hoverVal);
@@ -133,33 +121,179 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }
         });
 
-        // Autocomplete Schema Fetch
-        fetch('http://localhost:3001/api/schema')
+        // --- ENHANCED AUTOCOMPLETE ---
+
+        let schemaCache = { tables: {}, columns: {} };
+
+        // Fetch Full Schema (Tables + Columns)
+        fetch('http://localhost:3001/api/db/tables')
             .then(res => res.json())
-            .then(rows => {
-                if (Array.isArray(rows)) {
-                    const tables = rows.map(r => r.name);
-                    monaco.languages.registerCompletionItemProvider('sql', {
-                        provideCompletionItems: (model, position) => {
-                            const word = model.getWordUntilPosition(position);
-                            const range = {
-                                startLineNumber: position.lineNumber,
-                                endLineNumber: position.lineNumber,
-                                startColumn: word.startColumn,
-                                endColumn: word.endColumn,
-                            };
-                            const suggestions = tables.map(table => ({
-                                label: table,
-                                kind: monaco.languages.CompletionItemKind.Class,
-                                insertText: table,
-                                range: range
-                            }));
-                            return { suggestions: suggestions };
-                        }
+            .then(data => {
+                if (Array.isArray(data)) {
+                    // Structure: [{ name: 'table1', columns: [{column_name: 'col1', data_type: 'INTEGER'}, ...] }, ...]
+                    const tables = {};
+                    const allColumns = new Set();
+
+                    data.forEach(t => {
+                        tables[t.name] = t.columns.map(c => ({
+                            name: c.column_name,
+                            type: c.data_type
+                        }));
+                        t.columns.forEach(c => allColumns.add(c.column_name));
                     });
+
+                    schemaCache = {
+                        tables: tables,
+                        allColumns: Array.from(allColumns)
+                    };
                 }
             })
-            .catch(err => console.warn("Autocomplete fetch failed", err));
+            .catch(err => console.warn("Schema fetch failed", err));
+
+
+        // Register Completion Provider
+        monaco.languages.registerCompletionItemProvider('sql', {
+            triggerCharacters: ['.', '/', "'", '"'],
+            provideCompletionItems: async (model, position) => {
+                const textUntilPosition = model.getValueInRange({
+                    startLineNumber: position.lineNumber,
+                    startColumn: 1,
+                    endLineNumber: position.lineNumber,
+                    endColumn: position.column
+                });
+
+                const word = model.getWordUntilPosition(position);
+                const range = {
+                    startLineNumber: position.lineNumber,
+                    endLineNumber: position.lineNumber,
+                    startColumn: word.startColumn,
+                    endColumn: word.endColumn,
+                };
+
+                // 1. FILE PATH AUTOCOMPLETE (Context: Inside quotes)
+                // Regex to check if we are inside a string literal (single or double quotes)
+                // Simple check: count quotes to left. If odd, we are open.
+                const singleQuotes = (textUntilPosition.match(/'/g) || []).length;
+                const doubleQuotes = (textUntilPosition.match(/"/g) || []).length;
+
+                // Heuristic: If odd single/double quotes, we are likely in a string.
+                // We also check if the last char is / to trigger path suggestion
+                const isInsideSingleString = singleQuotes % 2 === 1;
+                // const isInsideDoubleString = doubleQuotes % 2 === 1; // SQL identifiers use double quotes, usually not file paths
+
+                if (isInsideSingleString) {
+                    // Extract the string content being typed
+                    const match = textUntilPosition.match(/'([^']*)$/);
+                    const currentString = match ? match[1] : '';
+
+                    // Determine Directory to fetch
+                    // If ending with /, fetch that dir.
+                    // If not, fetch the parent dir.
+                    let dirToFetch = '';
+                    if (currentString.endsWith('/')) {
+                        dirToFetch = currentString;
+                    } else {
+                        const parts = currentString.split('/');
+                        parts.pop(); // Remove partial filename
+                        dirToFetch = parts.join('/');
+                    }
+
+                    // Call backend to list files
+                    try {
+                        const response = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dirToFetch)}`);
+                        const files = await response.json();
+
+                        // Map to suggestions
+                        // Note: ranges are handled by Monaco automatically if we don't specify, usually defaulting to 'wordUntilPosition'.
+                        // However, since we might be completing a complex path, checking the range is good.
+                        // Here we just let Monaco handle the filtering of the returned list against the "word" at cursor.
+
+                        const suggestions = files.map(f => ({
+                            label: f.name,
+                            kind: f.isDirectory ? monaco.languages.CompletionItemKind.Folder : monaco.languages.CompletionItemKind.File,
+                            insertText: f.name,
+                            detail: f.isDirectory ? 'Folder' : 'File',
+                            // Force sort order: folders then files
+                            sortText: (f.isDirectory ? '0_' : '1_') + f.name
+                        }));
+
+                        return { suggestions: suggestions };
+                    } catch (e) {
+                        return { suggestions: [] };
+                    }
+                }
+
+                // 2. SQL AUTOCOMPLETE (Tables & Columns)
+                const suggestions = [];
+
+                // Check for "Table." context
+                // Get the text before the current word
+                // Handle both simple (users.) and quoted ("My Table".) identifiers
+                const textBeforeCursor = textUntilPosition.substring(0, textUntilPosition.length - word.word.length);
+                const tableMatch = textBeforeCursor.match(/(?:(\w+)|"([^"]+)")\.\s*$/);
+
+                if (tableMatch) {
+                    // Group 1 is simple, Group 2 is quoted
+                    const tableName = tableMatch[1] || tableMatch[2];
+                    const columns = schemaCache.tables[tableName];
+
+                    if (columns) {
+                        // Return ONLY columns for this table
+                        columns.forEach(col => {
+                            suggestions.push({
+                                label: col.name, // Access .name property from our improved schema structure
+                                kind: monaco.languages.CompletionItemKind.Field,
+                                insertText: col.name,
+                                detail: col.type || 'Column',
+                                range: range
+                            });
+                        });
+                        return { suggestions: suggestions };
+                    }
+                }
+
+                // Default Context (Global)
+
+                // Tables
+                Object.keys(schemaCache.tables).forEach(tableName => {
+                    suggestions.push({
+                        label: tableName,
+                        kind: monaco.languages.CompletionItemKind.Class,
+                        insertText: tableName,
+                        detail: 'Table',
+                        range: range
+                    });
+                });
+
+                // Columns (Global, but lower priority)
+                if (schemaCache.allColumns) {
+                    schemaCache.allColumns.forEach(col => {
+                        suggestions.push({
+                            label: col,
+                            kind: monaco.languages.CompletionItemKind.Field,
+                            insertText: col,
+                            detail: 'Column',
+                            range: range,
+                            sortText: 'z_' + col // Show columns after tables
+                        });
+                    });
+                }
+
+                // Keywords (Basic)
+                const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'WITH', 'AS', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'HAVING', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'UNION', 'ALL', 'EXCEPT', 'INTERSECT', 'read_csv', 'read_parquet', 'read_json', 'read_xlsx'];
+                keywords.forEach(kw => {
+                    suggestions.push({
+                        label: kw,
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: kw,
+                        range: range,
+                        sortText: 'y_' + kw
+                    });
+                });
+
+                return { suggestions: suggestions };
+            }
+        });
     };
 
     return (
@@ -177,9 +311,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 padding: { top: 16 },
                 scrollBeyondLastLine: false,
                 fontFamily: "'JetBrains Mono', 'Consolas', monospace",
-                glyphMargin: true, // IMPORTANT: Enable glyph margin
+                glyphMargin: true,
                 lineDecorationsWidth: 10,
-                lineNumbersMinChars: 3
+                lineNumbersMinChars: 3,
+                suggest: {
+                    showKeywords: false, // We provide our own
+                }
             }}
             onMount={handleEditorDidMount}
         />
