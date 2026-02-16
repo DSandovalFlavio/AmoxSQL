@@ -14,6 +14,7 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
 
     const handleDrop = (e, targetTabId) => {
         e.preventDefault();
+        e.stopPropagation(); // Prevent LayoutManager.handleGlobalDrop
         // Identify source from some shared state or dataTransfer if we used it.
         // But here we need to know the DRAGGED tab ID.
         // Since we are using a parent-level state `draggedTab` in LayoutManager, 

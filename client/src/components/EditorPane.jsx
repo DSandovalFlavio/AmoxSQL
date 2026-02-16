@@ -17,7 +17,8 @@ const EditorPane = ({
     onAnalyze,
     onDbChange,
     onDragStart,
-    onReorder
+    onReorder,
+    isActive
 }) => {
     const [resultsHeight, setResultsHeight] = useState(300);
     const isResizing = useRef(false);
@@ -137,7 +138,17 @@ const EditorPane = ({
     const isNotebook = activeTab.name.endsWith('.sqlnb');
 
     return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#1e1e1e', borderLeft: '1px solid #333', overflow: 'hidden' }}>
+        <div
+            style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                backgroundColor: '#1e1e1e',
+                borderLeft: '1px solid #333',
+                overflow: 'hidden'
+            }}
+            onClickCapture={() => onTabClick && activeTabId && onTabClick(activeTabId)}
+        >
             <TabBar
                 tabs={tabs}
                 activeTabId={activeTabId}
@@ -152,15 +163,22 @@ const EditorPane = ({
 
                 {/* Content Area */}
                 {isNotebook ? (
-                    <SqlNotebook
-                        key={activeTab.id}
-                        content={activeTab.content}
-                        onChange={(val) => onContentChange(activeTab.id, val)}
-                        onRunQuery={(q) => onRunQuery(activeTab.id, q)}
-                    />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', outline: isActive ? '1px solid #007fd4' : 'none', zIndex: isActive ? 1 : 0 }}>
+                        <SqlNotebook
+                            key={activeTab.id}
+                            content={activeTab.content}
+                            onChange={(val) => onContentChange(activeTab.id, val)}
+                            onRunQuery={(q) => onRunQuery(activeTab.id, q)}
+                        />
+                    </div>
                 ) : (
                     <>
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{
+                            flex: 1,
+                            overflow: 'hidden',
+                            outline: isActive ? '1px solid #007fd4' : 'none',
+                            zIndex: isActive ? 10 : 0
+                        }}>
                             <SqlEditor
                                 value={activeTab.content}
                                 onChange={(val) => onContentChange(activeTab.id, val)}

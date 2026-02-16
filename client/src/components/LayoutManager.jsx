@@ -300,6 +300,14 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
         setDragOverZone(null);
     };
 
+    // Auto-merge split if right pane becomes empty
+    useEffect(() => {
+        if (splitEnabled && rightTabs.length === 0) {
+            setSplitEnabled(false);
+            setActivePane('left');
+        }
+    }, [rightTabs, splitEnabled]);
+
     const handleGlobalDragOver = (e) => {
         e.preventDefault();
         if (!draggedTab) return;
@@ -308,6 +316,7 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
         const x = e.clientX;
         const edgeThreshold = 100; // px
 
+        // ... (rest of logic is fine)
         // Global Edge Detection (Priority)
         if (x > width - edgeThreshold) {
             setDragOverZone('right-edge');
@@ -318,18 +327,19 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
             return;
         }
 
-        // If not on edge, check which pane we are over (if split)
-        // Simple heuristic: which side of screen center?
         if (splitEnabled) {
             if (x < width / 2) setDragOverZone('left-pane');
             else setDragOverZone('right-pane');
         } else {
-            setDragOverZone('center'); // Just reordering in current pane effectively
+            setDragOverZone('center');
         }
     };
 
     const handleGlobalDrop = (e) => {
         e.preventDefault();
+        // If the event was already handled (e.g., by TabBar reorder), draggedTab might be null if we cleared it?
+        // Actually, we use stopPropagation in TabBar, so this shouldn't fire.
+
         if (!draggedTab || !dragOverZone) {
             handleDragEnd();
             return;
@@ -338,20 +348,15 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
         const { tabId, sourcePane } = draggedTab;
         const targetZone = dragOverZone;
 
+        // ... logic ...
         // Logic based on Zone
         if (targetZone === 'right-edge') {
-            // 1. Enable Split (if not already)
-            // 2. Move tab to Right Pane
             moveTabToPane(tabId, sourcePane, 'right');
             setSplitEnabled(true);
             setActivePane('right');
             setRightActiveId(tabId);
         } else if (targetZone === 'left-edge') {
-            // Move to Left Pane
             moveTabToPane(tabId, sourcePane, 'left');
-            // If we were split, we stay split unless we want to auto-merge?
-            // User didn't ask for auto-merge, but standard behavior is usually keep split.
-            // If moving to left edge, usually implies "Dock Left".
             setActivePane('left');
             setLeftActiveId(tabId);
         } else if (targetZone === 'right-pane' && sourcePane === 'left') {
@@ -439,6 +444,7 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                 <EditorPane
                     paneId="left"
+                    isActive={activePane === 'left'}
                     tabs={leftTabs}
                     activeTabId={leftActiveId}
                     onTabClick={(id) => { setLeftActiveId(id); setActivePane('left'); }}
@@ -456,6 +462,7 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                 {splitEnabled && (
                     <EditorPane
                         paneId="right"
+                        isActive={activePane === 'right'}
                         tabs={rightTabs}
                         activeTabId={rightActiveId}
                         onTabClick={(id) => { setRightActiveId(id); setActivePane('right'); }}

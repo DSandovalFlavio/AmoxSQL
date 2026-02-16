@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
+import { format } from 'sql-formatter';
 
 const SqlEditor = ({ value, onChange, ...props }) => {
     const handleEditorChange = (value, event) => {
@@ -44,16 +45,6 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     queryToRun = model.getValueInRange(selection);
                 }
 
-                // If prop expects (tabId, query), we are inside SqlEditor so we just pass data?
-                // EditorPane wrapper defines: () => onRunQuery(tabId, content)
-                // But we want to run SPECIFIC content (selection).
-                // The prop in EditorPane is: onRunQuery={() => onRunQuery(activeTab.id, activeTab.content)}
-                // This ignores selection. We need to update EditorPane to accept query override or handle it here.
-                // Actually, EditorPane's closure captures `activeTab.content`, which is state.
-                // If we want to run selection, we should pass the selection to the handler.
-
-                // Ideally props.onRunQuery should be a function that takes (optionalQuery).
-                // Let's assume we update EditorPane to: (q) => onRunQuery(activeTab.id, q || activeTab.content)
                 props.onRunQuery(queryToRun);
             }
         });
@@ -62,7 +53,6 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             if (props.onSave) {
                 props.onSave();
-                // Prevent browser save
             }
         });
 
@@ -70,6 +60,44 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE, () => {
             if (props.onAnalyze) {
                 props.onAnalyze();
+            }
+        });
+
+        // 4. Format Code (Ctrl+K)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
+            const model = editor.getModel();
+            let textToFormat = model.getValue();
+            let range = null;
+
+            const selection = editor.getSelection();
+            if (selection && !selection.isEmpty()) {
+                textToFormat = model.getValueInRange(selection);
+                range = selection;
+            }
+
+            try {
+                const formatted = format(textToFormat, {
+                    language: 'postgresql', // DuckDB is close to Postgres
+                    tabWidth: 4,
+                    keywordCase: 'upper',
+                    linesBetweenQueries: 2
+                });
+
+                if (range) {
+                    editor.executeEdits('format-sql', [{
+                        range: range,
+                        text: formatted,
+                        forceMoveMarkers: true
+                    }]);
+                } else {
+                    editor.executeEdits('format-sql', [{
+                        range: model.getFullModelRange(),
+                        text: formatted,
+                        forceMoveMarkers: true
+                    }]);
+                }
+            } catch (err) {
+                console.error("Formatting failed:", err);
             }
         });
 
