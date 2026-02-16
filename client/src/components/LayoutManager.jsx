@@ -113,7 +113,7 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
             if (onRequestSaveAs) {
                 onRequestSaveAs(tab.content);
             } else {
-                alert("Save As function not connected.");
+                console.warn("Save As function not connected.");
             }
             return;
         }
@@ -127,19 +127,19 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
 
             if (response.ok) {
                 updateTab(activePane, tab.id, { dirty: false });
-                alert("Saved!");
+                console.log("Saved!");
             } else {
-                alert("Save failed");
+                console.error("Save failed");
             }
         } catch (e) {
-            alert("Error saving: " + e.message);
+            console.error("Error saving: " + e.message);
         }
     };
 
     const handleAnalyzeActive = async () => {
         const tab = getActiveTab();
         if (!tab || tab.type !== 'sql') {
-            alert("Please select a SQL file to analyze.");
+            console.warn("Please select a SQL file to analyze.");
             return;
         }
 
@@ -178,7 +178,7 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                 } catch (e) {
                     console.error("Failed to parse JSON plan:", e);
                     const snippet = String(planString).substring(0, 100);
-                    alert(`Failed to parse execution plan.\nError: ${e.message}\nValue: ${snippet}...`);
+                    console.error(`Failed to parse execution plan.\nError: ${e.message}\nValue: ${snippet}...`);
                     return;
                 }
 
@@ -186,10 +186,10 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                 setPlanQuery(query);
                 setShowPlanModal(true);
             } else {
-                alert("Analysis failed: " + (data.error || "No data returned"));
+                console.error("Analysis failed: " + (data.error || "No data returned"));
             }
         } catch (err) {
-            alert("Analysis error: " + err.message);
+            console.error("Analysis error: " + err.message);
         }
     };
 

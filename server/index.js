@@ -52,7 +52,7 @@ app.get('/api/project/scan-dbs', (req, res) => {
     try {
         const files = fs.readdirSync(ROOT_DIR, { withFileTypes: true });
         const dbFiles = files
-            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db')))
+            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db') || file.name.endsWith('.wal')))
             .map(file => ({
                 name: file.name,
                 path: file.name // Relative path from root is enough for now
@@ -196,6 +196,88 @@ app.post('/api/db/import', async (req, res) => {
             errorMsg = "DuckDB could not find any files matching the pattern.";
         }
         res.status(500).json({ error: 'Import failed in DB engine', details: errorMsg });
+    }
+});
+
+/* --- Excel Import APIs --- */
+const xlsx = require('xlsx');
+
+app.get('/api/files/inspect-excel', (req, res) => {
+    const filePath = req.query.path;
+    if (!filePath) return res.status(400).json({ error: 'Path is required' });
+
+    let fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
+
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
+
+    try {
+        const workbook = xlsx.read(fs.readFileSync(fullPath), { type: 'buffer', bookSheets: true });
+        res.json({ sheets: workbook.SheetNames });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to read Excel file', details: err.message });
+    }
+});
+
+app.post('/api/db/import-excel', async (req, res) => {
+    const { filePath, mode, sheets, tableName, cleanColumns, tableMapping } = req.body;
+    // mode: 'MERGE' | 'INDIVIDUAL'
+
+    if (!filePath || !sheets || sheets.length === 0) {
+        return res.status(400).json({ error: 'File path and sheets are required' });
+    }
+
+    let fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
+    fullPath = fullPath.replace(/\\/g, '/'); // DuckDB prefers forward slashes
+
+    try {
+        // Ensure spatial extension is loaded for read_xlsx
+        // We try to install/load it. This might fail if no internet or restricted, 
+        // but it's required for the user's requested feature.
+        try {
+            await dbManager.query("INSTALL spatial; LOAD spatial;");
+        } catch (e) {
+            console.warn("Spatial extension load warning:", e.message);
+            // Proceed anyway, maybe it's already there or built-in
+        }
+
+        const summary = [];
+
+        if (mode === 'MERGE') {
+            if (!tableName) return res.status(400).json({ error: 'Table name required for MERGE mode' });
+
+            // Construct UNION ALL query
+            // We need to know columns to be safe, but read_xlsx w/ union_by_name might handle it.
+            // DuckDB Syntax: SELECT * FROM read_xlsx('file', sheet='A') UNION ALL BY NAME SELECT * FROM read_xlsx('file', sheet='B')
+
+            const queries = sheets.map(sheet => {
+                return `SELECT *, '${sheet}' as source_duck FROM read_xlsx('${fullPath}', sheet='${sheet}')`;
+            });
+
+            const unionQuery = queries.join(' UNION ALL BY NAME ');
+
+            await dbManager.query(`CREATE OR REPLACE TABLE "${tableName}" AS ${unionQuery}`);
+            summary.push(`Merged ${sheets.length} sheets into "${tableName}"`);
+
+        } else {
+            // INDIVIDUAL
+            for (const sheet of sheets) {
+                // Determine table name: User might have provided mapping or use sheet name
+                // Sanitize sheet name for table name
+                const safeTableName = sheet.replace(/[^a-zA-Z0-9_]/g, '_');
+
+                await dbManager.query(`CREATE OR REPLACE TABLE "${safeTableName}" AS SELECT * FROM read_xlsx('${fullPath}', sheet='${sheet}')`);
+                summary.push(`Created table "${safeTableName}" from sheet "${sheet}"`);
+            }
+        }
+
+        // Checkpoint
+        await dbManager.checkpoint();
+
+        res.json({ success: true, summary: summary.join('\n') });
+
+    } catch (err) {
+        console.error("Excel Import Error:", err);
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -411,3 +493,4 @@ if (require.main === module) {
 }
 
 module.exports = { startServer };
+// Trigger restart for Excel Import features

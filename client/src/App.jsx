@@ -8,6 +8,7 @@ import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import SaveQueryModal from './components/SaveQueryModal';
 import ImportModal from './components/ImportModal';
+import ImportExcelModal from './components/ImportExcelModal';
 import LayoutManager from './components/LayoutManager';
 
 // New Components
@@ -42,6 +43,7 @@ function App() {
 
   // Import State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
   const [importTargetFile, setImportTargetFile] = useState(null);
   const [importIsFolder, setImportIsFolder] = useState(false);
 
@@ -168,7 +170,13 @@ function App() {
   const handleImportRequest = (filePath, isFolder = false) => {
     setImportTargetFile(filePath);
     setImportIsFolder(isFolder);
-    setIsImportModalOpen(true);
+
+    // Check for Excel
+    if (!isFolder && (filePath.toLowerCase().endsWith('.xlsx') || filePath.toLowerCase().endsWith('.xls'))) {
+      setIsExcelImportModalOpen(true);
+    } else {
+      setIsImportModalOpen(true);
+    }
   };
 
   const performImport = async (tableName, cleanColumns, overridePath = null) => {
@@ -185,14 +193,35 @@ function App() {
       });
       const data = await response.json();
       if (response.ok) {
-        alert(`Import successful! Table '${tableName}' created.`);
-        setIsImportModalOpen(false);
         setRefreshDbTrigger(prev => prev + 1);
+        return { success: true, summary: `Import successful! Table '${tableName}' created.` };
       } else {
-        alert("Import failed: " + data.error);
+        return { success: false, error: data.error };
       }
     } catch (err) {
-      alert("Error importing: " + err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+
+
+  const performExcelImport = async (config) => {
+    try {
+      const response = await fetch('http://localhost:3001/api/db/import-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setRefreshDbTrigger(prev => prev + 1);
+        return { success: true, summary: data.summary };
+      } else {
+        return { success: false, error: data.error };
+      }
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   };
 
@@ -231,13 +260,13 @@ function App() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      alert("Saved!");
+      return { success: true, summary: "File saved successfully!" };
     } catch (err) {
-      alert(`Failed to save: ${err.message}`);
+      return { success: false, error: err.message };
     }
   };
 
-  const handleSaveAs = (filename, description) => {
+  const handleSaveAs = async (filename, description) => {
     let contentToSave = pendingSaveContent;
     if (description) {
       contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
@@ -246,12 +275,14 @@ function App() {
       filename += '.sql';
     }
 
-    performSave(filename, contentToSave);
+    const result = await performSave(filename, contentToSave);
 
-    // Notify LayoutManager that the file is now saved with this path
-    layoutRef.current?.finishSaveAs(filename);
+    if (result.success) {
+      // Notify LayoutManager that the file is now saved with this path
+      layoutRef.current?.finishSaveAs(filename);
+    }
 
-    setIsSaveModalOpen(false);
+    return result;
   };
 
   // --- Main Render Logic ---
@@ -370,7 +401,15 @@ function App() {
         initialFile={importTargetFile || ''}
         isFolder={importIsFolder}
         onClose={() => setIsImportModalOpen(false)}
+
         onImport={performImport}
+      />
+
+      <ImportExcelModal
+        isOpen={isExcelImportModalOpen}
+        initialFile={importTargetFile || ''}
+        onClose={() => setIsExcelImportModalOpen(false)}
+        onImport={(config) => performExcelImport(config)}
       />
     </div>
   );

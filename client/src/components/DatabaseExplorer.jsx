@@ -181,7 +181,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded }) => {
 
                             {/* Copy Button (on hover or always visible to start) */}
                             <span
-                                onClick={(e) => { handleCopy(e, table.name); alert("Copied!"); }}
+                                onClick={(e) => { handleCopy(e, table.name); }}
                                 title="Copy Table Name"
                                 style={{ fontSize: '10px', color: '#666', opacity: 0.6 }}
                             >

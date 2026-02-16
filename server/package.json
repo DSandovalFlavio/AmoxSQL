@@ -14,6 +14,7 @@
     "duckdb": "^1.4.3",
     "express": "^5.2.1",
     "node-llama-cpp": "^3.15.1",
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+    "xlsx": "^0.18.5"
   }
 }

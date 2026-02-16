@@ -158,7 +158,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     minWidth: '150px'
                 }}>
                     {/* Menu Items */}
-                    {contextMenu.file.name.match(/\.(csv|parquet|json)$/i) && (
+                    {contextMenu.file.name.match(/\.(csv|parquet|json|xlsx|xls)$/i) && (
                         <div
                             onClick={() => onImportFile(contextMenu.file.path, false)}
                             style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#fff', borderBottom: '1px solid #333' }}
@@ -190,7 +190,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     )}
                     {/* Generic */}
                     <div
-                        onClick={() => { /* Rename logic todo */ alert("Rename not implemented yet"); }}
+                        onClick={() => { /* Rename logic todo */ console.log("Rename not implemented yet"); }}
                         style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#bbb' }}
                     >
                         ✏️ Rename

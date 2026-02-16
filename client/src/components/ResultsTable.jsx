@@ -135,7 +135,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
     };
 
     const handleSaveToDb = async (name, type) => {
-        if (!query) return;
+        if (!query) return { success: false, error: "No query to save." };
 
         const cleanQuery = query.trim().replace(/;$/, '');
         const createSql = `CREATE ${type} "${name}" AS ${cleanQuery}`;
@@ -149,14 +149,13 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
             const resData = await response.json();
 
             if (response.ok) {
-                alert(`${type} '${name}' created successfully!`);
-                setIsSaveDbModalOpen(false);
                 if (onDbChange) onDbChange();
+                return { success: true, summary: `${type} '${name}' created successfully!` };
             } else {
-                alert(`Failed to create ${type}: ${resData.error}`);
+                return { success: false, error: resData.error };
             }
         } catch (err) {
-            alert(`Error: ${err.message}`);
+            return { success: false, error: err.message };
         }
     };
 
@@ -224,7 +223,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
 
                             {/* Export / Save */}
                             <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                                Save as View
+                                Save As
                             </button>
                             <button onClick={handleExportCsv} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                                 Export CSV
