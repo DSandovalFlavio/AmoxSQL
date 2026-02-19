@@ -52,7 +52,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                 padding: '10px',
                 background: activeTab === id ? '#25262B' : 'transparent',
                 border: 'none',
-                borderBottom: activeTab === id ? '2px solid #00ffff' : '2px solid transparent',
+                borderBottom: activeTab === id ? '2px solid var(--accent-color-user)' : '2px solid transparent',
                 color: activeTab === id ? '#fff' : '#888',
                 cursor: 'pointer',
                 fontWeight: activeTab === id ? 'bold' : 'normal',
@@ -117,10 +117,10 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                             <div style={{ marginBottom: '10px' }}>
                                 <label style={{ display: 'block', marginBottom: '10px', fontSize: '12px', textTransform: 'uppercase', color: '#666' }}>Connection Mode</label>
 
-                                <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer', marginBottom: '15px', padding: '10px', border: mode === 'READ_ONLY' ? '1px solid #00ffff' : '1px solid #333', borderRadius: '4px', background: mode === 'READ_ONLY' ? 'rgba(0, 255, 255, 0.05)' : 'transparent' }}>
+                                <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer', marginBottom: '15px', padding: '10px', border: mode === 'READ_ONLY' ? '1px solid var(--accent-color-user)' : '1px solid #333', borderRadius: '4px', background: mode === 'READ_ONLY' ? 'var(--accent-color-user-transparent)' : 'transparent' }}>
                                     <input type="radio" name="dbmode" value="READ_ONLY" checked={mode === 'READ_ONLY'} onChange={(e) => setMode(e.target.value)} style={{ marginTop: '3px' }} />
                                     <div style={{ marginLeft: '10px' }}>
-                                        <div style={{ color: '#00ffff', fontWeight: 'bold', fontSize: '14px' }}>Read Only</div>
+                                        <div style={{ color: 'var(--accent-color-user)', fontWeight: 'bold', fontSize: '14px' }}>Read Only</div>
                                         <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>Safe for browsing. Prevents file locks.</div>
                                     </div>
                                 </label>
@@ -158,8 +158,8 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                                     This will create a new file in your project folder.
                                 </p>
                             </div>
-                            <div style={{ padding: '10px', background: 'rgba(0, 255, 128, 0.05)', border: '1px solid rgba(0, 255, 128, 0.2)', borderRadius: '4px' }}>
-                                <strong style={{ color: '#00ff80', fontSize: '13px' }}>Note:</strong>
+                            <div style={{ padding: '10px', background: 'rgba(0, 204, 255, 0.05)', border: '1px solid rgba(0, 238, 255, 0.2)', borderRadius: '4px' }}>
+                                <strong style={{ color: '#00ffff', fontSize: '13px' }}>Note:</strong>
                                 <span style={{ fontSize: '12px', color: '#aaa', marginLeft: '5px' }}>New databases are always opened in <strong>Read / Write</strong> mode.</span>
                             </div>
                         </div>
@@ -184,7 +184,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                     <button
                         onClick={handleSubmit}
                         style={{
-                            backgroundColor: activeTab === 'CREATE' ? '#00ff80' : '#00ffff',
+                            backgroundColor: activeTab === 'CREATE' ? '#00ffff' : 'var(--accent-color-user)',
                             padding: '10px 24px', borderRadius: '4px', border: 'none',
                             color: '#141517', fontWeight: 'bold', cursor: 'pointer',
                             transition: 'all 0.2s',

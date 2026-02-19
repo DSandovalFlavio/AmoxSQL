@@ -18,7 +18,8 @@ const EditorPane = ({
     onDbChange,
     onDragStart,
     onReorder,
-    isActive
+    isActive,
+    theme
 }) => {
     const [resultsHeight, setResultsHeight] = useState(300);
     const isResizing = useRef(false);
@@ -143,8 +144,8 @@ const EditorPane = ({
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                backgroundColor: '#1e1e1e',
-                borderLeft: '1px solid #333',
+                backgroundColor: 'var(--editor-bg)',
+                borderLeft: '1px solid var(--border-color)',
                 overflow: 'hidden'
             }}
             onClickCapture={() => onTabClick && activeTabId && onTabClick(activeTabId)}
@@ -163,7 +164,7 @@ const EditorPane = ({
 
                 {/* Content Area */}
                 {isNotebook ? (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', outline: isActive ? '1px solid #007fd4' : 'none', zIndex: isActive ? 1 : 0 }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', outline: isActive ? '1px solid var(--accent-color-user)' : 'none', zIndex: isActive ? 1 : 0 }}>
                         <SqlNotebook
                             key={activeTab.id}
                             content={activeTab.content}
@@ -176,7 +177,7 @@ const EditorPane = ({
                         <div style={{
                             flex: 1,
                             overflow: 'hidden',
-                            outline: isActive ? '1px solid #007fd4' : 'none',
+                            outline: isActive ? '1px solid var(--accent-color-user)' : 'none',
                             zIndex: isActive ? 10 : 0
                         }}>
                             <SqlEditor
@@ -186,6 +187,7 @@ const EditorPane = ({
                                 onRunQuery={(overrideQuery) => onRunQuery(activeTab.id, overrideQuery || activeTab.content)}
                                 onSave={() => onSave && onSave()}
                                 onAnalyze={() => onAnalyze && onAnalyze()}
+                                theme={theme}
                             />
                         </div>
 

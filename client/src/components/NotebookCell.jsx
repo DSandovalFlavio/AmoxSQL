@@ -179,7 +179,7 @@ const NotebookCell = ({
                                 onClick={() => onRun(id)}
                                 style={{
                                     ...btnStyle,
-                                    color: '#40c057',
+                                    color: '#00ffff',
                                     opacity: 1,
                                     display: 'flex',
                                     alignItems: 'center',

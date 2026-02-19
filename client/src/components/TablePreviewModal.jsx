@@ -93,7 +93,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <LuSearch size={18} />
                         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>
-                            Preview: <span style={{ color: '#00ffff', fontFamily: 'monospace' }}>{tableName}</span>
+                            Preview: <span style={{ color: 'var(--accent-color-user)', fontFamily: 'monospace' }}>{tableName}</span>
                         </h2>
                         <span style={{ fontSize: '12px', color: '#888', marginLeft: '10px' }}>
                             (First 50 rows)

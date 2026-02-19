@@ -205,10 +205,10 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             {/* View Switcher */}
                             <div style={{ display: 'flex', backgroundColor: '#1e1f22', borderRadius: '4px', padding: '2px' }}>
-                                <button onClick={() => setViewMode('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? '#00ffff' : 'transparent', color: viewMode === 'table' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <button onClick={() => setViewMode('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'table' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuTable size={14} /> Table
                                 </button>
-                                <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? '#00ffff' : 'transparent', color: viewMode === 'chart' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'chart' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuChartBar size={14} /> Chart
                                 </button>
                             </div>
@@ -255,7 +255,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#ccc' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', userSelect: 'none' }}>
-                                    <input type="checkbox" checked={showFilters} onChange={(e) => setShowFilters(e.target.checked)} style={{ accentColor: '#00ffff' }} />
+                                    <input type="checkbox" checked={showFilters} onChange={(e) => setShowFilters(e.target.checked)} style={{ accentColor: 'var(--accent-color-user)' }} />
                                     Show Column Filters
                                 </label>
                             </div>

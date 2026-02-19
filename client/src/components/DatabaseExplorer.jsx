@@ -143,18 +143,18 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', borderTop: '1px solid #2C2E33' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', borderTop: '1px solid var(--border-color)' }}>
             {/* Header */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', position: 'relative' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: '#00ffff' }}>Database Schema</span>
+                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent-color-user)' }}>Database Schema</span>
                 <div style={{ display: 'flex', gap: '5px' }}>
-                    <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center' }}>
                         <LuRefreshCw size={14} />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); }}
                         title="Options"
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#909296', display: 'flex', alignItems: 'center' }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center' }}
                     >
                         <LuEllipsisVertical size={14} />
                     </button>
@@ -165,8 +165,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                             position: 'absolute',
                             top: '30px',
                             right: '10px',
-                            background: '#25262B',
-                            border: '1px solid #333',
+                            background: 'var(--modal-bg)',
+                            border: '1px solid var(--border-color)',
                             borderRadius: '4px',
                             zIndex: 9999,
                             boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
@@ -176,8 +176,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                             minWidth: '120px'
                         }}>
                             <div
-                                style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: '#d4d4d4', display: 'flex', alignItems: 'center', gap: '8px' }}
-                                onMouseOver={(e) => e.currentTarget.style.background = '#37373d'}
+                                style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
                                 onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                                 onClick={() => {
                                     setShowHistory(true);
@@ -196,9 +196,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
 
                 {/* TOP: Table List (Resizable Height) */}
                 <div style={{ height: tableListHeight, overflowY: 'auto', flexShrink: 0 }}>
-                    {loading && <div style={{ padding: '10px', color: '#888', fontSize: '12px' }}>Loading...</div>}
+                    {loading && <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>Loading...</div>}
                     {!loading && tables.length === 0 && (
-                        <div style={{ padding: '10px', color: '#888', fontStyle: 'italic', fontSize: '12px' }}>No tables found</div>
+                        <div style={{ padding: '10px', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '12px' }}>No tables found</div>
                     )}
 
                     {tables.map(table => (
@@ -209,8 +209,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                             style={{
                                 padding: '4px 20px', // Match standard padding
                                 cursor: 'pointer',
-                                backgroundColor: selectedTable?.name === table.name ? '#25262B' : 'transparent',
-                                color: selectedTable?.name === table.name ? '#fff' : '#ccc',
+                                backgroundColor: selectedTable?.name === table.name ? 'var(--sidebar-item-active-bg)' : 'transparent',
+                                color: selectedTable?.name === table.name ? 'var(--text-active)' : 'var(--text-color)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
@@ -228,14 +228,14 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                 });
                             }}
                         >
-                            <LuTable size={14} color="#00ffff" />
+                            <LuTable size={14} color="var(--accent-color-user)" />
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{table.name}</span>
 
                             {/* Copy Button (on hover or always visible to start) */}
                             <span
                                 onClick={(e) => { handleCopy(e, table.name); }}
                                 title="Copy Table Name"
-                                style={{ fontSize: '10px', color: '#666', opacity: 0.6, marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
+                                style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.6, marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
                             >
                                 <LuClipboard size={12} />
                             </span>
@@ -249,37 +249,37 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                     style={{
                         height: '4px',
                         cursor: 'row-resize',
-                        backgroundColor: '#1A1B1E',
-                        borderTop: '1px solid #2C2E33',
-                        borderBottom: '1px solid #2C2E33',
+                        backgroundColor: 'var(--sidebar-bg)',
+                        borderTop: '1px solid var(--border-color)',
+                        borderBottom: '1px solid var(--border-color)',
                         transition: 'background 0.2s',
                         zIndex: 10
                     }}
-                    onMouseOver={(e) => e.target.style.background = '#00ffff'}
-                    onMouseOut={(e) => e.target.style.background = '#1A1B1E'}
+                    onMouseOver={(e) => e.target.style.background = 'var(--accent-color-user)'}
+                    onMouseOut={(e) => e.target.style.background = 'var(--sidebar-bg)'}
                 />
 
                 {/* BOTTOM: Details Panel (Takes remaining space) */}
-                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#141517' }}>
+                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--sidebar-bg)' }}>
                     {selectedTable ? (
                         <div>
                             {/* Details Header */}
                             <div style={{
                                 padding: '8px 10px',
-                                borderBottom: '1px solid #2C2E33',
+                                borderBottom: '1px solid var(--border-color)',
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
                                 position: 'sticky',
                                 top: 0,
-                                backgroundColor: '#141517', // Keep sticky header opaque matching theme
+                                backgroundColor: 'var(--sidebar-bg)', // Keep sticky header opaque matching theme
                                 zIndex: 1
                             }}>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 'bold', textTransform: 'uppercase', color: '#00ffff', fontSize: '11px' }}>
+                                    <div style={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--accent-color-user)', fontSize: '11px' }}>
                                         {selectedTable.name}
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#888' }}>
+                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                                         {selectedTable.rowCount ? `${selectedTable.rowCount} rows` : ''} • {selectedTable.columns.length} cols
                                     </div>
                                 </div>
@@ -290,9 +290,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                     title="Preview Table (First 50 rows)"
                                     style={{
                                         background: 'transparent',
-                                        border: '1px solid #444',
+                                        border: '1px solid var(--border-color)',
                                         borderRadius: '3px',
-                                        color: '#d4d4d4',
+                                        color: 'var(--text-color)',
                                         cursor: 'pointer',
                                         fontSize: '12px',
                                         padding: '2px 6px',
@@ -300,7 +300,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                         alignItems: 'center',
                                         gap: '4px'
                                     }}
-                                    onMouseOver={(e) => e.target.style.backgroundColor = '#37373d'}
+                                    onMouseOver={(e) => e.target.style.backgroundColor = 'var(--hover-color)'}
                                     onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
                                 >
                                     <LuSearch size={14} />
@@ -317,7 +317,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
                                             padding: '4px 10px',
-                                            borderBottom: '1px solid #2C2E33',
+                                            borderBottom: '1px solid var(--border-color)',
                                             fontSize: '12px',
                                             gap: '10px' // spacing between Left and Right groups
                                         }}>
@@ -336,7 +336,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                                                     {meta.icon}
                                                 </div>
                                                 <span title={col.column_name} style={{
-                                                    color: '#d4d4d4',
+                                                    color: 'var(--text-color)',
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis'
@@ -347,7 +347,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
 
                                             {/* Right: Type Label + Copy */}
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <div style={{ color: '#666', fontSize: '10px' }}>
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                                                     {col.data_type.toLowerCase()}
                                                 </div>
                                                 <span
@@ -365,7 +365,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                             </div>
                         </div>
                     ) : (
-                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#555' }}>
+                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                             <div style={{ marginBottom: '10px', opacity: 0.5 }}><LuSearch size={40} /></div>
                             <div style={{ fontSize: '12px' }}>Select a table</div>
                             <div style={{ fontSize: '12px' }}>to view details</div>
@@ -403,8 +403,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                     position: 'fixed',
                     top: contextMenu.y,
                     left: contextMenu.x,
-                    background: '#25262B',
-                    border: '1px solid #333',
+                    background: 'var(--modal-bg)',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '4px',
                     zIndex: 9999,
                     boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
@@ -413,8 +413,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                     padding: '4px 0'
                 }}>
                     <div
-                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#37373d'}
+                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                         onClick={() => {
                             navigator.clipboard.writeText(contextMenu.tableName);
@@ -424,8 +424,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         <LuClipboard size={14} /> Copy Name
                     </div>
                     <div
-                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#37373d'}
+                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                         onClick={() => {
                             setDetailsTable(contextMenu.tableName);

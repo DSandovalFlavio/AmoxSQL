@@ -28,7 +28,7 @@ const WelcomeScreen = ({ onOpenProject }) => {
                     <svg width="360" height="360" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <linearGradient id="neonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" style={{ stopColor: '#00ffff', stopOpacity: 1 }} />
+                                <stop offset="0%" style={{ stopColor: 'var(--accent-color-user)', stopOpacity: 1 }} />
                                 <stop offset="100%" style={{ stopColor: '#0055ff', stopOpacity: 1 }} />
                             </linearGradient>
                             <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -49,7 +49,7 @@ const WelcomeScreen = ({ onOpenProject }) => {
                     </svg>
                 </div>
                 <h1 style={{ fontSize: '42px', fontWeight: '700', color: '#ffffff', margin: '0', letterSpacing: '1px' }}>
-                    Amox<span style={{ color: '#00ffff' }}>SQL</span>
+                    Amox<span style={{ color: 'var(--accent-color-user)' }}>SQL</span>
                 </h1>
                 <p style={{ fontSize: '16px', color: '#888', marginTop: '10px', fontStyle: 'italic' }}>
                     The Modern Codex for Local Data Analysis
@@ -62,7 +62,7 @@ const WelcomeScreen = ({ onOpenProject }) => {
                 backgroundColor: '#141517',
                 borderRadius: '8px',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-                border: '1px solid #00ffff'
+                border: '1px solid var(--accent-color-user)'
             }}>
                 <h2 style={{ marginTop: 0, fontSize: '18px', color: '#fff', marginBottom: '20px' }}>Open Workspace</h2>
 

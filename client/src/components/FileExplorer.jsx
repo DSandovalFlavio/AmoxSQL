@@ -97,34 +97,34 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header: Matches DatabaseExplorer style */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', height: '32px' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: '#00ffff' }}>
+                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent-color-user)' }}>
                     Files
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => onNewFile(currentPath, 'sql')} title="New SQL File" style={{ padding: '0', background: 'transparent', color: '#909296', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={() => onNewFile(currentPath, 'sql')} title="New SQL File" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <LuFilePlus size={14} />
                     </button>
-                    <button onClick={() => onNewFile(currentPath, 'sqlnb')} title="New SQL Notebook" style={{ padding: '0', background: 'transparent', color: '#909296', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={() => onNewFile(currentPath, 'sqlnb')} title="New SQL Notebook" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <LuBookOpen size={14} />
                     </button>
-                    <button onClick={() => onNewFolder(currentPath)} title="New Folder" style={{ padding: '0', background: 'transparent', color: '#909296', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={() => onNewFolder(currentPath)} title="New Folder" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <LuFolderPlus size={14} />
                     </button>
-                    <button onClick={() => fetchFiles(currentPath)} title="Refresh" style={{ padding: '0', background: 'transparent', color: '#909296', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={() => fetchFiles(currentPath)} title="Refresh" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <LuRefreshCw size={14} />
                     </button>
                 </div>
             </div>
-            <div style={{ padding: '5px 20px', borderBottom: '1px solid #333', display: 'flex', gap: '5px', alignItems: 'center' }}>
-                <button onClick={handleUp} disabled={!currentPath} style={{ padding: '2px 5px', fontSize: '10px', background: '#333', color: 'white', border: '1px solid #555', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '5px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '5px', alignItems: 'center' }}>
+                <button onClick={handleUp} disabled={!currentPath} style={{ padding: '2px 5px', fontSize: '10px', background: 'var(--sidebar-item-active-bg)', color: 'var(--text-color)', border: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                     <LuArrowUp size={10} />
                 </button>
-                <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', color: '#aaa', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                     {currentPath ? `/${currentPath}` : '/ (Root)'}
                 </span>
             </div>
             <ul className="file-list">
-                {loading && <div style={{ padding: '10px', color: '#888' }}>Loading...</div>}
+                {loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Loading...</div>}
                 {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
                 {!loading && !error && files.map((file) => (
                     <li
@@ -142,7 +142,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                  Instead relying on Right Click as requested standard, but user asked for "three dots". 
                  Let's add a small dots button that appears or is always there. */}
                         <span
-                            style={{ marginLeft: 'auto', fontSize: '12px', color: '#666', cursor: 'context-menu', padding: '0 5px', display: 'flex', alignItems: 'center' }}
+                            style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', cursor: 'context-menu', padding: '0 5px', display: 'flex', alignItems: 'center' }}
                             onClick={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
                         >
                             <LuEllipsisVertical size={14} />
@@ -157,8 +157,8 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     position: 'fixed',
                     top: contextMenu.y,
                     left: contextMenu.x,
-                    backgroundColor: '#2b2d30',
-                    border: '1px solid #555',
+                    backgroundColor: 'var(--modal-bg)',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '4px',
                     boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
                     zIndex: 9999,
@@ -168,7 +168,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     {contextMenu.file.name.match(/\.(csv|parquet|json|xlsx|xls)$/i) && (
                         <div
                             onClick={() => onImportFile(contextMenu.file.path, false)}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#fff', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
                             className="context-menu-item"
                         >
                             <LuDatabase size={14} /> Import to Database...
@@ -178,7 +178,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     {contextMenu.file.name.match(/\.(csv)$/i) && (
                         <div
                             onClick={() => onQueryFile(contextMenu.file.path)}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#fff', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
                             className="context-menu-item"
                         >
                             <LuSearch size={14} /> Direct Query
@@ -189,7 +189,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     {contextMenu.file.isDirectory && (
                         <div
                             onClick={() => onImportFile(contextMenu.file.path, true)}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#fff', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
                             className="context-menu-item"
                         >
                             <LuDatabase size={14} /> Import Folder to Database...
@@ -198,7 +198,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     {/* Generic */}
                     <div
                         onClick={() => { /* Rename logic todo */ console.log("Rename not implemented yet"); }}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#bbb', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
                         <LuFileCode size={14} /> Rename
                     </div>

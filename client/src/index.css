@@ -1,21 +1,44 @@
 :root {
+  /* Default Dark Theme - Green Accent */
   --bg-color: #1e1f22;
-  /* Dashboard Dark Theme */
   --sidebar-bg: #141517;
-  /* Very deep dark */
   --editor-bg: #1e1f22;
-  --text-color: #909296;
-  /* Softer text */
+  --text-color: #c1c2c5;
   --text-active: #ffffff;
+  --text-muted: #909296;
   --accent-color-user: #00ffff;
+  --accent-color-user-transparent: rgba(64, 188, 192, 0.1);
+  /* Green for Dark Mode */
 
   --sidebar-item-active-bg: #25262b;
-  /* Lighter active state */
-  --sidebar-item-hover-bg: #1A1B1E;
+  --sidebar-item-hover-bg: #2C2E33;
   --border-color: #2C2E33;
-  /* Dark subtle borders */
-
   --header-bg: #141517;
+  --hover-color: #2C2E33;
+  --modal-bg: #25262b;
+  --input-bg: #1A1B1E;
+}
+
+.light-theme {
+  /* Light Theme - Blue Accent */
+  --bg-color: #ffffff;
+  --sidebar-bg: #f8f9fa;
+  --editor-bg: #ffffff;
+  --text-color: #495057;
+  --text-active: #000000;
+  --text-muted: #868e96;
+  --accent-color-user: #0059ff;
+  --accent-color-user-transparent: rgba(0, 89, 255, 0.1);
+  /* Blue for Light Mode */
+
+  --sidebar-item-active-bg: #e7f5ff;
+  /* Light blue tint */
+  --sidebar-item-hover-bg: #f1f3f5;
+  --border-color: #dee2e6;
+  --header-bg: #f8f9fa;
+  --hover-color: #f1f3f5;
+  --modal-bg: #ffffff;
+  --input-bg: #f8f9fa;
 }
 
 body {
@@ -380,12 +403,12 @@ tr:hover td {
     content: '👁️';
     /* Eye icon */
     font-size: 12px;
-    color: #00ffff;
+    color: var(--accent-color-user);
   }
 
   .cte-debug-glyph:hover::after {
     color: #fff;
-    filter: drop-shadow(0 0 2px #00ffff);
+    filter: drop-shadow(0 0 2px var(--accent-color-user));
   }
 
   /* Hide scrollbars */

@@ -253,7 +253,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                     <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <LuTable size={20} color="#00ffff" />
+                        <LuTable size={20} color="var(--accent-color-user)" />
                         {tableName}
                     </h2>
                     <button
@@ -274,9 +274,9 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                                 style={{
                                     padding: '10px 20px',
                                     background: isActive ? '#1E1F22' : 'transparent',
-                                    color: isActive ? '#00ffff' : '#888',
+                                    color: isActive ? 'var(--accent-color-user)' : '#888',
                                     border: 'none',
-                                    borderBottom: isActive ? '2px solid #00ffff' : '2px solid transparent',
+                                    borderBottom: isActive ? '2px solid var(--accent-color-user)' : '2px solid transparent',
                                     cursor: 'pointer',
                                     fontWeight: isActive ? '600' : 'normal',
                                     fontSize: '13px'

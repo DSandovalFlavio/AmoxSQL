@@ -3,7 +3,7 @@ import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
 
-const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, ref) => {
+const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs, theme }, ref) => {
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
     const [activePane, setActivePane] = useState('left'); // 'left' or 'right'
@@ -435,10 +435,10 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
         >
             {/* Visual Overlays for Drop Zones */}
             {dragOverZone === 'left-edge' && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '50%', height: '100%', background: 'rgba(0, 255, 255, 0.1)', borderRight: '2px solid #00ffff', zIndex: 9999, pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '50%', height: '100%', background: 'var(--accent-color-user-transparent)', borderRight: '2px solid var(--accent-color-user)', zIndex: 9999, pointerEvents: 'none' }} />
             )}
             {dragOverZone === 'right-edge' && (
-                <div style={{ position: 'absolute', top: 0, right: 0, width: '50%', height: '100%', background: 'rgba(0, 255, 255, 0.1)', borderLeft: '2px solid #00ffff', zIndex: 9999, pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', top: 0, right: 0, width: '50%', height: '100%', background: 'var(--accent-color-user-transparent)', borderLeft: '2px solid var(--accent-color-user)', zIndex: 9999, pointerEvents: 'none' }} />
             )}
 
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -454,6 +454,7 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                     onSave={handleSaveActive}
                     onAnalyze={handleAnalyzeActive}
                     onDbChange={onDbChange}
+                    theme={theme}
                     // DnD Props
                     onDragStart={handleDragStart}
                     onReorder={handleReorder}
@@ -472,6 +473,7 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs }, 
                         onSave={handleSaveActive}
                         onAnalyze={handleAnalyzeActive}
                         onDbChange={onDbChange}
+                        theme={theme}
                         // DnD Props
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}

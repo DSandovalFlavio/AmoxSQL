@@ -13,7 +13,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
     if (isAttached) {
         const dbName = currentDb.split(/[/\\]/).pop();
         const modeLabel = readOnly ? 'Read Only' : 'Read/Write';
-        const modeColor = readOnly ? '#FFA500' : '#00ffff'; // Orange for RO, Cyan for RW
+        const modeColor = readOnly ? '#FFA500' : 'var(--accent-color-user)'; // Orange for RO, Accent for RW
         connectionInfo = { label: dbName, color: modeColor, icon: <LuDatabase size={14} />, status: 'Connected', mode: modeLabel };
     }
 
@@ -31,18 +31,18 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
                 width: '42px',
                 height: '42px',
                 borderRadius: '50%',
-                backgroundColor: '#25262B',
+                backgroundColor: 'var(--sidebar-item-active-bg)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '20px',
-                border: '2px solid #2C2E33',
+                border: '2px solid var(--border-color)',
                 flexShrink: 0
             }}>
                 <svg width="40" height="40" viewBox="58 -10 300 300" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <linearGradient id="miniNeonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style={{ stopColor: '#00ffff', stopOpacity: 1 }} />
+                            <stop offset="0%" style={{ stopColor: 'var(--accent-color-user)', stopOpacity: 1 }} />
                             <stop offset="100%" style={{ stopColor: '#0055ff', stopOpacity: 1 }} />
                         </linearGradient>
                     </defs>
@@ -63,7 +63,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{
                     fontSize: '11px',
-                    color: '#00ffff',
+                    color: 'var(--accent-color-user)',
                     fontWeight: '500',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
@@ -72,7 +72,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
                 </span>
                 <span style={{
                     fontWeight: '700',
-                    color: '#E9ECEF',
+                    color: 'var(--text-active)',
                     fontSize: '14px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -86,7 +86,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
                     <span style={{ fontSize: '10px', color: connectionInfo.color, border: `1px solid ${connectionInfo.color}`, padding: '0 4px', borderRadius: '3px' }}>
                         {connectionInfo.status === 'Active' ? 'MEM' : (readOnly ? 'RO' : 'RW')}
                     </span>
-                    <span style={{ fontSize: '11px', color: '#888', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {connectionInfo.label}
                     </span>
                 </div>
@@ -100,7 +100,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
                     style={{
                         background: 'transparent',
                         border: 'none',
-                        color: '#909296',
+                        color: 'var(--text-color)',
                         cursor: 'pointer',
                         padding: '4px',
                         display: 'flex',

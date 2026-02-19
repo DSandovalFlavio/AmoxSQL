@@ -18,7 +18,8 @@ import DatabaseSelectionModal from './components/DatabaseSelectionModal';
 import AiSidebar from './components/AiSidebar';
 
 
-import { LuBot, LuX, LuPlay, LuSave, LuActivity } from "react-icons/lu";
+import SettingsModal from './components/SettingsModal';
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings } from "react-icons/lu";
 
 import './index.css';
 
@@ -58,12 +59,25 @@ function App() {
   const [showAiSidebar, setShowAiSidebar] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
 
+  /* --- Project Workflow Handlers --- */
+
+  // Theme State
+  const [theme, setTheme] = useState('dark');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Apply Theme Class
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+  }, [theme]);
+
   // Initialize Data
   useEffect(() => {
     setAppPhase(PHASE.WELCOME);
   }, []);
-
-  /* --- Project Workflow Handlers --- */
 
   const handleOpenProject = async (path) => {
     try {
@@ -364,18 +378,27 @@ function App() {
                 <button
                   onClick={() => setShowAiSidebar(!showAiSidebar)}
                   title="Toggle AI Assistant"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: showAiSidebar ? '#1A1B1E' : 'transparent', color: '#00ffff', border: '1px solid #00ffff' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: showAiSidebar ? '#1A1B1E' : 'transparent', color: 'var(--accent-color-user)', border: '1px solid var(--accent-color-user)' }}
                 >
                   {showAiSidebar ? <><LuX /> Close AI</> : <><LuBot /> AI Assistant</>}
                 </button>
               </div>
-              <div style={{ fontSize: '12px', color: '#666', fontWeight: '600' }}>AmoxSQL v1.0</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  title="Settings"
+                  style={{ background: 'transparent', color: 'var(--text-color)', padding: '5px' }}
+                >
+                  <LuSettings size={18} />
+                </button>
+              </div>
             </div>
 
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <LayoutManager
                 ref={layoutRef}
                 projectPath={projectPath}
+                theme={theme}
                 onDbChange={() => setRefreshDbTrigger(p => p + 1)}
                 onRequestSaveAs={(content) => {
                   setPendingSaveContent(content);
@@ -396,6 +419,13 @@ function App() {
         </div>
       )}
 
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentTheme={theme}
+        onThemeChange={setTheme}
+      />
 
       <SaveQueryModal
         isOpen={isSaveModalOpen}

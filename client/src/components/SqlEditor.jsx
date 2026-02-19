@@ -20,6 +20,19 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 'editorGutter.background': '#1e1f22',
             }
         });
+
+        monaco.editor.defineTheme('duckdb-light', {
+            base: 'vs',
+            inherit: true,
+            rules: [
+                { token: '', background: 'ffffff' }
+            ],
+            colors: {
+                'editor.background': '#ffffff',
+                'editor.lineHighlightBackground': '#f1f3f5',
+                'editorGutter.background': '#ffffff',
+            }
+        });
     };
 
     // Use a ref to ensure the event listener always has access to the latest prop
@@ -113,7 +126,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 }
                 .cte-debug-glyph::after {
                     content: '▶';
-                    color: #40c057;
+                    color: #00ffff;
                     font-size: 12px;
                     display: flex;
                     justify-content: center;
@@ -122,7 +135,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     font-family: Arial, sans-serif;
                 }
                 .cte-debug-glyph:hover::after {
-                    text-shadow: 0 0 5px #40c057;
+                    text-shadow: 0 0 5px #00ffff;
                     transform: scale(1.2);
                 }
             `;
@@ -374,7 +387,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             defaultLanguage="sql"
             value={value}
             onChange={handleEditorChange}
-            theme="duckdb-dark"
+            theme={props.theme === 'light' ? 'duckdb-light' : 'duckdb-dark'}
             beforeMount={handleEditorWillMount}
             options={{
                 minimap: { enabled: false },
