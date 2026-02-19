@@ -61,7 +61,7 @@ const SimpleColorPicker = ({ color, onChange }) => {
             {isOpen && (
                 <div style={{
                     position: 'absolute', top: '100%', left: 0, zIndex: 1000,
-                    backgroundColor: '#1e1f22', border: '1px solid #555', padding: '10px',
+                    backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--border-color)', padding: '10px',
                     borderRadius: '4px', boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
                     width: '210px', marginTop: '5px'
                 }}>
@@ -257,9 +257,9 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
     // Tooltip Style (Stable)
     const tooltipStyle = useMemo(() => ({
-        backgroundColor: '#252526',
-        borderColor: '#454545',
-        color: '#ccc',
+        backgroundColor: 'var(--tooltip-bg)',
+        borderColor: 'var(--border-color)',
+        color: 'var(--text-color)',
         fontSize: '12px',
         boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
     }), []);
@@ -559,7 +559,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                     return (
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart {...CommonProps}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={false} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={false} />
                                 <XAxis
                                     dataKey={xAxisKey}
                                     stroke="#888"
@@ -852,9 +852,9 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
         <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden' }}>
             {/* Controls Panel - Hidden in Report Mode */}
             {!isReportMode && (
-                <div style={{ width: '280px', flexShrink: 0, borderRight: '1px solid #333', padding: '15px', overflowY: 'auto', backgroundColor: '#141517' }}>
+                <div style={{ width: '280px', flexShrink: 0, borderRight: '1px solid var(--border-color)', padding: '15px', overflowY: 'auto', backgroundColor: 'var(--panel-bg)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             Configuration
                         </h3>
                         <button
@@ -871,11 +871,11 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- CHART TYPE --- */}
                     <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Chart Type</label>
+                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>Chart Type</label>
                         <select
                             value={chartType}
                             onChange={(e) => setChartType(e.target.value)}
-                            style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                            style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                         >
                             <option value="line">Line Chart</option>
                             <option value="bar">Vertical Bar Chart</option>
@@ -887,33 +887,33 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- DATA SELECTION --- */}
                     <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>
                             {defaultXLabel}
                         </label>
                         <select
                             value={xAxisKey}
                             onChange={(e) => setXAxisKey(e.target.value)}
-                            style={{ width: '100%', backgroundColor: '#171517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                            style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                         >
                             {columns.map(col => <option key={col} value={col}>{col}</option>)}
                         </select>
                     </div>
 
                     <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>
                             {defaultYLabel}
-                            {splitByKey && <span style={{ color: '#ff9900', fontStyle: 'italic', marginLeft: 5 }}>(Value to Pivot)</span>}
+                            {splitByKey && <span style={{ color: 'var(--accent-color-user)', fontStyle: 'italic', marginLeft: 5 }}>(Value to Pivot)</span>}
                         </label>
                         {splitByKey ? (
                             <select
                                 value={yAxisKeys[0] || ''}
                                 onChange={(e) => setYAxisKeys([e.target.value])}
-                                style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                             >
                                 {columns.map(col => <option key={col} value={col}>{col}</option>)}
                             </select>
                         ) : (
-                            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #444', padding: '5px', borderRadius: '4px', backgroundColor: '#141517' }}>
+                            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '5px', borderRadius: '4px', backgroundColor: 'var(--input-bg)' }}>
                                 {columns.map(col => (
                                     <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', cursor: 'pointer', fontSize: '12px', color: '#ddd' }}>
                                         <input
@@ -1008,7 +1008,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                     )}
 
                     {/* --- CHART SPECIFIC SETTINGS --- */}
-                    <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
+                    <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                         <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Visual Settings</h4>
 
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
@@ -1084,15 +1084,15 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- AXES CONFIGURATION --- */}
                     {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Axes & Scale</h4>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Axes & Scale</h4>
 
                             <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Number Format</label>
+                                <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>Number Format</label>
                                 <select
                                     value={numberFormat}
                                     onChange={(e) => setNumberFormat(e.target.value)}
-                                    style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                                 >
                                     <option value="compact">Auto (Compact - 1.2k)</option>
                                     <option value="standard">Standard (1,234.56)</option>
@@ -1141,8 +1141,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- REFERENCE LINE --- */}
                     {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Reference Line</h4>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Line</h4>
 
                             <div style={{ marginBottom: '8px' }}>
                                 <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
@@ -1176,8 +1176,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- AXIS TITLES --- */}
                     {(chartType === 'line' || chartType === 'bar' || chartType === 'scatter') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Axis Titles & Labels</h4>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Axis Titles & Labels</h4>
 
                             <div style={{ marginBottom: '8px' }}>
                                 <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Title</label>
@@ -1220,8 +1220,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- LEGEND SETTINGS --- */}
                     {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter' || chartType === 'donut') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Legend</h4>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Legend</h4>
                             <div>
                                 <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Position</label>
                                 <select
@@ -1240,8 +1240,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- DONUT SETTINGS --- */}
                     {chartType === 'donut' && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Donut Settings</h4>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Donut Settings</h4>
 
                             <div style={{ marginBottom: '10px' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', fontSize: '11px', color: '#ccc', cursor: 'pointer' }}>
@@ -1335,8 +1335,8 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- SERIES STYLING (Line Specific + General Colors) --- */}
                     {chartType === 'line' && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Series Styling</h4>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Series Styling</h4>
 
                             {/* Highlight Config for Line */}
                             <div style={{ marginBottom: '15px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
@@ -1357,7 +1357,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                             color={highlightConfig.color}
                                             onChange={(val) => setHighlightConfig({ ...highlightConfig, color: val })}
                                         />
-                                        <span style={{ fontSize: '10px', color: '#888' }}>Highlight Color</span>
+                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Highlight Color</span>
                                     </div>
                                 )}
                             </div>
@@ -1391,7 +1391,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                                         [key]: { ...existing, style: e.target.value }
                                                     });
                                                 }}
-                                                style={{ flex: 1, backgroundColor: '#1c1c1c', color: '#fff', border: '1px solid #444', fontSize: '10px' }}
+                                                style={{ flex: 1, backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', fontSize: '10px' }}
                                             >
                                                 <option value="solid">Solid</option>
                                                 <option value="dashed">Dashed</option>
@@ -1406,17 +1406,17 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                     {/* --- COLORS & HIGHLIGHTING (Effective for Bar Charts) --- */}
                     {(chartType === 'bar' || chartType === 'bar-horizontal') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Colors & Highlights</h4>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Colors & Highlights</h4>
 
                             {/* Color Mode */}
                             {!barStacked && (
                                 <div style={{ marginBottom: '10px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color Mode</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Color Mode</label>
                                     <select
                                         value={barColorMode}
                                         onChange={(e) => setBarColorMode(e.target.value)}
-                                        style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
                                     >
                                         <option value="series">By Series (Uniform)</option>
                                         <option value="dimension">By Category (Varied)</option>
@@ -1426,11 +1426,11 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
                             {/* Highlight Rules */}
                             <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Highlight Rule</label>
+                                <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Highlight Rule</label>
                                 <select
                                     value={highlightConfig.type}
                                     onChange={(e) => setHighlightConfig({ ...highlightConfig, type: e.target.value })}
-                                    style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
                                 >
                                     <option value="none">None</option>
                                     <option value="max">Max Value</option>
@@ -1442,13 +1442,13 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                             {/* Specific Value Input */}
                             {highlightConfig.type === 'exact' && (
                                 <div style={{ marginBottom: '10px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Category to Highlight</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Category to Highlight</label>
                                     <input
                                         type="text"
                                         placeholder="e.g. Total, 2023-01..."
                                         value={highlightConfig.value}
                                         onChange={(e) => setHighlightConfig({ ...highlightConfig, value: e.target.value })}
-                                        style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                     />
                                 </div>
                             )}
@@ -1456,7 +1456,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                             {/* Highlight Color */}
                             {highlightConfig.type !== 'none' && (
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Highlight Color</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Highlight Color</label>
                                     <div style={{ display: 'flex', gap: '5px' }}>
                                         <SimpleColorPicker
                                             color={highlightConfig.color}
@@ -1467,7 +1467,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                             <div
                                                 key={c}
                                                 onClick={() => setHighlightConfig({ ...highlightConfig, color: c })}
-                                                style={{ width: '20px', height: '30px', background: c, cursor: 'pointer', border: '1px solid #555' }}
+                                                style={{ width: '20px', height: '30px', background: c, cursor: 'pointer', border: '1px solid var(--border-color)' }}
                                             />
                                         ))}
                                     </div>
@@ -1476,13 +1476,14 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                         </div>
                     )}
                 </div>
-            )}
+            )
+            }
 
             {/* Chart Area */}
-            <div ref={chartRef} style={{ flex: 1, padding: '20px', backgroundColor: '#1e1f22', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', overflow: 'hidden' }}>
+            <div ref={chartRef} style={{ flex: 1, padding: '20px', backgroundColor: 'var(--chart-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', overflow: 'hidden' }}>
                 {ChartContent}
             </div>
-        </div>
+        </div >
     );
 };
 

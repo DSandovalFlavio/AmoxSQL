@@ -370,7 +370,7 @@ function App() {
                 <button
                   onClick={() => layoutRef.current?.handleTriggerAnalyze()}
                   title="Analyze Query Plan"
-                  style={{ backgroundColor: 'transparent', color: '#d0b0ff', border: '1px solid #d0b0ff', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  style={{ backgroundColor: 'transparent', color: 'var(--accent-color-user)', border: '1px solid var(--accent-color-user)', display: 'flex', alignItems: 'center', gap: '5px' }}
                 >
                   <LuActivity size={14} /> Analyze
                 </button>

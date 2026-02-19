@@ -89,20 +89,20 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
         <div style={{
             width: width,
             height: '100%',
-            backgroundColor: '#1A1B1E',
-            borderLeft: '1px solid #2C2E33',
+            backgroundColor: 'var(--sidebar-bg)',
+            borderLeft: '1px solid var(--border-color)',
             display: 'flex',
             flexDirection: 'column',
-            color: '#c9c9c9',
+            color: 'var(--text-color)',
             fontFamily: 'system-ui, sans-serif'
         }}>
             {/* Header */}
-            <div style={{ padding: '15px', borderBottom: '1px solid #2C2E33', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '16px' }}>🤖</span>
-                    <span style={{ fontWeight: 'bold', color: '#fff' }}>AmoxSQL AI</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-active)' }}>AmoxSQL AI</span>
                 </div>
-                <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '18px' }}>×</button>
+                <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }}>×</button>
             </div>
 
             {/* Init / Status View */}
@@ -111,13 +111,13 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
                     {status === 'IDLE' ? (
                         <>
                             <div style={{ fontSize: '40px', marginBottom: '20px' }}>🧠</div>
-                            <h3 style={{ color: '#fff', margin: '0 0 10px 0' }}>Enable Intelligence</h3>
-                            <p style={{ fontSize: '13px', color: '#888', lineHeight: '1.5' }}>
+                            <h3 style={{ color: 'var(--text-active)', margin: '0 0 10px 0' }}>Enable Intelligence</h3>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
                                 Download the Qwen3-0.6B model (~660MB) to enable local query generation.
                             </p>
                             <button
                                 onClick={handleCreateAiSession}
-                                style={{ marginTop: '20px', padding: '10px 20px', backgroundColor: '#00ffff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', color: '#141517' }}
+                                style={{ marginTop: '20px', padding: '10px 20px', backgroundColor: 'var(--accent-color-user)', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', color: 'var(--button-text-color)' }}
                             >
                                 Download & Start
                             </button>
@@ -125,16 +125,16 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
                     ) : status === 'LOADING' ? (
                         <>
                             <div style={{ fontSize: '30px', marginBottom: '15px', animation: 'spin 2s linear infinite' }}>⚙️</div>
-                            <h3 style={{ color: '#fff', margin: '0 0 10px 0' }}>Loading Model...</h3>
-                            <p style={{ fontSize: '13px', color: '#888' }}>Initializing Llama Engine.</p>
+                            <h3 style={{ color: 'var(--text-active)', margin: '0 0 10px 0' }}>Loading Model...</h3>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Initializing Llama Engine.</p>
                         </>
                     ) : (
                         <>
-                            <div style={{ marginBottom: '15px', color: '#00ffff', fontWeight: 'bold' }}>Downloading Model...</div>
-                            <div style={{ width: '100%', height: '6px', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ width: `${progress}%`, height: '100%', background: '#00ffff', transition: 'width 0.3s' }}></div>
+                            <div style={{ marginBottom: '15px', color: 'var(--accent-color-user)', fontWeight: 'bold' }}>Downloading Model...</div>
+                            <div style={{ width: '100%', height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent-color-user)', transition: 'width 0.3s' }}></div>
                             </div>
-                            <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>{progress}%</div>
+                            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>{progress}%</div>
                         </>
                     )}
                 </div>
@@ -157,8 +157,8 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
                         {/* Section 1: Context (Tables) */}
-                        <div style={{ padding: '15px', borderBottom: '1px solid #2C2E33', maxHeight: '30%' }}>
-                            <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#888', marginBottom: '10px' }}>Context (Select Tables)</div>
+                        <div style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', maxHeight: '30%' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '10px' }}>Context (Select Tables)</div>
                             <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
                                 {availableTables.map(t => (
                                     <label key={t.name} style={{ display: 'flex', alignItems: 'center', marginBottom: '6px', fontSize: '13px', cursor: 'pointer' }}>
@@ -166,9 +166,9 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
                                             type="checkbox"
                                             checked={selectedTables.includes(t.name)}
                                             onChange={() => toggleTable(t.name)}
-                                            style={{ marginRight: '8px' }}
+                                            style={{ marginRight: '8px', accentColor: 'var(--accent-color-user)' }}
                                         />
-                                        <span style={{ color: selectedTables.includes(t.name) ? '#fff' : '#888' }}>{t.name}</span>
+                                        <span style={{ color: selectedTables.includes(t.name) ? 'var(--text-active)' : 'var(--text-muted)' }}>{t.name}</span>
                                     </label>
                                 ))}
                             </div>
@@ -176,15 +176,15 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
 
                         {/* Section 2: Question */}
                         <div style={{ padding: '15px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#888', marginBottom: '10px' }}>Your Question</div>
+                            <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '10px' }}>Your Question</div>
                             <textarea
                                 value={question}
                                 onChange={(e) => setQuestion(e.target.value)}
                                 placeholder="Ex: What is the total revenue by category?"
                                 style={{
                                     width: '100%', flex: 1,
-                                    backgroundColor: '#141517', border: '1px solid #333', borderRadius: '4px',
-                                    padding: '10px', color: '#fff', fontSize: '13px', resize: 'none', outline: 'none'
+                                    backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px',
+                                    padding: '10px', color: 'var(--text-active)', fontSize: '13px', resize: 'none', outline: 'none'
                                 }}
                             />
                             <button
@@ -192,7 +192,7 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
                                 disabled={isGenerating || !question.trim()}
                                 style={{
                                     marginTop: '10px', padding: '10px',
-                                    backgroundColor: isGenerating ? '#333' : '#00ffff', color: '#141517',
+                                    backgroundColor: isGenerating ? 'var(--border-color)' : 'var(--accent-color-user)', color: 'var(--button-text-color)',
                                     border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: isGenerating ? 'wait' : 'pointer'
                                 }}
                             >
@@ -201,13 +201,13 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
                         </div>
 
                         {/* Section 3: Response */}
-                        <div style={{ padding: '15px', borderTop: '1px solid #2C2E33', height: '40%', backgroundColor: '#141517' }}>
+                        <div style={{ padding: '15px', borderTop: '1px solid var(--border-color)', height: '40%', backgroundColor: 'var(--input-bg)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#888' }}>Generated SQL</div>
+                                <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Generated SQL</div>
                                 {generatedSql && (
                                     <button
                                         onClick={() => navigator.clipboard.writeText(generatedSql)}
-                                        style={{ background: 'none', border: 'none', color: '#00ffff', fontSize: '11px', cursor: 'pointer' }}
+                                        style={{ background: 'none', border: 'none', color: 'var(--accent-color-user)', fontSize: '11px', cursor: 'pointer', padding: 0 }}
                                     >
                                         Copy
                                     </button>
@@ -215,9 +215,9 @@ const AiSidebar = ({ width, onClose, availableTables }) => {
                             </div>
                             <pre style={{
                                 margin: 0, height: 'calc(100% - 25px)', overflow: 'auto',
-                                fontSize: '12px', color: '#a5d6ff', whiteSpace: 'pre-wrap', fontFamily: 'monospace'
+                                fontSize: '12px', color: 'var(--text-color)', whiteSpace: 'pre-wrap', fontFamily: 'monospace'
                             }}>
-                                {generatedSql || <span style={{ color: '#444' }}>Result will appear here...</span>}
+                                {generatedSql || <span style={{ color: 'var(--text-muted)' }}>Result will appear here...</span>}
                             </pre>
                         </div>
 

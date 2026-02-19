@@ -198,22 +198,22 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header / Toolbar */}
             {!isReportMode && (
-                <div style={{ padding: '8px 12px', background: '#141517', borderBottom: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+                <div style={{ padding: '8px 12px', background: 'var(--panel-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
 
                     {/* Top Row: Controls & Stats */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             {/* View Switcher */}
-                            <div style={{ display: 'flex', backgroundColor: '#1e1f22', borderRadius: '4px', padding: '2px' }}>
-                                <button onClick={() => setViewMode('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'table' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <div style={{ display: 'flex', backgroundColor: 'var(--input-bg)', borderRadius: '4px', padding: '2px', border: '1px solid var(--border-color)' }}>
+                                <button onClick={() => setViewMode('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'table' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuTable size={14} /> Table
                                 </button>
-                                <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'chart' ? '#1e1f22' : '#888', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'chart' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuChartBar size={14} /> Chart
                                 </button>
                             </div>
 
-                            <span style={{ color: '#888', fontSize: '12px' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
                                 {totalRows} result{totalRows !== 1 ? 's' : ''} ({executionTime}ms)
                                 {data.length !== totalRows && ` [Filtered from ${data.length}]`}
                             </span>
@@ -230,21 +230,21 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                         value={globalSearch}
                                         onChange={(e) => { setGlobalSearch(e.target.value); setCurrentPage(1); }}
                                         style={{
-                                            backgroundColor: '#1E1F22', border: '1px solid #444', color: '#fff',
+                                            backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)',
                                             padding: '4px 8px 4px 28px', borderRadius: '4px', fontSize: '12px', width: '180px'
                                         }}
                                     />
-                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', opacity: 0.5, display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', opacity: 0.5, display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
                                         <LuSearch size={14} />
                                     </span>
                                 </div>
                             )}
 
                             {/* Export / Save */}
-                            <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <LuSave size={14} /> Save As
                             </button>
-                            <button onClick={handleExportCsv} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: '#2f425f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <button onClick={handleExportCsv} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <LuFileSpreadsheet size={14} /> Export CSV
                             </button>
                         </div>
@@ -252,7 +252,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
 
                     {/* Bottom Row: Pagination & Filters Toggle */}
                     {viewMode === 'table' && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#ccc' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', userSelect: 'none' }}>
                                     <input type="checkbox" checked={showFilters} onChange={(e) => setShowFilters(e.target.checked)} style={{ accentColor: 'var(--accent-color-user)' }} />
@@ -261,10 +261,10 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: '2px 6px', background: '#333', color: '#fff', border: '1px solid #444', cursor: 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}>&lt;</button>
+                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: '2px 6px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', cursor: 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}>&lt;</button>
                                 <span> Page {currentPage} of {totalPages} </span>
-                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: '2px 6px', background: '#333', color: '#fff', border: '1px solid #444', cursor: 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}>&gt;</button>
-                                <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} style={{ marginLeft: '10px', background: '#333', color: '#fff', border: '1px solid #444', padding: '2px', borderRadius: '3px' }}>
+                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: '2px 6px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', cursor: 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}>&gt;</button>
+                                <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} style={{ marginLeft: '10px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '2px', borderRadius: '3px' }}>
                                     <option value={50}>50 rows</option>
                                     <option value={100}>100 rows</option>
                                     <option value={500}>500 rows</option>
@@ -277,7 +277,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
             )}
 
             {/* Results Content */}
-            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : 'auto', border: '1px solid #333', marginTop: '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : 'auto', border: '1px solid var(--border-color)', marginTop: '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
                 {viewMode === 'table' ? (
                     <table style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
@@ -290,9 +290,10 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                             key={col}
                                             style={{
                                                 cursor: 'pointer', userSelect: 'none', position: 'relative',
-                                                backgroundColor: '#1A1B1E',
-                                                borderRight: '1px solid #333',
-                                                borderBottom: '1px solid #333', // Always have bottom border
+                                                backgroundColor: 'var(--table-header-bg)',
+                                                color: 'var(--text-active)',
+                                                borderRight: '1px solid var(--border-color)',
+                                                borderBottom: '1px solid var(--border-color)', // Always have bottom border
                                                 minWidth: '100px'
                                             }}
                                             onClick={() => handleSort(col)}
@@ -312,14 +313,14 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                             {showFilters && !isReportMode && (
                                 <tr>
                                     {columns.map((col) => (
-                                        <td key={`filter-${col}`} style={{ padding: '4px', backgroundColor: '#25262B', borderBottom: '1px solid #333' }}>
+                                        <td key={`filter-${col}`} style={{ padding: '4px', backgroundColor: 'var(--table-header-bg)', borderBottom: '1px solid var(--border-color)' }}>
                                             <input
                                                 type="text"
                                                 placeholder={`Filter ${col}...`}
                                                 value={columnFilters[col] || ''}
                                                 onChange={(e) => handleFilterChange(col, e.target.value)}
                                                 style={{
-                                                    width: '100%', border: '1px solid #444', background: '#141517', color: '#fff',
+                                                    width: '100%', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-active)',
                                                     fontSize: '11px', padding: '2px 4px', borderRadius: '2px'
                                                 }}
                                             />

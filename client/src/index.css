@@ -17,6 +17,16 @@
   --hover-color: #2C2E33;
   --modal-bg: #25262b;
   --input-bg: #1A1B1E;
+  --button-text-color: #1e1f22;
+  --sidebar-item-active-text: #ffffff;
+  /* --- NEW SEMANTIC VARIABLES --- */
+  --panel-bg: #141517;
+  --panel-section-bg: #0F1012;
+  --chart-bg: #1e1f22;
+  --grid-color: #444;
+  --tooltip-bg: #252626;
+  --table-header-bg: #1A1B1E;
+  --table-row-hover: #2C2E33;
 }
 
 .light-theme {
@@ -39,7 +49,19 @@
   --hover-color: #f1f3f5;
   --modal-bg: #ffffff;
   --input-bg: #f8f9fa;
+  --button-text-color: #ffffff;
+  --sidebar-item-active-text: #0059ff; /* Blue text for active item */
+
+  /* --- NEW SEMANTIC VARIABLES (LIGHT) --- */
+  --panel-bg: #f1f3f5;
+  --panel-section-bg: #e9ecef;
+  --chart-bg: #ffffff;
+  --grid-color: #e9ecef;
+  --tooltip-bg: #ffffff;
+  --table-header-bg: #f8f9fa;
+  --table-row-hover: #f1f3f5;
 }
+
 
 body {
   margin: 0;
@@ -125,7 +147,7 @@ body {
 
 .file-item.active {
   background-color: var(--sidebar-item-active-bg);
-  color: #fff;
+  color: var(--sidebar-item-active-text);
   /* Optional: faint shadow or inner highlight */
 }
 
@@ -168,8 +190,9 @@ body {
 button {
   background-color: var(--accent-color-user);
   /* User's green accent */
-  color: #1e1f22;
+  color: var(--button-text-color);
   /* Dark text on bright green */
+
   font-weight: 600;
   border: none;
   padding: 6px 14px;

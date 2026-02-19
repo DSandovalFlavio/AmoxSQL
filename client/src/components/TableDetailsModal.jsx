@@ -273,7 +273,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                                 onClick={() => { setActiveTab(key); setPage(1); }}
                                 style={{
                                     padding: '10px 20px',
-                                    background: isActive ? '#1E1F22' : 'transparent',
+                                    background: isActive ? 'var(--sidebar-item-active-bg)' : 'transparent',
                                     color: isActive ? 'var(--accent-color-user)' : '#888',
                                     border: 'none',
                                     borderBottom: isActive ? '2px solid var(--accent-color-user)' : '2px solid transparent',

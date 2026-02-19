@@ -50,10 +50,10 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
             style={{
                 flex: 1,
                 padding: '10px',
-                background: activeTab === id ? '#25262B' : 'transparent',
+                background: activeTab === id ? 'var(--sidebar-item-active-bg)' : 'transparent',
                 border: 'none',
                 borderBottom: activeTab === id ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                color: activeTab === id ? '#fff' : '#888',
+                color: activeTab === id ? 'var(--text-active)' : '#888',
                 cursor: 'pointer',
                 fontWeight: activeTab === id ? 'bold' : 'normal',
                 fontSize: '13px',
