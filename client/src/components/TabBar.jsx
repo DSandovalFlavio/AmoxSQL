@@ -50,10 +50,10 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
     return (
         <div style={{
             display: 'flex',
-            backgroundColor: '#141517', // Requested Theme Color
+            backgroundColor: 'var(--header-bg)',
             height: '35px',
             alignItems: 'center',
-            borderBottom: '1px solid #1E1E1E',
+            borderBottom: '1px solid var(--border-color)',
             overflowX: 'auto',
             userSelect: 'none'
         }}>
@@ -74,10 +74,10 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            backgroundColor: isActive ? '#1E1E1E' : '#2D2D2D',
-                            color: isActive ? '#ffffff' : '#969696',
-                            borderRight: '1px solid #1E1E1E',
-                            borderTop: isActive ? '1px solid #007fd4' : '1px solid transparent', // Active indicator
+                            backgroundColor: isActive ? 'var(--editor-bg)' : 'var(--panel-bg)',
+                            color: isActive ? 'var(--text-active)' : 'var(--text-muted)',
+                            borderRight: '1px solid var(--border-color)',
+                            borderTop: isActive ? '1px solid var(--accent-color-user)' : '1px solid transparent', // Active indicator
                             cursor: 'pointer',
                             minWidth: '100px',
                             maxWidth: '200px',

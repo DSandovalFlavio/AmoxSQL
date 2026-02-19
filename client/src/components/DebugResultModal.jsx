@@ -11,21 +11,22 @@ const DebugResultModal = ({ isOpen, onClose, cteName, result, query }) => {
             display: 'flex', justifyContent: 'center', alignItems: 'center'
         }}>
             <div style={{
-                width: '90%', height: '80%', backgroundColor: '#1e1f22',
+                width: '90%', height: '80%', backgroundColor: 'var(--modal-bg)',
                 borderRadius: '8px', display: 'flex', flexDirection: 'column',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.5)', border: '1px solid #333'
+                boxShadow: '0 10px 25px rgba(0,0,0,0.5)', border: '1px solid var(--border-color)'
             }}>
                 <div style={{
-                    padding: '15px 20px', borderBottom: '1px solid #333',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    padding: '15px 20px', borderBottom: '1px solid var(--border-color)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    backgroundColor: 'var(--header-bg)'
                 }}>
-                    <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>
-                        Debugging CTE: <span style={{ color: '#00ffff' }}>{cteName}</span>
+                    <h3 style={{ margin: 0, color: 'var(--text-active)', fontSize: '16px' }}>
+                        Debugging CTE: <span style={{ color: 'var(--accent-color-user)' }}>{cteName}</span>
                     </h3>
                     <button
                         onClick={onClose}
                         style={{
-                            background: 'transparent', border: 'none', color: '#888',
+                            background: 'transparent', border: 'none', color: 'var(--text-muted)',
                             fontSize: '24px', cursor: 'pointer'
                         }}
                     >
@@ -49,7 +50,7 @@ const DebugResultModal = ({ isOpen, onClose, cteName, result, query }) => {
                             )}
                         </>
                     ) : (
-                        <div style={{ padding: '20px', color: '#888' }}>Running...</div>
+                        <div style={{ padding: '20px', color: 'var(--text-muted)' }}>Running...</div>
                     )}
                 </div>
             </div>

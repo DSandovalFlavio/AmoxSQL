@@ -68,25 +68,25 @@ const TablePreviewModal = ({ tableName, onClose }) => {
             zIndex: 1000
         }} onClick={onClose}>
             <div style={{
-                backgroundColor: '#1e1e1e',
-                color: '#d4d4d4',
+                backgroundColor: 'var(--modal-bg)',
+                color: 'var(--text-color)',
                 width: '90%',
                 height: '80%',
                 borderRadius: '8px',
                 display: 'flex',
                 flexDirection: 'column',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                border: '1px solid #333'
+                border: '1px solid var(--border-color)'
             }} onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div style={{
                     padding: '15px 20px',
-                    borderBottom: '1px solid #333',
+                    borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    backgroundColor: '#0A0B0C',
+                    backgroundColor: 'var(--header-bg)',
                     borderTopLeftRadius: '8px',
                     borderTopRightRadius: '8px'
                 }}>
@@ -138,16 +138,16 @@ const TablePreviewModal = ({ tableName, onClose }) => {
 
                     {!loading && !error && data.length > 0 && (
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', fontFamily: 'Consolas, Monaco, monospace' }}>
-                            <thead style={{ position: 'sticky', top: 0, backgroundColor: '#0A0B0C', zIndex: 1, boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                            <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--header-bg)', zIndex: 1, boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                 <tr>
                                     {columns.map(col => (
                                         <th key={col} style={{
                                             textAlign: 'left',
                                             padding: '8px 12px',
-                                            borderBottom: '1px solid #444',
-                                            backgroundColor: '#0A0B0C',
+                                            borderBottom: '1px solid var(--border-color)',
+                                            backgroundColor: 'var(--header-bg)',
                                             textTransform: 'uppercase',
-                                            color: '#26d4a6ff',
+                                            color: 'var(--accent-color-user)',
                                             whiteSpace: 'nowrap'
                                         }}>
                                             {col}
@@ -157,16 +157,16 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                             </thead>
                             <tbody>
                                 {data.map((row, idx) => (
-                                    <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#0F1012' : '#141517' }}>
+                                    <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? 'var(--panel-bg)' : 'var(--input-bg)' }}>
                                         {columns.map(col => (
                                             <td key={`${idx}-${col}`} style={{
                                                 padding: '6px 12px',
-                                                borderBottom: '1px solid #333',
+                                                borderBottom: '1px solid var(--border-color)',
                                                 whiteSpace: 'nowrap',
                                                 maxWidth: '300px',
                                                 overflow: 'hidden',
                                                 textOverflow: 'ellipsis',
-                                                color: row[col] === null ? '#555' : '#ccc'
+                                                color: row[col] === null ? 'var(--text-muted)' : 'var(--text-color)'
                                             }}>
                                                 {row[col] === null ? 'NULL' : String(row[col])}
                                             </td>

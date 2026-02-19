@@ -88,8 +88,8 @@ const SimpleColorPicker = ({ color, onChange }) => {
                             value={color}
                             onChange={(e) => onChange(e.target.value)}
                             style={{
-                                flex: 1, background: '#1c1c1c', border: '1px solid #444',
-                                color: '#fff', fontSize: '11px', padding: '4px'
+                                flex: 1, background: 'var(--input-bg)', border: '1px solid var(--border-color)',
+                                color: 'var(--text-active)', fontSize: '11px', padding: '4px'
                             }}
                         />
                     </div>
@@ -551,7 +551,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
 
     // --- CHART CONTENT MEMO ---
     const ChartContent = useMemo(() => {
-        if (!processedData || processedData.length === 0) return <div style={{ color: '#888' }}>No data to display</div>;
+        if (!processedData || processedData.length === 0) return <div style={{ color: 'var(--text-muted)' }}>No data to display</div>;
 
         try {
             switch (chartType) {
@@ -562,20 +562,20 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={false} />
                                 <XAxis
                                     dataKey={xAxisKey}
-                                    stroke="#888"
-                                    tick={xAxisTickProps}
+                                    stroke="var(--border-color)"
+                                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                     tickFormatter={xAxisTickFormatter}
-                                    label={{ value: XLabel, position: 'bottom', offset: 0, fill: '#aaa', fontSize: 12 }}
+                                    label={{ value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
                                     height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                 />
                                 <YAxis
-                                    stroke="#888"
-                                    tick={{ fill: '#888', fontSize: 11 }}
+                                    stroke="var(--border-color)"
+                                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                     tickFormatter={formatNumber}
                                     domain={yDomain}
                                     scale={yScale}
                                     allowDataOverflow={true}
-                                    label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: '#aaa', fontSize: 12 }}
+                                    label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
                                 />
                                 <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.2)' }} formatter={(value) => formatNumber(value)} labelFormatter={xAxisTickFormatter} />
                                 <Legend {...legendProps} />
@@ -641,47 +641,47 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 {...CommonProps}
                                 margin={{ ...CommonProps.margin, right: legendPosition === 'right' ? 10 : 30, left: legendPosition === 'left' ? 10 : 20 }}
                             >
-                                <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={!isHorizontal} horizontal={isHorizontal} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={!isHorizontal} horizontal={isHorizontal} />
 
                                 {isHorizontal ? (
                                     <>
                                         <XAxis
                                             type="number"
-                                            stroke="#888"
-                                            tick={{ fill: '#888', fontSize: 11 }}
+                                            stroke="var(--border-color)"
+                                            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                             tickFormatter={formatNumber}
                                             domain={yDomain}
                                             scale={yScale}
-                                            label={{ value: YLabel, position: 'bottom', offset: 0, fill: '#aaa', fontSize: 12 }}
+                                            label={{ value: YLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
                                             height={50}
                                         />
                                         <YAxis
                                             type="category"
                                             dataKey={xAxisKey}
-                                            stroke="#888"
-                                            tick={{ fill: '#888', fontSize: 11 }}
+                                            stroke="var(--border-color)"
+                                            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                             width={100}
                                             tickFormatter={xAxisTickFormatter}
-                                            label={{ value: XLabel, angle: -90, position: 'insideLeft', fill: '#aaa', fontSize: 12 }}
+                                            label={{ value: XLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
                                         />
                                     </>
                                 ) : (
                                     <>
                                         <XAxis
                                             dataKey={xAxisKey}
-                                            stroke="#888"
+                                            stroke="var(--border-color)"
                                             tick={xAxisTickProps}
                                             tickFormatter={xAxisTickFormatter}
-                                            label={{ value: XLabel, position: 'bottom', offset: 0, fill: '#aaa', fontSize: 12 }}
+                                            label={{ value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
                                             height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                         />
                                         <YAxis
-                                            stroke="#888"
-                                            tick={{ fill: '#888', fontSize: 11 }}
+                                            stroke="var(--border-color)"
+                                            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                             tickFormatter={formatNumber}
                                             domain={yDomain}
                                             scale={yScale}
-                                            label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: '#aaa', fontSize: 12 }}
+                                            label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
                                         />
                                     </>
                                 )}
@@ -737,26 +737,26 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                     return (
                         <ResponsiveContainer width="100%" height="100%">
                             <ScatterChart {...CommonProps}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" />
                                 <XAxis
                                     dataKey={xAxisKey}
                                     type={isDateColumn ? "category" : "number"}
                                     name={XLabel}
-                                    stroke="#888"
+                                    stroke="var(--border-color)"
                                     tick={xAxisTickProps}
                                     tickFormatter={xAxisTickFormatter}
                                     interval="preserveStartEnd"
                                     domain={['auto', 'auto']}
-                                    label={{ value: XLabel, position: 'bottom', offset: 0, fill: '#aaa', fontSize: 12 }}
+                                    label={{ value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
                                     height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                 />
                                 <YAxis
                                     type="number"
                                     name={YLabel}
-                                    stroke="#888"
-                                    tick={{ fill: '#888', fontSize: 11 }}
+                                    stroke="var(--border-color)"
+                                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                     tickFormatter={formatNumber}
-                                    label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: '#aaa', fontSize: 12 }}
+                                    label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
                                 />
                                 <ZAxis
                                     type="number"
@@ -861,7 +861,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                             onClick={handleDownload}
                             title="Download Chart as PNG"
                             style={{
-                                background: 'transparent', border: '1px solid #555', color: '#ccc', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
                                 display: 'flex', alignItems: 'center', gap: '4px'
                             }}
                         >
@@ -937,7 +937,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                             <select
                                 value={sortMode}
                                 onChange={(e) => setSortMode(e.target.value)}
-                                style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                             >
                                 <option value="x-asc">Axis Label Asc</option>
                                 <option value="x-desc">Axis Label Desc</option>
@@ -952,21 +952,21 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 placeholder="All"
                                 value={maxItems === 0 ? '' : maxItems}
                                 onChange={(e) => setMaxItems(e.target.value === '' ? 0 : Number(e.target.value))}
-                                style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                             />
                         </div>
                     </div>
 
                     {/* --- ADVANCED DATA OPTIONS --- */}
                     {isDateColumn && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#0F1012', borderRadius: '4px', border: '1px solid #3e3e42' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#00ffff', marginBottom: '8px', fontWeight: '600' }}>
+                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--accent-color-user)', marginBottom: '8px', fontWeight: '600' }}>
                                 <LuCalendar size={12} /> Date Aggregation
                             </label>
                             <select
                                 value={dateAggregation}
                                 onChange={(e) => setDateAggregation(e.target.value)}
-                                style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                             >
                                 <option value="none">Raw Data (Daily/Exact)</option>
                                 <option value="month">Group by Month</option>
@@ -983,7 +983,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                             <select
                                 value={splitByKey}
                                 onChange={(e) => setSplitByKey(e.target.value)}
-                                style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                             >
                                 <option value="">(None)</option>
                                 {columns.map(col => <option key={col} value={col}>{col}</option>)}
@@ -999,7 +999,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                             <select
                                 value={bubbleSizeKey}
                                 onChange={(e) => setBubbleSizeKey(e.target.value)}
-                                style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '6px', borderRadius: '4px' }}
+                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                             >
                                 <option value="">(Uniform Size)</option>
                                 {columns.map(col => <option key={col} value={col}>{col}</option>)}
@@ -1122,7 +1122,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                         placeholder="Auto"
                                         value={yAxisDomain[0]}
                                         onChange={(e) => setYAxisDomain([e.target.value, yAxisDomain[1]])}
-                                        style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                        style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                     />
                                 </div>
                                 <div style={{ flex: 1 }}>
@@ -1132,7 +1132,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                         placeholder="Auto"
                                         value={yAxisDomain[1]}
                                         onChange={(e) => setYAxisDomain([yAxisDomain[0], e.target.value])}
-                                        style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                        style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                     />
                                 </div>
                             </div>
@@ -1151,7 +1151,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     placeholder="Enter value..."
                                     value={refLine.value}
                                     onChange={(e) => setRefLine({ ...refLine, value: e.target.value })}
-                                    style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                 />
                             </div>
                             <div style={{ marginBottom: '8px' }}>
@@ -1161,7 +1161,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     placeholder="e.g. Goal"
                                     value={refLine.label}
                                     onChange={(e) => setRefLine({ ...refLine, label: e.target.value })}
-                                    style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                 />
                             </div>
                             <div>
@@ -1186,7 +1186,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     placeholder={defaultXLabel}
                                     value={customAxisTitles.x}
                                     onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, x: e.target.value })}
-                                    style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                 />
                             </div>
                             <div style={{ marginBottom: '8px' }}>
@@ -1196,7 +1196,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     placeholder={defaultYLabel}
                                     value={customAxisTitles.y}
                                     onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })}
-                                    style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                 />
                             </div>
 
@@ -1207,7 +1207,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     <select
                                         value={xAxisLabelAngle}
                                         onChange={(e) => setXAxisLabelAngle(Number(e.target.value))}
-                                        style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
                                     >
                                         <option value="0">0° (Horizontal)</option>
                                         <option value="45">45°</option>
@@ -1227,7 +1227,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 <select
                                     value={legendPosition}
                                     onChange={(e) => setLegendPosition(e.target.value)}
-                                    style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
                                 >
                                     <option value="top">Top</option>
                                     <option value="bottom">Bottom</option>
@@ -1275,7 +1275,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     max="100"
                                     value={donutGroupingThreshold}
                                     onChange={(e) => setDonutGroupingThreshold(Number(e.target.value))}
-                                    style={{ width: '100%', background: '#1c1c1c', border: '1px solid #444', color: '#fff', padding: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                 />
                                 <span style={{ fontSize: '10px', color: '#666' }}>Slices smaller than this % will be grouped into "Others".</span>
                             </div>
@@ -1285,7 +1285,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 <select
                                     value={donutLabelContent}
                                     onChange={(e) => setDonutLabelContent(e.target.value)}
-                                    style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
                                 >
                                     <option value="percent">Percentage Only</option>
                                     <option value="value">Value Only</option>
@@ -1300,7 +1300,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 <select
                                     value={donutLabelPosition}
                                     onChange={(e) => setDonutLabelPosition(e.target.value)}
-                                    style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
                                 >
                                     <option value="outside">Outside</option>
                                     <option value="inside">Inside</option>
@@ -1344,7 +1344,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 <select
                                     value={highlightConfig.type}
                                     onChange={(e) => setHighlightConfig({ ...highlightConfig, type: e.target.value })}
-                                    style={{ width: '100%', backgroundColor: '#141517', color: '#fff', border: '1px solid #555', padding: '4px', borderRadius: '4px', fontSize: '11px', marginBottom: '5px' }}
+                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px', marginBottom: '5px' }}
                                 >
                                     <option value="none">None</option>
                                     <option value="max">Max Value Point</option>

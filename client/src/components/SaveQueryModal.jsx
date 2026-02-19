@@ -76,11 +76,11 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
             <div style={{
-                backgroundColor: '#252526', padding: '20px', borderRadius: '5px', width: '400px',
-                border: '1px solid #454545', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                color: '#bcbec4', fontFamily: 'sans-serif'
+                backgroundColor: 'var(--modal-bg)', padding: '20px', borderRadius: '5px', width: '400px',
+                border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                color: 'var(--text-color)', fontFamily: 'sans-serif'
             }}>
-                <h3 style={{ marginTop: 0, color: '#fff', fontSize: '16px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>
                     {successSummary ? 'Save Completed' : 'Save Query'}
                 </h3>
 
@@ -92,7 +92,7 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
                             {successSummary}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleClose} style={{ backgroundColor: '#00ffff', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
+                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
                                 Close
                             </button>
                         </div>
@@ -100,7 +100,7 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
                 ) : (
                     /* Save Form */
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        {saving && <div style={{ padding: '10px', textAlign: 'center', color: '#00ffff' }}>Saving...</div>}
+                        {saving && <div style={{ padding: '10px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Saving...</div>}
                         {error && <div style={{ padding: '10px', backgroundColor: '#3e2020', color: '#ff8888', borderRadius: '4px', marginBottom: '10px', fontSize: '12px' }}>{error}</div>}
 
                         {!saving && (
@@ -110,7 +110,7 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
                                     <select
                                         value={selectedFolder}
                                         onChange={(e) => setSelectedFolder(e.target.value)}
-                                        style={{ width: '100%', padding: '8px', backgroundColor: '#3c3c3c', border: '1px solid #555', color: '#fff', borderRadius: '3px' }}
+                                        style={{ width: '100%', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                     >
                                         {folders.map(f => (
                                             <option key={f.path} value={f.path}>
@@ -126,7 +126,7 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
                                         value={filename}
                                         onChange={(e) => setFilename(e.target.value)}
                                         placeholder="query.sql or notebook.sqlnb"
-                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: '#3c3c3c', border: '1px solid #555', color: '#fff', borderRadius: '3px' }}
+                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                         autoFocus
                                         required
                                     />
@@ -137,12 +137,12 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         placeholder="What does this query do?"
-                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', height: '80px', backgroundColor: '#3c3c3c', border: '1px solid #555', color: '#fff', resize: 'vertical', borderRadius: '3px' }}
+                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', height: '80px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', resize: 'vertical', borderRadius: '3px' }}
                                     />
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                                    <button type="button" onClick={handleClose} style={{ backgroundColor: '#4e5157', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="submit" style={{ backgroundColor: '#00ffff', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>
+                                    <button type="button" onClick={handleClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
+                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>
                                 </div>
                             </>
                         )}

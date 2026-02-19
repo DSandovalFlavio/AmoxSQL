@@ -72,24 +72,24 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
             backdropFilter: 'blur(3px)'
         }}>
             <div style={{
-                backgroundColor: '#141517', width: '550px',
-                borderRadius: '8px', border: '1px solid #454545',
+                backgroundColor: 'var(--modal-bg)', width: '550px',
+                borderRadius: '8px', border: '1px solid var(--border-color)',
                 boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                color: '#bcbec4', fontFamily: 'sans-serif',
+                color: 'var(--text-color)', fontFamily: 'sans-serif',
                 overflow: 'hidden', display: 'flex', flexDirection: 'column'
             }}>
                 {/* Header */}
-                <div style={{ padding: '20px 25px', borderBottom: '1px solid #2C2E33', backgroundColor: '#1A1B1E' }}>
-                    <h3 style={{ margin: 0, color: '#fff', fontSize: '18px' }}>
+                <div style={{ padding: '20px 25px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--header-bg)' }}>
+                    <h3 style={{ margin: 0, color: 'var(--text-active)', fontSize: '18px' }}>
                         Initialize Database Session
                     </h3>
-                    <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#888' }}>
+                    <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
                         Choose a data source to begin your work.
                     </p>
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', borderBottom: '1px solid #2C2E33', backgroundColor: '#1A1B1E' }}>
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--header-bg)' }}>
                     {dbFiles.length > 0 && renderTabButton('EXISTING', 'Open Existing', <LuFolderOpen size={16} />)}
                     {renderTabButton('CREATE', 'Create New', <LuSparkles size={16} />)}
                     {renderTabButton('MEMORY', 'In-Memory', <LuBrain size={16} />)}
@@ -106,7 +106,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                                 <select
                                     value={selectedPath || ''}
                                     onChange={(e) => setSelectedPath(e.target.value)}
-                                    style={{ width: '100%', padding: '10px', background: '#0F1012', color: 'white', border: '1px solid #333', borderRadius: '4px' }}
+                                    style={{ width: '100%', padding: '10px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px' }}
                                 >
                                     {dbFiles.map(f => (
                                         <option key={f.path} value={f.path}>{f.name}</option>
@@ -147,10 +147,10 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                                         value={newDbName}
                                         onChange={(e) => setNewDbName(e.target.value)}
                                         placeholder="my_project_data"
-                                        style={{ flex: 1, padding: '10px', background: '#0F1012', color: 'white', border: '1px solid #333', borderRadius: '4px 0 0 4px', outline: 'none' }}
+                                        style={{ flex: 1, padding: '10px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px 0 0 4px', outline: 'none' }}
                                         autoFocus
                                     />
-                                    <div style={{ padding: '10px', background: '#25262B', border: '1px solid #333', borderLeft: 'none', borderRadius: '0 4px 4px 0', color: '#888', fontSize: '13px' }}>
+                                    <div style={{ padding: '10px', background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderLeft: 'none', borderRadius: '0 4px 4px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
                                         .duckdb
                                     </div>
                                 </div>
@@ -159,8 +159,8 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                                 </p>
                             </div>
                             <div style={{ padding: '10px', background: 'rgba(0, 204, 255, 0.05)', border: '1px solid rgba(0, 238, 255, 0.2)', borderRadius: '4px' }}>
-                                <strong style={{ color: '#00ffff', fontSize: '13px' }}>Note:</strong>
-                                <span style={{ fontSize: '12px', color: '#aaa', marginLeft: '5px' }}>New databases are always opened in <strong>Read / Write</strong> mode.</span>
+                                <strong style={{ color: 'var(--accent-color-user)', fontSize: '13px' }}>Note:</strong>
+                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '5px' }}>New databases are always opened in <strong>Read / Write</strong> mode.</span>
                             </div>
                         </div>
                     )}
@@ -179,12 +179,12 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                 </div>
 
                 {/* Footer */}
-                <div style={{ padding: '20px 25px', borderTop: '1px solid #2C2E33', display: 'flex', justifyContent: 'flex-end', gap: '10px', backgroundColor: '#1A1B1E' }}>
+                <div style={{ padding: '20px 25px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '10px', backgroundColor: 'var(--header-bg)' }}>
                     {/* Back Button (Only logic if we had a previous step, but Cancel implies exiting project selection?? Maybe just removed for now) */}
                     <button
                         onClick={handleSubmit}
                         style={{
-                            backgroundColor: activeTab === 'CREATE' ? '#00ffff' : 'var(--accent-color-user)',
+                            backgroundColor: activeTab === 'CREATE' ? 'var(--accent-color-user)' : 'var(--accent-color-user)',
                             padding: '10px 24px', borderRadius: '4px', border: 'none',
                             color: '#141517', fontWeight: 'bold', cursor: 'pointer',
                             transition: 'all 0.2s',

@@ -50,24 +50,24 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000
         }} onClick={onClose}>
             <div style={{
-                backgroundColor: '#1E1F22', width: '800px', height: '600px',
-                borderRadius: '8px', border: '1px solid #454545',
+                backgroundColor: 'var(--modal-bg)', width: '800px', height: '600px',
+                borderRadius: '8px', border: '1px solid var(--border-color)',
                 display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                color: '#bcbec4', fontFamily: 'sans-serif', boxShadow: '0 8px 16px rgba(0,0,0,0.4)'
+                color: 'var(--text-color)', fontFamily: 'sans-serif', boxShadow: '0 8px 16px rgba(0,0,0,0.4)'
             }} onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div style={{ padding: '15px 20px', borderBottom: '1px solid #2C2E33', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#25262B' }}>
-                    <h2 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Query History</h2>
+                <div style={{ padding: '15px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--header-bg)' }}>
+                    <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-active)' }}>Query History</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <input
                             type="text"
                             placeholder="Search history..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            style={{ padding: '5px 10px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#141517', color: '#fff', fontSize: '13px' }}
+                            style={{ padding: '5px 10px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', fontSize: '13px' }}
                         />
-                        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+                        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }}>✕</button>
                     </div>
                 </div>
 
@@ -81,7 +81,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                     {!loading && filteredHistory.map((item, index) => (
                         <div key={index} style={{
                             padding: '12px 20px',
-                            borderBottom: '1px solid #2C2E33',
+                            borderBottom: '1px solid var(--border-color)',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '5px',
@@ -97,12 +97,12 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                                 }
                             }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#888' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
                                 <span>{formatDate(item.executed_at)}</span>
                                 <button
                                     onClick={(e) => handleCopy(item.query, e)}
                                     title="Copy to Clipboard"
-                                    style={{ background: 'transparent', border: 'none', color: '#00ffff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                    style={{ background: 'transparent', border: 'none', color: 'var(--accent-color-user)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                 >
                                     <LuClipboard size={14} />
                                 </button>
@@ -110,7 +110,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                             <div style={{
                                 fontFamily: "'JetBrains Mono', monospace",
                                 fontSize: '13px',
-                                color: '#d4d4d4',
+                                color: 'var(--text-color)',
                                 whiteSpace: 'pre-wrap',
                                 maxHeight: '100px',
                                 overflow: 'hidden',
@@ -124,7 +124,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                 </div>
 
                 {/* Footer */}
-                <div style={{ padding: '10px 20px', borderTop: '1px solid #2C2E33', backgroundColor: '#25262B', fontSize: '12px', color: '#666', textAlign: 'right' }}>
+                <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--header-bg)', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'right' }}>
                     Auto-prunes records older than 30 days. Click to insert query.
                 </div>
             </div>

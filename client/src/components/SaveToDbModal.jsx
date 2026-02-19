@@ -49,16 +49,16 @@ const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000
         }}>
             <div style={{
-                backgroundColor: '#141517', padding: '20px', borderRadius: '5px', width: '350px',
-                border: '1px solid #454545', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                color: '#bcbec4', fontFamily: 'sans-serif'
+                backgroundColor: 'var(--modal-bg)', padding: '20px', borderRadius: '5px', width: '350px',
+                border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                color: 'var(--text-color)', fontFamily: 'sans-serif'
             }}>
-                <h3 style={{ marginTop: 0, color: '#fff', fontSize: '16px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>
                     {successSummary ? 'Save Completed' : 'Save Results to Database'}
                 </h3>
 
                 {!successSummary && (
-                    <p style={{ fontSize: '12px', color: '#aaa' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                         Create a new table or view from the current query results.
                     </p>
                 )}
@@ -71,7 +71,7 @@ const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
                             {successSummary}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleClose} style={{ backgroundColor: '#00ffff', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
+                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
                                 Close
                             </button>
                         </div>
@@ -79,7 +79,7 @@ const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
                 ) : (
                     /* Form View */
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        {saving && <div style={{ padding: '10px', textAlign: 'center', color: '#00ffff' }}>Saving...</div>}
+                        {saving && <div style={{ padding: '10px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Saving...</div>}
                         {error && <div style={{ padding: '10px', backgroundColor: '#3e2020', color: '#ff8888', borderRadius: '4px', marginBottom: '10px', fontSize: '12px' }}>{error}</div>}
 
                         {!saving && (
@@ -91,7 +91,7 @@ const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
                                         placeholder="my_new_table"
-                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: '#3c3c3c', border: '1px solid #555', color: '#fff', borderRadius: '3px' }}
+                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                         autoFocus
                                         required
                                     />
@@ -124,8 +124,8 @@ const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                                    <button type="button" onClick={handleClose} style={{ backgroundColor: '#4e5157', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="submit" style={{ backgroundColor: '#00ffff', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>
+                                    <button type="button" onClick={handleClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
+                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>
                                 </div>
                             </>
                         )}

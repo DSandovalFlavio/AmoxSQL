@@ -127,9 +127,9 @@ const EditorPane = ({
 
     if (!activeTab) {
         return (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#1e1e1e', borderLeft: '1px solid #333' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--editor-bg)', borderLeft: '1px solid var(--border-color)' }}>
                 <TabBar tabs={tabs} activeTabId={activeTabId} onTabClick={onTabClick} onTabClose={onTabClose} />
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#555' }}>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
                     No file open
                 </div>
             </div>
@@ -197,7 +197,7 @@ const EditorPane = ({
                             className="resizer-handle"
                             onMouseDown={startResizing}
                             style={{
-                                height: '5px', background: '#333', cursor: 'row-resize', width: '100%', zIndex: 10
+                                height: '5px', background: 'var(--border-color)', cursor: 'row-resize', width: '100%', zIndex: 10
                             }}
                         ></div>
                         <div className="results-container" style={{ height: resultsHeight, display: 'flex', flexDirection: 'column' }}>
@@ -213,7 +213,7 @@ const EditorPane = ({
                             )}
 
                             {!activeTab.results && !activeTab.resultsError && (
-                                <div style={{ padding: '10px', color: '#666', fontSize: '12px' }}>
+                                <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>
                                     Run query (Ctrl+Enter) to see results.
                                 </div>
                             )}

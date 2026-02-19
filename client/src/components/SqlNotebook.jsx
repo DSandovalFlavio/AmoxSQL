@@ -185,17 +185,17 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
     };
 
     return (
-        <div className={`notebook-container ${viewMode === 'report' ? 'report-mode-container' : ''}`} style={{ padding: '20px', height: '100%', overflowY: 'auto', backgroundColor: '#141517' }}>
+        <div className={`notebook-container ${viewMode === 'report' ? 'report-mode-container' : ''}`} style={{ padding: '20px', height: '100%', overflowY: 'auto', backgroundColor: 'var(--editor-bg)' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 {/* Mode Toggle */}
-                <div style={{ display: 'flex', backgroundColor: '#25262B', padding: '4px', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', backgroundColor: 'var(--panel-bg)', padding: '4px', borderRadius: '6px' }}>
                     <button
                         onClick={() => setViewMode('edit')}
                         style={{
                             padding: '6px 16px',
-                            backgroundColor: viewMode === 'edit' ? '#3B3EAC' : 'transparent',
-                            color: viewMode === 'edit' ? '#fff' : '#888',
+                            backgroundColor: viewMode === 'edit' ? 'var(--accent-color-user)' : 'transparent',
+                            color: viewMode === 'edit' ? '#fff' : 'var(--text-muted)',
                             border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px'
                         }}
                     >
@@ -205,8 +205,8 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
                         onClick={() => setViewMode('report')}
                         style={{
                             padding: '6px 16px',
-                            backgroundColor: viewMode === 'report' ? '#3B3EAC' : 'transparent',
-                            color: viewMode === 'report' ? '#fff' : '#888',
+                            backgroundColor: viewMode === 'report' ? 'var(--accent-color-user)' : 'transparent',
+                            color: viewMode === 'report' ? '#fff' : 'var(--text-muted)',
                             border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px'
                         }}
                     >
@@ -228,7 +228,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
                         <button
                             onClick={handleExportLongPdf}
                             style={{
-                                padding: '8px 16px', backgroundColor: '#00ffff', color: '#1e1f22',
+                                padding: '8px 16px', backgroundColor: 'var(--accent-color-user)', color: '#1e1f22',
                                 border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
                             }}
                         >
@@ -271,9 +271,9 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
 };
 
 const addBtnStyle = {
-    backgroundColor: '#141517',
-    color: '#fff',
-    border: '1px solid #495057',
+    backgroundColor: 'var(--input-bg)',
+    color: 'var(--text-active)',
+    border: '1px solid var(--border-color)',
     padding: '8px 16px',
     borderRadius: '4px',
     cursor: 'pointer',

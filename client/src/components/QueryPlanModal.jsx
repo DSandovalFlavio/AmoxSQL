@@ -56,34 +56,34 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
             zIndex: 1000
         }}>
             <div style={{
-                backgroundColor: '#1e1f22',
+                backgroundColor: 'var(--modal-bg)',
                 width: '95%',
                 height: '95%',
                 borderRadius: '8px',
                 display: 'flex',
                 flexDirection: 'column',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                border: '1px solid #333',
+                border: '1px solid var(--border-color)',
                 overflow: 'hidden'
             }}>
                 {/* Header */}
                 <div style={{
                     padding: '10px 15px',
-                    borderBottom: '1px solid #333',
+                    borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    backgroundColor: '#141517',
+                    backgroundColor: 'var(--header-bg)',
                     height: '40px',
                     flexShrink: 0
                 }}>
-                    <h3 style={{ margin: 0, color: '#fff', fontSize: '14px' }}>Query Execution Plan</h3>
+                    <h3 style={{ margin: 0, color: 'var(--text-active)', fontSize: '14px' }}>Query Execution Plan</h3>
                     <button
                         onClick={onClose}
                         style={{
                             background: 'transparent',
                             border: 'none',
-                            color: '#aaa',
+                            color: 'var(--text-muted)',
                             fontSize: '18px',
                             cursor: 'pointer'
                         }}
@@ -106,18 +106,18 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
                     {/* Left Pane: Query */}
                     <div style={{
                         width: queryWidth,
-                        borderRight: '1px solid #333',
+                        borderRight: '1px solid var(--border-color)',
                         display: 'flex',
                         flexDirection: 'column',
-                        backgroundColor: '#1e1f22'
+                        backgroundColor: 'var(--panel-bg)'
                     }}>
                         <div style={{
                             padding: '8px',
-                            borderBottom: '1px solid #2a2b2e',
+                            borderBottom: '1px solid var(--border-color)',
                             fontSize: '11px',
                             fontWeight: 'bold',
-                            color: '#888',
-                            backgroundColor: '#252629'
+                            color: 'var(--text-muted)',
+                            backgroundColor: 'var(--header-bg)'
                         }}>
                             SQL Query
                         </div>
@@ -125,14 +125,14 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
                             flex: 1,
                             overflow: 'auto',
                             padding: '10px',
-                            backgroundColor: '#1e1f22'
+                            backgroundColor: 'var(--input-bg)'
                         }}>
                             <pre style={{
                                 margin: 0,
                                 whiteSpace: 'pre-wrap',
                                 fontFamily: "'JetBrains Mono', 'Consolas', monospace",
                                 fontSize: '12px',
-                                color: '#dcdcdc',
+                                color: 'var(--text-color)',
                                 lineHeight: '1.5'
                             }}>
                                 {query}
@@ -146,7 +146,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
                         style={{
                             width: '8px', // Wider hit area
                             cursor: 'col-resize',
-                            backgroundColor: isDragging ? '#444' : '#2a2b2e',
+                            backgroundColor: isDragging ? 'var(--text-muted)' : 'var(--border-color)',
                             zIndex: 10,
                             flexShrink: 0,
                             transition: 'background-color 0.2s',
@@ -159,7 +159,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
                         <div style={{
                             width: '1px',
                             height: '100%',
-                            backgroundColor: '#333',
+                            backgroundColor: 'var(--border-color)',
                             margin: '0 auto'
                         }} />
                     </div>
@@ -184,15 +184,15 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
                         overflow: 'hidden',
                         display: 'flex',
                         flexDirection: 'column',
-                        backgroundColor: '#141517'
+                        backgroundColor: 'var(--modal-bg)'
                     }}>
                         <div style={{
                             padding: '8px',
-                            borderBottom: '1px solid #333',
+                            borderBottom: '1px solid var(--border-color)',
                             fontSize: '11px',
                             fontWeight: 'bold',
-                            color: '#888',
-                            backgroundColor: '#1a1b1e'
+                            color: 'var(--text-muted)',
+                            backgroundColor: 'var(--header-bg)'
                         }}>
                             Execution Tree
                         </div>

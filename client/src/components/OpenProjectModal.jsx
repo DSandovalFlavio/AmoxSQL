@@ -16,12 +16,12 @@ const OpenProjectModal = ({ isOpen, onClose, onOpen }) => {
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
             <div style={{
-                backgroundColor: '#252526', padding: '20px', borderRadius: '5px', width: '400px',
-                border: '1px solid #454545', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                color: '#bcbec4', fontFamily: 'sans-serif'
+                backgroundColor: 'var(--modal-bg)', padding: '20px', borderRadius: '5px', width: '400px',
+                border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                color: 'var(--text-color)', fontFamily: 'sans-serif'
             }}>
-                <h3 style={{ marginTop: 0, color: '#fff', fontSize: '16px' }}>Open Folder</h3>
-                <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '15px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>Open Folder</h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '15px' }}>
                     Enter the absolute path of the folder you want to open as a workspace.
                 </p>
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -32,15 +32,15 @@ const OpenProjectModal = ({ isOpen, onClose, onOpen }) => {
                             value={path}
                             onChange={(e) => setPath(e.target.value)}
                             placeholder="C:/Users/Name/Projects/MyData"
-                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: '#3c3c3c', border: '1px solid #555', color: '#fff', borderRadius: '3px' }}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                             autoFocus
                             required
                         />
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                        <button type="button" onClick={onClose} style={{ backgroundColor: '#4e5157', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', cursor: 'pointer' }}>Cancel</button>
-                        <button type="submit" style={{ backgroundColor: '#3574f0', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Open</button>
+                        <button type="button" onClick={onClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
+                        <button type="submit" style={{ backgroundColor: 'var(--button-bg-primary)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Open</button>
                     </div>
                 </form>
             </div>

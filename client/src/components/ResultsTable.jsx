@@ -162,7 +162,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
 
     const formatValue = (val) => {
         try {
-            if (val === null || val === undefined) return <span style={{ color: '#555', fontStyle: 'italic' }}>NULL</span>;
+            if (val === null || val === undefined) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>NULL</span>;
 
             if (typeof val === 'number') {
                 if (Number.isInteger(val)) {
@@ -173,7 +173,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                 // Let's use undefined to respect browser locale or force standard if needed. 
                 const formatted = val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
                 return (
-                    <span title={String(val)} style={{ cursor: 'help', borderBottom: '1px dotted #555' }}>
+                    <span title={String(val)} style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}>
                         {formatted}
                     </span>
                 );
@@ -340,7 +340,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
                                         No matching records found.
                                     </td>
                                 </tr>

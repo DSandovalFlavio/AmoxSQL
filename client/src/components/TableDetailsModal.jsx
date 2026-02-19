@@ -53,7 +53,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
         return (
             <div style={{ padding: '0', height: '100%', overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead style={{ position: 'sticky', top: 0, background: '#1A1B1E', zIndex: 1, borderBottom: '1px solid #333' }}>
+                    <thead style={{ position: 'sticky', top: 0, background: 'var(--header-bg)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                         <tr>
                             <th style={{ textAlign: 'left', padding: '10px' }}>Field name</th>
                             <th style={{ textAlign: 'left', padding: '10px' }}>Type</th>
@@ -64,12 +64,12 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                     </thead>
                     <tbody>
                         {data.schema.map((col, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #2C2E33' }}>
-                                <td style={{ padding: '10px', color: '#fff' }}>{col.column_name}</td>
-                                <td style={{ padding: '10px', color: '#9cdcfe' }}>{col.column_type}</td>
-                                <td style={{ padding: '10px', color: '#888' }}>{col.null}</td>
-                                <td style={{ padding: '10px', color: '#888' }}>{col.key}</td>
-                                <td style={{ padding: '10px', color: '#888' }}>{col.default}</td>
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                <td style={{ padding: '10px', color: 'var(--text-active)' }}>{col.column_name}</td>
+                                <td style={{ padding: '10px', color: 'var(--accent-color-user)' }}>{col.column_type}</td>
+                                <td style={{ padding: '10px', color: 'var(--text-muted)' }}>{col.null}</td>
+                                <td style={{ padding: '10px', color: 'var(--text-muted)' }}>{col.key}</td>
+                                <td style={{ padding: '10px', color: 'var(--text-muted)' }}>{col.default}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -81,17 +81,17 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
     const renderDetails = () => {
         if (!data) return null;
         return (
-            <div style={{ padding: '20px', color: '#d4d4d4' }}>
-                <h3 style={{ borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '20px' }}>Table Metadata</h3>
+            <div style={{ padding: '20px', color: 'var(--text-color)' }}>
+                <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>Table Metadata</h3>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '15px', fontSize: '13px' }}>
-                    <div style={{ color: '#888' }}>Table Name</div>
+                    <div style={{ color: 'var(--text-muted)' }}>Table Name</div>
                     <div>{data.tableName}</div>
 
-                    <div style={{ color: '#888' }}>Row Count</div>
+                    <div style={{ color: 'var(--text-muted)' }}>Row Count</div>
                     <div>{data.totalRows}</div>
 
-                    <div style={{ color: '#888' }}>Format</div>
+                    <div style={{ color: 'var(--text-muted)' }}>Format</div>
                     <div>DuckDB Table</div>
 
                     {/* We could add generic info time here if avail */}
@@ -111,11 +111,11 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ flex: 1, overflow: 'auto' }}>
                     <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                        <thead style={{ position: 'sticky', top: 0, background: '#1A1B1E', zIndex: 1, borderBottom: '1px solid #333' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: 'var(--header-bg)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                             <tr>
-                                <th style={{ padding: '8px', width: '50px', color: '#666', borderRight: '1px solid #333' }}>#</th>
+                                <th style={{ padding: '8px', width: '50px', color: 'var(--text-muted)', borderRight: '1px solid var(--border-color)' }}>#</th>
                                 {data.schema.map((col, idx) => (
-                                    <th key={idx} style={{ padding: '8px', borderRight: '1px solid #333', textAlign: 'left', color: '#ccc' }}>
+                                    <th key={idx} style={{ padding: '8px', borderRight: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-muted)' }}>
                                         {col.column_name}
                                     </th>
                                 ))}
@@ -123,12 +123,12 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                         </thead>
                         <tbody>
                             {currentRows.map((row, rIdx) => (
-                                <tr key={rIdx} style={{ borderBottom: '1px solid #252525' }}>
-                                    <td style={{ padding: '6px', color: '#666', borderRight: '1px solid #333', textAlign: 'right' }}>
+                                <tr key={rIdx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '6px', color: 'var(--text-muted)', borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>
                                         {startIdx + rIdx + 1}
                                     </td>
                                     {data.schema.map((col, cIdx) => (
-                                        <td key={cIdx} style={{ padding: '6px', borderRight: '1px solid #333', color: '#ddd' }}>
+                                        <td key={cIdx} style={{ padding: '6px', borderRight: '1px solid var(--border-color)', color: 'var(--text-color)' }}>
                                             {row[col.column_name]?.toString()}
                                         </td>
                                     ))}
@@ -139,11 +139,11 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                 </div>
                 {/* Pagination Controls */}
                 <div style={{
-                    padding: '10px', borderTop: '1px solid #333',
+                    padding: '10px', borderTop: '1px solid var(--border-color)',
                     display: 'flex', justifyContent: 'flex-end', gap: '10px', alignItems: 'center',
-                    background: '#141517'
+                    background: 'var(--panel-bg)'
                 }}>
-                    <span style={{ fontSize: '12px', color: '#888' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                         Showing {startIdx + 1}-{Math.min(startIdx + pageSize, totalPreviewRows)} of {totalPreviewRows}
                     </span>
                     <button
@@ -169,14 +169,14 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
         return (
             <div style={{ height: '100%', overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead style={{ position: 'sticky', top: 0, background: '#1A1B1E', zIndex: 1, borderBottom: '1px solid #333' }}>
+                    <thead style={{ position: 'sticky', top: 0, background: 'var(--header-bg)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                         <tr>
-                            <th style={{ textAlign: 'left', padding: '10px', color: '#ccc' }}>Column</th>
-                            <th style={{ textAlign: 'left', padding: '10px', color: '#ccc' }}>Type</th>
-                            <th style={{ textAlign: 'left', padding: '10px', color: '#ccc' }}>Nulls %</th>
-                            <th style={{ textAlign: 'left', padding: '10px', color: '#ccc' }}>Unique</th>
-                            <th style={{ textAlign: 'left', padding: '10px', color: '#ccc' }}>Min</th>
-                            <th style={{ textAlign: 'left', padding: '10px', color: '#ccc' }}>Max</th>
+                            <th style={{ textAlign: 'left', padding: '10px', color: 'var(--text-muted)' }}>Column</th>
+                            <th style={{ textAlign: 'left', padding: '10px', color: 'var(--text-muted)' }}>Type</th>
+                            <th style={{ textAlign: 'left', padding: '10px', color: 'var(--text-muted)' }}>Nulls %</th>
+                            <th style={{ textAlign: 'left', padding: '10px', color: 'var(--text-muted)' }}>Unique</th>
+                            <th style={{ textAlign: 'left', padding: '10px', color: 'var(--text-muted)' }}>Min</th>
+                            <th style={{ textAlign: 'left', padding: '10px', color: 'var(--text-muted)' }}>Max</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -186,23 +186,23 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                             if (isNaN(nullPct)) nullPct = 0;
 
                             return (
-                                <tr key={idx} style={{ borderBottom: '1px solid #2C2E33' }}>
-                                    <td style={{ padding: '8px 10px', color: '#fff' }}>{col.column_name}</td>
-                                    <td style={{ padding: '8px 10px', color: '#9cdcfe' }}>{col.column_type}</td>
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '8px 10px', color: 'var(--text-active)' }}>{col.column_name}</td>
+                                    <td style={{ padding: '8px 10px', color: 'var(--accent-color-user)' }}>{col.column_type}</td>
 
                                     {/* Sparkline-ish Null Bar */}
                                     <td style={{ padding: '8px 10px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <div style={{ width: '60px', height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
-                                                <div style={{ width: `${Math.min(nullPct, 100)}%`, height: '100%', background: nullPct > 0 ? '#ff6b6b' : '#333' }}></div>
+                                            <div style={{ width: '60px', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${Math.min(nullPct, 100)}%`, height: '100%', background: nullPct > 0 ? '#ff6b6b' : 'var(--border-color)' }}></div>
                                             </div>
-                                            <span style={{ color: nullPct > 0 ? '#ff6b6b' : '#888' }}>{nullPct.toFixed(1)}%</span>
+                                            <span style={{ color: nullPct > 0 ? '#ff6b6b' : 'var(--text-muted)' }}>{nullPct.toFixed(1)}%</span>
                                         </div>
                                     </td>
 
-                                    <td style={{ padding: '8px 10px', color: '#dcdcaa' }}>{col.approx_unique}</td>
-                                    <td style={{ padding: '8px 10px', color: '#888' }}>{col.min || '-'}</td>
-                                    <td style={{ padding: '8px 10px', color: '#888' }}>{col.max || '-'}</td>
+                                    <td style={{ padding: '8px 10px', color: 'var(--text-color)' }}>{col.approx_unique}</td>
+                                    <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>{col.min || '-'}</td>
+                                    <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>{col.max || '-'}</td>
                                 </tr>
                             );
                         })}
@@ -221,8 +221,8 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                     value={data.ddl || '-- DDL not available'}
                     style={{
                         width: '100%', height: '100%',
-                        background: '#141517', color: '#d4d4d4',
-                        border: '1px solid #333', padding: '15px',
+                        background: 'var(--input-bg)', color: 'var(--text-color)',
+                        border: '1px solid var(--border-color)', padding: '15px',
                         fontFamily: 'monospace', fontSize: '13px',
                         resize: 'none'
                     }}
@@ -240,19 +240,19 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
         }}>
             <div style={{
                 width: '90%', height: '90%',
-                backgroundColor: '#1E1F22',
+                backgroundColor: 'var(--modal-bg)',
                 borderRadius: '8px',
                 display: 'flex', flexDirection: 'column',
                 overflow: 'hidden',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                border: '1px solid #333'
+                border: '1px solid var(--border-color)'
             }}>
                 {/* Header */}
                 <div style={{
-                    padding: '15px 20px', borderBottom: '1px solid #333', background: '#141517',
+                    padding: '15px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--header-bg)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
-                    <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-active)' }}>
                         <LuTable size={20} color="var(--accent-color-user)" />
                         {tableName}
                     </h2>
@@ -263,7 +263,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', borderBottom: '1px solid #333', background: '#1A1B1E' }}>
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--header-bg)' }}>
                     {['Schema', 'Profile', 'Details', 'Preview', 'DDL'].map(tab => {
                         const key = tab.toLowerCase();
                         const isActive = activeTab === key;

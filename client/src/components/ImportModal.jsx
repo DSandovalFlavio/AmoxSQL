@@ -65,11 +65,11 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
             <div style={{
-                backgroundColor: '#252526', padding: '20px', borderRadius: '5px', width: '400px',
-                border: '1px solid #454545', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                color: '#bcbec4', fontFamily: 'sans-serif'
+                backgroundColor: 'var(--modal-bg)', padding: '20px', borderRadius: '5px', width: '400px',
+                border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                color: 'var(--text-color)', fontFamily: 'sans-serif'
             }}>
-                <h3 style={{ marginTop: 0, color: '#fff', fontSize: '16px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>
                     {successSummary ? 'Import Completed' : (isFolder ? 'Import Folder to Database' : 'Import File to Database')}
                 </h3>
 
@@ -81,7 +81,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                             {successSummary}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleClose} style={{ backgroundColor: '#00ffff', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
+                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
                                 Close
                             </button>
                         </div>
@@ -89,11 +89,11 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                 ) : (
                     /* Import Form */
                     <>
-                        <div style={{ marginBottom: '15px', fontSize: '12px', color: '#aaa', wordBreak: 'break-all' }}>
+                        <div style={{ marginBottom: '15px', fontSize: '12px', color: 'var(--text-muted)', wordBreak: 'break-all' }}>
                             {isFolder ? 'Folder:' : 'File:'} {initialFile}
                         </div>
 
-                        {loading && <div style={{ padding: '10px', textAlign: 'center', color: '#00ffff' }}>Importing...</div>}
+                        {loading && <div style={{ padding: '10px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Importing...</div>}
                         {error && <div style={{ padding: '10px', backgroundColor: '#3e2020', color: '#ff8888', borderRadius: '4px', marginBottom: '10px', fontSize: '12px' }}>{error}</div>}
 
                         {!loading && (
@@ -104,14 +104,14 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                                         type="text"
                                         value={tableName}
                                         onChange={(e) => setTableName(e.target.value)}
-                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: '#3c3c3c', border: '1px solid #555', color: '#fff', borderRadius: '3px' }}
+                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                         autoFocus
                                         required
                                     />
                                 </div>
 
                                 {isFolder && (
-                                    <div style={{ backgroundColor: '#2d2d30', padding: '10px', borderRadius: '4px', border: '1px solid #3e3e42' }}>
+                                    <div style={{ backgroundColor: 'var(--panel-bg)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                         <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold' }}>File Type to Import</label>
                                         <div style={{ display: 'flex', gap: '15px' }}>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer' }}>
@@ -155,8 +155,8 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                                    <button type="button" onClick={handleClose} style={{ backgroundColor: '#4e5157', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="submit" style={{ backgroundColor: '#00ffff', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Import</button>
+                                    <button type="button" onClick={handleClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
+                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Import</button>
                                 </div>
                             </form>
                         )}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Logo from './Logo';
 
 const WelcomeScreen = ({ onOpenProject }) => {
     const [path, setPath] = useState('');
@@ -25,28 +26,7 @@ const WelcomeScreen = ({ onOpenProject }) => {
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <div style={{ marginBottom: '-60px' }}>
                     {/* AmoxSQL Logo */}
-                    <svg width="360" height="360" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <linearGradient id="neonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" style={{ stopColor: 'var(--accent-color-user)', stopOpacity: 1 }} />
-                                <stop offset="100%" style={{ stopColor: '#0055ff', stopOpacity: 1 }} />
-                            </linearGradient>
-                            <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
-                                <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
-                                <feMerge>
-                                    <feMergeNode in="blur" />
-                                    <feMergeNode in="SourceGraphic" />
-                                </feMerge>
-                            </filter>
-                        </defs>
-                        {/* Adjusted ViewBox/Scale for icon usage */}
-                        <g transform="translate(50, 0) scale(0.8)">
-                            <g stroke="url(#neonGradient)" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" filter="url(#neonGlow)">
-                                <path d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285" />
-                                <path d="M 130 210 Q 200 330 270 210" />
-                            </g>
-                        </g>
-                    </svg>
+                    <Logo width={360} height={360} />
                 </div>
                 <h1 style={{ fontSize: '42px', fontWeight: '700', color: '#ffffff', margin: '0', letterSpacing: '1px' }}>
                     Amox<span style={{ color: 'var(--accent-color-user)' }}>SQL</span>

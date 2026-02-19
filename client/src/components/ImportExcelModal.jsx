@@ -106,11 +106,11 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
             <div style={{
-                backgroundColor: '#252526', padding: '20px', borderRadius: '5px', width: '500px', maxHeight: '80vh',
-                border: '1px solid #454545', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                color: '#bcbec4', fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column'
+                backgroundColor: 'var(--modal-bg)', padding: '20px', borderRadius: '5px', width: '500px', maxHeight: '80vh',
+                border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                color: 'var(--text-color)', fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column'
             }}>
-                <h3 style={{ marginTop: 0, color: '#fff', fontSize: '16px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>
                     {successSummary ? 'Import Completed' : 'Import Excel to Database'}
                 </h3>
 
@@ -139,7 +139,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                             {successSummary}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleClose} style={{ backgroundColor: '#00ffff', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
+                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
                                 Close
                             </button>
                         </div>
@@ -147,7 +147,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                 ) : (
                     /* Import Form */
                     <>
-                        {loading && <div style={{ padding: '20px', textAlign: 'center', color: '#00ffff' }}>Processing Import...</div>}
+                        {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Processing Import...</div>}
 
                         {error && <div style={{ padding: '10px', backgroundColor: '#3e2020', color: '#ff8888', borderRadius: '4px', marginBottom: '10px', fontSize: '12px' }}>{error}</div>}
 
@@ -155,7 +155,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', flex: 1, overflow: 'hidden' }}>
 
                                 {/* Import Mode */}
-                                <div style={{ backgroundColor: '#2d2d30', padding: '10px', borderRadius: '4px', border: '1px solid #3e3e42' }}>
+                                <div style={{ backgroundColor: 'var(--panel-bg)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                     <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold' }}>Import Strategy</label>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
@@ -164,11 +164,11 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                                                 name="mode"
                                                 checked={mode === 'MERGE'}
                                                 onChange={() => setMode('MERGE')}
-                                                style={{ accentColor: '#00ffff' }}
+                                                style={{ accentColor: 'var(--accent-color-user)' }}
                                             />
                                             <div>
-                                                <span style={{ color: '#fff', fontWeight: 'bold' }}>Merge Sheets (Union)</span>
-                                                <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
+                                                <span style={{ color: 'var(--text-active)', fontWeight: 'bold' }}>Merge Sheets (Union)</span>
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
                                                     Combine all selected sheets into one table. Adds 'source_duck' column.
                                                 </div>
                                             </div>
@@ -179,11 +179,11 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                                                 name="mode"
                                                 checked={mode === 'INDIVIDUAL'}
                                                 onChange={() => setMode('INDIVIDUAL')}
-                                                style={{ accentColor: '#00ffff' }}
+                                                style={{ accentColor: 'var(--accent-color-user)' }}
                                             />
                                             <div>
-                                                <span style={{ color: '#fff', fontWeight: 'bold' }}>Individual Tables</span>
-                                                <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
+                                                <span style={{ color: 'var(--text-active)', fontWeight: 'bold' }}>Individual Tables</span>
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
                                                     Create a separate table for each selected sheet.
                                                 </div>
                                             </div>
@@ -199,19 +199,19 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                                             type="text"
                                             value={tableName}
                                             onChange={(e) => setTableName(e.target.value)}
-                                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: '#3c3c3c', border: '1px solid #555', color: '#fff', borderRadius: '3px' }}
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                             required
                                         />
                                     </div>
                                 )}
 
                                 {/* Sheet Selection */}
-                                <div style={{ flex: 1, overflowY: 'auto', minHeight: '100px', border: '1px solid #333', borderRadius: '4px', padding: '5px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px', borderBottom: '1px solid #333', marginBottom: '5px' }}>
+                                <div style={{ flex: 1, overflowY: 'auto', minHeight: '100px', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '5px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px', borderBottom: '1px solid var(--border-color)', marginBottom: '5px' }}>
                                         <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Select Sheets to Import</span>
                                         <div style={{ display: 'flex', gap: '10px' }}>
-                                            <button type="button" onClick={() => handleSelectAll(true)} style={{ background: 'transparent', border: 'none', color: '#00ffff', cursor: 'pointer', fontSize: '11px' }}>All</button>
-                                            <button type="button" onClick={() => handleSelectAll(false)} style={{ background: 'transparent', border: 'none', color: '#bbb', cursor: 'pointer', fontSize: '11px' }}>None</button>
+                                            <button type="button" onClick={() => handleSelectAll(true)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color-user)', cursor: 'pointer', fontSize: '11px' }}>All</button>
+                                            <button type="button" onClick={() => handleSelectAll(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px' }}>None</button>
                                         </div>
                                     </div>
                                     {sheets.map(sheet => (
@@ -220,7 +220,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                                                 type="checkbox"
                                                 checked={!!selectedSheets[sheet]}
                                                 onChange={() => handleSheetToggle(sheet)}
-                                                style={{ accentColor: '#00ffff' }}
+                                                style={{ accentColor: 'var(--accent-color-user)' }}
                                             />
                                             {sheet}
                                         </label>
@@ -240,8 +240,8 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                                    <button type="button" onClick={onClose} style={{ backgroundColor: '#4e5157', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="submit" style={{ backgroundColor: '#00ffff', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Import Config</button>
+                                    <button type="button" onClick={onClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
+                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Import Config</button>
                                 </div>
                             </form>
                         )}

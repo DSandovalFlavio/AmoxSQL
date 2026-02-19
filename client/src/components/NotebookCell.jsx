@@ -150,9 +150,9 @@ const NotebookCell = ({
     return (
         <div className={isReportMode ? 'report-card' : ''} style={{
             marginBottom: isReportMode ? undefined : '16px',
-            border: isReportMode ? undefined : '1px solid #2C2E33',
+            border: isReportMode ? undefined : '1px solid var(--border-color)',
             borderRadius: '8px',
-            backgroundColor: isReportMode ? undefined : '#1A1B1E',
+            backgroundColor: isReportMode ? undefined : 'var(--panel-bg)',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column'
@@ -161,13 +161,13 @@ const NotebookCell = ({
             {!isReportMode && (
                 <div style={{
                     padding: '4px 8px',
-                    backgroundColor: '#25262B',
-                    borderBottom: '1px solid #2C2E33',
+                    backgroundColor: 'var(--header-bg)',
+                    borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     fontSize: '11px',
-                    color: '#909296'
+                    color: 'var(--text-muted)'
                 }}>
                     {/* ... Existing header content ... */}
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -179,7 +179,7 @@ const NotebookCell = ({
                                 onClick={() => onRun(id)}
                                 style={{
                                     ...btnStyle,
-                                    color: '#00ffff',
+                                    color: 'var(--accent-color-user)',
                                     opacity: 1,
                                     display: 'flex',
                                     alignItems: 'center',
@@ -209,7 +209,7 @@ const NotebookCell = ({
                             onChange={(e) => setLocalContent(e.target.value)}
                             onBlur={handleBlur}
                             autoFocus
-                            style={{ width: '100%', minHeight: '100px', backgroundColor: '#141517', color: '#E9ECEF', border: 'none', padding: '12px', fontFamily: 'monospace', resize: 'vertical' }}
+                            style={{ width: '100%', minHeight: '100px', backgroundColor: 'var(--editor-bg)', color: 'var(--text-color)', border: 'none', padding: '12px', fontFamily: 'monospace', resize: 'vertical' }}
                             placeholder="Type markdown here... (Click outside to preview)"
                         />
                     ) : (
@@ -219,11 +219,11 @@ const NotebookCell = ({
                             title={isReportMode ? "" : "Double click to edit"}
                         >
                             {localContent.trim() ? (
-                                <div className="markdown-body" style={{ color: '#C1C2C5' }}>
+                                <div className="markdown-body" style={{ color: 'var(--text-color)' }}>
                                     <ReactMarkdown>{localContent}</ReactMarkdown>
                                 </div>
                             ) : (
-                                !isReportMode && <span style={{ fontStyle: 'italic', color: '#555' }}>Empty Markdown Cell (Double click to edit)</span>
+                                !isReportMode && <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Empty Markdown Cell (Double click to edit)</span>
                             )}
                         </div>
                     )
@@ -232,7 +232,7 @@ const NotebookCell = ({
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         {/* Editor Area */}
                         {!isReportMode && (
-                            <div style={{ height: 'auto', minHeight: '100px', borderLeft: '4px solid #4dabf7' }}>
+                            <div style={{ height: 'auto', minHeight: '100px', borderLeft: '4px solid var(--accent-color-user)' }}>
                                 <div style={{ height: '150px' }} onKeyDown={handleKeyDown}>
                                     <SqlEditor
                                         value={localContent}
@@ -248,12 +248,12 @@ const NotebookCell = ({
                         {/* Results Area */}
                         {result && (
                             <div style={{
-                                borderTop: !isReportMode ? '1px solid #2C2E33' : 'none',
-                                backgroundColor: '#141517',
+                                borderTop: !isReportMode ? '1px solid var(--border-color)' : 'none',
+                                backgroundColor: 'var(--editor-bg)',
                                 display: 'flex',
                                 flexDirection: 'column'
                             }}>
-                                {result.loading && <div style={{ padding: '10px', color: '#888' }}>Running...</div>}
+                                {result.loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Running...</div>}
                                 {result.error && <div style={{ padding: '10px', color: '#ff6b6b' }}>Error: {result.error}</div>}
                                 {result.data && (
                                     <div style={{ height: isReportMode ? '500px' : '400px', overflow: 'hidden' }}>
@@ -286,7 +286,7 @@ const NotebookCell = ({
 const btnStyle = {
     background: 'transparent',
     border: 'none',
-    color: '#909296',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     padding: '2px 6px',
     fontSize: '12px',

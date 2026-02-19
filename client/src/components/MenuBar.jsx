@@ -15,29 +15,29 @@ const MenuBar = ({ onOpenProject, currentPath }) => {
     // Ideally we put a backdrop or global handler
 
     return (
-        <div style={{ height: '30px', backgroundColor: '#3c3c3c', borderBottom: '1px solid #2b2d30', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '12px', userSelect: 'none', color: '#ccc' }}>
+        <div style={{ height: '30px', backgroundColor: 'var(--header-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '12px', userSelect: 'none', color: 'var(--text-muted)' }}>
             <div style={{ position: 'relative' }}>
                 <div
                     onClick={() => toggleMenu('file')}
-                    style={{ padding: '0 8px', cursor: 'pointer', backgroundColor: activeMenu === 'file' ? '#505050' : 'transparent', height: '30px', display: 'flex', alignItems: 'center' }}
+                    style={{ padding: '0 8px', cursor: 'pointer', backgroundColor: activeMenu === 'file' ? 'var(--panel-bg)' : 'transparent', height: '30px', display: 'flex', alignItems: 'center' }}
                 >
                     File
                 </div>
                 {activeMenu === 'file' && (
                     <div style={{
-                        position: 'absolute', top: '30px', left: 0, backgroundColor: '#3c3c3c', border: '1px solid #2b2d30',
+                        position: 'absolute', top: '30px', left: 0, backgroundColor: 'var(--header-bg)', border: '1px solid var(--border-color)',
                         boxShadow: '0 4px 6px rgba(0,0,0,0.3)', minWidth: '150px', zIndex: 1000
                     }}>
                         <div
                             onClick={() => { onOpenProject(); setActiveMenu(null); }}
-                            style={{ padding: '8px 15px', cursor: 'pointer', color: '#fff' }}
+                            style={{ padding: '8px 15px', cursor: 'pointer', color: 'var(--text-color)' }}
                             className="menu-item"
                         >
                             📂 Open Folder...
                         </div>
                         <div
                             onClick={() => { /* Reload */ window.location.reload(); }}
-                            style={{ padding: '8px 15px', cursor: 'pointer', color: '#fff', borderTop: '1px solid #555' }}
+                            style={{ padding: '8px 15px', cursor: 'pointer', color: 'var(--text-color)', borderTop: '1px solid var(--border-color)' }}
                             className="menu-item"
                         >
                             Reload Window
@@ -46,7 +46,7 @@ const MenuBar = ({ onOpenProject, currentPath }) => {
                 )}
             </div>
             {/* Add more menus here like Edit, View etc if needed */}
-            <div style={{ marginLeft: 'auto', color: '#888' }}>
+            <div style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>
                 {currentPath}
             </div>
         </div>

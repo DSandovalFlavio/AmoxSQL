@@ -126,7 +126,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 }
                 .cte-debug-glyph::after {
                     content: '▶';
-                    color: #00ffff;
+                    color: var(--accent-color-user);
                     font-size: 12px;
                     display: flex;
                     justify-content: center;
@@ -135,7 +135,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     font-family: Arial, sans-serif;
                 }
                 .cte-debug-glyph:hover::after {
-                    text-shadow: 0 0 5px #00ffff;
+                    text-shadow: 0 0 5px var(--accent-color-user);
                     transform: scale(1.2);
                 }
             `;

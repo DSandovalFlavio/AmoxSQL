@@ -22,7 +22,7 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true }) => {
                     left: '-12px',
                     top: '0',
                     bottom: isLast ? '50%' : '-10px',
-                    borderLeft: '1px solid #444',
+                    borderLeft: '1px solid var(--border-color)',
                     width: '1px'
                 }} />
             )}
@@ -32,14 +32,19 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true }) => {
                     left: '-12px',
                     top: '50%',
                     width: '10px',
-                    borderTop: '1px solid #444'
+                    borderTop: '1px solid var(--border-color)'
                 }} />
             )}
 
             <div style={{
                 marginBottom: '8px',
-                backgroundColor: isHeavy ? '#2a1a1a' : '#1e1f22',
-                border: `1px solid ${isHeavy ? '#632' : '#333'}`,
+                // For heavy nodes, we might want a distinct color. 
+                // Using a slight transparency or a specific variable if available.
+                // Fallback to panel-bg for normal, and maybe a mix for heavy?
+                // Let's use standard panel-bg for now to ensure theme consistency, 
+                // maybe add a red border for heavy.
+                backgroundColor: isHeavy ? 'rgba(255, 100, 100, 0.1)' : 'var(--panel-bg)',
+                border: `1px solid ${isHeavy ? 'red' : 'var(--border-color)'}`,
                 borderRadius: '4px',
                 padding: '8px',
                 display: 'inline-block',
@@ -50,21 +55,21 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true }) => {
                     onClick={() => hasChildren && setExpanded(!expanded)}
                 >
                     {hasChildren && (
-                        <span style={{ marginRight: '5px', fontSize: '10px', color: '#888' }}>
+                        <span style={{ marginRight: '5px', fontSize: '10px', color: 'var(--text-muted)' }}>
                             {expanded ? '▼' : '▶'}
                         </span>
                     )}
-                    <span style={{ fontWeight: 'bold', color: '#ddd', marginRight: '10px' }}>{node.name}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-active)', marginRight: '10px' }}>{node.name}</span>
 
                     <div style={{ flex: 1 }}></div>
 
-                    {timing && <span style={{ fontSize: '11px', color: '#f0a0a0', marginRight: '10px' }}>{timing}</span>}
-                    {rows && <span style={{ fontSize: '11px', color: '#a0f0a0' }}>{rows}</span>}
+                    {timing && <span style={{ fontSize: '11px', color: 'var(--accent-color-user)', marginRight: '10px' }}>{timing}</span>}
+                    {rows && <span style={{ fontSize: '11px', color: 'var(--text-color)' }}>{rows}</span>}
                 </div>
 
                 {/* Extra Info */}
                 {node.extra_info && (
-                    <div style={{ marginTop: '6px', fontSize: '11px', color: '#888', fontFamily: 'monospace' }}>
+                    <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                         {typeof node.extra_info === 'string' ? (
                             <div style={{ whiteSpace: 'pre-wrap' }}>{node.extra_info.trim()}</div>
                         ) : (
@@ -101,7 +106,7 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true }) => {
 };
 
 const QueryPlanViewer = ({ plan }) => {
-    if (!plan) return <div style={{ color: '#666', padding: '20px' }}>No plan data available</div>;
+    if (!plan) return <div style={{ color: 'var(--text-muted)', padding: '20px' }}>No plan data available</div>;
 
     // DuckDB JSON might wrap the root in an array or object
     const root = Array.isArray(plan) ? plan[0] : plan;
@@ -111,11 +116,11 @@ const QueryPlanViewer = ({ plan }) => {
             padding: '20px',
             overflow: 'auto',
             height: '100%',
-            backgroundColor: '#141517',
+            backgroundColor: 'var(--editor-bg)',
             borderRadius: '4px',
             fontFamily: 'Inter, sans-serif'
         }}>
-            <h3 style={{ marginTop: 0, color: '#fff', fontSize: '14px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                 Query Execution Plan
             </h3>
             <div style={{ marginTop: '15px' }}>
