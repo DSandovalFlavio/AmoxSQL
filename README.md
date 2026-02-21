@@ -42,8 +42,10 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 * **Split View**: Compare code side-by-side or view results alongside your editor.
 * **Robust Connection Management**: Implements a "Hard Reset" strategy to ensure clean switching between projects, preventing locked files and "zombie" connections.
 
-### 🤖 AmoxSQL AI (Local Intelligence)
-*   **100% Offline & Private**: Powered by a local **Qwen2.5-1.5B-Coder** or **Qwen3-0.6B** model (auto-configured). Your data never leaves your machine.
+### 🤖 AmoxSQL AI (Local & Cloud Intelligence)
+*   **100% Offline & Private (Local Mode)**: Powered by a local **Ollama** engine (e.g., Qwen2.5-Coder). Your data never leaves your machine.
+*   **Cloud Power (Gemini Mode)**: Seamlessly switch to Google's Gemini API for state-of-the-art reasoning with built-in daily free-tier usage tracking to keep you in control.
+*   **Integrated Model Management**: Download new local Ollama models directly from within the IDE's unified Settings Modal.
 *   **Natural Language to SQL**: Ask questions like *"Show me the top 5 products by sales in 2023"* and get accurate DuckDB SQL instantly.
 *   **Smart Context**: The AI understands your current database schema automatically, optimizing prompts to fit within context limits.
 *   **Code Generation**: Supports complex JOINs, CTEs, and Window Functions.
@@ -58,6 +60,7 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
     *   **Data Profile Tab**: Instant statistical summary using `SUMMARIZE`. Visual Sparklines for Null %, Cardinality (Unique values), and Min/Max distributions.
     *   **Preview Tab**: Paginated view of raw data (Top 200 rows).
     *   **DDL Tab**: View the original `CREATE TABLE` statement.
+*   **Intuitive Drag & Drop**: Instantly drag tables or individual columns from the sidebar directly into your SQL Editor.
 *   **Instant Table Preview**: Quick "Magnifying Glass" feature to peek at the first 50 rows of any table from the sidebar.
 *   **Enhanced Results Table**:
     *   **Global Search**: Filter results instantly across all columns.
@@ -73,12 +76,14 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 ### 📊 Data Visualization & IO
 * **Instant Visualizations**: Turn query results into charts immediately with an integrated graphing engine (built with Recharts).
     * Supported types: Line, Multi-line, Bar (Horizontal/Vertical), Scatter, and Donut charts.
+* **Persistent Chart Configurations (`.amoxvis`)**: Save your advanced visualization designs as `.amoxvis` files directly in your workspace. Edit, load, and keep your charts organized alongside SQL scripts.
 * **Advanced Charting Controls**:
     *   **Pivot & Aggregation**: Split series by column, summarize by time (Daily/Monthly/Yearly).
-    *   **Customization**: Granular control over colors, line styles (smooth/dotted), and types (stacked bars).
-    *   **Axes & Scaling**: Toggle Logarithmic scale, set min/max comparison lines.
+    *   **Customization**: Granular control over colors, line styles, opacity, margins, layout spacing, and data label positioning.
+    *   **Axes & Scaling**: Toggle Logarithmic scale, dynamic X/Y bounds, and custom axis titles.
+    *   **Reference Indicators**: Add customizable horizontal/vertical reference lines and colored reference areas to highlight targets or thresholds.
     *   **Number Formatting**: Display values in Compact (1.2k), Millions (1.2M), Currency, or Raw formats.
-* **High-Quality Export**: Export your charts instantly as high-resolution PNG images.
+* **High-Quality Export**: Export your charts instantly as high-resolution (up to 4x scale) PNG images.
 
 ### 🐛 Advanced Debugging Tools
 *   **CTE Debugger**: interactive "Step-Through" for Common Table Expressions. Click the "Play" icon next to any `WITH` clause to inspect intermediate results without rewriting your query.

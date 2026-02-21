@@ -160,8 +160,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
             <div style={{
                 backgroundColor: 'var(--modal-bg)',
                 color: 'var(--text-color)',
-                width: '1350px', // Enlarged width
-                height: '975px', // Enlarged height
+                width: '850px', // Adjusted compact width
+                height: '600px', // Adjusted compact height
                 borderRadius: '8px',
                 display: 'flex',
                 overflow: 'hidden',
@@ -170,65 +170,65 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
             }}>
                 {/* Sidebar */}
                 <div style={{
-                    width: '220px',
+                    width: '180px',
                     backgroundColor: 'var(--sidebar-bg)',
                     borderRight: '1px solid var(--border-color)',
-                    padding: '20px 0',
+                    padding: '15px 0',
                     flexShrink: 0
                 }}>
-                    <div style={{ padding: '0 20px 20px', fontWeight: 'bold', fontSize: '18px', color: 'var(--text-active)' }}>
+                    <div style={{ padding: '0 15px 15px', fontWeight: 'bold', fontSize: '14px', color: 'var(--text-active)' }}>
                         Settings
                     </div>
 
                     <div
                         onClick={() => setActiveTab('appearance')}
                         style={{
-                            padding: '12px 20px', cursor: 'pointer',
+                            padding: '10px 15px', cursor: 'pointer',
                             backgroundColor: activeTab === 'appearance' ? 'var(--sidebar-item-active-bg)' : 'transparent',
                             color: activeTab === 'appearance' ? 'var(--text-active)' : 'var(--text-color)',
-                            display: 'flex', alignItems: 'center', gap: '10px',
+                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px',
                             borderLeft: activeTab === 'appearance' ? '3px solid var(--accent-color-user)' : '3px solid transparent'
                         }}
                     >
-                        <LuPalette size={18} /> Appearance
+                        <LuPalette size={16} /> Appearance
                     </div>
 
                     <div
                         onClick={() => setActiveTab('ai')}
                         style={{
-                            padding: '12px 20px', cursor: 'pointer',
+                            padding: '10px 15px', cursor: 'pointer',
                             backgroundColor: activeTab === 'ai' ? 'var(--sidebar-item-active-bg)' : 'transparent',
                             color: activeTab === 'ai' ? 'var(--text-active)' : 'var(--text-color)',
-                            display: 'flex', alignItems: 'center', gap: '10px',
+                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px',
                             borderLeft: activeTab === 'ai' ? '3px solid var(--accent-color-user)' : '3px solid transparent'
                         }}
                     >
-                        <LuCpu size={18} /> AI Assistant
+                        <LuCpu size={16} /> AI Assistant
                     </div>
                 </div>
 
                 {/* Content */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--editor-bg)' }}>
                     <div style={{
-                        padding: '20px 25px',
+                        padding: '15px 20px',
                         borderBottom: '1px solid var(--border-color)',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                     }}>
-                        <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--text-active)' }}>
+                        <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-active)' }}>
                             {activeTab === 'appearance' ? 'Appearance' : activeTab === 'ai' ? 'AI Settings' : 'Settings'}
                         </h2>
                         <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-color)', padding: '5px', cursor: 'pointer', display: 'flex' }}>
-                            <LuX size={22} />
+                            <LuX size={18} />
                         </button>
                     </div>
 
-                    <div style={{ padding: '25px', flex: 1, overflowY: 'auto' }}>
+                    <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
                         {activeTab === 'appearance' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
                                 {/* Theme Selection */}
                                 <div>
-                                    <h3 style={{ fontSize: '15px', marginBottom: '15px', color: 'var(--text-active)' }}>Color Theme</h3>
+                                    <h3 style={{ fontSize: '13px', marginBottom: '10px', color: 'var(--text-active)' }}>Color Theme</h3>
                                     <div style={{ display: 'flex', gap: '20px' }}>
 
                                         {/* Dark Option */}
@@ -290,23 +290,23 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                         )}
 
                         {activeTab === 'ai' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', height: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
                                 {/* Provider Selection & Main Save */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div style={{ flex: 1 }}>
-                                        <h3 style={{ fontSize: '15px', marginBottom: '10px', color: 'var(--text-active)' }}>AI Engine Provider</h3>
+                                        <h3 style={{ fontSize: '13px', marginBottom: '8px', color: 'var(--text-active)' }}>AI Engine Provider</h3>
                                         <select
                                             value={provider}
                                             onChange={(e) => setProvider(e.target.value)}
                                             style={{
-                                                width: '100%', maxWidth: '300px', padding: '10px 12px', backgroundColor: 'var(--input-bg)',
-                                                color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '6px', outline: 'none', cursor: 'pointer'
+                                                width: '100%', maxWidth: '250px', padding: '8px 10px', backgroundColor: 'var(--input-bg)',
+                                                color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none', cursor: 'pointer', fontSize: '12px'
                                             }}
                                         >
                                             <option value="ollama">Ollama (Local Engine)</option>
                                             <option value="gemini">Google Gemini (Cloud)</option>
                                         </select>
-                                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
                                             Choose between running fully private local models or using Google's Cloud API.
                                         </p>
                                     </div>
@@ -315,9 +315,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                                             onClick={handleSaveConfig}
                                             disabled={isSaving}
                                             style={{
-                                                padding: '10px 20px', backgroundColor: 'var(--accent-color-user)',
-                                                color: 'var(--button-text-color)', border: 'none', borderRadius: '6px', cursor: 'pointer',
-                                                fontWeight: 'bold', opacity: isSaving ? 0.7 : 1, transition: 'all 0.2s', fontSize: '14px'
+                                                padding: '8px 16px', backgroundColor: 'var(--accent-color-user)',
+                                                color: 'var(--button-text-color)', border: 'none', borderRadius: '4px', cursor: 'pointer',
+                                                fontWeight: 'bold', opacity: isSaving ? 0.7 : 1, transition: 'all 0.2s', fontSize: '12px'
                                             }}
                                         >
                                             {isSaving ? 'Saving...' : 'Save AI Settings'}
@@ -334,10 +334,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
 
                                 {/* Gemini Specific */}
                                 {provider === 'gemini' && (
-                                    <div style={{ animation: 'fadeIn 0.3s', display: 'flex', gap: '25px', flexDirection: 'column' }}>
+                                    <div style={{ animation: 'fadeIn 0.3s', display: 'flex', gap: '20px', flexDirection: 'column' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                            <div style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px' }}>
-                                                <h3 style={{ fontSize: '15px', margin: '0 0 15px 0', color: 'var(--text-active)' }}>Authentication</h3>
+                                            <div style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '15px' }}>
+                                                <h3 style={{ fontSize: '13px', margin: '0 0 10px 0', color: 'var(--text-active)' }}>Authentication</h3>
 
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                     <input
@@ -346,8 +346,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                                                         onChange={(e) => setGeminiApiKey(e.target.value)}
                                                         placeholder="Enter your Gemini API Key"
                                                         style={{
-                                                            flex: 1, padding: '12px', backgroundColor: 'var(--input-bg)',
-                                                            color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '6px', outline: 'none',
+                                                            flex: 1, padding: '8px 12px', fontSize: '12px', backgroundColor: 'var(--input-bg)',
+                                                            color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none',
                                                             fontFamily: geminiApiKey ? 'monospace' : 'inherit'
                                                         }}
                                                     />
@@ -356,60 +356,60 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                                                             onClick={() => setGeminiApiKey('')}
                                                             title="Clear API Key"
                                                             style={{
-                                                                padding: '12px', backgroundColor: 'var(--sidebar-item-active-bg)',
-                                                                border: '1px solid var(--border-color)', borderRadius: '6px',
+                                                                padding: '8px', backgroundColor: 'var(--sidebar-item-active-bg)',
+                                                                border: '1px solid var(--border-color)', borderRadius: '4px',
                                                                 color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                             }}
                                                         >
-                                                            <LuX size={16} />
+                                                            <LuX size={14} />
                                                         </button>
                                                     )}
                                                 </div>
-                                                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px', lineHeight: '1.4' }}>
+                                                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
                                                     Your key is stored securely in your computer's home directory (`~/.amoxsql/`). Removing it here will delete it from your local storage upon saving.
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <div style={{ backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                                <h3 style={{ fontSize: '15px', margin: 0, color: 'var(--text-active)' }}>Daily Free Tier Usage (2026 Limits)</h3>
+                                        <div style={{ backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '15px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                                <h3 style={{ fontSize: '13px', margin: 0, color: 'var(--text-active)' }}>Daily Free Tier Usage (2026 Limits)</h3>
                                             </div>
 
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                                 <div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-active)', marginBottom: '6px', fontWeight: '500' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-active)', marginBottom: '4px', fontWeight: '500' }}>
                                                         <span>2.5 Flash-Lite</span>
                                                         <span>{geminiUsage.flashLite} / 1000</span>
                                                     </div>
-                                                    <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '4px', backgroundColor: 'var(--input-bg)', borderRadius: '2px', overflow: 'hidden' }}>
                                                         <div style={{ height: '100%', width: `${Math.min((geminiUsage.flashLite / 1000) * 100, 100)}%`, backgroundColor: '#ff9800', transition: 'width 0.3s ease' }}></div>
                                                     </div>
                                                 </div>
 
                                                 <div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-active)', marginBottom: '6px', fontWeight: '500' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-active)', marginBottom: '4px', fontWeight: '500' }}>
                                                         <span>2.5 Flash</span>
                                                         <span>{geminiUsage.flash} / 250</span>
                                                     </div>
-                                                    <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '4px', backgroundColor: 'var(--input-bg)', borderRadius: '2px', overflow: 'hidden' }}>
                                                         <div style={{ height: '100%', width: `${Math.min((geminiUsage.flash / 250) * 100, 100)}%`, backgroundColor: '#4ade80', transition: 'width 0.3s ease' }}></div>
                                                     </div>
                                                 </div>
 
                                                 <div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-active)', marginBottom: '6px', fontWeight: '500' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-active)', marginBottom: '4px', fontWeight: '500' }}>
                                                         <span>2.5 Pro</span>
                                                         <span>{geminiUsage.pro} / 100</span>
                                                     </div>
-                                                    <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '4px', backgroundColor: 'var(--input-bg)', borderRadius: '2px', overflow: 'hidden' }}>
                                                         <div style={{ height: '100%', width: `${Math.min((geminiUsage.pro / 100) * 100, 100)}%`, backgroundColor: '#00ffff', transition: 'width 0.3s ease' }}></div>
                                                     </div>
                                                 </div>
 
-                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
                                                     <span>Total Tokens Consumed</span>
-                                                    <span style={{ color: 'var(--text-active)', fontWeight: 'bold', fontSize: '14px' }}>{geminiUsage.tokens.toLocaleString()} <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>/ 4,000,000</span></span>
+                                                    <span style={{ color: 'var(--text-active)', fontWeight: 'bold', fontSize: '12px' }}>{geminiUsage.tokens.toLocaleString()} <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 'normal' }}>/ 4,000,000</span></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -418,31 +418,31 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
 
                                 {/* Ollama Specific */}
                                 {provider === 'ollama' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s', flex: 1 }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', animation: 'fadeIn 0.3s', flex: 1 }}>
 
                                         <div>
-                                            <h3 style={{ fontSize: '15px', marginBottom: '10px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <h3 style={{ fontSize: '13px', marginBottom: '8px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                                 <span>Installed Local Models</span>
-                                                {isLoadingModels && <LuLoader size={16} style={{ animation: 'spin 2s linear infinite', color: 'var(--text-muted)' }} />}
+                                                {isLoadingModels && <LuLoader size={14} style={{ animation: 'spin 2s linear infinite', color: 'var(--text-muted)' }} />}
                                             </h3>
 
                                             <div style={{
                                                 backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)',
-                                                borderRadius: '6px', padding: '12px', maxHeight: '120px', overflowY: 'auto'
+                                                borderRadius: '6px', padding: '10px', maxHeight: '100px', overflowY: 'auto'
                                             }}>
                                                 {installedModels.length === 0 && !isLoadingModels ? (
-                                                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '10px' }}>
+                                                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', padding: '10px' }}>
                                                         No models installed. You need to install at least one model below.
                                                     </div>
                                                 ) : (
-                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                                         {installedModels.map((m, i) => (
                                                             <div key={i} style={{
-                                                                backgroundColor: 'var(--input-bg)', padding: '6px 12px', borderRadius: '4px',
-                                                                fontSize: '13px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '6px',
+                                                                backgroundColor: 'var(--input-bg)', padding: '4px 8px', borderRadius: '4px',
+                                                                fontSize: '11px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px',
                                                                 color: 'var(--text-active)'
                                                             }}>
-                                                                <LuCpu size={14} color="var(--accent-color-user)" />
+                                                                <LuCpu size={12} color="var(--accent-color-user)" />
                                                                 {m.name}
                                                             </div>
                                                         ))}
@@ -451,17 +451,17 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                                             </div>
                                         </div>
 
-                                        <div style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px' }}>
-                                            <h3 style={{ fontSize: '15px', margin: '0 0 15px 0', color: 'var(--text-active)' }}>Install New Model</h3>
+                                        <div style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '15px' }}>
+                                            <h3 style={{ fontSize: '13px', margin: '0 0 10px 0', color: 'var(--text-active)' }}>Install New Model</h3>
 
                                             {/* Progress Bar */}
                                             {downloadProgress && (
-                                                <div style={{ marginBottom: '20px', backgroundColor: 'var(--sidebar-item-active-bg)', padding: '15px', borderRadius: '6px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px', color: downloadProgress.error ? '#ff6b6b' : 'var(--text-active)' }}>
+                                                <div style={{ marginBottom: '15px', backgroundColor: 'var(--sidebar-item-active-bg)', padding: '10px', borderRadius: '6px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px', color: downloadProgress.error ? '#ff6b6b' : 'var(--text-active)' }}>
                                                         <span>{downloadProgress.status}</span>
                                                         <span>{downloadProgress.percent}%</span>
                                                     </div>
-                                                    <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '4px', backgroundColor: 'var(--input-bg)', borderRadius: '2px', overflow: 'hidden' }}>
                                                         <div style={{
                                                             height: '100%', width: `${downloadProgress.percent}%`,
                                                             backgroundColor: downloadProgress.error ? '#ff6b6b' : 'var(--accent-color-user)',
@@ -471,58 +471,58 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                                                 </div>
                                             )}
 
-                                            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                                            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                                                 {RECOMMENDED_MODELS.map(m => {
                                                     const isInstalled = installedModels.some(im => im.name.startsWith(m.id));
                                                     return (
                                                         <div key={m.id} style={{
                                                             flex: 1, backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)',
-                                                            borderRadius: '6px', padding: '12px', display: 'flex', flexDirection: 'column'
+                                                            borderRadius: '6px', padding: '10px', display: 'flex', flexDirection: 'column'
                                                         }}>
-                                                            <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-active)', marginBottom: '4px' }}>{m.label}</div>
-                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', flex: 1 }}>{m.desc}</div>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '11px', color: 'var(--text-active)', marginBottom: '4px' }}>{m.label}</div>
+                                                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '8px', flex: 1 }}>{m.desc}</div>
 
                                                             <button
                                                                 onClick={() => handleDownloadModel(m.id)}
                                                                 disabled={isDownloading || isInstalled}
                                                                 style={{
-                                                                    width: '100%', padding: '6px', border: 'none', borderRadius: '4px', cursor: (isDownloading || isInstalled) ? 'default' : 'pointer',
+                                                                    width: '100%', padding: '4px', borderRadius: '4px', cursor: (isDownloading || isInstalled) ? 'default' : 'pointer',
                                                                     backgroundColor: isInstalled ? 'transparent' : 'var(--input-bg)',
-                                                                    color: isInstalled ? '#4ade80' : 'var(--text-color)', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                                                    color: isInstalled ? '#4ade80' : 'var(--text-color)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
                                                                     border: isInstalled ? '1px solid #4ade8055' : '1px solid var(--border-color)'
                                                                 }}
                                                             >
-                                                                {isInstalled ? <><LuCheck size={14} /> Installed</> : <><LuDownload size={14} /> Install</>}
+                                                                {isInstalled ? <><LuCheck size={12} /> Installed</> : <><LuDownload size={12} /> Install</>}
                                                             </button>
                                                         </div>
                                                     )
                                                 })}
                                             </div>
 
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                 <input
                                                     type="text"
                                                     value={customModelInput}
                                                     onChange={(e) => setCustomModelInput(e.target.value)}
                                                     placeholder="Or pull any custom Ollama model (e.g., mistral:latest)"
                                                     style={{
-                                                        flex: 1, padding: '10px 12px', backgroundColor: 'var(--input-bg)',
-                                                        color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '6px', outline: 'none', fontSize: '13px'
+                                                        flex: 1, padding: '8px 10px', backgroundColor: 'var(--input-bg)',
+                                                        color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none', fontSize: '11px'
                                                     }}
                                                 />
                                                 <button
                                                     onClick={() => handleDownloadModel(customModelInput)}
                                                     disabled={isDownloading || !customModelInput.trim()}
                                                     style={{
-                                                        padding: '10px 20px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)',
-                                                        color: 'var(--text-active)', borderRadius: '6px', cursor: (isDownloading || !customModelInput.trim()) ? 'not-allowed' : 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px',
+                                                        padding: '8px 15px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)',
+                                                        color: 'var(--text-active)', borderRadius: '4px', cursor: (isDownloading || !customModelInput.trim()) ? 'not-allowed' : 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px',
                                                         opacity: (isDownloading || !customModelInput.trim()) ? 0.5 : 1
                                                     }}
                                                 >
-                                                    <LuDownload size={16} /> Pull Custom
+                                                    <LuDownload size={14} /> Pull Custom
                                                 </button>
                                             </div>
-                                            <p style={{ marginTop: '15px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                            <p style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
                                                 Don't have Ollama installed? <a href="https://ollama.com/download" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-color-user)' }}>Download it from ollama.com</a>.
                                             </p>
                                         </div>
