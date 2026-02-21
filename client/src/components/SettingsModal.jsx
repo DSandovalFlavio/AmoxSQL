@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe } from 'react-icons/lu';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -205,6 +205,19 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                     >
                         <LuCpu size={16} /> AI Assistant
                     </div>
+
+                    <div
+                        onClick={() => setActiveTab('about')}
+                        style={{
+                            padding: '10px 15px', cursor: 'pointer',
+                            backgroundColor: activeTab === 'about' ? 'var(--sidebar-item-active-bg)' : 'transparent',
+                            color: activeTab === 'about' ? 'var(--text-active)' : 'var(--text-color)',
+                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px',
+                            borderLeft: activeTab === 'about' ? '3px solid var(--accent-color-user)' : '3px solid transparent'
+                        }}
+                    >
+                        <LuInfo size={16} /> About AmoxSQL
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -215,7 +228,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                     }}>
                         <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-active)' }}>
-                            {activeTab === 'appearance' ? 'Appearance' : activeTab === 'ai' ? 'AI Settings' : 'Settings'}
+                            {activeTab === 'appearance' ? 'Appearance' : activeTab === 'ai' ? 'AI Settings' : activeTab === 'about' ? 'About AmoxSQL' : 'Settings'}
                         </h2>
                         <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-color)', padding: '5px', cursor: 'pointer', display: 'flex' }}>
                             <LuX size={18} />
@@ -529,6 +542,54 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
 
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {activeTab === 'about' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '12px', backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)' }}>
+                                        <LuInfo size={32} color="var(--accent-color-user)" />
+                                    </div>
+                                    <div>
+                                        <h2 style={{ margin: 0, color: 'var(--text-active)', fontSize: '20px' }}>AmoxSQL</h2>
+                                        <p style={{ margin: '4px 0 0 0', color: 'var(--accent-color-user)', fontSize: '12px', fontWeight: 'bold' }}>Version 1.1</p>
+                                    </div>
+                                </div>
+
+                                <div style={{ backgroundColor: 'var(--sidebar-item-active-bg)', padding: '15px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                    <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.6', color: 'var(--text-active)' }}>
+                                        <strong>The Modern Codex for Local Data Analysis.</strong><br /><br />
+                                        AmoxSQL is a professional, high-performance Local Data IDE built specifically for DuckDB.
+                                        Designed for serious data analysts and engineers who need speed, privacy, and advanced tooling without the cloud overhead.
+                                    </p>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <h3 style={{ fontSize: '13px', margin: 0, color: 'var(--text-active)' }}>Key Features</h3>
+                                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12px', color: 'var(--text-color)', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <li><strong>100% Offline & Private:</strong> Process data and run AI entirely on your local machine.</li>
+                                        <li><strong>Blazing Fast:</strong> Built on DuckDB for unmatched analytical performance.</li>
+                                        <li><strong>Smart Visualization:</strong> Create and save advanced Recharts configurations instantly.</li>
+                                        <li><strong>Integrated AI Assistance:</strong> Support for local Ollama models and Google Gemini.</li>
+                                        <li><strong>Drag & Drop Workflow:</strong> Seamlessly move tables and columns into the powerful Monaco Editor.</li>
+                                    </ul>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '10px' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-color)', lineHeight: '1.5' }}>
+                                        Created with 💙 by <strong>@dsandovalflavio</strong>.<br />
+                                        <span style={{ color: 'var(--text-muted)' }}>From Latin America to the World.</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '15px' }}>
+                                        <a href="https://github.com/dsandovalflavio/amoxsql" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-active)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
+                                            <LuGithub size={14} /> GitHub Repository
+                                        </a>
+                                        <a href="https://github.com/dsandovalflavio" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-active)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
+                                            <LuGlobe size={14} /> Creator Profile
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
