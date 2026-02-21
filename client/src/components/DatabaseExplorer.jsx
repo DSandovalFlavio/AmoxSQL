@@ -1,28 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import TablePreviewModal from './TablePreviewModal';
 import TableDetailsModal from './TableDetailsModal';
 import QueryHistoryModal from './QueryHistoryModal';
 import {
     LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
-    LuClipboard, LuInfo, LuSearch
+    LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye
 } from "react-icons/lu";
 
 const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery }) => {
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [selectedTable, setSelectedTable] = useState(null);
     const [previewTable, setPreviewTable] = useState(null); // Simple preview
     const [detailsTable, setDetailsTable] = useState(null); // Full Details Modal
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [expandedTables, setExpandedTables] = useState({}); // { tableName: true/false }
 
     // History Modal State
     const [showHistory, setShowHistory] = useState(false);
     const [showHeaderMenu, setShowHeaderMenu] = useState(false);
-
-    // Resizing State
-    const [tableListHeight, setTableListHeight] = useState(200);
-    const isResizingDb = useRef(false);
-    const lastY = useRef(0); // Track Y position
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName }
@@ -43,37 +40,6 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
     useEffect(() => {
         if (onRefresh) fetchTables();
     }, [onRefresh]);
-
-    // Resize Handlers
-    const startResizing = (e) => {
-        e.preventDefault();
-        isResizingDb.current = true;
-        lastY.current = e.clientY; // Capture start Y
-        document.addEventListener('mousemove', resize);
-        document.addEventListener('mouseup', stopResizing);
-    };
-
-    const stopResizing = () => {
-        isResizingDb.current = false;
-        document.removeEventListener('mousemove', resize);
-        document.removeEventListener('mouseup', stopResizing);
-    };
-
-    const resize = (e) => {
-        if (isResizingDb.current) {
-            const deltaY = e.clientY - lastY.current;
-            lastY.current = e.clientY; // Update last Y for next frame
-
-            setTableListHeight(prev => {
-                let newHeight = prev + deltaY;
-                if (isNaN(newHeight)) newHeight = 200; // Safety fallback
-                // Constraints
-                if (newHeight < 100) return 100;
-                if (newHeight > 600) return 600;
-                return newHeight;
-            });
-        }
-    };
 
     const fetchTables = async () => {
         setLoading(true);
@@ -106,47 +72,17 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
     const handleCopy = (e, text) => {
         e.stopPropagation();
         navigator.clipboard.writeText(text);
-        // Optional: toast feedback
     };
 
-    const fetchRowCount = async (tableName) => {
-        try {
-            const response = await fetch('http://localhost:3001/api/query', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: `SELECT COUNT(*) as count FROM "${tableName}"` }),
-            });
-            const data = await response.json();
-            if (data && data.data && data.data[0]) {
-                // Neo might return { count: 123 } or { count: 123n } (BigInt)
-                // We handled BigInt serialization in backend, so it should be number or string
-                return data.data[0].count;
-            }
-        } catch (e) {
-            console.warn("Row count fetch failed", e);
-        }
-        return '?';
-    };
-
-    const handleTableClick = async (table) => {
-        // Optimistic UI
-        setSelectedTable({ ...table, rowCount: '...' });
-
-        // Fetch real count
-        const count = await fetchRowCount(table.name);
-        setSelectedTable(prev => {
-            if (prev && prev.name === table.name) {
-                return { ...prev, rowCount: count };
-            }
-            return prev;
-        });
+    const toggleExpand = (tableName) => {
+        setExpandedTables(prev => ({ ...prev, [tableName]: !prev[tableName] }));
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', position: 'relative' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent-color-user)' }}>Database Schema</span>
+                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Database Schema</span>
                 <div style={{ display: 'flex', gap: '5px' }}>
                     <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center' }}>
                         <LuRefreshCw size={14} />
@@ -191,188 +127,133 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                 </div>
             </div>
 
-            {/* Content Container - Split View */}
+            {/* Content Container - Tree View & Search */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border-color)' }}>
+                    <div style={{ position: 'relative' }}>
+                        <input
+                            type="text"
+                            placeholder="Search tables & views..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            style={{
+                                width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
+                                border: '1px solid var(--border-color)', borderRadius: '4px',
+                                padding: '4px 8px 4px 24px', fontSize: '11px', outline: 'none'
+                            }}
+                        />
+                        <LuSearch size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }} />
+                    </div>
+                </div>
 
-                {/* TOP: Table List (Resizable Height) */}
-                <div style={{ height: tableListHeight, overflowY: 'auto', flexShrink: 0 }}>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
                     {loading && <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>Loading...</div>}
                     {!loading && tables.length === 0 && (
                         <div style={{ padding: '10px', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '12px' }}>No tables found</div>
                     )}
 
-                    {tables.map(table => (
-                        <div
-                            key={table.name}
-                            onClick={() => handleTableClick(table)}
-                            className="file-item"
-                            style={{
-                                padding: '4px 20px', // Match standard padding
-                                cursor: 'pointer',
-                                backgroundColor: selectedTable?.name === table.name ? 'var(--sidebar-item-active-bg)' : 'transparent',
-                                color: selectedTable?.name === table.name ? 'var(--text-active)' : 'var(--text-color)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '13px',
-                                position: 'relative' // For absolute positioning if needed
-                            }}
-                            title="Right click for options"
-                            onContextMenu={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setContextMenu({
-                                    x: e.clientX,
-                                    y: e.clientY,
-                                    tableName: table.name
-                                });
-                            }}
-                        >
-                            <LuTable size={14} color="var(--accent-color-user)" />
-                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{table.name}</span>
+                    {tables.filter(t => {
+                        if (!searchQuery) return true;
+                        const q = searchQuery.toLowerCase();
+                        if (t.name.toLowerCase().includes(q)) return true;
+                        if (t.columns && t.columns.some(col => col.column_name.toLowerCase().includes(q))) return true;
+                        return false;
+                    }).map(table => {
+                        const q = searchQuery.toLowerCase();
+                        const matchesColumn = q && table.columns && table.columns.some(col => col.column_name.toLowerCase().includes(q)) && !table.name.toLowerCase().includes(q);
+                        const isExpanded = !!expandedTables[table.name] || matchesColumn;
+                        const TableIcon = table.type?.toLowerCase().includes('view') ? LuEye : LuTable;
 
-                            {/* Copy Button (on hover or always visible to start) */}
-                            <span
-                                onClick={(e) => { handleCopy(e, table.name); }}
-                                title="Copy Table Name"
-                                style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.6, marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
-                            >
-                                <LuClipboard size={12} />
-                            </span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* RESIZER HANDLE */}
-                <div
-                    onMouseDown={startResizing}
-                    style={{
-                        height: '4px',
-                        cursor: 'row-resize',
-                        backgroundColor: 'var(--sidebar-bg)',
-                        borderTop: '1px solid var(--border-color)',
-                        borderBottom: '1px solid var(--border-color)',
-                        transition: 'background 0.2s',
-                        zIndex: 10
-                    }}
-                    onMouseOver={(e) => e.target.style.background = 'var(--accent-color-user)'}
-                    onMouseOut={(e) => e.target.style.background = 'var(--sidebar-bg)'}
-                />
-
-                {/* BOTTOM: Details Panel (Takes remaining space) */}
-                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--sidebar-bg)' }}>
-                    {selectedTable ? (
-                        <div>
-                            {/* Details Header */}
-                            <div style={{
-                                padding: '8px 10px',
-                                borderBottom: '1px solid var(--border-color)',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                position: 'sticky',
-                                top: 0,
-                                backgroundColor: 'var(--sidebar-bg)', // Keep sticky header opaque matching theme
-                                zIndex: 1
-                            }}>
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--accent-color-user)', fontSize: '11px' }}>
-                                        {selectedTable.name}
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                        {selectedTable.rowCount ? `${selectedTable.rowCount} rows` : ''} • {selectedTable.columns.length} cols
-                                    </div>
-                                </div>
-
-                                {/* Preview Button */}
-                                <button
-                                    onClick={() => setPreviewTable(selectedTable.name)}
-                                    title="Preview Table (First 50 rows)"
+                        return (
+                            <div key={table.name} style={{ display: 'flex', flexDirection: 'column' }}>
+                                {/* Table Item */}
+                                <div
+                                    draggable
+                                    onDragStart={(e) => {
+                                        e.dataTransfer.setData('text/plain', table.name);
+                                        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'table', name: table.name }));
+                                    }}
+                                    onClick={() => toggleExpand(table.name)}
+                                    className="file-item"
                                     style={{
-                                        background: 'transparent',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: '3px',
-                                        color: 'var(--text-color)',
+                                        padding: '4px 10px 4px 0px', // Custom padding for chevron
                                         cursor: 'pointer',
-                                        fontSize: '12px',
-                                        padding: '2px 6px',
+                                        color: 'var(--text-active)',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '4px'
+                                        gap: '6px',
+                                        fontSize: '13px',
                                     }}
-                                    onMouseOver={(e) => e.target.style.backgroundColor = 'var(--hover-color)'}
-                                    onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                                    title="Drag to editor or right click for operations"
+                                    onContextMenu={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setContextMenu({ x: e.clientX, y: e.clientY, tableName: table.name });
+                                    }}
                                 >
-                                    <LuSearch size={14} />
-                                </button>
-                            </div>
+                                    <div style={{ display: 'flex', width: '20px', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                        {isExpanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
+                                    </div>
+                                    <TableIcon size={14} color="var(--accent-color-user)" />
+                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{table.name}</span>
+                                    <span
+                                        onClick={(e) => handleCopy(e, table.name)}
+                                        title="Copy Table Name"
+                                        style={{ fontSize: '12px', color: 'var(--text-muted)', opacity: 0.6, marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
+                                    >
+                                        <LuClipboard size={12} />
+                                    </span>
+                                </div>
 
-                            {/* Column Grid */}
-                            <div style={{ padding: '0' }}>
-                                {selectedTable.columns.map(col => {
-                                    const meta = getTypeMeta(col.data_type);
-                                    return (
-                                        <div key={col.column_name} style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            padding: '4px 10px',
-                                            borderBottom: '1px solid var(--border-color)',
-                                            fontSize: '12px',
-                                            gap: '10px' // spacing between Left and Right groups
-                                        }}>
-                                            {/* Left: Icon + Name */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                                                <div title={meta.label} style={{
-                                                    width: '18px',
-                                                    textAlign: 'center',
-                                                    color: meta.color,
-                                                    fontWeight: 'bold',
-                                                    fontSize: '10px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}>
-                                                    {meta.icon}
-                                                </div>
-                                                <span title={col.column_name} style={{
-                                                    color: 'var(--text-color)',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis'
-                                                }}>
-                                                    {col.column_name}
-                                                </span>
-                                            </div>
-
-                                            {/* Right: Type Label + Copy */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                                                    {col.data_type.toLowerCase()}
-                                                </div>
-                                                <span
-                                                    onClick={(e) => handleCopy(e, col.column_name)}
-                                                    title="Copy Column Name"
-                                                    className="copy-icon"
-                                                    style={{ cursor: 'pointer', opacity: 0.5, fontSize: '12px', display: 'flex', alignItems: 'center' }}
+                                {/* Columns Node */}
+                                {isExpanded && table.columns && (
+                                    <div style={{ boxSizing: 'border-box', borderLeft: '1px solid var(--border-color)', margin: '0 0 5px 20px', display: 'flex', flexDirection: 'column' }}>
+                                        {table.columns.map((col, idx) => {
+                                            const meta = getTypeMeta(col.data_type);
+                                            return (
+                                                <div
+                                                    key={`${col.column_name}-${idx}`}
+                                                    draggable
+                                                    onDragStart={(e) => {
+                                                        e.dataTransfer.setData('text/plain', col.column_name);
+                                                        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'column', name: col.column_name, tableName: table.name }));
+                                                        e.stopPropagation();
+                                                    }}
+                                                    className="file-item"
+                                                    style={{
+                                                        padding: '4px 10px 4px 10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        fontSize: '12px',
+                                                        cursor: 'grab',
+                                                        color: 'var(--text-color)'
+                                                    }}
+                                                    title="Drag column to editor"
                                                 >
-                                                    <LuClipboard size={12} />
-                                                </span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                                        <div style={{ width: '14px', textAlign: 'center', color: meta.color }}>{meta.icon}</div>
+                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.column_name}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{col.data_type.toLowerCase()}</span>
+                                                        <span
+                                                            onClick={(e) => handleCopy(e, col.column_name)}
+                                                            title="Copy Column Name"
+                                                            style={{ cursor: 'pointer', opacity: 0.5, fontSize: '12px', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
+                                                        >
+                                                            <LuClipboard size={12} />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    ) : (
-                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                            <div style={{ marginBottom: '10px', opacity: 0.5 }}><LuSearch size={40} /></div>
-                            <div style={{ fontSize: '12px' }}>Select a table</div>
-                            <div style={{ fontSize: '12px' }}>to view details</div>
-                        </div>
-                    )}
+                        );
+                    })}
                 </div>
-
             </div>
 
             {/* Preview Modal (Simple) */}

@@ -1,17 +1,35 @@
 import { memo, useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import {
-    LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis,
-    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, LabelList
+    LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis,
+    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ReferenceArea, LabelList
 } from 'recharts';
 import { LuDownload, LuCalendar, LuGitMerge, LuCircle, LuMaximize, LuMinimize, LuSave, LuUpload } from "react-icons/lu";
 
 // Distinctive color palette
-const COLORS = [
-    '#3366CC', '#DC3912', '#FF9900', '#109618', '#990099', '#3B3EAC', '#0099C6',
-    '#DD4477', '#66AA00', '#B82E2E', '#316395', '#994499', '#22AA99', '#AAAA11',
-    '#6633CC', '#E67300', '#8B0707', '#329262', '#5574A6'
-];
+// Distinctive color palettes for themes
+export const COLOR_PALETTES = {
+    default: [
+        '#3366CC', '#DC3912', '#FF9900', '#109618', '#990099', '#3B3EAC', '#0099C6',
+        '#DD4477', '#66AA00', '#B82E2E', '#316395', '#994499', '#22AA99', '#AAAA11',
+        '#6633CC', '#E67300', '#8B0707', '#329262', '#5574A6'
+    ],
+    // Qualitative
+    set1: ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf'],
+    set2: ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3'],
+    pastel2: ['#b3e2cd', '#fdcdac', '#cbd5e8', '#f4cae4', '#e6f5c9', '#fff2ae', '#f1e2cc', '#cccccc'],
+    dark2: ['#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', '#666666'],
+    // Sequential
+    blues: ['#f7fbff', '#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594'],
+    greens: ['#f7fcf5', '#e5f5e0', '#c7e9c0', '#a1d99b', '#74c476', '#41ab5d', '#238b45', '#005a32'],
+    reds: ['#fff5f0', '#fee0d2', '#fcbba1', '#fc9272', '#fb6a4a', '#ef3b2c', '#cb181d', '#99000d'],
+    ylorbr: ['#ffffe5', '#fff7bc', '#fee391', '#fec44f', '#fe9929', '#ec7014', '#cc4c02', '#8c2d04'],
+    // Diverging
+    spectral: ['#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#e6f598', '#abdda4', '#66c2a5', '#3288bd'],
+    rdylbu: ['#d73027', '#f46d43', '#fdae61', '#fee090', '#e0f3f8', '#abd9e9', '#74add1', '#4575b4'],
+    rdylgn: ['#d73027', '#f46d43', '#fdae61', '#fee08b', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850'],
+    piyg: ['#c51b7d', '#e9a3c9', '#fde0ef', '#e6f5d0', '#a1d76a', '#4d9221']
+};
 
 // Helper to format Date strings
 const formatDateLabel = (val) => {
@@ -63,33 +81,45 @@ const SimpleColorPicker = ({ color, onChange }) => {
                     position: 'absolute', top: '100%', left: 0, zIndex: 1000,
                     backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--border-color)', padding: '10px',
                     borderRadius: '4px', boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-                    width: '210px', marginTop: '5px'
+                    width: '260px', marginTop: '5px',
+                    display: 'flex', flexDirection: 'column', gap: '10px'
                 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '10px' }}>
-                        {COLORS.map(c => (
-                            <div
-                                key={c}
-                                onClick={() => { onChange(c); setIsOpen(false); }}
-                                style={{
-                                    width: '20px', height: '20px',
-                                    backgroundColor: c,
-                                    cursor: 'pointer',
-                                    border: color === c ? '2px solid white' : '1px solid #333',
-                                    borderRadius: '2px'
-                                }}
-                                title={c}
-                            />
+                    <div style={{ overflowY: 'auto', maxHeight: '180px', paddingRight: '5px' }}>
+                        {Object.entries(COLOR_PALETTES).map(([category, colors]) => (
+                            <div key={category} style={{ marginBottom: '8px' }}>
+                                <div style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                                    {category}
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                    {colors.map(c => (
+                                        <div
+                                            key={c}
+                                            onClick={() => { onChange(c); setIsOpen(false); }}
+                                            style={{
+                                                width: '20px', height: '20px',
+                                                backgroundColor: c,
+                                                cursor: 'pointer',
+                                                border: color === c ? '2px solid white' : '1px solid #333',
+                                                borderRadius: '2px',
+                                                boxSizing: 'border-box'
+                                            }}
+                                            title={c}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         ))}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
                         <span style={{ fontSize: '10px', color: '#888' }}>Hex:</span>
                         <input
                             type="text"
                             value={color}
                             onChange={(e) => onChange(e.target.value)}
+                            placeholder="#FFFFFF"
                             style={{
                                 flex: 1, background: 'var(--input-bg)', border: '1px solid var(--border-color)',
-                                color: 'var(--text-active)', fontSize: '11px', padding: '4px'
+                                color: 'var(--text-active)', fontSize: '11px', padding: '4px', minWidth: 0
                             }}
                         />
                     </div>
@@ -138,28 +168,34 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     const [chartType, setChartType] = useState('line');
     const [xAxisKey, setXAxisKey] = useState('');
     const [yAxisKeys, setYAxisKeys] = useState([]);
+    const [rightYAxisKey, setRightYAxisKey] = useState('');
     const [splitByKey, setSplitByKey] = useState('');
     const [dateAggregation, setDateAggregation] = useState('none');
     const [showLabels, setShowLabels] = useState(false);
+    const [tooltipShowPercent, setTooltipShowPercent] = useState(false);
     const [dataLabelPosition, setDataLabelPosition] = useState('outside'); // 'outside', 'inside-end', 'inside-center', 'inside-start'
     const [bubbleSizeKey, setBubbleSizeKey] = useState('');
 
     // --- New Customization State ---
     // General
+    const [colorTheme, setColorTheme] = useState('default');
     const [sortMode, setSortMode] = useState('x-asc'); // x-asc, x-desc, y-asc, y-desc
     const [maxItems, setMaxItems] = useState(50); // Limit number of items shown
     const [numberFormat, setNumberFormat] = useState('compact'); // 'compact', 'standard', 'thousands', 'millions', 'billions', 'raw'
 
     // Line / General
-    const [lineSmooth, setLineSmooth] = useState(true);
+    const [lineType, setLineType] = useState('monotone'); // monotone, linear, step, stepBefore, stepAfter
+    const [lineAreaFill, setLineAreaFill] = useState(false);
     const [showDots, setShowDots] = useState(true);
     const [isCumulative, setIsCumulative] = useState(false);
     const [yAxisLog, setYAxisLog] = useState(false);
     const [yAxisDomain, setYAxisDomain] = useState(['auto', 'auto']); // [min, max]
     const [refLine, setRefLine] = useState({ value: '', label: '', color: 'red' });
+    const [refArea, setRefArea] = useState({ x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 });
 
     // Bar
-    const [barStacked, setBarStacked] = useState(false);
+    const [barStackMode, setBarStackMode] = useState('none'); // 'none', 'stack', 'expand'
+    const [barRadius, setBarRadius] = useState(0);
     const [barColorMode, setBarColorMode] = useState('series'); // 'series' or 'dimension' (x-value)
     const [highlightConfig, setHighlightConfig] = useState({ type: 'none', value: '', color: '#ff0000' }); // type: none, max, min, mask (specific value)
 
@@ -174,9 +210,10 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     const [donutLabelContent, setDonutLabelContent] = useState('name_percent'); // 'percent', 'value', 'name', 'name_percent', 'name_value'
     const [donutLabelPosition, setDonutLabelPosition] = useState('outside'); // 'inside', 'outside'
     const [donutGroupingThreshold, setDonutGroupingThreshold] = useState(0); // 0-100% threshold for "Others" // Inner Radius
+    const [donutCenterKpi, setDonutCenterKpi] = useState('none'); // 'none', 'total', 'average'
 
     // Scatter
-    // ...
+    const [scatterQuadrants, setScatterQuadrants] = useState(false);
 
     // Storytelling State
     const [chartTitle, setChartTitle] = useState('');
@@ -264,6 +301,27 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
         }
     }, [numberFormat]);
 
+    const renderTooltipFormatter = useCallback((value, name, props) => {
+        let formattedVal = formatNumber(value);
+
+        if (tooltipShowPercent) {
+            if (chartType === 'donut' && props && props.payload && props.payload.percent !== undefined) {
+                const pct = (props.payload.percent * 100).toFixed(1);
+                formattedVal += ` (${pct}%)`;
+            } else if (chartType !== 'donut' && props && props.payload) {
+                let total = 0;
+                yAxisKeys.forEach(key => {
+                    total += Number(props.payload[key]) || 0;
+                });
+                if (total > 0 && typeof value === 'number') {
+                    const pct = ((value / total) * 100).toFixed(1);
+                    formattedVal += ` (${pct}%)`;
+                }
+            }
+        }
+        return [formattedVal, name];
+    }, [formatNumber, tooltipShowPercent, chartType, yAxisKeys]);
+
     // Detect if X-Axis is a Date column
     const isDateColumn = useMemo(() => {
         if (!xAxisKey || !data || data.length === 0) return false;
@@ -273,6 +331,8 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     }, [data, xAxisKey]);
 
     // --- MEMOIZED CONFIGS (Top Level) ---
+
+    const activeColors = useMemo(() => COLOR_PALETTES[colorTheme] || COLOR_PALETTES.default, [colorTheme]);
 
     // Tooltip Style (Stable)
     const tooltipStyle = useMemo(() => ({
@@ -669,6 +729,24 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
         );
     };
 
+    // Ref Area Element
+    const renderRefArea = () => {
+        const hasX = refArea.x1 !== '' && refArea.x2 !== '';
+        const hasY = refArea.y1 !== '' && refArea.y2 !== '';
+
+        if (!hasX && !hasY) return null;
+
+        const x1 = isNaN(Number(refArea.x1)) || refArea.x1 === '' ? refArea.x1 : Number(refArea.x1);
+        const x2 = isNaN(Number(refArea.x2)) || refArea.x2 === '' ? refArea.x2 : Number(refArea.x2);
+
+        return (
+            <>
+                {hasX && <ReferenceArea x1={x1} x2={x2} fill={refArea.color} fillOpacity={refArea.opacity} />}
+                {hasY && <ReferenceArea y1={Number(refArea.y1)} y2={Number(refArea.y2)} fill={refArea.color} fillOpacity={refArea.opacity} />}
+            </>
+        );
+    };
+
     // Axis Titles
     const XLabel = customAxisTitles.x || defaultXLabel || xAxisKey;
     const YLabel = customAxisTitles.y || defaultYLabel || 'Values';
@@ -680,9 +758,12 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
         try {
             switch (chartType) {
                 case 'line':
+                    const LineChartComponent = lineAreaFill ? AreaChart : LineChart;
+                    const LineSeriesComponent = lineAreaFill ? Area : Line;
+
                     return (
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart {...CommonProps}>
+                            <LineChartComponent {...CommonProps}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridMode === 'both' || gridMode === 'vertical'} horizontal={gridMode === 'both' || gridMode === 'horizontal'} />
                                 <XAxis
                                     {...axisCommonProps}
@@ -694,6 +775,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                 />
                                 <YAxis
+                                    yAxisId="left"
                                     {...axisCommonProps}
                                     stroke="var(--border-color)"
                                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
@@ -703,12 +785,26 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     allowDataOverflow={true}
                                     label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
                                 />
-                                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.2)' }} formatter={(value) => formatNumber(value)} labelFormatter={xAxisTickFormatter} />
+                                {rightYAxisKey && (
+                                    <YAxis
+                                        yAxisId="right"
+                                        orientation="right"
+                                        {...axisCommonProps}
+                                        stroke="var(--border-color)"
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                                        tickFormatter={formatNumber}
+                                        domain={yDomain}
+                                        scale={yScale}
+                                        allowDataOverflow={true}
+                                    />
+                                )}
+                                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.2)' }} formatter={renderTooltipFormatter} labelFormatter={xAxisTickFormatter} />
                                 <Legend {...legendProps} />
                                 {renderRefLine()}
+                                {renderRefArea()}
                                 {finalSeriesKeys.map((key, index) => {
                                     const config = seriesConfig[key] || {};
-                                    const color = config.color || COLORS[index % COLORS.length];
+                                    const color = config.color || activeColors[index % activeColors.length];
                                     const strokeDash = config.style === 'dashed' ? '5 5' : (config.style === 'dotted' ? '2 2' : '');
 
                                     let highlightValSeries = null;
@@ -721,13 +817,16 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     }
 
                                     return (
-                                        <Line
+                                        <LineSeriesComponent
                                             key={key || index}
-                                            type={lineSmooth ? "monotone" : "linear"}
+                                            yAxisId={key === rightYAxisKey ? "right" : "left"}
+                                            type={lineType}
                                             dataKey={key}
                                             stroke={color}
                                             strokeWidth={2}
                                             strokeDasharray={strokeDash}
+                                            fill={lineAreaFill ? color : "transparent"}
+                                            fillOpacity={0.2}
                                             dot={
                                                 <CustomizedDot
                                                     dataKey={key}
@@ -746,7 +845,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                         />
                                     );
                                 })}
-                            </LineChart>
+                            </LineChartComponent>
                         </ResponsiveContainer>
                     );
                 case 'bar':
@@ -765,6 +864,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 layout={isHorizontal ? 'vertical' : 'horizontal'}
+                                stackOffset={barStackMode === 'expand' ? 'expand' : 'none'}
                                 {...CommonProps}
                                 margin={{ ...CommonProps.margin, right: legendPosition === 'right' ? 10 : 30, left: legendPosition === 'left' ? 10 : 20 }}
                             >
@@ -806,6 +906,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                         />
                                         <YAxis
+                                            yAxisId="left"
                                             {...axisCommonProps}
                                             stroke="var(--border-color)"
                                             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
@@ -814,51 +915,71 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             scale={yScale}
                                             label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
                                         />
+                                        {rightYAxisKey && (
+                                            <YAxis
+                                                yAxisId="right"
+                                                orientation="right"
+                                                {...axisCommonProps}
+                                                stroke="var(--border-color)"
+                                                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                                                tickFormatter={formatNumber}
+                                                domain={yDomain}
+                                                scale={yScale}
+                                            />
+                                        )}
                                     </>
                                 )}
 
-                                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} formatter={(value) => formatNumber(value)} labelFormatter={xAxisTickFormatter} />
+                                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} formatter={renderTooltipFormatter} labelFormatter={xAxisTickFormatter} />
                                 <Legend {...legendProps} wrapperStyle={{ ...legendProps.wrapperStyle, paddingLeft: '10px' }} />
 
                                 {renderRefLine()}
+                                {renderRefArea()}
 
-                                {finalSeriesKeys.map((key, index) => (
-                                    <Bar
-                                        key={key}
-                                        dataKey={key}
-                                        stackId={barStacked ? "a" : undefined}
-                                        fill={COLORS[index % COLORS.length]}
-                                        name={String(key)}
-                                        isAnimationActive={false}
-                                    >
-                                        {showLabels && (
-                                            <LabelList
-                                                dataKey={key}
-                                                content={renderCustomBarLabel}
-                                            />
-                                        )}
-                                        {processedData.map((entry, entryIndex) => {
-                                            const val = Number(entry[key]);
-                                            let finalColor = COLORS[index % COLORS.length];
+                                {finalSeriesKeys.map((key, index) => {
+                                    const config = seriesConfig[key] || {};
+                                    const baseColor = config.color || activeColors[index % activeColors.length];
 
-                                            if (barColorMode === 'dimension') {
-                                                finalColor = COLORS[entryIndex % COLORS.length];
-                                            }
+                                    return (
+                                        <Bar
+                                            key={key}
+                                            yAxisId={isHorizontal ? 0 : (key === rightYAxisKey ? "right" : "left")}
+                                            dataKey={key}
+                                            stackId={(barStackMode === 'stack' || barStackMode === 'expand') ? "a" : undefined}
+                                            fill={baseColor}
+                                            radius={isHorizontal ? [0, barRadius, barRadius, 0] : [barRadius, barRadius, 0, 0]}
+                                            name={String(key)}
+                                            isAnimationActive={false}
+                                        >
+                                            {showLabels && (
+                                                <LabelList
+                                                    dataKey={key}
+                                                    content={renderCustomBarLabel}
+                                                />
+                                            )}
+                                            {processedData.map((entry, entryIndex) => {
+                                                const val = Number(entry[key]);
+                                                let finalColor = baseColor;
 
-                                            if (highlightConfig.type !== 'none') {
-                                                if (highlightConfig.type === 'max' && val === highlightVal) {
-                                                    finalColor = highlightConfig.color;
-                                                } else if (highlightConfig.type === 'min' && val === highlightVal) {
-                                                    finalColor = highlightConfig.color;
-                                                } else if (highlightConfig.type === 'exact' && String(entry[xAxisKey]) === String(highlightConfig.value)) {
-                                                    finalColor = highlightConfig.color;
+                                                if (barColorMode === 'dimension') {
+                                                    finalColor = activeColors[entryIndex % activeColors.length];
                                                 }
-                                            }
 
-                                            return <Cell key={`cell-${entryIndex}`} fill={finalColor} />;
-                                        })}
-                                    </Bar>
-                                ))}
+                                                if (highlightConfig.type !== 'none') {
+                                                    if (highlightConfig.type === 'max' && val === highlightVal) {
+                                                        finalColor = highlightConfig.color;
+                                                    } else if (highlightConfig.type === 'min' && val === highlightVal) {
+                                                        finalColor = highlightConfig.color;
+                                                    } else if (highlightConfig.type === 'exact' && String(entry[xAxisKey]) === String(highlightConfig.value)) {
+                                                        finalColor = highlightConfig.color;
+                                                    }
+                                                }
+
+                                                return <Cell key={`cell-${entryIndex}`} fill={finalColor} />;
+                                            })}
+                                        </Bar>
+                                    );
+                                })}
                             </BarChart>
                         </ResponsiveContainer>
                     );
@@ -881,6 +1002,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                 />
                                 <YAxis
+                                    yAxisId="left"
                                     {...axisCommonProps}
                                     type="number"
                                     name={YLabel}
@@ -889,15 +1011,44 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     tickFormatter={formatNumber}
                                     label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
                                 />
+                                {rightYAxisKey && (
+                                    <YAxis
+                                        yAxisId="right"
+                                        orientation="right"
+                                        {...axisCommonProps}
+                                        type="number"
+                                        name={rightYAxisKey}
+                                        stroke="var(--border-color)"
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                                        tickFormatter={formatNumber}
+                                    />
+                                )}
                                 <ZAxis
                                     type="number"
                                     dataKey="size"
                                     range={[60, 600]}
                                     name="Size"
                                 />
-                                <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} formatter={(value, name) => [formatNumber(value), name]} labelFormatter={xAxisTickFormatter} />
+                                <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} formatter={renderTooltipFormatter} labelFormatter={xAxisTickFormatter} />
                                 <Legend {...legendProps} />
+                                {renderRefLine()}
+                                {renderRefArea()}
+                                {scatterQuadrants && xAxisKey && yAxisKeys[0] && (() => {
+                                    const xVals = processedData.map(d => Number(d[xAxisKey])).filter(v => !isNaN(v));
+                                    const yVals = processedData.map(d => Number(d[yAxisKeys[0]])).filter(v => !isNaN(v));
+                                    if (xVals.length === 0 || yVals.length === 0) return null;
+                                    const xMean = xVals.reduce((a, b) => a + b, 0) / xVals.length;
+                                    const yMean = yVals.reduce((a, b) => a + b, 0) / yVals.length;
+                                    return (
+                                        <>
+                                            <ReferenceLine x={xMean} stroke="var(--border-color)" strokeWidth={2} strokeDasharray="5 5" />
+                                            <ReferenceLine y={yMean} stroke="var(--border-color)" strokeWidth={2} strokeDasharray="5 5" />
+                                        </>
+                                    );
+                                })()}
                                 {finalSeriesKeys.map((key, index) => {
+                                    const config = seriesConfig[key] || {};
+                                    const baseColor = config.color || activeColors[index % activeColors.length];
                                     const seriesData = processedData.map(d => ({
                                         ...d,
                                         size: splitByKey ? d[`${key} _size`] : d[bubbleSizeKey]
@@ -905,10 +1056,11 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     return (
                                         <Scatter
                                             key={key || index}
+                                            yAxisId={key === rightYAxisKey ? "right" : "left"}
                                             name={String(key)}
                                             data={seriesData}
                                             dataKey={key}
-                                            fill={COLORS[index % COLORS.length]}
+                                            fill={baseColor}
                                             shape="circle"
                                             isAnimationActive={false}
                                         />
@@ -918,9 +1070,32 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                         </ResponsiveContainer>
                     );
                 case 'donut':
+                    let donutCenterText = '';
+                    let donutCenterSubtext = '';
+                    if (donutCenterKpi !== 'none' && donutData.length > 0) {
+                        const sum = donutData.reduce((acc, curr) => acc + (Number(curr[yAxisKeys[0]]) || 0), 0);
+                        if (donutCenterKpi === 'total') {
+                            donutCenterText = formatNumber(sum);
+                            donutCenterSubtext = 'Total';
+                        } else if (donutCenterKpi === 'average') {
+                            donutCenterText = formatNumber(sum / donutData.length);
+                            donutCenterSubtext = 'Average';
+                        }
+                    }
+
                     return (
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
+                                {donutCenterKpi !== 'none' && donutThickness > 30 && (
+                                    <>
+                                        <text x="50%" y="50%" dy={-5} textAnchor="middle" dominantBaseline="middle" style={{ fill: 'var(--text-active)', fontSize: '20px', fontWeight: 'bold' }}>
+                                            {donutCenterText}
+                                        </text>
+                                        <text x="50%" y="50%" dy={15} textAnchor="middle" dominantBaseline="middle" style={{ fill: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase' }}>
+                                            {donutCenterSubtext}
+                                        </text>
+                                    </>
+                                )}
                                 <Pie
                                     data={donutData}
                                     cx="50%"
@@ -935,10 +1110,10 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     isAnimationActive={false}
                                 >
                                     {donutData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={seriesConfig[entry[xAxisKey]]?.color || COLORS[index % COLORS.length]} stroke="none" />
+                                        <Cell key={`cell-${index}`} fill={seriesConfig[entry[xAxisKey]]?.color || activeColors[index % activeColors.length]} stroke="none" />
                                     ))}
                                 </Pie>
-                                <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatNumber(value)} />
+                                <Tooltip contentStyle={tooltipStyle} formatter={renderTooltipFormatter} />
                                 <Legend {...legendProps} />
                             </PieChart>
                         </ResponsiveContainer>
@@ -950,7 +1125,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
             console.error("Chart Render Error:", err);
             return <div style={{ color: 'red', padding: 20 }}>Error rendering chart: {err.message}</div>;
         }
-    }, [processedData, chartType, xAxisKey, yAxisKeys, seriesConfig, customAxisTitles, xAxisLabelAngle, legendPosition, highlightConfig, barStacked, barColorMode, donutThickness, yDomain, yScale, refLine, showLabels, lineSmooth, showDots, isDateColumn, CommonProps, XLabel, YLabel, tooltipStyle, legendProps, xAxisTickProps, xAxisTickFormatter, donutData, renderCustomizedLabel]);
+    }, [processedData, chartType, xAxisKey, yAxisKeys, rightYAxisKey, seriesConfig, customAxisTitles, xAxisLabelAngle, legendPosition, highlightConfig, barStackMode, barRadius, barColorMode, donutThickness, donutCenterKpi, scatterQuadrants, yDomain, yScale, refLine, refArea, showLabels, lineType, lineAreaFill, showDots, isDateColumn, CommonProps, XLabel, YLabel, tooltipStyle, legendProps, xAxisTickProps, xAxisTickFormatter, donutData, renderCustomizedLabel, activeColors, renderTooltipFormatter]);
 
     const handleDownload = async () => {
         if (!chartRef.current) return;
@@ -982,12 +1157,12 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     // --- CONFIGURATION SAVE / LOAD ---
     const handleSaveConfig = () => {
         const config = {
-            chartType, xAxisKey, yAxisKeys, splitByKey, bubbleSizeKey, dateAggregation,
-            sortMode, maxItems, numberFormat, lineSmooth, showDots, isCumulative, yAxisLog, yAxisDomain, refLine,
-            barStacked, barColorMode, highlightConfig,
-            seriesConfig, customAxisTitles, xAxisLabelAngle, legendPosition,
-            donutThickness, donutLabelContent, donutLabelPosition, donutGroupingThreshold,
-            chartTitle, chartSubtitle, chartFootnote, textAlign, gridMode, showAxisLines, showLabels, dataLabelPosition
+            chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey, bubbleSizeKey, dateAggregation,
+            sortMode, maxItems, numberFormat, lineType, lineAreaFill, showDots, isCumulative, yAxisLog, yAxisDomain, refLine, refArea,
+            barStackMode, barRadius, barColorMode, highlightConfig, scatterQuadrants,
+            seriesConfig, customAxisTitles, xAxisLabelAngle, legendPosition, colorTheme,
+            donutThickness, donutLabelContent, donutLabelPosition, donutGroupingThreshold, donutCenterKpi,
+            chartTitle, chartSubtitle, chartFootnote, textAlign, gridMode, showAxisLines, showLabels, tooltipShowPercent, dataLabelPosition
         };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
         const downloadAnchorNode = document.createElement('a');
@@ -1009,29 +1184,38 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                 if (config.chartType) setChartType(config.chartType);
                 if (config.xAxisKey) setXAxisKey(config.xAxisKey);
                 if (config.yAxisKeys) setYAxisKeys(config.yAxisKeys);
+                if (config.rightYAxisKey !== undefined) setRightYAxisKey(config.rightYAxisKey);
                 if (config.splitByKey !== undefined) setSplitByKey(config.splitByKey);
                 if (config.bubbleSizeKey !== undefined) setBubbleSizeKey(config.bubbleSizeKey);
                 if (config.dateAggregation !== undefined) setDateAggregation(config.dateAggregation);
                 if (config.sortMode !== undefined) setSortMode(config.sortMode);
                 if (config.maxItems !== undefined) setMaxItems(config.maxItems);
                 if (config.numberFormat) setNumberFormat(config.numberFormat);
-                if (config.lineSmooth !== undefined) setLineSmooth(config.lineSmooth);
+                if (config.lineType !== undefined) setLineType(config.lineType);
+                if (config.lineAreaFill !== undefined) setLineAreaFill(config.lineAreaFill);
+                if (config.lineSmooth !== undefined && config.lineType === undefined) setLineType(config.lineSmooth ? 'monotone' : 'linear'); // migration
                 if (config.showDots !== undefined) setShowDots(config.showDots);
                 if (config.isCumulative !== undefined) setIsCumulative(config.isCumulative);
                 if (config.yAxisLog !== undefined) setYAxisLog(config.yAxisLog);
                 if (config.yAxisDomain) setYAxisDomain(config.yAxisDomain);
                 if (config.refLine) setRefLine(config.refLine);
-                if (config.barStacked !== undefined) setBarStacked(config.barStacked);
+                if (config.refArea) setRefArea(config.refArea);
+                if (config.barStackMode !== undefined) setBarStackMode(config.barStackMode);
+                if (config.barRadius !== undefined) setBarRadius(config.barRadius);
+                if (config.barStacked !== undefined && config.barStackMode === undefined) setBarStackMode(config.barStacked ? 'stack' : 'none'); // migration
                 if (config.barColorMode) setBarColorMode(config.barColorMode);
                 if (config.highlightConfig) setHighlightConfig(config.highlightConfig);
+                if (config.scatterQuadrants !== undefined) setScatterQuadrants(config.scatterQuadrants);
                 if (config.seriesConfig) setSeriesConfig(config.seriesConfig);
                 if (config.customAxisTitles) setCustomAxisTitles(config.customAxisTitles);
                 if (config.xAxisLabelAngle !== undefined) setXAxisLabelAngle(config.xAxisLabelAngle);
                 if (config.legendPosition) setLegendPosition(config.legendPosition);
+                if (config.colorTheme) setColorTheme(config.colorTheme);
                 if (config.donutThickness !== undefined) setDonutThickness(config.donutThickness);
                 if (config.donutLabelContent) setDonutLabelContent(config.donutLabelContent);
                 if (config.donutLabelPosition) setDonutLabelPosition(config.donutLabelPosition);
                 if (config.donutGroupingThreshold !== undefined) setDonutGroupingThreshold(config.donutGroupingThreshold);
+                if (config.donutCenterKpi !== undefined) setDonutCenterKpi(config.donutCenterKpi);
                 if (config.chartTitle !== undefined) {
                     setChartTitle(config.chartTitle);
                     if (titleRef.current) titleRef.current.value = config.chartTitle;
@@ -1048,6 +1232,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                 if (config.gridMode) setGridMode(config.gridMode);
                 if (config.showAxisLines !== undefined) setShowAxisLines(config.showAxisLines);
                 if (config.showLabels !== undefined) setShowLabels(config.showLabels);
+                if (config.tooltipShowPercent !== undefined) setTooltipShowPercent(config.tooltipShowPercent);
                 if (config.dataLabelPosition) setDataLabelPosition(config.dataLabelPosition);
             } catch (err) {
                 console.error("Error loading config:", err);
@@ -1195,6 +1380,22 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     </div>
                                 )}
                             </div>
+
+                            {yAxisKeys.length > 0 && !splitByKey && chartType !== 'donut' && chartType !== 'bar-horizontal' && (
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>
+                                        Secondary Y-Axis (Right)
+                                    </label>
+                                    <select
+                                        value={rightYAxisKey}
+                                        onChange={(e) => setRightYAxisKey(e.target.value)}
+                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
+                                    >
+                                        <option value="">(None)</option>
+                                        {yAxisKeys.map(col => <option key={col} value={col}>{col}</option>)}
+                                    </select>
+                                </div>
+                            )}
 
                             {/* --- SORTING & LIMITS --- */}
                             <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
@@ -1349,10 +1550,16 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                 <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Data Labels & Annotations</h4>
 
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: showLabels ? '8px' : '0' }}>
-                                    <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} style={{ accentColor: '#00ffff' }} />
-                                    Show Data Labels
-                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: showLabels ? '8px' : '0' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc' }}>
+                                        <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} style={{ accentColor: '#00ffff' }} />
+                                        Show Data Labels
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc' }}>
+                                        <input type="checkbox" checked={tooltipShowPercent} onChange={(e) => setTooltipShowPercent(e.target.checked)} style={{ accentColor: '#00ffff' }} />
+                                        Show % of Total in Tooltip
+                                    </label>
+                                </div>
 
                                 {showLabels && chartType !== 'donut' && (
                                     <div style={{ paddingLeft: '22px', marginBottom: '10px', marginTop: '10px' }}>
@@ -1387,6 +1594,21 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     </>
                                 )}
                             </div>
+
+                            {/* --- DONUT CENTER KPI --- */}
+                            {chartType === 'donut' && (
+                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Donut Center</h4>
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Center Metric Overlay</label>
+                                        <select value={donutCenterKpi} onChange={(e) => setDonutCenterKpi(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                            <option value="none">None</option>
+                                            <option value="total">Sum of Values (Total)</option>
+                                            <option value="average">Average of Values</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* --- REFERENCE LINE --- */}
                             {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
@@ -1431,10 +1653,47 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                 <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Aesthetics</h4>
 
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Color Theme</label>
+                                    <select value={colorTheme} onChange={(e) => setColorTheme(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                        <optgroup label="Default">
+                                            <option value="default">AmoxSQL Default</option>
+                                        </optgroup>
+                                        <optgroup label="Qualitative (Categorical)">
+                                            <option value="set1">Set 1</option>
+                                            <option value="set2">Set 2</option>
+                                            <option value="pastel2">Pastes</option>
+                                            <option value="dark2">Dark</option>
+                                        </optgroup>
+                                        <optgroup label="Sequential">
+                                            <option value="blues">Blues</option>
+                                            <option value="greens">Greens</option>
+                                            <option value="reds">Reds</option>
+                                            <option value="ylorbr">Yellow-Orange-Brown</option>
+                                        </optgroup>
+                                        <optgroup label="Diverging">
+                                            <option value="spectral">Spectral</option>
+                                            <option value="rdylbu">Red-Yellow-Blue</option>
+                                            <option value="rdylgn">Red-Yellow-Green</option>
+                                            <option value="piyg">Pink-Yellow-Green</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+
                                 {chartType === 'line' && (
                                     <>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Line Interpolation</label>
+                                            <select value={lineType} onChange={(e) => setLineType(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                                <option value="monotone">Smooth (Natural)</option>
+                                                <option value="linear">Linear (Straight)</option>
+                                                <option value="step">Step</option>
+                                                <option value="stepBefore">Step Before</option>
+                                                <option value="stepAfter">Step After</option>
+                                            </select>
+                                        </div>
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                            <input type="checkbox" checked={lineSmooth} onChange={(e) => setLineSmooth(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Smooth Lines
+                                            <input type="checkbox" checked={lineAreaFill} onChange={(e) => setLineAreaFill(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Fill Area (Area Chart)
                                         </label>
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
                                             <input type="checkbox" checked={showDots} onChange={(e) => setShowDots(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show Points
@@ -1447,10 +1706,19 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
 
                                 {(chartType === 'bar' || chartType === 'bar-horizontal') && (
                                     <>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                            <input type="checkbox" checked={barStacked} onChange={(e) => setBarStacked(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Stack Bars
-                                        </label>
-                                        {!barStacked && (
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Bar Layout</label>
+                                            <select value={barStackMode} onChange={(e) => setBarStackMode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                                <option value="none">Grouped (Side-by-side)</option>
+                                                <option value="stack">Stacked (Absolute)</option>
+                                                <option value="expand">100% Stacked (Proportional)</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#ccc', marginBottom: '4px' }}>Border Radius: {barRadius}px</label>
+                                            <input type="range" min="0" max="20" value={barRadius} onChange={(e) => setBarRadius(Number(e.target.value))} style={{ width: '100%', accentColor: '#00ffff' }} />
+                                        </div>
+                                        {barStackMode === 'none' && (
                                             <div style={{ marginBottom: '10px' }}>
                                                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Color Mode</label>
                                                 <select value={barColorMode} onChange={(e) => setBarColorMode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
@@ -1467,6 +1735,12 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                         <label style={{ display: 'block', fontSize: '10px', color: '#ccc', marginBottom: '4px' }}>Inner Radius (Thickness): {donutThickness}</label>
                                         <input type="range" min="0" max="90" value={donutThickness} onChange={(e) => setDonutThickness(Number(e.target.value))} style={{ width: '100%', accentColor: '#00ffff' }} />
                                     </div>
+                                )}
+
+                                {chartType === 'scatter' && (
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
+                                        <input type="checkbox" checked={scatterQuadrants} onChange={(e) => setScatterQuadrants(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show Automatic Quadrants (Mean Crosshairs)
+                                    </label>
                                 )}
 
                                 {/* Highlight Rules */}
@@ -1502,10 +1776,10 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px' }}>
                                         {donutData.map((d, i) => {
                                             const key = d[xAxisKey];
-                                            const color = seriesConfig[key]?.color || COLORS[i % COLORS.length];
+                                            const color = seriesConfig[key]?.color || activeColors[i % activeColors.length];
                                             return (
                                                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                    <SimpleColorPicker color={color} onChange={(val) => setSeriesConfig({ ...seriesConfig, [key]: { ...seriesConfig[key], color: val } })} />
+                                                    <SimpleColorPicker color={color} colorTheme={colorTheme} onChange={(val) => setSeriesConfig({ ...seriesConfig, [key]: { ...seriesConfig[key], color: val } })} />
                                                     <span style={{ fontSize: '10px', color: '#ccc', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={key}>{key}</span>
                                                 </div>
                                             );
@@ -1515,7 +1789,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     <>
                                         {finalSeriesKeys.map((key, i) => {
                                             const currentConfig = seriesConfig[key] || {};
-                                            const currentColor = currentConfig.color || COLORS[i % COLORS.length];
+                                            const currentColor = currentConfig.color || activeColors[i % activeColors.length];
                                             const currentStyle = currentConfig.style || 'solid';
 
                                             return (
@@ -1596,6 +1870,52 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     <div style={{ marginBottom: '8px' }}>
                                         <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Title</label>
                                         <input type="text" placeholder={defaultYLabel} value={customAxisTitles.y} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+
+                                    {/* Reference Line */}
+                                    <div style={{ marginBottom: '15px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
+                                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-active)', marginBottom: '10px', fontWeight: '600', textTransform: 'uppercase' }}>Reference Line</label>
+
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
+                                            <input type="text" placeholder="Enter value..." value={refLine.value} onChange={(e) => setRefLine({ ...refLine, value: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                        </div>
+
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label</label>
+                                            <input type="text" placeholder="e.g. Goal" value={refLine.label} onChange={(e) => setRefLine({ ...refLine, label: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                        </div>
+
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
+                                            <SimpleColorPicker color={refLine.color} onChange={(val) => setRefLine({ ...refLine, color: val })} />
+                                        </div>
+                                    </div>
+
+                                    {/* Reference Area */}
+                                    <div style={{ marginBottom: '15px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
+                                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-active)', marginBottom: '10px', fontWeight: '600', textTransform: 'uppercase' }}>Reference Area (Range)</label>
+
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Range</label>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <input type="text" placeholder="Start" value={refArea.x1} onChange={(e) => setRefArea({ ...refArea, x1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                                <input type="text" placeholder="End" value={refArea.x2} onChange={(e) => setRefArea({ ...refArea, x2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Range</label>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <input type="text" placeholder="Start" value={refArea.y1} onChange={(e) => setRefArea({ ...refArea, y1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                                <input type="text" placeholder="End" value={refArea.y2} onChange={(e) => setRefArea({ ...refArea, y2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
+                                            <SimpleColorPicker color={refArea.color} onChange={(val) => setRefArea({ ...refArea, color: val })} />
+                                        </div>
                                     </div>
 
                                     {(chartType === 'line' || chartType === 'bar') && (

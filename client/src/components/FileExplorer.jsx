@@ -10,6 +10,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState(null); // { x, y, file }
@@ -97,7 +98,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header: Matches DatabaseExplorer style */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', height: '32px' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent-color-user)' }}>
+                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                     Files
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -115,21 +116,49 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     </button>
                 </div>
             </div>
-            <div style={{ padding: '5px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '5px', alignItems: 'center' }}>
-                <button onClick={handleUp} disabled={!currentPath} style={{ padding: '2px 5px', fontSize: '10px', background: 'var(--sidebar-item-active-bg)', color: 'var(--text-color)', border: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    <LuArrowUp size={10} />
-                </button>
-                <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    {currentPath ? `/${currentPath}` : '/ (Root)'}
-                </span>
+            <div style={{ padding: '5px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                    <button onClick={handleUp} disabled={!currentPath} style={{ padding: '2px 5px', fontSize: '10px', background: 'var(--sidebar-item-active-bg)', color: 'var(--text-color)', border: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <LuArrowUp size={10} />
+                    </button>
+                    <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        {currentPath ? `/${currentPath}` : '/ (Root)'}
+                    </span>
+                </div>
+                <div style={{ position: 'relative', marginTop: '5px' }}>
+                    <input
+                        type="text"
+                        placeholder="Search files..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                            width: '100%',
+                            backgroundColor: 'var(--input-bg)',
+                            color: 'var(--text-active)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '4px',
+                            padding: '4px 8px 4px 24px',
+                            fontSize: '11px',
+                            outline: 'none'
+                        }}
+                    />
+                    <LuSearch size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }} />
+                </div>
             </div>
             <ul className="file-list">
                 {loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Loading...</div>}
                 {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
-                {!loading && !error && files.map((file) => (
+                {!loading && !error && files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).map((file) => (
                     <li
                         key={file.name}
                         className={`file-item`}
+                        draggable={!file.isDirectory}
+                        onDragStart={(e) => {
+                            if (!file.isDirectory) {
+                                e.dataTransfer.setData('text/plain', file.name);
+                                e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', path: file.path, name: file.name }));
+                            }
+                        }}
                         onClick={() => handleNavigate(file)}
                         onContextMenu={(e) => handleContextMenu(e, file)}
                         title={file.name}

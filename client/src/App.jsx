@@ -19,7 +19,7 @@ import AiSidebar from './components/AiSidebar';
 
 
 import SettingsModal from './components/SettingsModal';
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase } from "react-icons/lu";
 
 import './index.css';
 
@@ -58,6 +58,9 @@ function App() {
   // AI Integration State
   const [showAiSidebar, setShowAiSidebar] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
+
+  // Sidebar Architecture State
+  const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files' or 'schema'
 
   /* --- Project Workflow Handlers --- */
 
@@ -319,8 +322,34 @@ function App() {
       />
 
       {appPhase === PHASE.IDE && (
-        <div className="app-container" style={{ height: '100%' }}>
-          <div className="sidebar" style={{ width: '280px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div className="app-container" style={{ height: '100%', display: 'flex' }}>
+
+          {/* Activity Bar (BigQuery Style) */}
+          <div className="activity-bar" style={{ width: '48px', backgroundColor: 'var(--bg-color)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '15px', zIndex: 10 }}>
+            <button
+              onClick={() => setActiveSidebarTab('files')}
+              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'files' ? 'var(--accent-color-user)' : 'var(--text-muted)', padding: '10px 0', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'files' ? '2px solid var(--accent-color-user)' : '2px solid transparent' }}
+              title="Explorer"
+            >
+              <LuFolder size={22} />
+            </button>
+            <button
+              onClick={() => setActiveSidebarTab('schema')}
+              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'schema' ? 'var(--accent-color-user)' : 'var(--text-muted)', padding: '10px 0', marginTop: '5px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'schema' ? '2px solid var(--accent-color-user)' : '2px solid transparent' }}
+              title="Database Schema"
+            >
+              <LuDatabase size={22} />
+            </button>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              title="Settings"
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', padding: '10px 0', marginTop: 'auto', marginBottom: '15px', cursor: 'pointer', width: '100%' }}
+            >
+              <LuSettings size={22} />
+            </button>
+          </div>
+
+          <div className="sidebar" style={{ width: '280px', display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--sidebar-bg)', borderRight: '1px solid var(--border-color)' }}>
 
             {/* Top Section: Project Info - Auto Height */}
             <ProjectInfo
@@ -332,27 +361,30 @@ function App() {
 
             <div style={{ height: '1px', backgroundColor: '#2C2E33', margin: '0 20px 10px 20px' }}></div>
 
-            {/* Files - Flex 1 (approx 2/7 of total) */}
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <FileExplorer
-                onFileClick={handleFileClick}
-                onFileOpen={handleFileOpen}
-                onNewFile={handleNewFile}
-                onNewFolder={handleNewFolder}
-                onImportFile={handleImportRequest}
-                onQueryFile={(path) => layoutRef.current?.handleQueryFile(path)}
-              />
-            </div>
+            {/* Content Switcher */}
+            {activeSidebarTab === 'files' && (
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <FileExplorer
+                  onFileClick={handleFileClick}
+                  onFileOpen={handleFileOpen}
+                  onNewFile={handleNewFile}
+                  onNewFolder={handleNewFolder}
+                  onImportFile={handleImportRequest}
+                  onQueryFile={(path) => layoutRef.current?.handleQueryFile(path)}
+                />
+              </div>
+            )}
 
-            {/* Database - Flex 2 (approx 4/7 of total) */}
-            <div style={{ flex: 2, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <DatabaseExplorer
-                currentDb={currentDb}
-                onRefresh={refreshDbTrigger}
-                onTablesLoaded={setAvailableTables}
-                onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
-              />
-            </div>
+            {activeSidebarTab === 'schema' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <DatabaseExplorer
+                  currentDb={currentDb}
+                  onRefresh={refreshDbTrigger}
+                  onTablesLoaded={setAvailableTables}
+                  onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
+                />
+              </div>
+            )}
           </div>
 
           {/* Main Content with LayoutManager */}
@@ -383,15 +415,6 @@ function App() {
                   {showAiSidebar ? <><LuX /> Close AI</> : <><LuBot /> AI Assistant</>}
                 </button>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <button
-                  onClick={() => setIsSettingsOpen(true)}
-                  title="Settings"
-                  style={{ background: 'transparent', color: 'var(--text-color)', padding: '5px' }}
-                >
-                  <LuSettings size={18} />
-                </button>
-              </div>
             </div>
 
             <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -413,6 +436,7 @@ function App() {
               width="350px"
               onClose={() => setShowAiSidebar(false)}
               availableTables={availableTables}
+              onOpenSettings={() => setIsSettingsOpen(true)}
             />
           )}
 

@@ -10,11 +10,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.6",
     "duckdb": "^1.4.3",
     "express": "^5.2.1",
-    "node-llama-cpp": "^3.15.1",
     "nodemon": "^3.1.11",
+    "ollama": "^0.6.3",
     "xlsx": "^0.18.5"
   }
 }

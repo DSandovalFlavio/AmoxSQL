@@ -128,21 +128,37 @@ app.get('/api/db/location', (req, res) => {
 
 app.get('/api/db/tables', async (req, res) => {
     try {
-        const tables = await dbManager.query("SELECT table_name FROM information_schema.tables WHERE table_schema='main'");
+        const tables = await dbManager.query("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='main'");
 
         const result = [];
         for (const t of tables) {
             const tableName = t.table_name;
+            const tableType = t.table_type;
             // Hide internal history table and memory-specific tables if any
             if (tableName === 'amox_query_history') continue;
 
-            const columns = await dbManager.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${tableName}'`);
-            result.push({ name: tableName, columns: columns });
+            const columns = await dbManager.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${tableName}' AND table_schema = 'main'`);
+            result.push({ name: tableName, type: tableType, columns: columns });
         }
 
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch tables', details: err.message });
+    }
+});
+
+app.get('/api/db/file-schema', async (req, res) => {
+    try {
+        const filePath = req.query.path;
+        if (!filePath) return res.status(400).json({ error: 'Path required' });
+
+        let fullSourcePath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
+        fullSourcePath = fullSourcePath.replace(/\\/g, '/');
+
+        const describe = await dbManager.query(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
+        res.json(describe);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch file schema', details: err.message });
     }
 });
 
@@ -343,21 +359,85 @@ app.get('/api/ai/status', (req, res) => {
     res.json(aiManager.getStatus());
 });
 
-app.post('/api/ai/init', (req, res) => {
-    // Start init in background, don't await (it might take time to download)
-    aiManager.initialize()
-        .then(() => console.log("[API] AI Init finished"))
-        .catch(err => console.error("[API] AI Init failed", err));
+app.get('/api/settings/config', (req, res) => {
+    try {
+        const config = aiManager.getConfig();
+        res.json(config);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-    res.json({ success: true, message: "Initialization started" });
+app.post('/api/settings/config', (req, res) => {
+    const { geminiApiKey, provider, defaultModel } = req.body;
+    try {
+        const config = aiManager.getConfig();
+        if (geminiApiKey !== undefined) config.geminiApiKey = geminiApiKey;
+        if (provider !== undefined) config.provider = provider;
+        if (defaultModel !== undefined) config.defaultModel = defaultModel;
+
+        fs.writeFileSync(aiManager.configPath, JSON.stringify(config, null, 2));
+        res.json({ success: true, config });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/settings/ollama/models', async (req, res) => {
+    try {
+        const ollamaClient = require('ollama').default || require('ollama');
+        const models = await ollamaClient.list();
+        res.json(models);
+    } catch (err) {
+        console.error("Failed to list Ollama models", err);
+        // Do not throw full 500 if Ollama isn't running, return empty so UI doesn't break
+        res.json({ models: [] });
+    }
+});
+
+app.post('/api/settings/ollama/pull', async (req, res) => {
+    const { model } = req.body;
+    if (!model) return res.status(400).json({ error: "Model name is required" });
+
+    // Set up Server-Sent Events (SSE)
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    req.on('close', () => res.end());
+
+    try {
+        const ollamaClient = require('ollama').default || require('ollama');
+        const stream = await ollamaClient.pull({ model: model, stream: true });
+
+        for await (const part of stream) {
+            res.write(`data: ${JSON.stringify(part)}\n\n`);
+        }
+        res.write(`data: {"status":"success"}\n\n`);
+        res.end();
+    } catch (err) {
+        console.error("Ollama pull failed", err);
+        res.write(`data: {"error": "${err.message}"}\n\n`);
+        res.end();
+    }
+});
+
+app.post('/api/ai/init', async (req, res) => {
+    try {
+        await aiManager.initialize();
+        res.json({ success: true, message: "Initialization complete" });
+    } catch (err) {
+        console.error("[API] AI Init failed", err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/api/ai/generate', async (req, res) => {
-    const { schema, question } = req.body;
+    const { schema, question, provider, model } = req.body;
     if (!schema || !question) return res.status(400).json({ error: "Missing schema or question" });
 
     try {
-        const sql = await aiManager.generateQuery(schema, question);
+        const sql = await aiManager.generateQuery(schema, question, provider, model);
         res.json({ sql });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -477,29 +557,7 @@ app.post('/api/query', async (req, res) => {
     }
 });
 
-app.get('/api/db/tables', async (req, res) => {
-    try {
-        // When using attached DBs, we need to know what tables exist in the current default schema.
-        // DuckDB 'USE' command sets the default catalog/schema.
-        // We query 'active_schema' tables.
-
-        // This query works for the currently selected database (via USE)
-        const tables = await dbManager.query("SELECT table_name FROM information_schema.tables WHERE table_schema='main' OR table_schema='public'");
-
-        const result = [];
-        for (const t of tables) {
-            const tableName = t.table_name;
-            const columns = await dbManager.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${tableName}'`);
-            result.push({ name: tableName, columns: columns });
-        }
-
-        res.json(result);
-    } catch (err) {
-        // Fallback for empty/init state
-        console.warn("Schema fetch error (might be empty):", err.message);
-        res.json([]);
-    }
-});
+// (Removed duplicate `/api/db/tables` endpoint from here to avoid conflicts)
 
 app.get('/api/schema', async (req, res) => {
     try {

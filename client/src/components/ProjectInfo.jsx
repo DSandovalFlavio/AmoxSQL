@@ -26,39 +26,6 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
             gap: '12px',
             marginBottom: '5px'
         }}>
-            {/* Avatar Circle */}
-            <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--sidebar-item-active-bg)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '20px',
-                border: '2px solid var(--border-color)',
-                flexShrink: 0
-            }}>
-                <svg width="40" height="40" viewBox="58 -10 300 300" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="miniNeonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style={{ stopColor: 'var(--accent-color-user)', stopOpacity: 1 }} />
-                            <stop offset="100%" style={{ stopColor: '#0055ff', stopOpacity: 1 }} />
-                        </linearGradient>
-                    </defs>
-                    <g transform="translate(50, 0) scale(0.8)">
-                        <path
-                            d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285"
-                            stroke="url(#miniNeonGradient)" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round" fill="none"
-                        />
-                        <path
-                            d="M 130 210 Q 200 330 270 210"
-                            stroke="url(#miniNeonGradient)" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round" fill="none"
-                        />
-                    </g>
-                </svg>
-            </div>
-
             {/* Text Block */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{
