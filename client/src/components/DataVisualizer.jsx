@@ -1,10 +1,10 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { memo, useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, LabelList
 } from 'recharts';
-import { LuDownload, LuCalendar, LuGitMerge, LuCircle } from "react-icons/lu";
+import { LuDownload, LuCalendar, LuGitMerge, LuCircle, LuMaximize, LuMinimize, LuSave, LuUpload } from "react-icons/lu";
 
 // Distinctive color palette
 const COLORS = [
@@ -134,13 +134,14 @@ const CustomizedDot = (props) => {
     return <circle cx={cx} cy={cy} r={3} stroke={stroke} strokeWidth={2} fill="#fff" />;
 };
 
-const DataVisualizer = ({ data, isReportMode = false }) => {
+const DataVisualizer = memo(({ data, isReportMode = false }) => {
     const [chartType, setChartType] = useState('line');
     const [xAxisKey, setXAxisKey] = useState('');
     const [yAxisKeys, setYAxisKeys] = useState([]);
     const [splitByKey, setSplitByKey] = useState('');
     const [dateAggregation, setDateAggregation] = useState('none');
     const [showLabels, setShowLabels] = useState(false);
+    const [dataLabelPosition, setDataLabelPosition] = useState('outside'); // 'outside', 'inside-end', 'inside-center', 'inside-start'
     const [bubbleSizeKey, setBubbleSizeKey] = useState('');
 
     // --- New Customization State ---
@@ -177,8 +178,26 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
     // Scatter
     // ...
 
+    // Storytelling State
+    const [chartTitle, setChartTitle] = useState('');
+    const [chartSubtitle, setChartSubtitle] = useState('');
+    const [chartFootnote, setChartFootnote] = useState('');
+    const titleRef = useRef(null);
+    const subtitleRef = useRef(null);
+    const footnoteRef = useRef(null);
+    const [textAlign, setTextAlign] = useState('center'); // 'center', 'left'
+    const [gridMode, setGridMode] = useState('both'); // 'both', 'horizontal', 'vertical', 'none'
+    const [showAxisLines, setShowAxisLines] = useState(true);
+
     // Ref for chart export
     const chartRef = useRef(null);
+
+    // Ref for file upload
+    const fileInputRef = useRef(null);
+
+    // Fullscreen and Tab state
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [activeTab, setActiveTab] = useState('data');
 
     // Extract columns
     const columns = useMemo(() => {
@@ -264,13 +283,29 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
         boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
     }), []);
 
+    // Axes Layout Props (Stable based on showAxisLines)
+    const axisCommonProps = useMemo(() => ({
+        axisLine: showAxisLines,
+        tickLine: showAxisLines
+    }), [showAxisLines]);
+
     // Legend Props (Stable based on position)
-    const legendProps = useMemo(() => ({
-        wrapperStyle: { paddingTop: '10px' },
-        verticalAlign: (legendPosition === 'top' || legendPosition === 'bottom') ? legendPosition : 'middle',
-        align: (legendPosition === 'left' || legendPosition === 'right') ? legendPosition : 'center',
-        layout: (legendPosition === 'left' || legendPosition === 'right') ? 'vertical' : 'horizontal'
-    }), [legendPosition]);
+    const legendProps = useMemo(() => {
+        let padTop = 0;
+        let padBottom = 0;
+        let padLeft = 0;
+
+        if (legendPosition === 'top') padBottom = 15;
+        if (legendPosition === 'bottom') padTop = 15;
+        if (legendPosition === 'right') padLeft = 20;
+
+        return {
+            wrapperStyle: { paddingTop: padTop, paddingBottom: padBottom, paddingLeft: padLeft },
+            verticalAlign: (legendPosition === 'top' || legendPosition === 'bottom') ? legendPosition : 'middle',
+            align: (legendPosition === 'left' || legendPosition === 'right') ? legendPosition : 'center',
+            layout: (legendPosition === 'left' || legendPosition === 'right') ? 'vertical' : 'horizontal'
+        };
+    }, [legendPosition]);
 
     // X-Axis Tick Props (Stable based on angle)
     const xAxisTickProps = useMemo(() => ({
@@ -491,10 +526,93 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
         );
     }, [donutLabelContent, donutLabelPosition]);
 
+    // Data Label Position Mapping
+    const labelProps = useMemo(() => {
+        if (!showLabels) return false;
+
+        let position = 'top';
+        let fill = '#ccc';
+
+        if (chartType === 'bar-horizontal') {
+            if (dataLabelPosition === 'outside') position = 'right';
+            else if (dataLabelPosition === 'inside-end') position = 'insideRight';
+            else if (dataLabelPosition === 'inside-center') position = 'inside';
+            else if (dataLabelPosition === 'inside-start') position = 'insideLeft';
+        } else if (chartType === 'donut') {
+            // Donut handled separately, ignore this prop.
+            return false;
+        } else {
+            if (dataLabelPosition === 'outside') position = 'top';
+            else if (dataLabelPosition === 'inside-end') position = 'insideTop';
+            else if (dataLabelPosition === 'inside-center') position = 'inside';
+            else if (dataLabelPosition === 'inside-start') position = 'insideBottom';
+        }
+
+        // Apply white text if label is positioned inside a filled element (like a bar)
+        if (position.includes('inside')) {
+            fill = '#fff';
+        }
+
+        return { position, fill, fontSize: 10, formatter: formatNumber };
+    }, [showLabels, dataLabelPosition, chartType, formatNumber]);
+
+    // --- BAR LABELS WITH AUTO-HIDE ---
+    const renderCustomBarLabel = useCallback((props) => {
+        const { x, y, width, height, value } = props;
+        if (value == null) return null;
+
+        const { position, fill } = labelProps;
+        const isHorizontal = chartType === 'bar-horizontal';
+
+        // Auto-hide logic for small bars when labels are inside
+        if (position && position.includes('inside')) {
+            if (isHorizontal && (width < 30 || height < 12)) return null;
+            if (!isHorizontal && (height < 20 || width < 20)) return null;
+        }
+
+        let textX = x + width / 2;
+        let textY = y + height / 2;
+        let textAnchor = "middle";
+        let dominantBaseline = "central";
+
+        const offset = 5;
+
+        if (position === 'top') {
+            textX = x + width / 2;
+            textY = y - offset;
+            dominantBaseline = "bottom";
+        } else if (position === 'right') {
+            textX = x + width + offset;
+            textY = y + height / 2;
+            textAnchor = "start";
+        } else if (position === 'insideTop') {
+            textX = x + width / 2;
+            textY = y + offset * 2;
+            dominantBaseline = "auto";
+        } else if (position === 'insideBottom') {
+            textX = x + width / 2;
+            textY = y + height - offset;
+            dominantBaseline = "bottom";
+        } else if (position === 'insideRight') {
+            textX = x + width - offset;
+            textY = y + height / 2;
+            textAnchor = "end";
+        } else if (position === 'insideLeft') {
+            textX = x + offset;
+            textY = y + height / 2;
+            textAnchor = "start";
+        }
+
+        return (
+            <text x={textX} y={textY} fill={fill} fontSize={10} textAnchor={textAnchor} dominantBaseline={dominantBaseline}>
+                {formatNumber(value)}
+            </text>
+        );
+    }, [labelProps, chartType, formatNumber]);
 
     // --- RENDER HELPERS ---
 
-    const xAxisTickFormatter = (val) => {
+    const xAxisTickFormatter = useCallback((val) => {
         if (typeof val === 'number') return formatNumber(val);
         if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) {
             if (dateAggregation === 'year') return val;
@@ -504,7 +622,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
         const str = String(val);
         if (str.length > 15) return str.substring(0, 15) + '...';
         return str;
-    };
+    }, [formatNumber, dateAggregation]);
 
     let defaultXLabel = "X Axis Column";
     let defaultYLabel = "Y Axis Columns";
@@ -517,19 +635,25 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
     }
 
     // Chart Configuration Constants
-    const CommonProps = {
-        data: processedData,
-        margin: { top: 20, right: 30, left: 20, bottom: 20 },
-        style: { fontSize: '12px' }
-    };
+    const CommonProps = useMemo(() => {
+        let pt = 20;
+        let pb = Number(xAxisLabelAngle) > 0 ? 70 : 40; // Base space for XAxis
 
-    const labelProps = showLabels ? { position: 'top', fill: '#ccc', fontSize: 10, formatter: formatNumber } : false;
+        if (legendPosition === 'top') pt += 5; // Space strictly for legend
+        if (legendPosition === 'bottom') pb += 5; // 40 + 30 = 70. Very stable.
+
+        return {
+            data: processedData,
+            margin: { top: pt, right: 30, left: 20, bottom: pb },
+            style: { fontSize: '12px' }
+        };
+    }, [processedData, legendPosition, xAxisLabelAngle]);
 
     // Domain & Scale
-    const yDomain = [
+    const yDomain = useMemo(() => [
         yAxisDomain[0] !== '' && !isNaN(yAxisDomain[0]) ? Number(yAxisDomain[0]) : 'auto',
         yAxisDomain[1] !== '' && !isNaN(yAxisDomain[1]) ? Number(yAxisDomain[1]) : 'auto'
-    ];
+    ], [yAxisDomain]);
     const yScale = yAxisLog ? 'log' : 'auto';
 
     // Ref Line Element
@@ -559,8 +683,9 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                     return (
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart {...CommonProps}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={false} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridMode === 'both' || gridMode === 'vertical'} horizontal={gridMode === 'both' || gridMode === 'horizontal'} />
                                 <XAxis
+                                    {...axisCommonProps}
                                     dataKey={xAxisKey}
                                     stroke="var(--border-color)"
                                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
@@ -569,6 +694,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                 />
                                 <YAxis
+                                    {...axisCommonProps}
                                     stroke="var(--border-color)"
                                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                     tickFormatter={formatNumber}
@@ -616,6 +742,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                             activeDot={{ r: 6 }}
                                             name={String(key)}
                                             label={labelProps}
+                                            isAnimationActive={false}
                                         />
                                     );
                                 })}
@@ -641,11 +768,12 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 {...CommonProps}
                                 margin={{ ...CommonProps.margin, right: legendPosition === 'right' ? 10 : 30, left: legendPosition === 'left' ? 10 : 20 }}
                             >
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={!isHorizontal} horizontal={isHorizontal} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={isHorizontal ? (gridMode === 'both' || gridMode === 'horizontal') : (gridMode === 'both' || gridMode === 'vertical')} horizontal={isHorizontal ? (gridMode === 'both' || gridMode === 'vertical') : (gridMode === 'both' || gridMode === 'horizontal')} />
 
                                 {isHorizontal ? (
                                     <>
                                         <XAxis
+                                            {...axisCommonProps}
                                             type="number"
                                             stroke="var(--border-color)"
                                             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
@@ -656,6 +784,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                             height={50}
                                         />
                                         <YAxis
+                                            {...axisCommonProps}
                                             type="category"
                                             dataKey={xAxisKey}
                                             stroke="var(--border-color)"
@@ -668,6 +797,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                 ) : (
                                     <>
                                         <XAxis
+                                            {...axisCommonProps}
                                             dataKey={xAxisKey}
                                             stroke="var(--border-color)"
                                             tick={xAxisTickProps}
@@ -676,6 +806,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                             height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                         />
                                         <YAxis
+                                            {...axisCommonProps}
                                             stroke="var(--border-color)"
                                             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                             tickFormatter={formatNumber}
@@ -698,14 +829,12 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                         stackId={barStacked ? "a" : undefined}
                                         fill={COLORS[index % COLORS.length]}
                                         name={String(key)}
+                                        isAnimationActive={false}
                                     >
                                         {showLabels && (
                                             <LabelList
                                                 dataKey={key}
-                                                position={isHorizontal ? "right" : "top"}
-                                                fill="#ccc"
-                                                fontSize={10}
-                                                formatter={formatNumber}
+                                                content={renderCustomBarLabel}
                                             />
                                         )}
                                         {processedData.map((entry, entryIndex) => {
@@ -737,8 +866,9 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                     return (
                         <ResponsiveContainer width="100%" height="100%">
                             <ScatterChart {...CommonProps}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridMode === 'both' || gridMode === 'vertical'} horizontal={gridMode === 'both' || gridMode === 'horizontal'} />
                                 <XAxis
+                                    {...axisCommonProps}
                                     dataKey={xAxisKey}
                                     type={isDateColumn ? "category" : "number"}
                                     name={XLabel}
@@ -751,6 +881,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
                                 />
                                 <YAxis
+                                    {...axisCommonProps}
                                     type="number"
                                     name={YLabel}
                                     stroke="var(--border-color)"
@@ -779,6 +910,7 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                             dataKey={key}
                                             fill={COLORS[index % COLORS.length]}
                                             shape="circle"
+                                            isAnimationActive={false}
                                         />
                                     );
                                 })}
@@ -794,12 +926,13 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={donutThickness}
-                                    outerRadius={100}
+                                    outerRadius="80%"
                                     paddingAngle={2}
                                     dataKey={yAxisKeys[0]}
                                     nameKey={xAxisKey}
                                     label={showLabels ? renderCustomizedLabel : false}
                                     labelLine={showLabels && donutLabelPosition === 'outside'}
+                                    isAnimationActive={false}
                                 >
                                     {donutData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={seriesConfig[entry[xAxisKey]]?.color || COLORS[index % COLORS.length]} stroke="none" />
@@ -846,6 +979,85 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
         }
     };
 
+    // --- CONFIGURATION SAVE / LOAD ---
+    const handleSaveConfig = () => {
+        const config = {
+            chartType, xAxisKey, yAxisKeys, splitByKey, bubbleSizeKey, dateAggregation,
+            sortMode, maxItems, numberFormat, lineSmooth, showDots, isCumulative, yAxisLog, yAxisDomain, refLine,
+            barStacked, barColorMode, highlightConfig,
+            seriesConfig, customAxisTitles, xAxisLabelAngle, legendPosition,
+            donutThickness, donutLabelContent, donutLabelPosition, donutGroupingThreshold,
+            chartTitle, chartSubtitle, chartFootnote, textAlign, gridMode, showAxisLines, showLabels, dataLabelPosition
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `chart_config_${Date.now()}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    };
+
+    const handleLoadConfig = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const config = JSON.parse(e.target.result);
+                if (config.chartType) setChartType(config.chartType);
+                if (config.xAxisKey) setXAxisKey(config.xAxisKey);
+                if (config.yAxisKeys) setYAxisKeys(config.yAxisKeys);
+                if (config.splitByKey !== undefined) setSplitByKey(config.splitByKey);
+                if (config.bubbleSizeKey !== undefined) setBubbleSizeKey(config.bubbleSizeKey);
+                if (config.dateAggregation !== undefined) setDateAggregation(config.dateAggregation);
+                if (config.sortMode !== undefined) setSortMode(config.sortMode);
+                if (config.maxItems !== undefined) setMaxItems(config.maxItems);
+                if (config.numberFormat) setNumberFormat(config.numberFormat);
+                if (config.lineSmooth !== undefined) setLineSmooth(config.lineSmooth);
+                if (config.showDots !== undefined) setShowDots(config.showDots);
+                if (config.isCumulative !== undefined) setIsCumulative(config.isCumulative);
+                if (config.yAxisLog !== undefined) setYAxisLog(config.yAxisLog);
+                if (config.yAxisDomain) setYAxisDomain(config.yAxisDomain);
+                if (config.refLine) setRefLine(config.refLine);
+                if (config.barStacked !== undefined) setBarStacked(config.barStacked);
+                if (config.barColorMode) setBarColorMode(config.barColorMode);
+                if (config.highlightConfig) setHighlightConfig(config.highlightConfig);
+                if (config.seriesConfig) setSeriesConfig(config.seriesConfig);
+                if (config.customAxisTitles) setCustomAxisTitles(config.customAxisTitles);
+                if (config.xAxisLabelAngle !== undefined) setXAxisLabelAngle(config.xAxisLabelAngle);
+                if (config.legendPosition) setLegendPosition(config.legendPosition);
+                if (config.donutThickness !== undefined) setDonutThickness(config.donutThickness);
+                if (config.donutLabelContent) setDonutLabelContent(config.donutLabelContent);
+                if (config.donutLabelPosition) setDonutLabelPosition(config.donutLabelPosition);
+                if (config.donutGroupingThreshold !== undefined) setDonutGroupingThreshold(config.donutGroupingThreshold);
+                if (config.chartTitle !== undefined) {
+                    setChartTitle(config.chartTitle);
+                    if (titleRef.current) titleRef.current.value = config.chartTitle;
+                }
+                if (config.chartSubtitle !== undefined) {
+                    setChartSubtitle(config.chartSubtitle);
+                    if (subtitleRef.current) subtitleRef.current.value = config.chartSubtitle;
+                }
+                if (config.chartFootnote !== undefined) {
+                    setChartFootnote(config.chartFootnote);
+                    if (footnoteRef.current) footnoteRef.current.value = config.chartFootnote;
+                }
+                if (config.textAlign) setTextAlign(config.textAlign);
+                if (config.gridMode) setGridMode(config.gridMode);
+                if (config.showAxisLines !== undefined) setShowAxisLines(config.showAxisLines);
+                if (config.showLabels !== undefined) setShowLabels(config.showLabels);
+                if (config.dataLabelPosition) setDataLabelPosition(config.dataLabelPosition);
+            } catch (err) {
+                console.error("Error loading config:", err);
+                alert("Failed to parse configuration file.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = null; // Reset input
+    };
+
     if (!data || data.length === 0) return <div>No data to visualize</div>;
 
     return (
@@ -857,634 +1069,590 @@ const DataVisualizer = ({ data, isReportMode = false }) => {
                         <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             Configuration
                         </h3>
-                        <button
-                            onClick={handleDownload}
-                            title="Download Chart as PNG"
-                            style={{
-                                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
-                                display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                        >
-                            <LuDownload size={14} /> PNG
-                        </button>
-                    </div>
-
-                    {/* --- CHART TYPE --- */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>Chart Type</label>
-                        <select
-                            value={chartType}
-                            onChange={(e) => setChartType(e.target.value)}
-                            style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
-                        >
-                            <option value="line">Line Chart</option>
-                            <option value="bar">Vertical Bar Chart</option>
-                            <option value="bar-horizontal">Horizontal Bar Chart</option>
-                            <option value="scatter">Scatter Chart</option>
-                            <option value="donut">Donut Chart</option>
-                        </select>
-                    </div>
-
-                    {/* --- DATA SELECTION --- */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>
-                            {defaultXLabel}
-                        </label>
-                        <select
-                            value={xAxisKey}
-                            onChange={(e) => setXAxisKey(e.target.value)}
-                            style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
-                        >
-                            {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                        </select>
-                    </div>
-
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>
-                            {defaultYLabel}
-                            {splitByKey && <span style={{ color: 'var(--accent-color-user)', fontStyle: 'italic', marginLeft: 5 }}>(Value to Pivot)</span>}
-                        </label>
-                        {splitByKey ? (
-                            <select
-                                value={yAxisKeys[0] || ''}
-                                onChange={(e) => setYAxisKeys([e.target.value])}
-                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
-                            >
-                                {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                            </select>
-                        ) : (
-                            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '5px', borderRadius: '4px', backgroundColor: 'var(--input-bg)' }}>
-                                {columns.map(col => (
-                                    <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', cursor: 'pointer', fontSize: '12px', color: '#ddd' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={yAxisKeys.includes(col)}
-                                            onChange={() => handleYAxisChange(col)}
-                                            disabled={yAxisKeys.length === 1 && yAxisKeys.includes(col)}
-                                            style={{ accentColor: '#00ffff' }}
-                                        />
-                                        {col}
-                                    </label>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* --- SORTING & LIMITS --- */}
-                    <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-                        <div style={{ flex: 2 }}>
-                            <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Sort By</label>
-                            <select
-                                value={sortMode}
-                                onChange={(e) => setSortMode(e.target.value)}
-                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
-                            >
-                                <option value="x-asc">Axis Label Asc</option>
-                                <option value="x-desc">Axis Label Desc</option>
-                                <option value="y-desc">Value (Y) Desc</option>
-                                <option value="y-asc">Value (Y) Asc</option>
-                            </select>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Limit</label>
+                        <div style={{ display: 'flex', gap: '5px' }}>
                             <input
-                                type="number"
-                                placeholder="All"
-                                value={maxItems === 0 ? '' : maxItems}
-                                onChange={(e) => setMaxItems(e.target.value === '' ? 0 : Number(e.target.value))}
-                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
+                                type="file"
+                                accept=".json"
+                                ref={fileInputRef}
+                                style={{ display: 'none' }}
+                                onChange={handleLoadConfig}
                             />
+                            <button
+                                onClick={() => fileInputRef.current.click()}
+                                title="Load Configuration"
+                                style={{
+                                    background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', borderRadius: '4px',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}
+                            >
+                                <LuUpload size={14} />
+                            </button>
+                            <button
+                                onClick={handleSaveConfig}
+                                title="Save Configuration"
+                                style={{
+                                    background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', borderRadius: '4px',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}
+                            >
+                                <LuSave size={14} />
+                            </button>
+                            <button
+                                onClick={handleDownload}
+                                title="Download Chart as PNG"
+                                style={{
+                                    background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                                    display: 'flex', alignItems: 'center', gap: '4px'
+                                }}
+                            >
+                                <LuDownload size={14} /> PNG
+                            </button>
                         </div>
                     </div>
 
-                    {/* --- ADVANCED DATA OPTIONS --- */}
-                    {isDateColumn && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--accent-color-user)', marginBottom: '8px', fontWeight: '600' }}>
-                                <LuCalendar size={12} /> Date Aggregation
-                            </label>
-                            <select
-                                value={dateAggregation}
-                                onChange={(e) => setDateAggregation(e.target.value)}
-                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
-                            >
-                                <option value="none">Raw Data (Daily/Exact)</option>
-                                <option value="month">Group by Month</option>
-                                <option value="year">Group by Year</option>
-                            </select>
-                        </div>
-                    )}
-
-                    {chartType !== 'donut' && (
-                        <div style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
-                                <LuGitMerge size={12} /> Split By Column
-                            </label>
-                            <select
-                                value={splitByKey}
-                                onChange={(e) => setSplitByKey(e.target.value)}
-                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
-                            >
-                                <option value="">(None)</option>
-                                {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                            </select>
-                        </div>
-                    )}
-
-                    {chartType === 'scatter' && (
-                        <div style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
-                                <LuCircle size={12} /> Bubble Size
-                            </label>
-                            <select
-                                value={bubbleSizeKey}
-                                onChange={(e) => setBubbleSizeKey(e.target.value)}
-                                style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
-                            >
-                                <option value="">(Uniform Size)</option>
-                                {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* --- CHART SPECIFIC SETTINGS --- */}
-                    <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Visual Settings</h4>
-
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                            <input
-                                type="checkbox"
-                                checked={showLabels}
-                                onChange={(e) => setShowLabels(e.target.checked)}
-                                style={{ accentColor: '#00ffff' }}
-                            />
-                            Show Data Labels
-                        </label>
-
-                        {chartType === 'line' && (
-                            <>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={lineSmooth}
-                                        onChange={(e) => setLineSmooth(e.target.checked)}
-                                        style={{ accentColor: '#00ffff' }}
-                                    />
-                                    Smooth Lines
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={showDots}
-                                        onChange={(e) => setShowDots(e.target.checked)}
-                                        style={{ accentColor: '#00ffff' }}
-                                    />
-                                    Show Points
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={isCumulative}
-                                        onChange={(e) => setIsCumulative(e.target.checked)}
-                                        style={{ accentColor: '#00ffff' }}
-                                    />
-                                    Cumulative Sum (Running Total)
-                                </label>
-                            </>
-                        )}
-
-                        {(chartType === 'bar' || chartType === 'bar-horizontal') && (
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={barStacked}
-                                    onChange={(e) => setBarStacked(e.target.checked)}
-                                    style={{ accentColor: '#00ffff' }}
-                                />
-                                Stack Bars
-                            </label>
-                        )}
-
-                        {chartType === 'donut' && (
-                            <div style={{ marginTop: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#ccc', marginBottom: '4px' }}>
-                                    Inner Radius (Thickness): {donutThickness}
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="90"
-                                    value={donutThickness}
-                                    onChange={(e) => setDonutThickness(Number(e.target.value))}
-                                    style={{ width: '100%', accentColor: '#00ffff' }}
-                                />
-                            </div>
-                        )}
+                    {/* Tab Navigation */}
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '15px' }}>
+                        {['Data', 'Story', 'Style', 'Axes'].map(tab => {
+                            const tabKey = tab.toLowerCase();
+                            return (
+                                <button
+                                    key={tabKey}
+                                    onClick={() => setActiveTab(tabKey)}
+                                    style={{
+                                        flex: 1, padding: '6px 0', background: 'transparent', border: 'none',
+                                        borderBottom: activeTab === tabKey ? '2px solid var(--accent-color-user)' : '2px solid transparent',
+                                        color: activeTab === tabKey ? 'var(--text-active)' : 'var(--text-muted)',
+                                        cursor: 'pointer', fontSize: '11px', fontWeight: activeTab === tabKey ? '600' : '500', transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {tab}
+                                </button>
+                            );
+                        })}
                     </div>
 
-                    {/* --- AXES CONFIGURATION --- */}
-                    {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Axes & Scale</h4>
+                    {/* --- TAB: DATA --- */}
+                    {activeTab === 'data' && (
+                        <>
 
-                            <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>Number Format</label>
+                            {/* --- CHART TYPE --- */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>Chart Type</label>
                                 <select
-                                    value={numberFormat}
-                                    onChange={(e) => setNumberFormat(e.target.value)}
+                                    value={chartType}
+                                    onChange={(e) => setChartType(e.target.value)}
                                     style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                                 >
-                                    <option value="compact">Auto (Compact - 1.2k)</option>
-                                    <option value="standard">Standard (1,234.56)</option>
-                                    <option value="currency">Currency ($1,234)</option>
-                                    <option value="thousands">Thousands (1.2k)</option>
-                                    <option value="millions">Millions (1.2M)</option>
-                                    <option value="billions">Billions (1.2B)</option>
-                                    <option value="raw">Raw (1234.56)</option>
+                                    <option value="line">Line Chart</option>
+                                    <option value="bar">Vertical Bar Chart</option>
+                                    <option value="bar-horizontal">Horizontal Bar Chart</option>
+                                    <option value="scatter">Scatter Chart</option>
+                                    <option value="donut">Donut Chart</option>
                                 </select>
                             </div>
 
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={yAxisLog}
-                                    onChange={(e) => setYAxisLog(e.target.checked)}
-                                    style={{ accentColor: '#00ffff' }}
-                                />
-                                Logarithmic Scale (Y)
-                            </label>
-
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Min</label>
-                                    <input
-                                        type="number"
-                                        placeholder="Auto"
-                                        value={yAxisDomain[0]}
-                                        onChange={(e) => setYAxisDomain([e.target.value, yAxisDomain[1]])}
-                                        style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
-                                    />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Max</label>
-                                    <input
-                                        type="number"
-                                        placeholder="Auto"
-                                        value={yAxisDomain[1]}
-                                        onChange={(e) => setYAxisDomain([yAxisDomain[0], e.target.value])}
-                                        style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- REFERENCE LINE --- */}
-                    {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Line</h4>
-
-                            <div style={{ marginBottom: '8px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
-                                <input
-                                    type="number"
-                                    placeholder="Enter value..."
-                                    value={refLine.value}
-                                    onChange={(e) => setRefLine({ ...refLine, value: e.target.value })}
-                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
-                                />
-                            </div>
-                            <div style={{ marginBottom: '8px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Goal"
-                                    value={refLine.label}
-                                    onChange={(e) => setRefLine({ ...refLine, label: e.target.value })}
-                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
-                                <SimpleColorPicker
-                                    color={refLine.color}
-                                    onChange={(val) => setRefLine({ ...refLine, color: val })}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- AXIS TITLES --- */}
-                    {(chartType === 'line' || chartType === 'bar' || chartType === 'scatter') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Axis Titles & Labels</h4>
-
-                            <div style={{ marginBottom: '8px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Title</label>
-                                <input
-                                    type="text"
-                                    placeholder={defaultXLabel}
-                                    value={customAxisTitles.x}
-                                    onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, x: e.target.value })}
-                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
-                                />
-                            </div>
-                            <div style={{ marginBottom: '8px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Title</label>
-                                <input
-                                    type="text"
-                                    placeholder={defaultYLabel}
-                                    value={customAxisTitles.y}
-                                    onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })}
-                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
-                                />
-                            </div>
-
-                            {/* X Axs Rotation */}
-                            {(chartType === 'line' || chartType === 'bar') && (
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Label Rotation</label>
-                                    <select
-                                        value={xAxisLabelAngle}
-                                        onChange={(e) => setXAxisLabelAngle(Number(e.target.value))}
-                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
-                                    >
-                                        <option value="0">0° (Horizontal)</option>
-                                        <option value="45">45°</option>
-                                        <option value="90">90° (Vertical)</option>
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* --- LEGEND SETTINGS --- */}
-                    {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter' || chartType === 'donut') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Legend</h4>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Position</label>
-                                <select
-                                    value={legendPosition}
-                                    onChange={(e) => setLegendPosition(e.target.value)}
-                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
-                                >
-                                    <option value="top">Top</option>
-                                    <option value="bottom">Bottom</option>
-                                    <option value="left">Left</option>
-                                    <option value="right">Right</option>
-                                </select>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- DONUT SETTINGS --- */}
-                    {chartType === 'donut' && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Donut Settings</h4>
-
-                            <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', fontSize: '11px', color: '#ccc', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={showLabels}
-                                        onChange={(e) => setShowLabels(e.target.checked)}
-                                        style={{ marginRight: '6px' }}
-                                    />
-                                    Show Labels
+                            {/* --- DATA SELECTION --- */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>
+                                    {defaultXLabel}
                                 </label>
-                            </div>
-
-                            <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Inner Radius (Thickness)</label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="90"
-                                    value={donutThickness}
-                                    onChange={(e) => setDonutThickness(Number(e.target.value))}
-                                    style={{ width: '100%' }}
-                                />
-                            </div>
-
-                            <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Group Small Slices (%)</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={donutGroupingThreshold}
-                                    onChange={(e) => setDonutGroupingThreshold(Number(e.target.value))}
-                                    style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
-                                />
-                                <span style={{ fontSize: '10px', color: '#666' }}>Slices smaller than this % will be grouped into "Others".</span>
-                            </div>
-
-                            <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label Content</label>
                                 <select
-                                    value={donutLabelContent}
-                                    onChange={(e) => setDonutLabelContent(e.target.value)}
-                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                    value={xAxisKey}
+                                    onChange={(e) => setXAxisKey(e.target.value)}
+                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                                 >
-                                    <option value="percent">Percentage Only</option>
-                                    <option value="value">Value Only</option>
-                                    <option value="name">Name Only</option>
-                                    <option value="name_percent">Name + Percentage</option>
-                                    <option value="name_value">Name + Value</option>
+                                    {columns.map(col => <option key={col} value={col}>{col}</option>)}
                                 </select>
                             </div>
 
-                            <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label Position</label>
-                                <select
-                                    value={donutLabelPosition}
-                                    onChange={(e) => setDonutLabelPosition(e.target.value)}
-                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
-                                >
-                                    <option value="outside">Outside</option>
-                                    <option value="inside">Inside</option>
-                                </select>
-                            </div>
-
-                            {/* Slice Colors */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Slice Colors</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px' }}>
-                                    {donutData.map((d, i) => {
-                                        const key = d[xAxisKey];
-                                        const color = seriesConfig[key]?.color || COLORS[i % COLORS.length];
-                                        return (
-                                            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                <SimpleColorPicker
-                                                    color={color}
-                                                    onChange={(val) => setSeriesConfig({
-                                                        ...seriesConfig,
-                                                        [key]: { ...seriesConfig[key], color: val }
-                                                    })}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>
+                                    {defaultYLabel}
+                                    {splitByKey && <span style={{ color: 'var(--accent-color-user)', fontStyle: 'italic', marginLeft: 5 }}>(Value to Pivot)</span>}
+                                </label>
+                                {splitByKey ? (
+                                    <select
+                                        value={yAxisKeys[0] || ''}
+                                        onChange={(e) => setYAxisKeys([e.target.value])}
+                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
+                                    >
+                                        {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                                    </select>
+                                ) : (
+                                    <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '5px', borderRadius: '4px', backgroundColor: 'var(--input-bg)' }}>
+                                        {columns.map(col => (
+                                            <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', cursor: 'pointer', fontSize: '12px', color: '#ddd' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={yAxisKeys.includes(col)}
+                                                    onChange={() => handleYAxisChange(col)}
+                                                    disabled={yAxisKeys.length === 1 && yAxisKeys.includes(col)}
+                                                    style={{ accentColor: '#00ffff' }}
                                                 />
-                                                <span style={{ fontSize: '10px', color: '#ccc', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={key}>{key}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                        </div>
-                    )}
-
-                    {/* --- SERIES STYLING (Line Specific + General Colors) --- */}
-                    {chartType === 'line' && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Series Styling</h4>
-
-                            {/* Highlight Config for Line */}
-                            <div style={{ marginBottom: '15px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Point Highlighting</label>
-                                <select
-                                    value={highlightConfig.type}
-                                    onChange={(e) => setHighlightConfig({ ...highlightConfig, type: e.target.value })}
-                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px', marginBottom: '5px' }}
-                                >
-                                    <option value="none">None</option>
-                                    <option value="max">Max Value Point</option>
-                                    <option value="min">Min Value Point</option>
-                                    <option value="exact">Specific X-Value</option>
-                                </select>
-                                {highlightConfig.type !== 'none' && (
-                                    <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                                        <SimpleColorPicker
-                                            color={highlightConfig.color}
-                                            onChange={(val) => setHighlightConfig({ ...highlightConfig, color: val })}
-                                        />
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Highlight Color</span>
+                                                {col}
+                                            </label>
+                                        ))}
                                     </div>
                                 )}
                             </div>
 
-                            {/* Individual Series Config */}
-                            {finalSeriesKeys.map((key, i) => {
-                                const currentConfig = seriesConfig[key] || {};
-                                const currentColor = currentConfig.color || COLORS[i % COLORS.length];
-                                const currentStyle = currentConfig.style || 'solid';
-
-                                return (
-                                    <div key={key} style={{ marginBottom: '10px' }}>
-                                        <label style={{ display: 'block', fontSize: '11px', color: '#ddd', marginBottom: '2px' }}>{key}</label>
-                                        <div style={{ display: 'flex', gap: '5px' }}>
-                                            <SimpleColorPicker
-                                                color={currentColor}
-                                                onChange={(val) => {
-                                                    const existing = seriesConfig[key] || {};
-                                                    setSeriesConfig({
-                                                        ...seriesConfig,
-                                                        [key]: { ...existing, color: val }
-                                                    });
-                                                }}
-                                            />
-                                            <select
-                                                value={currentStyle}
-                                                onChange={(e) => {
-                                                    const existing = seriesConfig[key] || {};
-                                                    setSeriesConfig({
-                                                        ...seriesConfig,
-                                                        [key]: { ...existing, style: e.target.value }
-                                                    });
-                                                }}
-                                                style={{ flex: 1, backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', fontSize: '10px' }}
-                                            >
-                                                <option value="solid">Solid</option>
-                                                <option value="dashed">Dashed</option>
-                                                <option value="dotted">Dotted</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* --- COLORS & HIGHLIGHTING (Effective for Bar Charts) --- */}
-                    {(chartType === 'bar' || chartType === 'bar-horizontal') && (
-                        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Colors & Highlights</h4>
-
-                            {/* Color Mode */}
-                            {!barStacked && (
-                                <div style={{ marginBottom: '10px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Color Mode</label>
+                            {/* --- SORTING & LIMITS --- */}
+                            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+                                <div style={{ flex: 2 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Sort By</label>
                                     <select
-                                        value={barColorMode}
-                                        onChange={(e) => setBarColorMode(e.target.value)}
-                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
+                                        value={sortMode}
+                                        onChange={(e) => setSortMode(e.target.value)}
+                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                                     >
-                                        <option value="series">By Series (Uniform)</option>
-                                        <option value="dimension">By Category (Varied)</option>
+                                        <option value="x-asc">Axis Label Asc</option>
+                                        <option value="x-desc">Axis Label Desc</option>
+                                        <option value="y-desc">Value (Y) Desc</option>
+                                        <option value="y-asc">Value (Y) Asc</option>
                                     </select>
                                 </div>
-                            )}
-
-                            {/* Highlight Rules */}
-                            <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Highlight Rule</label>
-                                <select
-                                    value={highlightConfig.type}
-                                    onChange={(e) => setHighlightConfig({ ...highlightConfig, type: e.target.value })}
-                                    style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}
-                                >
-                                    <option value="none">None</option>
-                                    <option value="max">Max Value</option>
-                                    <option value="min">Min Value</option>
-                                    <option value="exact">Specific Category</option>
-                                </select>
-                            </div>
-
-                            {/* Specific Value Input */}
-                            {highlightConfig.type === 'exact' && (
-                                <div style={{ marginBottom: '10px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Category to Highlight</label>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Limit</label>
                                     <input
-                                        type="text"
-                                        placeholder="e.g. Total, 2023-01..."
-                                        value={highlightConfig.value}
-                                        onChange={(e) => setHighlightConfig({ ...highlightConfig, value: e.target.value })}
-                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
+                                        type="number"
+                                        placeholder="All"
+                                        value={maxItems === 0 ? '' : maxItems}
+                                        onChange={(e) => setMaxItems(e.target.value === '' ? 0 : Number(e.target.value))}
+                                        style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                                     />
                                 </div>
-                            )}
+                            </div>
 
-                            {/* Highlight Color */}
-                            {highlightConfig.type !== 'none' && (
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Highlight Color</label>
-                                    <div style={{ display: 'flex', gap: '5px' }}>
-                                        <SimpleColorPicker
-                                            color={highlightConfig.color}
-                                            onChange={(val) => setHighlightConfig({ ...highlightConfig, color: val })}
-                                        />
-                                        {/* Quick Presets */}
-                                        {['#ff0000', '#00ff00', '#ffff00'].map(c => (
-                                            <div
-                                                key={c}
-                                                onClick={() => setHighlightConfig({ ...highlightConfig, color: c })}
-                                                style={{ width: '20px', height: '30px', background: c, cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                            {/* --- ADVANCED DATA OPTIONS --- */}
+                            {
+                                isDateColumn && (
+                                    <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--accent-color-user)', marginBottom: '8px', fontWeight: '600' }}>
+                                            <LuCalendar size={12} /> Date Aggregation
+                                        </label>
+                                        <select
+                                            value={dateAggregation}
+                                            onChange={(e) => setDateAggregation(e.target.value)}
+                                            style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
+                                        >
+                                            <option value="none">Raw Data (Daily/Exact)</option>
+                                            <option value="month">Group by Month</option>
+                                            <option value="year">Group by Year</option>
+                                        </select>
+                                    </div>
+                                )
+                            }
+
+                            {
+                                chartType !== 'donut' && (
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                                            <LuGitMerge size={12} /> Split By Column
+                                        </label>
+                                        <select
+                                            value={splitByKey}
+                                            onChange={(e) => setSplitByKey(e.target.value)}
+                                            style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
+                                        >
+                                            <option value="">(None)</option>
+                                            {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                                        </select>
+                                    </div>
+                                )
+                            }
+
+                            {
+                                chartType === 'scatter' && (
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                                            <LuCircle size={12} /> Bubble Size
+                                        </label>
+                                        <select
+                                            value={bubbleSizeKey}
+                                            onChange={(e) => setBubbleSizeKey(e.target.value)}
+                                            style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
+                                        >
+                                            <option value="">(Uniform Size)</option>
+                                            {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                                        </select>
+                                    </div>
+                                )
+                            }
+
+                            {
+                                chartType === 'donut' && (
+                                    <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Group Small Slices (%)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={donutGroupingThreshold}
+                                                onChange={(e) => setDonutGroupingThreshold(Number(e.target.value))}
+                                                style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                             />
-                                        ))}
+                                            <span style={{ fontSize: '10px', color: '#666' }}>Slices {'<'} % will be grouped into "Others".</span>
+                                        </div>
+                                    </div>
+                                )
+                            }
+                        </>
+                    )}
+
+                    {/* --- TAB: STORY --- */}
+                    {activeTab === 'story' && (
+                        <>
+                            {/* --- STORYTELLING (Texts) --- */}
+                            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Storytelling</h4>
+
+                                <div style={{ marginBottom: '10px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Text Alignment</label>
+                                    <select value={textAlign} onChange={(e) => setTextAlign(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                        <option value="left">Left</option>
+                                        <option value="center">Center</option>
+                                        <option value="right">Right</option>
+                                    </select>
+                                </div>
+
+                                <div style={{ marginBottom: '8px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Title</label>
+                                    <input type="text" placeholder="Chart Title" defaultValue={chartTitle} ref={titleRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                </div>
+                                <div style={{ marginBottom: '8px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Subtitle</label>
+                                    <input type="text" placeholder="Chart Subtitle" defaultValue={chartSubtitle} ref={subtitleRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                </div>
+                                <div style={{ marginBottom: '10px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Footnote / Comments</label>
+                                    <textarea placeholder="Add comments, sources, or insights..." defaultValue={chartFootnote} ref={footnoteRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', minHeight: '50px', resize: 'vertical' }} />
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        setChartTitle(titleRef.current?.value || '');
+                                        setChartSubtitle(subtitleRef.current?.value || '');
+                                        setChartFootnote(footnoteRef.current?.value || '');
+                                    }}
+                                    style={{
+                                        width: '100%', backgroundColor: 'var(--panel-section-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: '500'
+                                    }}
+                                    onMouseOver={(e) => e.target.style.backgroundColor = 'var(--input-bg)'}
+                                    onMouseOut={(e) => e.target.style.backgroundColor = 'var(--panel-section-bg)'}
+                                >
+                                    Apply Text
+                                </button>
+                            </div>
+
+                            {/* --- DATA LABELS --- */}
+                            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Data Labels & Annotations</h4>
+
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: showLabels ? '8px' : '0' }}>
+                                    <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} style={{ accentColor: '#00ffff' }} />
+                                    Show Data Labels
+                                </label>
+
+                                {showLabels && chartType !== 'donut' && (
+                                    <div style={{ paddingLeft: '22px', marginBottom: '10px', marginTop: '10px' }}>
+                                        <select value={dataLabelPosition} onChange={(e) => setDataLabelPosition(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                            <option value="outside">Outside (Fuera)</option>
+                                            <option value="inside-center">Inside Center (Dentro - Medio)</option>
+                                            <option value="inside-start">Inside Start (Dentro - Inicio)</option>
+                                            <option value="inside-end">Inside End (Dentro - Final)</option>
+                                        </select>
+                                    </div>
+                                )}
+
+                                {chartType === 'donut' && showLabels && (
+                                    <>
+                                        <div style={{ marginBottom: '10px', paddingLeft: '22px', marginTop: '10px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label Content</label>
+                                            <select value={donutLabelContent} onChange={(e) => setDonutLabelContent(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                                <option value="percent">Percentage Only</option>
+                                                <option value="value">Value Only</option>
+                                                <option value="name">Name Only</option>
+                                                <option value="name_percent">Name + Percentage</option>
+                                                <option value="name_value">Name + Value</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ marginBottom: '10px', paddingLeft: '22px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Position</label>
+                                            <select value={donutLabelPosition} onChange={(e) => setDonutLabelPosition(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                                <option value="outside">Outside</option>
+                                                <option value="inside">Inside</option>
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* --- REFERENCE LINE --- */}
+                            {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
+                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Line</h4>
+                                    <div style={{ marginBottom: '8px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
+                                        <input type="number" placeholder="Enter value..." value={refLine.value} onChange={(e) => setRefLine({ ...refLine, value: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                    <div style={{ marginBottom: '8px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label</label>
+                                        <input type="text" placeholder="e.g. Goal" value={refLine.label} onChange={(e) => setRefLine({ ...refLine, label: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
+                                        <SimpleColorPicker color={refLine.color} onChange={(val) => setRefLine({ ...refLine, color: val })} />
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </>
+                    )}
+
+                    {/* --- TAB: STYLE --- */}
+                    {activeTab === 'style' && (
+                        <>
+                            {/* --- LEGEND SETTINGS --- */}
+                            {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter' || chartType === 'donut') && (
+                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Legend</h4>
+                                    <div>
+                                        <select value={legendPosition} onChange={(e) => setLegendPosition(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                            <option value="top">Top</option>
+                                            <option value="bottom">Bottom</option>
+                                            <option value="left">Left</option>
+                                            <option value="right">Right</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- SERIES STYLING --- */}
+                            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Aesthetics</h4>
+
+                                {chartType === 'line' && (
+                                    <>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
+                                            <input type="checkbox" checked={lineSmooth} onChange={(e) => setLineSmooth(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Smooth Lines
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
+                                            <input type="checkbox" checked={showDots} onChange={(e) => setShowDots(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show Points
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
+                                            <input type="checkbox" checked={isCumulative} onChange={(e) => setIsCumulative(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Cumulative Sum (Running Total)
+                                        </label>
+                                    </>
+                                )}
+
+                                {(chartType === 'bar' || chartType === 'bar-horizontal') && (
+                                    <>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
+                                            <input type="checkbox" checked={barStacked} onChange={(e) => setBarStacked(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Stack Bars
+                                        </label>
+                                        {!barStacked && (
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Color Mode</label>
+                                                <select value={barColorMode} onChange={(e) => setBarColorMode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                                    <option value="series">By Series (Uniform)</option>
+                                                    <option value="dimension">By Category (Varied)</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {chartType === 'donut' && (
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#ccc', marginBottom: '4px' }}>Inner Radius (Thickness): {donutThickness}</label>
+                                        <input type="range" min="0" max="90" value={donutThickness} onChange={(e) => setDonutThickness(Number(e.target.value))} style={{ width: '100%', accentColor: '#00ffff' }} />
+                                    </div>
+                                )}
+
+                                {/* Highlight Rules */}
+                                {(chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'line') && (
+                                    <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Highlight Rule</label>
+                                        <select value={highlightConfig.type} onChange={(e) => setHighlightConfig({ ...highlightConfig, type: e.target.value })} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px', marginBottom: '8px' }}>
+                                            <option value="none">None</option>
+                                            <option value="max">Max Value</option>
+                                            <option value="min">Min Value</option>
+                                            <option value="exact">Specific Category</option>
+                                        </select>
+
+                                        {highlightConfig.type === 'exact' && (
+                                            <input type="text" placeholder="Category to highlight..." value={highlightConfig.value} onChange={(e) => setHighlightConfig({ ...highlightConfig, value: e.target.value })} style={{ width: '100%', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', marginBottom: '8px' }} />
+                                        )}
+
+                                        {highlightConfig.type !== 'none' && (
+                                            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                                                <SimpleColorPicker color={highlightConfig.color} onChange={(val) => setHighlightConfig({ ...highlightConfig, color: val })} />
+                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Highlight Color</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* --- INDIVIDUAL COLORS --- */}
+                            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Color Pickers</h4>
+
+                                {chartType === 'donut' ? (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px' }}>
+                                        {donutData.map((d, i) => {
+                                            const key = d[xAxisKey];
+                                            const color = seriesConfig[key]?.color || COLORS[i % COLORS.length];
+                                            return (
+                                                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                    <SimpleColorPicker color={color} onChange={(val) => setSeriesConfig({ ...seriesConfig, [key]: { ...seriesConfig[key], color: val } })} />
+                                                    <span style={{ fontSize: '10px', color: '#ccc', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={key}>{key}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <>
+                                        {finalSeriesKeys.map((key, i) => {
+                                            const currentConfig = seriesConfig[key] || {};
+                                            const currentColor = currentConfig.color || COLORS[i % COLORS.length];
+                                            const currentStyle = currentConfig.style || 'solid';
+
+                                            return (
+                                                <div key={key} style={{ marginBottom: '10px' }}>
+                                                    <label style={{ display: 'block', fontSize: '11px', color: '#ddd', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{key}</label>
+                                                    <div style={{ display: 'flex', gap: '5px' }}>
+                                                        <SimpleColorPicker color={currentColor} onChange={(val) => { setSeriesConfig({ ...seriesConfig, [key]: { ...seriesConfig[key], color: val } }); }} />
+                                                        {chartType === 'line' && (
+                                                            <select value={currentStyle} onChange={(e) => { setSeriesConfig({ ...seriesConfig, [key]: { ...seriesConfig[key], style: e.target.value } }); }} style={{ flex: 1, backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', fontSize: '10px' }}>
+                                                                <option value="solid">Solid</option>
+                                                                <option value="dashed">Dashed</option>
+                                                                <option value="dotted">Dotted</option>
+                                                            </select>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {/* --- TAB: AXES --- */}
+                    {activeTab === 'axes' && (
+                        <>
+                            {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
+                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Axes & Scale</h4>
+
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '500' }}>Number Format</label>
+                                        <select value={numberFormat} onChange={(e) => setNumberFormat(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}>
+                                            <option value="compact">Auto (Compact - 1.2k)</option>
+                                            <option value="standard">Standard (1,234.56)</option>
+                                            <option value="currency">Currency ($1,234)</option>
+                                            <option value="thousands">Thousands (1.2k)</option>
+                                            <option value="millions">Millions (1.2M)</option>
+                                            <option value="billions">Billions (1.2B)</option>
+                                            <option value="raw">Raw (1234.56)</option>
+                                        </select>
+                                    </div>
+
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
+                                        <input type="checkbox" checked={showAxisLines} onChange={(e) => setShowAxisLines(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show Axis Lines & Ticks
+                                    </label>
+
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
+                                        <input type="checkbox" checked={yAxisLog} onChange={(e) => setYAxisLog(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Logarithmic Scale (Y)
+                                    </label>
+
+                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Min</label>
+                                            <input type="number" placeholder="Auto" value={yAxisDomain[0]} onChange={(e) => setYAxisDomain([e.target.value, yAxisDomain[1]])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Max</label>
+                                            <input type="number" placeholder="Auto" value={yAxisDomain[1]} onChange={(e) => setYAxisDomain([yAxisDomain[0], e.target.value])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginBottom: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Grid Lines</label>
+                                        <select value={gridMode} onChange={(e) => setGridMode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                            <option value="both">Both (Horizontal & Vertical)</option>
+                                            <option value="horizontal">Horizontal Only</option>
+                                            <option value="vertical">Vertical Only</option>
+                                            <option value="none">None</option>
+                                        </select>
+                                    </div>
+
+                                    <div style={{ marginBottom: '8px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Title</label>
+                                        <input type="text" placeholder={defaultXLabel} value={customAxisTitles.x} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, x: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                    <div style={{ marginBottom: '8px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Title</label>
+                                        <input type="text" placeholder={defaultYLabel} value={customAxisTitles.y} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+
+                                    {(chartType === 'line' || chartType === 'bar') && (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Label Rotation</label>
+                                            <select value={xAxisLabelAngle} onChange={(e) => setXAxisLabelAngle(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                                <option value="0">0° (Horizontal)</option>
+                                                <option value="45">45°</option>
+                                                <option value="90">90° (Vertical)</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
-            )
-            }
+            )}
 
             {/* Chart Area */}
-            <div ref={chartRef} style={{ flex: 1, padding: '20px', backgroundColor: 'var(--chart-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', overflow: 'hidden' }}>
-                {ChartContent}
-            </div>
+            < div style={{
+                flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--chart-bg)', overflow: 'hidden',
+                ...(isFullscreen ? {
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 9999,
+                    padding: '40px'
+                } : {})
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: isFullscreen ? '0 0 10px 0' : '10px 20px 0 0' }}>
+                    <button
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Data'}
+                        style={{
+                            background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', borderRadius: '4px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.color = 'var(--text-active)'}
+                        onMouseOut={(e) => e.target.style.color = 'var(--text-muted)'}
+                    >
+                        {isFullscreen ? <LuMinimize size={18} /> : <LuMaximize size={16} />}
+                    </button>
+                </div>
+                <div ref={chartRef} style={{ flex: 1, padding: isFullscreen ? '0 20px 20px 20px' : '0 20px 20px 20px', display: 'flex', flexDirection: 'column', minHeight: '300px' }}>
+                    {chartTitle && <h2 style={{ textAlign: textAlign, margin: '0 0 5px 0', color: 'var(--text-active)', fontSize: '18px', fontWeight: '600', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartTitle}</h2>}
+                    {chartSubtitle && <h3 style={{ textAlign: textAlign, margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '14px', fontWeight: '400', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartSubtitle}</h3>}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+                        {ChartContent}
+                    </div>
+                    {chartFootnote && <div style={{ textAlign: textAlign, marginTop: '5px', color: 'var(--text-muted)', fontSize: '12px', fontStyle: 'italic', borderTop: '1px solid var(--border-color)', paddingTop: '5px', whiteSpace: 'pre-wrap', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartFootnote}</div>}
+                </div>
+            </div >
         </div >
     );
-};
+});
 
 export default DataVisualizer;
