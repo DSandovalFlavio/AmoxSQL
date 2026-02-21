@@ -209,6 +209,7 @@ const EditorPane = ({
                                     executionTime={activeTab.results.executionTime}
                                     query={activeTab.content}
                                     onDbChange={onDbChange}
+                                    initialChartConfig={activeTab.initialChartConfig}
                                 />
                             )}
 

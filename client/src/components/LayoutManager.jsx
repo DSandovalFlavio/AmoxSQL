@@ -282,6 +282,43 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs, th
                 setRightTabs(prev => [...prev, newTab]);
                 setRightActiveId(newTab.id);
             }
+        },
+        handleEditChart: async (filePath) => {
+            try {
+                // Fetch the config
+                const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                const config = JSON.parse(data.content);
+                const query = config.query || 'SELECT * FROM ... LIMIT 100;';
+
+                const newTab = {
+                    id: Date.now().toString(),
+                    path: '',
+                    name: `Edit: ${filePath.split(/[/\\]/).pop()}`,
+                    type: 'sql',
+                    content: query,
+                    results: null,
+                    dirty: true,
+                    initialChartConfig: config // Bundle the chart preset
+                };
+
+                const pane = activePane;
+                if (pane === 'left') {
+                    setLeftTabs(prev => [...prev, newTab]);
+                    setLeftActiveId(newTab.id);
+                } else {
+                    setRightTabs(prev => [...prev, newTab]);
+                    setRightActiveId(newTab.id);
+                }
+
+                // Trigger auto-execution
+                executeQuery(newTab.id, query);
+
+            } catch (err) {
+                alert(`Failed to open chart configuration: ${err.message}`);
+            }
         }
     }));
 

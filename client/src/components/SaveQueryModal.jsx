@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
+const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '', title = 'Save Query', placeholder = 'query.sql or notebook.sqlnb', hideDescription = false }) => {
     const [filename, setFilename] = useState(initialName);
     const [description, setDescription] = useState('');
     const [folders, setFolders] = useState([]);
@@ -81,7 +81,7 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
                 color: 'var(--text-color)', fontFamily: 'sans-serif'
             }}>
                 <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>
-                    {successSummary ? 'Save Completed' : 'Save Query'}
+                    {successSummary ? 'Save Completed' : title}
                 </h3>
 
                 {successSummary ? (
@@ -125,21 +125,23 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '' }) => {
                                         type="text"
                                         value={filename}
                                         onChange={(e) => setFilename(e.target.value)}
-                                        placeholder="query.sql or notebook.sqlnb"
+                                        placeholder={placeholder}
                                         style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                         autoFocus
                                         required
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>Description (optional)</label>
-                                    <textarea
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="What does this query do?"
-                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', height: '80px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', resize: 'vertical', borderRadius: '3px' }}
-                                    />
-                                </div>
+                                {!hideDescription && (
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>Description (optional)</label>
+                                        <textarea
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            placeholder="What does this query do?"
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px', height: '80px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', resize: 'vertical', borderRadius: '3px' }}
+                                        />
+                                    </div>
+                                )}
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                                     <button type="button" onClick={handleClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
                                     <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>

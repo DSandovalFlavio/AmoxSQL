@@ -5,8 +5,8 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ReferenceArea, LabelList
 } from 'recharts';
 import { LuDownload, LuCalendar, LuGitMerge, LuCircle, LuMaximize, LuMinimize, LuSave, LuUpload } from "react-icons/lu";
+import SaveQueryModal from './SaveQueryModal';
 
-// Distinctive color palette
 // Distinctive color palettes for themes
 export const COLOR_PALETTES = {
     default: [
@@ -164,67 +164,71 @@ const CustomizedDot = (props) => {
     return <circle cx={cx} cy={cy} r={3} stroke={stroke} strokeWidth={2} fill="#fff" />;
 };
 
-const DataVisualizer = memo(({ data, isReportMode = false }) => {
-    const [chartType, setChartType] = useState('line');
-    const [xAxisKey, setXAxisKey] = useState('');
-    const [yAxisKeys, setYAxisKeys] = useState([]);
-    const [rightYAxisKey, setRightYAxisKey] = useState('');
-    const [splitByKey, setSplitByKey] = useState('');
-    const [dateAggregation, setDateAggregation] = useState('none');
-    const [showLabels, setShowLabels] = useState(false);
-    const [tooltipShowPercent, setTooltipShowPercent] = useState(false);
-    const [dataLabelPosition, setDataLabelPosition] = useState('outside'); // 'outside', 'inside-end', 'inside-center', 'inside-start'
-    const [bubbleSizeKey, setBubbleSizeKey] = useState('');
+// Note: query is passed in to be bundled into the saved chart file
+const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialChartConfig = null }) => {
+    const [chartType, setChartType] = useState(initialChartConfig?.chartType || 'bar');
+    const [xAxisKey, setXAxisKey] = useState(initialChartConfig?.xAxisKey || '');
+    const [yAxisKeys, setYAxisKeys] = useState(initialChartConfig?.yAxisKeys || []);
+    const [rightYAxisKey, setRightYAxisKey] = useState(initialChartConfig?.rightYAxisKey || '');
+    const [splitByKey, setSplitByKey] = useState(initialChartConfig?.splitByKey || '');
+    const [dateAggregation, setDateAggregation] = useState(initialChartConfig?.dateAggregation || 'none');
+    const [isDateColumn, setIsDateColumn] = useState(initialChartConfig?.isDateColumn !== undefined ? initialChartConfig.isDateColumn : false);
+    const [showLabels, setShowLabels] = useState(initialChartConfig?.showLabels !== undefined ? initialChartConfig.showLabels : false);
+    const [tooltipShowPercent, setTooltipShowPercent] = useState(initialChartConfig?.tooltipShowPercent !== undefined ? initialChartConfig.tooltipShowPercent : false);
+    const [dataLabelPosition, setDataLabelPosition] = useState(initialChartConfig?.dataLabelPosition || 'top'); // 'outside', 'inside-end', 'inside-center', 'inside-start'
+    const [bubbleSizeKey, setBubbleSizeKey] = useState(initialChartConfig?.bubbleSizeKey || '');
 
     // --- New Customization State ---
     // General
-    const [colorTheme, setColorTheme] = useState('default');
-    const [sortMode, setSortMode] = useState('x-asc'); // x-asc, x-desc, y-asc, y-desc
-    const [maxItems, setMaxItems] = useState(50); // Limit number of items shown
-    const [numberFormat, setNumberFormat] = useState('compact'); // 'compact', 'standard', 'thousands', 'millions', 'billions', 'raw'
+    const [colorTheme, setColorTheme] = useState(initialChartConfig?.colorTheme || 'default');
+    const [sortMode, setSortMode] = useState(initialChartConfig?.sortMode || 'x-asc'); // x-asc, x-desc, y-asc, y-desc
+    const [limit, setLimit] = useState(initialChartConfig?.limit || 50); // Limit number of items shown (renamed from maxItems)
+    const [numberFormat, setNumberFormat] = useState(initialChartConfig?.numberFormat || 'compact'); // 'compact', 'standard', 'thousands', 'millions', 'billions', 'raw'
 
     // Line / General
-    const [lineType, setLineType] = useState('monotone'); // monotone, linear, step, stepBefore, stepAfter
-    const [lineAreaFill, setLineAreaFill] = useState(false);
-    const [showDots, setShowDots] = useState(true);
-    const [isCumulative, setIsCumulative] = useState(false);
-    const [yAxisLog, setYAxisLog] = useState(false);
-    const [yAxisDomain, setYAxisDomain] = useState(['auto', 'auto']); // [min, max]
-    const [refLine, setRefLine] = useState({ value: '', label: '', color: 'red' });
-    const [refArea, setRefArea] = useState({ x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 });
+    const [lineType, setLineType] = useState(initialChartConfig?.lineType || 'monotone'); // monotone, linear, step, stepBefore, stepAfter
+    const [lineAreaFill, setLineAreaFill] = useState(initialChartConfig?.lineAreaFill !== undefined ? initialChartConfig.lineAreaFill : false);
+    const [showDots, setShowDots] = useState(initialChartConfig?.showDots !== undefined ? initialChartConfig.showDots : true);
+    const [isCumulative, setIsCumulative] = useState(initialChartConfig?.isCumulative !== undefined ? initialChartConfig.isCumulative : false);
+    const [yLogScale, setYLogScale] = useState(initialChartConfig?.yLogScale !== undefined ? initialChartConfig.yLogScale : false);
+    const [yAxisDomain, setYAxisDomain] = useState(initialChartConfig?.yAxisDomain || ['auto', 'auto']); // [min, max]
+    const [refLine, setRefLine] = useState(initialChartConfig?.refLine || { value: '', label: '', color: 'red' });
+    const [refArea, setRefArea] = useState(initialChartConfig?.refArea || { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 });
 
     // Bar
-    const [barStackMode, setBarStackMode] = useState('none'); // 'none', 'stack', 'expand'
-    const [barRadius, setBarRadius] = useState(0);
-    const [barColorMode, setBarColorMode] = useState('series'); // 'series' or 'dimension' (x-value)
-    const [highlightConfig, setHighlightConfig] = useState({ type: 'none', value: '', color: '#ff0000' }); // type: none, max, min, mask (specific value)
+    const [barStackMode, setBarStackMode] = useState(initialChartConfig?.barStackMode || 'none'); // 'none', 'stack', 'expand'
+    const [barRadius, setBarRadius] = useState(initialChartConfig?.barRadius !== undefined ? initialChartConfig.barRadius : 0);
+    const [barColorMode, setBarColorMode] = useState(initialChartConfig?.barColorMode || 'series'); // 'series' or 'dimension' (x-value)
+    const [highlightConfig, setHighlightConfig] = useState(initialChartConfig?.highlightConfig || { type: 'none', value: '', color: '#ff0000' }); // type: none, max, min, mask (specific value)
 
     // Series Customization (Line/Bar colors & styles)
-    const [seriesConfig, setSeriesConfig] = useState({}); // { [key]: { color: '#...', style: 'solid' | 'dashed' | 'dotted' } }
-    const [customAxisTitles, setCustomAxisTitles] = useState({ x: '', y: '' });
-    const [xAxisLabelAngle, setXAxisLabelAngle] = useState(0); // 0, 45, 90
-    const [legendPosition, setLegendPosition] = useState('bottom'); // top, bottom, left, right
+    const [seriesConfig, setSeriesConfig] = useState(initialChartConfig?.seriesConfig || {}); // { [key]: { color: '#...', style: 'solid' | 'dashed' | 'dotted' } }
+    const [customAxisTitles, setCustomAxisTitles] = useState(initialChartConfig?.customAxisTitles || { x: '', y: '' });
+    const [showXAxisTitle, setShowXAxisTitle] = useState(initialChartConfig?.showXAxisTitle !== undefined ? initialChartConfig.showXAxisTitle : true);
+    const [showYAxisTitle, setShowYAxisTitle] = useState(initialChartConfig?.showYAxisTitle !== undefined ? initialChartConfig.showYAxisTitle : true);
+    const [xAxisLabelAngle, setXAxisLabelAngle] = useState(initialChartConfig?.xAxisLabelAngle !== undefined ? initialChartConfig.xAxisLabelAngle : 0); // 0, 45, 90
+    const [legendPosition, setLegendPosition] = useState(initialChartConfig?.legendPosition || 'bottom'); // top, bottom, left, right
 
     // Donut
-    const [donutThickness, setDonutThickness] = useState(60);
-    const [donutLabelContent, setDonutLabelContent] = useState('name_percent'); // 'percent', 'value', 'name', 'name_percent', 'name_value'
-    const [donutLabelPosition, setDonutLabelPosition] = useState('outside'); // 'inside', 'outside'
-    const [donutGroupingThreshold, setDonutGroupingThreshold] = useState(0); // 0-100% threshold for "Others" // Inner Radius
-    const [donutCenterKpi, setDonutCenterKpi] = useState('none'); // 'none', 'total', 'average'
+    const [donutThickness, setDonutThickness] = useState(initialChartConfig?.donutThickness !== undefined ? initialChartConfig.donutThickness : 60);
+    const [donutLabelContent, setDonutLabelContent] = useState(initialChartConfig?.donutLabelContent || 'name_percent'); // 'percent', 'value', 'name', 'name_percent', 'name_value'
+    const [donutLabelPosition, setDonutLabelPosition] = useState(initialChartConfig?.donutLabelPosition || 'outside'); // 'inside', 'outside'
+    const [donutGroupingThreshold, setDonutGroupingThreshold] = useState(initialChartConfig?.donutGroupingThreshold !== undefined ? initialChartConfig.donutGroupingThreshold : 0); // 0-100% threshold for "Others" // Inner Radius
+    const [donutCenterKpi, setDonutCenterKpi] = useState(initialChartConfig?.donutCenterKpi !== undefined ? initialChartConfig.donutCenterKpi : 'none'); // 'none', 'total', 'average'
 
     // Scatter
-    const [scatterQuadrants, setScatterQuadrants] = useState(false);
+    const [scatterQuadrants, setScatterQuadrants] = useState(initialChartConfig?.scatterQuadrants !== undefined ? initialChartConfig.scatterQuadrants : false);
 
     // Storytelling State
-    const [chartTitle, setChartTitle] = useState('');
-    const [chartSubtitle, setChartSubtitle] = useState('');
-    const [chartFootnote, setChartFootnote] = useState('');
+    const [chartTitle, setChartTitle] = useState(initialChartConfig?.chartTitle || '');
+    const [chartSubtitle, setChartSubtitle] = useState(initialChartConfig?.chartSubtitle || '');
+    const [chartFootnote, setChartFootnote] = useState(initialChartConfig?.chartFootnote || '');
     const titleRef = useRef(null);
     const subtitleRef = useRef(null);
     const footnoteRef = useRef(null);
-    const [textAlign, setTextAlign] = useState('center'); // 'center', 'left'
-    const [gridMode, setGridMode] = useState('both'); // 'both', 'horizontal', 'vertical', 'none'
-    const [showAxisLines, setShowAxisLines] = useState(true);
+    const [textAlign, setTextAlign] = useState(initialChartConfig?.textAlign || 'center'); // 'center', 'left'
+    const [gridMode, setGridMode] = useState(initialChartConfig?.gridMode || 'both'); // 'both', 'horizontal', 'vertical', 'none'
+    const [showAxisLines, setShowAxisLines] = useState(initialChartConfig?.showAxisLines !== undefined ? initialChartConfig.showAxisLines : true);
 
     // Ref for chart export
     const chartRef = useRef(null);
@@ -232,8 +236,9 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     // Ref for file upload
     const fileInputRef = useRef(null);
 
-    // Fullscreen and Tab state
+    // Fullscreen, save modal and Tab state
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('data');
 
     // Extract columns
@@ -323,7 +328,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     }, [formatNumber, tooltipShowPercent, chartType, yAxisKeys]);
 
     // Detect if X-Axis is a Date column
-    const isDateColumn = useMemo(() => {
+    const isDateColumnMemo = useMemo(() => {
         if (!xAxisKey || !data || data.length === 0) return false;
         const val = data.find(r => r[xAxisKey] != null)?.[xAxisKey];
         if (typeof val !== 'string') return false;
@@ -391,10 +396,10 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
         const getGroupKey = (row) => {
             let key = row[xAxisKey];
             if (key == null) return null;
-            if (isDateColumn) {
-                if (dateAggregation === 'month') key = String(key).substring(0, 7);
-                else if (dateAggregation === 'year') key = String(key).substring(0, 4);
-                else key = formatDateLabel(key);
+            if (isDateColumnMemo) {
+                if (dateAggregation === 'month') return String(key).substring(0, 7);
+                if (dateAggregation === 'year') return String(key).substring(0, 4);
+                return formatDateLabel(key);
             }
             return key;
         };
@@ -499,13 +504,12 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
         }
 
         // 4. LIMIT
-        if (maxItems > 0 && result.length > maxItems) {
-            result = result.slice(0, Number(maxItems));
+        if (limit > 0 && result.length > limit) {
+            result = result.slice(0, Number(limit));
         }
 
         return { processedData: result, finalSeriesKeys: seriesKeys };
-
-    }, [data, xAxisKey, yAxisKeys, splitByKey, isDateColumn, dateAggregation, bubbleSizeKey, chartType, isCumulative, sortMode, maxItems]);
+    }, [data, xAxisKey, yAxisKeys, splitByKey, isDateColumnMemo, dateAggregation, bubbleSizeKey, chartType, isCumulative, sortMode, limit]);
 
 
     // --- DONUT DATA & LABELS ---
@@ -680,9 +684,10 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
             return val.split('T')[0];
         }
         const str = String(val);
-        if (str.length > 15) return str.substring(0, 15) + '...';
+        if (chartType === 'bar-horizontal' && str.length > 40) return str.substring(0, 37) + '...';
+        else if (chartType !== 'bar-horizontal' && str.length > 20) return str.substring(0, 17) + '...';
         return str;
-    }, [formatNumber, dateAggregation]);
+    }, [formatNumber, dateAggregation, isDateColumnMemo, chartType]);
 
     let defaultXLabel = "X Axis Column";
     let defaultYLabel = "Y Axis Columns";
@@ -697,32 +702,55 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     // Chart Configuration Constants
     const CommonProps = useMemo(() => {
         let pt = 20;
-        let pb = Number(xAxisLabelAngle) > 0 ? 70 : 40; // Base space for XAxis
+        let pb = 10;
+        if (chartFootnote) pb += 20;
 
         if (legendPosition === 'top') pt += 5; // Space strictly for legend
         if (legendPosition === 'bottom') pb += 5; // 40 + 30 = 70. Very stable.
 
+        const margin = { top: pt, right: 30, left: 20, bottom: pb };
         return {
             data: processedData,
-            margin: { top: pt, right: 30, left: 20, bottom: pb },
+            margin: margin,
             style: { fontSize: '12px' }
         };
-    }, [processedData, legendPosition, xAxisLabelAngle]);
+    }, [processedData, legendPosition, xAxisLabelAngle, chartFootnote]);
 
     // Domain & Scale
     const yDomain = useMemo(() => [
         yAxisDomain[0] !== '' && !isNaN(yAxisDomain[0]) ? Number(yAxisDomain[0]) : 'auto',
         yAxisDomain[1] !== '' && !isNaN(yAxisDomain[1]) ? Number(yAxisDomain[1]) : 'auto'
     ], [yAxisDomain]);
-    const yScale = yAxisLog ? 'log' : 'auto';
+    const yScale = yLogScale ? 'log' : 'auto';
+
+    // Calculate dynamic Y-axis width for horizontal bar charts to prevent label cutoff
+    const dynamicYAxisWidth = useMemo(() => {
+        if (chartType !== 'bar-horizontal' || !processedData || processedData.length === 0) return 100;
+
+        let maxLength = 0;
+        processedData.forEach(d => {
+            const labelStr = xAxisTickFormatter(d[xAxisKey]);
+            if (labelStr && labelStr.length > maxLength) {
+                maxLength = labelStr.length;
+            }
+        });
+
+        // Approximate width: base 20px + ~8px per character + title padding
+        const calculatedWidth = 20 + (maxLength * 8) + (showXAxisTitle ? 25 : 10);
+
+        // Cap it between 60 and 400 pixels to allow much longer labels natively
+        return Math.min(Math.max(calculatedWidth, 60), 400);
+    }, [processedData, xAxisKey, chartType, xAxisTickFormatter, showXAxisTitle]);
 
     // Ref Line Element
     const renderRefLine = () => {
         if (!refLine.value) return null;
+        const isHorizontal = chartType === 'bar-horizontal';
         return (
             <ReferenceLine
-                y={Number(refLine.value)}
-                label={{ value: refLine.label, position: 'top', fill: refLine.color, fontSize: 10 }}
+                y={!isHorizontal ? Number(refLine.value) : undefined}
+                x={isHorizontal ? Number(refLine.value) : undefined}
+                label={{ value: refLine.label, position: isHorizontal ? 'insideTopLeft' : 'top', fill: refLine.color, fontSize: 10 }}
                 stroke={refLine.color}
                 strokeDasharray="3 3"
             />
@@ -739,17 +767,24 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
         const x1 = isNaN(Number(refArea.x1)) || refArea.x1 === '' ? refArea.x1 : Number(refArea.x1);
         const x2 = isNaN(Number(refArea.x2)) || refArea.x2 === '' ? refArea.x2 : Number(refArea.x2);
 
+        const isHorizontal = chartType === 'bar-horizontal';
+
         return (
             <>
-                {hasX && <ReferenceArea x1={x1} x2={x2} fill={refArea.color} fillOpacity={refArea.opacity} />}
-                {hasY && <ReferenceArea y1={Number(refArea.y1)} y2={Number(refArea.y2)} fill={refArea.color} fillOpacity={refArea.opacity} />}
+                {hasX && !isHorizontal && <ReferenceArea x1={x1} x2={x2} fill={refArea.color} fillOpacity={refArea.opacity} />}
+                {hasX && isHorizontal && <ReferenceArea y1={x1} y2={x2} fill={refArea.color} fillOpacity={refArea.opacity} />}
+
+                {hasY && !isHorizontal && <ReferenceArea y1={Number(refArea.y1)} y2={Number(refArea.y2)} fill={refArea.color} fillOpacity={refArea.opacity} />}
+                {hasY && isHorizontal && <ReferenceArea x1={Number(refArea.y1)} x2={Number(refArea.y2)} fill={refArea.color} fillOpacity={refArea.opacity} />}
             </>
         );
     };
 
+
+
     // Axis Titles
-    const XLabel = customAxisTitles.x || defaultXLabel || xAxisKey;
-    const YLabel = customAxisTitles.y || defaultYLabel || 'Values';
+    const XLabel = showXAxisTitle ? (customAxisTitles.x || defaultXLabel || xAxisKey) : '';
+    const YLabel = showYAxisTitle ? (customAxisTitles.y || defaultYLabel || 'Values') : '';
 
     // --- CHART CONTENT MEMO ---
     const ChartContent = useMemo(() => {
@@ -771,8 +806,8 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     stroke="var(--border-color)"
                                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                     tickFormatter={xAxisTickFormatter}
-                                    label={{ value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
-                                    height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
+                                    label={showXAxisTitle ? { value: XLabel, position: 'insideBottom', offset: -5, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
+                                    height={showXAxisTitle ? 40 : 25}
                                 />
                                 <YAxis
                                     yAxisId="left"
@@ -783,7 +818,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     domain={yDomain}
                                     scale={yScale}
                                     allowDataOverflow={true}
-                                    label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
+                                    label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 } : undefined}
                                 />
                                 {rightYAxisKey && (
                                     <YAxis
@@ -799,7 +834,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     />
                                 )}
                                 <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.2)' }} formatter={renderTooltipFormatter} labelFormatter={xAxisTickFormatter} />
-                                <Legend {...legendProps} />
+                                {legendPosition !== 'none' && <Legend {...legendProps} />}
                                 {renderRefLine()}
                                 {renderRefArea()}
                                 {finalSeriesKeys.map((key, index) => {
@@ -880,8 +915,8 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             tickFormatter={formatNumber}
                                             domain={yDomain}
                                             scale={yScale}
-                                            label={{ value: YLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
-                                            height={50}
+                                            label={showYAxisTitle ? { value: YLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
+                                            height={showYAxisTitle ? 50 : 25}
                                         />
                                         <YAxis
                                             {...axisCommonProps}
@@ -889,9 +924,9 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             dataKey={xAxisKey}
                                             stroke="var(--border-color)"
                                             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                                            width={100}
+                                            width={dynamicYAxisWidth}
                                             tickFormatter={xAxisTickFormatter}
-                                            label={{ value: XLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
+                                            label={showXAxisTitle ? { value: XLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 } : undefined}
                                         />
                                     </>
                                 ) : (
@@ -902,8 +937,8 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             stroke="var(--border-color)"
                                             tick={xAxisTickProps}
                                             tickFormatter={xAxisTickFormatter}
-                                            label={{ value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
-                                            height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
+                                            label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
+                                            height={Number(xAxisLabelAngle) > 0 ? (showXAxisTitle ? 80 : 60) : (showXAxisTitle ? 50 : 25)}
                                         />
                                         <YAxis
                                             yAxisId="left"
@@ -913,7 +948,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             tickFormatter={formatNumber}
                                             domain={yDomain}
                                             scale={yScale}
-                                            label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
+                                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 } : undefined}
                                         />
                                         {rightYAxisKey && (
                                             <YAxis
@@ -931,7 +966,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                 )}
 
                                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} formatter={renderTooltipFormatter} labelFormatter={xAxisTickFormatter} />
-                                <Legend {...legendProps} wrapperStyle={{ ...legendProps.wrapperStyle, paddingLeft: '10px' }} />
+                                {legendPosition !== 'none' && <Legend {...legendProps} wrapperStyle={{ ...legendProps.wrapperStyle, paddingLeft: '10px' }} />}
 
                                 {renderRefLine()}
                                 {renderRefArea()}
@@ -939,6 +974,12 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                 {finalSeriesKeys.map((key, index) => {
                                     const config = seriesConfig[key] || {};
                                     const baseColor = config.color || activeColors[index % activeColors.length];
+
+                                    let seriesMax = 1;
+                                    if (barColorMode === 'intensity') {
+                                        seriesMax = Math.max(...processedData.map(d => Number(d[key]) || 0));
+                                        if (seriesMax <= 0) seriesMax = 1;
+                                    }
 
                                     return (
                                         <Bar
@@ -960,9 +1001,13 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             {processedData.map((entry, entryIndex) => {
                                                 const val = Number(entry[key]);
                                                 let finalColor = baseColor;
+                                                let cellOpacity = 1;
 
                                                 if (barColorMode === 'dimension') {
                                                     finalColor = activeColors[entryIndex % activeColors.length];
+                                                } else if (barColorMode === 'intensity') {
+                                                    const ratio = seriesMax > 0 ? (val / seriesMax) : 1;
+                                                    cellOpacity = 0.2 + (0.8 * Math.max(0, ratio)); // 0.2 to 1.0 based on value
                                                 }
 
                                                 if (highlightConfig.type !== 'none') {
@@ -975,7 +1020,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                                     }
                                                 }
 
-                                                return <Cell key={`cell-${entryIndex}`} fill={finalColor} />;
+                                                return <Cell key={`cell-${entryIndex}`} fill={finalColor} fillOpacity={cellOpacity} />;
                                             })}
                                         </Bar>
                                     );
@@ -991,15 +1036,15 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                 <XAxis
                                     {...axisCommonProps}
                                     dataKey={xAxisKey}
-                                    type={isDateColumn ? "category" : "number"}
+                                    type={isDateColumnMemo ? "category" : "number"}
                                     name={XLabel}
                                     stroke="var(--border-color)"
                                     tick={xAxisTickProps}
                                     tickFormatter={xAxisTickFormatter}
                                     interval="preserveStartEnd"
                                     domain={['auto', 'auto']}
-                                    label={{ value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 }}
-                                    height={Number(xAxisLabelAngle) > 0 ? 80 : 50}
+                                    label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
+                                    height={Number(xAxisLabelAngle) > 0 ? (showXAxisTitle ? 80 : 60) : (showXAxisTitle ? 50 : 25)}
                                 />
                                 <YAxis
                                     yAxisId="left"
@@ -1009,7 +1054,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     stroke="var(--border-color)"
                                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                     tickFormatter={formatNumber}
-                                    label={{ value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 }}
+                                    label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 } : undefined}
                                 />
                                 {rightYAxisKey && (
                                     <YAxis
@@ -1030,7 +1075,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     name="Size"
                                 />
                                 <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} formatter={renderTooltipFormatter} labelFormatter={xAxisTickFormatter} />
-                                <Legend {...legendProps} />
+                                {legendPosition !== 'none' && <Legend {...legendProps} />}
                                 {renderRefLine()}
                                 {renderRefArea()}
                                 {scatterQuadrants && xAxisKey && yAxisKeys[0] && (() => {
@@ -1051,7 +1096,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     const baseColor = config.color || activeColors[index % activeColors.length];
                                     const seriesData = processedData.map(d => ({
                                         ...d,
-                                        size: splitByKey ? d[`${key} _size`] : d[bubbleSizeKey]
+                                        size: splitByKey ? d[`${key}_size`] : d[bubbleSizeKey]
                                     }));
                                     return (
                                         <Scatter
@@ -1114,7 +1159,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     ))}
                                 </Pie>
                                 <Tooltip contentStyle={tooltipStyle} formatter={renderTooltipFormatter} />
-                                <Legend {...legendProps} />
+                                {legendPosition !== 'none' && <Legend {...legendProps} />}
                             </PieChart>
                         </ResponsiveContainer>
                     );
@@ -1125,16 +1170,38 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
             console.error("Chart Render Error:", err);
             return <div style={{ color: 'red', padding: 20 }}>Error rendering chart: {err.message}</div>;
         }
-    }, [processedData, chartType, xAxisKey, yAxisKeys, rightYAxisKey, seriesConfig, customAxisTitles, xAxisLabelAngle, legendPosition, highlightConfig, barStackMode, barRadius, barColorMode, donutThickness, donutCenterKpi, scatterQuadrants, yDomain, yScale, refLine, refArea, showLabels, lineType, lineAreaFill, showDots, isDateColumn, CommonProps, XLabel, YLabel, tooltipStyle, legendProps, xAxisTickProps, xAxisTickFormatter, donutData, renderCustomizedLabel, activeColors, renderTooltipFormatter]);
+    }, [
+        processedData, chartType, xAxisKey, yAxisKeys, rightYAxisKey, seriesConfig, customAxisTitles,
+        xAxisLabelAngle, legendPosition, highlightConfig, barStackMode, barRadius, barColorMode,
+        donutThickness, donutCenterKpi, scatterQuadrants, yDomain, yScale, refLine, refArea,
+        showLabels, lineType, lineAreaFill, showDots, isDateColumnMemo, CommonProps, XLabel, YLabel,
+        tooltipStyle, legendProps, xAxisTickProps, xAxisTickFormatter, donutData, renderCustomizedLabel,
+        activeColors, renderTooltipFormatter, dynamicYAxisWidth, gridMode, renderCustomBarLabel,
+        axisCommonProps, formatNumber, showXAxisTitle, showYAxisTitle, splitByKey, bubbleSizeKey, donutLabelPosition
+    ]);
 
     const handleDownload = async () => {
         if (!chartRef.current) return;
 
         try {
+            // Calculate a dynamic scale to ensure the output is at least Full HD (1920x1080)
+            const currentWidth = chartRef.current.offsetWidth || 1;
+            const currentHeight = chartRef.current.offsetHeight || 1;
+
+            const targetWidth = 1920;
+            const targetHeight = 1080;
+
+            const scaleX = targetWidth / currentWidth;
+            const scaleY = targetHeight / currentHeight;
+
+            // Use the maximum scale needed to hit at least 1080p on both edges, 
+            // ensuring the original aspect ratio is perfectly preserved and no lower than 2x.
+            const dynamicScale = Math.max(scaleX, scaleY, 2);
+
             // Use html2canvas for robust screenshotting
             const canvas = await html2canvas(chartRef.current, {
                 backgroundColor: '#1e1f22', // Force dark background
-                scale: 2, // Retina quality
+                scale: dynamicScale, // Dynamic Full HD stringency
                 logging: false,
                 useCORS: true,
                 ignoreElements: (element) => element.tagName === 'BUTTON' // Optional: Ignore the download button itself if inside ref? 
@@ -1155,22 +1222,41 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     };
 
     // --- CONFIGURATION SAVE / LOAD ---
-    const handleSaveConfig = () => {
+    const performSaveConfig = async (filename, description) => {
+        if (!filename.endsWith(".amoxvis")) {
+            filename += ".amoxvis";
+        }
+
         const config = {
-            chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey, bubbleSizeKey, dateAggregation,
-            sortMode, maxItems, numberFormat, lineType, lineAreaFill, showDots, isCumulative, yAxisLog, yAxisDomain, refLine, refArea,
-            barStackMode, barRadius, barColorMode, highlightConfig, scatterQuadrants,
-            seriesConfig, customAxisTitles, xAxisLabelAngle, legendPosition, colorTheme,
-            donutThickness, donutLabelContent, donutLabelPosition, donutGroupingThreshold, donutCenterKpi,
-            chartTitle, chartSubtitle, chartFootnote, textAlign, gridMode, showAxisLines, showLabels, tooltipShowPercent, dataLabelPosition
+            chartType, colorTheme, xAxisKey, yAxisKeys, rightYAxisKey, customAxisTitles,
+            sortMode, limit, isDateColumn: isDateColumnMemo, dateAggregation, showDots, showLabels, dataLabelPosition, legendPosition,
+            gridMode, xAxisLabelAngle, lineType, lineAreaFill, barStackMode, barRadius, barColorMode,
+            donutThickness, donutCenterKpi, donutLabelContent, scatterQuadrants,
+            yLogScale, yAxisDomain, refLine, refArea, highlightConfig, seriesConfig,
+            chartTitle, chartSubtitle, chartFootnote, textAlign, showAxisLines, tooltipShowPercent,
+            showXAxisTitle, showYAxisTitle,
+            query: query // Including the SQL query
         };
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `chart_config_${Date.now()}.json`);
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+
+        try {
+            const response = await fetch('http://localhost:3001/api/file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: filename, // Save to root of workspace
+                    content: JSON.stringify(config, null, 2)
+                })
+            });
+            const result = await response.json();
+            if (result.error) {
+                return { success: false, error: result.error };
+            } else {
+                setIsSaveModalOpen(false); // Close Modal on success
+                return { success: true, summary: `Chart successfully saved as '${filename}'! You can now edit it directly from the File Explorer.` };
+            }
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
     };
 
     const handleLoadConfig = (event) => {
@@ -1196,14 +1282,17 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                 if (config.lineSmooth !== undefined && config.lineType === undefined) setLineType(config.lineSmooth ? 'monotone' : 'linear'); // migration
                 if (config.showDots !== undefined) setShowDots(config.showDots);
                 if (config.isCumulative !== undefined) setIsCumulative(config.isCumulative);
-                if (config.yAxisLog !== undefined) setYAxisLog(config.yAxisLog);
-                if (config.yAxisDomain) setYAxisDomain(config.yAxisDomain);
-                if (config.refLine) setRefLine(config.refLine);
+                if (config.yLogScale !== undefined) setYLogScale(config.yLogScale);
+                else if (config.yAxisLog !== undefined) setYLogScale(config.yAxisLog); // legacy config support
+                if (config.yAxisDomain !== undefined) setYAxisDomain(config.yAxisDomain);
+                if (config.refLine !== undefined) setRefLine(config.refLine);
                 if (config.refArea) setRefArea(config.refArea);
                 if (config.barStackMode !== undefined) setBarStackMode(config.barStackMode);
                 if (config.barRadius !== undefined) setBarRadius(config.barRadius);
                 if (config.barStacked !== undefined && config.barStackMode === undefined) setBarStackMode(config.barStacked ? 'stack' : 'none'); // migration
                 if (config.barColorMode) setBarColorMode(config.barColorMode);
+                if (config.showXAxisTitle !== undefined) setShowXAxisTitle(config.showXAxisTitle);
+                if (config.showYAxisTitle !== undefined) setShowYAxisTitle(config.showYAxisTitle);
                 if (config.highlightConfig) setHighlightConfig(config.highlightConfig);
                 if (config.scatterQuadrants !== undefined) setScatterQuadrants(config.scatterQuadrants);
                 if (config.seriesConfig) setSeriesConfig(config.seriesConfig);
@@ -1246,7 +1335,17 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
     if (!data || data.length === 0) return <div>No data to visualize</div>;
 
     return (
-        <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', position: 'relative' }}>
+            <SaveQueryModal
+                isOpen={isSaveModalOpen}
+                onClose={() => setIsSaveModalOpen(false)}
+                onSave={performSaveConfig}
+                initialName="my_chart.amoxvis"
+                title="Save Chart Layout"
+                placeholder="my_chart.amoxvis"
+                hideDescription={true}
+            />
+
             {/* Controls Panel - Hidden in Report Mode */}
             {!isReportMode && (
                 <div style={{ width: '280px', flexShrink: 0, borderRight: '1px solid var(--border-color)', padding: '15px', overflowY: 'auto', backgroundColor: 'var(--panel-bg)' }}>
@@ -1273,7 +1372,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                 <LuUpload size={14} />
                             </button>
                             <button
-                                onClick={handleSaveConfig}
+                                onClick={() => setIsSaveModalOpen(true)}
                                 title="Save Configuration"
                                 style={{
                                     background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', borderRadius: '4px',
@@ -1417,8 +1516,8 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     <input
                                         type="number"
                                         placeholder="All"
-                                        value={maxItems === 0 ? '' : maxItems}
-                                        onChange={(e) => setMaxItems(e.target.value === '' ? 0 : Number(e.target.value))}
+                                        value={limit === 0 ? '' : limit}
+                                        onChange={(e) => setLimit(e.target.value === '' ? 0 : Number(e.target.value))}
                                         style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px' }}
                                     />
                                 </div>
@@ -1644,6 +1743,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                             <option value="bottom">Bottom</option>
                                             <option value="left">Left</option>
                                             <option value="right">Right</option>
+                                            <option value="none">Hidden</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1724,6 +1824,7 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                                 <select value={barColorMode} onChange={(e) => setBarColorMode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
                                                     <option value="series">By Series (Uniform)</option>
                                                     <option value="dimension">By Category (Varied)</option>
+                                                    <option value="intensity">Color Intensity by Value</option>
                                                 </select>
                                             </div>
                                         )}
@@ -1839,17 +1940,17 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     </label>
 
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                        <input type="checkbox" checked={yAxisLog} onChange={(e) => setYAxisLog(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Logarithmic Scale (Y)
+                                        <input type="checkbox" checked={yLogScale} onChange={(e) => setYLogScale(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Logarithmic Scale (Y)
                                     </label>
 
                                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                                         <div style={{ flex: 1 }}>
                                             <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Min</label>
-                                            <input type="number" placeholder="Auto" value={yAxisDomain[0]} onChange={(e) => setYAxisDomain([e.target.value, yAxisDomain[1]])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                            <input type="number" placeholder="Auto" value={yAxisDomain[0] === 'auto' ? '' : yAxisDomain[0]} onChange={(e) => setYAxisDomain([e.target.value === '' ? 'auto' : e.target.value, yAxisDomain[1]])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                         </div>
                                         <div style={{ flex: 1 }}>
                                             <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Max</label>
-                                            <input type="number" placeholder="Auto" value={yAxisDomain[1]} onChange={(e) => setYAxisDomain([yAxisDomain[0], e.target.value])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                            <input type="number" placeholder="Auto" value={yAxisDomain[1] === 'auto' ? '' : yAxisDomain[1]} onChange={(e) => setYAxisDomain([yAxisDomain[0], e.target.value === '' ? 'auto' : e.target.value])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                         </div>
                                     </div>
 
@@ -1864,12 +1965,22 @@ const DataVisualizer = memo(({ data, isReportMode = false }) => {
                                     </div>
 
                                     <div style={{ marginBottom: '8px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Title</label>
-                                        <input type="text" placeholder={defaultXLabel} value={customAxisTitles.x} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, x: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                            <label style={{ fontSize: '10px', color: '#888' }}>X-Axis Title</label>
+                                            <label style={{ fontSize: '10px', color: '#ccc', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={showXAxisTitle} onChange={(e) => setShowXAxisTitle(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show
+                                            </label>
+                                        </div>
+                                        <input type="text" placeholder={defaultXLabel} value={customAxisTitles.x} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, x: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', opacity: showXAxisTitle ? 1 : 0.5 }} disabled={!showXAxisTitle} />
                                     </div>
                                     <div style={{ marginBottom: '8px' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Title</label>
-                                        <input type="text" placeholder={defaultYLabel} value={customAxisTitles.y} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                            <label style={{ fontSize: '10px', color: '#888' }}>Y-Axis Title</label>
+                                            <label style={{ fontSize: '10px', color: '#ccc', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={showYAxisTitle} onChange={(e) => setShowYAxisTitle(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show
+                                            </label>
+                                        </div>
+                                        <input type="text" placeholder={defaultYLabel} value={customAxisTitles.y} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', opacity: showYAxisTitle ? 1 : 0.5 }} disabled={!showYAxisTitle} />
                                     </div>
 
                                     {/* Reference Line */}

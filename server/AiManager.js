@@ -21,7 +21,14 @@ class AiManager {
             fs.mkdirSync(dir, { recursive: true });
         }
         if (!fs.existsSync(this.configPath)) {
-            fs.writeFileSync(this.configPath, JSON.stringify({ geminiApiKey: "", provider: "ollama", defaultModel: "qwen3:1.7b" }, null, 2));
+            const initialConfig = {
+                geminiApiKey: "",
+                provider: "ollama",
+                defaultModel: "qwen3:1.7b",
+                usageDate: new Date().toISOString().split('T')[0],
+                usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 }
+            };
+            fs.writeFileSync(this.configPath, JSON.stringify(initialConfig, null, 2));
         }
     }
 
@@ -29,9 +36,25 @@ class AiManager {
         this.ensureConfig();
         const data = fs.readFileSync(this.configPath, 'utf8');
         try {
-            return JSON.parse(data);
+            let config = JSON.parse(data);
+
+            // Check usage date for daily reset
+            const today = new Date().toISOString().split('T')[0];
+            if (config.usageDate !== today) {
+                config.usageDate = today;
+                config.usage = { flashLite: 0, flash: 0, pro: 0, tokens: 0 };
+                fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+            }
+            // Ensure schema backwards compatibility
+            if (!config.usage) {
+                config.usageDate = today;
+                config.usage = { flashLite: 0, flash: 0, pro: 0, tokens: 0 };
+                fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+            }
+
+            return config;
         } catch (e) {
-            return { geminiApiKey: "", provider: "ollama", defaultModel: "qwen3:1.7b" };
+            return { geminiApiKey: "", provider: "ollama", defaultModel: "qwen3:1.7b", usageDate: new Date().toISOString().split('T')[0], usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 } };
         }
     }
 
@@ -89,6 +112,24 @@ ${schema}`;
 
             console.log(`[AI] Prompting Gemini (${model})...`);
             const result = await geminiModel.generateContent(userPrompt);
+
+            // Track Usage
+            try {
+                if (result.response.usageMetadata) {
+                    config.usage.tokens += result.response.usageMetadata.totalTokenCount || 0;
+                }
+                if (model.includes('flash-lite')) {
+                    config.usage.flashLite += 1;
+                } else if (model.includes('pro')) {
+                    config.usage.pro += 1;
+                } else {
+                    config.usage.flash += 1;
+                }
+                fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+            } catch (e) {
+                console.error("Failed to track Gemini usage:", e);
+            }
+
             return this.cleanSql(result.response.text());
 
         } else {

@@ -19,7 +19,7 @@ import AiSidebar from './components/AiSidebar';
 
 
 import SettingsModal from './components/SettingsModal';
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus } from "react-icons/lu";
 
 import './index.css';
 
@@ -371,6 +371,7 @@ function App() {
                   onNewFolder={handleNewFolder}
                   onImportFile={handleImportRequest}
                   onQueryFile={(path) => layoutRef.current?.handleQueryFile(path)}
+                  onEditChart={(path) => layoutRef.current?.handleEditChart(path)}
                 />
               </div>
             )}
@@ -392,6 +393,21 @@ function App() {
             {/* Global Toolbar can drive LayoutManager */}
             <div className="toolbar">
               <div className="toolbar-left">
+                <button
+                  onClick={() => layoutRef.current?.createNew('sql')}
+                  title="Create New SQL Query"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'transparent', color: 'var(--text-color)', border: '1px solid var(--border-color)', padding: '5px 10px', borderRadius: '4px' }}
+                >
+                  <LuFilePlus size={14} /> New SQL
+                </button>
+                <button
+                  onClick={() => layoutRef.current?.createNew('notebook')}
+                  title="Create New Analytics Notebook"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'transparent', color: 'var(--text-color)', border: '1px solid var(--border-color)', padding: '5px 10px', borderRadius: '4px' }}
+                >
+                  <LuFilePlus size={14} /> New Notebook
+                </button>
+                <div style={{ width: '1px', height: '20px', backgroundColor: '#333', margin: '0 8px' }}></div>
                 <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <LuPlay size={14} fill="currentColor" /> Run
                 </button>
@@ -406,7 +422,8 @@ function App() {
                 >
                   <LuActivity size={14} /> Analyze
                 </button>
-                <div style={{ width: '1px', height: '20px', backgroundColor: '#333', margin: '0 5px' }}></div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <button
                   onClick={() => setShowAiSidebar(!showAiSidebar)}
                   title="Toggle AI Assistant"

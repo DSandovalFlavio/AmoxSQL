@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
-    LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet
+    LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar
 } from "react-icons/lu";
 
-const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile }) => {
+const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onEditChart }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -88,6 +88,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         if (file.isDirectory) return <LuFolder size={14} color="#E8BD36" />;
         if (lowerName.endsWith('.sql')) return <LuFileCode size={14} color="#4FC1FF" />;
         if (lowerName.endsWith('.sqlnb')) return <LuBookOpen size={14} color="#9CDCFE" />;
+        if (lowerName.endsWith('.amoxvis')) return <LuChartBar size={14} color="#FF69B4" />;
         if (lowerName.match(/\.(xlsx|xls|csv)$/i)) return <LuFileSpreadsheet size={14} color="#217346" />; // Green for Excel
         if (lowerName.match(/\.(parquet|json)$/i)) return <LuTable size={14} color="#CE9178" />;
         if (lowerName.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="#DCDCAA" />;
@@ -211,6 +212,17 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                             className="context-menu-item"
                         >
                             <LuSearch size={14} /> Direct Query
+                        </div>
+                    )}
+
+                    {/* Amoxvis Edit Charts Option */}
+                    {contextMenu.file.name.endsWith('.amoxvis') && (
+                        <div
+                            onClick={() => onEditChart && onEditChart(contextMenu.file.path)}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            className="context-menu-item"
+                        >
+                            <LuChartBar size={14} /> Edit Chart
                         </div>
                     )}
 

@@ -17,6 +17,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
     const [defaultModel, setDefaultModel] = useState('qwen3:1.7b');
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState(null);
+    const [geminiUsage, setGeminiUsage] = useState({ flashLite: 0, flash: 0, pro: 0, tokens: 0 });
 
     // Ollama Specific State
     const [installedModels, setInstalledModels] = useState([]);
@@ -36,6 +37,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                     setGeminiApiKey(data.geminiApiKey || '');
                     setProvider(data.provider || 'ollama');
                     setDefaultModel(data.defaultModel || 'qwen3:1.7b');
+                    if (data.usage) {
+                        setGeminiUsage(data.usage);
+                    }
                     if (data.provider !== 'gemini') {
                         fetchInstalledModels();
                     }
@@ -75,6 +79,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ geminiApiKey, provider, defaultModel })
             });
+
+            // Dispatch event to sync other components
+            window.dispatchEvent(new Event('amox_settings_updated'));
+
             setSaveMessage({ type: 'success', text: 'Settings saved successfully' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (err) {
@@ -152,8 +160,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
             <div style={{
                 backgroundColor: 'var(--modal-bg)',
                 color: 'var(--text-color)',
-                width: '900px', // Enlarged width
-                height: '650px', // Enlarged height
+                width: '1350px', // Enlarged width
+                height: '975px', // Enlarged height
                 borderRadius: '8px',
                 display: 'flex',
                 overflow: 'hidden',
@@ -326,21 +334,85 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
 
                                 {/* Gemini Specific */}
                                 {provider === 'gemini' && (
-                                    <div style={{ animation: 'fadeIn 0.3s' }}>
-                                        <h3 style={{ fontSize: '15px', marginBottom: '10px', color: 'var(--text-active)' }}>Gemini Configuration</h3>
-                                        <input
-                                            type="password"
-                                            value={geminiApiKey}
-                                            onChange={(e) => setGeminiApiKey(e.target.value)}
-                                            placeholder="Enter your Gemini API Key"
-                                            style={{
-                                                width: '100%', maxWidth: '400px', padding: '12px', backgroundColor: 'var(--input-bg)',
-                                                color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '6px', boxSizing: 'border-box', outline: 'none'
-                                            }}
-                                        />
-                                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                                            Your key is stored securely in your computer's home directory (`~/.amoxsql/`).
-                                        </p>
+                                    <div style={{ animation: 'fadeIn 0.3s', display: 'flex', gap: '25px', flexDirection: 'column' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                            <div style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px' }}>
+                                                <h3 style={{ fontSize: '15px', margin: '0 0 15px 0', color: 'var(--text-active)' }}>Authentication</h3>
+
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <input
+                                                        type={geminiApiKey ? "password" : "text"}
+                                                        value={geminiApiKey}
+                                                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                                                        placeholder="Enter your Gemini API Key"
+                                                        style={{
+                                                            flex: 1, padding: '12px', backgroundColor: 'var(--input-bg)',
+                                                            color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '6px', outline: 'none',
+                                                            fontFamily: geminiApiKey ? 'monospace' : 'inherit'
+                                                        }}
+                                                    />
+                                                    {geminiApiKey && (
+                                                        <button
+                                                            onClick={() => setGeminiApiKey('')}
+                                                            title="Clear API Key"
+                                                            style={{
+                                                                padding: '12px', backgroundColor: 'var(--sidebar-item-active-bg)',
+                                                                border: '1px solid var(--border-color)', borderRadius: '6px',
+                                                                color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            <LuX size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px', lineHeight: '1.4' }}>
+                                                    Your key is stored securely in your computer's home directory (`~/.amoxsql/`). Removing it here will delete it from your local storage upon saving.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                                <h3 style={{ fontSize: '15px', margin: 0, color: 'var(--text-active)' }}>Daily Free Tier Usage (2026 Limits)</h3>
+                                            </div>
+
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                                                <div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-active)', marginBottom: '6px', fontWeight: '500' }}>
+                                                        <span>2.5 Flash-Lite</span>
+                                                        <span>{geminiUsage.flashLite} / 1000</span>
+                                                    </div>
+                                                    <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${Math.min((geminiUsage.flashLite / 1000) * 100, 100)}%`, backgroundColor: '#ff9800', transition: 'width 0.3s ease' }}></div>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-active)', marginBottom: '6px', fontWeight: '500' }}>
+                                                        <span>2.5 Flash</span>
+                                                        <span>{geminiUsage.flash} / 250</span>
+                                                    </div>
+                                                    <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${Math.min((geminiUsage.flash / 250) * 100, 100)}%`, backgroundColor: '#4ade80', transition: 'width 0.3s ease' }}></div>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-active)', marginBottom: '6px', fontWeight: '500' }}>
+                                                        <span>2.5 Pro</span>
+                                                        <span>{geminiUsage.pro} / 100</span>
+                                                    </div>
+                                                    <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${Math.min((geminiUsage.pro / 100) * 100, 100)}%`, backgroundColor: '#00ffff', transition: 'width 0.3s ease' }}></div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                                    <span>Total Tokens Consumed</span>
+                                                    <span style={{ color: 'var(--text-active)', fontWeight: 'bold', fontSize: '14px' }}>{geminiUsage.tokens.toLocaleString()} <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>/ 4,000,000</span></span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 

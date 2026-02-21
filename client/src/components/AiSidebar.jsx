@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { LuBot, LuX, LuLoader, LuDatabase, LuSettings, LuCpu, LuCloud, LuSparkles, LuTable, LuFile, LuBan } from 'react-icons/lu';
 
 const GEMINI_MODELS = [
+    { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', size: 'Cloud' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', size: 'Cloud' },
     { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', size: 'Cloud' },
     { id: 'custom', label: 'Custom Model...', size: 'Cloud' }
@@ -72,6 +73,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
         };
 
         loadConfig();
+
+        window.addEventListener('amox_settings_updated', loadConfig);
+        return () => window.removeEventListener('amox_settings_updated', loadConfig);
     }, []);
 
     const handleDrop = (e) => {

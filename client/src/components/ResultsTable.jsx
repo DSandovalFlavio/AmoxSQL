@@ -1,20 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet } from "react-icons/lu";
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 
-const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false }) => {
+const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
 
     // View State
-    const [viewMode, setViewMode] = useState('table');
+    const [viewMode, setViewMode] = useState(initialChartConfig ? 'chart' : 'table');
 
     // Enhanced Table State
     const [globalSearch, setGlobalSearch] = useState('');
+    const deferredGlobalSearch = useDeferredValue(globalSearch);
+
     const [sortConfig, setSortConfig] = useState(null); // { key: string, direction: 'asc' | 'desc' }
+
     const [columnFilters, setColumnFilters] = useState({}); // { [key]: rawFilterString }
+    const deferredColumnFilters = useDeferredValue(columnFilters);
+
     const [showFilters, setShowFilters] = useState(false); // Toggle filter row
 
     // Reset page when data changes
@@ -38,55 +43,60 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
     // --- Data Processing Pipeline ---
 
     // 1. Filtering (Global & Column)
-    const filteredData = data.filter(row => {
-        // Global Search
-        if (globalSearch) {
-            const searchLower = globalSearch.toLowerCase();
-            const rowMatches = Object.values(row).some(val =>
-                String(val).toLowerCase().includes(searchLower)
-            );
-            if (!rowMatches) return false;
-        }
+    const filteredData = useMemo(() => {
+        return data.filter(row => {
+            // Global Search
+            if (deferredGlobalSearch) {
+                const searchLower = deferredGlobalSearch.toLowerCase();
+                const rowMatches = Object.values(row).some(val =>
+                    String(val).toLowerCase().includes(searchLower)
+                );
+                if (!rowMatches) return false;
+            }
 
-        // Column Filters
-        if (showFilters) {
-            for (const [col, filterVal] of Object.entries(columnFilters)) {
-                if (!filterVal) continue;
-                const cellVal = row[col];
-                const filterLower = filterVal.toLowerCase();
-                if (!String(cellVal).toLowerCase().includes(filterLower)) {
-                    return false; // Mismatch
+            // Column Filters
+            if (showFilters) {
+                for (const [col, filterVal] of Object.entries(deferredColumnFilters)) {
+                    if (!filterVal) continue;
+                    const cellVal = row[col];
+                    const filterLower = filterVal.toLowerCase();
+                    if (!String(cellVal).toLowerCase().includes(filterLower)) {
+                        return false; // Mismatch
+                    }
                 }
             }
-        }
 
-        return true;
-    });
+            return true;
+        });
+    }, [data, deferredGlobalSearch, deferredColumnFilters, showFilters]);
 
     // 2. Sorting
-    const sortedData = [...filteredData];
-    if (sortConfig) {
-        sortedData.sort((a, b) => {
-            const valA = a[sortConfig.key];
-            const valB = b[sortConfig.key];
+    const sortedData = useMemo(() => {
+        const sorted = [...filteredData];
+        if (sortConfig) {
+            sorted.sort((a, b) => {
+                const valA = a[sortConfig.key];
+                const valB = b[sortConfig.key];
 
-            if (valA === valB) return 0;
-            if (valA === null || valA === undefined) return 1;
-            if (valB === null || valB === undefined) return -1;
+                if (valA === valB) return 0;
+                if (valA === null || valA === undefined) return 1;
+                if (valB === null || valB === undefined) return -1;
 
-            // Numeric Sort
-            if (typeof valA === 'number' && typeof valB === 'number') {
-                return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
-            }
+                // Numeric Sort
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+                }
 
-            // String Sort
-            const strA = String(valA).toLowerCase();
-            const strB = String(valB).toLowerCase();
-            if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-    }
+                // String Sort
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+                if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return sorted;
+    }, [filteredData, sortConfig]);
 
     // 3. Pagination
     const totalRows = sortedData.length;
@@ -348,7 +358,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                         </tbody>
                     </table>
                 ) : (
-                    <DataVisualizer data={data} isReportMode={isReportMode} />
+                    <DataVisualizer data={data} isReportMode={isReportMode} query={query} initialChartConfig={initialChartConfig} />
                 )}
             </div>
 
