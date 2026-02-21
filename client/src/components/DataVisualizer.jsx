@@ -230,6 +230,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [gridMode, setGridMode] = useState(initialChartConfig?.gridMode || 'both'); // 'both', 'horizontal', 'vertical', 'none'
     const [showAxisLines, setShowAxisLines] = useState(initialChartConfig?.showAxisLines !== undefined ? initialChartConfig.showAxisLines : true);
 
+    // Chart Margins & Spacing
+    const [marginTop, setMarginTop] = useState(initialChartConfig?.marginTop !== undefined ? initialChartConfig.marginTop : 20);
+    const [marginBottom, setMarginBottom] = useState(initialChartConfig?.marginBottom !== undefined ? initialChartConfig.marginBottom : 10);
+    const [marginLeft, setMarginLeft] = useState(initialChartConfig?.marginLeft !== undefined ? initialChartConfig.marginLeft : 20);
+    const [marginRight, setMarginRight] = useState(initialChartConfig?.marginRight !== undefined ? initialChartConfig.marginRight : 30);
+    const [titleSpacing, setTitleSpacing] = useState(initialChartConfig?.titleSpacing !== undefined ? initialChartConfig.titleSpacing : 10);
+
     // Ref for chart export
     const chartRef = useRef(null);
 
@@ -692,8 +699,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     let defaultXLabel = "X Axis Column";
     let defaultYLabel = "Y Axis Columns";
     if (chartType === 'bar-horizontal') {
-        defaultXLabel = "Category Column (Y-Axis)";
-        defaultYLabel = "Value Columns (X-Axis)";
+        defaultXLabel = "Values";
+        defaultYLabel = "Categories";
     } else if (chartType === 'donut') {
         defaultXLabel = "Segment Label";
         defaultYLabel = "Segment Size";
@@ -701,20 +708,25 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
     // Chart Configuration Constants
     const CommonProps = useMemo(() => {
-        let pt = 20;
-        let pb = 10;
-        if (chartFootnote) pb += 20;
+        let pt = Number(marginTop);
+        let pb = Number(marginBottom);
+        if (chartFootnote) pb += 15;
 
         if (legendPosition === 'top') pt += 5; // Space strictly for legend
-        if (legendPosition === 'bottom') pb += 5; // 40 + 30 = 70. Very stable.
+        if (legendPosition === 'bottom') pb += 10; // Only add space if legend is actually at the bottom
 
-        const margin = { top: pt, right: 30, left: 20, bottom: pb };
+        // Give extra left margin when a Y-axis label is active so it doesn't squish into the axis numbers
+        let pl = Number(marginLeft);
+        if (showYAxisTitle && chartType !== 'bar-horizontal') pl += 15;
+        if (showXAxisTitle && chartType === 'bar-horizontal') pl += 15;
+
+        const margin = { top: pt, right: Number(marginRight), left: pl, bottom: pb };
         return {
             data: processedData,
             margin: margin,
             style: { fontSize: '12px' }
         };
-    }, [processedData, legendPosition, xAxisLabelAngle, chartFootnote]);
+    }, [processedData, legendPosition, xAxisLabelAngle, chartFootnote, marginTop, marginBottom, marginLeft, marginRight, showYAxisTitle, showXAxisTitle, chartType]);
 
     // Domain & Scale
     const yDomain = useMemo(() => [
@@ -741,6 +753,33 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         // Cap it between 60 and 400 pixels to allow much longer labels natively
         return Math.min(Math.max(calculatedWidth, 60), 400);
     }, [processedData, xAxisKey, chartType, xAxisTickFormatter, showXAxisTitle]);
+
+    // Calculate dynamic X-axis height to prevent rotated label cutoff
+    const dynamicXAxisHeight = useMemo(() => {
+        if (!processedData || processedData.length === 0) return 30;
+
+        let baseHeight = showXAxisTitle ? 30 : 10;
+        if (chartType === 'bar-horizontal') return baseHeight + 15; // Only numbers on bottom X
+
+        const angle = Number(xAxisLabelAngle);
+
+        if (angle === 0) return baseHeight + 20; // Default flat labels
+
+        let maxLength = 0;
+        processedData.forEach(d => {
+            const labelStr = xAxisTickFormatter(d[xAxisKey]);
+            if (labelStr && labelStr.length > maxLength) {
+                maxLength = labelStr.length;
+            }
+        });
+
+        // Trigonometry: height required = string_length * sin(angle) * pixels_per_char
+        const angleRad = angle * (Math.PI / 180);
+        const textHeight = Math.abs(Math.sin(angleRad)) * (maxLength * 6); // ~6px wide font assuming 11px font size
+
+        // Add 10px tick padding -> clamp max sizes logically
+        return Math.min(Math.max(baseHeight + textHeight + 10, 40), 180);
+    }, [processedData, xAxisKey, xAxisLabelAngle, xAxisTickFormatter, showXAxisTitle]);
 
     // Ref Line Element
     const renderRefLine = () => {
@@ -807,7 +846,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                     tickFormatter={xAxisTickFormatter}
                                     label={showXAxisTitle ? { value: XLabel, position: 'insideBottom', offset: -5, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
-                                    height={showXAxisTitle ? 40 : 25}
+                                    height={dynamicXAxisHeight}
                                 />
                                 <YAxis
                                     yAxisId="left"
@@ -915,8 +954,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                             tickFormatter={formatNumber}
                                             domain={yDomain}
                                             scale={yScale}
-                                            label={showYAxisTitle ? { value: YLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
-                                            height={showYAxisTitle ? 50 : 25}
+                                            label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
+                                            height={showXAxisTitle ? 30 : 5}
                                         />
                                         <YAxis
                                             {...axisCommonProps}
@@ -926,7 +965,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                                             width={dynamicYAxisWidth}
                                             tickFormatter={xAxisTickFormatter}
-                                            label={showXAxisTitle ? { value: XLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 } : undefined}
+                                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: 12 } : undefined}
                                         />
                                     </>
                                 ) : (
@@ -938,7 +977,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                             tick={xAxisTickProps}
                                             tickFormatter={xAxisTickFormatter}
                                             label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
-                                            height={Number(xAxisLabelAngle) > 0 ? (showXAxisTitle ? 80 : 60) : (showXAxisTitle ? 50 : 25)}
+                                            height={dynamicXAxisHeight}
                                         />
                                         <YAxis
                                             yAxisId="left"
@@ -1044,7 +1083,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     interval="preserveStartEnd"
                                     domain={['auto', 'auto']}
                                     label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: 12 } : undefined}
-                                    height={Number(xAxisLabelAngle) > 0 ? (showXAxisTitle ? 80 : 60) : (showXAxisTitle ? 50 : 25)}
+                                    height={dynamicXAxisHeight}
                                 />
                                 <YAxis
                                     yAxisId="left"
@@ -1235,6 +1274,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
             yLogScale, yAxisDomain, refLine, refArea, highlightConfig, seriesConfig,
             chartTitle, chartSubtitle, chartFootnote, textAlign, showAxisLines, tooltipShowPercent,
             showXAxisTitle, showYAxisTitle,
+            marginTop, marginBottom, marginLeft, marginRight, titleSpacing, // New margin/spacing configs
             query: query // Including the SQL query
         };
 
@@ -1323,6 +1363,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                 if (config.showLabels !== undefined) setShowLabels(config.showLabels);
                 if (config.tooltipShowPercent !== undefined) setTooltipShowPercent(config.tooltipShowPercent);
                 if (config.dataLabelPosition) setDataLabelPosition(config.dataLabelPosition);
+                // Load new margin/spacing configs
+                if (config.marginTop !== undefined) setMarginTop(config.marginTop);
+                if (config.marginBottom !== undefined) setMarginBottom(config.marginBottom);
+                if (config.marginLeft !== undefined) setMarginLeft(config.marginLeft);
+                if (config.marginRight !== undefined) setMarginRight(config.marginRight);
+                if (config.titleSpacing !== undefined) setTitleSpacing(config.titleSpacing);
             } catch (err) {
                 console.error("Error loading config:", err);
                 alert("Failed to parse configuration file.");
@@ -1624,27 +1670,115 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Subtitle</label>
                                     <input type="text" placeholder="Chart Subtitle" defaultValue={chartSubtitle} ref={subtitleRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                 </div>
-                                <div style={{ marginBottom: '10px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Footnote / Comments</label>
-                                    <textarea placeholder="Add comments, sources, or insights..." defaultValue={chartFootnote} ref={footnoteRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', minHeight: '50px', resize: 'vertical' }} />
+                                <div style={{ marginBottom: '8px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Footnote</label>
+                                    <input type="text" placeholder="Data source or footnote" defaultValue={chartFootnote} ref={footnoteRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                 </div>
-
-                                <button
-                                    onClick={() => {
-                                        setChartTitle(titleRef.current?.value || '');
-                                        setChartSubtitle(subtitleRef.current?.value || '');
-                                        setChartFootnote(footnoteRef.current?.value || '');
-                                    }}
-                                    style={{
-                                        width: '100%', backgroundColor: 'var(--panel-section-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: '500'
-                                    }}
-                                    onMouseOver={(e) => e.target.style.backgroundColor = 'var(--input-bg)'}
-                                    onMouseOut={(e) => e.target.style.backgroundColor = 'var(--panel-section-bg)'}
-                                >
+                                <button onClick={() => { setChartTitle(titleRef.current.value); setChartSubtitle(subtitleRef.current.value); setChartFootnote(footnoteRef.current.value); }} style={{ width: '100%', padding: '6px', background: 'var(--accent-color-user)', color: 'var(--btn-text)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', marginTop: '5px' }}>
                                     Apply Text
                                 </button>
                             </div>
 
+                            {/* --- SPACING & MARGINS --- */}
+                            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Margins & Spacing</h4>
+
+                                <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Title Gap</label>
+                                        <input type="number" value={titleSpacing} onChange={(e) => setTitleSpacing(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Top</label>
+                                        <input type="number" value={marginTop} onChange={(e) => setMarginTop(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Bottom</label>
+                                        <input type="number" value={marginBottom} onChange={(e) => setMarginBottom(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Left</label>
+                                        <input type="number" value={marginLeft} onChange={(e) => setMarginLeft(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Right</label>
+                                        <input type="number" value={marginRight} onChange={(e) => setMarginRight(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
+                                    </div>
+                                    <div style={{ flex: 1 }}></div>
+                                </div>
+                            </div>
+
+                            {/* --- DONUT CENTER KPI --- */}
+                            {chartType === 'donut' && (
+                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Donut Center</h4>
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Center Metric Overlay</label>
+                                        <select value={donutCenterKpi} onChange={(e) => setDonutCenterKpi(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
+                                            <option value="none">None</option>
+                                            <option value="total">Sum of Values (Total)</option>
+                                            <option value="average">Average of Values</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- REFERENCE LINE --- */}
+                            {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
+                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Line</h4>
+                                    <div style={{ marginBottom: '8px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
+                                        <input type="text" placeholder="Enter value..." value={refLine.value} onChange={(e) => setRefLine({ ...refLine, value: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                    </div>
+                                    <div style={{ marginBottom: '8px' }}>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label</label>
+                                        <input type="text" placeholder="e.g. Goal" value={refLine.label} onChange={(e) => setRefLine({ ...refLine, label: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
+                                        <SimpleColorPicker color={refLine.color} onChange={(val) => setRefLine({ ...refLine, color: val })} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- REFERENCE AREA --- */}
+                            <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Area (Range)</h4>
+
+                                <div style={{ marginBottom: '8px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Range</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input type="text" placeholder="Start" value={refArea.x1} onChange={(e) => setRefArea({ ...refArea, x1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                        <input type="text" placeholder="End" value={refArea.x2} onChange={(e) => setRefArea({ ...refArea, x2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                    </div>
+                                </div>
+
+                                <div style={{ marginBottom: '8px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Range</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input type="text" placeholder="Start" value={refArea.y1} onChange={(e) => setRefArea({ ...refArea, y1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                        <input type="text" placeholder="End" value={refArea.y2} onChange={(e) => setRefArea({ ...refArea, y2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
+                                    </div>
+                                </div>
+
+                                <div style={{ marginBottom: '8px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
+                                    <SimpleColorPicker color={refArea.color} onChange={(val) => setRefArea({ ...refArea, color: val })} />
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* --- TAB: STYLE --- */}
+                    {activeTab === 'style' && (
+                        <>
                             {/* --- DATA LABELS --- */}
                             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                 <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Data Labels & Annotations</h4>
@@ -1663,10 +1797,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 {showLabels && chartType !== 'donut' && (
                                     <div style={{ paddingLeft: '22px', marginBottom: '10px', marginTop: '10px' }}>
                                         <select value={dataLabelPosition} onChange={(e) => setDataLabelPosition(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
-                                            <option value="outside">Outside (Fuera)</option>
-                                            <option value="inside-center">Inside Center (Dentro - Medio)</option>
-                                            <option value="inside-start">Inside Start (Dentro - Inicio)</option>
-                                            <option value="inside-end">Inside End (Dentro - Final)</option>
+                                            <option value="outside">Outside</option>
+                                            <option value="inside-center">Inside Center</option>
+                                            <option value="inside-start">Inside Start</option>
+                                            <option value="inside-end">Inside End</option>
                                         </select>
                                     </div>
                                 )}
@@ -1694,45 +1828,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 )}
                             </div>
 
-                            {/* --- DONUT CENTER KPI --- */}
-                            {chartType === 'donut' && (
-                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Donut Center</h4>
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>Center Metric Overlay</label>
-                                        <select value={donutCenterKpi} onChange={(e) => setDonutCenterKpi(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
-                                            <option value="none">None</option>
-                                            <option value="total">Sum of Values (Total)</option>
-                                            <option value="average">Average of Values</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* --- REFERENCE LINE --- */}
-                            {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter') && (
-                                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Line</h4>
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
-                                        <input type="number" placeholder="Enter value..." value={refLine.value} onChange={(e) => setRefLine({ ...refLine, value: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
-                                    </div>
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label</label>
-                                        <input type="text" placeholder="e.g. Goal" value={refLine.label} onChange={(e) => setRefLine({ ...refLine, label: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
-                                        <SimpleColorPicker color={refLine.color} onChange={(val) => setRefLine({ ...refLine, color: val })} />
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {/* --- TAB: STYLE --- */}
-                    {activeTab === 'style' && (
-                        <>
                             {/* --- LEGEND SETTINGS --- */}
                             {(chartType === 'line' || chartType === 'bar' || chartType === 'bar-horizontal' || chartType === 'scatter' || chartType === 'donut') && (
                                 <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
@@ -1912,6 +2007,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     </>
                                 )}
                             </div>
+
                         </>
                     )}
 
@@ -1940,16 +2036,16 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     </label>
 
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                        <input type="checkbox" checked={yLogScale} onChange={(e) => setYLogScale(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Logarithmic Scale (Y)
+                                        <input type="checkbox" checked={yLogScale} onChange={(e) => setYLogScale(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Logarithmic Scale ({chartType === 'bar-horizontal' ? 'Bottom Values' : 'Y'})
                                     </label>
 
                                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                                         <div style={{ flex: 1 }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Min</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>{chartType === 'bar-horizontal' ? 'Bottom Value Min' : 'Y Min'}</label>
                                             <input type="number" placeholder="Auto" value={yAxisDomain[0] === 'auto' ? '' : yAxisDomain[0]} onChange={(e) => setYAxisDomain([e.target.value === '' ? 'auto' : e.target.value, yAxisDomain[1]])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Max</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>{chartType === 'bar-horizontal' ? 'Bottom Value Max' : 'Y Max'}</label>
                                             <input type="number" placeholder="Auto" value={yAxisDomain[1] === 'auto' ? '' : yAxisDomain[1]} onChange={(e) => setYAxisDomain([yAxisDomain[0], e.target.value === '' ? 'auto' : e.target.value])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                         </div>
                                     </div>
@@ -1966,7 +2062,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                                     <div style={{ marginBottom: '8px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '10px', color: '#888' }}>X-Axis Title</label>
+                                            <label style={{ fontSize: '10px', color: '#888' }}>{chartType === 'bar-horizontal' ? 'Bottom Axis (X) Title' : 'X-Axis Title'}</label>
                                             <label style={{ fontSize: '10px', color: '#ccc', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                                                 <input type="checkbox" checked={showXAxisTitle} onChange={(e) => setShowXAxisTitle(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show
                                             </label>
@@ -1975,7 +2071,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     </div>
                                     <div style={{ marginBottom: '8px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '10px', color: '#888' }}>Y-Axis Title</label>
+                                            <label style={{ fontSize: '10px', color: '#888' }}>{chartType === 'bar-horizontal' ? 'Left Axis (Y) Title' : 'Y-Axis Title'}</label>
                                             <label style={{ fontSize: '10px', color: '#ccc', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                                                 <input type="checkbox" checked={showYAxisTitle} onChange={(e) => setShowYAxisTitle(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show
                                             </label>
@@ -1983,54 +2079,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                         <input type="text" placeholder={defaultYLabel} value={customAxisTitles.y} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', opacity: showYAxisTitle ? 1 : 0.5 }} disabled={!showYAxisTitle} />
                                     </div>
 
-                                    {/* Reference Line */}
-                                    <div style={{ marginBottom: '15px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
-                                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-active)', marginBottom: '10px', fontWeight: '600', textTransform: 'uppercase' }}>Reference Line</label>
-
-                                        <div style={{ marginBottom: '8px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
-                                            <input type="text" placeholder="Enter value..." value={refLine.value} onChange={(e) => setRefLine({ ...refLine, value: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
-                                        </div>
-
-                                        <div style={{ marginBottom: '8px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label</label>
-                                            <input type="text" placeholder="e.g. Goal" value={refLine.label} onChange={(e) => setRefLine({ ...refLine, label: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
-                                        </div>
-
-                                        <div style={{ marginBottom: '8px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
-                                            <SimpleColorPicker color={refLine.color} onChange={(val) => setRefLine({ ...refLine, color: val })} />
-                                        </div>
-                                    </div>
-
-                                    {/* Reference Area */}
-                                    <div style={{ marginBottom: '15px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
-                                        <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-active)', marginBottom: '10px', fontWeight: '600', textTransform: 'uppercase' }}>Reference Area (Range)</label>
-
-                                        <div style={{ marginBottom: '8px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Range</label>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                <input type="text" placeholder="Start" value={refArea.x1} onChange={(e) => setRefArea({ ...refArea, x1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
-                                                <input type="text" placeholder="End" value={refArea.x2} onChange={(e) => setRefArea({ ...refArea, x2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
-                                            </div>
-                                        </div>
-
-                                        <div style={{ marginBottom: '8px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Range</label>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                <input type="text" placeholder="Start" value={refArea.y1} onChange={(e) => setRefArea({ ...refArea, y1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
-                                                <input type="text" placeholder="End" value={refArea.y2} onChange={(e) => setRefArea({ ...refArea, y2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
-                                            </div>
-                                        </div>
-
-                                        <div style={{ marginBottom: '8px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
-                                            <SimpleColorPicker color={refArea.color} onChange={(val) => setRefArea({ ...refArea, color: val })} />
-                                        </div>
-                                    </div>
-
                                     {(chartType === 'line' || chartType === 'bar') && (
-                                        <div style={{ marginTop: '10px' }}>
+                                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
                                             <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Label Rotation</label>
                                             <select value={xAxisLabelAngle} onChange={(e) => setXAxisLabelAngle(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
                                                 <option value="0">0° (Horizontal)</option>
@@ -2059,7 +2109,21 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     padding: '40px'
                 } : {})
             }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: isFullscreen ? '0 0 10px 0' : '10px 20px 0 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: isFullscreen ? '0 0 10px 0' : '10px 20px 0 0' }}>
+                    {isFullscreen && (
+                        <button
+                            onClick={handleDownload}
+                            title="Download Chart as PNG"
+                            style={{
+                                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                                display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e) => { e.target.style.color = 'var(--text-active)'; e.target.style.borderColor = 'var(--accent-color-user)'; }}
+                            onMouseOut={(e) => { e.target.style.color = 'var(--text-muted)'; e.target.style.borderColor = 'var(--border-color)'; }}
+                        >
+                            <LuDownload size={14} /> PNG
+                        </button>
+                    )}
                     <button
                         onClick={() => setIsFullscreen(!isFullscreen)}
                         title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Data'}
@@ -2074,12 +2138,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     </button>
                 </div>
                 <div ref={chartRef} style={{ flex: 1, padding: isFullscreen ? '0 20px 20px 20px' : '0 20px 20px 20px', display: 'flex', flexDirection: 'column', minHeight: '300px' }}>
-                    {chartTitle && <h2 style={{ textAlign: textAlign, margin: '0 0 5px 0', color: 'var(--text-active)', fontSize: '18px', fontWeight: '600', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartTitle}</h2>}
-                    {chartSubtitle && <h3 style={{ textAlign: textAlign, margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '14px', fontWeight: '400', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartSubtitle}</h3>}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+                    {chartTitle && <h2 style={{ textAlign: textAlign, margin: `0 0 ${titleSpacing}px 0`, color: 'var(--text-active)', fontSize: '18px', fontWeight: '600', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartTitle}</h2>}
+                    {chartSubtitle && <h3 style={{ textAlign: textAlign, margin: `0 0 ${titleSpacing}px 0`, color: 'var(--text-muted)', fontSize: '14px', fontWeight: '400', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartSubtitle}</h3>}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '10px', minWidth: '10px', width: '100%', height: '100%' }}>
                         {ChartContent}
                     </div>
-                    {chartFootnote && <div style={{ textAlign: textAlign, marginTop: '5px', color: 'var(--text-muted)', fontSize: '12px', fontStyle: 'italic', borderTop: '1px solid var(--border-color)', paddingTop: '5px', whiteSpace: 'pre-wrap', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartFootnote}</div>}
+                    {chartFootnote && <div style={{ textAlign: textAlign, marginTop: `${titleSpacing}px`, color: 'var(--text-muted)', fontSize: '12px', fontStyle: 'italic', borderTop: '1px solid var(--border-color)', paddingTop: '5px', whiteSpace: 'pre-wrap', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartFootnote}</div>}
                 </div>
             </div >
         </div >
