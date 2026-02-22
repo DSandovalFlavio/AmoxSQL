@@ -10,6 +10,8 @@
 [![Built for DuckDB](https://img.shields.io/badge/Built%20for-DuckDB-fff000?logo=duckdb&logoColor=black)](https://duckdb.org/)
 [![License: Source Available](https://img.shields.io/badge/License-Source%20Available-blue)](./LICENSE)
 [![Maintainer](https://img.shields.io/badge/maintainer-@dsandovalflavio-blue)](https://github.com/dsandovalflavio)
+[![Official Website](https://img.shields.io/badge/🌐_Official_Website-AmoxSQL-00ffff)](https://dsandovalflavio.github.io/amoxsql-landing-page/)
+[![Sponsor](https://img.shields.io/badge/❤️_Sponsor-GitHub_Sponsors-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/dsandovalflavio)
 
 **AmoxSQL** is a professional, high-performance Local Data IDE built specifically for [DuckDB](https://duckdb.org/). Designed for serious data analysts and engineers who need speed, privacy, and advanced tooling without the cloud overhead.
 
@@ -71,6 +73,7 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 * **SQL Notebooks (`.sqlnb`)**: A Jupyter-like experience for SQL. Combine rich Markdown documentation with executable SQL cells in a single document.
     *   **Presentation Mode**: Switch to "Report View" to hide code cells and display only Markdown text, interactive charts, and data tables.
     *   **PDF Export**: Export your full notebook as a clean, professional PDF report directly from Presentation Mode.
+    *   **HTML Export**: Generate a self-contained, interactive HTML report with sortable tables and embedded charts — perfect for sharing via email or Slack.
 * **Save Queries**: Save your work directly as `.sql` files within your project structure.
 
 ### 📊 Data Visualization & IO
@@ -141,6 +144,19 @@ If you are a student, hobbyist, or prefer to compile it yourself:
 
 ---
 
+## 💖 Support the Project
+
+AmoxSQL is built with passion from Latin America. If it's useful to you, consider supporting its development:
+
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor_on_GitHub-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/dsandovalflavio)
+
+Your sponsorship helps fund:
+- 🚀 New features and integrations
+- 🐛 Bug fixes and performance improvements
+- 📚 Documentation and community resources
+
+---
+
 ## ⚖️ License
 
 This project is source-available under the **AmoxSQL Community License**.
@@ -179,7 +195,9 @@ Whether it's reporting bugs, suggesting features, or submitting pull requests, y
 ---
 
 <p align="center">
-  Created with 💙 by <a href="https://github.com/dsandovalflavio"><strong>@dsandovalflavio</strong></a>.
-  <br>
-  <em>From Latin America to the World.</em>
+  <a href="https://dsandovalflavio.github.io/amoxsql-landing-page/">🌐 Official Website</a> · 
+  <a href="https://github.com/sponsors/dsandovalflavio">💖 Sponsor</a> · 
+  <a href="https://github.com/dsandovalflavio">👤 @dsandovalflavio</a>
+  <br><br>
+  Created with 💙 from Latin America to the World.
 </p>
