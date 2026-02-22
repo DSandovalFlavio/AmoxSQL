@@ -287,7 +287,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
             )}
 
             {/* Results Content */}
-            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : 'auto', border: '1px solid var(--border-color)', marginTop: '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
                 {viewMode === 'table' ? (
                     <table style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>

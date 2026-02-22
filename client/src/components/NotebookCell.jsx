@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
 import DebugResultModal from './DebugResultModal';
+import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2 } from "react-icons/lu";
 
 const NotebookCell = ({
     id,
@@ -15,7 +16,8 @@ const NotebookCell = ({
     onMoveUp,
     onMoveDown,
     isPluginInstalled = true, // Assumption for now
-    isReportMode = false // New Prop
+    isReportMode = false, // New Prop
+    hideCodeInReport = true // Global control from Notebook
 }) => {
     const [isEditingMarkdown, setIsEditingMarkdown] = useState(false);
     const [localContent, setLocalContent] = useState(content);
@@ -149,30 +151,30 @@ const NotebookCell = ({
 
     return (
         <div className={isReportMode ? 'report-card' : ''} style={{
-            marginBottom: isReportMode ? undefined : '16px',
-            border: isReportMode ? undefined : '1px solid var(--border-color)',
-            borderRadius: '8px',
-            backgroundColor: isReportMode ? undefined : 'var(--panel-bg)',
+            marginBottom: isReportMode ? '0px' : '24px',
+            border: isReportMode ? 'none' : '1px solid var(--border-color)',
+            borderRadius: '12px',
+            backgroundColor: isReportMode ? 'transparent' : 'var(--panel-bg)',
             overflow: 'hidden',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            boxShadow: isReportMode ? 'none' : '0 2px 8px rgba(0,0,0,0.1)'
         }}>
             {/* ... Header ... */}
             {!isReportMode && (
                 <div style={{
-                    padding: '4px 8px',
+                    padding: '8px 16px',
                     backgroundColor: 'var(--header-bg)',
                     borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     color: 'var(--text-muted)'
                 }}>
-                    {/* ... Existing header content ... */}
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', color: type === 'code' ? '#4dabf7' : '#ffd43b', textTransform: 'uppercase' }}>
-                            {type}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '600', color: type === 'code' ? 'var(--accent-color-user)' : 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            {type === 'code' ? 'SQL' : 'Text'}
                         </span>
                         {type === 'code' && (
                             <button
@@ -183,24 +185,29 @@ const NotebookCell = ({
                                     opacity: 1,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '4px'
+                                    gap: '6px',
+                                    fontWeight: '600',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    padding: '4px 10px',
+                                    borderRadius: '4px'
                                 }}
                                 title="Run Cell (Ctrl+Enter)"
                             >
-                                ▶ Run
+                                <LuPlay size={14} fill="currentColor" /> Run
                             </button>
                         )}
                     </div>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={() => onMoveUp(id)} style={btnStyle} title="Move Up">↑</button>
-                        <button onClick={() => onMoveDown(id)} style={btnStyle} title="Move Down">↓</button>
-                        <button onClick={() => onDelete(id)} style={{ ...btnStyle, color: '#ff6b6b' }} title="Delete">🗑</button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button onClick={() => { onUpdate(id, localContent); onMoveUp(id); }} style={btnStyle} title="Move Up"><LuArrowUp size={16} /></button>
+                        <button onClick={() => { onUpdate(id, localContent); onMoveDown(id); }} style={btnStyle} title="Move Down"><LuArrowDown size={16} /></button>
+                        <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-color)', margin: '0 4px' }} />
+                        <button onClick={() => onDelete(id)} style={{ ...btnStyle, color: '#ff6b6b' }} title="Delete"><LuTrash2 size={14} /></button>
                     </div>
                 </div>
             )}
 
             {/* Cell Content */}
-            <div style={{ padding: type === 'markdown' && !isEditingMarkdown ? '12px' : '0' }}>
+            <div style={{ padding: type === 'markdown' && !isEditingMarkdown && !isReportMode ? '16px' : (isReportMode && type === 'markdown' ? '8px 0' : '0') }}>
                 {type === 'markdown' ? (
                     // ... markdown render ...
                     isEditingMarkdown && !isReportMode ? (
@@ -209,7 +216,7 @@ const NotebookCell = ({
                             onChange={(e) => setLocalContent(e.target.value)}
                             onBlur={handleBlur}
                             autoFocus
-                            style={{ width: '100%', minHeight: '100px', backgroundColor: 'var(--editor-bg)', color: 'var(--text-color)', border: 'none', padding: '12px', fontFamily: 'monospace', resize: 'vertical' }}
+                            style={{ width: '100%', minHeight: '120px', backgroundColor: 'var(--editor-bg)', color: 'var(--text-color)', border: 'none', padding: '16px', fontFamily: 'monospace', resize: 'vertical', fontSize: '14px', outline: 'none' }}
                             placeholder="Type markdown here... (Click outside to preview)"
                         />
                     ) : (
@@ -219,21 +226,21 @@ const NotebookCell = ({
                             title={isReportMode ? "" : "Double click to edit"}
                         >
                             {localContent.trim() ? (
-                                <div className="markdown-body" style={{ color: 'var(--text-color)' }}>
+                                <div className="markdown-body" style={{ color: 'var(--text-color)', fontSize: '15px', lineHeight: '1.6' }}>
                                     <ReactMarkdown>{localContent}</ReactMarkdown>
                                 </div>
                             ) : (
-                                !isReportMode && <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Empty Markdown Cell (Double click to edit)</span>
+                                !isReportMode && <div style={{ padding: '16px', fontStyle: 'italic', color: 'var(--text-muted)', backgroundColor: 'var(--editor-bg)', borderRadius: '6px' }}>Empty Markdown Cell (Double click to edit)</div>
                             )}
                         </div>
                     )
                 ) : (
                     // Code Cell
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div className="notebook-code-cell-content" style={{ display: 'flex', flexDirection: 'column' }}>
                         {/* Editor Area */}
-                        {!isReportMode && (
-                            <div style={{ height: 'auto', minHeight: '100px', borderLeft: '4px solid var(--accent-color-user)' }}>
-                                <div style={{ height: '150px' }} onKeyDown={handleKeyDown}>
+                        {!(isReportMode && hideCodeInReport) && (
+                            <div style={{ height: 'auto', minHeight: '120px', borderLeft: '3px solid var(--accent-color-user)', marginBottom: (isReportMode && result) ? '16px' : '0' }}>
+                                <div style={{ height: '180px' }} onKeyDown={handleKeyDown}>
                                     <SqlEditor
                                         value={localContent}
                                         onChange={(val) => {
@@ -249,14 +256,17 @@ const NotebookCell = ({
                         {result && (
                             <div style={{
                                 borderTop: !isReportMode ? '1px solid var(--border-color)' : 'none',
-                                backgroundColor: 'var(--editor-bg)',
+                                backgroundColor: isReportMode ? 'transparent' : 'var(--editor-bg)',
                                 display: 'flex',
-                                flexDirection: 'column'
+                                flexDirection: 'column',
+                                paddingTop: isReportMode ? '16px' : '0'
                             }}>
-                                {result.loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Running...</div>}
-                                {result.error && <div style={{ padding: '10px', color: '#ff6b6b' }}>Error: {result.error}</div>}
+                                {result.loading && <div style={{ padding: '12px 16px', color: 'var(--accent-color-user)', fontWeight: '600', fontSize: '13px' }}>Executing query...</div>}
+                                {result.error && <div style={{ padding: '12px 16px', color: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.1)', fontFamily: 'monospace', fontSize: '13px' }}>Error: {result.error}</div>}
                                 {result.data && (
-                                    <div style={{ height: isReportMode ? '500px' : '400px', overflow: 'hidden' }}>
+                                    <div style={{
+                                        ...!isReportMode ? { height: '400px', overflow: 'hidden' } : { height: 'auto', minHeight: '300px' }
+                                    }}>
                                         <ResultsTable
                                             data={result.data}
                                             executionTime={result.executionTime}

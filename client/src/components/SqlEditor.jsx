@@ -237,148 +237,151 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
 
         // Register Completion Provider
-        monaco.languages.registerCompletionItemProvider('sql', {
-            triggerCharacters: ['.', '/', "'", '"'],
-            provideCompletionItems: async (model, position) => {
-                const textUntilPosition = model.getValueInRange({
-                    startLineNumber: position.lineNumber,
-                    startColumn: 1,
-                    endLineNumber: position.lineNumber,
-                    endColumn: position.column
-                });
+        if (!window.__monacoSqlProviderRegistered) {
+            window.__monacoSqlProviderRegistered = true;
+            monaco.languages.registerCompletionItemProvider('sql', {
+                triggerCharacters: ['.', '/', "'", '"'],
+                provideCompletionItems: async (model, position) => {
+                    const textUntilPosition = model.getValueInRange({
+                        startLineNumber: position.lineNumber,
+                        startColumn: 1,
+                        endLineNumber: position.lineNumber,
+                        endColumn: position.column
+                    });
 
-                const word = model.getWordUntilPosition(position);
-                const range = {
-                    startLineNumber: position.lineNumber,
-                    endLineNumber: position.lineNumber,
-                    startColumn: word.startColumn,
-                    endColumn: word.endColumn,
-                };
+                    const word = model.getWordUntilPosition(position);
+                    const range = {
+                        startLineNumber: position.lineNumber,
+                        endLineNumber: position.lineNumber,
+                        startColumn: word.startColumn,
+                        endColumn: word.endColumn,
+                    };
 
-                // 1. FILE PATH AUTOCOMPLETE (Context: Inside quotes)
-                // Regex to check if we are inside a string literal (single or double quotes)
-                // Simple check: count quotes to left. If odd, we are open.
-                const singleQuotes = (textUntilPosition.match(/'/g) || []).length;
-                const doubleQuotes = (textUntilPosition.match(/"/g) || []).length;
+                    // 1. FILE PATH AUTOCOMPLETE (Context: Inside quotes)
+                    // Regex to check if we are inside a string literal (single or double quotes)
+                    // Simple check: count quotes to left. If odd, we are open.
+                    const singleQuotes = (textUntilPosition.match(/'/g) || []).length;
+                    const doubleQuotes = (textUntilPosition.match(/"/g) || []).length;
 
-                // Heuristic: If odd single/double quotes, we are likely in a string.
-                // We also check if the last char is / to trigger path suggestion
-                const isInsideSingleString = singleQuotes % 2 === 1;
-                // const isInsideDoubleString = doubleQuotes % 2 === 1; // SQL identifiers use double quotes, usually not file paths
+                    // Heuristic: If odd single/double quotes, we are likely in a string.
+                    // We also check if the last char is / to trigger path suggestion
+                    const isInsideSingleString = singleQuotes % 2 === 1;
+                    // const isInsideDoubleString = doubleQuotes % 2 === 1; // SQL identifiers use double quotes, usually not file paths
 
-                if (isInsideSingleString) {
-                    // Extract the string content being typed
-                    const match = textUntilPosition.match(/'([^']*)$/);
-                    const currentString = match ? match[1] : '';
+                    if (isInsideSingleString) {
+                        // Extract the string content being typed
+                        const match = textUntilPosition.match(/'([^']*)$/);
+                        const currentString = match ? match[1] : '';
 
-                    // Determine Directory to fetch
-                    // If ending with /, fetch that dir.
-                    // If not, fetch the parent dir.
-                    let dirToFetch = '';
-                    if (currentString.endsWith('/')) {
-                        dirToFetch = currentString;
-                    } else {
-                        const parts = currentString.split('/');
-                        parts.pop(); // Remove partial filename
-                        dirToFetch = parts.join('/');
+                        // Determine Directory to fetch
+                        // If ending with /, fetch that dir.
+                        // If not, fetch the parent dir.
+                        let dirToFetch = '';
+                        if (currentString.endsWith('/')) {
+                            dirToFetch = currentString;
+                        } else {
+                            const parts = currentString.split('/');
+                            parts.pop(); // Remove partial filename
+                            dirToFetch = parts.join('/');
+                        }
+
+                        // Call backend to list files
+                        try {
+                            const response = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dirToFetch)}`);
+                            const files = await response.json();
+
+                            // Map to suggestions
+                            // Note: ranges are handled by Monaco automatically if we don't specify, usually defaulting to 'wordUntilPosition'.
+                            // However, since we might be completing a complex path, checking the range is good.
+                            // Here we just let Monaco handle the filtering of the returned list against the "word" at cursor.
+
+                            const suggestions = files.map(f => ({
+                                label: f.name,
+                                kind: f.isDirectory ? monaco.languages.CompletionItemKind.Folder : monaco.languages.CompletionItemKind.File,
+                                insertText: f.name,
+                                detail: f.isDirectory ? 'Folder' : 'File',
+                                // Force sort order: folders then files
+                                sortText: (f.isDirectory ? '0_' : '1_') + f.name
+                            }));
+
+                            return { suggestions: suggestions };
+                        } catch (e) {
+                            return { suggestions: [] };
+                        }
                     }
 
-                    // Call backend to list files
-                    try {
-                        const response = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dirToFetch)}`);
-                        const files = await response.json();
+                    // 2. SQL AUTOCOMPLETE (Tables & Columns)
+                    const suggestions = [];
 
-                        // Map to suggestions
-                        // Note: ranges are handled by Monaco automatically if we don't specify, usually defaulting to 'wordUntilPosition'.
-                        // However, since we might be completing a complex path, checking the range is good.
-                        // Here we just let Monaco handle the filtering of the returned list against the "word" at cursor.
+                    // Check for "Table." context
+                    // Get the text before the current word
+                    // Handle both simple (users.) and quoted ("My Table".) identifiers
+                    const textBeforeCursor = textUntilPosition.substring(0, textUntilPosition.length - word.word.length);
+                    const tableMatch = textBeforeCursor.match(/(?:(\w+)|"([^"]+)")\.\s*$/);
 
-                        const suggestions = files.map(f => ({
-                            label: f.name,
-                            kind: f.isDirectory ? monaco.languages.CompletionItemKind.Folder : monaco.languages.CompletionItemKind.File,
-                            insertText: f.name,
-                            detail: f.isDirectory ? 'Folder' : 'File',
-                            // Force sort order: folders then files
-                            sortText: (f.isDirectory ? '0_' : '1_') + f.name
-                        }));
+                    if (tableMatch) {
+                        // Group 1 is simple, Group 2 is quoted
+                        const tableName = tableMatch[1] || tableMatch[2];
+                        const columns = schemaCache.tables[tableName];
 
-                        return { suggestions: suggestions };
-                    } catch (e) {
-                        return { suggestions: [] };
+                        if (columns) {
+                            // Return ONLY columns for this table
+                            columns.forEach(col => {
+                                suggestions.push({
+                                    label: col.name, // Access .name property from our improved schema structure
+                                    kind: monaco.languages.CompletionItemKind.Field,
+                                    insertText: col.name,
+                                    detail: col.type || 'Column',
+                                    range: range
+                                });
+                            });
+                            return { suggestions: suggestions };
+                        }
                     }
-                }
 
-                // 2. SQL AUTOCOMPLETE (Tables & Columns)
-                const suggestions = [];
+                    // Default Context (Global)
 
-                // Check for "Table." context
-                // Get the text before the current word
-                // Handle both simple (users.) and quoted ("My Table".) identifiers
-                const textBeforeCursor = textUntilPosition.substring(0, textUntilPosition.length - word.word.length);
-                const tableMatch = textBeforeCursor.match(/(?:(\w+)|"([^"]+)")\.\s*$/);
+                    // Tables
+                    Object.keys(schemaCache.tables).forEach(tableName => {
+                        suggestions.push({
+                            label: tableName,
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: tableName,
+                            detail: 'Table',
+                            range: range
+                        });
+                    });
 
-                if (tableMatch) {
-                    // Group 1 is simple, Group 2 is quoted
-                    const tableName = tableMatch[1] || tableMatch[2];
-                    const columns = schemaCache.tables[tableName];
-
-                    if (columns) {
-                        // Return ONLY columns for this table
-                        columns.forEach(col => {
+                    // Columns (Global, but lower priority)
+                    if (schemaCache.allColumns) {
+                        schemaCache.allColumns.forEach(col => {
                             suggestions.push({
-                                label: col.name, // Access .name property from our improved schema structure
+                                label: col,
                                 kind: monaco.languages.CompletionItemKind.Field,
-                                insertText: col.name,
-                                detail: col.type || 'Column',
-                                range: range
+                                insertText: col,
+                                detail: 'Column',
+                                range: range,
+                                sortText: 'z_' + col // Show columns after tables
                             });
                         });
-                        return { suggestions: suggestions };
                     }
-                }
 
-                // Default Context (Global)
-
-                // Tables
-                Object.keys(schemaCache.tables).forEach(tableName => {
-                    suggestions.push({
-                        label: tableName,
-                        kind: monaco.languages.CompletionItemKind.Class,
-                        insertText: tableName,
-                        detail: 'Table',
-                        range: range
-                    });
-                });
-
-                // Columns (Global, but lower priority)
-                if (schemaCache.allColumns) {
-                    schemaCache.allColumns.forEach(col => {
+                    // Keywords (Basic)
+                    const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'WITH', 'AS', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'HAVING', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'UNION', 'ALL', 'EXCEPT', 'INTERSECT', 'read_csv', 'read_parquet', 'read_json', 'read_xlsx'];
+                    keywords.forEach(kw => {
                         suggestions.push({
-                            label: col,
-                            kind: monaco.languages.CompletionItemKind.Field,
-                            insertText: col,
-                            detail: 'Column',
+                            label: kw,
+                            kind: monaco.languages.CompletionItemKind.Keyword,
+                            insertText: kw,
                             range: range,
-                            sortText: 'z_' + col // Show columns after tables
+                            sortText: 'y_' + kw
                         });
                     });
+
+                    return { suggestions: suggestions };
                 }
-
-                // Keywords (Basic)
-                const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'WITH', 'AS', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'HAVING', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'UNION', 'ALL', 'EXCEPT', 'INTERSECT', 'read_csv', 'read_parquet', 'read_json', 'read_xlsx'];
-                keywords.forEach(kw => {
-                    suggestions.push({
-                        label: kw,
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: kw,
-                        range: range,
-                        sortText: 'y_' + kw
-                    });
-                });
-
-                return { suggestions: suggestions };
-            }
-        });
+            });
+        }
     };
 
     return (

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import NotebookCell from './NotebookCell';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye } from "react-icons/lu";
 
 const CELL_MARKER_CODE = '-- !CELL:CODE!';
 const CELL_MARKER_MARKDOWN = '-- !CELL:MARKDOWN!';
@@ -123,52 +122,44 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
         if (targetIndex < 0 || targetIndex >= cells.length) return;
 
         const updated = [...cells];
+
+        // Generate new IDs so React fully unmounts & remounts Monaco Editor,
+        // avoiding "InstantiationService disposed" crashes during DOM rearrangement.
+        const originOldId = updated[index].id;
+        const targetOldId = updated[targetIndex].id;
+        const originNewId = Date.now() + Math.random();
+        const targetNewId = Date.now() + Math.random() + 1;
+
+        updated[index] = { ...updated[index], id: originNewId };
+        updated[targetIndex] = { ...updated[targetIndex], id: targetNewId };
+
         [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+
         setCells(updated);
+
+        // Migrate results to new IDs so we don't lose data tables
+        setResults(prev => {
+            const nextResults = { ...prev };
+            if (nextResults[originOldId]) {
+                nextResults[originNewId] = nextResults[originOldId];
+                delete nextResults[originOldId];
+            }
+            if (nextResults[targetOldId]) {
+                nextResults[targetNewId] = nextResults[targetOldId];
+                delete nextResults[targetOldId];
+            }
+            return nextResults;
+        });
+
         save(updated);
     };
 
     const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'report'
+    const [hideCodeInReport, setHideCodeInReport] = useState(false); // Global toggle for story mode
 
-    // HTML Export (Print)
-    const handleExportHtml = () => {
+    // Native Browser Print (PDF Export)
+    const handlePrint = () => {
         window.print();
-    };
-
-    // Long PDF Export
-    const handleExportLongPdf = async () => {
-        const element = document.querySelector('.notebook-container');
-        if (!element) return;
-
-        // Visual feedback could be added here (e.g., toast)
-
-        try {
-            const canvas = await html2canvas(element, {
-                scale: 2, // Retire retina quality
-                useCORS: true,
-                backgroundColor: '#1E1F22', // Dark background
-                logging: false,
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight
-            });
-
-            const imgData = canvas.toDataURL('image/png');
-            const imgWidth = canvas.width;
-            const imgHeight = canvas.height;
-
-            // Create PDF with exact dimensions of the content (px)
-            const pdf = new jsPDF({
-                orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
-                unit: 'px',
-                format: [imgWidth, imgHeight]
-            });
-
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            pdf.save(`notebook_report_${Date.now()}.pdf`);
-        } catch (err) {
-            console.error("PDF Export failed:", err);
-            alert("Failed to export PDF.");
-        }
     };
 
     const handleRun = async (cellId, cellContent) => {
@@ -187,52 +178,59 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
     return (
         <div className={`notebook-container ${viewMode === 'report' ? 'report-mode-container' : ''}`} style={{ padding: '20px', height: '100%', overflowY: 'auto', backgroundColor: 'var(--editor-bg)' }}>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            {/* In Report mode, we can add a bit of max-width for better reading aesthetics if desired, but we keep fluid for now */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--editor-bg)', paddingBottom: '10px', paddingTop: '10px' }}>
                 {/* Mode Toggle */}
-                <div style={{ display: 'flex', backgroundColor: 'var(--panel-bg)', padding: '4px', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', backgroundColor: 'var(--panel-bg)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <button
                         onClick={() => setViewMode('edit')}
                         style={{
                             padding: '6px 16px',
                             backgroundColor: viewMode === 'edit' ? 'var(--accent-color-user)' : 'transparent',
-                            color: viewMode === 'edit' ? '#fff' : 'var(--text-muted)',
-                            border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px'
+                            color: viewMode === 'edit' ? 'var(--button-text-color)' : 'var(--text-muted)',
+                            border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+                            display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease'
                         }}
                     >
-                        ✏️ Edit
+                        <LuPenLine size={14} /> Edit
                     </button>
                     <button
                         onClick={() => setViewMode('report')}
                         style={{
                             padding: '6px 16px',
                             backgroundColor: viewMode === 'report' ? 'var(--accent-color-user)' : 'transparent',
-                            color: viewMode === 'report' ? '#fff' : 'var(--text-muted)',
-                            border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px'
+                            color: viewMode === 'report' ? 'var(--button-text-color)' : 'var(--text-muted)',
+                            border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+                            display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease'
                         }}
                     >
-                        📄 Report
+                        <LuFileText size={14} /> Report
                     </button>
                 </div>
 
                 {viewMode === 'report' && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div className="report-toolbar-actions" style={{ display: 'flex', gap: '10px' }}>
                         <button
-                            onClick={handleExportHtml}
+                            onClick={() => setHideCodeInReport(!hideCodeInReport)}
                             style={{
-                                padding: '8px 16px', backgroundColor: '#2F425F', color: '#fff',
-                                border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+                                padding: '8px 16px', backgroundColor: 'var(--panel-bg)', color: 'var(--text-active)',
+                                border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                                display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px',
+                                opacity: hideCodeInReport ? 1 : 0.7
                             }}
+                            title="Toggle SQL Code Visibility"
                         >
-                            🖨 Print
+                            {hideCodeInReport ? <LuEyeOff size={14} /> : <LuEye size={14} />} {hideCodeInReport ? 'Code Hidden' : 'Code Visible'}
                         </button>
                         <button
-                            onClick={handleExportLongPdf}
+                            onClick={handlePrint}
                             style={{
-                                padding: '8px 16px', backgroundColor: 'var(--accent-color-user)', color: '#1e1f22',
-                                border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+                                padding: '8px 16px', backgroundColor: '#eef2ff', color: '#3730a3',
+                                border: '1px solid #c7d2fe', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                                display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'
                             }}
                         >
-                            📑 Export Long PDF
+                            <LuPrinter size={14} /> Print / Save PDF
                         </button>
                     </div>
                 )}
@@ -240,44 +238,63 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
                 {/* Add Buttons (Hidden in Report Mode) */}
                 {viewMode === 'edit' && (
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={() => addCell('code')} style={addBtnStyle}>+ Code Cell</button>
-                        <button onClick={() => addCell('markdown')} style={addBtnStyle}>+ Text Cell</button>
+                        <button onClick={() => addCell('code')} style={addBtnStyle}><LuPlus size={14} /> Code Cell</button>
+                        <button onClick={() => addCell('markdown')} style={addBtnStyle}><LuPlus size={14} /> Text Cell</button>
                     </div>
                 )}
             </div>
 
-            {cells.map((cell, index) => (
-                <NotebookCell
-                    key={cell.id}
-                    {...cell}
-                    result={results[cell.id]}
-                    onUpdate={updateCell}
-                    onRun={(id) => handleRun(id, cell.content)}
-                    onDelete={deleteCell}
-                    onMoveUp={() => moveCell(cell.id, -1)}
-                    onMoveDown={() => moveCell(cell.id, 1)}
-                    isReportMode={viewMode === 'report'} // Pass prop
-                />
-            ))}
+            <div className="notebook-content-wrapper" style={{
+                maxWidth: viewMode === 'report' ? '900px' : '1400px',
+                margin: '0 auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: viewMode === 'report' ? '32px' : '16px',
+                padding: viewMode === 'report' ? '40px' : '0',
+                backgroundColor: viewMode === 'report' ? '#ffffff' : 'transparent',
+                borderRadius: viewMode === 'report' ? '8px' : '0',
+                boxShadow: viewMode === 'report' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                minHeight: viewMode === 'report' ? '297mm' : 'auto' // A4 approx height as min for visual
+            }}>
+                {cells.map((cell, index) => (
+                    <NotebookCell
+                        key={cell.id}
+                        {...cell}
+                        result={results[cell.id]}
+                        onUpdate={updateCell}
+                        onRun={(id) => handleRun(id, cell.content)}
+                        onDelete={deleteCell}
+                        onMoveUp={() => moveCell(cell.id, -1)}
+                        onMoveDown={() => moveCell(cell.id, 1)}
+                        isReportMode={viewMode === 'report'}
+                        hideCodeInReport={hideCodeInReport} // Pass new prop
+                    />
+                ))}
 
-            {viewMode === 'edit' && (
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', marginBottom: '50px', justifyContent: 'center', opacity: 0.5 }}>
-                    <button onClick={() => addCell('code')} style={addBtnStyle}>+ Code</button>
-                    <button onClick={() => addCell('markdown')} style={addBtnStyle}>+ Text</button>
-                </div>
-            )}
+                {viewMode === 'edit' && (
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '30px', marginBottom: '80px', justifyContent: 'center' }}>
+                        <button onClick={() => addCell('code')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent' }}><LuPlus size={16} /> Add Code</button>
+                        <button onClick={() => addCell('markdown')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent' }}><LuPlus size={16} /> Add Text</button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
 
 const addBtnStyle = {
-    backgroundColor: 'var(--input-bg)',
+    backgroundColor: 'var(--panel-bg)',
     color: 'var(--text-active)',
     border: '1px solid var(--border-color)',
-    padding: '8px 16px',
-    borderRadius: '4px',
+    padding: '6px 14px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontWeight: 'bold'
+    fontWeight: '600',
+    fontSize: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'background-color 0.2s ease, border-color 0.2s ease'
 };
 
 export default SqlNotebook;
