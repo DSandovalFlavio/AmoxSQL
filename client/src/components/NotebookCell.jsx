@@ -257,7 +257,7 @@ const NotebookCell = ({
                         )}
                         {/* Results Area */}
                         {result && (
-                            <div style={{
+                            <div data-cell-id={id} style={{
                                 borderTop: !isReportMode ? '1px solid var(--border-color)' : 'none',
                                 backgroundColor: isReportMode ? 'transparent' : 'var(--editor-bg)',
                                 display: 'flex',

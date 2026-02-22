@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import NotebookCell from './NotebookCell';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye } from "react-icons/lu";
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode } from "react-icons/lu";
+import { generateHtmlReport } from '../utils/generateHtmlReport';
 
 const CELL_MARKER_CODE = '-- !CELL:CODE!';
 const CELL_MARKER_MARKDOWN = '-- !CELL:MARKDOWN!';
@@ -225,12 +226,22 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
                         <button
                             onClick={handlePrint}
                             style={{
-                                padding: '8px 16px', backgroundColor: '#eef2ff', color: '#3730a3',
-                                border: '1px solid #c7d2fe', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                                padding: '8px 16px', backgroundColor: 'var(--panel-bg)', color: 'var(--text-active)',
+                                border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
                                 display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'
                             }}
                         >
                             <LuPrinter size={14} /> Print / Save PDF
+                        </button>
+                        <button
+                            onClick={() => generateHtmlReport(cells, results, hideCodeInReport)}
+                            style={{
+                                padding: '8px 16px', backgroundColor: 'var(--panel-bg)', color: 'var(--accent-color-user)',
+                                border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                                display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'
+                            }}
+                        >
+                            <LuFileCode size={14} /> Export HTML
                         </button>
                     </div>
                 )}
