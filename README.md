@@ -112,21 +112,30 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-Choose the option that fits you best:
+### 🎁 v1.1 — Free Public Release
+This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-### 🚀 Option A: The Installer (Recommended)
-Get the official, signed installer for Windows. Includes automatic updates, pre-configured environments, and supports the ongoing development of AmoxSQL.
+👉 **[Download v1.1 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
-👉 **[Download the Official Installer](https://github.com/dsandovalflavio/amoxsql/releases)**  
-*Pay what you want (Minimum $X USD) or Download the latest Release.*
+### 🚀 Future Versions — Sponsors Only
+Starting with v1.2+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
 
-### 🛠️ Option B: Build from Source
-If you are a student, hobbyist, or prefer to compile it yourself:
+- ✅ Ready-to-use Windows installers (no build setup required)
+- ✅ Early access to new features and updates
+- ✅ Priority bug fixes and support
+- ✅ Access to the private releases repository
+
+[![Become a Sponsor](https://img.shields.io/badge/Become_a_Sponsor-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/dsandovalflavio)
+
+> **Note:** The source code will always remain public. Anyone can build from source at any time.
+
+### 🛠️ Build from Source
+If you prefer to compile it yourself:
 
 1.  Clone the repo.
-2.  Ensure you have **Node.js 20+** and C++ build tools installed (for DuckDB bindings).
-3.  Run `npm install` and `npm run dist`.
-    *(Note: Self-built versions do not include auto-updates or signed binaries).*
+2.  Ensure you have **Node.js 20+** and C++ build tools installed (for DuckDB native bindings).
+3.  Run `npm install` at the root.
+4.  Run `npm run dist` to generate the installer.
 
 ---
 
