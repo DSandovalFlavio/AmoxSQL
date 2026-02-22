@@ -189,7 +189,7 @@ AmoxSQL stands on the shoulders of giants. We deeply appreciate the amazing open
 * **[Recharts](https://recharts.org/)**: For their composable and reliable charting library for React.
 * **[React](https://reactjs.org/) & [Vite](https://vitejs.dev/)**: For the fast and modern frontend development experience.
 * **[Node.js](https://nodejs.org/) & [Express](https://expressjs.com/)**: For the robust backend foundation.
-* **[react-markdown](https://github.com/remarkjs/react-markdown)**: For enabling the rich text capabilities in our SQL Notebooks.
+* **[react-markdown](https://github.com/remarkjs/react-markdown)**: For enabling the rich text capabilities in our SQL-Notebooks.
 
 ---
 
