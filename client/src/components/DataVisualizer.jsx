@@ -2098,7 +2098,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
             {/* Chart Area */}
             < div style={{
-                flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--chart-bg)', overflow: 'hidden',
+                flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: isReportMode ? 'transparent' : 'var(--chart-bg)', overflow: isReportMode ? 'visible' : 'hidden',
                 ...(isFullscreen ? {
                     position: 'fixed',
                     top: 0,
@@ -2109,34 +2109,36 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     padding: '40px'
                 } : {})
             }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: isFullscreen ? '0 0 10px 0' : '10px 20px 0 0' }}>
-                    {isFullscreen && (
+                {!isReportMode && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: isFullscreen ? '0 0 10px 0' : '10px 20px 0 0' }}>
+                        {isFullscreen && (
+                            <button
+                                onClick={handleDownload}
+                                title="Download Chart as PNG"
+                                style={{
+                                    background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                                    display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s'
+                                }}
+                                onMouseOver={(e) => { e.target.style.color = 'var(--text-active)'; e.target.style.borderColor = 'var(--accent-color-user)'; }}
+                                onMouseOut={(e) => { e.target.style.color = 'var(--text-muted)'; e.target.style.borderColor = 'var(--border-color)'; }}
+                            >
+                                <LuDownload size={14} /> PNG
+                            </button>
+                        )}
                         <button
-                            onClick={handleDownload}
-                            title="Download Chart as PNG"
+                            onClick={() => setIsFullscreen(!isFullscreen)}
+                            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Data'}
                             style={{
-                                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
-                                display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s'
+                                background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', borderRadius: '4px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s'
                             }}
-                            onMouseOver={(e) => { e.target.style.color = 'var(--text-active)'; e.target.style.borderColor = 'var(--accent-color-user)'; }}
-                            onMouseOut={(e) => { e.target.style.color = 'var(--text-muted)'; e.target.style.borderColor = 'var(--border-color)'; }}
+                            onMouseOver={(e) => e.target.style.color = 'var(--text-active)'}
+                            onMouseOut={(e) => e.target.style.color = 'var(--text-muted)'}
                         >
-                            <LuDownload size={14} /> PNG
+                            {isFullscreen ? <LuMinimize size={18} /> : <LuMaximize size={16} />}
                         </button>
-                    )}
-                    <button
-                        onClick={() => setIsFullscreen(!isFullscreen)}
-                        title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Data'}
-                        style={{
-                            background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', borderRadius: '4px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s'
-                        }}
-                        onMouseOver={(e) => e.target.style.color = 'var(--text-active)'}
-                        onMouseOut={(e) => e.target.style.color = 'var(--text-muted)'}
-                    >
-                        {isFullscreen ? <LuMinimize size={18} /> : <LuMaximize size={16} />}
-                    </button>
-                </div>
+                    </div>
+                )}
                 <div ref={chartRef} style={{ flex: 1, padding: isFullscreen ? '0 20px 20px 20px' : '0 20px 20px 20px', display: 'flex', flexDirection: 'column', minHeight: '300px' }}>
                     {chartTitle && <h2 style={{ textAlign: textAlign, margin: `0 0 ${titleSpacing}px 0`, color: 'var(--text-active)', fontSize: '18px', fontWeight: '600', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartTitle}</h2>}
                     {chartSubtitle && <h3 style={{ textAlign: textAlign, margin: `0 0 ${titleSpacing}px 0`, color: 'var(--text-muted)', fontSize: '14px', fontWeight: '400', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartSubtitle}</h3>}

@@ -3,6 +3,8 @@ import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 
 const SqlEditor = ({ value, onChange, ...props }) => {
+    const disposablesRef = useRef([]);
+
     const handleEditorChange = (value, event) => {
         onChange(value);
     };
@@ -43,6 +45,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     }, [props.onDebugCte]);
 
     const handleEditorDidMount = (editor, monaco) => {
+        // Clear any previous disposables (safety for re-mount scenarios)
+        disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
+        disposablesRef.current = [];
+
         // --- KEYBOARD SHORTCUTS ---
 
         // 1. Run Query (Ctrl+Enter)
@@ -172,10 +178,11 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // Initial run & Listener
         updateCteDecorations();
-        editor.onDidChangeModelContent(updateCteDecorations);
+        const contentChangeDisposable = editor.onDidChangeModelContent(updateCteDecorations);
+        disposablesRef.current.push(contentChangeDisposable);
 
         // Handle Click
-        editor.onMouseDown((e) => {
+        const mouseDownDisposable = editor.onMouseDown((e) => {
             try {
                 if (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
                     if (!e.target.position) return;
@@ -205,6 +212,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 console.error("Error handling glyph click:", err);
             }
         });
+        disposablesRef.current.push(mouseDownDisposable);
 
         // --- ENHANCED AUTOCOMPLETE ---
 
@@ -239,7 +247,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // Register Completion Provider
         if (!window.__monacoSqlProviderRegistered) {
             window.__monacoSqlProviderRegistered = true;
-            monaco.languages.registerCompletionItemProvider('sql', {
+            const providerDisposable = monaco.languages.registerCompletionItemProvider('sql', {
                 triggerCharacters: ['.', '/', "'", '"'],
                 provideCompletionItems: async (model, position) => {
                     const textUntilPosition = model.getValueInRange({
@@ -381,8 +389,21 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     return { suggestions: suggestions };
                 }
             });
+
+            // Store the provider disposable for cleanup
+            disposablesRef.current.push(providerDisposable);
         }
     };
+
+    // Cleanup disposables on unmount
+    useEffect(() => {
+        return () => {
+            disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
+            disposablesRef.current = [];
+            // Reset the global flag so completion provider can be re-registered by a new instance
+            window.__monacoSqlProviderRegistered = false;
+        };
+    }, []);
 
     return (
         <Editor

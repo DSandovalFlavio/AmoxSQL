@@ -100,9 +100,10 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
 
     // 3. Pagination
     const totalRows = sortedData.length;
-    const totalPages = Math.ceil(totalRows / pageSize) || 1;
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, totalRows);
+    const effectivePageSize = isReportMode ? Math.min(totalRows, 200) : pageSize;
+    const totalPages = Math.ceil(totalRows / effectivePageSize) || 1;
+    const startIndex = isReportMode ? 0 : (currentPage - 1) * effectivePageSize;
+    const endIndex = Math.min(startIndex + effectivePageSize, totalRows);
     const currentData = sortedData.slice(startIndex, endIndex);
 
     // Handlers

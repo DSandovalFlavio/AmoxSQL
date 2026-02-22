@@ -336,37 +336,71 @@ tr:hover td {
 /* --- PRINT / EXPORT STYLES --- */
 @media print {
   body {
-    background-color: #fff;
-    color: #000;
-    overflow: auto;
-    height: auto;
+    background-color: #fff !important;
+    color: #000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: auto !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  /* Hide everything */
+  /* ===== HIDE ALL UI CHROME ===== */
   .sidebar,
   .toolbar,
   .resizer-handle,
-  button,
+  .report-toolbar-actions,
   .app-container>*:not(.main-content) {
     display: none !important;
   }
 
-  /* Hide non-report things in main area if needed, though we rely on hiding parent containers */
-  /* Target the notebook container explicitly */
+  /* Hide report mode toggle bar (Edit/Report buttons at top) */
+  .notebook-container > div:first-child {
+    display: none !important;
+  }
+
+  /* Hide chart configuration panel & fullscreen controls */
+  .chart-controls-panel,
+  .chart-config-sidebar,
+  .chart-tab-bar,
+  [class*="fullscreen"] {
+    display: none !important;
+  }
+
+  /* Hide DataVisualizer toolbar (tab buttons, export, fullscreen) */
+  .data-viz-toolbar {
+    display: none !important;
+  }
+
+  /* Hide pagination, filter toggles, result toolbar */
+  .result-toolbar-row {
+    display: none !important;
+  }
+
+  /* ===== LAYOUT RESET ===== */
   .notebook-container,
   .report-mode-container {
-    padding: 0 !important;
+    padding: 20px !important;
     margin: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
     height: auto !important;
     overflow: visible !important;
     background-color: white !important;
     color: black !important;
     position: static !important;
     display: block !important;
+    box-shadow: none !important;
   }
 
-  /* Ensure app container allows flow */
+  .notebook-content-wrapper {
+    max-width: 100% !important;
+    padding: 0 !important;
+    background-color: white !important;
+    box-shadow: none !important;
+    min-height: auto !important;
+  }
+
   .app-container,
   #root,
   .main-content {
@@ -376,66 +410,87 @@ tr:hover td {
     width: 100% !important;
   }
 
-  /* Styling for Print */
+  /* ===== PAGE BREAK CONTROL ===== */
   .report-card {
     background-color: #fff !important;
     color: #000 !important;
-    border: 1px solid #ddd !important;
+    border: none !important;
     box-shadow: none !important;
     break-inside: avoid;
-    /* Prevent page break inside cards */
-    margin-bottom: 20px !important;
-    padding: 10px !important;
+    page-break-inside: avoid;
+    margin-bottom: 16px !important;
+    padding: 8px 0 !important;
   }
 
-  /* Texts */
-  h1,
-  h2,
-  h3,
-  p,
-  span,
-  div {
+  /* Prevent charts from being split across pages */
+  .recharts-responsive-container,
+  .recharts-wrapper,
+  .notebook-code-cell-content > div:last-child {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* ===== TABLE PRINT EXPANSION ===== */
+  /* Remove height/overflow constraints so ALL rows are visible */
+  .notebook-code-cell-content > div,
+  .notebook-code-cell-content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* ===== TYPOGRAPHY ===== */
+  h1, h2, h3, h4, p, span, li, td, th {
     color: #000 !important;
   }
 
-  /* Charts might need specific handling to force them to print if they are canvas/svg */
-  /* Recharts usually prints okay as SVG */
+  a {
+    color: #000 !important;
+    text-decoration: underline !important;
+  }
 
-  /* Tables */
-  table,
-  th,
-  td {
+  /* ===== TABLE STYLING ===== */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11px !important;
+  }
+
+  table, th, td {
     border: 1px solid #ccc !important;
     color: #000 !important;
   }
 
   th {
     background-color: #f0f0f0 !important;
+    font-weight: 600 !important;
   }
 
-  /* CTE Debugger Glyph */
-  .cte-debug-glyph {
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  td {
+    padding: 4px 8px !important;
   }
 
+  /* ===== CHARTS: ensure SVG prints with colors ===== */
+  .recharts-surface {
+    overflow: visible !important;
+  }
+
+  svg text {
+    fill: #333 !important;
+  }
+
+  /* ===== CLEANUP ===== */
+  .cte-debug-glyph,
   .cte-debug-glyph::after {
-    content: '👁️';
-    /* Eye icon */
-    font-size: 12px;
-    color: var(--accent-color-user);
+    display: none !important;
   }
 
-  .cte-debug-glyph:hover::after {
-    color: #fff;
-    filter: drop-shadow(0 0 2px var(--accent-color-user));
-  }
-
-  /* Hide scrollbars */
   ::-webkit-scrollbar {
-    display: none;
+    display: none !important;
+  }
+
+  /* Hide any remaining buttons that leak through */
+  button {
+    display: none !important;
   }
 }

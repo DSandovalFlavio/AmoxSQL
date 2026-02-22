@@ -251,7 +251,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
                 flexDirection: 'column',
                 gap: viewMode === 'report' ? '32px' : '16px',
                 padding: viewMode === 'report' ? '40px' : '0',
-                backgroundColor: viewMode === 'report' ? '#ffffff' : 'transparent',
+                backgroundColor: viewMode === 'report' ? 'var(--bg-color)' : 'transparent',
                 borderRadius: viewMode === 'report' ? '8px' : '0',
                 boxShadow: viewMode === 'report' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
                 minHeight: viewMode === 'report' ? '297mm' : 'auto' // A4 approx height as min for visual

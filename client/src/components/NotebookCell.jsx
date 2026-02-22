@@ -149,6 +149,9 @@ const NotebookCell = ({
         }
     };
 
+    // In report mode, hide code cells that have no results to show
+    const isEmptyInReport = isReportMode && type === 'code' && hideCodeInReport && !result;
+
     return (
         <div className={isReportMode ? 'report-card' : ''} style={{
             marginBottom: isReportMode ? '0px' : '24px',
@@ -156,7 +159,7 @@ const NotebookCell = ({
             borderRadius: '12px',
             backgroundColor: isReportMode ? 'transparent' : 'var(--panel-bg)',
             overflow: 'hidden',
-            display: 'flex',
+            display: isEmptyInReport ? 'none' : 'flex',
             flexDirection: 'column',
             boxShadow: isReportMode ? 'none' : '0 2px 8px rgba(0,0,0,0.1)'
         }}>
