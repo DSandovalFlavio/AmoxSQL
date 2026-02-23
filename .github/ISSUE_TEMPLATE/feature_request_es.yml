@@ -1,0 +1,33 @@
+name: "💡 Sugerir una nueva función"
+description: "Propón una idea o mejora para el análisis de datos en el IDE."
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Nos encantan las nuevas ideas! Ayúdanos a entender qué necesitas y cómo mejoraría tu flujo de trabajo.
+  - type: textarea
+    id: problem
+    attributes:
+      label: "¿Tu sugerencia resuelve algún problema?"
+      description: "Explica si esta idea surge de una frustración o limitación actual. Ej. 'Siempre me frustra cuando tengo que limpiar nulos y no hay un botón rápido...'"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Describe la solución que te gustaría ver"
+      description: "Explica cómo funcionaría tu idea dentro del IDE."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternativas que has considerado (Opcional)"
+      description: "¿Hay alguna otra forma en la que estés resolviendo esto actualmente?"
+  - type: textarea
+    id: context
+    attributes:
+      label: "Contexto adicional (Opcional)"
+      description: "Añade cualquier otro detalle, enlaces a herramientas similares o capturas de pantalla."

@@ -1,0 +1,33 @@
+name: "💡 Suggest a Feature"
+description: "Propose an idea or enhancement for data analysis in the IDE."
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We love new ideas! Help us understand what you need and how it would improve your workflow.
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Is your suggestion related to a problem?"
+      description: "Explain if this idea comes from a current frustration or limitation. E.g., 'I'm always frustrated when I have to clean nulls and there's no quick button...'"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Describe the solution you'd like"
+      description: "Explain how your idea would work within the IDE."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Describe alternatives you've considered (Optional)"
+      description: "Is there any other way you are currently solving this?"
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional context (Optional)"
+      description: "Add any other context, links to similar tools, or screenshots about the feature request here."

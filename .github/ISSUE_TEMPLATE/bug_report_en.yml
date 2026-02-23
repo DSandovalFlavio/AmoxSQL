@@ -1,0 +1,53 @@
+name: "🐛 Report a Bug"
+description: "Create a report to help us improve the IDE."
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report this issue! Please provide as many details as possible so we can reproduce and fix it quickly.
+  - type: input
+    id: version
+    attributes:
+      label: "IDE Version"
+      description: "What version of the application are you using? (e.g., v1.0.0)"
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: "Operating System"
+      description: "On which system did the error occur?"
+      options:
+        - Windows (x64)
+        - macOS (Apple Silicon - M1/M2/M3)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description of the problem"
+      description: "Explain clearly and concisely what went wrong."
+      placeholder: "When trying to load a 500MB CSV file, the application crashes unexpectedly..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to reproduce"
+      description: "List the exact steps so we can see the error too."
+      value: |
+        1. Open the IDE.
+        2. Click on 'Import Data'.
+        3. Select the file...
+        4. The error occurs.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Screenshots or Logs (Optional)"
+      description: "Drag and drop screenshots here or paste error logs from the console if you have them."

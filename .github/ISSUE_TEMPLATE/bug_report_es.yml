@@ -1,0 +1,53 @@
+name: "🐛 Reportar un Bug"
+description: "Crea un reporte para ayudarnos a mejorar el IDE."
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Gracias por tomarte el tiempo de reportar este problema! Por favor, llena la mayor cantidad de detalles posible para poder replicarlo y solucionarlo rápido.
+  - type: input
+    id: version
+    attributes:
+      label: "Versión del IDE"
+      description: "¿Qué versión del programa estás usando? (Ej. v1.0.0)"
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: "Sistema Operativo"
+      description: "¿En qué sistema ocurrió el error?"
+      options:
+        - Windows (x64)
+        - macOS (Apple Silicon - M1/M2/M3)
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Descripción del problema"
+      description: "Explica de forma clara y concisa qué fue lo que falló."
+      placeholder: "Al intentar cargar un archivo CSV de 500MB, la aplicación se cierra inesperadamente..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Pasos para reproducirlo"
+      description: "Enumera los pasos exactos para que nosotros también podamos ver el error."
+      value: |
+        1. Abrir el IDE.
+        2. Hacer clic en 'Importar Datos'.
+        3. Seleccionar el archivo...
+        4. Ocurre el error.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Screenshots o Logs (Opcional)"
+      description: "Arrastra aquí capturas de pantalla o pega mensajes de error de la consola si los tienes."
