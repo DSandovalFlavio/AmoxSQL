@@ -135,7 +135,7 @@ If you prefer to compile it yourself:
 1.  Clone the repo.
 2.  Ensure you have **Node.js 20+** and C++ build tools installed (for DuckDB native bindings).
 3.  Run `npm install` at the root.
-4.  Run `npm run dist` to generate the installer.
+4.  Run `npm run dev` to run amoxSQL.
 
 ---
 
