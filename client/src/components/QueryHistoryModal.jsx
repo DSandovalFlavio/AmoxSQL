@@ -47,17 +47,18 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+            backdropFilter: 'blur(8px)'
         }} onClick={onClose}>
             <div style={{
-                backgroundColor: 'var(--modal-bg)', width: '800px', height: '600px',
-                borderRadius: '8px', border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--surface-overlay)', width: '800px', height: '600px',
+                borderRadius: '12px', border: '1px solid var(--border-default)',
                 display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                color: 'var(--text-color)', fontFamily: 'sans-serif', boxShadow: '0 8px 16px rgba(0,0,0,0.4)'
+                color: 'var(--text-secondary)', fontFamily: 'inherit', boxShadow: 'var(--shadow-lg)'
             }} onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div style={{ padding: '15px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--header-bg)' }}>
+                <div style={{ padding: '15px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface-raised)' }}>
                     <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-active)' }}>Query History</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <input
@@ -88,7 +89,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                             cursor: 'pointer',
                             transition: 'background 0.2s'
                         }}
-                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2A2B30'}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
                             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                             onClick={() => {
                                 if (onSelect) {
@@ -124,11 +125,11 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                 </div>
 
                 {/* Footer */}
-                <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--header-bg)', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'right' }}>
+                <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'right' }}>
                     Auto-prunes records older than 30 days. Click to insert query.
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

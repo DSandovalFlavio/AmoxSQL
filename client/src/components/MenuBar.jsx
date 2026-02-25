@@ -15,38 +15,47 @@ const MenuBar = ({ onOpenProject, currentPath }) => {
     // Ideally we put a backdrop or global handler
 
     return (
-        <div style={{ height: '30px', backgroundColor: 'var(--header-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '12px', userSelect: 'none', color: 'var(--text-muted)' }}>
+        <div style={{ height: '28px', backgroundColor: 'var(--surface-raised)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: '12px', userSelect: 'none', color: 'var(--text-tertiary)' }}>
             <div style={{ position: 'relative' }}>
                 <div
                     onClick={() => toggleMenu('file')}
-                    style={{ padding: '0 8px', cursor: 'pointer', backgroundColor: activeMenu === 'file' ? 'var(--panel-bg)' : 'transparent', height: '30px', display: 'flex', alignItems: 'center' }}
+                    style={{ padding: '0 8px', cursor: 'pointer', backgroundColor: activeMenu === 'file' ? 'var(--hover-bg)' : 'transparent', height: '28px', display: 'flex', alignItems: 'center', borderRadius: '4px', transition: 'background-color 120ms ease' }}
                 >
                     File
                 </div>
                 {activeMenu === 'file' && (
                     <div style={{
-                        position: 'absolute', top: '30px', left: 0, backgroundColor: 'var(--header-bg)', border: '1px solid var(--border-color)',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.3)', minWidth: '150px', zIndex: 1000
+                        position: 'absolute', top: '30px', left: 0,
+                        backgroundColor: 'var(--surface-overlay)',
+                        border: '1px solid var(--border-default)',
+                        borderRadius: '8px',
+                        boxShadow: 'var(--shadow-md)',
+                        minWidth: '180px', zIndex: 1000,
+                        padding: '4px',
+                        backdropFilter: 'blur(12px)'
                     }}>
                         <div
                             onClick={() => { onOpenProject(); setActiveMenu(null); }}
-                            style={{ padding: '8px 15px', cursor: 'pointer', color: 'var(--text-color)' }}
+                            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background-color 120ms ease' }}
                             className="menu-item"
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         >
                             📂 Open Folder...
                         </div>
                         <div
-                            onClick={() => { /* Reload */ window.location.reload(); }}
-                            style={{ padding: '8px 15px', cursor: 'pointer', color: 'var(--text-color)', borderTop: '1px solid var(--border-color)' }}
+                            onClick={() => { window.location.reload(); }}
+                            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background-color 120ms ease' }}
                             className="menu-item"
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         >
                             Reload Window
                         </div>
                     </div>
                 )}
             </div>
-            {/* Add more menus here like Edit, View etc if needed */}
-            <div style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>
+            <div style={{ marginLeft: 'auto', color: 'var(--text-tertiary)', fontSize: '11px' }}>
                 {currentPath}
             </div>
         </div>

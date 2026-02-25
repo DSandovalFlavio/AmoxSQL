@@ -235,21 +235,22 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 2000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(8px)'
         }}>
             <div style={{
                 width: '90%', height: '90%',
-                backgroundColor: 'var(--modal-bg)',
-                borderRadius: '8px',
+                backgroundColor: 'var(--surface-overlay)',
+                borderRadius: '12px',
                 display: 'flex', flexDirection: 'column',
                 overflow: 'hidden',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                border: '1px solid var(--border-color)'
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border-default)'
             }}>
                 {/* Header */}
                 <div style={{
-                    padding: '15px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--header-bg)',
+                    padding: '15px 20px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-raised)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                     <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-active)' }}>
@@ -263,7 +264,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--header-bg)' }}>
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-raised)' }}>
                     {['Schema', 'Profile', 'Details', 'Preview', 'DDL'].map(tab => {
                         const key = tab.toLowerCase();
                         const isActive = activeTab === key;

@@ -281,12 +281,14 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     position: 'fixed',
                     top: contextMenu.y,
                     left: contextMenu.x,
-                    backgroundColor: 'var(--modal-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                    backgroundColor: 'var(--surface-overlay)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: '8px',
+                    boxShadow: 'var(--shadow-md)',
                     zIndex: 9999,
-                    minWidth: '150px'
+                    minWidth: '180px',
+                    padding: '4px',
+                    backdropFilter: 'blur(12px)'
                 }}>
                     {/* Menu Items */}
                     {contextMenu.file.name.match(/\.(csv|parquet|json|xlsx|xls)$/i) && (

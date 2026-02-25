@@ -1,13 +1,38 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { LuFolderOpen } from "react-icons/lu";
 import Logo from './Logo';
 
 const WelcomeScreen = ({ onOpenProject }) => {
     const [path, setPath] = useState('');
+    const folderInputRef = useRef(null);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (path.trim()) {
             onOpenProject(path.trim());
+        }
+    };
+
+    const handleBrowseFolder = async () => {
+        // Electron: use native dialog via IPC
+        if (window.electronAPI && window.electronAPI.selectFolder) {
+            const selected = await window.electronAPI.selectFolder();
+            if (selected) setPath(selected);
+        } else {
+            // Browser fallback: use hidden directory input
+            folderInputRef.current?.click();
+        }
+    };
+
+    const handleFolderInputChange = (e) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            // webkitRelativePath gives us the relative path, extract the root folder
+            const relativePath = files[0].webkitRelativePath;
+            if (relativePath) {
+                const folderName = relativePath.split('/')[0];
+                setPath(folderName);
+            }
         }
     };
 
@@ -49,7 +74,7 @@ const WelcomeScreen = ({ onOpenProject }) => {
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <div>
                         <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500' }}>Project Path</label>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
                             <input
                                 type="text"
                                 value={path}
@@ -67,9 +92,39 @@ const WelcomeScreen = ({ onOpenProject }) => {
                                     outline: 'none'
                                 }}
                             />
+                            <button
+                                type="button"
+                                onClick={handleBrowseFolder}
+                                title="Browse for folder"
+                                style={{
+                                    padding: '10px 12px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #3c3c3c',
+                                    backgroundColor: '#3c3c3c',
+                                    color: 'var(--accent-color-user)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'background-color 0.2s, border-color 0.2s'
+                                }}
+                                onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--accent-color-user)'; e.currentTarget.style.backgroundColor = '#2a2c2f'; }}
+                                onMouseOut={(e) => { e.currentTarget.style.borderColor = '#3c3c3c'; e.currentTarget.style.backgroundColor = '#3c3c3c'; }}
+                            >
+                                <LuFolderOpen size={18} />
+                            </button>
+                            {/* Hidden fallback input for browser mode */}
+                            <input
+                                ref={folderInputRef}
+                                type="file"
+                                webkitdirectory=""
+                                directory=""
+                                style={{ display: 'none' }}
+                                onChange={handleFolderInputChange}
+                            />
                         </div>
                         <p style={{ fontSize: '11px', color: '#666', marginTop: '6px' }}>
-                            Paste the absolute path to your folder.
+                            Paste the absolute path or click the folder icon to browse.
                         </p>
                     </div>
 

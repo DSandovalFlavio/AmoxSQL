@@ -61,34 +61,35 @@ const TablePreviewModal = ({ tableName, onClose }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            zIndex: 1000
+            zIndex: 1000,
+            backdropFilter: 'blur(8px)'
         }} onClick={onClose}>
             <div style={{
-                backgroundColor: 'var(--modal-bg)',
-                color: 'var(--text-color)',
+                backgroundColor: 'var(--surface-overlay)',
+                color: 'var(--text-secondary)',
                 width: '90%',
                 height: '80%',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                border: '1px solid var(--border-color)'
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border-default)'
             }} onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div style={{
                     padding: '15px 20px',
-                    borderBottom: '1px solid var(--border-color)',
+                    borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    backgroundColor: 'var(--header-bg)',
-                    borderTopLeftRadius: '8px',
-                    borderTopRightRadius: '8px'
+                    backgroundColor: 'var(--surface-raised)',
+                    borderTopLeftRadius: '12px',
+                    borderTopRightRadius: '12px'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <LuSearch size={18} />

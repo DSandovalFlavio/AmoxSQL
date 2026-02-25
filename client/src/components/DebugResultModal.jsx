@@ -7,18 +7,19 @@ const DebugResultModal = ({ isOpen, onClose, cteName, result, query }) => {
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 2000,
-            display: 'flex', justifyContent: 'center', alignItems: 'center'
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000,
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            backdropFilter: 'blur(8px)'
         }}>
             <div style={{
-                width: '90%', height: '80%', backgroundColor: 'var(--modal-bg)',
-                borderRadius: '8px', display: 'flex', flexDirection: 'column',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.5)', border: '1px solid var(--border-color)'
+                width: '90%', height: '80%', backgroundColor: 'var(--surface-overlay)',
+                borderRadius: '12px', display: 'flex', flexDirection: 'column',
+                boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-default)'
             }}>
                 <div style={{
-                    padding: '15px 20px', borderBottom: '1px solid var(--border-color)',
+                    padding: '15px 20px', borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    backgroundColor: 'var(--header-bg)'
+                    backgroundColor: 'var(--surface-raised)'
                 }}>
                     <h3 style={{ margin: 0, color: 'var(--text-active)', fontSize: '16px' }}>
                         Debugging CTE: <span style={{ color: 'var(--accent-color-user)' }}>{cteName}</span>

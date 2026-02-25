@@ -68,18 +68,18 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-            backdropFilter: 'blur(3px)'
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            backdropFilter: 'blur(8px)'
         }}>
             <div style={{
-                backgroundColor: 'var(--modal-bg)', width: '550px',
-                borderRadius: '8px', border: '1px solid var(--border-color)',
-                boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                color: 'var(--text-color)', fontFamily: 'sans-serif',
+                backgroundColor: 'var(--surface-overlay)', width: '550px',
+                borderRadius: '12px', border: '1px solid var(--border-default)',
+                boxShadow: 'var(--shadow-lg)',
+                color: 'var(--text-secondary)', fontFamily: 'inherit',
                 overflow: 'hidden', display: 'flex', flexDirection: 'column'
             }}>
                 {/* Header */}
-                <div style={{ padding: '20px 25px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--header-bg)' }}>
+                <div style={{ padding: '20px 25px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)' }}>
                     <h3 style={{ margin: 0, color: 'var(--text-active)', fontSize: '18px' }}>
                         Initialize Database Session
                     </h3>
@@ -89,7 +89,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--header-bg)' }}>
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)' }}>
                     {dbFiles.length > 0 && renderTabButton('EXISTING', 'Open Existing', <LuFolderOpen size={16} />)}
                     {renderTabButton('CREATE', 'Create New', <LuSparkles size={16} />)}
                     {renderTabButton('MEMORY', 'In-Memory', <LuBrain size={16} />)}
@@ -179,7 +179,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                 </div>
 
                 {/* Footer */}
-                <div style={{ padding: '20px 25px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '10px', backgroundColor: 'var(--header-bg)' }}>
+                <div style={{ padding: '20px 25px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '10px', backgroundColor: 'var(--surface-raised)' }}>
                     {/* Back Button (Only logic if we had a previous step, but Cancel implies exiting project selection?? Maybe just removed for now) */}
                     <button
                         onClick={handleSubmit}

@@ -3,8 +3,18 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
+
+// IPC Handler: Open native folder picker dialog
+ipcMain.handle('dialog:selectFolder', async () => {
+    const result = await dialog.showOpenDialog({
+        properties: ['openDirectory'],
+        title: 'Select Project Folder'
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+});
 
 // FORCE PROD IF PACKAGED - MUST BE BEFORE REQUIRE SERVER
 // This ensures server/index.js sees the environment variable at module load time.

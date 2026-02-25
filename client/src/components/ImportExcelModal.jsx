@@ -103,12 +103,13 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            backdropFilter: 'blur(8px)'
         }}>
             <div style={{
-                backgroundColor: 'var(--modal-bg)', padding: '20px', borderRadius: '5px', width: '500px', maxHeight: '80vh',
-                border: '1px solid var(--border-color)', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                color: 'var(--text-color)', fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column'
+                backgroundColor: 'var(--surface-overlay)', padding: '24px', borderRadius: '12px', width: '500px', maxHeight: '80vh',
+                border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg)',
+                color: 'var(--text-secondary)', fontFamily: 'inherit', display: 'flex', flexDirection: 'column'
             }}>
                 <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>
                     {successSummary ? 'Import Completed' : 'Import Excel to Database'}

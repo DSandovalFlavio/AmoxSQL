@@ -50,10 +50,10 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
     return (
         <div style={{
             display: 'flex',
-            backgroundColor: 'var(--header-bg)',
-            height: '35px',
-            alignItems: 'center',
-            borderBottom: '1px solid var(--border-color)',
+            backgroundColor: 'var(--surface-raised)',
+            height: '36px',
+            alignItems: 'stretch',
+            borderBottom: '1px solid var(--border-subtle)',
             overflowX: 'auto',
             userSelect: 'none'
         }}>
@@ -69,32 +69,54 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                         onClick={() => onTabClick(tab.id)}
                         className="tab-item"
                         style={{
-                            padding: '0 10px',
+                            padding: '0 12px',
                             height: '100%',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            backgroundColor: isActive ? 'var(--editor-bg)' : 'var(--panel-bg)',
-                            color: isActive ? 'var(--text-active)' : 'var(--text-muted)',
-                            borderRight: '1px solid var(--border-color)',
-                            borderTop: isActive ? '1px solid var(--accent-color-user)' : '1px solid transparent', // Active indicator
+                            backgroundColor: isActive ? 'transparent' : 'transparent',
+                            color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                            borderBottom: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent',
                             cursor: 'pointer',
-                            minWidth: '100px',
+                            minWidth: '80px',
                             maxWidth: '200px',
-                            fontSize: '13px'
+                            fontSize: '13px',
+                            fontWeight: isActive ? '500' : '400',
+                            transition: 'color 120ms ease, border-color 120ms ease',
+                            position: 'relative'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (!isActive) e.currentTarget.style.color = 'var(--text-secondary)';
+                            const closeBtn = e.currentTarget.querySelector('.tab-close');
+                            if (closeBtn) closeBtn.style.opacity = '1';
+                        }}
+                        onMouseLeave={(e) => {
+                            if (!isActive) e.currentTarget.style.color = 'var(--text-tertiary)';
+                            const closeBtn = e.currentTarget.querySelector('.tab-close');
+                            if (closeBtn && !isActive) closeBtn.style.opacity = '0';
                         }}
                     >
                         <span style={{ marginRight: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {tab.name} {tab.dirty && '●'}
                         </span>
                         <span
+                            className="tab-close"
                             onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
                             style={{
                                 cursor: 'pointer',
-                                borderRadius: '3px',
-                                padding: '0 4px',
-                                fontSize: '14px'
+                                borderRadius: '4px',
+                                padding: '2px 4px',
+                                fontSize: '14px',
+                                opacity: isActive ? '1' : '0',
+                                transition: 'opacity 120ms ease, background-color 120ms ease',
+                                color: 'var(--text-tertiary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                lineHeight: '1'
                             }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
                             title="Close"
                         >
                             ×

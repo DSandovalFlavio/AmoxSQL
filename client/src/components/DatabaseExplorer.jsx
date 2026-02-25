@@ -101,20 +101,21 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                             position: 'absolute',
                             top: '30px',
                             right: '10px',
-                            background: 'var(--modal-bg)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '4px',
+                            background: 'var(--surface-overlay)',
+                            border: '1px solid var(--border-default)',
+                            borderRadius: '8px',
                             zIndex: 9999,
-                            boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                            boxShadow: 'var(--shadow-md)',
                             display: 'flex',
                             flexDirection: 'column',
-                            padding: '4px 0',
-                            minWidth: '120px'
+                            padding: '4px',
+                            minWidth: '140px',
+                            backdropFilter: 'blur(12px)'
                         }}>
                             <div
-                                style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                                onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
-                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                                onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                                 onClick={() => {
                                     setShowHistory(true);
                                     setShowHeaderMenu(false);
@@ -129,7 +130,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
 
             {/* Content Container - Tree View & Search */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border-color)' }}>
+                <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
                     <div style={{ position: 'relative' }}>
                         <input
                             type="text"
@@ -207,7 +208,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
 
                                 {/* Columns Node */}
                                 {isExpanded && table.columns && (
-                                    <div style={{ boxSizing: 'border-box', borderLeft: '1px solid var(--border-color)', margin: '0 0 5px 20px', display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ boxSizing: 'border-box', borderLeft: '1px solid var(--border-subtle)', margin: '0 0 4px 20px', display: 'flex', flexDirection: 'column' }}>
                                         {table.columns.map((col, idx) => {
                                             const meta = getTypeMeta(col.data_type);
                                             return (
@@ -284,19 +285,20 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                     position: 'fixed',
                     top: contextMenu.y,
                     left: contextMenu.x,
-                    background: 'var(--modal-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
+                    background: 'var(--surface-overlay)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: '8px',
                     zIndex: 9999,
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                    boxShadow: 'var(--shadow-md)',
                     display: 'flex',
                     flexDirection: 'column',
-                    padding: '4px 0'
+                    padding: '4px',
+                    backdropFilter: 'blur(12px)'
                 }}>
                     <div
-                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         onClick={() => {
                             if (onSelectQuery) onSelectQuery(`SELECT * FROM "${contextMenu.tableName}" LIMIT 100;`);
                             setContextMenu(null);
@@ -305,9 +307,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         <LuCode size={14} /> Select Top 100
                     </div>
                     <div
-                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         onClick={() => {
                             setPreviewTable(contextMenu.tableName);
                             setContextMenu(null);
@@ -316,9 +318,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         <LuEye size={14} /> Preview Table
                     </div>
                     <div
-                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         onClick={() => {
                             navigator.clipboard.writeText(contextMenu.tableName);
                             setContextMenu(null);
@@ -327,9 +329,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         <LuClipboard size={14} /> Copy Name
                     </div>
                     <div
-                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         onClick={() => {
                             setDetailsTable(contextMenu.tableName);
                             setContextMenu(null);
@@ -337,10 +339,10 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                     >
                         <LuInfo size={14} /> View Details
                     </div>
-                    <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px' }} />
                     <div
-                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: '#e06c75', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: '#e06c75', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                         onClick={async () => {
                             const name = contextMenu.tableName;

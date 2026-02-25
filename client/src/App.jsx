@@ -66,9 +66,10 @@ function App() {
 
   // Theme State
   const [theme, setTheme] = useState('dark');
+  const [accentColor, setAccentColor] = useState('cyan'); // 'cyan' | 'linear'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Apply Theme Class
+  // Apply Theme & Accent Classes
   useEffect(() => {
     if (theme === 'light') {
       document.body.classList.add('light-theme');
@@ -76,6 +77,14 @@ function App() {
       document.body.classList.remove('light-theme');
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (accentColor === 'linear') {
+      document.body.classList.add('accent-linear');
+    } else {
+      document.body.classList.remove('accent-linear');
+    }
+  }, [accentColor]);
 
   // Initialize Data
   useEffect(() => {
@@ -324,34 +333,34 @@ function App() {
       {appPhase === PHASE.IDE && (
         <div className="app-container" style={{ height: '100%', display: 'flex' }}>
 
-          {/* Activity Bar (BigQuery Style) */}
-          <div className="activity-bar" style={{ width: '48px', backgroundColor: 'var(--bg-color)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '15px', zIndex: 10 }}>
+          {/* Activity Bar — Linear Style */}
+          <div className="activity-bar" style={{ width: '48px', backgroundColor: 'var(--surface-base)', borderRight: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '12px', zIndex: 10 }}>
             <button
               onClick={() => setActiveSidebarTab('files')}
-              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'files' ? 'var(--accent-color-user)' : 'var(--text-muted)', padding: '10px 0', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'files' ? '2px solid var(--accent-color-user)' : '2px solid transparent' }}
+              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'files' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'files' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
               title="Explorer"
             >
-              <LuFolder size={22} />
+              <LuFolder size={20} />
             </button>
             <button
               onClick={() => setActiveSidebarTab('schema')}
-              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'schema' ? 'var(--accent-color-user)' : 'var(--text-muted)', padding: '10px 0', marginTop: '5px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'schema' ? '2px solid var(--accent-color-user)' : '2px solid transparent' }}
+              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'schema' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', marginTop: '4px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'schema' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
               title="Database Schema"
             >
-              <LuDatabase size={22} />
+              <LuDatabase size={20} />
             </button>
             <button
               onClick={() => setIsSettingsOpen(true)}
               title="Settings"
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', padding: '10px 0', marginTop: 'auto', marginBottom: '15px', cursor: 'pointer', width: '100%' }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', padding: '10px 0', marginTop: 'auto', marginBottom: '12px', cursor: 'pointer', width: '100%', transition: 'color var(--transition-fast)' }}
             >
-              <LuSettings size={22} />
+              <LuSettings size={20} />
             </button>
           </div>
 
-          <div className="sidebar" style={{ width: '280px', display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--sidebar-bg)', borderRight: '1px solid var(--border-color)' }}>
+          <div className="sidebar" style={{ width: '280px', display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--surface-raised)', borderRight: '1px solid var(--border-subtle)' }}>
 
-            {/* Top Section: Project Info - Auto Height */}
+            {/* Top Section: Project Info */}
             <ProjectInfo
               projectPath={projectPath}
               currentDb={currentDb}
@@ -359,7 +368,7 @@ function App() {
               onCloseProject={handleCloseProject}
             />
 
-            <div style={{ height: '1px', backgroundColor: '#2C2E33', margin: '0 20px 10px 20px' }}></div>
+            <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '0 16px 6px 16px' }}></div>
 
             {/* Content Switcher */}
             {activeSidebarTab === 'files' && (
@@ -390,35 +399,35 @@ function App() {
 
           {/* Main Content with LayoutManager */}
           <div className="main-content">
-            {/* Global Toolbar can drive LayoutManager */}
+            {/* Global Toolbar — Linear Style */}
             <div className="toolbar">
               <div className="toolbar-left">
                 <button
                   onClick={() => layoutRef.current?.createNew('sql')}
                   title="Create New SQL Query"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'transparent', color: 'var(--text-color)', border: '1px solid var(--border-color)', padding: '5px 10px', borderRadius: '4px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
                 >
                   <LuFilePlus size={14} /> New SQL
                 </button>
                 <button
                   onClick={() => layoutRef.current?.createNew('notebook')}
                   title="Create New Analytics Notebook"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'transparent', color: 'var(--text-color)', border: '1px solid var(--border-color)', padding: '5px 10px', borderRadius: '4px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
                 >
                   <LuFilePlus size={14} /> New Notebook
                 </button>
-                <div style={{ width: '1px', height: '20px', backgroundColor: '#333', margin: '0 8px' }}></div>
-                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
+                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--accent-primary)', color: 'var(--surface-base)', border: 'none', fontWeight: '600' }}>
                   <LuPlay size={14} fill="currentColor" /> Run
                 </button>
-                <button onClick={() => layoutRef.current?.handleTriggerSave()} style={{ backgroundColor: '#2f425f', color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <button onClick={() => layoutRef.current?.handleTriggerSave()} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <LuSave size={14} /> Save
                 </button>
-                <div style={{ width: '1px', height: '20px', backgroundColor: '#333', margin: '0 5px' }}></div>
+                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
                 <button
                   onClick={() => layoutRef.current?.handleTriggerAnalyze()}
                   title="Analyze Query Plan"
-                  style={{ backgroundColor: 'transparent', color: 'var(--accent-color-user)', border: '1px solid var(--accent-color-user)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)' }}
                 >
                   <LuActivity size={14} /> Analyze
                 </button>
@@ -427,7 +436,7 @@ function App() {
                 <button
                   onClick={() => setShowAiSidebar(!showAiSidebar)}
                   title="Toggle AI Assistant"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: showAiSidebar ? '#1A1B1E' : 'transparent', color: 'var(--accent-color-user)', border: '1px solid var(--accent-color-user)' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: showAiSidebar ? 'var(--active-bg)' : 'transparent', color: 'var(--accent-primary)', borderColor: showAiSidebar ? 'var(--accent-primary)' : 'var(--border-default)' }}
                 >
                   {showAiSidebar ? <><LuX /> Close AI</> : <><LuBot /> AI Assistant</>}
                 </button>
@@ -466,6 +475,8 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         currentTheme={theme}
         onThemeChange={setTheme}
+        currentAccent={accentColor}
+        onAccentChange={setAccentColor}
       />
 
       <SaveQueryModal

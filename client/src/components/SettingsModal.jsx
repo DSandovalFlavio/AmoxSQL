@@ -8,7 +8,7 @@ const RECOMMENDED_MODELS = [
     { id: 'gemma2:2b', label: 'Gemma 2 (2B)', size: '1.6GB RAM', desc: 'Great reasoning for small memory.' }
 ];
 
-const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
+const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
 
     // AI Settings State
@@ -154,25 +154,25 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000,
-            backdropFilter: 'blur(2px)'
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000,
+            backdropFilter: 'blur(8px)'
         }}>
             <div style={{
-                backgroundColor: 'var(--modal-bg)',
-                color: 'var(--text-color)',
-                width: '850px', // Adjusted compact width
-                height: '600px', // Adjusted compact height
-                borderRadius: '8px',
+                backgroundColor: 'var(--surface-overlay)',
+                color: 'var(--text-secondary)',
+                width: '850px',
+                height: '600px',
+                borderRadius: '12px',
                 display: 'flex',
                 overflow: 'hidden',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                border: '1px solid var(--border-color)'
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border-default)'
             }}>
                 {/* Sidebar */}
                 <div style={{
                     width: '180px',
-                    backgroundColor: 'var(--sidebar-bg)',
-                    borderRight: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--surface-raised)',
+                    borderRight: '1px solid var(--border-subtle)',
                     padding: '15px 0',
                     flexShrink: 0
                 }}>
@@ -221,10 +221,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                 </div>
 
                 {/* Content */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--editor-bg)' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--surface-base)' }}>
                     <div style={{
                         padding: '15px 20px',
-                        borderBottom: '1px solid var(--border-color)',
+                        borderBottom: '1px solid var(--border-subtle)',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                     }}>
                         <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-active)' }}>
@@ -296,7 +296,49 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange }) => {
                                 </div>
 
                                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    Current Accent Color: <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: 'var(--accent-color-user)', borderRadius: '50%' }}></span> {currentTheme === 'dark' ? 'Cyan #00ffff' : 'Blue #0059ff'}
+                                    Current Accent Color: <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: 'var(--accent-color-user)', borderRadius: '50%' }}></span> {currentAccent === 'linear' ? 'Linear Blue #5E6AD2' : (currentTheme === 'dark' ? 'Cyan #00ffff' : 'Blue #0059ff')}
+                                </div>
+
+                                {/* Accent Color Selection */}
+                                <div>
+                                    <h3 style={{ fontSize: '13px', marginBottom: '10px', color: 'var(--text-active)' }}>Accent Color</h3>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        {/* Cyan Preset */}
+                                        <div
+                                            onClick={() => onAccentChange && onAccentChange('cyan')}
+                                            style={{
+                                                width: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer',
+                                                background: 'linear-gradient(135deg, #00ffff, #00cccc)',
+                                                border: currentAccent === 'cyan' ? '2px solid var(--text-primary)' : '2px solid transparent',
+                                                outline: currentAccent === 'cyan' ? '2px solid var(--accent-color-user)' : 'none',
+                                                outlineOffset: '2px',
+                                                transition: 'all 0.2s',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}
+                                            title="Cyan (Default)"
+                                        >
+                                            {currentAccent === 'cyan' && <span style={{ color: '#000', fontWeight: 'bold', fontSize: '14px' }}>✓</span>}
+                                        </div>
+                                        {/* Linear Blue Preset */}
+                                        <div
+                                            onClick={() => onAccentChange && onAccentChange('linear')}
+                                            style={{
+                                                width: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer',
+                                                background: 'linear-gradient(135deg, #5E6AD2, #4850B8)',
+                                                border: currentAccent === 'linear' ? '2px solid var(--text-primary)' : '2px solid transparent',
+                                                outline: currentAccent === 'linear' ? '2px solid var(--accent-color-user)' : 'none',
+                                                outlineOffset: '2px',
+                                                transition: 'all 0.2s',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}
+                                            title="Linear Blue"
+                                        >
+                                            {currentAccent === 'linear' && <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>✓</span>}
+                                        </div>
+                                    </div>
+                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                                        Choose between the default Cyan accent or the Linear-inspired Blue.
+                                    </p>
                                 </div>
 
                             </div>

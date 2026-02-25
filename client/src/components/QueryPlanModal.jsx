@@ -49,31 +49,32 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
         <div style={{
             position: 'fixed',
             top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
+            backgroundColor: 'rgba(0,0,0,0.5)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            zIndex: 1000
+            zIndex: 1000,
+            backdropFilter: 'blur(8px)'
         }}>
             <div style={{
-                backgroundColor: 'var(--modal-bg)',
+                backgroundColor: 'var(--surface-overlay)',
                 width: '95%',
                 height: '95%',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                border: '1px solid var(--border-color)',
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border-default)',
                 overflow: 'hidden'
             }}>
                 {/* Header */}
                 <div style={{
                     padding: '10px 15px',
-                    borderBottom: '1px solid var(--border-color)',
+                    borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    backgroundColor: 'var(--header-bg)',
+                    backgroundColor: 'var(--surface-raised)',
                     height: '40px',
                     flexShrink: 0
                 }}>
@@ -184,7 +185,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
                         overflow: 'hidden',
                         display: 'flex',
                         flexDirection: 'column',
-                        backgroundColor: 'var(--modal-bg)'
+                        backgroundColor: 'var(--surface-base)'
                     }}>
                         <div style={{
                             padding: '8px',
