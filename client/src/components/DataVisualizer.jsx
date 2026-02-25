@@ -1571,7 +1571,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                             {/* --- ADVANCED DATA OPTIONS --- */}
                             {
-                                isDateColumn && (
+                                isDateColumnMemo && (
                                     <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--accent-color-user)', marginBottom: '8px', fontWeight: '600' }}>
                                             <LuCalendar size={12} /> Date Aggregation

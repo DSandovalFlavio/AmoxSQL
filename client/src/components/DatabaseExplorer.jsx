@@ -298,6 +298,28 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                         onClick={() => {
+                            if (onSelectQuery) onSelectQuery(`SELECT * FROM "${contextMenu.tableName}" LIMIT 100;`);
+                            setContextMenu(null);
+                        }}
+                    >
+                        <LuCode size={14} /> Select Top 100
+                    </div>
+                    <div
+                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        onClick={() => {
+                            setPreviewTable(contextMenu.tableName);
+                            setContextMenu(null);
+                        }}
+                    >
+                        <LuEye size={14} /> Preview Table
+                    </div>
+                    <div
+                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        onClick={() => {
                             navigator.clipboard.writeText(contextMenu.tableName);
                             setContextMenu(null);
                         }}
@@ -314,6 +336,34 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         }}
                     >
                         <LuInfo size={14} /> View Details
+                    </div>
+                    <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '4px 0' }} />
+                    <div
+                        style={{ padding: '8px 15px', cursor: 'pointer', fontSize: '12px', color: '#e06c75', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        onClick={async () => {
+                            const name = contextMenu.tableName;
+                            setContextMenu(null);
+                            if (!window.confirm(`Are you sure you want to drop table "${name}"?\n\nThis action cannot be undone.`)) return;
+                            try {
+                                const res = await fetch('http://localhost:3001/api/query', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ query: `DROP TABLE IF EXISTS "${name}"` })
+                                });
+                                if (res.ok) {
+                                    fetchTables();
+                                } else {
+                                    const data = await res.json();
+                                    alert(`Drop failed: ${data.error}`);
+                                }
+                            } catch (err) {
+                                alert(`Drop failed: ${err.message}`);
+                            }
+                        }}
+                    >
+                        <LuTable size={14} /> Drop Table...
                     </div>
                 </div>
             )}

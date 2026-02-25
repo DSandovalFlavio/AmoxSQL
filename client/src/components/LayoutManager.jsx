@@ -229,12 +229,14 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs, th
             }
         },
         createNew: (type, initialContent) => {
+            // Normalize 'notebook' to 'sqlnb' for consistent handling
+            const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb' : type;
             const newTab = {
                 id: Date.now().toString(),
                 path: '',
-                name: type === 'sqlnb' ? 'Untitled.sqlnb' : 'Untitled.sql',
-                type: type,
-                content: initialContent || (type === 'sqlnb'
+                name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : 'Untitled.sql',
+                type: normalizedType,
+                content: initialContent || (normalizedType === 'sqlnb'
                     ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
                     : 'SELECT 1;'),
                 results: null,
@@ -263,14 +265,39 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs, th
                 updateTab(activePane, tab.id, updates);
             }
         },
-        handleQueryFile: (filePath) => {
+        handleQueryFile: async (filePath) => {
             const fileName = filePath.split(/[/\\]/).pop();
+            const normalizedPath = filePath.replace(/\\/g, '/');
+            const lowerName = fileName.toLowerCase();
+
+            let content = '';
+
+            // Excel files: Fetch sheet names and generate read_xlsx query
+            if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
+                try {
+                    const res = await fetch(`http://localhost:3001/api/files/inspect-excel?path=${encodeURIComponent(filePath)}`);
+                    const data = await res.json();
+                    const sheets = data.sheets || ['Sheet1'];
+
+                    const sheetComments = sheets.map(s =>
+                        `-- SELECT * FROM read_xlsx('${normalizedPath}', sheet='${s}') LIMIT 100;`
+                    ).join('\n');
+
+                    content = `/* \n * Direct Query on ${fileName}\n * Available sheets: ${sheets.join(', ')}\n */\n\n${sheetComments}\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='${sheets[0]}') LIMIT 100;`;
+                } catch (err) {
+                    content = `/* \n * Direct Query on ${fileName}\n * Error fetching sheets: ${err.message}\n */\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='Sheet1') LIMIT 100;`;
+                }
+            } else {
+                // CSV, Parquet, JSON — standard DuckDB auto-detect
+                content = `/* \n * Direct Query on ${fileName} \n */\n\nSELECT * FROM '${normalizedPath}' LIMIT 100;`;
+            }
+
             const newTab = {
                 id: Date.now().toString(),
                 path: '',
                 name: `${fileName}.sql`,
                 type: 'sql',
-                content: `/* \n * Direct Query on ${fileName} \n */\n\nSELECT * FROM '${filePath.replace(/\\/g, '/')}' LIMIT 100;`,
+                content: content,
                 results: null,
                 dirty: true
             };

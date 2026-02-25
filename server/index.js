@@ -509,6 +509,45 @@ app.post('/api/folder', (req, res) => {
     });
 });
 
+/* --- File Rename & Delete APIs --- */
+app.post('/api/file/rename', (req, res) => {
+    const { oldPath, newPath } = req.body;
+    if (!oldPath || !newPath) return res.status(400).json({ error: 'oldPath and newPath are required' });
+
+    const fullOld = path.isAbsolute(oldPath) ? oldPath : path.join(ROOT_DIR, oldPath);
+    const fullNew = path.isAbsolute(newPath) ? newPath : path.join(ROOT_DIR, newPath);
+
+    if (!fs.existsSync(fullOld)) return res.status(404).json({ error: 'Source file not found' });
+    if (fs.existsSync(fullNew)) return res.status(409).json({ error: 'Destination already exists' });
+
+    try {
+        fs.renameSync(fullOld, fullNew);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Rename failed', details: err.message });
+    }
+});
+
+app.post('/api/file/delete', (req, res) => {
+    const { path: filePath, isDirectory } = req.body;
+    if (!filePath) return res.status(400).json({ error: 'Path is required' });
+
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
+
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
+
+    try {
+        if (isDirectory) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+        } else {
+            fs.unlinkSync(fullPath);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Delete failed', details: err.message });
+    }
+});
+
 const getDirectories = (srcPath) => {
     let dirs = [];
     try {
