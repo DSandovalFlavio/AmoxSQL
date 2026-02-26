@@ -66,12 +66,13 @@ function App() {
   /* --- Project Workflow Handlers --- */
 
   // Theme State
-  const [theme, setTheme] = useState('dark');
-  const [accentColor, setAccentColor] = useState('cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
+  const [theme, setTheme] = useState(() => localStorage.getItem('amoxsql-theme') || 'dark');
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Apply Theme & Accent Classes
   useEffect(() => {
+    localStorage.setItem('amoxsql-theme', theme);
     if (theme === 'light') {
       document.body.classList.add('light-theme');
     } else {
@@ -80,6 +81,7 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    localStorage.setItem('amoxsql-accent', accentColor);
     // Remove all accent classes first
     const classes = [...document.body.classList].filter(c => c.startsWith('accent-'));
     classes.forEach(c => document.body.classList.remove(c));

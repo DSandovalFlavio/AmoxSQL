@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart } from 'react-icons/lu';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -28,6 +28,19 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(null); // { status: string, percent: number }
 
+    // DuckDB Version (auto-fetched)
+    const [duckdbVersion, setDuckdbVersion] = useState('...');
+
+    // Helper: open links in system browser (Electron) or new tab (browser)
+    const openExternalLink = (e, url) => {
+        e.preventDefault();
+        if (window.electronAPI && window.electronAPI.openExternal) {
+            window.electronAPI.openExternal(url);
+        } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    };
+
     useEffect(() => {
         if (isOpen) {
             // Load base config
@@ -45,6 +58,20 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     }
                 })
                 .catch(err => console.error("Failed to load config", err));
+
+            // Fetch DuckDB version
+            fetch('http://localhost:3001/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: 'SELECT version() as version' })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.data && data.data.length > 0 && data.data[0].version) {
+                        setDuckdbVersion(data.data[0].version);
+                    }
+                })
+                .catch(() => setDuckdbVersion('N/A'));
         }
     }, [isOpen]);
 
@@ -581,7 +608,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 </button>
                                             </div>
                                             <p style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                                                Don't have Ollama installed? <a href="https://ollama.com/download" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-color-user)' }}>Download it from ollama.com</a>.
+                                                Don't have Ollama installed? <a href="https://ollama.com/download" onClick={(e) => openExternalLink(e, 'https://ollama.com/download')} style={{ color: 'var(--accent-color-user)', cursor: 'pointer' }}>Download it from ollama.com</a>.
                                             </p>
                                         </div>
 
@@ -598,7 +625,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                     <div>
                                         <h2 style={{ margin: 0, color: 'var(--text-active)', fontSize: '20px' }}>AmoxSQL</h2>
-                                        <p style={{ margin: '4px 0 0 0', color: 'var(--accent-color-user)', fontSize: '12px', fontWeight: 'bold' }}>Version 1.1</p>
+                                        <p style={{ margin: '4px 0 0 0', color: 'var(--accent-color-user)', fontSize: '12px', fontWeight: 'bold' }}>Version 1.2.0</p>
+                                        <p style={{ margin: '2px 0 0 0', color: 'var(--text-muted)', fontSize: '11px' }}>DuckDB Engine: {duckdbVersion}</p>
                                     </div>
                                 </div>
 
@@ -618,7 +646,32 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         <li><strong>Smart Visualization:</strong> Create and save advanced Recharts configurations instantly.</li>
                                         <li><strong>Integrated AI Assistance:</strong> Support for local Ollama models and Google Gemini.</li>
                                         <li><strong>Drag & Drop Workflow:</strong> Seamlessly move tables and columns into the powerful Monaco Editor.</li>
+                                        <li><strong>Extension Gallery:</strong> Explore and install DuckDB extensions with a visual gallery.</li>
                                     </ul>
+                                </div>
+
+                                {/* Sponsor CTA */}
+                                <div style={{ backgroundColor: 'var(--accent-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--accent-muted)', textAlign: 'center' }}>
+                                    <LuHeart size={20} style={{ color: '#ef4444', marginBottom: '8px' }} />
+                                    <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--text-active)', lineHeight: '1.5' }}>
+                                        <strong>Love AmoxSQL?</strong> Your support helps us keep building new features, improving performance, and making data analysis accessible to everyone.
+                                    </p>
+                                    <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                        Every contribution — big or small — fuels the future of this project. 🚀
+                                    </p>
+                                    <a
+                                        href="https://github.com/sponsors/dsandovalflavio"
+                                        onClick={(e) => openExternalLink(e, 'https://github.com/sponsors/dsandovalflavio')}
+                                        style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                            padding: '8px 20px', borderRadius: '6px',
+                                            background: 'linear-gradient(135deg, #ef4444, #ec4899)',
+                                            color: '#fff', textDecoration: 'none', fontSize: '13px', fontWeight: '600',
+                                            border: 'none', cursor: 'pointer', transition: 'filter 0.2s'
+                                        }}
+                                    >
+                                        <LuHeart size={14} /> Become a Sponsor
+                                    </a>
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '10px' }}>
@@ -626,12 +679,15 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         Created with 💙 by <strong>@dsandovalflavio</strong>.<br />
                                         <span style={{ color: 'var(--text-muted)' }}>From Latin America to the World.</span>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '15px' }}>
-                                        <a href="https://github.com/dsandovalflavio/amoxsql" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-active)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
+                                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                        <a href="https://github.com/dsandovalflavio/amoxsql" onClick={(e) => openExternalLink(e, 'https://github.com/dsandovalflavio/amoxsql')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-active)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
                                             <LuGithub size={14} /> GitHub Repository
                                         </a>
-                                        <a href="https://github.com/dsandovalflavio" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-active)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
+                                        <a href="https://github.com/dsandovalflavio" onClick={(e) => openExternalLink(e, 'https://github.com/dsandovalflavio')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-active)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
                                             <LuGlobe size={14} /> Creator Profile
+                                        </a>
+                                        <a href="https://github.com/sponsors/dsandovalflavio" onClick={(e) => openExternalLink(e, 'https://github.com/sponsors/dsandovalflavio')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
+                                            <LuHeart size={14} /> Sponsor
                                         </a>
                                     </div>
                                 </div>

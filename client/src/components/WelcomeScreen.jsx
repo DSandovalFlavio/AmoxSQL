@@ -164,7 +164,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                 style={{
                     position: 'absolute',
                     bottom: '20px',
-                    right: '24px',
+                    left: '24px',
                     background: 'transparent',
                     border: 'none',
                     color: 'var(--text-tertiary)',
@@ -183,7 +183,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
             </button>
 
             <div style={{ position: 'absolute', bottom: '24px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                v1.0.0
+                v1.2.0
             </div>
         </div>
     );

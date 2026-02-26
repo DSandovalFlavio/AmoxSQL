@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v1.1)
+# AmoxSQL (v1.2.0)
 
 > **The Modern Codex for Local Data Analysis.**
 >
@@ -87,6 +87,12 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
     *   **Reference Indicators**: Add customizable horizontal/vertical reference lines and colored reference areas to highlight targets or thresholds.
     *   **Number Formatting**: Display values in Compact (1.2k), Millions (1.2M), Currency, or Raw formats.
 * **High-Quality Export**: Export your charts instantly as high-resolution (up to 4x scale) PNG images.
+* **Customizable Accent Palette**: 10 brand colors derived from the AmoxSQL logo gradient, plus Linear Blue.
+
+### 🧩 Extension Management
+*   **Extension Gallery**: Browse, search, and install DuckDB extensions from a visual card-based gallery.
+*   **Core vs Community badges**: Quickly identify official core extensions from community contributions.
+*   **One-click Install**: Install and load extensions directly from the UI.
 
 ### 🐛 Advanced Debugging Tools
 *   **CTE Debugger**: interactive "Step-Through" for Common Table Expressions. Click the "Play" icon next to any `WITH` clause to inspect intermediate results without rewriting your query.
@@ -112,13 +118,13 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-### 🎁 v1.1 — Free Public Release
+### 🎁 v1.2.0 — Free Public Release
 This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-👉 **[Download v1.1 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
+👉 **[Download v1.2.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
 ### 🚀 Future Versions — Sponsors Only
-Starting with v1.2+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
+Starting with v1.3+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
 
 - ✅ Ready-to-use Windows installers (no build setup required)
 - ✅ Early access to new features and updates

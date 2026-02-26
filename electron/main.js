@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 
 // IPC Handler: Open native folder picker dialog
@@ -14,6 +14,13 @@ ipcMain.handle('dialog:selectFolder', async () => {
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths[0];
+});
+
+// IPC Handler: Open URL in the system's default browser
+ipcMain.handle('shell:openExternal', async (_event, url) => {
+    if (typeof url === 'string' && url.startsWith('https://')) {
+        await shell.openExternal(url);
+    }
 });
 
 // FORCE PROD IF PACKAGED - MUST BE BEFORE REQUIRE SERVER
