@@ -296,48 +296,51 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 </div>
 
                                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    Current Accent Color: <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: 'var(--accent-color-user)', borderRadius: '50%' }}></span> {currentAccent === 'linear' ? 'Linear Blue #5E6AD2' : (currentTheme === 'dark' ? 'Cyan #00ffff' : 'Blue #0059ff')}
+                                    Current Accent Color: <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: 'var(--accent-color-user)', borderRadius: '50%' }}></span> {
+                                        (() => {
+                                            const names = { cyan: 'Cyan #00FFFF', linear: 'Linear Blue #5E6AD2', 'amox-2': '#00F5FF', 'amox-3': '#00ECFF', 'amox-4': '#00DAFF', 'amox-5': '#00C8FF', 'amox-6': '#00B6FF', 'amox-7': '#00A3FF', 'amox-8': '#0090FF', 'amox-9': '#007CFF', 'amox-10': '#0068FF' };
+                                            return names[currentAccent] || currentAccent;
+                                        })()
+                                    }
                                 </div>
 
                                 {/* Accent Color Selection */}
                                 <div>
                                     <h3 style={{ fontSize: '13px', marginBottom: '10px', color: 'var(--text-active)' }}>Accent Color</h3>
-                                    <div style={{ display: 'flex', gap: '12px' }}>
-                                        {/* Cyan Preset */}
-                                        <div
-                                            onClick={() => onAccentChange && onAccentChange('cyan')}
-                                            style={{
-                                                width: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer',
-                                                background: 'linear-gradient(135deg, #00ffff, #00cccc)',
-                                                border: currentAccent === 'cyan' ? '2px solid var(--text-primary)' : '2px solid transparent',
-                                                outline: currentAccent === 'cyan' ? '2px solid var(--accent-color-user)' : 'none',
-                                                outlineOffset: '2px',
-                                                transition: 'all 0.2s',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}
-                                            title="Cyan (Default)"
-                                        >
-                                            {currentAccent === 'cyan' && <span style={{ color: '#000', fontWeight: 'bold', fontSize: '14px' }}>✓</span>}
-                                        </div>
-                                        {/* Linear Blue Preset */}
-                                        <div
-                                            onClick={() => onAccentChange && onAccentChange('linear')}
-                                            style={{
-                                                width: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer',
-                                                background: 'linear-gradient(135deg, #5E6AD2, #4850B8)',
-                                                border: currentAccent === 'linear' ? '2px solid var(--text-primary)' : '2px solid transparent',
-                                                outline: currentAccent === 'linear' ? '2px solid var(--accent-color-user)' : 'none',
-                                                outlineOffset: '2px',
-                                                transition: 'all 0.2s',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}
-                                            title="Linear Blue"
-                                        >
-                                            {currentAccent === 'linear' && <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>✓</span>}
-                                        </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        {[
+                                            { id: 'cyan', color: '#00FFFF', label: 'Cyan (Default)' },
+                                            { id: 'amox-2', color: '#00F5FF', label: 'AmoxSQL 2' },
+                                            { id: 'amox-3', color: '#00ECFF', label: 'AmoxSQL 3' },
+                                            { id: 'amox-4', color: '#00DAFF', label: 'AmoxSQL 4' },
+                                            { id: 'amox-5', color: '#00C8FF', label: 'AmoxSQL 5' },
+                                            { id: 'amox-6', color: '#00B6FF', label: 'AmoxSQL 6' },
+                                            { id: 'amox-7', color: '#00A3FF', label: 'AmoxSQL 7' },
+                                            { id: 'amox-8', color: '#0090FF', label: 'AmoxSQL 8' },
+                                            { id: 'amox-9', color: '#007CFF', label: 'AmoxSQL 9' },
+                                            { id: 'amox-10', color: '#0068FF', label: 'AmoxSQL 10' },
+                                            { id: 'linear', color: '#5E6AD2', label: 'Linear Blue' },
+                                        ].map(swatch => (
+                                            <div
+                                                key={swatch.id}
+                                                onClick={() => onAccentChange && onAccentChange(swatch.id)}
+                                                style={{
+                                                    width: '36px', height: '36px', borderRadius: '10px', cursor: 'pointer',
+                                                    background: swatch.color,
+                                                    border: currentAccent === swatch.id ? '2px solid var(--text-primary)' : '2px solid transparent',
+                                                    outline: currentAccent === swatch.id ? '2px solid var(--accent-color-user)' : 'none',
+                                                    outlineOffset: '2px',
+                                                    transition: 'all 0.2s',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}
+                                                title={swatch.label}
+                                            >
+                                                {currentAccent === swatch.id && <span style={{ color: swatch.id === 'linear' ? '#fff' : '#000', fontWeight: 'bold', fontSize: '13px' }}>✓</span>}
+                                            </div>
+                                        ))}
                                     </div>
                                     <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                                        Choose between the default Cyan accent or the Linear-inspired Blue.
+                                        Choose from the AmoxSQL brand palette or the Linear-inspired Blue.
                                     </p>
                                 </div>
 

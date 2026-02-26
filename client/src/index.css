@@ -83,6 +83,88 @@
   --focus-ring: rgba(94, 106, 210, 0.40);
 }
 
+/* ── AmoxSQL Brand Palette Accents ── */
+.accent-amox-2 {
+  --accent-primary: #00F5FF;
+  --accent-muted: rgba(0, 245, 255, 0.18);
+  --accent-subtle: rgba(0, 245, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 245, 255, 0.35);
+}
+
+.accent-amox-3 {
+  --accent-primary: #00ECFF;
+  --accent-muted: rgba(0, 236, 255, 0.18);
+  --accent-subtle: rgba(0, 236, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 236, 255, 0.35);
+}
+
+.accent-amox-4 {
+  --accent-primary: #00DAFF;
+  --accent-muted: rgba(0, 218, 255, 0.18);
+  --accent-subtle: rgba(0, 218, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 218, 255, 0.35);
+}
+
+.accent-amox-5 {
+  --accent-primary: #00C8FF;
+  --accent-muted: rgba(0, 200, 255, 0.18);
+  --accent-subtle: rgba(0, 200, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 200, 255, 0.35);
+}
+
+.accent-amox-6 {
+  --accent-primary: #00B6FF;
+  --accent-muted: rgba(0, 182, 255, 0.18);
+  --accent-subtle: rgba(0, 182, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 182, 255, 0.35);
+}
+
+.accent-amox-7 {
+  --accent-primary: #00A3FF;
+  --accent-muted: rgba(0, 163, 255, 0.18);
+  --accent-subtle: rgba(0, 163, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 163, 255, 0.35);
+}
+
+.accent-amox-8 {
+  --accent-primary: #0090FF;
+  --accent-muted: rgba(0, 144, 255, 0.18);
+  --accent-subtle: rgba(0, 144, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 144, 255, 0.35);
+}
+
+.accent-amox-9 {
+  --accent-primary: #007CFF;
+  --accent-muted: rgba(0, 124, 255, 0.18);
+  --accent-subtle: rgba(0, 124, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 124, 255, 0.35);
+}
+
+.accent-amox-10 {
+  --accent-primary: #0068FF;
+  --accent-muted: rgba(0, 104, 255, 0.18);
+  --accent-subtle: rgba(0, 104, 255, 0.08);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+  --focus-ring: rgba(0, 104, 255, 0.35);
+}
+
 /* ═══════════════════════════════════════════════
    LIGHT THEME
    ═══════════════════════════════════════════════ */
@@ -129,6 +211,70 @@
   --accent-color-user-transparent: var(--accent-subtle);
   --focus-ring: rgba(94, 106, 210, 0.35);
   --sidebar-item-active-text: var(--accent-primary);
+}
+
+/* Light theme + AmoxSQL accent overrides */
+.light-theme.accent-amox-2 {
+  --accent-primary: #00CFDA;
+  --accent-muted: rgba(0, 207, 218, 0.15);
+  --accent-subtle: rgba(0, 207, 218, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-3 {
+  --accent-primary: #00C4D9;
+  --accent-muted: rgba(0, 196, 217, 0.15);
+  --accent-subtle: rgba(0, 196, 217, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-4 {
+  --accent-primary: #00B5D6;
+  --accent-muted: rgba(0, 181, 214, 0.15);
+  --accent-subtle: rgba(0, 181, 214, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-5 {
+  --accent-primary: #00A5D4;
+  --accent-muted: rgba(0, 165, 212, 0.15);
+  --accent-subtle: rgba(0, 165, 212, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-6 {
+  --accent-primary: #0097D1;
+  --accent-muted: rgba(0, 151, 209, 0.15);
+  --accent-subtle: rgba(0, 151, 209, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-7 {
+  --accent-primary: #0088CC;
+  --accent-muted: rgba(0, 136, 204, 0.15);
+  --accent-subtle: rgba(0, 136, 204, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-8 {
+  --accent-primary: #0078C8;
+  --accent-muted: rgba(0, 120, 200, 0.15);
+  --accent-subtle: rgba(0, 120, 200, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-9 {
+  --accent-primary: #006AC2;
+  --accent-muted: rgba(0, 106, 194, 0.15);
+  --accent-subtle: rgba(0, 106, 194, 0.06);
+  --button-text-color: #ffffff;
+}
+
+.light-theme.accent-amox-10 {
+  --accent-primary: #005ABB;
+  --accent-muted: rgba(0, 90, 187, 0.15);
+  --accent-subtle: rgba(0, 90, 187, 0.06);
+  --button-text-color: #ffffff;
 }
 
 

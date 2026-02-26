@@ -111,7 +111,7 @@ const SimpleColorPicker = ({ color, onChange }) => {
                         ))}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                        <span style={{ fontSize: '10px', color: '#888' }}>Hex:</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Hex:</span>
                         <input
                             type="text"
                             value={color}
@@ -381,7 +381,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
     // X-Axis Tick Props (Stable based on angle)
     const xAxisTickProps = useMemo(() => ({
-        fill: '#888',
+        fill: 'var(--text-tertiary)',
         fontSize: 11,
         angle: -Number(xAxisLabelAngle), // Recharts rotates counter-clockwise with negative
         textAnchor: Number(xAxisLabelAngle) !== 0 ? 'end' : 'middle',
@@ -602,7 +602,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         if (!showLabels) return false;
 
         let position = 'top';
-        let fill = '#ccc';
+        let fill = 'var(--text-secondary)';
 
         if (chartType === 'bar-horizontal') {
             if (dataLabelPosition === 'outside') position = 'right';
@@ -621,7 +621,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
         // Apply white text if label is positioned inside a filled element (like a bar)
         if (position.includes('inside')) {
-            fill = '#fff';
+            fill = 'var(--text-primary)';
         }
 
         return { position, fill, fontSize: 10, formatter: formatNumber };
@@ -1239,7 +1239,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
             // Use html2canvas for robust screenshotting
             const canvas = await html2canvas(chartRef.current, {
-                backgroundColor: '#1e1f22', // Force dark background
+                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface-base').trim() || '#1e1f22', // Force dark background
                 scale: dynamicScale, // Dynamic Full HD stringency
                 logging: false,
                 useCORS: true,
@@ -1511,13 +1511,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 ) : (
                                     <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '5px', borderRadius: '4px', backgroundColor: 'var(--input-bg)' }}>
                                         {columns.map(col => (
-                                            <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', cursor: 'pointer', fontSize: '12px', color: '#ddd' }}>
+                                            <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={yAxisKeys.includes(col)}
                                                     onChange={() => handleYAxisChange(col)}
                                                     disabled={yAxisKeys.length === 1 && yAxisKeys.includes(col)}
-                                                    style={{ accentColor: '#00ffff' }}
+                                                    style={{ accentColor: 'var(--accent-primary)' }}
                                                 />
                                                 {col}
                                             </label>
@@ -1545,7 +1545,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             {/* --- SORTING & LIMITS --- */}
                             <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
                                 <div style={{ flex: 2 }}>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Sort By</label>
+                                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: '500' }}>Sort By</label>
                                     <select
                                         value={sortMode}
                                         onChange={(e) => setSortMode(e.target.value)}
@@ -1558,7 +1558,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     </select>
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>Limit</label>
+                                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: '500' }}>Limit</label>
                                     <input
                                         type="number"
                                         placeholder="All"
@@ -1592,7 +1592,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             {
                                 chartType !== 'donut' && (
                                     <div style={{ marginBottom: '20px' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: '500' }}>
                                             <LuGitMerge size={12} /> Split By Column
                                         </label>
                                         <select
@@ -1610,7 +1610,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             {
                                 chartType === 'scatter' && (
                                     <div style={{ marginBottom: '20px' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#aaa', marginBottom: '8px', fontWeight: '500' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: '500' }}>
                                             <LuCircle size={12} /> Bubble Size
                                         </label>
                                         <select
@@ -1629,7 +1629,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 chartType === 'donut' && (
                                     <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                         <div style={{ marginBottom: '10px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Group Small Slices (%)</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Group Small Slices (%)</label>
                                             <input
                                                 type="number"
                                                 min="0"
@@ -1638,7 +1638,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                                 onChange={(e) => setDonutGroupingThreshold(Number(e.target.value))}
                                                 style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }}
                                             />
-                                            <span style={{ fontSize: '10px', color: '#666' }}>Slices {'<'} % will be grouped into "Others".</span>
+                                            <span style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>Slices {'<'} % will be grouped into "Others".</span>
                                         </div>
                                     </div>
                                 )
@@ -1651,10 +1651,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         <>
                             {/* --- STORYTELLING (Texts) --- */}
                             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Storytelling</h4>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-primary)', textTransform: 'uppercase' }}>Storytelling</h4>
 
                                 <div style={{ marginBottom: '10px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Text Alignment</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Text Alignment</label>
                                     <select value={textAlign} onChange={(e) => setTextAlign(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
                                         <option value="left">Left</option>
                                         <option value="center">Center</option>
@@ -1663,18 +1663,18 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 </div>
 
                                 <div style={{ marginBottom: '8px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Title</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Title</label>
                                     <input type="text" placeholder="Chart Title" defaultValue={chartTitle} ref={titleRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                 </div>
                                 <div style={{ marginBottom: '8px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Subtitle</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Subtitle</label>
                                     <input type="text" placeholder="Chart Subtitle" defaultValue={chartSubtitle} ref={subtitleRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                 </div>
                                 <div style={{ marginBottom: '8px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Footnote</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Footnote</label>
                                     <input type="text" placeholder="Data source or footnote" defaultValue={chartFootnote} ref={footnoteRef} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                 </div>
-                                <button onClick={() => { setChartTitle(titleRef.current.value); setChartSubtitle(subtitleRef.current.value); setChartFootnote(footnoteRef.current.value); }} style={{ width: '100%', padding: '6px', background: 'var(--accent-color-user)', color: 'var(--btn-text)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', marginTop: '5px' }}>
+                                <button onClick={() => { setChartTitle(titleRef.current.value); setChartSubtitle(subtitleRef.current.value); setChartFootnote(footnoteRef.current.value); }} style={{ width: '100%', padding: '6px', background: 'var(--accent-color-user)', color: 'var(--button-text-color)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', marginTop: '5px' }}>
                                     Apply Text
                                 </button>
                             </div>
@@ -1685,29 +1685,29 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                                 <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Title Gap</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Title Gap</label>
                                         <input type="number" value={titleSpacing} onChange={(e) => setTitleSpacing(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Top</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Chart Top</label>
                                         <input type="number" value={marginTop} onChange={(e) => setMarginTop(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Bottom</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Chart Bottom</label>
                                         <input type="number" value={marginBottom} onChange={(e) => setMarginBottom(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Left</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Chart Left</label>
                                         <input type="number" value={marginLeft} onChange={(e) => setMarginLeft(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Chart Right</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Chart Right</label>
                                         <input type="number" value={marginRight} onChange={(e) => setMarginRight(Number(e.target.value))} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                     </div>
                                     <div style={{ flex: 1 }}></div>
@@ -1734,15 +1734,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                     <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Line</h4>
                                     <div style={{ marginBottom: '8px' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y Value</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Y Value</label>
                                         <input type="text" placeholder="Enter value..." value={refLine.value} onChange={(e) => setRefLine({ ...refLine, value: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
                                     </div>
                                     <div style={{ marginBottom: '8px' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Label</label>
                                         <input type="text" placeholder="e.g. Goal" value={refLine.label} onChange={(e) => setRefLine({ ...refLine, label: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Color</label>
                                         <SimpleColorPicker color={refLine.color} onChange={(val) => setRefLine({ ...refLine, color: val })} />
                                     </div>
                                 </div>
@@ -1753,7 +1753,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-active)', textTransform: 'uppercase' }}>Reference Area (Range)</h4>
 
                                 <div style={{ marginBottom: '8px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Range</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>X-Axis Range</label>
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <input type="text" placeholder="Start" value={refArea.x1} onChange={(e) => setRefArea({ ...refArea, x1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
                                         <input type="text" placeholder="End" value={refArea.x2} onChange={(e) => setRefArea({ ...refArea, x2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
@@ -1761,7 +1761,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 </div>
 
                                 <div style={{ marginBottom: '8px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Y-Axis Range</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Y-Axis Range</label>
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <input type="text" placeholder="Start" value={refArea.y1} onChange={(e) => setRefArea({ ...refArea, y1: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
                                         <input type="text" placeholder="End" value={refArea.y2} onChange={(e) => setRefArea({ ...refArea, y2: e.target.value })} style={{ flex: 1, minWidth: 0, background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '6px', fontSize: '11px', borderRadius: '4px', boxSizing: 'border-box' }} />
@@ -1769,7 +1769,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 </div>
 
                                 <div style={{ marginBottom: '8px' }}>
-                                    <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Color</label>
+                                    <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Color</label>
                                     <SimpleColorPicker color={refArea.color} onChange={(val) => setRefArea({ ...refArea, color: val })} />
                                 </div>
                             </div>
@@ -1781,15 +1781,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         <>
                             {/* --- DATA LABELS --- */}
                             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--panel-section-bg)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#fff', textTransform: 'uppercase' }}>Data Labels & Annotations</h4>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-primary)', textTransform: 'uppercase' }}>Data Labels & Annotations</h4>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: showLabels ? '8px' : '0' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc' }}>
-                                        <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} style={{ accentColor: '#00ffff' }} />
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} />
                                         Show Data Labels
                                     </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc' }}>
-                                        <input type="checkbox" checked={tooltipShowPercent} onChange={(e) => setTooltipShowPercent(e.target.checked)} style={{ accentColor: '#00ffff' }} />
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        <input type="checkbox" checked={tooltipShowPercent} onChange={(e) => setTooltipShowPercent(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} />
                                         Show % of Total in Tooltip
                                     </label>
                                 </div>
@@ -1808,7 +1808,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 {chartType === 'donut' && showLabels && (
                                     <>
                                         <div style={{ marginBottom: '10px', paddingLeft: '22px', marginTop: '10px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Label Content</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Label Content</label>
                                             <select value={donutLabelContent} onChange={(e) => setDonutLabelContent(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
                                                 <option value="percent">Percentage Only</option>
                                                 <option value="value">Value Only</option>
@@ -1818,7 +1818,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                             </select>
                                         </div>
                                         <div style={{ marginBottom: '10px', paddingLeft: '22px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Position</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Position</label>
                                             <select value={donutLabelPosition} onChange={(e) => setDonutLabelPosition(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
                                                 <option value="outside">Outside</option>
                                                 <option value="inside">Inside</option>
@@ -1887,14 +1887,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                                 <option value="stepAfter">Step After</option>
                                             </select>
                                         </div>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                            <input type="checkbox" checked={lineAreaFill} onChange={(e) => setLineAreaFill(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Fill Area (Area Chart)
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                                            <input type="checkbox" checked={lineAreaFill} onChange={(e) => setLineAreaFill(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Fill Area (Area Chart)
                                         </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                            <input type="checkbox" checked={showDots} onChange={(e) => setShowDots(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show Points
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                                            <input type="checkbox" checked={showDots} onChange={(e) => setShowDots(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Show Points
                                         </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                            <input type="checkbox" checked={isCumulative} onChange={(e) => setIsCumulative(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Cumulative Sum (Running Total)
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                                            <input type="checkbox" checked={isCumulative} onChange={(e) => setIsCumulative(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Cumulative Sum (Running Total)
                                         </label>
                                     </>
                                 )}
@@ -1910,8 +1910,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                             </select>
                                         </div>
                                         <div style={{ marginBottom: '10px' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#ccc', marginBottom: '4px' }}>Border Radius: {barRadius}px</label>
-                                            <input type="range" min="0" max="20" value={barRadius} onChange={(e) => setBarRadius(Number(e.target.value))} style={{ width: '100%', accentColor: '#00ffff' }} />
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Border Radius: {barRadius}px</label>
+                                            <input type="range" min="0" max="20" value={barRadius} onChange={(e) => setBarRadius(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
                                         </div>
                                         {barStackMode === 'none' && (
                                             <div style={{ marginBottom: '10px' }}>
@@ -1928,14 +1928,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                                 {chartType === 'donut' && (
                                     <div style={{ marginBottom: '10px' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#ccc', marginBottom: '4px' }}>Inner Radius (Thickness): {donutThickness}</label>
-                                        <input type="range" min="0" max="90" value={donutThickness} onChange={(e) => setDonutThickness(Number(e.target.value))} style={{ width: '100%', accentColor: '#00ffff' }} />
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Inner Radius (Thickness): {donutThickness}</label>
+                                        <input type="range" min="0" max="90" value={donutThickness} onChange={(e) => setDonutThickness(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
                                     </div>
                                 )}
 
                                 {chartType === 'scatter' && (
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                        <input type="checkbox" checked={scatterQuadrants} onChange={(e) => setScatterQuadrants(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show Automatic Quadrants (Mean Crosshairs)
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                                        <input type="checkbox" checked={scatterQuadrants} onChange={(e) => setScatterQuadrants(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Show Automatic Quadrants (Mean Crosshairs)
                                     </label>
                                 )}
 
@@ -1976,7 +1976,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                             return (
                                                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                     <SimpleColorPicker color={color} colorTheme={colorTheme} onChange={(val) => setSeriesConfig({ ...seriesConfig, [key]: { ...seriesConfig[key], color: val } })} />
-                                                    <span style={{ fontSize: '10px', color: '#ccc', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={key}>{key}</span>
+                                                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={key}>{key}</span>
                                                 </div>
                                             );
                                         })}
@@ -1990,7 +1990,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                                             return (
                                                 <div key={key} style={{ marginBottom: '10px' }}>
-                                                    <label style={{ display: 'block', fontSize: '11px', color: '#ddd', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{key}</label>
+                                                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{key}</label>
                                                     <div style={{ display: 'flex', gap: '5px' }}>
                                                         <SimpleColorPicker color={currentColor} onChange={(val) => { setSeriesConfig({ ...seriesConfig, [key]: { ...seriesConfig[key], color: val } }); }} />
                                                         {chartType === 'line' && (
@@ -2031,27 +2031,27 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                         </select>
                                     </div>
 
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                        <input type="checkbox" checked={showAxisLines} onChange={(e) => setShowAxisLines(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show Axis Lines & Ticks
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                                        <input type="checkbox" checked={showAxisLines} onChange={(e) => setShowAxisLines(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Show Axis Lines & Ticks
                                     </label>
 
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#ccc', marginBottom: '10px' }}>
-                                        <input type="checkbox" checked={yLogScale} onChange={(e) => setYLogScale(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Logarithmic Scale ({chartType === 'bar-horizontal' ? 'Bottom Values' : 'Y'})
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                                        <input type="checkbox" checked={yLogScale} onChange={(e) => setYLogScale(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Logarithmic Scale ({chartType === 'bar-horizontal' ? 'Bottom Values' : 'Y'})
                                     </label>
 
                                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                                         <div style={{ flex: 1 }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>{chartType === 'bar-horizontal' ? 'Bottom Value Min' : 'Y Min'}</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{chartType === 'bar-horizontal' ? 'Bottom Value Min' : 'Y Min'}</label>
                                             <input type="number" placeholder="Auto" value={yAxisDomain[0] === 'auto' ? '' : yAxisDomain[0]} onChange={(e) => setYAxisDomain([e.target.value === '' ? 'auto' : e.target.value, yAxisDomain[1]])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>{chartType === 'bar-horizontal' ? 'Bottom Value Max' : 'Y Max'}</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{chartType === 'bar-horizontal' ? 'Bottom Value Max' : 'Y Max'}</label>
                                             <input type="number" placeholder="Auto" value={yAxisDomain[1] === 'auto' ? '' : yAxisDomain[1]} onChange={(e) => setYAxisDomain([yAxisDomain[0], e.target.value === '' ? 'auto' : e.target.value])} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px' }} />
                                         </div>
                                     </div>
 
                                     <div style={{ marginBottom: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                        <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>Grid Lines</label>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Grid Lines</label>
                                         <select value={gridMode} onChange={(e) => setGridMode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
                                             <option value="both">Both (Horizontal & Vertical)</option>
                                             <option value="horizontal">Horizontal Only</option>
@@ -2062,18 +2062,18 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                                     <div style={{ marginBottom: '8px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '10px', color: '#888' }}>{chartType === 'bar-horizontal' ? 'Bottom Axis (X) Title' : 'X-Axis Title'}</label>
-                                            <label style={{ fontSize: '10px', color: '#ccc', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                                <input type="checkbox" checked={showXAxisTitle} onChange={(e) => setShowXAxisTitle(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show
+                                            <label style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>{chartType === 'bar-horizontal' ? 'Bottom Axis (X) Title' : 'X-Axis Title'}</label>
+                                            <label style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={showXAxisTitle} onChange={(e) => setShowXAxisTitle(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Show
                                             </label>
                                         </div>
                                         <input type="text" placeholder={defaultXLabel} value={customAxisTitles.x} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, x: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', opacity: showXAxisTitle ? 1 : 0.5 }} disabled={!showXAxisTitle} />
                                     </div>
                                     <div style={{ marginBottom: '8px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                            <label style={{ fontSize: '10px', color: '#888' }}>{chartType === 'bar-horizontal' ? 'Left Axis (Y) Title' : 'Y-Axis Title'}</label>
-                                            <label style={{ fontSize: '10px', color: '#ccc', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                                <input type="checkbox" checked={showYAxisTitle} onChange={(e) => setShowYAxisTitle(e.target.checked)} style={{ accentColor: '#00ffff' }} /> Show
+                                            <label style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>{chartType === 'bar-horizontal' ? 'Left Axis (Y) Title' : 'Y-Axis Title'}</label>
+                                            <label style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={showYAxisTitle} onChange={(e) => setShowYAxisTitle(e.target.checked)} style={{ accentColor: 'var(--accent-primary)' }} /> Show
                                             </label>
                                         </div>
                                         <input type="text" placeholder={defaultYLabel} value={customAxisTitles.y} onChange={(e) => setCustomAxisTitles({ ...customAxisTitles, y: e.target.value })} style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px', fontSize: '11px', opacity: showYAxisTitle ? 1 : 0.5 }} disabled={!showYAxisTitle} />
@@ -2081,7 +2081,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                                     {(chartType === 'line' || chartType === 'bar') && (
                                         <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#888', marginBottom: '4px' }}>X-Axis Label Rotation</label>
+                                            <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>X-Axis Label Rotation</label>
                                             <select value={xAxisLabelAngle} onChange={(e) => setXAxisLabelAngle(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '4px', fontSize: '11px' }}>
                                                 <option value="0">0° (Horizontal)</option>
                                                 <option value="45">45°</option>

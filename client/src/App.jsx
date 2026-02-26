@@ -67,7 +67,7 @@ function App() {
 
   // Theme State
   const [theme, setTheme] = useState('dark');
-  const [accentColor, setAccentColor] = useState('cyan'); // 'cyan' | 'linear'
+  const [accentColor, setAccentColor] = useState('cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Apply Theme & Accent Classes
@@ -80,10 +80,12 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (accentColor === 'linear') {
-      document.body.classList.add('accent-linear');
-    } else {
-      document.body.classList.remove('accent-linear');
+    // Remove all accent classes first
+    const classes = [...document.body.classList].filter(c => c.startsWith('accent-'));
+    classes.forEach(c => document.body.classList.remove(c));
+    // Apply new accent class (cyan = default, no class needed)
+    if (accentColor !== 'cyan') {
+      document.body.classList.add(`accent-${accentColor}`);
     }
   }, [accentColor]);
 

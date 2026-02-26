@@ -12,8 +12,8 @@ const Logo = ({ width = 360, height = 360, className, style }) => {
         >
             <defs>
                 <linearGradient id="neonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: 'var(--accent-color-user)', stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: '#0055ff', stopOpacity: 1 }} />
+                    <stop offset="0%" style={{ stopColor: '#00ECFF', stopOpacity: 1 }} />
+                    <stop offset="100%" style={{ stopColor: '#0068FF', stopOpacity: 1 }} />
                 </linearGradient>
                 <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
                     <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
