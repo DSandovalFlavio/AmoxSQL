@@ -186,7 +186,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     </button>
                 </div>
             </div>
-            <div style={{ padding: '5px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <div style={{ padding: '8px 16px 10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                     <button onClick={handleUp} disabled={!currentPath} style={{ padding: '2px 5px', fontSize: '10px', background: 'var(--sidebar-item-active-bg)', color: 'var(--text-color)', border: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <LuArrowUp size={10} />
@@ -195,7 +195,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                         {currentPath ? `/${currentPath}` : '/ (Root)'}
                     </span>
                 </div>
-                <div style={{ position: 'relative', marginTop: '5px' }}>
+                <div style={{ position: 'relative', marginTop: '4px' }}>
                     <input
                         type="text"
                         placeholder="Search files..."

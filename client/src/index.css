@@ -481,12 +481,12 @@ tr:hover td {
 
 /* --- REPORT MODE STYLES --- */
 .report-card {
-  background-color: #25262b;
-  border: 1px solid #2C2E33;
-  border-radius: 8px;
-  padding: 20px;
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 * {
@@ -504,12 +504,56 @@ tr:hover td {
 .report-header {
   margin-bottom: 15px;
   font-size: 14px;
-  color: #c1c2c5;
+  color: var(--text-secondary);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 8px;
+}
+
+/* Report Mode Typography */
+.report-card .markdown-body h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.report-card .markdown-body h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+  margin-top: 24px;
+}
+
+.report-card .markdown-body h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 16px;
+}
+
+.report-card .markdown-body p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.report-card .markdown-body ul,
+.report-card .markdown-body ol {
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.report-card .markdown-body code {
+  background-color: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 13px;
 }
 
 /* --- PRINT / EXPORT STYLES --- */

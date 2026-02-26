@@ -81,7 +81,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', position: 'relative' }}>
+            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', position: 'relative' }}>
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Database Schema</span>
                 <div style={{ display: 'flex', gap: '5px' }}>
                     <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center' }}>
@@ -130,7 +130,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
 
             {/* Content Container - Tree View & Search */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ padding: '10px 16px 12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
                     <div style={{ position: 'relative' }}>
                         <input
                             type="text"

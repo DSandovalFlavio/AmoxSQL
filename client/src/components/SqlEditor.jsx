@@ -10,29 +10,173 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     };
 
     const handleEditorWillMount = (monaco) => {
+        // ── Linear-inspired SQL Theme (Dark) ──
         monaco.editor.defineTheme('duckdb-dark', {
             base: 'vs-dark',
-            inherit: true,
+            inherit: false,
             rules: [
-                { token: '', background: '1e1f22' }
+                // Base
+                { token: '', foreground: 'C8C9CD', background: '141517' },
+
+                // Comments — muted, recessive
+                { token: 'comment', foreground: '5C5F66', fontStyle: 'italic' },
+                { token: 'comment.sql', foreground: '5C5F66', fontStyle: 'italic' },
+
+                // SQL Keywords — soft lavender/indigo (Linear accent feel)
+                { token: 'keyword', foreground: '9BA1F2', fontStyle: 'bold' },
+                { token: 'keyword.sql', foreground: '9BA1F2', fontStyle: 'bold' },
+
+                // Operators — subtle, doesn't compete
+                { token: 'operator', foreground: '8B8D93' },
+                { token: 'operator.sql', foreground: '8B8D93' },
+                { token: 'delimiter', foreground: '8B8D93' },
+
+                // Strings — warm sand/beige
+                { token: 'string', foreground: 'D4A76A' },
+                { token: 'string.sql', foreground: 'D4A76A' },
+
+                // Numbers — soft amber
+                { token: 'number', foreground: 'E0A86E' },
+                { token: 'number.sql', foreground: 'E0A86E' },
+
+                // Identifiers / Column names — clean white-ish
+                { token: 'identifier', foreground: 'D1D3D8' },
+                { token: 'identifier.sql', foreground: 'D1D3D8' },
+
+                // Quoted identifiers (e.g., "Column Name")
+                { token: 'identifier.quote', foreground: 'B8C4DA' },
+
+                // Type keywords (INT, VARCHAR etc.)
+                { token: 'type', foreground: '7ECAC2' },
+                { token: 'type.sql', foreground: '7ECAC2' },
+
+                // Functions — muted teal/cyan
+                { token: 'predefined', foreground: '6EC5D4' },
+                { token: 'predefined.sql', foreground: '6EC5D4' },
+
+                // Tags / Special tokens
+                { token: 'tag', foreground: '9BA1F2' },
+                { token: 'attribute.name', foreground: '7ECAC2' },
             ],
             colors: {
-                'editor.background': '#1e1f22',
-                'editor.lineHighlightBackground': '#2b2d30',
-                'editorGutter.background': '#1e1f22',
+                // Editor chrome
+                'editor.background': '#141517',
+                'editor.foreground': '#C8C9CD',
+                'editor.lineHighlightBackground': '#1C1D21',
+                'editor.lineHighlightBorder': '#00000000',
+                'editorGutter.background': '#141517',
+                'editorLineNumber.foreground': '#3D3F44',
+                'editorLineNumber.activeForeground': '#7A7C82',
+                'editorCursor.foreground': '#00DDDD',
+
+                // Selection
+                'editor.selectionBackground': '#9BA1F230',
+                'editor.inactiveSelectionBackground': '#9BA1F218',
+                'editor.selectionHighlightBackground': '#9BA1F215',
+
+                // Find / search
+                'editor.findMatchBackground': '#D4A76A40',
+                'editor.findMatchHighlightBackground': '#D4A76A25',
+
+                // Indentation guides
+                'editorIndentGuide.background': '#1F2125',
+                'editorIndentGuide.activeBackground': '#2A2B2F',
+
+                // Bracket matching
+                'editorBracketMatch.background': '#9BA1F220',
+                'editorBracketMatch.border': '#9BA1F280',
+
+                // Widgets (autocomplete, hover)
+                'editorWidget.background': '#1A1B1F',
+                'editorWidget.border': '#2A2B2F',
+                'editorSuggestWidget.background': '#1A1B1F',
+                'editorSuggestWidget.border': '#2A2B2F',
+                'editorSuggestWidget.foreground': '#C8C9CD',
+                'editorSuggestWidget.selectedBackground': '#2A2C31',
+                'editorSuggestWidget.highlightForeground': '#9BA1F2',
+                'editorHoverWidget.background': '#1A1B1F',
+                'editorHoverWidget.border': '#2A2B2F',
+
+                // Scrollbar
+                'scrollbar.shadow': '#00000000',
+                'scrollbarSlider.background': '#ffffff12',
+                'scrollbarSlider.hoverBackground': '#ffffff20',
+                'scrollbarSlider.activeBackground': '#ffffff30',
+
+                // Minimap (disabled, but just in case)
+                'minimap.background': '#141517',
             }
         });
 
+        // ── Linear-inspired SQL Theme (Light) ──
         monaco.editor.defineTheme('duckdb-light', {
             base: 'vs',
-            inherit: true,
+            inherit: false,
             rules: [
-                { token: '', background: 'ffffff' }
+                // Base
+                { token: '', foreground: '3B3D42', background: 'FFFFFF' },
+
+                // Comments
+                { token: 'comment', foreground: 'A0A3AA', fontStyle: 'italic' },
+                { token: 'comment.sql', foreground: 'A0A3AA', fontStyle: 'italic' },
+
+                // SQL Keywords — muted indigo
+                { token: 'keyword', foreground: '5E6AD2', fontStyle: 'bold' },
+                { token: 'keyword.sql', foreground: '5E6AD2', fontStyle: 'bold' },
+
+                // Operators
+                { token: 'operator', foreground: '6B6E76' },
+                { token: 'operator.sql', foreground: '6B6E76' },
+                { token: 'delimiter', foreground: '6B6E76' },
+
+                // Strings — warm brown
+                { token: 'string', foreground: 'B35E1A' },
+                { token: 'string.sql', foreground: 'B35E1A' },
+
+                // Numbers — darker amber
+                { token: 'number', foreground: 'C46D1A' },
+                { token: 'number.sql', foreground: 'C46D1A' },
+
+                // Identifiers
+                { token: 'identifier', foreground: '3B3D42' },
+                { token: 'identifier.sql', foreground: '3B3D42' },
+
+                // Types
+                { token: 'type', foreground: '1A8E80' },
+                { token: 'type.sql', foreground: '1A8E80' },
+
+                // Functions
+                { token: 'predefined', foreground: '1E8A9E' },
+                { token: 'predefined.sql', foreground: '1E8A9E' },
             ],
             colors: {
-                'editor.background': '#ffffff',
-                'editor.lineHighlightBackground': '#f1f3f5',
-                'editorGutter.background': '#ffffff',
+                'editor.background': '#FFFFFF',
+                'editor.foreground': '#3B3D42',
+                'editor.lineHighlightBackground': '#F5F6F8',
+                'editor.lineHighlightBorder': '#00000000',
+                'editorGutter.background': '#FFFFFF',
+                'editorLineNumber.foreground': '#C0C2C7',
+                'editorLineNumber.activeForeground': '#6B6E76',
+                'editorCursor.foreground': '#5E6AD2',
+
+                'editor.selectionBackground': '#5E6AD230',
+                'editor.inactiveSelectionBackground': '#5E6AD218',
+
+                'editorBracketMatch.background': '#5E6AD220',
+                'editorBracketMatch.border': '#5E6AD280',
+
+                'editorWidget.background': '#FFFFFF',
+                'editorWidget.border': '#E2E3E7',
+                'editorSuggestWidget.background': '#FFFFFF',
+                'editorSuggestWidget.border': '#E2E3E7',
+                'editorSuggestWidget.selectedBackground': '#F0F1F4',
+                'editorSuggestWidget.highlightForeground': '#5E6AD2',
+                'editorHoverWidget.background': '#FFFFFF',
+                'editorHoverWidget.border': '#E2E3E7',
+
+                'scrollbar.shadow': '#00000000',
+                'scrollbarSlider.background': '#00000010',
+                'scrollbarSlider.hoverBackground': '#00000020',
             }
         });
     };

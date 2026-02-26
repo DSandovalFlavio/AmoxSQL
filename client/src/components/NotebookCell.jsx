@@ -229,7 +229,7 @@ const NotebookCell = ({
                             title={isReportMode ? "" : "Double click to edit"}
                         >
                             {localContent.trim() ? (
-                                <div className="markdown-body" style={{ color: 'var(--text-color)', fontSize: '15px', lineHeight: '1.6' }}>
+                                <div className="markdown-body" style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.7' }}>
                                     <ReactMarkdown>{localContent}</ReactMarkdown>
                                 </div>
                             ) : (
@@ -259,10 +259,12 @@ const NotebookCell = ({
                         {result && (
                             <div data-cell-id={id} style={{
                                 borderTop: !isReportMode ? '1px solid var(--border-color)' : 'none',
+                                borderBottom: isReportMode ? '1px solid var(--border-subtle)' : 'none',
                                 backgroundColor: isReportMode ? 'transparent' : 'var(--editor-bg)',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                paddingTop: isReportMode ? '16px' : '0'
+                                paddingTop: isReportMode ? '16px' : '0',
+                                paddingBottom: isReportMode ? '8px' : '0'
                             }}>
                                 {result.loading && <div style={{ padding: '12px 16px', color: 'var(--accent-color-user)', fontWeight: '600', fontSize: '13px' }}>Executing query...</div>}
                                 {result.error && <div style={{ padding: '12px 16px', color: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.1)', fontFamily: 'monospace', fontSize: '13px' }}>Error: {result.error}</div>}

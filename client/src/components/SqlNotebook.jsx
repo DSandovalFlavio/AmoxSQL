@@ -261,10 +261,11 @@ const SqlNotebook = ({ content, onChange, onRunQuery }) => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: viewMode === 'report' ? '32px' : '16px',
-                padding: viewMode === 'report' ? '40px' : '0',
-                backgroundColor: viewMode === 'report' ? 'var(--bg-color)' : 'transparent',
-                borderRadius: viewMode === 'report' ? '8px' : '0',
-                boxShadow: viewMode === 'report' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                padding: viewMode === 'report' ? '48px 56px' : '0',
+                backgroundColor: viewMode === 'report' ? 'var(--surface-raised)' : 'transparent',
+                borderRadius: viewMode === 'report' ? '12px' : '0',
+                boxShadow: viewMode === 'report' ? 'var(--shadow-md)' : 'none',
+                border: viewMode === 'report' ? '1px solid var(--border-subtle)' : 'none',
                 minHeight: viewMode === 'report' ? '297mm' : 'auto' // A4 approx height as min for visual
             }}>
                 {cells.map((cell, index) => (

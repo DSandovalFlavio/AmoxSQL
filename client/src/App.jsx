@@ -316,7 +316,19 @@ function App() {
   // --- Main Render Logic ---
 
   if (appPhase === PHASE.WELCOME) {
-    return <WelcomeScreen onOpenProject={handleOpenProject} />;
+    return (
+      <>
+        <WelcomeScreen onOpenProject={handleOpenProject} onOpenSettings={() => setIsSettingsOpen(true)} />
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          currentTheme={theme}
+          onThemeChange={setTheme}
+          currentAccent={accentColor}
+          onAccentChange={setAccentColor}
+        />
+      </>
+    );
   }
 
   return (
@@ -368,7 +380,7 @@ function App() {
               onCloseProject={handleCloseProject}
             />
 
-            <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '0 16px 6px 16px' }}></div>
+            <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 16px 8px 16px' }}></div>
 
             {/* Content Switcher */}
             {activeSidebarTab === 'files' && (
@@ -402,6 +414,20 @@ function App() {
             {/* Global Toolbar — Linear Style */}
             <div className="toolbar">
               <div className="toolbar-left">
+                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--accent-primary)', color: 'var(--surface-base)', border: 'none', fontWeight: '600' }}>
+                  <LuPlay size={14} fill="currentColor" /> Run
+                </button>
+                <button
+                  onClick={() => layoutRef.current?.handleTriggerAnalyze()}
+                  title="Analyze Query Plan"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)' }}
+                >
+                  <LuActivity size={14} /> Analyze
+                </button>
+                <button onClick={() => layoutRef.current?.handleTriggerSave()} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <LuSave size={14} /> Save
+                </button>
+                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
                 <button
                   onClick={() => layoutRef.current?.createNew('sql')}
                   title="Create New SQL Query"
@@ -415,21 +441,6 @@ function App() {
                   style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
                 >
                   <LuFilePlus size={14} /> New Notebook
-                </button>
-                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
-                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--accent-primary)', color: 'var(--surface-base)', border: 'none', fontWeight: '600' }}>
-                  <LuPlay size={14} fill="currentColor" /> Run
-                </button>
-                <button onClick={() => layoutRef.current?.handleTriggerSave()} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <LuSave size={14} /> Save
-                </button>
-                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
-                <button
-                  onClick={() => layoutRef.current?.handleTriggerAnalyze()}
-                  title="Analyze Query Plan"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)' }}
-                >
-                  <LuActivity size={14} /> Analyze
                 </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
