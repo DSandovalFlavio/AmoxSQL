@@ -269,6 +269,35 @@ app.post('/api/db/import', async (req, res) => {
     }
 });
 
+/* --- Extension Management APIs --- */
+app.get('/api/db/extensions', async (req, res) => {
+    try {
+        const extensions = await dbManager.query('SELECT * FROM duckdb_extensions()');
+        res.json(extensions);
+    } catch (err) {
+        console.error("Failed to fetch extensions:", err);
+        res.status(500).json({ error: 'Failed to fetch extensions', details: err.message });
+    }
+});
+
+app.post('/api/db/extensions/install', async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Extension name is required' });
+
+    // Sanitize: only allow alphanumeric and underscores
+    const safeName = name.replace(/[^a-zA-Z0-9_]/g, '');
+    if (!safeName) return res.status(400).json({ error: 'Invalid extension name' });
+
+    try {
+        await dbManager.query(`INSTALL ${safeName}`);
+        await dbManager.query(`LOAD ${safeName}`);
+        res.json({ success: true, message: `Extension '${safeName}' installed and loaded.` });
+    } catch (err) {
+        console.error(`Failed to install extension '${safeName}':`, err);
+        res.status(500).json({ error: `Failed to install extension '${safeName}'`, details: err.message });
+    }
+});
+
 /* --- Excel Import APIs --- */
 const xlsx = require('xlsx');
 

@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
+import ExtensionExplorer from './components/ExtensionExplorer';
 import SaveQueryModal from './components/SaveQueryModal';
 import ImportModal from './components/ImportModal';
 import ImportExcelModal from './components/ImportExcelModal';
@@ -19,7 +20,7 @@ import AiSidebar from './components/AiSidebar';
 
 
 import SettingsModal from './components/SettingsModal';
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle } from "react-icons/lu";
 
 import './index.css';
 
@@ -60,7 +61,7 @@ function App() {
   const [availableTables, setAvailableTables] = useState([]);
 
   // Sidebar Architecture State
-  const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files' or 'schema'
+  const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', or 'extensions'
 
   /* --- Project Workflow Handlers --- */
 
@@ -362,6 +363,13 @@ function App() {
               <LuDatabase size={20} />
             </button>
             <button
+              onClick={() => setActiveSidebarTab('extensions')}
+              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'extensions' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', marginTop: '4px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'extensions' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
+              title="Extensions"
+            >
+              <LuPuzzle size={20} />
+            </button>
+            <button
               onClick={() => setIsSettingsOpen(true)}
               title="Settings"
               style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', padding: '10px 0', marginTop: 'auto', marginBottom: '12px', cursor: 'pointer', width: '100%', transition: 'color var(--transition-fast)' }}
@@ -405,6 +413,12 @@ function App() {
                   onTablesLoaded={setAvailableTables}
                   onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
                 />
+              </div>
+            )}
+
+            {activeSidebarTab === 'extensions' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <ExtensionExplorer />
               </div>
             )}
           </div>
