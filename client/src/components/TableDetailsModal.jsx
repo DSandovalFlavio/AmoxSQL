@@ -163,7 +163,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
 
     const renderProfile = () => {
         if (!data || !data.profile) return (
-            <div style={{ padding: '20px', color: '#888' }}>No profile data available.</div>
+            <div style={{ padding: '20px', color: 'var(--text-tertiary)' }}>No profile data available.</div>
         );
 
         return (
@@ -259,7 +259,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                     </h2>
                     <button
                         onClick={onClose}
-                        style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     ><LuX size={24} /></button>
                 </div>
 
@@ -297,7 +297,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                         </div>
                     )}
                     {error && (
-                        <div style={{ padding: '20px', color: '#ff6b6b' }}>Error: {error}</div>
+                        <div style={{ padding: '20px', color: 'var(--feedback-error-text)' }}>Error: {error}</div>
                     )}
 
                     {!loading && !error && (

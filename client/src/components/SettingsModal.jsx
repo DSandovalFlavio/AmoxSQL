@@ -408,7 +408,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             {isSaving ? 'Saving...' : 'Save AI Settings'}
                                         </button>
                                         {saveMessage && (
-                                            <div style={{ fontSize: '13px', color: saveMessage.type === 'success' ? '#4ade80' : '#ff6b6b' }}>
+                                            <div style={{ fontSize: '13px', color: saveMessage.type === 'success' ? 'var(--feedback-success-text)' : 'var(--feedback-error-text)' }}>
                                                 {saveMessage.type === 'success' ? '✓ ' : '× '} {saveMessage.text}
                                             </div>
                                         )}

@@ -143,7 +143,7 @@ const ExtensionExplorer = () => {
                 {installMsg && (
                     <div style={{
                         padding: '4px 12px 6px', fontSize: '11px',
-                        color: installMsg.type === 'success' ? '#34c759' : '#ff6b6b',
+                        color: installMsg.type === 'success' ? 'var(--feedback-success-text)' : 'var(--feedback-error-text)',
                         display: 'flex', alignItems: 'center', gap: '4px'
                     }}>
                         {installMsg.type === 'success' ? <LuCheck size={11} /> : <LuCircleAlert size={11} />}
@@ -175,7 +175,7 @@ const ExtensionExplorer = () => {
             {/* Stats bar */}
             <div style={{ padding: '2px 14px 6px', display: 'flex', gap: '12px', fontSize: '10px', color: 'var(--text-tertiary)' }}>
                 <span>{extensions.length} total</span>
-                <span style={{ color: '#34c759' }}>● {installedCount} installed</span>
+                <span style={{ color: 'var(--feedback-success-text)' }}>● {installedCount} installed</span>
                 <span style={{ color: 'var(--accent-primary)' }}>● {loadedCount} loaded</span>
             </div>
 
@@ -189,7 +189,7 @@ const ExtensionExplorer = () => {
                 )}
 
                 {error && (
-                    <div style={{ padding: '16px', color: '#ff6b6b', textAlign: 'center', fontSize: '12px' }}>
+                    <div style={{ padding: '16px', color: 'var(--feedback-error-text)', textAlign: 'center', fontSize: '12px' }}>
                         <LuCircleAlert size={16} style={{ marginBottom: '6px' }} />
                         <div>{error}</div>
                         <button onClick={fetchExtensions} style={{ marginTop: '8px', fontSize: '11px', padding: '4px 12px' }}>Retry</button>

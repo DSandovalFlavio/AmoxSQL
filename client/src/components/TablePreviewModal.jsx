@@ -96,7 +96,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>
                             Preview: <span style={{ color: 'var(--accent-color-user)', fontFamily: 'monospace' }}>{tableName}</span>
                         </h2>
-                        <span style={{ fontSize: '12px', color: '#888', marginLeft: '10px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginLeft: '10px' }}>
                             (First 50 rows)
                         </span>
                     </div>
@@ -105,7 +105,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                         style={{
                             background: 'transparent',
                             border: 'none',
-                            color: '#ccc',
+                            color: 'var(--text-secondary)',
                             fontSize: '20px',
                             cursor: 'pointer',
                             padding: '0 5px',
@@ -120,19 +120,19 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                 {/* Content */}
                 <div style={{ flex: 1, overflow: 'auto', padding: '0' }}>
                     {loading && (
-                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>
+                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
                             Loading preview...
                         </div>
                     )}
 
                     {error && (
-                        <div style={{ padding: '20px', color: '#f85149' }}>
+                        <div style={{ padding: '20px', color: 'var(--feedback-error-text)' }}>
                             Error: {error}
                         </div>
                     )}
 
                     {!loading && !error && data.length === 0 && (
-                        <div style={{ padding: '20px', color: '#aaa', fontStyle: 'italic' }}>
+                        <div style={{ padding: '20px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
                             Table is empty.
                         </div>
                     )}

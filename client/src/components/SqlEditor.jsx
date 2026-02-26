@@ -114,7 +114,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             inherit: false,
             rules: [
                 // Base
-                { token: '', foreground: '3B3D42', background: 'FFFFFF' },
+                { token: '', foreground: '3B3D42', background: 'FAFBFC' },
 
                 // Comments
                 { token: 'comment', foreground: 'A0A3AA', fontStyle: 'italic' },
@@ -150,11 +150,11 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 { token: 'predefined.sql', foreground: '1E8A9E' },
             ],
             colors: {
-                'editor.background': '#FFFFFF',
+                'editor.background': '#FAFBFC',
                 'editor.foreground': '#3B3D42',
-                'editor.lineHighlightBackground': '#F5F6F8',
+                'editor.lineHighlightBackground': '#F0F1F4',
                 'editor.lineHighlightBorder': '#00000000',
-                'editorGutter.background': '#FFFFFF',
+                'editorGutter.background': '#FAFBFC',
                 'editorLineNumber.foreground': '#C0C2C7',
                 'editorLineNumber.activeForeground': '#6B6E76',
                 'editorCursor.foreground': '#5E6AD2',
@@ -169,7 +169,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 'editorWidget.border': '#E2E3E7',
                 'editorSuggestWidget.background': '#FFFFFF',
                 'editorSuggestWidget.border': '#E2E3E7',
-                'editorSuggestWidget.selectedBackground': '#F0F1F4',
+                'editorSuggestWidget.selectedBackground': '#E8EAED',
                 'editorSuggestWidget.highlightForeground': '#5E6AD2',
                 'editorHoverWidget.background': '#FFFFFF',
                 'editorHoverWidget.border': '#E2E3E7',

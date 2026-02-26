@@ -67,7 +67,7 @@ const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
                 {successSummary ? (
                     /* Success View */
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <div style={{ padding: '15px', backgroundColor: '#1e3a1e', border: '1px solid #2e5a2e', borderRadius: '4px', color: '#aaffaa', whiteSpace: 'pre-wrap', fontSize: '13px' }}>
+                        <div style={{ padding: '15px', backgroundColor: 'var(--feedback-success-bg)', border: '1px solid var(--feedback-success-border)', borderRadius: '4px', color: 'var(--feedback-success-text)', whiteSpace: 'pre-wrap', fontSize: '13px' }}>
                             <strong>Success!</strong><br /><br />
                             {successSummary}
                         </div>
@@ -81,7 +81,7 @@ const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
                     /* Form View */
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                         {saving && <div style={{ padding: '10px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Saving...</div>}
-                        {error && <div style={{ padding: '10px', backgroundColor: '#3e2020', color: '#ff8888', borderRadius: '4px', marginBottom: '10px', fontSize: '12px' }}>{error}</div>}
+                        {error && <div style={{ padding: '10px', backgroundColor: 'var(--feedback-error-bg)', color: 'var(--feedback-error-text)', borderRadius: '4px', marginBottom: '10px', fontSize: '12px', border: '1px solid var(--feedback-error-border)' }}>{error}</div>}
 
                         {!saving && (
                             <>

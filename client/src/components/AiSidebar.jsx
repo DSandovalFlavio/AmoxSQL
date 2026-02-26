@@ -223,9 +223,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
             )}
 
             {status === 'ERROR' && (
-                <div style={{ padding: '20px', color: '#ff6b6b', textAlign: 'center', fontSize: '13px' }}>
+                <div style={{ padding: '20px', color: 'var(--feedback-error-text)', textAlign: 'center', fontSize: '13px' }}>
                     Error loading AI configuration. Check server logs.
-                    <button onClick={() => setStatus('READY')} style={{ display: 'block', margin: '15px auto', padding: '5px 10px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Retry</button>
+                    <button onClick={() => setStatus('READY')} style={{ display: 'block', margin: '15px auto', padding: '5px 10px', backgroundColor: 'var(--feedback-error-text)', color: 'var(--button-text-color)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Retry</button>
                 </div>
             )}
 
@@ -249,12 +249,12 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
                             </div>
                         ) : provider === 'ollama' && installedModels.length === 0 ? (
                             <div style={{
-                                backgroundColor: '#ff980015', border: '1px solid #ff980055', borderRadius: '6px',
-                                padding: '12px', fontSize: '12px', color: '#ffa726', display: 'flex', flexDirection: 'column', gap: '8px'
+                                backgroundColor: 'var(--feedback-warning-bg)', border: '1px solid var(--feedback-warning-border)', borderRadius: '6px',
+                                padding: '12px', fontSize: '12px', color: 'var(--feedback-warning-text)', display: 'flex', flexDirection: 'column', gap: '8px'
                             }}>
                                 <span>No local models installed.</span>
                                 <button onClick={() => { if (onOpenSettings) onOpenSettings('ai'); else alert('Open Settings > AI Assistant to install models.'); }} style={{
-                                    backgroundColor: '#ff9800', color: '#000', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+                                    backgroundColor: 'var(--feedback-warning-text)', color: 'var(--surface-base)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
                                 }}>Install Models in Settings</button>
                             </div>
                         ) : (
@@ -340,9 +340,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
                     {/* Section 2: Question & Action */}
                     <div style={{ padding: '10px 20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                         {errorMsg && (
-                            <div style={{ padding: '8px 12px', marginBottom: '10px', backgroundColor: '#ff6b6b22', border: '1px solid #ff6b6b55', color: '#ff6b6b', borderRadius: '4px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ padding: '8px 12px', marginBottom: '10px', backgroundColor: 'var(--feedback-error-bg)', border: '1px solid var(--feedback-error-border)', color: 'var(--feedback-error-text)', borderRadius: '4px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span>{errorMsg}</span>
-                                <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: 0 }}>
+                                <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', color: 'var(--feedback-error-text)', cursor: 'pointer', padding: 0 }}>
                                     <LuX size={14} />
                                 </button>
                             </div>
@@ -366,7 +366,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
                             style={{
                                 marginTop: '12px', padding: '10px',
                                 backgroundColor: isGenerating
-                                    ? (isHoveringGenBtn ? '#ff4d4d' : 'var(--border-color)')
+                                    ? (isHoveringGenBtn ? 'var(--feedback-error-text)' : 'var(--border-color)')
                                     : ((!question.trim() || (provider === 'ollama' && installedModels.length === 0)) ? 'var(--border-color)' : 'var(--accent-color-user)'),
                                 color: isGenerating && !isHoveringGenBtn ? 'var(--text-color)' : 'var(--button-text-color)',
                                 border: 'none', borderRadius: '4px', fontWeight: 'bold',

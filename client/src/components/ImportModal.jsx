@@ -77,12 +77,12 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                 {successSummary ? (
                     /* Success View */
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <div style={{ padding: '15px', backgroundColor: '#1e3a1e', border: '1px solid #2e5a2e', borderRadius: '4px', color: '#aaffaa', whiteSpace: 'pre-wrap', fontSize: '13px' }}>
+                        <div style={{ padding: '15px', backgroundColor: 'var(--feedback-success-bg)', border: '1px solid var(--feedback-success-border)', borderRadius: '4px', color: 'var(--feedback-success-text)', whiteSpace: 'pre-wrap', fontSize: '13px' }}>
                             <strong>Success!</strong><br /><br />
                             {successSummary}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
+                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>
                                 Close
                             </button>
                         </div>
@@ -95,7 +95,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                         </div>
 
                         {loading && <div style={{ padding: '10px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Importing...</div>}
-                        {error && <div style={{ padding: '10px', backgroundColor: '#3e2020', color: '#ff8888', borderRadius: '4px', marginBottom: '10px', fontSize: '12px' }}>{error}</div>}
+                        {error && <div style={{ padding: '10px', backgroundColor: 'var(--feedback-error-bg)', color: 'var(--feedback-error-text)', borderRadius: '4px', marginBottom: '10px', fontSize: '12px', border: '1px solid var(--feedback-error-border)' }}>{error}</div>}
 
                         {!loading && (
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -157,7 +157,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                                     <button type="button" onClick={handleClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Import</button>
+                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>Import</button>
                                 </div>
                             </form>
                         )}

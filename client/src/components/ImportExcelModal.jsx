@@ -116,7 +116,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                 </h3>
 
                 {!successSummary && (
-                    <div style={{ marginBottom: '15px', fontSize: '12px', color: '#aaa', wordBreak: 'break-all' }}>
+                    <div style={{ marginBottom: '15px', fontSize: '12px', color: 'var(--text-tertiary)', wordBreak: 'break-all' }}>
                         File: {initialFile}
                     </div>
                 )}
@@ -126,10 +126,10 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, minHeight: '150px' }}>
                         <div style={{
                             padding: '15px',
-                            backgroundColor: '#1e3a1e',
-                            border: '1px solid #2e5a2e',
+                            backgroundColor: 'var(--feedback-success-bg)',
+                            border: '1px solid var(--feedback-success-border)',
                             borderRadius: '4px',
-                            color: '#aaffaa',
+                            color: 'var(--feedback-success-text)',
                             whiteSpace: 'pre-wrap',
                             overflowY: 'auto',
                             fontSize: '13px',
@@ -150,7 +150,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                     <>
                         {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Processing Import...</div>}
 
-                        {error && <div style={{ padding: '10px', backgroundColor: '#3e2020', color: '#ff8888', borderRadius: '4px', marginBottom: '10px', fontSize: '12px' }}>{error}</div>}
+                        {error && <div style={{ padding: '10px', backgroundColor: 'var(--feedback-error-bg)', color: 'var(--feedback-error-text)', borderRadius: '4px', marginBottom: '10px', fontSize: '12px', border: '1px solid var(--feedback-error-border)' }}>{error}</div>}
 
                         {!loading && (
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', flex: 1, overflow: 'hidden' }}>
