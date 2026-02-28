@@ -153,6 +153,7 @@ export function buildDefaultActions({
     setIsSettingsOpen,
     theme,
     setTheme,
+    setIsShortcutsOpen,
 }) {
     return [
         // Query Actions
@@ -173,6 +174,7 @@ export function buildDefaultActions({
         // Settings
         { id: 'settings', label: 'Open Settings', category: 'Settings', icon: LuSettings, shortcut: 'Ctrl+,', action: () => setIsSettingsOpen(true) },
         { id: 'toggle-theme', label: theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme', category: 'Settings', icon: theme === 'dark' ? LuSun : LuMoon, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
+        { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Settings', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => setIsShortcutsOpen?.(true) },
     ];
 }
 

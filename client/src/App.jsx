@@ -19,6 +19,7 @@ import DatabaseSelectionModal from './components/DatabaseSelectionModal';
 import AiSidebar from './components/AiSidebar';
 import StatusBar from './components/StatusBar';
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import { useToast } from './components/ToastProvider';
 
 import SettingsModal from './components/SettingsModal';
@@ -71,6 +72,9 @@ function App() {
 
   // Status Bar State — last query info
   const [lastQueryInfo, setLastQueryInfo] = useState(null);
+
+  // Keyboard Shortcuts Modal
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   /* --- Project Workflow Handlers --- */
 
@@ -147,6 +151,12 @@ function App() {
         setIsSettingsOpen(true);
         return;
       }
+      // Keyboard Shortcuts: Ctrl+Shift+/
+      if (e.ctrlKey && e.shiftKey && e.key === '/') {
+        e.preventDefault();
+        setIsShortcutsOpen(true);
+        return;
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -163,6 +173,7 @@ function App() {
       setIsSettingsOpen,
       theme,
       setTheme,
+      setIsShortcutsOpen,
     });
   }, [appPhase, showAiSidebar, theme]);
 
@@ -591,6 +602,11 @@ function App() {
         onThemeChange={setTheme}
         currentAccent={accentColor}
         onAccentChange={setAccentColor}
+      />
+
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
 
       <SaveQueryModal

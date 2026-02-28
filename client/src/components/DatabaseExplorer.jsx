@@ -134,7 +134,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                     <div style={{ position: 'relative' }}>
                         <input
                             type="text"
-                            placeholder="Search tables & views..."
+                            placeholder="Search tables, views & columns..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             style={{

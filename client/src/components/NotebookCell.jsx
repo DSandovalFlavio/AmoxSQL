@@ -243,7 +243,7 @@ const NotebookCell = ({
                         {/* Editor Area */}
                         {!(isReportMode && hideCodeInReport) && (
                             <div style={{ height: 'auto', minHeight: '120px', borderLeft: '3px solid var(--accent-color-user)', marginBottom: (isReportMode && result) ? '16px' : '0' }}>
-                                <div style={{ height: '180px' }} onKeyDown={handleKeyDown}>
+                                <div style={{ height: `${Math.max(80, Math.min(400, (localContent?.split('\n').length || 3) * 20 + 20))}px` }} onKeyDown={handleKeyDown}>
                                     <SqlEditor
                                         value={localContent}
                                         onChange={(val) => {
