@@ -146,30 +146,28 @@ class DatabaseManager {
     }
 
     async _logQuery(sql) {
-        if (!this.attachedPath) return; // Don't log memory-only session queries necessarily or if no DB attached
+        if (!this.attachedPath) return;
 
         // Filter out system queries and self-logging
         const trimmed = sql.trim().toUpperCase();
-        if (trimmed.startsWith('SELECT * FROM "AMOX_QUERY_HISTORY"')) return; // Viewer
-        if (trimmed.startsWith('INSERT INTO AMOX_QUERY_HISTORY')) return; // Self
+        if (trimmed.startsWith('SELECT * FROM "AMOX_QUERY_HISTORY"')) return;
+        if (trimmed.startsWith('INSERT INTO AMOX_QUERY_HISTORY')) return;
         if (trimmed.startsWith('PRAGMA')) return;
         if (trimmed.startsWith('EXPLAIN')) return;
+        if (trimmed.startsWith('SUMMARIZE')) return;
+        if (trimmed.startsWith('DESCRIBE')) return;
+        if (trimmed.startsWith('SHOW')) return;
+        if (trimmed.startsWith('CREATE TABLE IF NOT EXISTS AMOX_')) return;
+        if (trimmed.startsWith('DELETE FROM AMOX_QUERY_HISTORY')) return;
 
         // Exclude system schema queries
         if (trimmed.includes('FROM INFORMATION_SCHEMA')) return;
         if (trimmed.includes('FROM "INFORMATION_SCHEMA"')) return;
+        // Exclude system utility queries (from Quality Check, Data Profiler, etc.)
+        if (trimmed.includes('AMOX_QUERY_HISTORY')) return;
 
-        // We only want to log user queries, but distinguishing them 100% fits "everything else"
-        // We run this "fire and forget" so it doesn't block the main query return
-
-        // Escape single quotes for SQL string
         const escapedSql = sql.replace(/'/g, "''");
-
-        // Use a separate async call, don't await it in the main flow if possible, 
-        // OR await it but catch errors so main query doesn't fail.
         this.query(`INSERT INTO amox_query_history (query) VALUES ('${escapedSql}')`).catch(e => {
-            // console.warn("Failed to log query:", e.message); 
-            // Silent fail is better for loggers
         });
     }
 

@@ -8,6 +8,7 @@ import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import ExtensionExplorer from './components/ExtensionExplorer';
 import SnippetsPanel from './components/SnippetsPanel';
+import QueryHistoryPanel from './components/QueryHistoryPanel';
 import SaveQueryModal from './components/SaveQueryModal';
 import ImportModal from './components/ImportModal';
 import ImportExcelModal from './components/ImportExcelModal';
@@ -26,7 +27,7 @@ import SchemaDiffModal from './components/SchemaDiffModal';
 import { useToast } from './components/ToastProvider';
 
 import SettingsModal from './components/SettingsModal';
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory } from "react-icons/lu";
 
 import './index.css';
 
@@ -476,6 +477,13 @@ function App() {
               <LuCode size={20} />
             </button>
             <button
+              onClick={() => setActiveSidebarTab('history')}
+              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'history' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', marginTop: '4px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'history' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
+              title="Query History"
+            >
+              <LuHistory size={20} />
+            </button>
+            <button
               onClick={() => setIsSettingsOpen(true)}
               title="Settings"
               style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', padding: '10px 0', marginTop: 'auto', marginBottom: '12px', cursor: 'pointer', width: '100%', transition: 'color var(--transition-fast)' }}
@@ -532,6 +540,12 @@ function App() {
             {activeSidebarTab === 'snippets' && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <SnippetsPanel onInsert={(sql) => layoutRef.current?.createNew('sql', sql)} />
+              </div>
+            )}
+
+            {activeSidebarTab === 'history' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <QueryHistoryPanel onSelect={(sql) => layoutRef.current?.createNew('sql', sql)} />
               </div>
             )}
           </div>
