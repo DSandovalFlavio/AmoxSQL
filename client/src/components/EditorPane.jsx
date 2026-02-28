@@ -4,6 +4,7 @@ import TabBar from './TabBar';
 import SqlEditor from './SqlEditor';
 import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
+import VariablesBar from './VariablesBar';
 
 const EditorPane = ({
     paneId,
@@ -19,7 +20,9 @@ const EditorPane = ({
     onDragStart,
     onReorder,
     isActive,
-    theme
+    theme,
+    variables,
+    onVariablesChange,
 }) => {
     const [resultsHeight, setResultsHeight] = useState(300);
     const isResizing = useRef(false);
@@ -174,6 +177,8 @@ const EditorPane = ({
                     </div>
                 ) : (
                     <>
+                        {/* Variables Bar */}
+                        <VariablesBar variables={variables || []} onChange={onVariablesChange || (() => { })} />
                         <div style={{
                             flex: 1,
                             overflow: 'hidden',

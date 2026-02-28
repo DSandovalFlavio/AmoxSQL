@@ -5,10 +5,10 @@ import QueryHistoryModal from './QueryHistoryModal';
 import {
     LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
-    LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye
+    LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye, LuShieldCheck
 } from "react-icons/lu";
 
-const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery }) => {
+const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery, onQualityCheck }) => {
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(false);
     const [previewTable, setPreviewTable] = useState(null); // Simple preview
@@ -338,6 +338,17 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery 
                         }}
                     >
                         <LuInfo size={14} /> View Details
+                    </div>
+                    <div
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                        onClick={() => {
+                            if (onQualityCheck) onQualityCheck(contextMenu.tableName);
+                            setContextMenu(null);
+                        }}
+                    >
+                        <LuShieldCheck size={14} /> Quality Check
                     </div>
                     <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px' }} />
                     <div

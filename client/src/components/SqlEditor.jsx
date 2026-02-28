@@ -518,8 +518,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                         });
                     }
 
-                    // Keywords (Basic)
-                    const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'WITH', 'AS', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'HAVING', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'UNION', 'ALL', 'EXCEPT', 'INTERSECT', 'read_csv', 'read_parquet', 'read_json', 'read_xlsx'];
+                    // Keywords
+                    const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'RIGHT JOIN', 'FULL OUTER JOIN', 'CROSS JOIN', 'WITH', 'AS', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'HAVING', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'UNION', 'UNION ALL', 'EXCEPT', 'INTERSECT', 'INSERT INTO', 'UPDATE', 'DELETE FROM', 'CREATE TABLE', 'CREATE VIEW', 'DROP TABLE', 'DROP VIEW', 'ALTER TABLE', 'OFFSET', 'FETCH', 'LATERAL', 'UNNEST', 'PIVOT', 'UNPIVOT', 'QUALIFY', 'WINDOW', 'OVER', 'PARTITION BY', 'ROWS', 'RANGE', 'UNBOUNDED', 'PRECEDING', 'FOLLOWING', 'CURRENT ROW', 'EXCLUDE', 'REPLACE', 'USING', 'NATURAL', 'RETURNING', 'DESCRIBE', 'SUMMARIZE', 'EXPLAIN', 'EXPLAIN ANALYZE'];
                     keywords.forEach(kw => {
                         suggestions.push({
                             label: kw,
@@ -527,6 +527,88 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                             insertText: kw,
                             range: range,
                             sortText: 'y_' + kw
+                        });
+                    });
+
+                    // DuckDB Functions with inline docs
+                    const duckdbFunctions = [
+                        // Aggregation
+                        { name: 'COUNT', insert: 'COUNT(${1:*})', doc: 'Count rows or non-null values' },
+                        { name: 'SUM', insert: 'SUM(${1:column})', doc: 'Sum of numeric values' },
+                        { name: 'AVG', insert: 'AVG(${1:column})', doc: 'Average of numeric values' },
+                        { name: 'MIN', insert: 'MIN(${1:column})', doc: 'Minimum value' },
+                        { name: 'MAX', insert: 'MAX(${1:column})', doc: 'Maximum value' },
+                        { name: 'MEDIAN', insert: 'MEDIAN(${1:column})', doc: 'Median value (DuckDB)' },
+                        { name: 'MODE', insert: 'MODE(${1:column})', doc: 'Most frequent value (DuckDB)' },
+                        { name: 'STDDEV', insert: 'STDDEV(${1:column})', doc: 'Standard deviation' },
+                        { name: 'VARIANCE', insert: 'VARIANCE(${1:column})', doc: 'Statistical variance' },
+                        { name: 'LIST', insert: 'LIST(${1:column})', doc: 'Aggregate values into a list (DuckDB)' },
+                        { name: 'STRING_AGG', insert: "STRING_AGG(${1:column}, '${2:,}')", doc: 'Concatenate strings with separator' },
+                        { name: 'APPROX_COUNT_DISTINCT', insert: 'APPROX_COUNT_DISTINCT(${1:column})', doc: 'Approximate distinct count (HyperLogLog)' },
+                        { name: 'QUANTILE_CONT', insert: 'QUANTILE_CONT(${1:column}, ${2:0.5})', doc: 'Continuous quantile (e.g. 0.5 = median)' },
+                        { name: 'ARG_MIN', insert: 'ARG_MIN(${1:return_col}, ${2:order_col})', doc: 'Value of return_col at MIN of order_col' },
+                        { name: 'ARG_MAX', insert: 'ARG_MAX(${1:return_col}, ${2:order_col})', doc: 'Value of return_col at MAX of order_col' },
+
+                        // Window Functions
+                        { name: 'ROW_NUMBER', insert: 'ROW_NUMBER() OVER (${1:PARTITION BY col ORDER BY col})', doc: 'Sequential row number within partition' },
+                        { name: 'RANK', insert: 'RANK() OVER (${1:ORDER BY col})', doc: 'Rank with gaps for ties' },
+                        { name: 'DENSE_RANK', insert: 'DENSE_RANK() OVER (${1:ORDER BY col})', doc: 'Rank without gaps for ties' },
+                        { name: 'NTILE', insert: 'NTILE(${1:4}) OVER (${2:ORDER BY col})', doc: 'Distribute rows into N buckets' },
+                        { name: 'LAG', insert: 'LAG(${1:column}, ${2:1}) OVER (${3:ORDER BY col})', doc: 'Access previous row value' },
+                        { name: 'LEAD', insert: 'LEAD(${1:column}, ${2:1}) OVER (${3:ORDER BY col})', doc: 'Access next row value' },
+                        { name: 'FIRST_VALUE', insert: 'FIRST_VALUE(${1:column}) OVER (${2:ORDER BY col})', doc: 'First value in window frame' },
+                        { name: 'LAST_VALUE', insert: 'LAST_VALUE(${1:column}) OVER (${2:ORDER BY col})', doc: 'Last value in window frame' },
+                        { name: 'PERCENT_RANK', insert: 'PERCENT_RANK() OVER (${1:ORDER BY col})', doc: 'Relative rank as percentage (0-1)' },
+
+                        // String Functions
+                        { name: 'CONCAT', insert: "CONCAT(${1:str1}, ${2:str2})", doc: 'Concatenate strings' },
+                        { name: 'LENGTH', insert: 'LENGTH(${1:string})', doc: 'String length' },
+                        { name: 'LOWER', insert: 'LOWER(${1:string})', doc: 'Convert to lowercase' },
+                        { name: 'UPPER', insert: 'UPPER(${1:string})', doc: 'Convert to uppercase' },
+                        { name: 'TRIM', insert: 'TRIM(${1:string})', doc: 'Remove leading and trailing whitespace' },
+                        { name: 'REGEXP_EXTRACT', insert: "REGEXP_EXTRACT(${1:string}, '${2:pattern}')", doc: 'Extract regex match (DuckDB)' },
+                        { name: 'REGEXP_REPLACE', insert: "REGEXP_REPLACE(${1:string}, '${2:pattern}', '${3:replacement}')", doc: 'Replace regex matches' },
+                        { name: 'SPLIT_PART', insert: "SPLIT_PART(${1:string}, '${2:delimiter}', ${3:index})", doc: 'Split string and return part by index' },
+                        { name: 'STRFTIME', insert: "STRFTIME(${1:timestamp}, '${2:%Y-%m-%d}')", doc: 'Format timestamp as string' },
+
+                        // Date Functions
+                        { name: 'CURRENT_DATE', insert: 'CURRENT_DATE', doc: "Today's date" },
+                        { name: 'CURRENT_TIMESTAMP', insert: 'CURRENT_TIMESTAMP', doc: 'Now as timestamp' },
+                        { name: 'DATE_TRUNC', insert: "DATE_TRUNC('${1:month}', ${2:date_col})", doc: 'Truncate date to period (year/month/day)' },
+                        { name: 'DATE_PART', insert: "DATE_PART('${1:year}', ${2:date_col})", doc: 'Extract part from date' },
+                        { name: 'DATE_DIFF', insert: "DATE_DIFF('${1:day}', ${2:start_date}, ${3:end_date})", doc: 'Difference between dates in units' },
+                        { name: 'DATE_ADD', insert: "DATE_ADD(${1:date}, INTERVAL ${2:1} ${3:DAY})", doc: 'Add interval to date' },
+                        { name: 'EXTRACT', insert: "EXTRACT(${1:YEAR} FROM ${2:date_col})", doc: 'Extract component from date/timestamp' },
+                        { name: 'EPOCH_MS', insert: 'EPOCH_MS(${1:milliseconds})', doc: 'Convert epoch ms to timestamp (DuckDB)' },
+                        { name: 'AGE', insert: 'AGE(${1:timestamp1}, ${2:timestamp2})', doc: 'Difference formatted as interval' },
+                        { name: 'GENERATE_SERIES', insert: "GENERATE_SERIES(${1:start}, ${2:end}, ${3:step})", doc: 'Generate a series of values' },
+
+                        // Type Cast / Conversion
+                        { name: 'TRY_CAST', insert: 'TRY_CAST(${1:value} AS ${2:INTEGER})', doc: 'Cast with NULL on failure (DuckDB)' },
+                        { name: 'COALESCE', insert: 'COALESCE(${1:val1}, ${2:val2})', doc: 'Return first non-null value' },
+                        { name: 'NULLIF', insert: 'NULLIF(${1:expr1}, ${2:expr2})', doc: 'Returns NULL if expr1 = expr2' },
+                        { name: 'IFNULL', insert: 'IFNULL(${1:expr}, ${2:default})', doc: 'Like COALESCE but for 2 args' },
+
+                        // DuckDB-Specific
+                        { name: 'read_csv_auto', insert: "read_csv_auto('${1:file.csv}')", doc: 'Read CSV with auto-detection' },
+                        { name: 'read_parquet', insert: "read_parquet('${1:file.parquet}')", doc: 'Read Parquet file' },
+                        { name: 'read_json', insert: "read_json('${1:file.json}')", doc: 'Read JSON file' },
+                        { name: 'read_xlsx', insert: "read_xlsx('${1:file.xlsx}')", doc: 'Read Excel file (needs spatial ext)' },
+                        { name: 'STRUCT_PACK', insert: 'STRUCT_PACK(${1:key} := ${2:value})', doc: 'Create a struct' },
+                        { name: 'UNNEST', insert: 'UNNEST(${1:list_column})', doc: 'Expand list/array into rows' },
+                        { name: 'LIST_AGG', insert: 'LIST(${1:column})', doc: 'Aggregate into list' },
+                    ];
+
+                    duckdbFunctions.forEach(fn => {
+                        suggestions.push({
+                            label: fn.name,
+                            kind: monaco.languages.CompletionItemKind.Function,
+                            insertText: fn.insert,
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            detail: 'Function',
+                            documentation: fn.doc,
+                            range: range,
+                            sortText: 'x_' + fn.name,
                         });
                     });
 

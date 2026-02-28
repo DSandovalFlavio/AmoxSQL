@@ -3,6 +3,7 @@ import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
 import { useToast } from './ToastProvider';
+import { resolveVariables } from './VariablesBar';
 
 const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSaveAs, onQueryResult }, ref) => {
     const toast = useToast();
@@ -20,6 +21,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
     const [showPlanModal, setShowPlanModal] = useState(false);
     const [planData, setPlanData] = useState(null);
     const [planQuery, setPlanQuery] = useState('');
+
+    // Variables State (shared across session)
+    const [queryVariables, setQueryVariables] = useState([]);
 
     // Helpers
     const getActiveTab = () => {
@@ -78,11 +82,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
 
     const executeQuery = async (tabId, query) => {
         const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
+        // Resolve variables before execution
+        const resolvedQuery = resolveVariables(query, queryVariables);
         try {
             const response = await fetch('http://localhost:3001/api/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query }),
+                body: JSON.stringify({ query: resolvedQuery }),
             });
             const data = await response.json();
 
@@ -98,7 +104,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
                 }
 
                 // Only refresh DB schema if query might have changed it
-                const upperQuery = query.trim().toUpperCase();
+                const upperQuery = resolvedQuery.trim().toUpperCase();
                 if (upperQuery.match(/^(CREATE|DROP|ALTER|UPDATE|INSERT|DELETE|ATTACH|DETACH|COPY)/) || upperQuery.includes('INTO')) {
                     if (onDbChange) onDbChange();
                 }
@@ -531,6 +537,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
                     onAnalyze={handleAnalyzeActive}
                     onDbChange={onDbChange}
                     theme={theme}
+                    variables={queryVariables}
+                    onVariablesChange={setQueryVariables}
                     // DnD Props
                     onDragStart={handleDragStart}
                     onReorder={handleReorder}
@@ -550,6 +558,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
                         onAnalyze={handleAnalyzeActive}
                         onDbChange={onDbChange}
                         theme={theme}
+                        variables={queryVariables}
+                        onVariablesChange={setQueryVariables}
                         // DnD Props
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}

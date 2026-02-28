@@ -21,6 +21,8 @@ import AiSidebar from './components/AiSidebar';
 import StatusBar from './components/StatusBar';
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import DataQualityModal from './components/DataQualityModal';
+import SchemaDiffModal from './components/SchemaDiffModal';
 import { useToast } from './components/ToastProvider';
 
 import SettingsModal from './components/SettingsModal';
@@ -76,6 +78,10 @@ function App() {
 
   // Keyboard Shortcuts Modal
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Data Quality & Schema Diff Modals
+  const [qualityCheckTable, setQualityCheckTable] = useState(null);
+  const [isSchemaDiffOpen, setIsSchemaDiffOpen] = useState(false);
 
   /* --- Project Workflow Handlers --- */
 
@@ -512,6 +518,7 @@ function App() {
                   onRefresh={refreshDbTrigger}
                   onTablesLoaded={setAvailableTables}
                   onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
+                  onQualityCheck={(tableName) => setQualityCheckTable(tableName)}
                 />
               </div>
             )}
@@ -621,6 +628,18 @@ function App() {
       <KeyboardShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+      />
+
+      <DataQualityModal
+        isOpen={!!qualityCheckTable}
+        onClose={() => setQualityCheckTable(null)}
+        tableName={qualityCheckTable}
+      />
+
+      <SchemaDiffModal
+        isOpen={isSchemaDiffOpen}
+        onClose={() => setIsSchemaDiffOpen(false)}
+        tables={availableTables}
       />
 
       <SaveQueryModal
