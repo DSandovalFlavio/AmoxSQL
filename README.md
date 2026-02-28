@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v1.2.0)
+# AmoxSQL (v1.3.0)
 
 > **The Modern Codex for Local Data Analysis.**
 >
@@ -75,6 +75,10 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
     *   **PDF Export**: Export your full notebook as a clean, professional PDF report directly from Presentation Mode.
     *   **HTML Export**: Generate a self-contained, interactive HTML report with sortable tables and embedded charts — perfect for sharing via email or Slack.
 * **Save Queries**: Save your work directly as `.sql` files within your project structure.
+* **Query History & Bookmarks**: Sidebar panel to quickly browse past queries, filter by keywords, and bookmark favorites for instant re-use.
+* **SQL Snippets**: Built-in library of DuckDB-specific templates (Window Functions, Aggregation, Dates, Data Quality) to accelerate query writing.
+* **Enhanced Autocomplete**: 60+ DuckDB functions with inline documentation and snippet insertion right in the editor.
+* **Parameterized Queries**: Define `${variables}` via the visual toolbar (Text, Date, Number) that automatically resolve across your scripts before execution.
 
 ### 📊 Data Visualization & IO
 * **Instant Visualizations**: Turn query results into charts immediately with an integrated graphing engine (built with Recharts).
@@ -102,7 +106,12 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
     *   **Split View**: Analyze the plan side-by-side with your code.
 * **Seamless Data Import/Export**:
     * **Bulk Import**: Import individual CSV/Parquet files or entire folders directly into DuckDB tables with options for cleaning column names.
-    * **Result Export**: Download any query result set as a CSV file.
+    * **Result Export**: Download any query result set as CSV, JSON, or Copy to Clipboard seamlessly.
+
+### 🛡️ Quality & Profiling
+* **Data Profiler**: Client-side statistical engine that calculates min, max, mean, median, standard deviation, and value distribution instantly without extra database load.
+* **Quick Quality Checks**: Right-click any table to see an automated quality report showing a 0-100% Quality Score, duplicate row counts, and column-level completeness/uniqueness checks.
+* **Schema Diff**: Visually compare the structure of any two tables to identify added, removed, or modified columns instantly.
 
 ---
 
@@ -118,10 +127,10 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-### 🎁 v1.2.0 — Free Public Release
+### 🎁 v1.3.0 — Free Public Release
 This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-👉 **[Download v1.2.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
+👉 **[Download v1.3.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
 ### 🚀 Future Versions — Sponsors Only
 Starting with v1.3+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
