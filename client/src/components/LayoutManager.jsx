@@ -2,8 +2,10 @@ import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } f
 import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
+import { useToast } from './ToastProvider';
 
-const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs, theme }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSaveAs, onQueryResult }, ref) => {
+    const toast = useToast();
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
     const [activePane, setActivePane] = useState('left'); // 'left' or 'right'
@@ -87,6 +89,14 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs, th
             if (response.ok) {
                 updateTab(pane, tabId, { results: data, resultsError: null });
 
+                // Notify parent of query result for status bar
+                if (onQueryResult) {
+                    onQueryResult({
+                        executionTime: data.executionTime,
+                        rowCount: data.data?.length ?? null,
+                    });
+                }
+
                 // Only refresh DB schema if query might have changed it
                 const upperQuery = query.trim().toUpperCase();
                 if (upperQuery.match(/^(CREATE|DROP|ALTER|UPDATE|INSERT|DELETE|ATTACH|DETACH|COPY)/) || upperQuery.includes('INTO')) {
@@ -134,12 +144,14 @@ const LayoutManager = forwardRef(({ onDbChange, projectPath, onRequestSaveAs, th
 
             if (response.ok) {
                 updateTab(activePane, tab.id, { dirty: false });
-                console.log("Saved!");
+                toast.success("Saved!");
             } else {
                 console.error("Save failed");
+                toast.error("Save failed!");
             }
         } catch (e) {
             console.error("Error saving: " + e.message);
+            toast.error("Error saving: " + e.message);
         }
     };
 

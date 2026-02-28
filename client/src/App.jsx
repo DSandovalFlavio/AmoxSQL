@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import ExtensionExplorer from './components/ExtensionExplorer';
@@ -17,7 +17,9 @@ import WelcomeScreen from './components/WelcomeScreen';
 import ProjectInfo from './components/ProjectInfo';
 import DatabaseSelectionModal from './components/DatabaseSelectionModal';
 import AiSidebar from './components/AiSidebar';
-
+import StatusBar from './components/StatusBar';
+import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
+import { useToast } from './components/ToastProvider';
 
 import SettingsModal from './components/SettingsModal';
 import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle } from "react-icons/lu";
@@ -33,6 +35,7 @@ const PHASE = {
 
 function App() {
   const [appPhase, setAppPhase] = useState(PHASE.WELCOME);
+  const toast = useToast();
 
   const layoutRef = useRef(null);
 
@@ -62,6 +65,12 @@ function App() {
 
   // Sidebar Architecture State
   const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', or 'extensions'
+
+  // Command Palette State
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Status Bar State — last query info
+  const [lastQueryInfo, setLastQueryInfo] = useState(null);
 
   /* --- Project Workflow Handlers --- */
 
@@ -96,6 +105,67 @@ function App() {
     setAppPhase(PHASE.WELCOME);
   }, []);
 
+  // --- Global Keyboard Shortcuts ---
+  useEffect(() => {
+    const handler = (e) => {
+      // Command Palette: Ctrl+Shift+P
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+        return;
+      }
+      // Only handle shortcuts in IDE phase
+      if (appPhase !== PHASE.IDE) return;
+
+      // Save: Ctrl+S
+      if (e.ctrlKey && !e.shiftKey && e.key === 's') {
+        e.preventDefault();
+        layoutRef.current?.handleTriggerSave();
+        return;
+      }
+      // Analyze: Ctrl+Shift+A
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        layoutRef.current?.handleTriggerAnalyze();
+        return;
+      }
+      // File Explorer: Ctrl+Shift+E
+      if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        setActiveSidebarTab('files');
+        return;
+      }
+      // Database Explorer: Ctrl+Shift+D
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setActiveSidebarTab('schema');
+        return;
+      }
+      // Settings: Ctrl+,
+      if (e.ctrlKey && e.key === ',') {
+        e.preventDefault();
+        setIsSettingsOpen(true);
+        return;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [appPhase]);
+
+  // Command Palette actions
+  const commandPaletteActions = useMemo(() => {
+    if (appPhase !== PHASE.IDE) return [];
+    return buildDefaultActions({
+      layoutRef,
+      setActiveSidebarTab,
+      setShowAiSidebar,
+      showAiSidebar,
+      setIsSettingsOpen,
+      theme,
+      setTheme,
+    });
+  }, [appPhase, showAiSidebar, theme]);
+
   const handleOpenProject = async (path) => {
     try {
       const response = await fetch('http://localhost:3001/api/project/open', {
@@ -121,10 +191,10 @@ function App() {
           await startIdeSession(':memory:', false);
         }
       } else {
-        alert("Failed to open folder: " + data.error);
+        toast.error("Failed to open folder: " + data.error);
       }
     } catch (err) {
-      alert("Error opening folder: " + err.message);
+      toast.error("Error opening folder: " + err.message);
     }
   };
 
@@ -150,7 +220,7 @@ function App() {
           setCurrentDb(d.path);
           setDbReadOnly(!!readOnly);
         } else {
-          alert("Connect failed. Starting in memory.");
+          toast.warning("Connect failed. Starting in memory.");
           setCurrentDb(':memory:');
           setDbReadOnly(false);
         }
@@ -196,7 +266,7 @@ function App() {
       layoutRef.current?.openFile(path, data.content, type);
 
     } catch (err) {
-      alert(`Failed to open file: ${err.message}`);
+      toast.error(`Failed to open file: ${err.message}`);
     }
   };
 
@@ -277,9 +347,9 @@ function App() {
         const data = await response.json();
         throw new Error(data.error);
       }
-      alert("Folder created! Refreshing...");
+      toast.success(`Folder "${folderName}" created`);
     } catch (err) {
-      alert(`Failed to create folder: ${err.message}`);
+      toast.error(`Failed to create folder: ${err.message}`);
     }
   };
 
@@ -338,6 +408,13 @@ function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+
+      {/* Command Palette — Global */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        actions={commandPaletteActions}
+      />
 
       {/* Modal Overlay for DB Selection Phase */}
       <DatabaseSelectionModal
@@ -482,8 +559,16 @@ function App() {
                   setPendingSaveContent(content);
                   setIsSaveModalOpen(true);
                 }}
+                onQueryResult={setLastQueryInfo}
               />
             </div>
+
+            {/* Status Bar */}
+            <StatusBar
+              currentDb={currentDb}
+              dbReadOnly={dbReadOnly}
+              lastQueryInfo={lastQueryInfo}
+            />
           </div>
           {/* Right Sidebar: AI Assistant */}
           {showAiSidebar && (
