@@ -627,6 +627,55 @@ app.post('/api/query', async (req, res) => {
 
 // (Removed duplicate `/api/db/tables` endpoint from here to avoid conflicts)
 
+/* --- SQL Snippets API --- */
+const AMOX_DIR = () => path.join(ROOT_DIR, '.amox');
+const ensureAmoxDir = () => { if (!fs.existsSync(AMOX_DIR())) fs.mkdirSync(AMOX_DIR(), { recursive: true }); };
+
+app.get('/api/snippets', (req, res) => {
+    try {
+        const file = path.join(AMOX_DIR(), 'snippets.json');
+        if (!fs.existsSync(file)) return res.json([]);
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        res.json(data);
+    } catch (err) {
+        res.json([]);
+    }
+});
+
+app.post('/api/snippets', (req, res) => {
+    try {
+        ensureAmoxDir();
+        const file = path.join(AMOX_DIR(), 'snippets.json');
+        fs.writeFileSync(file, JSON.stringify(req.body, null, 2), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- Query Bookmarks API --- */
+app.get('/api/bookmarks', (req, res) => {
+    try {
+        const file = path.join(AMOX_DIR(), 'bookmarks.json');
+        if (!fs.existsSync(file)) return res.json([]);
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        res.json(data);
+    } catch (err) {
+        res.json([]);
+    }
+});
+
+app.post('/api/bookmarks', (req, res) => {
+    try {
+        ensureAmoxDir();
+        const file = path.join(AMOX_DIR(), 'bookmarks.json');
+        fs.writeFileSync(file, JSON.stringify(req.body, null, 2), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/schema', async (req, res) => {
     try {
         const tables = await dbManager.query("SELECT table_name as name FROM information_schema.tables WHERE table_schema='main' OR table_schema='public'");

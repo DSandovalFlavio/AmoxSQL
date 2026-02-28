@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown } from "react-icons/lu";
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
+import DataProfiler from './DataProfiler';
 
 const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
+    const [showExportMenu, setShowExportMenu] = useState(false);
 
     // View State
     const [viewMode, setViewMode] = useState(initialChartConfig ? 'chart' : 'table');
@@ -136,15 +138,37 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
         ].join('\n');
 
         const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        downloadBlob(blob, `query_results_${timestamp()}.csv`);
+    };
+
+    const handleExportJson = () => {
+        if (!sortedData || sortedData.length === 0) return;
+        const blob = new Blob([JSON.stringify(sortedData, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, `query_results_${timestamp()}.json`);
+    };
+
+    const handleCopyClipboard = () => {
+        if (!sortedData || sortedData.length === 0) return;
+        const headers = Object.keys(sortedData[0]);
+        const tsv = [
+            headers.join('\t'),
+            ...sortedData.map(row => headers.map(h => row[h] === null ? '' : String(row[h])).join('\t'))
+        ].join('\n');
+        navigator.clipboard.writeText(tsv);
+    };
+
+    const downloadBlob = (blob, filename) => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', `query_results_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`);
+        link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     };
+
+    const timestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
     const handleSaveToDb = async (name, type) => {
         if (!query) return { success: false, error: "No query to save." };
@@ -222,6 +246,9 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                 <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'chart' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuChartBar size={14} /> Chart
                                 </button>
+                                <button onClick={() => setViewMode('profile')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'profile' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'profile' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <LuGauge size={14} /> Profile
+                                </button>
                             </div>
 
                             <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
@@ -255,9 +282,38 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                             <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <LuSave size={14} /> Save As
                             </button>
-                            <button onClick={handleExportCsv} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <LuFileSpreadsheet size={14} /> Export CSV
-                            </button>
+
+                            {/* Export Dropdown */}
+                            <div style={{ position: 'relative' }}>
+                                <button
+                                    onClick={() => setShowExportMenu(!showExportMenu)}
+                                    style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <LuFileDown size={14} /> Export ▾
+                                </button>
+                                {showExportMenu && (
+                                    <div style={{
+                                        position: 'absolute', right: 0, top: '100%', marginTop: '4px',
+                                        backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
+                                        borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
+                                        padding: '4px', minWidth: '160px', backdropFilter: 'blur(12px)',
+                                    }}>
+                                        {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={14} />, fn: handleExportCsv },
+                                        { label: 'Export JSON', icon: <LuFileJson size={14} />, fn: handleExportJson },
+                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={14} />, fn: handleCopyClipboard },
+                                        ].map(item => (
+                                            <div key={item.label}
+                                                onClick={() => { item.fn(); setShowExportMenu(false); }}
+                                                style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                                                onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                                                onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                                            >
+                                                {item.icon} {item.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -304,7 +360,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                                 backgroundColor: 'var(--table-header-bg)',
                                                 color: 'var(--text-active)',
                                                 borderRight: '1px solid var(--border-color)',
-                                                borderBottom: '1px solid var(--border-color)', // Always have bottom border
+                                                borderBottom: '1px solid var(--border-color)',
                                                 minWidth: '100px'
                                             }}
                                             onClick={() => handleSort(col)}
@@ -358,6 +414,8 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                             )}
                         </tbody>
                     </table>
+                ) : viewMode === 'profile' ? (
+                    <DataProfiler data={data} />
                 ) : (
                     <DataVisualizer data={data} isReportMode={isReportMode} query={query} initialChartConfig={initialChartConfig} />
                 )}
