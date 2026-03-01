@@ -62,11 +62,19 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         if (file.isDirectory) {
             setCurrentPath(file.path.replace(/\\/g, '/'));
         } else {
-            // Check extension
-            if (file.name.toLowerCase().endsWith('.sql') || file.name.toLowerCase().endsWith('.sqlnb')) {
+            const lowerName = file.name.toLowerCase();
+            // SQL scripts & notebooks → open in editor
+            if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb')) {
                 onFileOpen(file.path);
+                // Chart configs → open chart editor
+            } else if (lowerName.endsWith('.amoxvis')) {
+                onEditChart && onEditChart(file.path);
+                // Data files → open as direct query (SELECT * FROM ... LIMIT 100)
+            } else if (lowerName.match(/\.(csv|parquet|json|xlsx|xls)$/)) {
+                onQueryFile && onQueryFile(file.path);
+                // Everything else → open as text
             } else {
-                onFileClick(file.path);
+                onFileOpen(file.path);
             }
         }
     };

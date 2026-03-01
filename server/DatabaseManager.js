@@ -148,6 +148,9 @@ class DatabaseManager {
     async _logQuery(sql) {
         if (!this.attachedPath) return;
 
+        // Filter tagged system queries (comment-based tagging)
+        if (sql.trimStart().startsWith('-- AMOX_SYSTEM')) return;
+
         // Filter out system queries and self-logging
         const trimmed = sql.trim().toUpperCase();
         if (trimmed.startsWith('SELECT * FROM "AMOX_QUERY_HISTORY"')) return;
@@ -169,6 +172,14 @@ class DatabaseManager {
         const escapedSql = sql.replace(/'/g, "''");
         this.query(`INSERT INTO amox_query_history (query) VALUES ('${escapedSql}')`).catch(e => {
         });
+    }
+
+    /**
+     * Execute a system/internal query that should NOT be logged to history.
+     * Prefixes the SQL with a comment tag so _logQuery can identify and skip it.
+     */
+    async systemQuery(sql) {
+        return this.query(`-- AMOX_SYSTEM\n${sql}`);
     }
 
     async query(sql) {

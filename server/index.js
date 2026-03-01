@@ -128,7 +128,7 @@ app.get('/api/db/location', (req, res) => {
 
 app.get('/api/db/tables', async (req, res) => {
     try {
-        const tables = await dbManager.query("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='main'");
+        const tables = await dbManager.systemQuery("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='main'");
 
         const result = [];
         for (const t of tables) {
@@ -137,7 +137,7 @@ app.get('/api/db/tables', async (req, res) => {
             // Hide internal history table and memory-specific tables if any
             if (tableName === 'amox_query_history') continue;
 
-            const columns = await dbManager.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${tableName}' AND table_schema = 'main'`);
+            const columns = await dbManager.systemQuery(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${tableName}' AND table_schema = 'main'`);
             result.push({ name: tableName, type: tableType, columns: columns });
         }
 
@@ -155,7 +155,7 @@ app.get('/api/db/file-schema', async (req, res) => {
         let fullSourcePath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
         fullSourcePath = fullSourcePath.replace(/\\/g, '/');
 
-        const describe = await dbManager.query(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
+        const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
         res.json(describe);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch file schema', details: err.message });
@@ -165,12 +165,12 @@ app.get('/api/db/file-schema', async (req, res) => {
 app.get('/api/db/history', async (req, res) => {
     try {
         // Check if history table exists first to avoid error
-        const check = await dbManager.query("SELECT count(*) as cnt FROM information_schema.tables WHERE table_name = 'amox_query_history'");
+        const check = await dbManager.systemQuery("SELECT count(*) as cnt FROM information_schema.tables WHERE table_name = 'amox_query_history'");
         if (check[0].cnt == 0) {
             return res.json([]);
         }
 
-        const history = await dbManager.query("SELECT * FROM amox_query_history ORDER BY executed_at DESC LIMIT 1000");
+        const history = await dbManager.systemQuery("SELECT * FROM amox_query_history ORDER BY executed_at DESC LIMIT 1000");
         res.json(history);
     } catch (err) {
         console.error("Failed to fetch history:", err);
@@ -185,19 +185,19 @@ app.post('/api/db/table-details', async (req, res) => {
     try {
         // 1. Schema & Metadata
         // DuckDB 'DESCRIBE' gives column_name, column_type, null, key, default, extra
-        const describe = await dbManager.query(`DESCRIBE "${tableName}"`);
+        const describe = await dbManager.systemQuery(`DESCRIBE "${tableName}"`);
 
         // 2. Row Count (Estimated or Exact)
-        const countRes = await dbManager.query(`SELECT COUNT(1) as count FROM "${tableName}"`);
+        const countRes = await dbManager.systemQuery(`SELECT COUNT(1) as count FROM "${tableName}"`);
         const totalRows = countRes[0].count; // Serialized as string or number
 
         // 3. Preview Data
-        const preview = await dbManager.query(`SELECT * FROM "${tableName}" LIMIT ${limit} OFFSET ${offset}`);
+        const preview = await dbManager.systemQuery(`SELECT * FROM "${tableName}" LIMIT ${limit} OFFSET ${offset}`);
 
         // 4. DDL
         let ddl = '';
         try {
-            const ddlRes = await dbManager.query(`SELECT sql FROM sqlite_master WHERE name = '${tableName}'`);
+            const ddlRes = await dbManager.systemQuery(`SELECT sql FROM sqlite_master WHERE name = '${tableName}'`);
             if (ddlRes.length > 0) ddl = ddlRes[0].sql;
         } catch (e) {
             console.warn("DDL fetch fallback failed", e);
@@ -208,7 +208,7 @@ app.post('/api/db/table-details', async (req, res) => {
         // DuckDB SUMMARIZE returns: column_name, column_type, min, max, approx_unique, avg, std, q25, q50, q75, count, null_percentage
         let profile = [];
         try {
-            profile = await dbManager.query(`SUMMARIZE "${tableName}"`);
+            profile = await dbManager.systemQuery(`SUMMARIZE "${tableName}"`);
         } catch (e) {
             console.warn("Profile generation failed", e);
         }
@@ -244,15 +244,15 @@ app.post('/api/db/import', async (req, res) => {
 
     try {
         if (cleanColumns) {
-            const describe = await dbManager.query(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
+            const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
             const selectParts = describe.map(col => {
                 const oldName = col.column_name;
                 const newName = oldName.trim().replace(/\s+/g, '_');
                 return `"${oldName}" AS "${newName}"`;
             }).join(', ');
-            await dbManager.query(`CREATE OR REPLACE TABLE "${tableName}" AS SELECT ${selectParts} FROM '${fullSourcePath}'`);
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${tableName}" AS SELECT ${selectParts} FROM '${fullSourcePath}'`);
         } else {
-            await dbManager.query(`CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM '${fullSourcePath}'`);
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM '${fullSourcePath}'`);
         }
 
         // Force flush of WAL file to avoid locks
@@ -272,7 +272,7 @@ app.post('/api/db/import', async (req, res) => {
 /* --- Extension Management APIs --- */
 app.get('/api/db/extensions', async (req, res) => {
     try {
-        const extensions = await dbManager.query('SELECT * FROM duckdb_extensions()');
+        const extensions = await dbManager.systemQuery('SELECT * FROM duckdb_extensions()');
         res.json(extensions);
     } catch (err) {
         console.error("Failed to fetch extensions:", err);
@@ -289,8 +289,8 @@ app.post('/api/db/extensions/install', async (req, res) => {
     if (!safeName) return res.status(400).json({ error: 'Invalid extension name' });
 
     try {
-        await dbManager.query(`INSTALL ${safeName}`);
-        await dbManager.query(`LOAD ${safeName}`);
+        await dbManager.systemQuery(`INSTALL ${safeName}`);
+        await dbManager.systemQuery(`LOAD ${safeName}`);
         res.json({ success: true, message: `Extension '${safeName}' installed and loaded.` });
     } catch (err) {
         console.error(`Failed to install extension '${safeName}':`, err);
@@ -333,7 +333,7 @@ app.post('/api/db/import-excel', async (req, res) => {
         // We try to install/load it. This might fail if no internet or restricted, 
         // but it's required for the user's requested feature.
         try {
-            await dbManager.query("INSTALL spatial; LOAD spatial;");
+            await dbManager.systemQuery("INSTALL spatial; LOAD spatial;");
         } catch (e) {
             console.warn("Spatial extension load warning:", e.message);
             // Proceed anyway, maybe it's already there or built-in
@@ -354,7 +354,7 @@ app.post('/api/db/import-excel', async (req, res) => {
 
             const unionQuery = queries.join(' UNION ALL BY NAME ');
 
-            await dbManager.query(`CREATE OR REPLACE TABLE "${tableName}" AS ${unionQuery}`);
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${tableName}" AS ${unionQuery}`);
             summary.push(`Merged ${sheets.length} sheets into "${tableName}"`);
 
         } else {
@@ -364,7 +364,7 @@ app.post('/api/db/import-excel', async (req, res) => {
                 // Sanitize sheet name for table name
                 const safeTableName = sheet.replace(/[^a-zA-Z0-9_]/g, '_');
 
-                await dbManager.query(`CREATE OR REPLACE TABLE "${safeTableName}" AS SELECT * FROM read_xlsx('${fullPath}', sheet='${sheet}')`);
+                await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${safeTableName}" AS SELECT * FROM read_xlsx('${fullPath}', sheet='${sheet}')`);
                 summary.push(`Created table "${safeTableName}" from sheet "${sheet}"`);
             }
         }
@@ -678,7 +678,7 @@ app.post('/api/bookmarks', (req, res) => {
 
 app.get('/api/schema', async (req, res) => {
     try {
-        const tables = await dbManager.query("SELECT table_name as name FROM information_schema.tables WHERE table_schema='main' OR table_schema='public'");
+        const tables = await dbManager.systemQuery("SELECT table_name as name FROM information_schema.tables WHERE table_schema='main' OR table_schema='public'");
         res.json(tables);
     } catch (err) {
         res.json([]);
