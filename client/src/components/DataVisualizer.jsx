@@ -247,6 +247,16 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('data');
+    const [showExportMenu, setShowExportMenu] = useState(false);
+
+    // Export presets
+    const EXPORT_PRESETS = [
+        { label: 'PowerPoint 16:9', width: 1920, height: 1080 },
+        { label: 'PowerPoint 4:3', width: 1440, height: 1080 },
+        { label: 'Square (1:1)', width: 1080, height: 1080 },
+        { label: 'Phone Story (9:16)', width: 1080, height: 1920 },
+        { label: 'Wide Banner', width: 1200, height: 628 },
+    ];
 
     // Extract columns
     const columns = useMemo(() => {
@@ -1219,45 +1229,72 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         axisCommonProps, formatNumber, showXAxisTitle, showYAxisTitle, splitByKey, bubbleSizeKey, donutLabelPosition
     ]);
 
-    const handleDownload = async () => {
+    const handleDownload = async (preset) => {
         if (!chartRef.current) return;
 
+        const targetWidth = preset?.width || 1920;
+        const targetHeight = preset?.height || 1080;
+        const presetLabel = preset?.label || 'custom';
+
         try {
-            // Calculate a dynamic scale to ensure the output is at least Full HD (1920x1080)
             const currentWidth = chartRef.current.offsetWidth || 1;
             const currentHeight = chartRef.current.offsetHeight || 1;
 
-            const targetWidth = 1920;
-            const targetHeight = 1080;
-
             const scaleX = targetWidth / currentWidth;
             const scaleY = targetHeight / currentHeight;
-
-            // Use the maximum scale needed to hit at least 1080p on both edges, 
-            // ensuring the original aspect ratio is perfectly preserved and no lower than 2x.
             const dynamicScale = Math.max(scaleX, scaleY, 2);
 
-            // Use html2canvas for robust screenshotting
             const canvas = await html2canvas(chartRef.current, {
-                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface-base').trim() || '#1e1f22', // Force dark background
-                scale: dynamicScale, // Dynamic Full HD stringency
+                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface-base').trim() || '#1e1f22',
+                scale: dynamicScale,
                 logging: false,
                 useCORS: true,
-                ignoreElements: (element) => element.tagName === 'BUTTON' // Optional: Ignore the download button itself if inside ref? 
-                // The ref is on the chart area, but let's be safe.
+                ignoreElements: (element) => element.tagName === 'BUTTON'
             });
 
-            const pngFile = canvas.toDataURL('image/png');
+            // Create a canvas at the exact target resolution
+            const outputCanvas = document.createElement('canvas');
+            outputCanvas.width = targetWidth;
+            outputCanvas.height = targetHeight;
+            const ctx = outputCanvas.getContext('2d');
+
+            // Fill background
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--surface-base').trim() || '#1e1f22';
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+            // Draw and center the chart in the output canvas
+            const srcRatio = canvas.width / canvas.height;
+            const dstRatio = targetWidth / targetHeight;
+            let drawW, drawH, drawX, drawY;
+
+            if (srcRatio > dstRatio) {
+                // Source is wider → fit width, pad height
+                drawW = targetWidth;
+                drawH = targetWidth / srcRatio;
+                drawX = 0;
+                drawY = (targetHeight - drawH) / 2;
+            } else {
+                // Source is taller → fit height, pad width
+                drawH = targetHeight;
+                drawW = targetHeight * srcRatio;
+                drawX = (targetWidth - drawW) / 2;
+                drawY = 0;
+            }
+
+            ctx.drawImage(canvas, drawX, drawY, drawW, drawH);
+
+            const pngFile = outputCanvas.toDataURL('image/png');
             const downloadLink = document.createElement('a');
-            downloadLink.download = `chart_${chartType}_${Date.now()}.png`;
+            const safeName = presetLabel.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            downloadLink.download = `chart_${chartType}_${safeName}_${Date.now()}.png`;
             downloadLink.href = pngFile;
             downloadLink.click();
 
         } catch (err) {
             console.error("Export failed:", err);
-            // Fallback? No, alert user.
             alert("Could not export chart.");
         }
+        setShowExportMenu(false);
     };
 
     // --- CONFIGURATION SAVE / LOAD ---
@@ -1427,16 +1464,48 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             >
                                 <LuSave size={14} />
                             </button>
-                            <button
-                                onClick={handleDownload}
-                                title="Download Chart as PNG"
-                                style={{
-                                    background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
-                                    display: 'flex', alignItems: 'center', gap: '4px'
-                                }}
-                            >
-                                <LuDownload size={14} /> PNG
-                            </button>
+                            <div style={{ position: 'relative' }}>
+                                <button
+                                    onClick={() => setShowExportMenu(v => !v)}
+                                    title="Export Chart as PNG"
+                                    style={{
+                                        background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                                        display: 'flex', alignItems: 'center', gap: '4px'
+                                    }}
+                                >
+                                    <LuDownload size={14} /> PNG ▾
+                                </button>
+                                {showExportMenu && (
+                                    <div style={{
+                                        position: 'absolute', top: '100%', right: 0, marginTop: '4px',
+                                        background: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
+                                        borderRadius: '8px', boxShadow: 'var(--shadow-md)', padding: '4px',
+                                        zIndex: 999, minWidth: '180px', backdropFilter: 'blur(12px)',
+                                    }}>
+                                        {EXPORT_PRESETS.map(p => (
+                                            <div
+                                                key={p.label}
+                                                onClick={() => handleDownload(p)}
+                                                style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                                onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                                                onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                                            >
+                                                <span>{p.label}</span>
+                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{p.width}×{p.height}</span>
+                                            </div>
+                                        ))}
+                                        <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
+                                        <div
+                                            onClick={() => handleDownload({ label: 'Original', width: chartRef.current?.offsetWidth || 1920, height: chartRef.current?.offsetHeight || 1080 })}
+                                            style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px' }}
+                                            onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                                            onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                                        >
+                                            Original Size
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 

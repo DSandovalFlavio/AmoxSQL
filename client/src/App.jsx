@@ -24,10 +24,11 @@ import CommandPalette, { buildDefaultActions } from './components/CommandPalette
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import DataQualityModal from './components/DataQualityModal';
 import SchemaDiffModal from './components/SchemaDiffModal';
+import ExecutionChainModal from './components/ExecutionChainModal';
 import { useToast } from './components/ToastProvider';
 
 import SettingsModal from './components/SettingsModal';
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink } from "react-icons/lu";
 
 import './index.css';
 
@@ -86,6 +87,10 @@ function App() {
   // Data Quality & Schema Diff Modals
   const [qualityCheckTable, setQualityCheckTable] = useState(null);
   const [isSchemaDiffOpen, setIsSchemaDiffOpen] = useState(false);
+
+  // Execution Chain Modal
+  const [isChainOpen, setIsChainOpen] = useState(false);
+  const [sqlFileList, setSqlFileList] = useState([]);
 
   /* --- Project Workflow Handlers --- */
 
@@ -180,19 +185,49 @@ function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [appPhase]);
 
+  /* --- Execution Chain Handler --- */
+  const handleOpenChain = async () => {
+    try {
+      const collectSqlFiles = async (dir = '') => {
+        const res = await fetch(`http://localhost:3001/api/files?path=${encodeURIComponent(dir)}`);
+        const files = await res.json();
+        let sqlFiles = [];
+        for (const f of files) {
+          if (f.isDirectory) {
+            const sub = await collectSqlFiles(f.path);
+            sqlFiles = sqlFiles.concat(sub);
+          } else if (f.name.endsWith('.sql')) {
+            sqlFiles.push(f.path);
+          }
+        }
+        return sqlFiles;
+      };
+      const files = await collectSqlFiles();
+      setSqlFileList(files);
+      setIsChainOpen(true);
+    } catch (err) {
+      console.error('Failed to collect SQL files:', err);
+      setSqlFileList([]);
+      setIsChainOpen(true);
+    }
+  };
+
   // Command Palette actions
   const commandPaletteActions = useMemo(() => {
     if (appPhase !== PHASE.IDE) return [];
-    return buildDefaultActions({
-      layoutRef,
-      setActiveSidebarTab,
-      setShowAiSidebar,
-      showAiSidebar,
-      setIsSettingsOpen,
-      theme,
-      setTheme,
-      setIsShortcutsOpen,
-    });
+    return [
+      ...buildDefaultActions({
+        layoutRef,
+        setActiveSidebarTab,
+        setShowAiSidebar,
+        showAiSidebar,
+        setIsSettingsOpen,
+        theme,
+        setTheme,
+        setIsShortcutsOpen,
+      }),
+      { id: 'run-chain', label: 'Run Execution Chain...', category: 'Query', icon: LuLink, action: handleOpenChain },
+    ];
   }, [appPhase, showAiSidebar, theme]);
 
   const handleOpenProject = async (path) => {
@@ -274,6 +309,7 @@ function App() {
     setAppPhase(PHASE.WELCOME);
     setProjectPath('');
   };
+
 
   /* --- File Handlers --- */
   const handleFileClick = (path) => {
@@ -628,6 +664,14 @@ function App() {
                 >
                   <LuFilePlus size={14} /> New Notebook
                 </button>
+                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
+                <button
+                  onClick={handleOpenChain}
+                  title="Run Execution Chain"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
+                >
+                  <LuLink size={14} /> Run Chain
+                </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <button
@@ -721,6 +765,12 @@ function App() {
         initialFile={importTargetFile || ''}
         onClose={() => setIsExcelImportModalOpen(false)}
         onImport={(config) => performExcelImport(config)}
+      />
+
+      <ExecutionChainModal
+        isOpen={isChainOpen}
+        onClose={() => setIsChainOpen(false)}
+        sqlFiles={sqlFileList}
       />
     </div>
   );

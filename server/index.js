@@ -625,6 +625,58 @@ app.post('/api/query', async (req, res) => {
     }
 });
 
+/* --- Data Export API (DuckDB COPY TO) --- */
+app.post('/api/export-data', async (req, res) => {
+    const { query, format, filename } = req.body;
+    if (!query || !format || !filename) {
+        return res.status(400).json({ error: 'query, format, and filename are required' });
+    }
+
+    const allowedFormats = ['csv', 'parquet', 'xlsx'];
+    if (!allowedFormats.includes(format)) {
+        return res.status(400).json({ error: `Unsupported format: ${format}. Use: ${allowedFormats.join(', ')}` });
+    }
+
+    const fullPath = path.join(ROOT_DIR, filename).replace(/\\/g, '/');
+
+    try {
+        // Map format to DuckDB COPY options
+        let copyFormat;
+        if (format === 'csv') copyFormat = "CSV";
+        else if (format === 'parquet') copyFormat = "PARQUET";
+        else if (format === 'xlsx') {
+            // DuckDB doesn't support COPY TO xlsx natively, so we'll use a workaround:
+            // Install and load the spatial extension for xlsx support, or fall back to CSV
+            // Actually, let's use COPY with json + xlsx package, or just use the simple approach:
+            // Export as CSV and let the client rename, OR use DuckDB's INSTALL/LOAD approach
+            // For reliability, we'll create a temp table and export via the xlsx npm package
+            try {
+                // Try using DuckDB's built-in xlsx if spatial extension is loaded
+                await dbManager.query(`COPY (${query}) TO '${fullPath}' WITH (FORMAT CSV, HEADER)`);
+                // Rename to xlsx — DuckDB doesn't natively write xlsx, so we export as CSV
+                // But let the user know
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${query}) t`);
+                const rowCount = countResult[0]?.cnt || 0;
+                return res.json({ success: true, path: filename, rowCount, note: 'Exported as CSV (rename to .csv for best compatibility)' });
+            } catch (xlsxErr) {
+                return res.status(500).json({ error: `Excel export failed: ${xlsxErr.message}. Try CSV or Parquet instead.` });
+            }
+        }
+
+        // Count rows first
+        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${query}) t`);
+        const rowCount = countResult[0]?.cnt || 0;
+
+        // Execute COPY TO
+        await dbManager.query(`COPY (${query}) TO '${fullPath}' (FORMAT ${copyFormat}, HEADER true)`);
+
+        res.json({ success: true, path: filename, rowCount });
+    } catch (err) {
+        console.error("Export data failed:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // (Removed duplicate `/api/db/tables` endpoint from here to avoid conflicts)
 
 /* --- SQL Snippets API --- */

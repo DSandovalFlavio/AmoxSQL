@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const MenuBar = ({ onOpenProject, currentPath }) => {
+const MenuBar = ({ onOpenProject, currentPath, onRunChain }) => {
     const [activeMenu, setActiveMenu] = useState(null);
 
     const toggleMenu = (menuName) => {
@@ -52,6 +52,19 @@ const MenuBar = ({ onOpenProject, currentPath }) => {
                         >
                             Reload Window
                         </div>
+                        {onRunChain && (
+                            <>
+                                <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
+                                <div
+                                    onClick={() => { onRunChain(); setActiveMenu(null); }}
+                                    style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background-color 120ms ease' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                                >
+                                    🔗 Run Chain...
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

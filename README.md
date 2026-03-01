@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v1.3.0)
+# AmoxSQL (v1.4.0)
 
 > **The Modern Codex for Local Data Analysis.**
 >
@@ -73,12 +73,13 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 * **SQL Notebooks (`.sqlnb`)**: A Jupyter-like experience for SQL. Combine rich Markdown documentation with executable SQL cells in a single document.
     *   **Presentation Mode**: Switch to "Report View" to hide code cells and display only Markdown text, interactive charts, and data tables.
     *   **PDF Export**: Export your full notebook as a clean, professional PDF report directly from Presentation Mode.
-    *   **HTML Export**: Generate a self-contained, interactive HTML report with sortable tables and embedded charts — perfect for sharing via email or Slack.
+    *   **HTML Export**: Generate a self-contained, interactive HTML report with sortable tables, embedded charts, auto-generated table of contents, and mobile-responsive layout — perfect for sharing via email or Slack.
 * **Save Queries**: Save your work directly as `.sql` files within your project structure.
 * **Query History & Bookmarks**: Sidebar panel to quickly browse past queries, filter by keywords, and bookmark favorites for instant re-use.
 * **SQL Snippets**: Built-in library of DuckDB-specific templates (Window Functions, Aggregation, Dates, Data Quality) to accelerate query writing.
 * **Enhanced Autocomplete**: 60+ DuckDB functions with inline documentation and snippet insertion right in the editor.
 * **Parameterized Queries**: Define `${variables}` via the visual toolbar (Text, Date, Number) that automatically resolve across your scripts before execution.
+* **Inline Error Highlighting**: When a query fails, the editor shows a red squiggly underline on the exact error line with a hover tooltip — errors auto-clear when you edit.
 
 ### 📊 Data Visualization & IO
 * **Instant Visualizations**: Turn query results into charts immediately with an integrated graphing engine (built with Recharts).
@@ -90,7 +91,7 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
     *   **Axes & Scaling**: Toggle Logarithmic scale, dynamic X/Y bounds, and custom axis titles.
     *   **Reference Indicators**: Add customizable horizontal/vertical reference lines and colored reference areas to highlight targets or thresholds.
     *   **Number Formatting**: Display values in Compact (1.2k), Millions (1.2M), Currency, or Raw formats.
-* **High-Quality Export**: Export your charts instantly as high-resolution (up to 4x scale) PNG images.
+* **Chart Export Presets**: Export charts as high-resolution PNGs optimized for specific platforms — PowerPoint 16:9, PowerPoint 4:3, Square (1:1), Phone Story (9:16), Wide Banner, or Original Size.
 * **Customizable Accent Palette**: 10 brand colors derived from the AmoxSQL logo gradient, plus Linear Blue.
 
 ### 🧩 Extension Management
@@ -107,6 +108,8 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 * **Seamless Data Import/Export**:
     * **Bulk Import**: Import individual CSV/Parquet files or entire folders directly into DuckDB tables with options for cleaning column names.
     * **Result Export**: Download any query result set as CSV, JSON, or Copy to Clipboard seamlessly.
+    * **Export to File**: Export query results directly to your workspace as CSV, Parquet, or Excel using DuckDB's native high-performance `COPY TO`.
+* **Query Execution Chain**: Define a sequence of `.sql` files and execute them in order with real-time progress indicators — perfect for local ETL pipelines and automated data preparation workflows.
 
 ### 🛡️ Quality & Profiling
 * **Data Profiler**: Client-side statistical engine that calculates min, max, mean, median, standard deviation, and value distribution instantly without extra database load.
@@ -127,13 +130,13 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-### 🎁 v1.3.0 — Free Public Release
+### 🎁 v1.4.0 — Free Public Release
 This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-👉 **[Download v1.3.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
+👉 **[Download v1.4.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
 ### 🚀 Future Versions — Sponsors Only
-Starting with v1.3+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
+Starting with v1.4+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
 
 - ✅ Ready-to-use Windows installers (no build setup required)
 - ✅ Early access to new features and updates

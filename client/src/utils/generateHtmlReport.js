@@ -273,18 +273,66 @@ function getThemeCSS(theme) {
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: ${isDark ? '#4e5157' : '#ced4da'}; border-radius: 9px; }
   ::-webkit-scrollbar-thumb:hover { background: ${isDark ? '#5f6269' : '#adb5bd'}; }
+
+  /* Mobile Responsive */
+  @media (max-width: 768px) {
+    body { padding: 16px 8px; }
+    .report-wrapper { max-width: 100%; }
+    .report-header { padding: 24px 0 16px; }
+    .md-section h1 { font-size: 22px; }
+    .md-section h2 { font-size: 18px; }
+    .md-section h3 { font-size: 15px; }
+    .chart-section { padding: 12px; }
+    td, th { padding: 6px 8px; font-size: 11px; }
+    .sql-block { font-size: 11px; padding: 10px; }
+  }
+
+  /* Table of Contents */
+  .toc {
+    background: ${isDark ? '#1a1b1e' : '#f8f9fa'};
+    border: 1px solid ${isDark ? '#2c2e33' : '#dee2e6'};
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+  }
+  .toc-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: ${isDark ? '#909296' : '#868e96'};
+    margin-bottom: 10px;
+  }
+  .toc ul { list-style: none; padding: 0; margin: 0; }
+  .toc li { padding: 3px 0; }
+  .toc a { color: ${isDark ? '#00d4ff' : '#0059ff'}; text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+  .toc .toc-h2 { padding-left: 16px; font-size: 13px; }
+  .toc .toc-h3 { padding-left: 32px; font-size: 12px; color: ${isDark ? '#909296' : '#868e96'}; }
 `;
 }
 
 // Build the HTML template
-function buildHtmlDocument(sections, theme) {
+function buildHtmlDocument(sections, theme, tocItems = []) {
   const timestamp = new Date().toLocaleString();
+  const dateISO = new Date().toISOString().slice(0, 10);
+
+  // Build table of contents HTML
+  let tocHtml = '';
+  if (tocItems.length > 0) {
+    const tocLinks = tocItems.map(item =>
+      `<li class="toc-${item.level}"><a href="#${item.id}">${item.text}</a></li>`
+    ).join('\n');
+    tocHtml = `<div class="toc"><div class="toc-title">Table of Contents</div><ul>${tocLinks}</ul></div>`;
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="AmoxSQL">
+<meta name="date" content="${dateISO}">
 <title>AmoxSQL Report — ${timestamp}</title>
 <style>${getThemeCSS(theme)}</style>
 </head>
@@ -294,6 +342,8 @@ function buildHtmlDocument(sections, theme) {
     <div class="logo">AmoxSQL Report</div>
     <div class="date">Generated on ${timestamp}</div>
   </div>
+
+  ${tocHtml}
 
   ${sections.join('\n\n')}
 
@@ -392,10 +442,22 @@ function buildTableHtml(data) {
 export async function generateHtmlReport(cells, results, hideCode = false) {
   const theme = detectTheme();
   const sections = [];
+  const tocItems = [];
+  let headingCounter = 0;
 
   for (const cell of cells) {
     if (cell.type === 'markdown') {
-      const html = markdownToHtml(cell.content);
+      let html = markdownToHtml(cell.content);
+
+      // Extract headings for TOC and add IDs
+      html = html.replace(/<(h[1-3])>(.*?)<\/\1>/gi, (match, tag, text) => {
+        headingCounter++;
+        const id = `section-${headingCounter}`;
+        const level = tag; // h1, h2, h3
+        tocItems.push({ id, text: text.replace(/<[^>]+>/g, ''), level });
+        return `<${tag} id="${id}">${text}</${tag}>`;
+      });
+
       if (html.trim()) {
         sections.push(`<div class="md-section">${html}</div>`);
       }
@@ -441,7 +503,7 @@ export async function generateHtmlReport(cells, results, hideCode = false) {
   }
 
   // Generate and download
-  const htmlContent = buildHtmlDocument(sections, theme);
+  const htmlContent = buildHtmlDocument(sections, theme, tocItems);
   const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

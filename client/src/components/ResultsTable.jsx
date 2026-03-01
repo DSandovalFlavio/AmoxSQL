@@ -3,12 +3,14 @@ import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFi
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
+import ExportDataModal from './ExportDataModal';
 
 const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
+    const [isExportDataOpen, setIsExportDataOpen] = useState(false);
 
     // View State
     const [viewMode, setViewMode] = useState(initialChartConfig ? 'chart' : 'table');
@@ -311,6 +313,15 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                                 {item.icon} {item.label}
                                             </div>
                                         ))}
+                                        <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
+                                        <div
+                                            onClick={() => { setIsExportDataOpen(true); setShowExportMenu(false); }}
+                                            style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease', fontWeight: 600 }}
+                                            onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; }}
+                                            onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
+                                        >
+                                            <LuFileDown size={14} /> Export to File...
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -425,6 +436,12 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                 isOpen={isSaveDbModalOpen}
                 onClose={() => setIsSaveDbModalOpen(false)}
                 onSave={handleSaveToDb}
+            />
+
+            <ExportDataModal
+                isOpen={isExportDataOpen}
+                onClose={() => setIsExportDataOpen(false)}
+                query={query}
             />
         </div>
     );
