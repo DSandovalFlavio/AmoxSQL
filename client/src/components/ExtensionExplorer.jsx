@@ -179,7 +179,7 @@ const ExtensionExplorer = () => {
                 <span style={{ color: 'var(--accent-primary)' }}>● {loadedCount} loaded</span>
             </div>
 
-            {/* Extension Cards */}
+            {/* Extension Cards — Grouped by Status */}
             <div className="ext-gallery">
                 {loading && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '30px', color: 'var(--text-tertiary)' }}>
@@ -196,68 +196,75 @@ const ExtensionExplorer = () => {
                     </div>
                 )}
 
-                {!loading && !error && sorted.map((ext) => {
-                    const core = isCore(ext);
-                    const installed = ext.installed;
-                    const loaded = ext.loaded;
+                {!loading && !error && (() => {
+                    const groups = [
+                        { label: 'Active', items: sorted.filter(e => e.installed && e.loaded), color: 'var(--accent-primary)' },
+                        { label: 'Installed', items: sorted.filter(e => e.installed && !e.loaded), color: 'var(--feedback-success-text)' },
+                        { label: 'Available', items: sorted.filter(e => !e.installed), color: 'var(--text-tertiary)' },
+                    ].filter(g => g.items.length > 0);
 
-                    return (
-                        <div
-                            key={ext.extension_name}
-                            className={`ext-card ${loaded ? 'ext-card-loaded' : ''} ${installed ? 'ext-card-installed' : ''}`}
-                        >
-                            {/* Card Header */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                                    <span className="ext-card-name">{ext.extension_name}</span>
-                                    {ext.extension_version && (
-                                        <span className="badge badge-neutral" style={{ fontSize: '9px', padding: '1px 5px' }}>
-                                            v{ext.extension_version}
-                                        </span>
-                                    )}
-                                </div>
-                                <span className={core ? 'ext-badge-core' : 'ext-badge-community'}>
-                                    {core ? <><LuShieldCheck size={9} /> core</> : <><LuUsers size={9} /> community</>}
-                                </span>
+                    if (groups.length === 0 && filter) {
+                        return (
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '12px' }}>
+                                No extensions match "{filter}"
                             </div>
+                        );
+                    }
 
-                            {/* Description */}
-                            {ext.description && (
-                                <div className="ext-card-desc">{ext.description}</div>
-                            )}
-
-                            {/* Status row */}
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-                                {installed && (
-                                    <span className="ext-status-installed">
-                                        <LuCheck size={10} /> Installed
-                                    </span>
-                                )}
-                                {loaded && (
-                                    <span className="ext-status-loaded">
-                                        <LuCircle size={8} fill="currentColor" /> Loaded
-                                    </span>
-                                )}
-                                {!installed && !loaded && (
-                                    <span style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>
-                                        Not installed
-                                    </span>
-                                )}
-                                {ext.install_mode && installed && (
-                                    <span style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: 'auto' }}>
-                                        {ext.install_mode}
-                                    </span>
-                                )}
+                    return groups.map(group => (
+                        <div key={group.label}>
+                            <div style={{
+                                padding: '6px 14px 4px',
+                                fontSize: '10px',
+                                fontWeight: '600',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                                color: 'var(--text-tertiary)',
+                                borderBottom: '1px solid var(--border-subtle)',
+                                backgroundColor: 'var(--surface-inset)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 1,
+                            }}>
+                                <LuCircle size={6} fill={group.color} color={group.color} />
+                                {group.label}
+                                <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'var(--text-disabled)' }}>{group.items.length}</span>
                             </div>
+                            {group.items.map(ext => {
+                                const core = isCore(ext);
+                                const installed = ext.installed;
+                                const loaded = ext.loaded;
+                                return (
+                                    <div key={ext.extension_name} className={`ext-card ${loaded ? 'ext-card-loaded' : ''} ${installed ? 'ext-card-installed' : ''}`}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                                <span className="ext-card-name">{ext.extension_name}</span>
+                                                {ext.extension_version && (
+                                                    <span className="badge badge-neutral" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                                        v{ext.extension_version}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className={core ? 'ext-badge-core' : 'ext-badge-community'}>
+                                                {core ? <><LuShieldCheck size={9} /> core</> : <><LuUsers size={9} /> community</>}
+                                            </span>
+                                        </div>
+                                        {ext.description && <div className="ext-card-desc">{ext.description}</div>}
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                                            {installed && <span className="ext-status-installed"><LuCheck size={10} /> Installed</span>}
+                                            {loaded && <span className="ext-status-loaded"><LuCircle size={8} fill="currentColor" /> Loaded</span>}
+                                            {!installed && !loaded && <span style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>Not installed</span>}
+                                            {ext.install_mode && installed && <span style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: 'auto' }}>{ext.install_mode}</span>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    );
-                })}
-
-                {!loading && !error && sorted.length === 0 && filter && (
-                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '12px' }}>
-                        No extensions match "{filter}"
-                    </div>
-                )}
+                    ));
+                })()}
             </div>
         </div>
     );

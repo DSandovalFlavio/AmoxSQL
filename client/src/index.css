@@ -355,13 +355,113 @@ body {
   height: 100%;
 }
 
+/* ── Activity Bar — Linear-style icon rail ── */
+.activity-bar {
+  width: 48px;
+  background-color: var(--surface-base);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.activity-bar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  padding: 10px 0;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+  position: relative;
+}
+
+.activity-bar-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-bg);
+  border-color: transparent;
+}
+
+.activity-bar-btn--active {
+  color: var(--accent-primary);
+  border-left-color: var(--accent-primary);
+}
+
+.activity-bar-btn--active:hover {
+  color: var(--accent-primary);
+  background-color: var(--accent-subtle);
+}
+
+.activity-bar-btn--bottom {
+  margin-top: auto;
+  margin-bottom: 12px;
+}
+
+/* Sidebar collapse toggle button in activity bar */
+.activity-bar-collapse-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  padding: 8px 0;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+  margin-bottom: 4px;
+}
+
+.activity-bar-collapse-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-bg);
+  border-color: transparent;
+}
+
+/* ── Sidebar Panel — collapsible ── */
 .sidebar {
-  width: 260px;
+  width: 280px;
   background-color: var(--sidebar-bg);
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   padding-top: 6px;
+  transition: width var(--transition-base), opacity var(--transition-base);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar--collapsed {
+  width: 0;
+  opacity: 0;
+  border-right: none;
+  padding: 0;
+  pointer-events: none;
+}
+
+/* ── Sidebar Resize Handle ── */
+.sidebar-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color var(--transition-fast);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 11;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle--active {
+  background-color: var(--accent-primary);
 }
 
 .sidebar-header {

@@ -93,6 +93,98 @@ const QueryHistoryPanel = ({ onSelect }) => {
         navigator.clipboard.writeText(text);
     };
 
+    // Temporal grouping helper
+    const getTimeGroup = (dateString) => {
+        if (!dateString) return 'Older';
+        const d = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - d;
+        const diffDays = Math.floor(diffMs / 86400000);
+        if (diffDays === 0 && d.getDate() === now.getDate()) return 'Today';
+        if (diffDays <= 1 || (diffDays === 0 && d.getDate() !== now.getDate())) return 'Yesterday';
+        if (diffDays <= 7) return 'This Week';
+        return 'Older';
+    };
+
+    // Group the list for history tab
+    const groupedItems = (() => {
+        if (viewTab !== 'history') return null;
+        const groups = {};
+        const order = ['Today', 'Yesterday', 'This Week', 'Older'];
+        order.forEach(g => { groups[g] = []; });
+        activeList.forEach(item => {
+            const group = getTimeGroup(item.executed_at);
+            if (groups[group]) groups[group].push(item);
+        });
+        return order.filter(g => groups[g].length > 0).map(g => ({ label: g, items: groups[g] }));
+    })();
+
+    const renderQueryItem = (item, idx) => {
+        const query = item.query;
+        const date = viewTab === 'history' ? item.executed_at : item.bookmarkedAt;
+        const starred = isBookmarked(query);
+        const preview = query.split('\n').slice(0, 3).join('\n');
+        const isTruncated = query.split('\n').length > 3;
+
+        return (
+            <div
+                key={idx}
+                className="file-item"
+                onClick={() => handleSelect(query)}
+                title="Click to insert into new editor"
+                style={{
+                    padding: '6px 12px', cursor: 'pointer',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    fontSize: '11px',
+                }}
+            >
+                {/* Date & Actions */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px', width: '100%' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>{formatDate(date)}</span>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        {viewTab === 'history' ? (
+                            <span
+                                onClick={(e) => toggleBookmark(query, e)}
+                                title={starred ? 'Remove bookmark' : 'Bookmark'}
+                                style={{ cursor: 'pointer', color: starred ? '#f59e0b' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', transition: 'color 120ms ease' }}
+                            >
+                                <LuStar size={11} fill={starred ? '#f59e0b' : 'none'} />
+                            </span>
+                        ) : (
+                            <span
+                                onClick={(e) => removeBookmark(query, e)}
+                                title="Remove"
+                                style={{ cursor: 'pointer', color: '#f59e0b', display: 'flex', alignItems: 'center' }}
+                            >
+                                <LuStar size={11} fill="#f59e0b" />
+                            </span>
+                        )}
+                        <span
+                            onClick={(e) => handleCopy(query, e)}
+                            title="Copy"
+                            style={{ cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}
+                        >
+                            <LuClipboard size={11} />
+                        </span>
+                    </div>
+                </div>
+                {/* SQL Preview */}
+                <div style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: '10px',
+                    color: 'var(--text-secondary)',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.4',
+                    overflow: 'hidden',
+                    maxHeight: '48px',
+                    width: '100%',
+                }}>
+                    {preview}{isTruncated ? '...' : ''}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
@@ -162,76 +254,41 @@ const QueryHistoryPanel = ({ onSelect }) => {
                 )}
 
                 {!loading && activeList.length === 0 && (
-                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '11px' }}>
-                        {viewTab === 'history' ? 'No query history yet' : 'No saved queries. ★ Star from history.'}
+                    <div style={{ padding: '32px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <LuSearch size={28} color="var(--text-muted)" style={{ opacity: 0.35 }} />
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            {viewTab === 'history' ? 'No query history yet' : 'No saved queries'}
+                        </span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                            {viewTab === 'history' ? 'Run a query to see it here' : '★ Star queries from history to save them'}
+                        </span>
                     </div>
                 )}
 
-                {activeList.map((item, idx) => {
-                    const query = item.query;
-                    const date = viewTab === 'history' ? item.executed_at : item.bookmarkedAt;
-                    const starred = isBookmarked(query);
-                    // Show first 3 lines max
-                    const preview = query.split('\n').slice(0, 3).join('\n');
-                    const isTruncated = query.split('\n').length > 3;
-
-                    return (
-                        <div
-                            key={idx}
-                            className="file-item"
-                            onClick={() => handleSelect(query)}
-                            title="Click to insert into new editor"
-                            style={{
-                                padding: '6px 12px', cursor: 'pointer',
-                                borderBottom: '1px solid var(--border-subtle)',
-                                fontSize: '11px',
-                            }}
-                        >
-                            {/* Date & Actions */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>{formatDate(date)}</span>
-                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                    {viewTab === 'history' ? (
-                                        <span
-                                            onClick={(e) => toggleBookmark(query, e)}
-                                            title={starred ? 'Remove bookmark' : 'Bookmark'}
-                                            style={{ cursor: 'pointer', color: starred ? '#f59e0b' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', transition: 'color 120ms ease' }}
-                                        >
-                                            <LuStar size={11} fill={starred ? '#f59e0b' : 'none'} />
-                                        </span>
-                                    ) : (
-                                        <span
-                                            onClick={(e) => removeBookmark(query, e)}
-                                            title="Remove"
-                                            style={{ cursor: 'pointer', color: '#f59e0b', display: 'flex', alignItems: 'center' }}
-                                        >
-                                            <LuStar size={11} fill="#f59e0b" />
-                                        </span>
-                                    )}
-                                    <span
-                                        onClick={(e) => handleCopy(query, e)}
-                                        title="Copy"
-                                        style={{ cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}
-                                    >
-                                        <LuClipboard size={11} />
-                                    </span>
-                                </div>
-                            </div>
-                            {/* SQL Preview */}
-                            <div style={{
-                                fontFamily: "'JetBrains Mono', monospace",
-                                fontSize: '10px',
-                                color: 'var(--text-secondary)',
-                                whiteSpace: 'pre-wrap',
-                                lineHeight: '1.4',
-                                overflow: 'hidden',
-                                maxHeight: '48px',
-                            }}>
-                                {preview}{isTruncated ? '...' : ''}
-                            </div>
+                {/* Grouped history view */}
+                {viewTab === 'history' && groupedItems && groupedItems.map(group => (
+                    <div key={group.label}>
+                        <div style={{
+                            padding: '6px 16px 4px',
+                            fontSize: '10px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            color: 'var(--text-tertiary)',
+                            borderBottom: '1px solid var(--border-subtle)',
+                            backgroundColor: 'var(--surface-inset)',
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 1,
+                        }}>
+                            {group.label}
                         </div>
-                    );
-                })}
+                        {group.items.map((item, idx) => renderQueryItem(item, `${group.label}-${idx}`))}
+                    </div>
+                ))}
+
+                {/* Flat bookmarks view */}
+                {viewTab === 'bookmarks' && activeList.map((item, idx) => renderQueryItem(item, idx))}
             </div>
 
             {/* Footer */}

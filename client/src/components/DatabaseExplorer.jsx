@@ -150,7 +150,11 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                     {loading && <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>Loading...</div>}
                     {!loading && tables.length === 0 && (
-                        <div style={{ padding: '10px', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '12px' }}>No tables found</div>
+                        <div style={{ padding: '32px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                            <LuTable size={32} color="var(--text-muted)" style={{ opacity: 0.35 }} />
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No tables found</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Import files or run CREATE TABLE queries</span>
+                        </div>
                     )}
 
                     {tables.filter(t => {

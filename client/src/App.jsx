@@ -27,7 +27,7 @@ import SchemaDiffModal from './components/SchemaDiffModal';
 import { useToast } from './components/ToastProvider';
 
 import SettingsModal from './components/SettingsModal';
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen } from "react-icons/lu";
 
 import './index.css';
 
@@ -70,6 +70,9 @@ function App() {
 
   // Sidebar Architecture State
   const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', or 'extensions'
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const isResizingSidebar = useRef(false);
 
   // Command Palette State
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -128,6 +131,13 @@ function App() {
       }
       // Only handle shortcuts in IDE phase
       if (appPhase !== PHASE.IDE) return;
+
+      // Toggle Sidebar: Ctrl+B
+      if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
+        e.preventDefault();
+        setSidebarCollapsed(prev => !prev);
+        return;
+      }
 
       // Save: Ctrl+S
       if (e.ctrlKey && !e.shiftKey && e.key === 's') {
@@ -447,52 +457,62 @@ function App() {
         <div className="app-container" style={{ height: '100%', display: 'flex' }}>
 
           {/* Activity Bar — Linear Style */}
-          <div className="activity-bar" style={{ width: '48px', backgroundColor: 'var(--surface-base)', borderRight: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '12px', zIndex: 10 }}>
+          <div className="activity-bar">
             <button
-              onClick={() => setActiveSidebarTab('files')}
-              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'files' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'files' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
-              title="Explorer"
+              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('files'); }}
+              className={`activity-bar-btn ${activeSidebarTab === 'files' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+              title="Explorer (Ctrl+Shift+E)"
             >
               <LuFolder size={20} />
             </button>
             <button
-              onClick={() => setActiveSidebarTab('schema')}
-              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'schema' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', marginTop: '4px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'schema' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
-              title="Database Schema"
+              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('schema'); }}
+              className={`activity-bar-btn ${activeSidebarTab === 'schema' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+              title="Database Schema (Ctrl+Shift+D)"
             >
               <LuDatabase size={20} />
             </button>
             <button
-              onClick={() => setActiveSidebarTab('extensions')}
-              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'extensions' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', marginTop: '4px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'extensions' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
+              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('extensions'); }}
+              className={`activity-bar-btn ${activeSidebarTab === 'extensions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
               title="Extensions"
             >
               <LuPuzzle size={20} />
             </button>
             <button
-              onClick={() => setActiveSidebarTab('snippets')}
-              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'snippets' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', marginTop: '4px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'snippets' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
+              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('snippets'); }}
+              className={`activity-bar-btn ${activeSidebarTab === 'snippets' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
               title="SQL Snippets"
             >
               <LuCode size={20} />
             </button>
             <button
-              onClick={() => setActiveSidebarTab('history')}
-              style={{ background: 'transparent', border: 'none', color: activeSidebarTab === 'history' ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '10px 0', marginTop: '4px', cursor: 'pointer', width: '100%', borderLeft: activeSidebarTab === 'history' ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'color var(--transition-fast)' }}
+              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('history'); }}
+              className={`activity-bar-btn ${activeSidebarTab === 'history' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
               title="Query History"
             >
               <LuHistory size={20} />
             </button>
+            {/* Collapse Toggle */}
+            <button
+              onClick={() => setSidebarCollapsed(prev => !prev)}
+              className="activity-bar-collapse-btn"
+              title={sidebarCollapsed ? 'Show Sidebar (Ctrl+B)' : 'Hide Sidebar (Ctrl+B)'}
+              style={{ marginTop: 'auto' }}
+            >
+              {sidebarCollapsed ? <LuPanelLeftOpen size={18} /> : <LuPanelLeftClose size={18} />}
+            </button>
             <button
               onClick={() => setIsSettingsOpen(true)}
-              title="Settings"
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', padding: '10px 0', marginTop: 'auto', marginBottom: '12px', cursor: 'pointer', width: '100%', transition: 'color var(--transition-fast)' }}
+              className="activity-bar-btn activity-bar-btn--bottom"
+              title="Settings (Ctrl+,)"
+              style={{ marginTop: '0' }}
             >
               <LuSettings size={20} />
             </button>
           </div>
 
-          <div className="sidebar" style={{ width: '280px', display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--surface-raised)', borderRight: '1px solid var(--border-subtle)' }}>
+          <div className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
 
             {/* Top Section: Project Info */}
             <ProjectInfo
@@ -549,6 +569,31 @@ function App() {
               </div>
             )}
           </div>
+
+          {/* Sidebar Resize Handle */}
+          {!sidebarCollapsed && (
+            <div
+              className={`sidebar-resize-handle ${isResizingSidebar.current ? 'sidebar-resize-handle--active' : ''}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                isResizingSidebar.current = true;
+                const startX = e.clientX;
+                const startWidth = sidebarWidth;
+                const onMouseMove = (ev) => {
+                  const delta = ev.clientX - startX;
+                  const newWidth = Math.min(480, Math.max(200, startWidth + delta));
+                  setSidebarWidth(newWidth);
+                };
+                const onMouseUp = () => {
+                  isResizingSidebar.current = false;
+                  document.removeEventListener('mousemove', onMouseMove);
+                  document.removeEventListener('mouseup', onMouseUp);
+                };
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+              }}
+            />
+          )}
 
           {/* Main Content with LayoutManager */}
           <div className="main-content">

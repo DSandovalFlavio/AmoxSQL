@@ -187,13 +187,47 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                 </div>
             </div>
             <div style={{ padding: '8px 16px 10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                    <button onClick={handleUp} disabled={!currentPath} style={{ padding: '2px 5px', fontSize: '10px', background: 'var(--sidebar-item-active-bg)', color: 'var(--text-color)', border: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <LuArrowUp size={10} />
-                    </button>
-                    <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                        {currentPath ? `/${currentPath}` : '/ (Root)'}
+                {/* Breadcrumbs Navigation */}
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'wrap', minHeight: '20px' }}>
+                    <span
+                        onClick={() => setCurrentPath('')}
+                        style={{
+                            fontSize: '11px', color: currentPath ? 'var(--accent-color-user)' : 'var(--text-active)',
+                            cursor: 'pointer', padding: '1px 4px', borderRadius: '3px',
+                            transition: 'background-color 120ms ease', fontWeight: currentPath ? '400' : '600'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                        /
                     </span>
+                    {currentPath && currentPath.split('/').filter(Boolean).map((segment, idx, arr) => {
+                        const segmentPath = arr.slice(0, idx + 1).join('/');
+                        const isLast = idx === arr.length - 1;
+                        return (
+                            <span key={segmentPath} style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>›</span>
+                                <span
+                                    onClick={() => { if (!isLast) setCurrentPath(segmentPath); }}
+                                    style={{
+                                        fontSize: '11px',
+                                        color: isLast ? 'var(--text-active)' : 'var(--accent-color-user)',
+                                        cursor: isLast ? 'default' : 'pointer',
+                                        padding: '1px 4px', borderRadius: '3px',
+                                        fontWeight: isLast ? '600' : '400',
+                                        transition: 'background-color 120ms ease',
+                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        maxWidth: '100px'
+                                    }}
+                                    onMouseOver={(e) => { if (!isLast) e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; }}
+                                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                                    title={segment}
+                                >
+                                    {segment}
+                                </span>
+                            </span>
+                        );
+                    })}
                 </div>
                 <div style={{ position: 'relative', marginTop: '4px' }}>
                     <input
@@ -218,6 +252,26 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
             <ul className="file-list">
                 {loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Loading...</div>}
                 {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
+                {!loading && !error && files.length === 0 && (
+                    <div style={{ padding: '32px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                        <LuFolder size={32} color="var(--text-muted)" style={{ opacity: 0.4 }} />
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>This folder is empty</span>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                                onClick={() => onNewFile(currentPath, 'sql')}
+                                style={{ fontSize: '11px', padding: '4px 10px', backgroundColor: 'var(--accent-primary)', color: 'var(--surface-base)', border: 'none', fontWeight: '600' }}
+                            >
+                                New SQL File
+                            </button>
+                            <button
+                                onClick={() => onNewFolder(currentPath)}
+                                style={{ fontSize: '11px', padding: '4px 10px' }}
+                            >
+                                New Folder
+                            </button>
+                        </div>
+                    </div>
+                )}
                 {!loading && !error && files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).map((file) => (
                     <li
                         key={file.name}
