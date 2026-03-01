@@ -80,6 +80,39 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
         }
     };
 
+    // Parse DuckDB error messages to extract line/column for inline highlighting
+    const parseDuckDBError = (errorMsg) => {
+        if (!errorMsg || typeof errorMsg !== 'string') return null;
+
+        let line = null;
+        let column = null;
+        const message = errorMsg;
+
+        // Pattern 1: "LINE N:" (most common DuckDB pattern)
+        const lineMatch = errorMsg.match(/LINE\s+(\d+):/i);
+        if (lineMatch) {
+            line = parseInt(lineMatch[1], 10);
+        }
+
+        // Pattern 2: "line N:C" or "at line N, column C"
+        const lineColMatch = errorMsg.match(/(?:at\s+)?line\s+(\d+)(?:[:,]\s*(?:col(?:umn)?\s*)?(\d+))?/i);
+        if (lineColMatch) {
+            line = parseInt(lineColMatch[1], 10);
+            if (lineColMatch[2]) column = parseInt(lineColMatch[2], 10);
+        }
+
+        // Pattern 3: Position indicator with caret "^" — count position
+        const caretMatch = errorMsg.match(/\n(\s*)\^/);
+        if (caretMatch && !column) {
+            column = caretMatch[1].length + 1;
+        }
+
+        // If no line found, default to line 1
+        if (!line) line = 1;
+
+        return { line, column: column || 1, message };
+    };
+
     const executeQuery = async (tabId, query) => {
         const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
@@ -93,7 +126,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
             const data = await response.json();
 
             if (response.ok) {
-                updateTab(pane, tabId, { results: data, resultsError: null });
+                updateTab(pane, tabId, { results: data, resultsError: null, errorMarker: null });
 
                 // Notify parent of query result for status bar
                 if (onQueryResult) {
@@ -111,11 +144,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
 
                 return { data: data.data, executionTime: data.executionTime };
             } else {
-                updateTab(pane, tabId, { results: null, resultsError: data.error });
+                const marker = parseDuckDBError(data.error);
+                updateTab(pane, tabId, { results: null, resultsError: data.error, errorMarker: marker });
                 return { error: data.error };
             }
         } catch (err) {
-            updateTab(pane, tabId, { results: null, resultsError: err.message });
+            const marker = parseDuckDBError(err.message);
+            updateTab(pane, tabId, { results: null, resultsError: err.message, errorMarker: marker });
             return { error: err.message };
         }
     };

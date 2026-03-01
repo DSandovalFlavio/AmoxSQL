@@ -98,31 +98,36 @@ const DataProfiler = ({ data }) => {
     };
 
     return (
-        <div style={{ padding: '12px', overflow: 'auto', height: '100%' }}>
+        <div style={{ padding: '16px', overflow: 'auto', height: '100%' }}>
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '10px',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 400px))',
+                gap: '12px',
             }}>
                 {profile.map(col => (
                     <div key={col.column} className="profiler-card" style={{
                         backgroundColor: 'var(--surface-raised)',
                         border: '1px solid var(--border-subtle)',
-                        borderRadius: '8px',
-                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        padding: '14px 16px',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '8px',
-                    }}>
+                        gap: '10px',
+                        transition: 'border-color var(--transition-fast)',
+                    }}
+                        onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--border-default)'}
+                        onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                    >
                         {/* Column Header */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px' }}>
                             <div style={{
-                                width: '24px', height: '24px', borderRadius: '6px',
+                                width: '28px', height: '28px', borderRadius: '7px',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                backgroundColor: col.dtype === 'numeric' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                backgroundColor: col.dtype === 'numeric' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(245, 158, 11, 0.12)',
                                 color: col.dtype === 'numeric' ? '#3b82f6' : '#f59e0b',
+                                flexShrink: 0,
                             }}>
-                                {col.dtype === 'numeric' ? <LuHash size={13} /> : <LuType size={13} />}
+                                {col.dtype === 'numeric' ? <LuHash size={14} /> : <LuType size={14} />}
                             </div>
                             <div style={{ flex: 1, overflow: 'hidden' }}>
                                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -135,7 +140,7 @@ const DataProfiler = ({ data }) => {
                         </div>
 
                         {/* Stats Row */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', fontSize: '11px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
                             <StatCell label="Total" value={fmt(col.total)} />
                             <StatCell label="Nulls" value={`${col.nullCount} (${col.nullPct}%)`}
                                 color={parseFloat(col.nullPct) > 20 ? '#ef4444' : undefined} />
@@ -145,7 +150,7 @@ const DataProfiler = ({ data }) => {
                         {/* Numeric-specific Stats */}
                         {col.dtype === 'numeric' && (
                             <>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px', fontSize: '11px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                                     <StatCell label="Min" value={fmt(col.min)} />
                                     <StatCell label="Max" value={fmt(col.max)} />
                                     <StatCell label="Mean" value={fmt(col.mean)} />
@@ -154,17 +159,18 @@ const DataProfiler = ({ data }) => {
 
                                 {/* Mini Histogram */}
                                 {col.histogram && (
-                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '28px', marginTop: '2px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '40px', marginTop: '2px', padding: '0 2px' }}>
                                         {col.histogram.map((count, i) => {
                                             const maxCount = Math.max(...col.histogram);
                                             const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
                                             return (
                                                 <div key={i} style={{
                                                     flex: 1,
-                                                    height: `${Math.max(height, 4)}%`,
+                                                    height: `${Math.max(height, 6)}%`,
                                                     backgroundColor: 'var(--accent-muted)',
-                                                    borderRadius: '2px 2px 0 0',
+                                                    borderRadius: '3px 3px 0 0',
                                                     transition: 'height 200ms ease',
+                                                    minHeight: '2px',
                                                 }}
                                                     title={`${count} values`}
                                                 />
@@ -177,30 +183,32 @@ const DataProfiler = ({ data }) => {
 
                         {/* Categorical Top Values */}
                         {col.dtype === 'text' && col.topValues && col.topValues.length > 0 && (
-                            <div style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <div style={{ color: 'var(--text-tertiary)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     Top Values
                                 </div>
                                 {col.topValues.map((tv, i) => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <div style={{
-                                            flex: 1, height: '4px', borderRadius: '2px',
+                                            flex: 1, height: '6px', borderRadius: '3px',
                                             backgroundColor: 'var(--surface-inset)', overflow: 'hidden',
                                         }}>
                                             <div style={{
-                                                height: '100%', width: `${tv.pct}%`,
+                                                height: '100%',
+                                                width: `${Math.max(parseFloat(tv.pct), 3)}%`,
                                                 backgroundColor: 'var(--accent-primary)',
-                                                borderRadius: '2px',
-                                                opacity: 1 - (i * 0.15),
+                                                borderRadius: '3px',
+                                                opacity: 1 - (i * 0.12),
                                             }} />
                                         </div>
                                         <span style={{
-                                            color: 'var(--text-secondary)', maxWidth: '100px',
+                                            color: 'var(--text-secondary)', maxWidth: '120px',
                                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                            fontSize: '11px',
                                         }} title={tv.value}>
                                             {tv.value}
                                         </span>
-                                        <span style={{ color: 'var(--text-tertiary)', flexShrink: 0 }}>
+                                        <span style={{ color: 'var(--text-tertiary)', flexShrink: 0, fontSize: '10px', fontFamily: "'JetBrains Mono', monospace" }}>
                                             {tv.pct}%
                                         </span>
                                     </div>
@@ -217,11 +225,12 @@ const DataProfiler = ({ data }) => {
 const StatCell = ({ label, value, color }) => (
     <div style={{
         backgroundColor: 'var(--surface-inset)',
-        borderRadius: '4px',
-        padding: '4px 6px',
+        borderRadius: '6px',
+        padding: '6px 8px',
         textAlign: 'center',
+        overflow: 'hidden',
     }}>
-        <div style={{ color: 'var(--text-tertiary)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+        <div style={{ color: 'var(--text-tertiary)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '1px' }}>
             {label}
         </div>
         <div style={{
@@ -229,6 +238,9 @@ const StatCell = ({ label, value, color }) => (
             fontWeight: 500,
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '11px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
         }}>
             {value}
         </div>

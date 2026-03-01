@@ -193,6 +193,7 @@ const EditorPane = ({
                                 onSave={() => onSave && onSave()}
                                 onAnalyze={() => onAnalyze && onAnalyze()}
                                 theme={theme}
+                                errorMarker={activeTab.errorMarker}
                             />
                         </div>
 

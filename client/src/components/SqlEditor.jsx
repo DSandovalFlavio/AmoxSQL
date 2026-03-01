@@ -4,9 +4,15 @@ import { format } from 'sql-formatter';
 
 const SqlEditor = ({ value, onChange, ...props }) => {
     const disposablesRef = useRef([]);
+    const editorRef = useRef(null);
+    const monacoRef = useRef(null);
 
     const handleEditorChange = (value, event) => {
         onChange(value);
+        // Clear error markers when user edits the code
+        if (editorRef.current && monacoRef.current) {
+            monacoRef.current.editor.setModelMarkers(editorRef.current.getModel(), 'duckdb-error', []);
+        }
     };
 
     const handleEditorWillMount = (monaco) => {
@@ -189,6 +195,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     }, [props.onDebugCte]);
 
     const handleEditorDidMount = (editor, monaco) => {
+        editorRef.current = editor;
+        monacoRef.current = monaco;
         // Clear any previous disposables (safety for re-mount scenarios)
         disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
         disposablesRef.current = [];
@@ -630,6 +638,35 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             window.__monacoSqlProviderRegistered = false;
         };
     }, []);
+
+    // React to errorMarker prop changes — set/clear Monaco markers
+    useEffect(() => {
+        if (!editorRef.current || !monacoRef.current) return;
+        const monaco = monacoRef.current;
+        const editor = editorRef.current;
+        const model = editor.getModel();
+        if (!model) return;
+
+        if (props.errorMarker) {
+            const { line, column, message } = props.errorMarker;
+            const safeLine = Math.min(Math.max(line, 1), model.getLineCount());
+            const lineLength = model.getLineLength(safeLine);
+
+            monaco.editor.setModelMarkers(model, 'duckdb-error', [{
+                severity: monaco.MarkerSeverity.Error,
+                message: message,
+                startLineNumber: safeLine,
+                startColumn: Math.min(column, lineLength + 1),
+                endLineNumber: safeLine,
+                endColumn: lineLength + 1,
+            }]);
+
+            // Reveal the error line in the editor
+            editor.revealLineInCenter(safeLine);
+        } else {
+            monaco.editor.setModelMarkers(model, 'duckdb-error', []);
+        }
+    }, [props.errorMarker]);
 
     return (
         <Editor
