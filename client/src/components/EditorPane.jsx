@@ -173,6 +173,7 @@ const EditorPane = ({
                             content={activeTab.content}
                             onChange={(val) => onContentChange(activeTab.id, val)}
                             onRunQuery={(q) => onRunQuery(activeTab.id, q)}
+                            filePath={activeTab.path || null}
                         />
                     </div>
                 ) : (

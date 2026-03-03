@@ -5,7 +5,7 @@ import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import ExportDataModal from './ExportDataModal';
 
-const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null }) => {
+const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
@@ -13,7 +13,12 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
     const [isExportDataOpen, setIsExportDataOpen] = useState(false);
 
     // View State
-    const [viewMode, setViewMode] = useState(initialChartConfig ? 'chart' : 'table');
+    const [viewMode, setViewMode] = useState(initialViewMode || (initialChartConfig ? 'chart' : 'table'));
+
+    const handleViewModeChange = (mode) => {
+        setViewMode(mode);
+        if (onViewModeChange) onViewModeChange(mode);
+    };
 
     // Enhanced Table State
     const [globalSearch, setGlobalSearch] = useState('');
@@ -242,13 +247,13 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             {/* View Switcher */}
                             <div style={{ display: 'flex', backgroundColor: 'var(--input-bg)', borderRadius: '4px', padding: '2px', border: '1px solid var(--border-color)' }}>
-                                <button onClick={() => setViewMode('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'table' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <button onClick={() => handleViewModeChange('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'table' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuTable size={14} /> Table
                                 </button>
-                                <button onClick={() => setViewMode('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'chart' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <button onClick={() => handleViewModeChange('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'chart' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuChartBar size={14} /> Chart
                                 </button>
-                                <button onClick={() => setViewMode('profile')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'profile' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'profile' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <button onClick={() => handleViewModeChange('profile')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'profile' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'profile' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <LuGauge size={14} /> Profile
                                 </button>
                             </div>
@@ -355,7 +360,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
             )}
 
             {/* Results Content */}
-            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: viewMode === 'chart' ? '200px' : undefined }}>
                 {viewMode === 'table' ? (
                     <table style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
@@ -428,7 +433,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                 ) : viewMode === 'profile' ? (
                     <DataProfiler data={data} />
                 ) : (
-                    <DataVisualizer data={data} isReportMode={isReportMode} query={query} initialChartConfig={initialChartConfig} />
+                    <DataVisualizer data={data} isReportMode={isReportMode} query={query} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} />
                 )}
             </div>
 

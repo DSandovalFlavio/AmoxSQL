@@ -13,7 +13,7 @@ const app = express();
 const PORT = 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // FIX: Handle BigInt serialization for JSON
 BigInt.prototype.toJSON = function () {
@@ -725,6 +725,40 @@ app.post('/api/bookmarks', (req, res) => {
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- Notebook State Persistence API --- */
+app.get('/api/notebook-state', (req, res) => {
+    const filePath = req.query.path;
+    if (!filePath) return res.status(400).json({ error: 'Path is required' });
+
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
+    const statePath = fullPath + '.state.json';
+
+    try {
+        if (!fs.existsSync(statePath)) return res.json(null);
+        const data = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+        res.json(data);
+    } catch (err) {
+        console.warn('Failed to read notebook state:', err.message);
+        res.json(null);
+    }
+});
+
+app.post('/api/notebook-state', (req, res) => {
+    const { path: filePath, state } = req.body;
+    if (!filePath || !state) return res.status(400).json({ error: 'Path and state are required' });
+
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
+    const statePath = fullPath + '.state.json';
+
+    try {
+        fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Failed to write notebook state:', err.message);
+        res.status(500).json({ error: 'Failed to write state', details: err.message });
     }
 });
 

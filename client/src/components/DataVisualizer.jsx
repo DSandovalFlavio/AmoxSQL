@@ -165,7 +165,7 @@ const CustomizedDot = (props) => {
 };
 
 // Note: query is passed in to be bundled into the saved chart file
-const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialChartConfig = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialChartConfig = null, onConfigChange = null }) => {
     const [chartType, setChartType] = useState(initialChartConfig?.chartType || 'bar');
     const [xAxisKey, setXAxisKey] = useState(initialChartConfig?.xAxisKey || '');
     const [yAxisKeys, setYAxisKeys] = useState(initialChartConfig?.yAxisKeys || []);
@@ -248,6 +248,52 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('data');
     const [showExportMenu, setShowExportMenu] = useState(false);
+
+    // --- Config Change Notification (debounced) ---
+    const configChangeTimer = useRef(null);
+    const isInitialMount = useRef(true);
+
+    useEffect(() => {
+        // Skip initial mount to avoid writing defaults back
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+        if (!onConfigChange) return;
+
+        if (configChangeTimer.current) clearTimeout(configChangeTimer.current);
+        configChangeTimer.current = setTimeout(() => {
+            onConfigChange({
+                chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey,
+                dateAggregation, isDateColumn, showLabels, tooltipShowPercent,
+                dataLabelPosition, bubbleSizeKey, colorTheme, sortMode, limit,
+                numberFormat, lineType, lineAreaFill, showDots, isCumulative,
+                yLogScale, yAxisDomain, refLine, refArea, barStackMode, barRadius,
+                barColorMode, highlightConfig, seriesConfig, customAxisTitles,
+                showXAxisTitle, showYAxisTitle, xAxisLabelAngle, legendPosition,
+                donutThickness, donutLabelContent, donutLabelPosition,
+                donutGroupingThreshold, donutCenterKpi, scatterQuadrants,
+                chartTitle, chartSubtitle, chartFootnote, textAlign, gridMode,
+                showAxisLines, marginTop, marginBottom, marginLeft, marginRight,
+                titleSpacing
+            });
+        }, 500);
+
+        return () => { if (configChangeTimer.current) clearTimeout(configChangeTimer.current); };
+    }, [
+        chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey,
+        dateAggregation, isDateColumn, showLabels, tooltipShowPercent,
+        dataLabelPosition, bubbleSizeKey, colorTheme, sortMode, limit,
+        numberFormat, lineType, lineAreaFill, showDots, isCumulative,
+        yLogScale, yAxisDomain, refLine, refArea, barStackMode, barRadius,
+        barColorMode, highlightConfig, seriesConfig, customAxisTitles,
+        showXAxisTitle, showYAxisTitle, xAxisLabelAngle, legendPosition,
+        donutThickness, donutLabelContent, donutLabelPosition,
+        donutGroupingThreshold, donutCenterKpi, scatterQuadrants,
+        chartTitle, chartSubtitle, chartFootnote, textAlign, gridMode,
+        showAxisLines, marginTop, marginBottom, marginLeft, marginRight,
+        titleSpacing, onConfigChange
+    ]);
 
     // Export presets
     const EXPORT_PRESETS = [

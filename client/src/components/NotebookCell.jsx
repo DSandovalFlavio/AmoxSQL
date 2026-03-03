@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
 import DebugResultModal from './DebugResultModal';
-import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2 } from "react-icons/lu";
+import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal } from "react-icons/lu";
 
 const NotebookCell = ({
     id,
@@ -17,7 +17,10 @@ const NotebookCell = ({
     onMoveDown,
     isPluginInstalled = true, // Assumption for now
     isReportMode = false, // New Prop
-    hideCodeInReport = true // Global control from Notebook
+    hideCodeInReport = true, // Global control from Notebook
+    cellIndex = 0,
+    onStateChange = null, // (cellIndex, stateUpdate) => void
+    initialCellState = null // { viewMode, chartConfig, resultHeight }
 }) => {
     const [isEditingMarkdown, setIsEditingMarkdown] = useState(false);
     const [localContent, setLocalContent] = useState(content);
@@ -31,6 +34,52 @@ const NotebookCell = ({
     useEffect(() => {
         setLocalContent(content);
     }, [content]);
+
+    // Resizable result height
+    const [resultHeight, setResultHeight] = useState(initialCellState?.resultHeight || 400);
+    const isResizingResult = useRef(false);
+    const resizeStartY = useRef(0);
+    const resizeStartHeight = useRef(0);
+
+    const handleResizeMouseDown = useCallback((e) => {
+        e.preventDefault();
+        isResizingResult.current = true;
+        resizeStartY.current = e.clientY;
+        resizeStartHeight.current = resultHeight;
+
+        const handleMouseMove = (ev) => {
+            if (!isResizingResult.current) return;
+            const delta = ev.clientY - resizeStartY.current;
+            const newHeight = Math.max(150, Math.min(1200, resizeStartHeight.current + delta));
+            setResultHeight(newHeight);
+        };
+
+        const handleMouseUp = (ev) => {
+            if (isResizingResult.current) {
+                isResizingResult.current = false;
+                // Persist the final height using the mouseup event coordinates
+                const delta = ev.clientY - resizeStartY.current;
+                const finalHeight = Math.max(150, Math.min(1200, resizeStartHeight.current + delta));
+                setResultHeight(finalHeight);
+                if (onStateChange) onStateChange(cellIndex, { resultHeight: finalHeight });
+            }
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }, [resultHeight, onStateChange, cellIndex]);
+
+    // Chart config change handler
+    const handleChartConfigChange = useCallback((config) => {
+        if (onStateChange) onStateChange(cellIndex, { chartConfig: config });
+    }, [onStateChange, cellIndex]);
+
+    // View mode change handler
+    const handleViewModeChange = useCallback((mode) => {
+        if (onStateChange) onStateChange(cellIndex, { viewMode: mode });
+    }, [onStateChange, cellIndex]);
 
     const handleBlur = () => {
         onUpdate(id, localContent);
@@ -269,17 +318,45 @@ const NotebookCell = ({
                                 {result.loading && <div style={{ padding: '12px 16px', color: 'var(--accent-color-user)', fontWeight: '600', fontSize: '13px' }}>Executing query...</div>}
                                 {result.error && <div style={{ padding: '12px 16px', color: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.1)', fontFamily: 'monospace', fontSize: '13px' }}>Error: {result.error}</div>}
                                 {result.data && (
-                                    <div style={{
-                                        ...!isReportMode ? { height: '400px', overflow: 'hidden' } : { height: 'auto', minHeight: '300px' }
-                                    }}>
-                                        <ResultsTable
-                                            data={result.data}
-                                            executionTime={result.executionTime}
-                                            query={localContent}
-                                            onDbChange={() => { }}
-                                            isReportMode={isReportMode}
-                                        />
-                                    </div>
+                                    <>
+                                        <div style={
+                                            !isReportMode ? { height: `${resultHeight}px`, overflow: 'hidden' } : { height: 'auto', minHeight: '300px' }
+                                        }>
+                                            <ResultsTable
+                                                data={result.data}
+                                                executionTime={result.executionTime}
+                                                query={localContent}
+                                                onDbChange={() => { }}
+                                                isReportMode={isReportMode}
+                                                initialChartConfig={initialCellState?.chartConfig || null}
+                                                initialViewMode={initialCellState?.viewMode || null}
+                                                onConfigChange={handleChartConfigChange}
+                                                onViewModeChange={handleViewModeChange}
+                                            />
+                                        </div>
+                                        {/* Resize Handle */}
+                                        {!isReportMode && (
+                                            <div
+                                                onMouseDown={handleResizeMouseDown}
+                                                style={{
+                                                    height: '6px',
+                                                    cursor: 'row-resize',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    backgroundColor: 'var(--border-color)',
+                                                    opacity: 0.5,
+                                                    transition: 'opacity 0.2s',
+                                                    borderRadius: '0 0 4px 4px'
+                                                }}
+                                                onMouseOver={e => e.currentTarget.style.opacity = '1'}
+                                                onMouseOut={e => e.currentTarget.style.opacity = '0.5'}
+                                                title="Drag to resize results"
+                                            >
+                                                <LuGripHorizontal size={12} style={{ color: 'var(--text-muted)' }} />
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
@@ -294,7 +371,7 @@ const NotebookCell = ({
                 result={debugResult}
                 query={debugQuery}
             />
-        </div>
+        </div >
     );
 };
 

@@ -1365,3 +1365,62 @@ tr:hover td {
   color: var(--text-tertiary);
   font-size: 13px;
 }
+
+/* ═══════════════════════════════════════════════
+   NOTEBOOK FULL VIEW / PRESENTATION MODE
+   ═══════════════════════════════════════════════ */
+.notebook-fullview-overlay {
+  animation: notebookFadeIn 0.25s ease-out;
+}
+
+@keyframes notebookFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.notebook-fullview-overlay .notebook-container {
+  height: 100% !important;
+}
+
+.notebook-fullview-overlay .report-toolbar-actions button {
+  backdrop-filter: blur(8px);
+}
+
+/* ── Print Styles ── */
+@media print {
+  .notebook-fullview-overlay>div>div:first-child {
+    display: none !important;
+    /* Hide toolbar in print */
+  }
+
+  .notebook-fullview-overlay {
+    position: static !important;
+    background-color: white !important;
+  }
+
+  .notebook-fullview-overlay .notebook-content-wrapper {
+    box-shadow: none !important;
+    border: none !important;
+    background-color: white !important;
+  }
+
+  body,
+  #root,
+  .app-container {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .activity-bar,
+  .sidebar,
+  .toolbar,
+  .resizer-handle,
+  .results-container {
+    display: none !important;
+  }
+}
