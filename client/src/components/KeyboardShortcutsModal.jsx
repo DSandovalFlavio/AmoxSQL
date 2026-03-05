@@ -37,6 +37,7 @@ const KeyboardShortcutsModal = ({ isOpen, onClose }) => {
 
     return (
         <div
+            className="modal-overlay"
             style={{
                 position: 'fixed', inset: 0,
                 backgroundColor: 'rgba(0,0,0,0.5)',
@@ -47,6 +48,7 @@ const KeyboardShortcutsModal = ({ isOpen, onClose }) => {
             onClick={onClose}
         >
             <div
+                className="modal-panel"
                 style={{
                     width: '520px',
                     maxHeight: '520px',

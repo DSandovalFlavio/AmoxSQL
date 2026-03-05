@@ -46,7 +46,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
     if (!isOpen) return null;
 
     return (
-        <div style={{
+        <div className="modal-overlay" style={{
             position: 'fixed',
             top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.5)',
@@ -56,7 +56,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
             zIndex: 1000,
             backdropFilter: 'blur(8px)'
         }}>
-            <div style={{
+            <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)',
                 width: '95%',
                 height: '95%',

@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v1.4.0)
+# AmoxSQL (v1.5.0)
 
 > **The Modern Codex for Local Data Analysis.**
 >
@@ -42,6 +42,7 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 * **Project-Centric Workflow**: Organize your work in project folders. The IDE auto-detects existing `.duckdb` or `.db` files upon opening a project.
 * **Multi-Tab Architecture**: Work on multiple queries and notebooks simultaneously in a modern tabbed interface.
 * **Split View**: Compare code side-by-side or view results alongside your editor.
+* **Vertical Split Layout**: Arrange editor and results pane side-by-side for ultrawide monitors — persists across sessions.
 * **Robust Connection Management**: Implements a "Hard Reset" strategy to ensure clean switching between projects, preventing locked files and "zombie" connections.
 
 ### 🤖 AmoxSQL AI (Local & Cloud Intelligence)
@@ -67,6 +68,23 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 *   **Enhanced Results Table**:
     *   **Global Search**: Filter results instantly across all columns.
     *   **Sorting**: Click column headers to sort ascending/descending.
+
+### ✨ Premium UI Experience
+*   **Smooth Modal Animations**: All dialogs feature polished fade + scale-in entry animations.
+*   **View Mode Transitions**: Seamless fade when switching between Table, Chart, and Profile views.
+*   **Animated Panels**: AI sidebar and left sidebar collapse/expand with fluid transitions.
+*   **Micro-Interactions**: Export dropdown, resizer handles, and interactive elements respond with subtle animations.
+
+### ⚙️ Customizable Editor
+*   **Font Family**: Choose from JetBrains Mono, Fira Code, Cascadia Code, Consolas, Monaco, or Source Code Pro.
+*   **Font Size**: Adjustable slider (10–24px) for editor text size.
+*   **Tab Size**: Toggle between 2 or 4 spaces.
+*   **Minimap Toggle**: Show or hide the code preview minimap.
+*   **Word Wrap Toggle**: Enable line wrapping for long queries.
+*   **Line Numbers Toggle**: Show or hide line numbers in the gutter.
+*   **Results Font Size**: Independent slider (11–16px) for the results table.
+*   **Default Results View**: Choose Table, Chart, or Profile as the default view.
+*   **Persistent Sidebar Width**: Sidebar width is remembered across sessions.
 
 ### 📝 SQL Editing & Notebooks
 * **Powerful SQL Editor**: Powered by the **Monaco Editor** (the engine behind VS Code) for a familiar experience with robust auto-completion.
@@ -130,13 +148,13 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-### 🎁 v1.4.0 — Free Public Release
+### 🎁 v1.5.0 — Free Public Release
 This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-👉 **[Download v1.4.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
+👉 **[Download v1.5.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
 ### 🚀 Future Versions — Sponsors Only
-Starting with v1.4+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
+Starting with v1.5+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:
 
 - ✅ Ready-to-use Windows installers (no build setup required)
 - ✅ Early access to new features and updates

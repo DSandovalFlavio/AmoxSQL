@@ -53,12 +53,12 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
     ];
 
     return (
-        <div style={{
+        <div className="modal-overlay" style={{
             position: 'fixed', inset: 0, zIndex: 10000,
             backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
         }} onClick={onClose}>
-            <div style={{
+            <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
                 borderRadius: '12px', padding: '24px', width: '440px',
                 boxShadow: 'var(--shadow-lg)', maxHeight: '80vh', overflowY: 'auto',

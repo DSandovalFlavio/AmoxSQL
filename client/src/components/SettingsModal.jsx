@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode } from 'react-icons/lu';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -8,7 +8,7 @@ const RECOMMENDED_MODELS = [
     { id: 'gemma2:2b', label: 'Gemma 2 (2B)', size: '1.6GB RAM', desc: 'Great reasoning for small memory.' }
 ];
 
-const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange }) => {
+const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
 
     // AI Settings State
@@ -179,12 +179,12 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     if (!isOpen) return null;
 
     return (
-        <div style={{
+        <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000,
             backdropFilter: 'blur(8px)'
         }}>
-            <div style={{
+            <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)',
                 color: 'var(--text-secondary)',
                 width: '850px',
@@ -218,6 +218,19 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         }}
                     >
                         <LuPalette size={16} /> Appearance
+                    </div>
+
+                    <div
+                        onClick={() => setActiveTab('editor')}
+                        style={{
+                            padding: '10px 15px', cursor: 'pointer',
+                            backgroundColor: activeTab === 'editor' ? 'var(--sidebar-item-active-bg)' : 'transparent',
+                            color: activeTab === 'editor' ? 'var(--text-active)' : 'var(--text-color)',
+                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px',
+                            borderLeft: activeTab === 'editor' ? '3px solid var(--accent-color-user)' : '3px solid transparent'
+                        }}
+                    >
+                        <LuCode size={16} /> Editor
                     </div>
 
                     <div
@@ -255,7 +268,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                     }}>
                         <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-active)' }}>
-                            {activeTab === 'appearance' ? 'Appearance' : activeTab === 'ai' ? 'AI Settings' : activeTab === 'about' ? 'About AmoxSQL' : 'Settings'}
+                            {activeTab === 'appearance' ? 'Appearance' : activeTab === 'editor' ? 'Editor' : activeTab === 'ai' ? 'AI Settings' : activeTab === 'about' ? 'About AmoxSQL' : 'Settings'}
                         </h2>
                         <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-color)', padding: '5px', cursor: 'pointer', display: 'flex' }}>
                             <LuX size={18} />
@@ -369,6 +382,240 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
                                         Choose from the AmoxSQL brand palette or the Linear-inspired Blue.
                                     </p>
+                                </div>
+
+                                {/* Editor Layout Selection */}
+                                <div>
+                                    <h3 style={{ fontSize: '13px', marginBottom: '10px', color: 'var(--text-active)' }}>Editor Layout</h3>
+                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                                        Choose how the SQL editor and results panel are arranged. Vertical is ideal for ultrawide monitors.
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '20px' }}>
+
+                                        {/* Horizontal (default) */}
+                                        <div
+                                            onClick={() => onLayoutChange && onLayoutChange('horizontal')}
+                                            style={{
+                                                flex: 1, cursor: 'pointer',
+                                                border: currentLayout !== 'vertical' ? '2px solid var(--accent-color-user)' : '1px solid var(--border-color)',
+                                                borderRadius: '8px', padding: '15px',
+                                                backgroundColor: 'var(--sidebar-item-active-bg)',
+                                                opacity: currentLayout !== 'vertical' ? 1 : 0.7, transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: 'var(--text-active)' }}>
+                                                <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    {currentLayout !== 'vertical' && <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--accent-color-user)' }}></div>}
+                                                </div>
+                                                <LuRows3 size={18} /> Horizontal
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '60px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                                                <div style={{ flex: 1, background: 'var(--input-bg)', borderBottom: '2px solid var(--accent-color-user)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>EDITOR</span>
+                                                </div>
+                                                <div style={{ flex: 1, background: 'var(--surface-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>RESULTS</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Vertical (side by side) */}
+                                        <div
+                                            onClick={() => onLayoutChange && onLayoutChange('vertical')}
+                                            style={{
+                                                flex: 1, cursor: 'pointer',
+                                                border: currentLayout === 'vertical' ? '2px solid var(--accent-color-user)' : '1px solid var(--border-color)',
+                                                borderRadius: '8px', padding: '15px',
+                                                backgroundColor: 'var(--sidebar-item-active-bg)',
+                                                opacity: currentLayout === 'vertical' ? 1 : 0.7, transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: 'var(--text-active)' }}>
+                                                <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    {currentLayout === 'vertical' && <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--accent-color-user)' }}></div>}
+                                                </div>
+                                                <LuColumns3 size={18} /> Vertical
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'row', height: '60px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                                                <div style={{ flex: 1, background: 'var(--input-bg)', borderRight: '2px solid var(--accent-color-user)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>EDITOR</span>
+                                                </div>
+                                                <div style={{ flex: 1, background: 'var(--surface-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>RESULTS</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
+
+                        {activeTab === 'editor' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.25s ease' }}>
+
+                                {/* ── Typography ── */}
+                                <div>
+                                    <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-tertiary)', marginBottom: '14px', fontWeight: 600 }}>Typography</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                        {/* Font Family */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Font Family</span>
+                                            <select
+                                                value={editorSettings.fontFamily || "'JetBrains Mono', 'Consolas', monospace"}
+                                                onChange={(e) => onEditorSettingsChange && onEditorSettingsChange({ fontFamily: e.target.value })}
+                                                style={{ width: '200px', padding: '6px 10px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-default)', borderRadius: '6px', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
+                                            >
+                                                <option value="'JetBrains Mono', 'Consolas', monospace">JetBrains Mono</option>
+                                                <option value="'Fira Code', 'Consolas', monospace">Fira Code</option>
+                                                <option value="'Cascadia Code', 'Consolas', monospace">Cascadia Code</option>
+                                                <option value="'Consolas', monospace">Consolas</option>
+                                                <option value="'Monaco', 'Courier New', monospace">Monaco</option>
+                                                <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Font Size */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Font Size</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <input
+                                                    type="range"
+                                                    min="10"
+                                                    max="24"
+                                                    value={editorSettings.fontSize || 14}
+                                                    onChange={(e) => onEditorSettingsChange && onEditorSettingsChange({ fontSize: parseInt(e.target.value) })}
+                                                    style={{ width: '120px', accentColor: 'var(--accent-color-user)', cursor: 'pointer' }}
+                                                />
+                                                <span style={{ fontSize: '12px', color: 'var(--text-active)', minWidth: '32px', textAlign: 'right', fontFamily: 'monospace' }}>{editorSettings.fontSize || 14}px</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Tab Size */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Tab Size</span>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                {[2, 4].map(size => (
+                                                    <button
+                                                        key={size}
+                                                        onClick={() => onEditorSettingsChange && onEditorSettingsChange({ tabSize: size })}
+                                                        style={{
+                                                            padding: '4px 14px', fontSize: '12px', fontWeight: 500,
+                                                            backgroundColor: (editorSettings.tabSize || 4) === size ? 'var(--accent-muted)' : 'var(--input-bg)',
+                                                            color: (editorSettings.tabSize || 4) === size ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                                            border: (editorSettings.tabSize || 4) === size ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
+                                                            borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s'
+                                                        }}
+                                                    >{size} spaces</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: '0' }} />
+
+                                {/* ── Display ── */}
+                                <div>
+                                    <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-tertiary)', marginBottom: '14px', fontWeight: 600 }}>Display</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+                                        {/* Minimap */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Minimap</span>
+                                                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-tertiary)' }}>Show a preview of the code on the right edge</p>
+                                            </div>
+                                            <div
+                                                onClick={() => onEditorSettingsChange && onEditorSettingsChange({ minimap: !editorSettings.minimap })}
+                                                style={{
+                                                    width: '36px', height: '20px', borderRadius: '10px', cursor: 'pointer',
+                                                    backgroundColor: editorSettings.minimap ? 'var(--accent-primary)' : 'var(--border-strong)',
+                                                    transition: 'background-color 0.15s', position: 'relative', flexShrink: 0
+                                                }}
+                                            >
+                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: '2px', left: editorSettings.minimap ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Word Wrap */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Word Wrap</span>
+                                                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-tertiary)' }}>Wrap lines that exceed the editor width</p>
+                                            </div>
+                                            <div
+                                                onClick={() => onEditorSettingsChange && onEditorSettingsChange({ wordWrap: editorSettings.wordWrap === 'on' ? 'off' : 'on' })}
+                                                style={{
+                                                    width: '36px', height: '20px', borderRadius: '10px', cursor: 'pointer',
+                                                    backgroundColor: editorSettings.wordWrap === 'on' ? 'var(--accent-primary)' : 'var(--border-strong)',
+                                                    transition: 'background-color 0.15s', position: 'relative', flexShrink: 0
+                                                }}
+                                            >
+                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: '2px', left: editorSettings.wordWrap === 'on' ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Line Numbers */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Line Numbers</span>
+                                                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-tertiary)' }}>Show line numbers in the gutter</p>
+                                            </div>
+                                            <div
+                                                onClick={() => onEditorSettingsChange && onEditorSettingsChange({ lineNumbers: (editorSettings.lineNumbers ?? 'on') === 'on' ? 'off' : 'on' })}
+                                                style={{
+                                                    width: '36px', height: '20px', borderRadius: '10px', cursor: 'pointer',
+                                                    backgroundColor: (editorSettings.lineNumbers ?? 'on') === 'on' ? 'var(--accent-primary)' : 'var(--border-strong)',
+                                                    transition: 'background-color 0.15s', position: 'relative', flexShrink: 0
+                                                }}
+                                            >
+                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: '2px', left: (editorSettings.lineNumbers ?? 'on') === 'on' ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: '0' }} />
+
+                                {/* ── Results Panel ── */}
+                                <div>
+                                    <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-tertiary)', marginBottom: '14px', fontWeight: 600 }}>Results Panel</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+                                        {/* Results Font Size */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Results Font Size</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <input
+                                                    type="range"
+                                                    min="11"
+                                                    max="16"
+                                                    value={editorSettings.resultsFontSize || 13}
+                                                    onChange={(e) => onEditorSettingsChange && onEditorSettingsChange({ resultsFontSize: parseInt(e.target.value) })}
+                                                    style={{ width: '120px', accentColor: 'var(--accent-color-user)', cursor: 'pointer' }}
+                                                />
+                                                <span style={{ fontSize: '12px', color: 'var(--text-active)', minWidth: '32px', textAlign: 'right', fontFamily: 'monospace' }}>{editorSettings.resultsFontSize || 13}px</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Default View Mode */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Default Results View</span>
+                                            <select
+                                                value={editorSettings.defaultViewMode || 'table'}
+                                                onChange={(e) => onEditorSettingsChange && onEditorSettingsChange({ defaultViewMode: e.target.value })}
+                                                style={{ width: '120px', padding: '6px 10px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-default)', borderRadius: '6px', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
+                                            >
+                                                <option value="table">Table</option>
+                                                <option value="chart">Chart</option>
+                                                <option value="profile">Profile</option>
+                                            </select>
+                                        </div>
+
+                                    </div>
                                 </div>
 
                             </div>
@@ -625,7 +872,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                     <div>
                                         <h2 style={{ margin: 0, color: 'var(--text-active)', fontSize: '20px' }}>AmoxSQL</h2>
-                                        <p style={{ margin: '4px 0 0 0', color: 'var(--accent-color-user)', fontSize: '12px', fontWeight: 'bold' }}>Version 1.2.0</p>
+                                        <p style={{ margin: '4px 0 0 0', color: 'var(--accent-color-user)', fontSize: '12px', fontWeight: 'bold' }}>Version 1.5.0</p>
                                         <p style={{ margin: '2px 0 0 0', color: 'var(--text-muted)', fontSize: '11px' }}>DuckDB Engine: {duckdbVersion}</p>
                                     </div>
                                 </div>
@@ -647,6 +894,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         <li><strong>Integrated AI Assistance:</strong> Support for local Ollama models and Google Gemini.</li>
                                         <li><strong>Drag & Drop Workflow:</strong> Seamlessly move tables and columns into the powerful Monaco Editor.</li>
                                         <li><strong>Extension Gallery:</strong> Explore and install DuckDB extensions with a visual gallery.</li>
+                                        <li><strong>Vertical Split Layout:</strong> Arrange editor and results side-by-side for ultrawide monitors.</li>
+                                        <li><strong>Premium Animations:</strong> Smooth transitions across all modals, panels, and view modes.</li>
                                     </ul>
                                 </div>
 

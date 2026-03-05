@@ -1391,6 +1391,72 @@ tr:hover td {
   backdrop-filter: blur(8px);
 }
 
+/* ═══════════════════════════════════════════════
+   MODAL & PANEL ANIMATIONS
+   ═══════════════════════════════════════════════ */
+
+/* Modal overlay: fade in the dark backdrop */
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal panel: scale up + fade in from center */
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Generic fade in (for view switches, content transitions) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dropdown/popover: scale from top */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-overlay {
+  animation: modal-overlay-in 0.18s ease-out;
+}
+
+.modal-panel {
+  animation: modal-panel-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Enhanced resizer handle */
+.resizer-handle:active {
+  background-color: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
 /* ── Print Styles ── */
 @media print {
   .notebook-fullview-overlay>div>div:first-child {

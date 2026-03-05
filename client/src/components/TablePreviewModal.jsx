@@ -55,7 +55,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
     }, [onClose]);
 
     return (
-        <div style={{
+        <div className="modal-overlay" style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -68,7 +68,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
             zIndex: 1000,
             backdropFilter: 'blur(8px)'
         }} onClick={onClose}>
-            <div style={{
+            <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)',
                 color: 'var(--text-secondary)',
                 width: '90%',

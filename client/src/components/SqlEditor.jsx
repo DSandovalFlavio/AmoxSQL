@@ -668,6 +668,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         }
     }, [props.errorMarker]);
 
+    const es = props.editorSettings || {};
+
     return (
         <Editor
             height="100%"
@@ -677,12 +679,15 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             theme={props.theme === 'light' ? 'duckdb-light' : 'duckdb-dark'}
             beforeMount={handleEditorWillMount}
             options={{
-                minimap: { enabled: false },
-                fontSize: 14,
+                minimap: { enabled: es.minimap ?? false },
+                fontSize: es.fontSize ?? 14,
+                fontFamily: es.fontFamily ?? "'JetBrains Mono', 'Consolas', monospace",
+                wordWrap: es.wordWrap ?? 'off',
+                lineNumbers: es.lineNumbers ?? 'on',
+                tabSize: es.tabSize ?? 4,
                 automaticLayout: true,
                 padding: { top: 16 },
                 scrollBeyondLastLine: false,
-                fontFamily: "'JetBrains Mono', 'Consolas', monospace",
                 glyphMargin: true,
                 lineDecorationsWidth: 10,
                 lineNumbersMinChars: 3,

@@ -72,7 +72,9 @@ function App() {
   // Sidebar Architecture State
   const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', or 'extensions'
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [sidebarWidth, setSidebarWidth] = useState(
+    () => parseInt(localStorage.getItem('amoxsql-sidebar-width')) || 280
+  );
   const isResizingSidebar = useRef(false);
 
   // Command Palette State
@@ -97,7 +99,27 @@ function App() {
   // Theme State
   const [theme, setTheme] = useState(() => localStorage.getItem('amoxsql-theme') || 'dark');
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
+  const [editorLayout, setEditorLayout] = useState(() => localStorage.getItem('amoxsql-editor-layout') || 'horizontal'); // 'horizontal' | 'vertical'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Editor & UI Preferences (centralized)
+  const [editorSettings, setEditorSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('amoxsql-editor-settings');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+  const mergedEditorSettings = {
+    fontSize: 14,
+    fontFamily: "'JetBrains Mono', 'Consolas', monospace",
+    minimap: false,
+    wordWrap: 'off',
+    lineNumbers: 'on',
+    tabSize: 4,
+    resultsFontSize: 13,
+    defaultViewMode: 'table',
+    ...editorSettings,
+  };
 
   // Apply Theme & Accent Classes
   useEffect(() => {
@@ -119,6 +141,18 @@ function App() {
       document.body.classList.add(`accent-${accentColor}`);
     }
   }, [accentColor]);
+
+  useEffect(() => {
+    localStorage.setItem('amoxsql-editor-layout', editorLayout);
+  }, [editorLayout]);
+
+  useEffect(() => {
+    localStorage.setItem('amoxsql-editor-settings', JSON.stringify(editorSettings));
+  }, [editorSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('amoxsql-sidebar-width', String(sidebarWidth));
+  }, [sidebarWidth]);
 
   // Initialize Data
   useEffect(() => {
@@ -466,6 +500,8 @@ function App() {
           onThemeChange={setTheme}
           currentAccent={accentColor}
           onAccentChange={setAccentColor}
+          currentLayout={editorLayout}
+          onLayoutChange={setEditorLayout}
         />
       </>
     );
@@ -689,6 +725,8 @@ function App() {
                 ref={layoutRef}
                 projectPath={projectPath}
                 theme={theme}
+                editorLayout={editorLayout}
+                editorSettings={mergedEditorSettings}
                 onDbChange={() => setRefreshDbTrigger(p => p + 1)}
                 onRequestSaveAs={(content) => {
                   setPendingSaveContent(content);
@@ -706,14 +744,21 @@ function App() {
             />
           </div>
           {/* Right Sidebar: AI Assistant */}
-          {showAiSidebar && (
+          <div style={{
+            width: showAiSidebar ? '350px' : '0px',
+            opacity: showAiSidebar ? 1 : 0,
+            overflow: 'hidden',
+            transition: 'width 0.2s ease, opacity 0.2s ease',
+            flexShrink: 0,
+            pointerEvents: showAiSidebar ? 'auto' : 'none',
+          }}>
             <AiSidebar
               width="350px"
               onClose={() => setShowAiSidebar(false)}
               availableTables={availableTables}
               onOpenSettings={() => setIsSettingsOpen(true)}
             />
-          )}
+          </div>
 
         </div>
       )}
@@ -726,6 +771,10 @@ function App() {
         onThemeChange={setTheme}
         currentAccent={accentColor}
         onAccentChange={setAccentColor}
+        currentLayout={editorLayout}
+        onLayoutChange={setEditorLayout}
+        editorSettings={mergedEditorSettings}
+        onEditorSettingsChange={(updates) => setEditorSettings(prev => ({ ...prev, ...updates }))}
       />
 
       <KeyboardShortcutsModal

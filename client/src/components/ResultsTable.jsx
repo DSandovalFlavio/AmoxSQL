@@ -5,7 +5,7 @@ import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import ExportDataModal from './ExportDataModal';
 
-const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null }) => {
+const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {} }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
@@ -13,7 +13,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
     const [isExportDataOpen, setIsExportDataOpen] = useState(false);
 
     // View State
-    const [viewMode, setViewMode] = useState(initialViewMode || (initialChartConfig ? 'chart' : 'table'));
+    const [viewMode, setViewMode] = useState(initialViewMode || (initialChartConfig ? 'chart' : (editorSettings.defaultViewMode || 'table')));
 
     const handleViewModeChange = (mode) => {
         setViewMode(mode);
@@ -304,6 +304,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                         backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
                                         borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
                                         padding: '4px', minWidth: '160px', backdropFilter: 'blur(12px)',
+                                        animation: 'dropdown-in 0.15s ease-out',
                                     }}>
                                         {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={14} />, fn: handleExportCsv },
                                         { label: 'Export JSON', icon: <LuFileJson size={14} />, fn: handleExportJson },
@@ -360,9 +361,9 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
             )}
 
             {/* Results Content */}
-            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: viewMode === 'chart' ? '200px' : undefined }}>
+            <div key={viewMode} style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: viewMode === 'chart' ? '200px' : undefined, animation: 'fadeIn 0.25s ease' }}>
                 {viewMode === 'table' ? (
-                    <table style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+                    <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontSize: `${editorSettings.resultsFontSize || 13}px` }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                             <tr>
                                 {columns.map((col) => {

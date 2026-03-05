@@ -5,7 +5,7 @@ import QueryPlanModal from './QueryPlanModal';
 import { useToast } from './ToastProvider';
 import { resolveVariables } from './VariablesBar';
 
-const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSaveAs, onQueryResult }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult }, ref) => {
     const toast = useToast();
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
@@ -572,6 +572,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
                     onAnalyze={handleAnalyzeActive}
                     onDbChange={onDbChange}
                     theme={theme}
+                    editorLayout={editorLayout}
+                    editorSettings={editorSettings}
                     variables={queryVariables}
                     onVariablesChange={setQueryVariables}
                     // DnD Props
@@ -593,6 +595,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, onDbChange, onRequestSav
                         onAnalyze={handleAnalyzeActive}
                         onDbChange={onDbChange}
                         theme={theme}
+                        editorLayout={editorLayout}
+                        editorSettings={editorSettings}
                         variables={queryVariables}
                         onVariablesChange={setQueryVariables}
                         // DnD Props

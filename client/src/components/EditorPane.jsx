@@ -21,11 +21,17 @@ const EditorPane = ({
     onReorder,
     isActive,
     theme,
+    editorLayout,
+    editorSettings,
     variables,
     onVariablesChange,
 }) => {
+    const isVertical = editorLayout === 'vertical';
+
     const [resultsHeight, setResultsHeight] = useState(300);
+    const [resultsWidth, setResultsWidth] = useState(500);
     const isResizing = useRef(false);
+    const containerRef = useRef(null);
 
     // CTE Debug State
     const [debugModalOpen, setDebugModalOpen] = useState(false);
@@ -36,10 +42,24 @@ const EditorPane = ({
     const activeTab = tabs.find(t => t.id === activeTabId);
 
     // Resizing Logic specific to this pane
-    const startResizing = (e) => { isResizing.current = true; };
+    const startResizing = (e) => {
+        e.preventDefault();
+        isResizing.current = true;
+    };
     const stopResizing = () => { isResizing.current = false; };
     const resize = (e) => {
-        if (isResizing.current) {
+        if (!isResizing.current) return;
+        if (isVertical) {
+            // Vertical layout: resize width from the right
+            const container = containerRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            const newWidth = rect.right - e.clientX;
+            if (newWidth >= 200 && newWidth <= rect.width - 200) {
+                setResultsWidth(newWidth);
+            }
+        } else {
+            // Horizontal layout (default): resize height from the bottom
             const newHeight = window.innerHeight - e.clientY;
             if (newHeight >= 50 && newHeight <= 800) {
                 setResultsHeight(newHeight);
@@ -54,7 +74,7 @@ const EditorPane = ({
             window.removeEventListener('mousemove', resize);
             window.removeEventListener('mouseup', stopResizing);
         };
-    }, []);
+    }, [isVertical]);
 
     const handleDebugCte = async (cteName, content) => {
         // Reuse logic from NotebookCell? Ideally this logic should be a shared utility.
@@ -68,11 +88,7 @@ const EditorPane = ({
 
         try {
             console.log("Debugging CTE:", cteName);
-            // console.log("Query Content Length:", query.length);
-            // console.log("Query Snippet:", query.substring(0, 500)); // First 500 chars
 
-            // Escape special regex chars just in case user uses them in identifiers (though \w usually handles it)
-            // But we trust cteName is simple for now.
             const cteStartRegex = new RegExp(`\\b${cteName}\\s+AS\\s*\\(`, 'i');
             const match = cteStartRegex.exec(query);
 
@@ -107,9 +123,6 @@ const EditorPane = ({
             const debugQ = `${partialQuery} SELECT * FROM ${cteName} LIMIT 100`;
             setDebugQuery(debugQ);
 
-            // Fetch not passed in props... use fetch directly or onRunQuery?
-            // onRunQuery might update the tab results, which we DON'T want.
-            // So we fetch directly here.
             const response = await fetch('http://localhost:3001/api/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -141,6 +154,30 @@ const EditorPane = ({
 
     const isNotebook = activeTab.name.endsWith('.sqlnb');
 
+    // Results panel content (shared between both layouts)
+    const resultsContent = (
+        <>
+            {activeTab.resultsError && <div style={{ color: 'red', padding: '10px' }}>Error: {activeTab.resultsError}</div>}
+
+            {activeTab.results && (
+                <ResultsTable
+                    data={activeTab.results.data}
+                    executionTime={activeTab.results.executionTime}
+                    query={activeTab.content}
+                    onDbChange={onDbChange}
+                    initialChartConfig={activeTab.initialChartConfig}
+                    editorSettings={editorSettings}
+                />
+            )}
+
+            {!activeTab.results && !activeTab.resultsError && (
+                <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    Run query (Ctrl+Enter) to see results.
+                </div>
+            )}
+        </>
+    );
+
     return (
         <div
             style={{
@@ -163,7 +200,7 @@ const EditorPane = ({
                 onReorder={onReorder}
             />
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+            <div ref={containerRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
 
                 {/* Content Area */}
                 {isNotebook ? (
@@ -177,56 +214,55 @@ const EditorPane = ({
                         />
                     </div>
                 ) : (
-                    <>
-                        {/* Variables Bar */}
-                        <VariablesBar variables={variables || []} onChange={onVariablesChange || (() => { })} />
-                        <div style={{
-                            flex: 1,
-                            overflow: 'hidden',
-                            outline: isActive ? '1px solid var(--accent-color-user)' : 'none',
-                            zIndex: isActive ? 10 : 0
-                        }}>
-                            <SqlEditor
-                                value={activeTab.content}
-                                onChange={(val) => onContentChange(activeTab.id, val)}
-                                onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
-                                onRunQuery={(overrideQuery) => onRunQuery(activeTab.id, overrideQuery || activeTab.content)}
-                                onSave={() => onSave && onSave()}
-                                onAnalyze={() => onAnalyze && onAnalyze()}
-                                theme={theme}
-                                errorMarker={activeTab.errorMarker}
-                            />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: isVertical ? 'row' : 'column', overflow: 'hidden' }}>
+                        {/* Editor Section */}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
+                            {/* Variables Bar */}
+                            <VariablesBar variables={variables || []} onChange={onVariablesChange || (() => { })} />
+                            <div style={{
+                                flex: 1,
+                                overflow: 'hidden',
+                                outline: isActive ? '1px solid var(--accent-color-user)' : 'none',
+                                zIndex: isActive ? 10 : 0
+                            }}>
+                                <SqlEditor
+                                    value={activeTab.content}
+                                    onChange={(val) => onContentChange(activeTab.id, val)}
+                                    onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
+                                    onRunQuery={(overrideQuery) => onRunQuery(activeTab.id, overrideQuery || activeTab.content)}
+                                    onSave={() => onSave && onSave()}
+                                    onAnalyze={() => onAnalyze && onAnalyze()}
+                                    theme={theme}
+                                    errorMarker={activeTab.errorMarker}
+                                    editorSettings={editorSettings}
+                                />
+                            </div>
                         </div>
 
-                        {/* Results for SQL File */}
-                        {/* ... Resizer and Results ... */}
+                        {/* Resizer Handle */}
                         <div
                             className="resizer-handle"
                             onMouseDown={startResizing}
-                            style={{
-                                height: '5px', background: 'var(--border-color)', cursor: 'row-resize', width: '100%', zIndex: 10
+                            style={isVertical ? {
+                                width: '5px', height: '100%', cursor: 'col-resize',
+                                background: 'var(--border-color)', zIndex: 10, flexShrink: 0
+                            } : {
+                                height: '5px', width: '100%', cursor: 'row-resize',
+                                background: 'var(--border-color)', zIndex: 10, flexShrink: 0
                             }}
                         ></div>
-                        <div className="results-container" style={{ height: resultsHeight, display: 'flex', flexDirection: 'column' }}>
-                            {activeTab.resultsError && <div style={{ color: 'red', padding: '10px' }}>Error: {activeTab.resultsError}</div>}
 
-                            {activeTab.results && (
-                                <ResultsTable
-                                    data={activeTab.results.data}
-                                    executionTime={activeTab.results.executionTime}
-                                    query={activeTab.content}
-                                    onDbChange={onDbChange}
-                                    initialChartConfig={activeTab.initialChartConfig}
-                                />
-                            )}
-
-                            {!activeTab.results && !activeTab.resultsError && (
-                                <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                                    Run query (Ctrl+Enter) to see results.
-                                </div>
-                            )}
+                        {/* Results Section */}
+                        <div className="results-container" style={isVertical ? {
+                            width: resultsWidth, minWidth: 200, height: '100%',
+                            display: 'flex', flexDirection: 'column', overflow: 'auto'
+                        } : {
+                            height: resultsHeight,
+                            display: 'flex', flexDirection: 'column', overflow: 'hidden'
+                        }}>
+                            {resultsContent}
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
 
