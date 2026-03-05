@@ -7,6 +7,8 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
+const { exec, execSync } = require('child_process');
 const dbManager = require('./DatabaseManager');
 
 const app = express();
@@ -769,6 +771,600 @@ app.get('/api/schema', async (req, res) => {
     } catch (err) {
         res.json([]);
     }
+});
+
+
+/* --- DBT Management APIs --- */
+
+// Validate environment: check Python, DBT, and Conda/Mamba availability
+app.get('/api/dbt/validate-env', (req, res) => {
+    const result = {
+        python: false, pythonVersion: null,
+        dbt: false, dbtVersion: null,
+        conda: false, condaVersion: null,
+        mamba: false, mambaVersion: null,
+        activeCondaEnv: null,
+    };
+
+    // Check Python
+    for (const cmd of ['python --version', 'python3 --version']) {
+        try {
+            const output = execSync(cmd, { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+            result.python = true;
+            result.pythonVersion = output.replace('Python ', '');
+            break;
+        } catch (e) { /* not found, try next */ }
+    }
+
+    // Check DBT
+    try {
+        const output = execSync('dbt --version', { encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        result.dbt = true;
+        const match = output.match(/installed:\s*([\d.]+)/);
+        result.dbtVersion = match ? match[1] : output.split('\n')[0];
+    } catch (e) { /* dbt not found */ }
+
+    // Check Conda
+    try {
+        const output = execSync('conda --version', { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        result.conda = true;
+        result.condaVersion = output.replace('conda ', '');
+    } catch (e) { /* conda not found */ }
+
+    // Check Mamba
+    try {
+        const output = execSync('mamba --version', { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        result.mamba = true;
+        const match = output.match(/mamba\s+([\d.]+)/);
+        result.mambaVersion = match ? match[1] : output.split('\n')[0];
+    } catch (e) { /* mamba not found */ }
+
+    // Check active conda env
+    if (process.env.CONDA_DEFAULT_ENV) {
+        result.activeCondaEnv = process.env.CONDA_DEFAULT_ENV;
+    }
+
+    res.json(result);
+});
+
+// List conda environments and check for dbt in each
+app.get('/api/dbt/conda-envs', (req, res) => {
+    try {
+        const output = execSync('conda env list --json', { encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] });
+        const parsed = JSON.parse(output);
+        const envPaths = parsed.envs || [];
+
+        const envs = envPaths.map(envPath => {
+            const name = path.basename(envPath);
+            // For base env, the name is the full path — detect it
+            const isBase = envPath === (parsed.root_prefix || envPath);
+            const envName = isBase ? 'base' : name;
+
+            // Check if dbt exists in this env
+            let hasDbt = false;
+            let dbtVersion = null;
+            try {
+                const dbtOut = execSync(`conda run --no-capture-output -n ${envName} dbt --version`, {
+                    encoding: 'utf8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe']
+                }).trim();
+                hasDbt = true;
+                const vMatch = dbtOut.match(/installed:\s*([\d.]+)/);
+                dbtVersion = vMatch ? vMatch[1] : null;
+            } catch (e) { /* dbt not in this env */ }
+
+            return { name: envName, path: envPath, hasDbt, dbtVersion };
+        });
+
+        res.json({ success: true, envs });
+    } catch (err) {
+        // Conda not available or failed
+        res.json({ success: false, envs: [], error: err.message });
+    }
+});
+
+// Detect existing DBT project
+app.get('/api/dbt/detect', (req, res) => {
+    const projectFile = path.join(ROOT_DIR, 'dbt_project.yml');
+    if (!fs.existsSync(projectFile)) {
+        return res.json({ exists: false });
+    }
+
+    try {
+        const content = yaml.load(fs.readFileSync(projectFile, 'utf8'));
+        res.json({
+            exists: true,
+            projectName: content.name || 'unknown',
+            version: content.version || '1.0.0',
+            profile: content.profile || content.name,
+            modelPaths: content['model-paths'] || content['source-paths'] || ['models'],
+        });
+    } catch (err) {
+        res.json({ exists: true, error: err.message });
+    }
+});
+
+// Initialize a new DBT project
+app.post('/api/dbt/init', (req, res) => {
+    const { projectName = 'amox_dbt_project', profileName } = req.body;
+    const safeName = projectName.replace(/[^a-zA-Z0-9_]/g, '_');
+    const profile = profileName || safeName;
+
+    try {
+        // Create directory structure
+        const dirs = [
+            'models/staging',
+            'models/intermediate',
+            'models/marts',
+            'macros',
+            'tests',
+            'seeds',
+            'snapshots',
+            'analyses',
+        ];
+
+        for (const dir of dirs) {
+            const dirPath = path.join(ROOT_DIR, dir);
+            if (!fs.existsSync(dirPath)) {
+                fs.mkdirSync(dirPath, { recursive: true });
+            }
+        }
+
+        // Create dbt_project.yml
+        const projectConfig = {
+            name: safeName,
+            version: '1.0.0',
+            'config-version': 2,
+            profile: profile,
+            'model-paths': ['models'],
+            'analysis-paths': ['analyses'],
+            'test-paths': ['tests'],
+            'seed-paths': ['seeds'],
+            'macro-paths': ['macros'],
+            'snapshot-paths': ['snapshots'],
+            'clean-targets': ['target', 'dbt_packages'],
+            models: {
+                [safeName]: {
+                    staging: { '+materialized': 'view', '+schema': 'staging' },
+                    intermediate: { '+materialized': 'view', '+schema': 'intermediate' },
+                    marts: { '+materialized': 'table', '+schema': 'marts' },
+                },
+            },
+        };
+
+        const projectPath = path.join(ROOT_DIR, 'dbt_project.yml');
+        if (!fs.existsSync(projectPath)) {
+            fs.writeFileSync(projectPath, yaml.dump(projectConfig, { lineWidth: 120, quotingType: "'", forceQuotes: false }), 'utf8');
+        }
+
+        // Create profiles.yml (local, DuckDB target)
+        const profilesConfig = {
+            [profile]: {
+                target: 'dev',
+                outputs: {
+                    dev: {
+                        type: 'duckdb',
+                        path: 'dev.duckdb',
+                        schema: 'main',
+                        threads: 4,
+                    },
+                },
+            },
+        };
+
+        const profilesPath = path.join(ROOT_DIR, 'profiles.yml');
+        if (!fs.existsSync(profilesPath)) {
+            fs.writeFileSync(profilesPath, yaml.dump(profilesConfig, { lineWidth: 120 }), 'utf8');
+        }
+
+        // Create .gitignore for DBT
+        const gitignorePath = path.join(ROOT_DIR, '.gitignore');
+        const dbtIgnoreContent = '\n# DBT\ntarget/\ndbt_packages/\nlogs/\n*.duckdb\n*.duckdb.wal\n';
+        if (fs.existsSync(gitignorePath)) {
+            const existing = fs.readFileSync(gitignorePath, 'utf8');
+            if (!existing.includes('# DBT')) {
+                fs.appendFileSync(gitignorePath, dbtIgnoreContent, 'utf8');
+            }
+        } else {
+            fs.writeFileSync(gitignorePath, dbtIgnoreContent.trim(), 'utf8');
+        }
+
+        // Create a starter staging model
+        const starterModelPath = path.join(ROOT_DIR, 'models', 'staging', '.gitkeep');
+        if (!fs.existsSync(starterModelPath)) {
+            fs.writeFileSync(starterModelPath, '', 'utf8');
+        }
+
+        // Create packages.yml
+        const packagesPath = path.join(ROOT_DIR, 'packages.yml');
+        if (!fs.existsSync(packagesPath)) {
+            fs.writeFileSync(packagesPath, yaml.dump({ packages: [{ package: 'dbt-labs/dbt_utils', version: '1.1.1' }] }), 'utf8');
+        }
+
+        res.json({
+            success: true,
+            message: `DBT project "${safeName}" initialized successfully.`,
+            createdDirs: dirs,
+            createdFiles: ['dbt_project.yml', 'profiles.yml', 'packages.yml'],
+        });
+    } catch (err) {
+        console.error('DBT Init Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Read profiles.yml
+app.get('/api/dbt/profiles', (req, res) => {
+    const profilesPath = path.join(ROOT_DIR, 'profiles.yml');
+    if (!fs.existsSync(profilesPath)) {
+        return res.json({ exists: false });
+    }
+
+    try {
+        const content = yaml.load(fs.readFileSync(profilesPath, 'utf8'));
+        res.json({ exists: true, profiles: content });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to parse profiles.yml', details: err.message });
+    }
+});
+
+// Write profiles.yml
+app.post('/api/dbt/profiles', (req, res) => {
+    const { profiles } = req.body;
+    if (!profiles) return res.status(400).json({ error: 'Profiles data is required' });
+
+    try {
+        const profilesPath = path.join(ROOT_DIR, 'profiles.yml');
+        fs.writeFileSync(profilesPath, yaml.dump(profiles, { lineWidth: 120 }), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to write profiles.yml', details: err.message });
+    }
+});
+
+// Read dbt_project.yml
+app.get('/api/dbt/project-config', (req, res) => {
+    const projectPath = path.join(ROOT_DIR, 'dbt_project.yml');
+    if (!fs.existsSync(projectPath)) {
+        return res.json({ exists: false });
+    }
+
+    try {
+        const content = yaml.load(fs.readFileSync(projectPath, 'utf8'));
+        res.json({ exists: true, config: content });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to parse dbt_project.yml', details: err.message });
+    }
+});
+
+// Write dbt_project.yml
+app.post('/api/dbt/project-config', (req, res) => {
+    const { config } = req.body;
+    if (!config) return res.status(400).json({ error: 'Config data is required' });
+
+    try {
+        const projectPath = path.join(ROOT_DIR, 'dbt_project.yml');
+        fs.writeFileSync(projectPath, yaml.dump(config, { lineWidth: 120, quotingType: "'", forceQuotes: false }), 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to write dbt_project.yml', details: err.message });
+    }
+});
+
+// Generate model template
+app.post('/api/dbt/template/model', (req, res) => {
+    const { name, materialization = 'view', schema, description, tags, path: modelPath = 'models/staging', template = 'basic' } = req.body;
+    if (!name) return res.status(400).json({ error: 'Model name is required' });
+
+    const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+
+    // Template variations
+    const templates = {
+        basic: `{{
+  config(
+    materialized='${materialization}'${schema ? `,\n    schema='${schema}'` : ''}${tags ? `,\n    tags=${JSON.stringify(tags.split(',').map(t => t.trim()))}` : ''}
+  )
+}}
+
+${description ? `{# ${description} #}\n\n` : ''}SELECT
+    *
+FROM {{ source('source_name', 'table_name') }}
+`,
+        staging: `{{
+  config(
+    materialized='view'${schema ? `,\n    schema='${schema}'` : ''}
+  )
+}}
+
+WITH source AS (
+    SELECT * FROM {{ source('source_name', 'table_name') }}
+),
+
+renamed AS (
+    SELECT
+        -- ids
+        id,
+
+        -- dimensions
+        name,
+        category,
+
+        -- timestamps
+        created_at,
+        updated_at
+
+    FROM source
+)
+
+SELECT * FROM renamed
+`,
+        intermediate: `{{
+  config(
+    materialized='view'${schema ? `,\n    schema='${schema}'` : ''}
+  )
+}}
+
+WITH model_a AS (
+    SELECT * FROM {{ ref('stg_model_a') }}
+),
+
+model_b AS (
+    SELECT * FROM {{ ref('stg_model_b') }}
+),
+
+joined AS (
+    SELECT
+        a.id,
+        a.name,
+        b.metric_value
+    FROM model_a a
+    LEFT JOIN model_b b ON a.id = b.foreign_id
+)
+
+SELECT * FROM joined
+`,
+        mart: `{{
+  config(
+    materialized='table'${schema ? `,\n    schema='${schema}'` : ''}${tags ? `,\n    tags=${JSON.stringify(tags.split(',').map(t => t.trim()))}` : ''}
+  )
+}}
+
+WITH final AS (
+    SELECT
+        -- primary key
+        id,
+
+        -- dimensions
+        category,
+        status,
+
+        -- measures
+        total_amount,
+        item_count,
+
+        -- timestamps
+        created_at,
+        updated_at
+
+    FROM {{ ref('int_model_name') }}
+)
+
+SELECT * FROM final
+`,
+        incremental: `{{
+  config(
+    materialized='incremental',
+    unique_key='id'${schema ? `,\n    schema='${schema}'` : ''}
+  )
+}}
+
+SELECT
+    id,
+    status,
+    amount,
+    updated_at
+
+FROM {{ source('source_name', 'table_name') }}
+
+{% if is_incremental() %}
+    WHERE updated_at > (SELECT MAX(updated_at) FROM {{ this }})
+{% endif %}
+`,
+    };
+
+    const content = templates[template] || templates.basic;
+
+    try {
+        const dirPath = path.join(ROOT_DIR, modelPath);
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        const filePath = path.join(dirPath, `${safeName}.sql`);
+        if (fs.existsSync(filePath)) {
+            return res.status(409).json({ error: `Model file already exists: ${safeName}.sql` });
+        }
+
+        fs.writeFileSync(filePath, content, 'utf8');
+        const relativePath = path.relative(ROOT_DIR, filePath).replace(/\\/g, '/');
+        res.json({ success: true, path: relativePath, content });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Generate source YAML
+app.post('/api/dbt/template/source', (req, res) => {
+    const { sourceName, database, sourceSchema, tables, targetPath = 'models/staging' } = req.body;
+    if (!sourceName || !tables || tables.length === 0) {
+        return res.status(400).json({ error: 'Source name and at least one table are required' });
+    }
+
+    const sourceConfig = {
+        version: 2,
+        sources: [{
+            name: sourceName,
+            ...(database ? { database } : {}),
+            ...(sourceSchema ? { schema: sourceSchema } : {}),
+            tables: tables.map(t => ({
+                name: t.name,
+                ...(t.description ? { description: t.description } : {}),
+                ...(t.columns && t.columns.length > 0 ? {
+                    columns: t.columns.map(c => ({
+                        name: c.name,
+                        ...(c.description ? { description: c.description } : {}),
+                        ...(c.tests && c.tests.length > 0 ? { tests: c.tests } : {}),
+                    }))
+                } : {}),
+            })),
+        }],
+    };
+
+    try {
+        const dirPath = path.join(ROOT_DIR, targetPath);
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        const fileName = `_${sourceName}__sources.yml`;
+        const filePath = path.join(dirPath, fileName);
+        const content = yaml.dump(sourceConfig, { lineWidth: 120, quotingType: "'", forceQuotes: false });
+
+        fs.writeFileSync(filePath, content, 'utf8');
+        const relativePath = path.relative(ROOT_DIR, filePath).replace(/\\/g, '/');
+        res.json({ success: true, path: relativePath, content });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Generate test template
+app.post('/api/dbt/template/test', (req, res) => {
+    const { name, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'Test name is required' });
+
+    const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+    const content = `-- ${description || 'Custom data test'}
+-- This query should return zero rows to pass
+
+SELECT
+    *
+FROM {{ ref('model_name') }}
+WHERE 1 = 0  -- Replace with your test condition
+`;
+
+    try {
+        const dirPath = path.join(ROOT_DIR, 'tests');
+        if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+
+        const filePath = path.join(dirPath, `${safeName}.sql`);
+        fs.writeFileSync(filePath, content, 'utf8');
+        const relativePath = path.relative(ROOT_DIR, filePath).replace(/\\/g, '/');
+        res.json({ success: true, path: relativePath, content });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Generate macro template
+app.post('/api/dbt/template/macro', (req, res) => {
+    const { name, description, args = '' } = req.body;
+    if (!name) return res.status(400).json({ error: 'Macro name is required' });
+
+    const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+    const content = `{# ${description || safeName + ' macro'} #}
+
+{% macro ${safeName}(${args}) %}
+
+    -- Your macro logic here
+
+{% endmacro %}
+`;
+
+    try {
+        const dirPath = path.join(ROOT_DIR, 'macros');
+        if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+
+        const filePath = path.join(dirPath, `${safeName}.sql`);
+        fs.writeFileSync(filePath, content, 'utf8');
+        const relativePath = path.relative(ROOT_DIR, filePath).replace(/\\/g, '/');
+        res.json({ success: true, path: relativePath, content });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Build command string
+app.post('/api/dbt/command', (req, res) => {
+    const { action = 'run', select, exclude, fullRefresh, vars, profilesDir, target } = req.body;
+    const validActions = ['run', 'build', 'compile', 'test', 'seed', 'snapshot', 'debug', 'clean', 'deps', 'parse'];
+
+    if (!validActions.includes(action)) {
+        return res.status(400).json({ error: `Invalid action. Valid: ${validActions.join(', ')}` });
+    }
+
+    let cmd = `dbt ${action}`;
+
+    if (select) cmd += ` --select ${select}`;
+    if (exclude) cmd += ` --exclude ${exclude}`;
+    if (fullRefresh && ['run', 'build'].includes(action)) cmd += ' --full-refresh';
+    if (vars) cmd += ` --vars '${typeof vars === 'string' ? vars : JSON.stringify(vars)}'`;
+    if (profilesDir !== undefined) cmd += ` --profiles-dir ${profilesDir || '.'}`;
+    else cmd += ' --profiles-dir .';
+    if (target) cmd += ` --target ${target}`;
+
+    res.json({ command: cmd });
+});
+
+// Execute a DBT command (Option A+: simple exec with output streaming)
+app.post('/api/dbt/execute', (req, res) => {
+    const { command, condaEnv } = req.body;
+    if (!command) return res.status(400).json({ error: 'Command is required' });
+
+    // Security: only allow dbt commands
+    if (!command.trim().startsWith('dbt ')) {
+        return res.status(403).json({ error: 'Only dbt commands are allowed' });
+    }
+
+    // Wrap with conda run if a conda env is specified
+    let finalCmd = command;
+    if (condaEnv && condaEnv !== 'none') {
+        finalCmd = `conda run --no-capture-output -n ${condaEnv} ${command}`;
+    }
+
+    // Set up SSE for streaming output
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const child = exec(finalCmd, { cwd: ROOT_DIR, timeout: 300000, maxBuffer: 1024 * 1024 * 10 });
+
+    child.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n');
+        for (const line of lines) {
+            if (line.trim()) res.write(`data: ${JSON.stringify({ type: 'stdout', text: line })}\n\n`);
+        }
+    });
+
+    child.stderr.on('data', (data) => {
+        const lines = data.toString().split('\n');
+        for (const line of lines) {
+            if (line.trim()) res.write(`data: ${JSON.stringify({ type: 'stderr', text: line })}\n\n`);
+        }
+    });
+
+    child.on('close', (code) => {
+        res.write(`data: ${JSON.stringify({ type: 'exit', code })}\n\n`);
+        res.end();
+    });
+
+    child.on('error', (err) => {
+        res.write(`data: ${JSON.stringify({ type: 'error', text: err.message })}\n\n`);
+        res.end();
+    });
+
+    req.on('close', () => {
+        try { child.kill(); } catch (e) { /* already dead */ }
+    });
 });
 
 // Serve Static Assets in Production (Electron App)

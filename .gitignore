@@ -125,3 +125,9 @@ logs/
 *.zip
 *.7z
 *.rar
+# DBT
+target/
+dbt_packages/
+logs/
+*.duckdb
+*.duckdb.wal

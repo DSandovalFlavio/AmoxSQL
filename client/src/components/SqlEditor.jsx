@@ -63,6 +63,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 // Tags / Special tokens
                 { token: 'tag', foreground: '9BA1F2' },
                 { token: 'attribute.name', foreground: '7ECAC2' },
+
+                // Jinja / DBT tokens
+                { token: 'jinja.block', foreground: 'E06C75', fontStyle: 'bold' },
+                { token: 'jinja.tag', foreground: 'C678DD' },
+                { token: 'jinja.variable', foreground: '61AFEF' },
+                { token: 'jinja.comment', foreground: '5C5F66', fontStyle: 'italic' },
             ],
             colors: {
                 // Editor chrome
@@ -154,6 +160,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 // Functions
                 { token: 'predefined', foreground: '1E8A9E' },
                 { token: 'predefined.sql', foreground: '1E8A9E' },
+
+                // Jinja / DBT tokens (light theme)
+                { token: 'jinja.block', foreground: 'C13A3A', fontStyle: 'bold' },
+                { token: 'jinja.tag', foreground: '8B3D9E' },
+                { token: 'jinja.variable', foreground: '2A6BB5' },
+                { token: 'jinja.comment', foreground: 'A0A3AA', fontStyle: 'italic' },
             ],
             colors: {
                 'editor.background': '#FAFBFC',
@@ -617,6 +629,35 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                             documentation: fn.doc,
                             range: range,
                             sortText: 'x_' + fn.name,
+                        });
+                    });
+
+                    // DBT / Jinja completions
+                    const dbtItems = [
+                        { name: 'ref', insert: "{{ ref('${1:model_name}') }}", doc: 'Reference another DBT model' },
+                        { name: 'source', insert: "{{ source('${1:source_name}', '${2:table_name}') }}", doc: 'Reference a DBT source table' },
+                        { name: 'config', insert: "{\n  config(\n    materialized='${1|view,table,incremental,ephemeral|}'\n  )\n}", doc: 'DBT model configuration block' },
+                        { name: 'is_incremental', insert: '{% if is_incremental() %}\n    WHERE ${1:updated_at} > (SELECT MAX(${1:updated_at}) FROM {{ this }})\n{% endif %}', doc: 'Incremental model guard (DBT)' },
+                        { name: 'this', insert: '{{ this }}', doc: 'Reference current model (incremental)' },
+                        { name: 'var', insert: "{{ var('${1:variable_name}') }}", doc: 'Access a DBT project variable' },
+                        { name: 'env_var', insert: "{{ env_var('${1:ENV_VARIABLE}') }}", doc: 'Access an environment variable' },
+                        { name: 'macro', insert: '{% macro ${1:macro_name}(${2:args}) %}\n    ${3:-- logic}\n{% endmacro %}', doc: 'Define a reusable Jinja macro' },
+                        { name: 'for loop', insert: '{% for ${1:item} in ${2:items} %}\n    ${3}\n{% endfor %}', doc: 'Jinja for loop' },
+                        { name: 'if block', insert: '{% if ${1:condition} %}\n    ${2}\n{% endif %}', doc: 'Jinja conditional block' },
+                        { name: 'set variable', insert: "{% set ${1:var_name} = ${2:'value'} %}", doc: 'Set a Jinja variable' },
+                        { name: 'dbt_utils.star', insert: "{{ dbt_utils.star(ref('${1:model_name}')) }}", doc: 'Select all columns from a ref (dbt_utils)' },
+                    ];
+
+                    dbtItems.forEach(item => {
+                        suggestions.push({
+                            label: `dbt: ${item.name}`,
+                            kind: monaco.languages.CompletionItemKind.Snippet,
+                            insertText: item.insert,
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            detail: 'DBT / Jinja',
+                            documentation: item.doc,
+                            range: range,
+                            sortText: 'w_' + item.name,
                         });
                     });
 

@@ -175,6 +175,10 @@ export function buildDefaultActions({
         { id: 'settings', label: 'Open Settings', category: 'Settings', icon: LuSettings, shortcut: 'Ctrl+,', action: () => setIsSettingsOpen(true) },
         { id: 'toggle-theme', label: theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme', category: 'Settings', icon: theme === 'dark' ? LuSun : LuMoon, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
         { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Settings', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => setIsShortcutsOpen?.(true) },
+
+        // DBT
+        { id: 'dbt-panel', label: 'Show DBT Studio', category: 'DBT', icon: LuFolder, action: () => setActiveSidebarTab('dbt') },
+        { id: 'dbt-new-model', label: 'DBT: New Model', category: 'DBT', icon: LuFilePlus, action: () => { setActiveSidebarTab('dbt'); /* DbtPanel will handle */ } },
     ];
 }
 

@@ -8,6 +8,7 @@ import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import ExtensionExplorer from './components/ExtensionExplorer';
 import SnippetsPanel from './components/SnippetsPanel';
+import DbtPanel from './components/DbtPanel';
 import QueryHistoryPanel from './components/QueryHistoryPanel';
 import SaveQueryModal from './components/SaveQueryModal';
 import ImportModal from './components/ImportModal';
@@ -28,7 +29,7 @@ import ExecutionChainModal from './components/ExecutionChainModal';
 import { useToast } from './components/ToastProvider';
 
 import SettingsModal from './components/SettingsModal';
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer } from "react-icons/lu";
 
 import './index.css';
 
@@ -552,6 +553,13 @@ function App() {
               <LuPuzzle size={20} />
             </button>
             <button
+              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('dbt'); }}
+              className={`activity-bar-btn ${activeSidebarTab === 'dbt' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+              title="DBT Studio"
+            >
+              <LuContainer size={20} />
+            </button>
+            <button
               onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('snippets'); }}
               className={`activity-bar-btn ${activeSidebarTab === 'snippets' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
               title="SQL Snippets"
@@ -626,6 +634,12 @@ function App() {
             {activeSidebarTab === 'extensions' && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <ExtensionExplorer />
+              </div>
+            )}
+
+            {activeSidebarTab === 'dbt' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} />
               </div>
             )}
 

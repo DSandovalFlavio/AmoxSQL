@@ -43,6 +43,19 @@ const BUILT_IN_SNIPPETS = [
             { name: 'Export to Parquet', description: 'Export query results to Parquet', sql: `COPY (\n  SELECT * FROM \${table_name}\n) TO '\${output_path}' (FORMAT PARQUET)` },
         ]
     },
+    {
+        category: 'DBT Models',
+        snippets: [
+            { name: 'Staging Model', description: 'Standard staging pattern with source ref', sql: `{{\n  config(\n    materialized='view'\n  )\n}}\n\nWITH source AS (\n    SELECT * FROM {{ source('source_name', 'table_name') }}\n),\n\nrenamed AS (\n    SELECT\n        id,\n        name,\n        created_at,\n        updated_at\n    FROM source\n)\n\nSELECT * FROM renamed` },
+            { name: 'Intermediate Model', description: 'Join pattern with ref()', sql: `{{\n  config(\n    materialized='view'\n  )\n}}\n\nWITH model_a AS (\n    SELECT * FROM {{ ref('stg_model_a') }}\n),\n\nmodel_b AS (\n    SELECT * FROM {{ ref('stg_model_b') }}\n),\n\njoined AS (\n    SELECT\n        a.id,\n        a.name,\n        b.metric_value\n    FROM model_a a\n    LEFT JOIN model_b b ON a.id = b.foreign_id\n)\n\nSELECT * FROM joined` },
+            { name: 'Mart Model', description: 'Final mart table with config', sql: `{{\n  config(\n    materialized='table'\n  )\n}}\n\nWITH final AS (\n    SELECT\n        id,\n        category,\n        status,\n        total_amount,\n        created_at\n    FROM {{ ref('int_model_name') }}\n)\n\nSELECT * FROM final` },
+            { name: 'Incremental Model', description: 'Incremental with is_incremental() guard', sql: `{{\n  config(\n    materialized='incremental',\n    unique_key='id'\n  )\n}}\n\nSELECT\n    id,\n    status,\n    amount,\n    updated_at\nFROM {{ source('source_name', 'table_name') }}\n\n{% if is_incremental() %}\n    WHERE updated_at > (SELECT MAX(updated_at) FROM {{ this }})\n{% endif %}` },
+            { name: 'Snapshot (SCD Type 2)', description: 'Snapshot with timestamp strategy', sql: `{% snapshot snap_orders %}\n\n{{\n  config(\n    target_schema='snapshots',\n    unique_key='id',\n    strategy='timestamp',\n    updated_at='updated_at'\n  )\n}}\n\nSELECT * FROM {{ source('source_name', 'orders') }}\n\n{% endsnapshot %}` },
+            { name: 'Custom Test', description: 'Data test template', sql: `-- Custom data test: should return 0 rows to pass\n\nSELECT *\nFROM {{ ref('model_name') }}\nWHERE column_name IS NULL\n  AND required_flag = true` },
+            { name: 'Macro Template', description: 'Reusable Jinja macro', sql: `{% macro generate_schema_name(custom_schema_name, node) %}\n    {% if custom_schema_name %}\n        {{ custom_schema_name | trim }}\n    {% else %}\n        {{ target.schema }}\n    {% endif %}\n{% endmacro %}` },
+            { name: 'Source Config', description: 'Source YAML as SQL comment reference', sql: `-- sources.yml reference:\n-- version: 2\n-- sources:\n--   - name: raw_data\n--     schema: main\n--     tables:\n--       - name: orders\n--         description: Raw orders table\n--       - name: customers\n--         description: Raw customers table\n\nSELECT * FROM {{ source('raw_data', 'orders') }}` },
+        ]
+    },
 ];
 
 const SnippetsPanel = ({ onInsert }) => {

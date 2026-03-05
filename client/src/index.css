@@ -1490,3 +1490,676 @@ tr:hover td {
     display: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════
+   DBT PANEL STYLES
+   ═══════════════════════════════════════════════ */
+
+.dbt-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.dbt-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* DBT Sub-Navigation Tabs */
+.dbt-tabs {
+  display: flex;
+  gap: 1px;
+  padding: 0 8px 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dbt-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.dbt-tab {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dbt-tab:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+  border: none;
+}
+
+.dbt-tab--active {
+  color: var(--accent-primary);
+  background: var(--accent-subtle);
+  border: none;
+}
+
+.dbt-tab--active:hover {
+  color: var(--accent-primary);
+  background: var(--accent-muted);
+}
+
+/* DBT Scrollable Content */
+.dbt-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.dbt-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px;
+}
+
+/* DBT Cards */
+.dbt-card {
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dbt-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.2px;
+}
+
+.dbt-init-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dbt-init-form .dbt-subtle-text {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+/* DBT Form Fields */
+.dbt-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dbt-form-field label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.dbt-form-field input,
+.dbt-form-field select {
+  padding: 6px 10px;
+  font-size: 12px;
+  width: 100%;
+}
+
+.dbt-form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.dbt-form-row .dbt-form-field {
+  flex: 1;
+}
+
+.dbt-optional {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  text-transform: none;
+  font-size: 10px;
+}
+
+/* DBT Buttons */
+.dbt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid var(--border-default);
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+}
+
+.dbt-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-strong);
+}
+
+.dbt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dbt-btn--primary {
+  background: var(--accent-primary);
+  color: var(--surface-base);
+  border-color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.dbt-btn--primary:hover {
+  filter: brightness(1.1);
+  border-color: var(--accent-primary);
+}
+
+.dbt-btn--ghost {
+  background: transparent;
+  border: 1px dashed var(--border-default);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.dbt-btn--ghost:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-subtle);
+}
+
+.dbt-btn--execute {
+  background: var(--accent-subtle);
+  border-color: var(--accent-muted);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.dbt-btn--execute:hover {
+  background: var(--accent-muted);
+}
+
+/* DBT Icon Button */
+.dbt-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  transition: all var(--transition-fast);
+}
+
+.dbt-icon-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  border: none;
+}
+
+.dbt-icon-btn--danger:hover {
+  color: var(--feedback-error-text);
+  background: var(--feedback-error-bg);
+}
+
+/* Environment Status */
+.dbt-env-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dbt-env-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 450;
+}
+
+.dbt-env-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dbt-env-dot--ok {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+.dbt-env-dot--fail {
+  background: #ff6b6b;
+  box-shadow: 0 0 6px rgba(255, 107, 107, 0.4);
+}
+
+.dbt-env-version {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* DBT Hints */
+.dbt-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--feedback-warning-bg);
+  border: 1px solid var(--feedback-warning-border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--feedback-warning-text);
+}
+
+.dbt-hint code {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* DBT Tags */
+.dbt-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.dbt-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: var(--accent-subtle);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* DBT Template Grid */
+.dbt-template-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dbt-template-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dbt-template-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.dbt-template-btn--active {
+  background: var(--accent-subtle);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* DBT Source Table Row */
+.dbt-source-table-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.dbt-source-table-row input {
+  padding: 5px 8px;
+  font-size: 12px;
+  flex: 1;
+}
+
+/* Command Box */
+.dbt-command-box {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dbt-command-box code {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--accent-primary);
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+.dbt-command-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Quick Actions */
+.dbt-quick-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dbt-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-overlay);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dbt-quick-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-subtle);
+}
+
+/* Checkbox */
+.dbt-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.dbt-checkbox input[type="checkbox"] {
+  accent-color: var(--accent-primary);
+  width: 14px;
+  height: 14px;
+}
+
+/* Output Panel */
+.dbt-output {
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.dbt-output-line {
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.dbt-output-line--err {
+  color: var(--feedback-warning-text);
+}
+
+.dbt-output-line--fatal {
+  color: var(--feedback-error-text);
+}
+
+.dbt-output-line--running {
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Exit Badge */
+.dbt-exit-badge {
+  display: inline-flex;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.dbt-exit-badge--ok {
+  background: var(--feedback-success-bg);
+  color: var(--feedback-success-text);
+  border: 1px solid var(--feedback-success-border);
+}
+
+.dbt-exit-badge--fail {
+  background: var(--feedback-error-bg);
+  color: var(--feedback-error-text);
+  border: 1px solid var(--feedback-error-border);
+}
+
+/* Preview Pane */
+.dbt-preview {
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dbt-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--surface-raised);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.dbt-code {
+  margin: 0;
+  padding: 10px;
+  background: var(--surface-base);
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Toast */
+.dbt-toast {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin: 4px 12px;
+  background: var(--feedback-success-bg);
+  border: 1px solid var(--feedback-success-border);
+  border-radius: 6px;
+  color: var(--feedback-success-text);
+  font-size: 11px;
+  font-weight: 500;
+  animation: dbt-toast-in 0.2s ease;
+}
+
+.dbt-toast--error {
+  background: var(--feedback-error-bg);
+  border-color: var(--feedback-error-border);
+  color: var(--feedback-error-text);
+}
+
+@keyframes dbt-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Spinner */
+@keyframes dbt-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dbt-spin {
+  animation: dbt-spin 1s linear infinite;
+}
+
+/* Empty State */
+.dbt-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 20px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.dbt-empty-state p {
+  font-size: 12px;
+  margin: 0;
+}
+
+/* Subtle Text */
+.dbt-subtle-text {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Loading State */
+.dbt-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 8px 0;
+}
+
+/* Steps List */
+.dbt-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 2;
+}
+
+.dbt-steps code {
+  background: var(--surface-inset);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-primary);
+}
+
+/* Project Info */
+.dbt-project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dbt-config-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dbt-config-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dbt-config-row:last-child {
+  border-bottom: none;
+}
+
+.dbt-config-row span {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.dbt-config-row code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-primary);
+  background: var(--surface-inset);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
