@@ -872,7 +872,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                     <div>
                                         <h2 style={{ margin: 0, color: 'var(--text-active)', fontSize: '20px' }}>AmoxSQL</h2>
-                                        <p style={{ margin: '4px 0 0 0', color: 'var(--accent-color-user)', fontSize: '12px', fontWeight: 'bold' }}>Version 1.5.0</p>
+                                        <p style={{ margin: '4px 0 0 0', color: 'var(--accent-color-user)', fontSize: '12px', fontWeight: 'bold' }}>Version {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?.?.?'}</p>
                                         <p style={{ margin: '2px 0 0 0', color: 'var(--text-muted)', fontSize: '11px' }}>DuckDB Engine: {duckdbVersion}</p>
                                     </div>
                                 </div>

@@ -14,12 +14,46 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
     const [activeSection, setActiveSection] = useState('setup'); // setup | config | models | sources | commands
 
     // Environment state
-    const [envStatus, setEnvStatus] = useState(null);
+    const [envStatus, setEnvStatus] = useState(() => {
+        try {
+            const cached = localStorage.getItem('amox-dbt-env-cache');
+            if (cached) return JSON.parse(cached).envStatus || null;
+        } catch (e) { /* no cache */ }
+        return null;
+    });
 
     // Conda environments
-    const [condaEnvs, setCondaEnvs] = useState([]);
+    const [condaEnvs, setCondaEnvs] = useState(() => {
+        try {
+            const cached = localStorage.getItem('amox-dbt-env-cache');
+            if (cached) return JSON.parse(cached).condaEnvs || [];
+        } catch (e) { /* no cache */ }
+        return [];
+    });
     const [condaEnvsLoading, setCondaEnvsLoading] = useState(false);
-    const [selectedCondaEnv, setSelectedCondaEnv] = useState('none');
+    const [selectedCondaEnv, setSelectedCondaEnv] = useState(() => {
+        try {
+            const cached = localStorage.getItem('amox-dbt-env-cache');
+            if (cached) return JSON.parse(cached).selectedCondaEnv || 'none';
+        } catch (e) { /* no cache */ }
+        return 'none';
+    });
+    const [condaPath, setCondaPath] = useState(() => {
+        try {
+            const cached = localStorage.getItem('amox-dbt-env-cache');
+            if (cached) return JSON.parse(cached).condaPath || null;
+        } catch (e) { /* no cache */ }
+        return null;
+    });
+    const [envDbtVersion, setEnvDbtVersion] = useState(null);
+    const [envDbtLoading, setEnvDbtLoading] = useState(false);
+    const [envCacheTime, setEnvCacheTime] = useState(() => {
+        try {
+            const cached = localStorage.getItem('amox-dbt-env-cache');
+            if (cached) return JSON.parse(cached).timestamp || null;
+        } catch (e) { /* no cache */ }
+        return null;
+    });
     const [envLoading, setEnvLoading] = useState(false);
 
     // Project state
@@ -88,25 +122,49 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
             const res = await fetch(`${API}/dbt/validate-env`);
             const data = await res.json();
             setEnvStatus(data);
-            // If conda detected, load envs
-            if (data.conda) loadCondaEnvs();
+            if (data.condaPath) setCondaPath(data.condaPath);
+            if (data.conda) {
+                await loadCondaEnvs(data.condaPath, data);
+            } else {
+                // Save env-only cache (no conda)
+                saveEnvCache(data, [], null, 'none');
+            }
         } catch (err) {
             setEnvStatus({ python: false, dbt: false, conda: false, error: err.message });
         }
         setEnvLoading(false);
     }, []);
 
+    // --- Save cache to localStorage ---
+    const saveEnvCache = (env, envs, cPath, selEnv) => {
+        const cache = {
+            envStatus: env,
+            condaEnvs: envs,
+            condaPath: cPath,
+            selectedCondaEnv: selEnv,
+            timestamp: new Date().toISOString(),
+        };
+        try {
+            localStorage.setItem('amox-dbt-env-cache', JSON.stringify(cache));
+            setEnvCacheTime(cache.timestamp);
+        } catch (e) { /* quota exceeded etc */ }
+    };
+
     // --- Load Conda Environments ---
-    const loadCondaEnvs = async () => {
+    const loadCondaEnvs = async (cPath, envData) => {
         setCondaEnvsLoading(true);
         try {
-            const res = await fetch(`${API}/dbt/conda-envs`);
+            const cp = cPath || condaPath || '';
+            const qs = cp && cp !== 'conda' ? `?condaPath=${encodeURIComponent(cp)}` : '';
+            const res = await fetch(`${API}/dbt/conda-envs${qs}`);
             const data = await res.json();
             if (data.success && data.envs) {
                 setCondaEnvs(data.envs);
-                // Auto-select the first env that has dbt installed
                 const dbtEnv = data.envs.find(e => e.hasDbt);
-                if (dbtEnv) setSelectedCondaEnv(dbtEnv.name);
+                const selEnv = dbtEnv ? dbtEnv.name : 'none';
+                if (dbtEnv) setSelectedCondaEnv(selEnv);
+                // Save to cache
+                saveEnvCache(envData || envStatus, data.envs, cp || null, selEnv);
             }
         } catch (err) {
             console.error('Failed to load conda envs', err);
@@ -127,11 +185,37 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
         setProjectLoading(false);
     }, []);
 
-    // Initial load
+    // Initial load — use cache if available, only fetch project info fresh
     useEffect(() => {
-        checkEnv();
+        if (!envStatus) {
+            // No cache — do full discovery
+            checkEnv();
+        }
         detectProject();
     }, [checkEnv, detectProject]);
+
+    // Check exact DBT version when conda env changes
+    useEffect(() => {
+        if (!selectedCondaEnv || selectedCondaEnv === 'none') {
+            setEnvDbtVersion(null);
+            return;
+        }
+
+        const checkEnvDbt = async () => {
+            setEnvDbtLoading(true);
+            try {
+                const cp = condaPath || 'conda';
+                const qs = cp && cp !== 'conda' ? `condaPath=${encodeURIComponent(cp)}&` : '';
+                const res = await fetch(`${API}/dbt/check-env-dbt?${qs}envName=${encodeURIComponent(selectedCondaEnv)}`);
+                const data = await res.json();
+                setEnvDbtVersion(data.found ? data.version : null);
+            } catch (err) {
+                setEnvDbtVersion(null);
+            }
+            setEnvDbtLoading(false);
+        };
+        checkEnvDbt();
+    }, [selectedCondaEnv, condaPath]);
 
     // --- Init Project ---
     const handleInitProject = async () => {
@@ -327,7 +411,7 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
             const res = await fetch(`${API}/dbt/execute`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: generatedCmd, condaEnv: selectedCondaEnv })
+                body: JSON.stringify({ command: generatedCmd, condaEnv: selectedCondaEnv, condaPath })
             });
 
             const reader = res.body.getReader();
@@ -439,15 +523,26 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
                                         <span className="dbt-env-version">{envStatus.python ? `v${envStatus.pythonVersion}` : 'Not found'}</span>
                                     </div>
                                     <div className="dbt-env-item">
-                                        <div className={`dbt-env-dot ${envStatus.dbt ? 'dbt-env-dot--ok' : 'dbt-env-dot--fail'}`} />
+                                        <div className={`dbt-env-dot ${(envDbtVersion || envStatus.dbt) ? 'dbt-env-dot--ok' : 'dbt-env-dot--fail'}`} />
                                         <span>DBT</span>
-                                        <span className="dbt-env-version">{envStatus.dbt ? `v${envStatus.dbtVersion}` : 'Not found'}</span>
+                                        {envDbtLoading ? (
+                                            <span className="dbt-env-version"><LuLoader size={10} className="dbt-spin" /> checking env...</span>
+                                        ) : (
+                                            <span className="dbt-env-version">
+                                                {envDbtVersion ? `v${envDbtVersion} (env)` : (envStatus.dbt ? `v${envStatus.dbtVersion} (sys)` : 'Not found')}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="dbt-env-item">
                                         <div className={`dbt-env-dot ${envStatus.conda ? 'dbt-env-dot--ok' : 'dbt-env-dot--fail'}`} />
                                         <span>Conda</span>
                                         <span className="dbt-env-version">{envStatus.conda ? `v${envStatus.condaVersion}` : 'Not found'}</span>
                                     </div>
+                                    {envStatus.conda && envStatus.condaPath && envStatus.condaPath !== 'conda' && (
+                                        <div style={{ paddingLeft: '14px', fontSize: '10px', color: 'var(--text-tertiary)', wordBreak: 'break-all' }}>
+                                            ⚠ Not in PATH — found at: {envStatus.condaPath}
+                                        </div>
+                                    )}
                                     {envStatus.mamba && (
                                         <div className="dbt-env-item">
                                             <div className="dbt-env-dot dbt-env-dot--ok" />
@@ -462,7 +557,25 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
                             {envStatus && (
                                 <div style={{ marginTop: '6px', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
                                     <div className="dbt-form-field">
-                                        <label>Conda Environment</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <label style={{ margin: 0 }}>Conda Environment</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                {envCacheTime && (
+                                                    <span style={{ fontSize: '9px', color: 'var(--text-tertiary)' }}>
+                                                        {new Date(envCacheTime).toLocaleDateString()}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    className="dbt-icon-btn"
+                                                    onClick={() => checkEnv()}
+                                                    disabled={envLoading || condaEnvsLoading}
+                                                    title="Refresh environment detection"
+                                                    style={{ padding: '2px' }}
+                                                >
+                                                    <LuRefreshCw size={11} className={envLoading || condaEnvsLoading ? 'dbt-spin' : ''} />
+                                                </button>
+                                            </div>
+                                        </div>
                                         {envStatus.conda ? (
                                             condaEnvsLoading ? (
                                                 <div className="dbt-loading" style={{ padding: '4px 0' }}>
@@ -913,7 +1026,7 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
                 )}
 
             </div>
-        </div>
+        </div >
     );
 };
 

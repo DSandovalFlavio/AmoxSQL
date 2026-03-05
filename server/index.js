@@ -781,7 +781,7 @@ app.get('/api/dbt/validate-env', (req, res) => {
     const result = {
         python: false, pythonVersion: null,
         dbt: false, dbtVersion: null,
-        conda: false, condaVersion: null,
+        conda: false, condaVersion: null, condaPath: null,
         mamba: false, mambaVersion: null,
         activeCondaEnv: null,
     };
@@ -804,12 +804,55 @@ app.get('/api/dbt/validate-env', (req, res) => {
         result.dbtVersion = match ? match[1] : output.split('\n')[0];
     } catch (e) { /* dbt not found */ }
 
-    // Check Conda
+    // Check Conda — first try PATH
     try {
         const output = execSync('conda --version', { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
         result.conda = true;
         result.condaVersion = output.replace('conda ', '');
-    } catch (e) { /* conda not found */ }
+        result.condaPath = 'conda';
+    } catch (e) {
+        // Not in PATH — scan common install locations
+        const home = process.env.USERPROFILE || process.env.HOME || '';
+        const localAppData = process.env.LOCALAPPDATA || '';
+        const programData = process.env.ProgramData || 'C:\\ProgramData';
+        const candidateDirs = [
+            path.join(home, 'anaconda3'), path.join(home, 'Anaconda3'),
+            path.join(home, 'miniconda3'), path.join(home, 'Miniconda3'),
+            path.join(home, 'miniforge3'), path.join(home, 'mambaforge'),
+            path.join(localAppData, 'anaconda3'), path.join(localAppData, 'Anaconda3'),
+            path.join(localAppData, 'miniconda3'), path.join(localAppData, 'Miniconda3'),
+            path.join(localAppData, 'miniforge3'),
+            path.join(programData, 'anaconda3'), path.join(programData, 'Anaconda3'),
+            path.join(programData, 'miniconda3'), path.join(programData, 'Miniconda3'),
+            'C:\\anaconda3', 'C:\\miniconda3', 'C:\\Anaconda3', 'C:\\Miniconda3',
+            path.join(home, 'opt', 'anaconda3'), path.join(home, 'opt', 'miniconda3'),
+            '/opt/anaconda3', '/opt/miniconda3', '/opt/homebrew/anaconda3',
+        ].filter(d => d && !d.startsWith(path.join('', '')));
+
+        for (const dir of candidateDirs) {
+            const exePaths = [
+                path.join(dir, 'condabin', 'conda.bat'),
+                path.join(dir, 'Scripts', 'conda.exe'),
+                path.join(dir, 'conda.exe'),
+                path.join(dir, 'condabin', 'conda'),
+                path.join(dir, 'bin', 'conda'),
+            ];
+            for (const condaExe of exePaths) {
+                if (fs.existsSync(condaExe)) {
+                    try {
+                        const out = execSync(`"${condaExe}" --version`, {
+                            encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
+                        }).trim();
+                        result.conda = true;
+                        result.condaVersion = out.replace('conda ', '');
+                        result.condaPath = condaExe;
+                        break;
+                    } catch (ex) { /* found but can't exec */ }
+                }
+            }
+            if (result.conda) break;
+        }
+    }
 
     // Check Mamba
     try {
@@ -829,36 +872,59 @@ app.get('/api/dbt/validate-env', (req, res) => {
 
 // List conda environments and check for dbt in each
 app.get('/api/dbt/conda-envs', (req, res) => {
+    const condaCmd = req.query.condaPath || 'conda';
     try {
-        const output = execSync('conda env list --json', { encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] });
+        const output = execSync(`"${condaCmd}" env list --json`, { encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] });
         const parsed = JSON.parse(output);
         const envPaths = parsed.envs || [];
 
         const envs = envPaths.map(envPath => {
             const name = path.basename(envPath);
-            // For base env, the name is the full path — detect it
             const isBase = envPath === (parsed.root_prefix || envPath);
             const envName = isBase ? 'base' : name;
 
-            // Check if dbt exists in this env
+            // Fast filesystem check for dbt executable (no process spawn)
             let hasDbt = false;
-            let dbtVersion = null;
-            try {
-                const dbtOut = execSync(`conda run --no-capture-output -n ${envName} dbt --version`, {
-                    encoding: 'utf8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe']
-                }).trim();
-                hasDbt = true;
-                const vMatch = dbtOut.match(/installed:\s*([\d.]+)/);
-                dbtVersion = vMatch ? vMatch[1] : null;
-            } catch (e) { /* dbt not in this env */ }
+            const dbtCandidates = [
+                path.join(envPath, 'Scripts', 'dbt.exe'),   // Windows
+                path.join(envPath, 'bin', 'dbt'),            // macOS/Linux
+                path.join(envPath, 'Scripts', 'dbt'),        // Windows alt
+            ];
+            for (const dbtExe of dbtCandidates) {
+                if (fs.existsSync(dbtExe)) {
+                    hasDbt = true;
+                    break;
+                }
+            }
 
-            return { name: envName, path: envPath, hasDbt, dbtVersion };
+            return { name: envName, path: envPath, hasDbt, dbtVersion: null };
         });
 
         res.json({ success: true, envs });
     } catch (err) {
         // Conda not available or failed
         res.json({ success: false, envs: [], error: err.message });
+    }
+});
+
+// Check dbt version in a specific conda env (uses pip show — fast and reliable)
+app.get('/api/dbt/check-env-dbt', (req, res) => {
+    const { envName, condaPath: cp } = req.query;
+    if (!envName) return res.status(400).json({ error: 'envName is required' });
+
+    const condaCmd = cp || 'conda';
+    try {
+        const output = execSync(`"${condaCmd}" run --no-capture-output -n ${envName} pip show dbt-core`, {
+            encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe']
+        }).trim();
+        const match = output.match(/Version:\s*([\d.]+)/i);
+        if (match) {
+            res.json({ found: true, version: match[1] });
+        } else {
+            res.json({ found: false, version: null });
+        }
+    } catch (e) {
+        res.json({ found: false, version: null });
     }
 });
 
@@ -1326,9 +1392,11 @@ app.post('/api/dbt/execute', (req, res) => {
     }
 
     // Wrap with conda run if a conda env is specified
+    const { condaPath } = req.body;
     let finalCmd = command;
     if (condaEnv && condaEnv !== 'none') {
-        finalCmd = `conda run --no-capture-output -n ${condaEnv} ${command}`;
+        const condaCmd = condaPath || 'conda';
+        finalCmd = `"${condaCmd}" run --no-capture-output -n ${condaEnv} ${command}`;
     }
 
     // Set up SSE for streaming output
