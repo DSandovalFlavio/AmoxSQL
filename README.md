@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v1.6.0)
+# AmoxSQL (v1.7.0)
 
 > **The Modern Codex for Local Data Analysis.**
 >
@@ -66,6 +66,7 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 *   **Intuitive Drag & Drop**: Instantly drag tables or individual columns from the sidebar directly into your SQL Editor.
 *   **Instant Table Preview**: Quick "Magnifying Glass" feature to peek at the first 50 rows of any table from the sidebar.
 *   **Enhanced Results Table**:
+    *   **Resizable Columns**: Dynamically drag column borders to fit content perfectly, overcoming default width constraints.
     *   **Global Search**: Filter results instantly across all columns.
     *   **Sorting**: Click column headers to sort ascending/descending.
 
@@ -95,7 +96,9 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 * **Save Queries**: Save your work directly as `.sql` files within your project structure.
 * **Query History & Bookmarks**: Sidebar panel to quickly browse past queries, filter by keywords, and bookmark favorites for instant re-use.
 * **SQL Snippets**: Built-in library of DuckDB-specific templates (Window Functions, Aggregation, Dates, Data Quality) to accelerate query writing.
-* **Enhanced Autocomplete**: 60+ DuckDB functions with inline documentation and snippet insertion right in the editor.
+* **Hybrid Function Catalog**: 
+    * Autocomplete and hover-docs powered by a curated rich-text database merged live with local schema introspection.
+    * Instantly see function signatures, parameters, descriptions, and snippet examples.
 * **Parameterized Queries**: Define `${variables}` via the visual toolbar (Text, Date, Number) that automatically resolve across your scripts before execution.
 * **Inline Error Highlighting**: When a query fails, the editor shows a red squiggly underline on the exact error line with a hover tooltip — errors auto-clear when you edit.
 
@@ -148,10 +151,10 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-### 🎁 v1.6.0 — Free Public Release
+### 🎁 v1.7.0 — Free Public Release
 This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-👉 **[Download v1.6.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
+👉 **[Download v1.7.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
 ### 🚀 Future Versions — Sponsors Only
 Starting with v1.5+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:

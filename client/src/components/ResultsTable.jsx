@@ -5,7 +5,7 @@ import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import ExportDataModal from './ExportDataModal';
 
-const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {} }) => {
+const ResultsTable = ({ data, types, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {} }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
@@ -450,7 +450,12 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                                     overflow: 'hidden', whiteSpace: 'nowrap'
                                                 }}
                                             >
-                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{col}</span>
+                                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{col}</span>
+                                                    {types && types[col] && (
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>{types[col]}</span>
+                                                    )}
+                                                </div>
                                                 <span style={{ fontSize: '10px', opacity: 0.7, display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '4px' }}>
                                                     {isSorted && (sortConfig.direction === 'asc' ? <LuChevronUp size={10} /> : <LuChevronDown size={10} />)}
                                                 </span>

@@ -614,13 +614,14 @@ app.post('/api/query', async (req, res) => {
 
     try {
         const start = performance.now();
-        const result = await dbManager.query(query);
+        const result = await dbManager.queryWithMetadata(query);
         const end = performance.now();
 
         res.json({
-            data: result,
+            data: result.rows,
+            types: result.types,
             executionTime: (end - start).toFixed(2),
-            rowCount: result.length
+            rowCount: result.rows.length
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

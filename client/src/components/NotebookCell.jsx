@@ -188,7 +188,7 @@ const NotebookCell = ({
             const data = await response.json();
 
             if (response.ok) {
-                setDebugResult({ data: data.data, executionTime: data.executionTime });
+                setDebugResult({ data: data.data, types: data.types, executionTime: data.executionTime });
             } else {
                 setDebugResult({ error: data.error });
             }
@@ -324,6 +324,7 @@ const NotebookCell = ({
                                         }>
                                             <ResultsTable
                                                 data={result.data}
+                                                types={result.types}
                                                 executionTime={result.executionTime}
                                                 query={localContent}
                                                 onDbChange={() => { }}

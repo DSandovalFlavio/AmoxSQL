@@ -131,7 +131,7 @@ const EditorPane = ({
             const data = await response.json();
 
             if (response.ok) {
-                setDebugResult({ data: data.data, executionTime: data.executionTime });
+                setDebugResult({ data: data.data, types: data.types, executionTime: data.executionTime });
             } else {
                 setDebugResult({ error: data.error });
             }
@@ -162,6 +162,7 @@ const EditorPane = ({
             {activeTab.results && (
                 <ResultsTable
                     data={activeTab.results.data}
+                    types={activeTab.results.types}
                     executionTime={activeTab.results.executionTime}
                     query={activeTab.content}
                     onDbChange={onDbChange}

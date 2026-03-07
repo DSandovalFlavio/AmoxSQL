@@ -206,6 +206,33 @@ class DatabaseManager {
         }
     }
 
+    async queryWithMetadata(sql) {
+        if (!this.connection) await this._initSystem();
+
+        if (!sql.includes('amox_query_history')) {
+            this._logQuery(sql);
+        }
+
+        try {
+            const reader = await this.connection.run(sql);
+
+            const types = {};
+            if (reader.columnNames && reader.columnTypes) {
+                const names = reader.columnNames();
+                const typeObjs = reader.columnTypes();
+                for (let i = 0; i < names.length; i++) {
+                    types[names[i]] = typeObjs[i].toString();
+                }
+            }
+
+            const rows = await reader.getRowObjectsJson();
+            return { rows, types };
+
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    }
+
     async close() {
         if (!this.connection) return;
 

@@ -45,6 +45,7 @@ const DebugResultModal = ({ isOpen, onClose, cteName, result, query }) => {
                             ) : (
                                 <ResultsTable
                                     data={result.data}
+                                    types={result.types}
                                     executionTime={result.executionTime}
                                     query={query}
                                 />
