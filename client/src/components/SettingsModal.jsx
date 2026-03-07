@@ -31,6 +31,11 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     // DuckDB Version (auto-fetched)
     const [duckdbVersion, setDuckdbVersion] = useState('...');
 
+    // Function Catalog State
+    const [catalogStats, setCatalogStats] = useState({ total: 0, documented: 0, cacheExists: false, undocumented: [] });
+    const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
+    const [showUndocumented, setShowUndocumented] = useState(false);
+
     // Helper: open links in system browser (Electron) or new tab (browser)
     const openExternalLink = (e, url) => {
         e.preventDefault();
@@ -72,8 +77,32 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     }
                 })
                 .catch(() => setDuckdbVersion('N/A'));
+
+            // Fetch Function Catalog Stats
+            fetchCatalogStats();
         }
     }, [isOpen]);
+
+    const fetchCatalogStats = () => {
+        fetch('http://localhost:3001/api/functions/coverage')
+            .then(res => res.json())
+            .then(data => setCatalogStats(data))
+            .catch(err => console.error("Failed to load catalog stats", err));
+    };
+
+    const handleRefreshCatalog = async () => {
+        setIsRefreshingCatalog(true);
+        try {
+            await fetch('http://localhost:3001/api/functions/refresh', { method: 'POST' });
+            fetchCatalogStats();
+            // Dispatch event to force SqlEditor to reload catalog
+            window.dispatchEvent(new Event('amox_catalog_refreshed'));
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsRefreshingCatalog(false);
+        }
+    };
 
     // Fetch Ollama Models when switching provider
     useEffect(() => {
@@ -615,6 +644,83 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </select>
                                         </div>
 
+                                    </div>
+                                </div>
+
+                                <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: '0' }} />
+
+                                {/* ── Editor Intelligence ── */}
+                                <div>
+                                    <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-tertiary)', marginBottom: '14px', fontWeight: 600 }}>Editor Intelligence</h3>
+
+                                    <div style={{ backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '15px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                            <h4 style={{ margin: 0, fontSize: '13px', color: 'var(--text-active)' }}>DuckDB Function Catalog</h4>
+                                            <button
+                                                onClick={handleRefreshCatalog}
+                                                disabled={isRefreshingCatalog}
+                                                style={{
+                                                    padding: '4px 10px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)',
+                                                    backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', cursor: isRefreshingCatalog ? 'default' : 'pointer',
+                                                    display: 'flex', alignItems: 'center', gap: '6px'
+                                                }}
+                                            >
+                                                {isRefreshingCatalog ? <LuLoader size={12} style={{ animation: 'spin 2s linear infinite' }} /> : null}
+                                                {catalogStats.cacheExists ? 'Refresh Cache' : 'Generate Cache'}
+                                            </button>
+                                        </div>
+
+                                        <p style={{ margin: '0 0 15px 0', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                                            The editor provides rich autocompletion and hover documentation for DuckDB functions.
+                                            We merge curated rich docs with live database introspection.
+                                        </p>
+
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-active)', marginBottom: '6px' }}>
+                                                <span>Rich Documentation Coverage</span>
+                                                <span>{catalogStats.documented} / {catalogStats.total > 0 ? catalogStats.total : '?'} functions</span>
+                                            </div>
+                                            <div style={{ height: '6px', backgroundColor: 'var(--input-bg)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                                                <div style={{
+                                                    height: '100%',
+                                                    width: catalogStats.total > 0 ? `${(catalogStats.documented / catalogStats.total) * 100}%` : '0%',
+                                                    backgroundColor: 'var(--accent-color-user)',
+                                                    transition: 'width 0.3s ease'
+                                                }} />
+                                            </div>
+                                        </div>
+
+                                        {catalogStats.undocumented?.length > 0 && (
+                                            <div>
+                                                <button
+                                                    onClick={() => setShowUndocumented(!showUndocumented)}
+                                                    style={{
+                                                        background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: 0,
+                                                        fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                                                    }}
+                                                >
+                                                    {showUndocumented ? 'Hide' : 'Show'} {catalogStats.undocumented.length} functions with basic auto-generated docs
+                                                </button>
+
+                                                {showUndocumented && (
+                                                    <div style={{
+                                                        marginTop: '10px', maxHeight: '150px', overflowY: 'auto',
+                                                        backgroundColor: 'var(--surface-base)', borderRadius: '4px', border: '1px solid var(--border-subtle)', padding: '5px'
+                                                    }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '4px' }}>
+                                                            {catalogStats.undocumented.map((fn, i) => (
+                                                                <div key={i} title={fn.description} style={{
+                                                                    fontSize: '10px', color: 'var(--text-muted)', padding: '2px 6px',
+                                                                    backgroundColor: 'var(--input-bg)', borderRadius: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                                                }}>
+                                                                    {fn.function_name}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

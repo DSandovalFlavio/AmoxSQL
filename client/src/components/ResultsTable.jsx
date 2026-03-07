@@ -39,20 +39,11 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
         setColumnFilters({});
     }, [data]);
 
-    if (!data || data.length === 0) {
-        return <div style={{ padding: '10px' }}>No results{executionTime ? ` (${executionTime}ms)` : ''}</div>;
-    }
-
-    const columns = (data && data.length > 0 && data[0]) ? Object.keys(data[0]) : [];
-
-    if (columns.length === 0) {
-        return <div style={{ padding: '10px' }}>No columns found in result.</div>;
-    }
-
     // --- Data Processing Pipeline ---
 
     // 1. Filtering (Global & Column)
     const filteredData = useMemo(() => {
+        if (!data || data.length === 0) return [];
         return data.filter(row => {
             // Global Search
             if (deferredGlobalSearch) {
@@ -114,6 +105,17 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
     const startIndex = isReportMode ? 0 : (currentPage - 1) * effectivePageSize;
     const endIndex = Math.min(startIndex + effectivePageSize, totalRows);
     const currentData = sortedData.slice(startIndex, endIndex);
+
+    // Early Returns after all Hooks
+    if (!data || data.length === 0) {
+        return <div style={{ padding: '10px' }}>No results{executionTime ? ` (${executionTime}ms)` : ''}</div>;
+    }
+
+    const columns = (data && data.length > 0 && data[0]) ? Object.keys(data[0]) : [];
+
+    if (columns.length === 0) {
+        return <div style={{ padding: '10px' }}>No columns found in result.</div>;
+    }
 
     // Handlers
     const handleSort = (key) => {
@@ -287,7 +289,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
 
                             {/* Export / Save */}
                             <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <LuSave size={14} /> Save As
+                                <LuSave size={14} /> Save to DB
                             </button>
 
                             {/* Export Dropdown */}
@@ -306,6 +308,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                         padding: '4px', minWidth: '160px', backdropFilter: 'blur(12px)',
                                         animation: 'dropdown-in 0.15s ease-out',
                                     }}>
+                                        <div style={{ padding: '4px 12px 2px', fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Export</div>
                                         {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={14} />, fn: handleExportCsv },
                                         { label: 'Export JSON', icon: <LuFileJson size={14} />, fn: handleExportJson },
                                         { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={14} />, fn: handleCopyClipboard },
@@ -320,13 +323,14 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                             </div>
                                         ))}
                                         <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
+                                        <div style={{ padding: '4px 12px 2px', fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Full Export (DuckDB)</div>
                                         <div
                                             onClick={() => { setIsExportDataOpen(true); setShowExportMenu(false); }}
                                             style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease', fontWeight: 600 }}
                                             onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; }}
                                             onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
                                         >
-                                            <LuFileDown size={14} /> Export to File...
+                                            <LuFileDown size={14} /> Export to File…
                                         </div>
                                     </div>
                                 )}
@@ -358,12 +362,13 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                         </div>
                     )}
                 </div>
-            )}
+            )
+            }
 
             {/* Results Content */}
             <div key={viewMode} style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: viewMode === 'chart' ? '200px' : undefined, animation: 'fadeIn 0.25s ease' }}>
                 {viewMode === 'table' ? (
-                    <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontSize: `${editorSettings.resultsFontSize || 13}px` }}>
+                    <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontSize: `${editorSettings.resultsFontSize || 13}px`, tableLayout: 'fixed', width: '100%' }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                             <tr>
                                 {columns.map((col) => {
@@ -378,7 +383,11 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                                 color: 'var(--text-active)',
                                                 borderRight: '1px solid var(--border-color)',
                                                 borderBottom: '1px solid var(--border-color)',
-                                                minWidth: '100px'
+                                                minWidth: '100px',
+                                                maxWidth: '300px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap'
                                             }}
                                             onClick={() => handleSort(col)}
                                             title="Click to sort"
@@ -418,7 +427,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                 currentData.map((row, rowIndex) => (
                                     <tr key={rowIndex}>
                                         {columns.map((col) => (
-                                            <td key={`${rowIndex}-${col}`}>{formatValue(row ? row[col] : null)}</td>
+                                            <td key={`${rowIndex}-${col}`} title={row ? (typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col] ?? '')) : ''} style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatValue(row ? row[col] : null)}</td>
                                         ))}
                                     </tr>
                                 ))
@@ -449,7 +458,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                 onClose={() => setIsExportDataOpen(false)}
                 query={query}
             />
-        </div>
+        </div >
     );
 }
 

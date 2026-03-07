@@ -54,6 +54,7 @@ function App() {
   const [currentDb, setCurrentDb] = useState(':memory:');
   const [dbReadOnly, setDbReadOnly] = useState(false);
   const [refreshDbTrigger, setRefreshDbTrigger] = useState(0);
+  const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0);
 
   // Import State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -68,6 +69,10 @@ function App() {
 
   // AI Integration State
   const [showAiSidebar, setShowAiSidebar] = useState(false);
+
+  // Toolbar Dropdown State
+  const [showToolbarSaveMenu, setShowToolbarSaveMenu] = useState(false);
+  const [showToolbarNewMenu, setShowToolbarNewMenu] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
 
   // Sidebar Architecture State
@@ -448,6 +453,7 @@ function App() {
         throw new Error(data.error);
       }
       toast.success(`Folder "${folderName}" created`);
+      setFileRefreshTrigger(t => t + 1);
     } catch (err) {
       toast.error(`Failed to create folder: ${err.message}`);
     }
@@ -615,6 +621,7 @@ function App() {
                   onImportFile={handleImportRequest}
                   onQueryFile={(path) => layoutRef.current?.handleQueryFile(path)}
                   onEditChart={(path) => layoutRef.current?.handleEditChart(path)}
+                  refreshTrigger={fileRefreshTrigger}
                 />
               </div>
             )}
@@ -691,36 +698,97 @@ function App() {
                 </button>
                 <button
                   onClick={() => layoutRef.current?.handleTriggerAnalyze()}
-                  title="Analyze Query Plan"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)' }}
+                  title="Analyze Query Plan (Ctrl+Shift+E)"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)', padding: '4px 8px' }}
                 >
-                  <LuActivity size={14} /> Analyze
+                  <LuActivity size={14} />
                 </button>
-                <button onClick={() => layoutRef.current?.handleTriggerSave()} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <LuSave size={14} /> Save
-                </button>
+
+                {/* Save Dropdown */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => { setShowToolbarSaveMenu(v => !v); setShowToolbarNewMenu(false); }}
+                    title="Save (Ctrl+S)"
+                    style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <LuSave size={14} /> Save ▾
+                  </button>
+                  {showToolbarSaveMenu && (
+                    <div style={{
+                      position: 'absolute', left: 0, top: '100%', marginTop: '4px',
+                      backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
+                      borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
+                      padding: '4px', minWidth: '160px', backdropFilter: 'blur(12px)',
+                      animation: 'dropdown-in 0.15s ease-out',
+                    }}>
+                      <div onClick={() => { layoutRef.current?.handleTriggerSave(); setShowToolbarSaveMenu(false); }}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      >
+                        <LuSave size={14} /> Save
+                        <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--text-muted)' }}>Ctrl+S</span>
+                      </div>
+                      <div onClick={() => {
+                        const content = layoutRef.current?.handleTriggerSave;
+                        setPendingSaveContent('');
+                        setIsSaveModalOpen(true);
+                        setShowToolbarSaveMenu(false);
+                      }}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      >
+                        <LuSave size={14} /> Save As…
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
-                <button
-                  onClick={() => layoutRef.current?.createNew('sql')}
-                  title="Create New SQL Query"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
-                >
-                  <LuFilePlus size={14} /> New SQL
-                </button>
-                <button
-                  onClick={() => layoutRef.current?.createNew('notebook')}
-                  title="Create New Analytics Notebook"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
-                >
-                  <LuFilePlus size={14} /> New Notebook
-                </button>
+
+                {/* New Dropdown */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => { setShowToolbarNewMenu(v => !v); setShowToolbarSaveMenu(false); }}
+                    title="Create New File"
+                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
+                  >
+                    <LuFilePlus size={14} /> New ▾
+                  </button>
+                  {showToolbarNewMenu && (
+                    <div style={{
+                      position: 'absolute', left: 0, top: '100%', marginTop: '4px',
+                      backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
+                      borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
+                      padding: '4px', minWidth: '170px', backdropFilter: 'blur(12px)',
+                      animation: 'dropdown-in 0.15s ease-out',
+                    }}>
+                      <div onClick={() => { layoutRef.current?.createNew('sql'); setShowToolbarNewMenu(false); }}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      >
+                        <LuCode size={14} /> SQL Query
+                      </div>
+                      <div onClick={() => { layoutRef.current?.createNew('notebook'); setShowToolbarNewMenu(false); }}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      >
+                        <LuFilePlus size={14} /> Notebook
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
                 <button
                   onClick={handleOpenChain}
                   title="Run Execution Chain"
                   style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
                 >
-                  <LuLink size={14} /> Run Chain
+                  <LuLink size={14} /> Chain
                 </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center' }}>

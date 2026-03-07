@@ -6,7 +6,7 @@ import {
     LuPencil, LuTrash2
 } from "react-icons/lu";
 
-const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onEditChart }) => {
+const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onEditChart, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -24,6 +24,11 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
     useEffect(() => {
         fetchFiles(currentPath);
     }, [currentPath]);
+
+    // Refresh when parent triggers (e.g. after folder creation)
+    useEffect(() => {
+        if (refreshTrigger > 0) fetchFiles(currentPath);
+    }, [refreshTrigger]);
 
     useEffect(() => {
         // Close context menu on click outside

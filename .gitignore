@@ -131,3 +131,7 @@ dbt_packages/
 logs/
 *.duckdb
 *.duckdb.wal
+
+release-v1.6.0.md
+
+documentacion/

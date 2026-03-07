@@ -1,0 +1,646 @@
+{
+    "_meta": {
+        "version": "1.0",
+        "lastUpdated": "2026-03-07",
+        "description": "Curated documentation for DuckDB functions. Only extra fields — base data comes from duckdb_functions() introspection cache. Edit this file to add/improve docs without changing code.",
+        "totalDocumented": 100
+    },
+    "functions": {
+        "COUNT": {
+            "function_name": "COUNT",
+            "category": "Aggregate",
+            "snippet": "COUNT(${1:*})",
+            "doc": "Count rows or non-null values.\n\n```sql\nSELECT COUNT(*) FROM table\nSELECT COUNT(DISTINCT col) FROM table\n```"
+        },
+        "SUM": {
+            "function_name": "SUM",
+            "category": "Aggregate",
+            "snippet": "SUM(${1:column})",
+            "doc": "Sum of numeric values. Returns `NULL` if all inputs are `NULL`."
+        },
+        "AVG": {
+            "function_name": "AVG",
+            "category": "Aggregate",
+            "snippet": "AVG(${1:column})",
+            "doc": "Average of numeric values."
+        },
+        "MIN": {
+            "function_name": "MIN",
+            "category": "Aggregate",
+            "snippet": "MIN(${1:column})",
+            "doc": "Minimum value in column."
+        },
+        "MAX": {
+            "function_name": "MAX",
+            "category": "Aggregate",
+            "snippet": "MAX(${1:column})",
+            "doc": "Maximum value in column."
+        },
+        "MEDIAN": {
+            "function_name": "MEDIAN",
+            "category": "Aggregate",
+            "snippet": "MEDIAN(${1:column})",
+            "doc": "Median value (equivalent to `QUANTILE_CONT(col, 0.5)`)."
+        },
+        "MODE": {
+            "function_name": "MODE",
+            "category": "Aggregate",
+            "snippet": "MODE(${1:column})",
+            "doc": "Most frequent value in column."
+        },
+        "STDDEV": {
+            "function_name": "STDDEV",
+            "category": "Aggregate",
+            "snippet": "STDDEV(${1:column})",
+            "doc": "Sample standard deviation."
+        },
+        "VARIANCE": {
+            "function_name": "VARIANCE",
+            "category": "Aggregate",
+            "snippet": "VARIANCE(${1:column})",
+            "doc": "Sample variance."
+        },
+        "LIST": {
+            "function_name": "LIST",
+            "category": "Aggregate",
+            "snippet": "LIST(${1:column})",
+            "doc": "Aggregate values into a `LIST`.",
+            "examples": [
+                "SELECT LIST(name) FROM users GROUP BY dept"
+            ]
+        },
+        "STRING_AGG": {
+            "function_name": "STRING_AGG",
+            "category": "Aggregate",
+            "snippet": "STRING_AGG(${1:column}, '${2:,}')",
+            "doc": "Concatenate string values with a separator.\n\n**Parameters:**\n- `column` — string column\n- `separator` — delimiter string"
+        },
+        "APPROX_COUNT_DISTINCT": {
+            "function_name": "APPROX_COUNT_DISTINCT",
+            "category": "Aggregate",
+            "snippet": "APPROX_COUNT_DISTINCT(${1:column})",
+            "doc": "Approximate distinct count using HyperLogLog. Much faster than `COUNT(DISTINCT)` on large datasets."
+        },
+        "QUANTILE_CONT": {
+            "function_name": "QUANTILE_CONT",
+            "category": "Aggregate",
+            "snippet": "QUANTILE_CONT(${1:column}, ${2:0.5})",
+            "doc": "Continuous quantile.\n\n**Parameters:**\n- `column` — numeric column\n- `quantile` — value between 0 and 1 (0.5 = median)",
+            "examples": [
+                "SELECT QUANTILE_CONT(price, 0.95) FROM orders"
+            ]
+        },
+        "ARG_MIN": {
+            "function_name": "ARG_MIN",
+            "category": "Aggregate",
+            "snippet": "ARG_MIN(${1:return_col}, ${2:order_col})",
+            "doc": "Value of `return_col` at the row where `order_col` is minimum.",
+            "examples": [
+                "SELECT ARG_MIN(name, age) FROM users -- name of youngest user"
+            ]
+        },
+        "ARG_MAX": {
+            "function_name": "ARG_MAX",
+            "category": "Aggregate",
+            "snippet": "ARG_MAX(${1:return_col}, ${2:order_col})",
+            "doc": "Value of `return_col` at the row where `order_col` is maximum."
+        },
+        "ROW_NUMBER": {
+            "function_name": "ROW_NUMBER",
+            "category": "Window",
+            "snippet": "ROW_NUMBER() OVER (${1:PARTITION BY col ORDER BY col})",
+            "doc": "Sequential row number within partition."
+        },
+        "RANK": {
+            "function_name": "RANK",
+            "category": "Window",
+            "snippet": "RANK() OVER (${1:ORDER BY col})",
+            "doc": "Rank with gaps for ties."
+        },
+        "DENSE_RANK": {
+            "function_name": "DENSE_RANK",
+            "category": "Window",
+            "snippet": "DENSE_RANK() OVER (${1:ORDER BY col})",
+            "doc": "Rank without gaps for ties."
+        },
+        "NTILE": {
+            "function_name": "NTILE",
+            "category": "Window",
+            "snippet": "NTILE(${1:4}) OVER (${2:ORDER BY col})",
+            "doc": "Distribute rows into N equal buckets."
+        },
+        "LAG": {
+            "function_name": "LAG",
+            "category": "Window",
+            "snippet": "LAG(${1:column}, ${2:1}) OVER (${3:ORDER BY col})",
+            "doc": "Access a previous row value.\n\n**Parameters:**\n- `column` — column to access\n- `offset` — number of rows back (default 1)"
+        },
+        "LEAD": {
+            "function_name": "LEAD",
+            "category": "Window",
+            "snippet": "LEAD(${1:column}, ${2:1}) OVER (${3:ORDER BY col})",
+            "doc": "Access a subsequent row value.\n\n**Parameters:**\n- `column` — column to access\n- `offset` — number of rows forward (default 1)"
+        },
+        "FIRST_VALUE": {
+            "function_name": "FIRST_VALUE",
+            "category": "Window",
+            "snippet": "FIRST_VALUE(${1:column}) OVER (${2:ORDER BY col})",
+            "doc": "First value in window frame."
+        },
+        "LAST_VALUE": {
+            "function_name": "LAST_VALUE",
+            "category": "Window",
+            "snippet": "LAST_VALUE(${1:column}) OVER (${2:ORDER BY col})",
+            "doc": "Last value in window frame."
+        },
+        "PERCENT_RANK": {
+            "function_name": "PERCENT_RANK",
+            "category": "Window",
+            "snippet": "PERCENT_RANK() OVER (${1:ORDER BY col})",
+            "doc": "Relative rank as percentage (0–1)."
+        },
+        "CONCAT": {
+            "function_name": "CONCAT",
+            "category": "String",
+            "snippet": "CONCAT(${1:str1}, ${2:str2})",
+            "doc": "Concatenate two or more strings."
+        },
+        "LENGTH": {
+            "function_name": "LENGTH",
+            "category": "String",
+            "snippet": "LENGTH(${1:string})",
+            "doc": "Returns the number of characters."
+        },
+        "LOWER": {
+            "function_name": "LOWER",
+            "category": "String",
+            "snippet": "LOWER(${1:string})",
+            "doc": "Convert to lowercase."
+        },
+        "UPPER": {
+            "function_name": "UPPER",
+            "category": "String",
+            "snippet": "UPPER(${1:string})",
+            "doc": "Convert to uppercase."
+        },
+        "TRIM": {
+            "function_name": "TRIM",
+            "category": "String",
+            "snippet": "TRIM(${1:string})",
+            "doc": "Remove leading and trailing whitespace."
+        },
+        "LTRIM": {
+            "function_name": "LTRIM",
+            "category": "String",
+            "snippet": "LTRIM(${1:string})",
+            "doc": "Remove leading whitespace."
+        },
+        "RTRIM": {
+            "function_name": "RTRIM",
+            "category": "String",
+            "snippet": "RTRIM(${1:string})",
+            "doc": "Remove trailing whitespace."
+        },
+        "REPLACE": {
+            "function_name": "REPLACE",
+            "category": "String",
+            "snippet": "REPLACE(${1:string}, '${2:from}', '${3:to}')",
+            "doc": "Replace all occurrences of a substring."
+        },
+        "SUBSTRING": {
+            "function_name": "SUBSTRING",
+            "category": "String",
+            "snippet": "SUBSTRING(${1:string}, ${2:start}, ${3:length})",
+            "doc": "Extract substring.\n\n**Parameters:**\n- `string` — source\n- `start` — 1-indexed start position\n- `length` — number of characters"
+        },
+        "LEFT": {
+            "function_name": "LEFT",
+            "category": "String",
+            "snippet": "LEFT(${1:string}, ${2:n})",
+            "doc": "First N characters of string."
+        },
+        "RIGHT": {
+            "function_name": "RIGHT",
+            "category": "String",
+            "snippet": "RIGHT(${1:string}, ${2:n})",
+            "doc": "Last N characters of string."
+        },
+        "LPAD": {
+            "function_name": "LPAD",
+            "category": "String",
+            "snippet": "LPAD(${1:string}, ${2:length}, '${3:pad}')",
+            "doc": "Left-pad string to target length."
+        },
+        "STARTS_WITH": {
+            "function_name": "STARTS_WITH",
+            "category": "String",
+            "snippet": "STARTS_WITH(${1:string}, '${2:prefix}')",
+            "doc": "Check if string starts with prefix. Returns `BOOLEAN`."
+        },
+        "CONTAINS": {
+            "function_name": "CONTAINS",
+            "category": "String",
+            "snippet": "CONTAINS(${1:string}, '${2:search}')",
+            "doc": "Check if string contains search term. Returns `BOOLEAN`."
+        },
+        "REGEXP_EXTRACT": {
+            "function_name": "REGEXP_EXTRACT",
+            "category": "String",
+            "snippet": "REGEXP_EXTRACT(${1:string}, '${2:pattern}')",
+            "doc": "Extract first regex match.",
+            "examples": [
+                "SELECT REGEXP_EXTRACT(email, '@(.+)', 1)"
+            ]
+        },
+        "REGEXP_REPLACE": {
+            "function_name": "REGEXP_REPLACE",
+            "category": "String",
+            "snippet": "REGEXP_REPLACE(${1:string}, '${2:pattern}', '${3:replacement}')",
+            "doc": "Replace regex matches."
+        },
+        "REGEXP_MATCHES": {
+            "function_name": "REGEXP_MATCHES",
+            "category": "String",
+            "snippet": "REGEXP_MATCHES(${1:string}, '${2:pattern}')",
+            "doc": "Check if string matches regex. Returns `BOOLEAN`."
+        },
+        "SPLIT_PART": {
+            "function_name": "SPLIT_PART",
+            "category": "String",
+            "snippet": "SPLIT_PART(${1:string}, '${2:delimiter}', ${3:index})",
+            "doc": "Split string by delimiter, return part by 1-indexed position."
+        },
+        "STRING_SPLIT": {
+            "function_name": "STRING_SPLIT",
+            "category": "String",
+            "snippet": "STRING_SPLIT(${1:string}, '${2:delimiter}')",
+            "doc": "Split string into a `LIST` of substrings."
+        },
+        "STRFTIME": {
+            "function_name": "STRFTIME",
+            "category": "Date",
+            "snippet": "STRFTIME(${1:timestamp}, '${2:%Y-%m-%d}')",
+            "doc": "Format timestamp as string.\n\nCommon patterns: `%Y-%m-%d`, `%H:%M:%S`, `%Y-%m-%d %H:%M`"
+        },
+        "CURRENT_DATE": {
+            "function_name": "CURRENT_DATE",
+            "category": "Date",
+            "snippet": "CURRENT_DATE",
+            "doc": "Returns today's date."
+        },
+        "CURRENT_TIMESTAMP": {
+            "function_name": "CURRENT_TIMESTAMP",
+            "category": "Date",
+            "snippet": "CURRENT_TIMESTAMP",
+            "doc": "Returns current timestamp with timezone."
+        },
+        "NOW": {
+            "function_name": "NOW",
+            "category": "Date",
+            "snippet": "NOW()",
+            "doc": "Returns the current timestamp. Alias for `CURRENT_TIMESTAMP`."
+        },
+        "TODAY": {
+            "function_name": "TODAY",
+            "category": "Date",
+            "snippet": "TODAY()",
+            "doc": "Returns today's date. Alias for `CURRENT_DATE`."
+        },
+        "DATE_TRUNC": {
+            "function_name": "DATE_TRUNC",
+            "category": "Date",
+            "snippet": "DATE_TRUNC('${1|year,quarter,month,week,day,hour,minute|}', ${2:date_col})",
+            "doc": "Truncate date/timestamp to specified precision.\n\nValid parts: `year`, `quarter`, `month`, `week`, `day`, `hour`, `minute`, `second`"
+        },
+        "DATE_PART": {
+            "function_name": "DATE_PART",
+            "category": "Date",
+            "snippet": "DATE_PART('${1|year,month,day,hour,minute,second,dow,doy,week,quarter|}', ${2:date_col})",
+            "doc": "Extract a numeric part from date/timestamp.\n\nValid parts: `year`, `month`, `day`, `hour`, `minute`, `second`, `dow` (day of week), `doy` (day of year), `week`, `quarter`"
+        },
+        "DATE_DIFF": {
+            "function_name": "DATE_DIFF",
+            "category": "Date",
+            "snippet": "DATE_DIFF('${1|day,month,year,hour,minute,second|}', ${2:start_date}, ${3:end_date})",
+            "doc": "Difference between two dates in the specified unit.",
+            "examples": [
+                "SELECT DATE_DIFF('day', order_date, ship_date)"
+            ]
+        },
+        "DATE_ADD": {
+            "function_name": "DATE_ADD",
+            "category": "Date",
+            "snippet": "DATE_ADD(${1:date}, INTERVAL ${2:1} ${3|DAY,MONTH,YEAR,HOUR,MINUTE|})",
+            "doc": "Add an interval to a date/timestamp."
+        },
+        "DATE_SUB": {
+            "function_name": "DATE_SUB",
+            "category": "Date",
+            "snippet": "DATE_SUB(${1:date}, INTERVAL ${2:1} ${3|DAY,MONTH,YEAR,HOUR,MINUTE|})",
+            "doc": "Subtract an interval from a date/timestamp."
+        },
+        "EXTRACT": {
+            "function_name": "EXTRACT",
+            "category": "Date",
+            "snippet": "EXTRACT(${1:YEAR} FROM ${2:date_col})",
+            "doc": "Extract component from date/timestamp. SQL standard syntax."
+        },
+        "EPOCH_MS": {
+            "function_name": "EPOCH_MS",
+            "category": "Date",
+            "snippet": "EPOCH_MS(${1:milliseconds})",
+            "doc": "Convert epoch milliseconds to timestamp."
+        },
+        "EPOCH": {
+            "function_name": "EPOCH",
+            "category": "Date",
+            "snippet": "EPOCH(${1:timestamp})",
+            "doc": "Convert timestamp to epoch seconds (returns `DOUBLE`)."
+        },
+        "AGE": {
+            "function_name": "AGE",
+            "category": "Date",
+            "snippet": "AGE(${1:timestamp1}, ${2:timestamp2})",
+            "doc": "Difference as an `INTERVAL` value."
+        },
+        "MAKE_DATE": {
+            "function_name": "MAKE_DATE",
+            "category": "Date",
+            "snippet": "MAKE_DATE(${1:year}, ${2:month}, ${3:day})",
+            "doc": "Construct a `DATE` from year, month, day integers."
+        },
+        "GENERATE_SERIES": {
+            "function_name": "GENERATE_SERIES",
+            "category": "Table",
+            "snippet": "GENERATE_SERIES(${1:start}, ${2:end}, ${3:step})",
+            "doc": "Generate a table of sequential values.",
+            "examples": [
+                "SELECT * FROM GENERATE_SERIES(1, 10, 1)",
+                "SELECT * FROM GENERATE_SERIES(DATE '2024-01-01', DATE '2024-12-31', INTERVAL 1 MONTH)"
+            ]
+        },
+        "CAST": {
+            "function_name": "CAST",
+            "category": "Conversion",
+            "snippet": "CAST(${1:value} AS ${2:INTEGER})",
+            "doc": "Type cast. Throws error on failure. Use `TRY_CAST` for safe cast."
+        },
+        "TRY_CAST": {
+            "function_name": "TRY_CAST",
+            "category": "Conversion",
+            "snippet": "TRY_CAST(${1:value} AS ${2:INTEGER})",
+            "doc": "Safe type cast — returns `NULL` instead of error on failure.",
+            "examples": [
+                "SELECT TRY_CAST('abc' AS INTEGER) -- NULL"
+            ]
+        },
+        "COALESCE": {
+            "function_name": "COALESCE",
+            "category": "Conversion",
+            "snippet": "COALESCE(${1:val1}, ${2:val2})",
+            "doc": "Return first non-null value from arguments."
+        },
+        "NULLIF": {
+            "function_name": "NULLIF",
+            "category": "Conversion",
+            "snippet": "NULLIF(${1:expr1}, ${2:expr2})",
+            "doc": "Returns `NULL` if `expr1 = expr2`, otherwise returns `expr1`."
+        },
+        "IFNULL": {
+            "function_name": "IFNULL",
+            "category": "Conversion",
+            "snippet": "IFNULL(${1:expr}, ${2:default})",
+            "doc": "Returns `default` if `expr` is NULL. Alias for `COALESCE(expr, default)`."
+        },
+        "TYPEOF": {
+            "function_name": "TYPEOF",
+            "category": "Conversion",
+            "snippet": "TYPEOF(${1:expr})",
+            "doc": "Returns the data type name of an expression as a string."
+        },
+        "read_csv": {
+            "function_name": "read_csv",
+            "category": "I/O",
+            "snippet": "read_csv('${1:file.csv}', header = ${2:true}, delim = '${3:,}')",
+            "doc": "**read_csv**(path, ...options)\n\nRead a CSV file into a table.\n\n**Key Parameters:**\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `header` | BOOL | `true` | First row contains column names |\n| `delim` | VARCHAR | `,` | Column delimiter |\n| `quote` | VARCHAR | `\"` | Quote character |\n| `escape` | VARCHAR | `\"` | Escape character |\n| `columns` | STRUCT | auto | Explicit column name→type mapping |\n| `auto_detect` | BOOL | `true` | Auto-detect types and delimiter |\n| `skip` | INTEGER | `0` | Number of header rows to skip |\n| `nullstr` | VARCHAR | `(empty)` | String that represents NULL |\n| `sample_size` | INTEGER | `20480` | Rows sampled for auto-detection |\n| `all_varchar` | BOOL | `false` | Read all columns as VARCHAR |\n| `dateformat` | VARCHAR | auto | Date parsing format |\n| `timestampformat` | VARCHAR | auto | Timestamp parsing format |\n| `compression` | VARCHAR | auto | `none`, `gzip`, `zstd` |\n| `filename` | BOOL | `false` | Add source filename column |\n| `union_by_name` | BOOL | `false` | Merge schemas from multiple files |",
+            "examples": [
+                "SELECT * FROM read_csv('data.csv')",
+                "SELECT * FROM read_csv('data.tsv', delim = '\\t', header = true)",
+                "SELECT * FROM read_csv('data/*.csv', union_by_name = true, filename = true)"
+            ]
+        },
+        "read_csv_auto": {
+            "function_name": "read_csv_auto",
+            "category": "I/O",
+            "snippet": "read_csv_auto('${1:file.csv}')",
+            "doc": "**read_csv_auto**(path)\n\nRead CSV with automatic type detection. Alias for `read_csv` with `auto_detect = true`.",
+            "examples": [
+                "SELECT * FROM read_csv_auto('sales_2024.csv')",
+                "SELECT * FROM read_csv_auto('data/*.csv')"
+            ]
+        },
+        "read_parquet": {
+            "function_name": "read_parquet",
+            "category": "I/O",
+            "snippet": "read_parquet('${1:file.parquet}')",
+            "doc": "**read_parquet**(path, ...options)\n\nRead Apache Parquet files.\n\n**Key Parameters:**\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `hive_partitioning` | BOOL | `false` | Enable Hive-style partition parsing |\n| `union_by_name` | BOOL | `false` | Merge schemas across files |\n| `filename` | BOOL | `false` | Add source filename column |\n| `file_row_number` | BOOL | `false` | Add row number within file |",
+            "examples": [
+                "SELECT * FROM read_parquet('data.parquet')",
+                "SELECT * FROM read_parquet('s3://bucket/data/*/*.parquet', hive_partitioning = true)",
+                "SELECT * FROM read_parquet(['file1.parquet', 'file2.parquet'])"
+            ]
+        },
+        "read_json": {
+            "function_name": "read_json",
+            "category": "I/O",
+            "snippet": "read_json('${1:file.json}')",
+            "doc": "**read_json**(path, ...options)\n\nRead JSON files (NDJSON, JSON arrays, or objects).\n\n**Key Parameters:**\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `auto_detect` | BOOL | `true` | Auto-detect schema |\n| `format` | VARCHAR | `auto` | `auto`, `array`, `newline_delimited`, `values` |\n| `columns` | STRUCT | auto | Explicit column→type map |\n| `records` | VARCHAR | `auto` | `auto`, `true`, `false` |\n| `maximum_depth` | INTEGER | `-1` | Max nesting depth |\n| `sample_size` | INTEGER | `20480` | Rows sampled for auto-detection |",
+            "examples": [
+                "SELECT * FROM read_json('data.json')",
+                "SELECT * FROM read_json('logs/*.jsonl', format = 'newline_delimited')"
+            ]
+        },
+        "read_json_auto": {
+            "function_name": "read_json_auto",
+            "category": "I/O",
+            "snippet": "read_json_auto('${1:file.json}')",
+            "doc": "**read_json_auto**(path)\n\nRead JSON with automatic schema detection. Alias for `read_json` with `auto_detect = true`."
+        },
+        "read_xlsx": {
+            "function_name": "read_xlsx",
+            "category": "I/O",
+            "snippet": "read_xlsx('${1:file.xlsx}', sheet = '${2:Sheet1}')",
+            "doc": "**read_xlsx**(path, ...options)\n\nRead Excel files. **Requires `spatial` extension.**\n\n**Key Parameters:**\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `sheet` | VARCHAR | first sheet | Sheet name to read |\n| `header` | BOOL | `true` | First row as column names |\n| `range` | VARCHAR | all | Cell range, e.g. `A1:D100` |\n| `all_varchar` | BOOL | `false` | Read all columns as VARCHAR |",
+            "examples": [
+                "INSTALL spatial; LOAD spatial;",
+                "SELECT * FROM read_xlsx('report.xlsx', sheet = 'Sales')",
+                "SELECT * FROM read_xlsx('report.xlsx', range = 'B2:F50')"
+            ]
+        },
+        "read_text": {
+            "function_name": "read_text",
+            "category": "I/O",
+            "snippet": "read_text('${1:file.txt}')",
+            "doc": "**read_text**(path)\n\nRead a text file as a single column `content`.",
+            "examples": [
+                "SELECT content FROM read_text('readme.md')"
+            ]
+        },
+        "glob": {
+            "function_name": "glob",
+            "category": "I/O",
+            "snippet": "glob('${1:*.csv}')",
+            "doc": "**glob**(pattern)\n\nReturn a table of file paths matching a glob pattern.",
+            "examples": [
+                "SELECT * FROM glob('data/**/*.parquet')"
+            ]
+        },
+        "COPY": {
+            "function_name": "COPY",
+            "category": "I/O",
+            "snippet": "COPY (${1:SELECT * FROM table}) TO '${2:output.csv}' (FORMAT ${3|CSV,PARQUET,JSON|}, HEADER ${4:true})",
+            "doc": "**COPY ... TO**\n\nExport query results to a file using DuckDB engine.\n\n**Format Options:**\n| Format | Key Options |\n|--------|-------------|\n| `CSV` | `HEADER`, `DELIMITER`, `QUOTE`, `NULL` |\n| `PARQUET` | `COMPRESSION` (snappy/gzip/zstd) |\n| `JSON` | `ARRAY` (true/false) |",
+            "examples": [
+                "COPY (SELECT * FROM sales) TO 'export.csv' (FORMAT CSV, HEADER true)",
+                "COPY orders TO 'orders.parquet' (FORMAT PARQUET, COMPRESSION zstd)",
+                "COPY orders TO 'output' (FORMAT PARQUET, PARTITION_BY (year, month))"
+            ]
+        },
+        "STRUCT_PACK": {
+            "function_name": "STRUCT_PACK",
+            "category": "Struct",
+            "snippet": "STRUCT_PACK(${1:key} := ${2:value})",
+            "doc": "Create a struct value from key-value pairs.",
+            "examples": [
+                "SELECT STRUCT_PACK(name := 'Alice', age := 30)"
+            ]
+        },
+        "STRUCT_EXTRACT": {
+            "function_name": "STRUCT_EXTRACT",
+            "category": "Struct",
+            "snippet": "STRUCT_EXTRACT(${1:struct}, '${2:key}')",
+            "doc": "Extract a field from a struct by name."
+        },
+        "UNNEST": {
+            "function_name": "UNNEST",
+            "category": "List",
+            "snippet": "UNNEST(${1:list_column})",
+            "doc": "Expand a `LIST` or array column into individual rows.",
+            "examples": [
+                "SELECT UNNEST([1, 2, 3]) AS val",
+                "SELECT UNNEST(tags) FROM articles"
+            ]
+        },
+        "LIST_AGG": {
+            "function_name": "LIST_AGG",
+            "category": "Aggregate",
+            "snippet": "LIST(${1:column})",
+            "doc": "Aggregate values into a list. Alias for `LIST()`."
+        },
+        "LIST_CONTAINS": {
+            "function_name": "LIST_CONTAINS",
+            "category": "List",
+            "snippet": "LIST_CONTAINS(${1:list}, ${2:value})",
+            "doc": "Check if a list contains a value. Returns `BOOLEAN`."
+        },
+        "LIST_DISTINCT": {
+            "function_name": "LIST_DISTINCT",
+            "category": "List",
+            "snippet": "LIST_DISTINCT(${1:list})",
+            "doc": "Remove duplicate elements from a list."
+        },
+        "LIST_SORT": {
+            "function_name": "LIST_SORT",
+            "category": "List",
+            "snippet": "LIST_SORT(${1:list})",
+            "doc": "Sort elements in a list."
+        },
+        "RANGE": {
+            "function_name": "RANGE",
+            "category": "List",
+            "snippet": "RANGE(${1:start}, ${2:stop}, ${3:step})",
+            "doc": "Generate a list of integers `[start, stop)` with step.",
+            "examples": [
+                "SELECT RANGE(0, 10, 2) -- [0, 2, 4, 6, 8]"
+            ]
+        },
+        "ABS": {
+            "function_name": "ABS",
+            "category": "Math",
+            "snippet": "ABS(${1:value})",
+            "doc": "Absolute value."
+        },
+        "CEIL": {
+            "function_name": "CEIL",
+            "category": "Math",
+            "snippet": "CEIL(${1:value})",
+            "doc": "Round up to nearest integer."
+        },
+        "FLOOR": {
+            "function_name": "FLOOR",
+            "category": "Math",
+            "snippet": "FLOOR(${1:value})",
+            "doc": "Round down to nearest integer."
+        },
+        "ROUND": {
+            "function_name": "ROUND",
+            "category": "Math",
+            "snippet": "ROUND(${1:value}, ${2:decimals})",
+            "doc": "Round to specified decimal places."
+        },
+        "LN": {
+            "function_name": "LN",
+            "category": "Math",
+            "snippet": "LN(${1:value})",
+            "doc": "Natural logarithm."
+        },
+        "LOG": {
+            "function_name": "LOG",
+            "category": "Math",
+            "snippet": "LOG(${1:base}, ${2:value})",
+            "doc": "Logarithm with specified base."
+        },
+        "POWER": {
+            "function_name": "POWER",
+            "category": "Math",
+            "snippet": "POWER(${1:base}, ${2:exponent})",
+            "doc": "Raise to power."
+        },
+        "GREATEST": {
+            "function_name": "GREATEST",
+            "category": "Math",
+            "snippet": "GREATEST(${1:val1}, ${2:val2})",
+            "doc": "Returns the largest value among arguments."
+        },
+        "LEAST": {
+            "function_name": "LEAST",
+            "category": "Math",
+            "snippet": "LEAST(${1:val1}, ${2:val2})",
+            "doc": "Returns the smallest value among arguments."
+        },
+        "DESCRIBE": {
+            "function_name": "DESCRIBE",
+            "category": "Utility",
+            "snippet": "DESCRIBE ${1:table_name}",
+            "doc": "Show column names and types of a table or query."
+        },
+        "SUMMARIZE": {
+            "function_name": "SUMMARIZE",
+            "category": "Utility",
+            "snippet": "SUMMARIZE ${1:table_name}",
+            "doc": "Compute summary statistics (min, max, avg, std, nulls, unique) for all columns."
+        },
+        "EXPLAIN": {
+            "function_name": "EXPLAIN",
+            "category": "Utility",
+            "snippet": "EXPLAIN ${1:query}",
+            "doc": "Show the query execution plan."
+        },
+        "EXPLAIN ANALYZE": {
+            "function_name": "EXPLAIN ANALYZE",
+            "category": "Utility",
+            "snippet": "EXPLAIN ANALYZE ${1:query}",
+            "doc": "Execute query and show actual execution plan with timings."
+        }
+    }
+}
