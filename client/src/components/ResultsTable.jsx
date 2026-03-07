@@ -31,6 +31,59 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
 
     const [showFilters, setShowFilters] = useState(false); // Toggle filter row
 
+    // --- Column Resizing State ---
+    const [columnWidths, setColumnWidths] = useState({}); // { [colName]: widthInPx }
+    const [resizeState, setResizeState] = useState({ isResizing: false, column: null, startX: 0, startWidth: 0 });
+
+    // --- Column Resizing Logic ---
+    const handleResizeMouseDown = (e, col) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setResizeState({
+            isResizing: true,
+            column: col,
+            startX: e.clientX,
+            startWidth: columnWidths[col] || 150
+        });
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!resizeState.isResizing) return;
+            const deltaX = e.clientX - resizeState.startX;
+            const newWidth = Math.max(50, resizeState.startWidth + deltaX);
+            setColumnWidths(prev => ({
+                ...prev,
+                [resizeState.column]: newWidth
+            }));
+        };
+
+        const handleMouseUp = () => {
+            if (resizeState.isResizing) {
+                setResizeState({ isResizing: false, column: null, startX: 0, startWidth: 0 });
+            }
+        };
+
+        if (resizeState.isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'col-resize';
+        } else {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+        };
+    }, [resizeState]);
+
     // Reset page when data changes
     useEffect(() => {
         setCurrentPage(1);
@@ -378,26 +431,52 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                         <th
                                             key={col}
                                             style={{
-                                                cursor: 'pointer', userSelect: 'none', position: 'relative',
+                                                position: 'relative',
                                                 backgroundColor: 'var(--table-header-bg)',
                                                 color: 'var(--text-active)',
                                                 borderRight: '1px solid var(--border-color)',
                                                 borderBottom: '1px solid var(--border-color)',
-                                                minWidth: '100px',
-                                                maxWidth: '300px',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
+                                                width: columnWidths[col] || 150,
+                                                minWidth: '50px',
+                                                padding: '4px 8px'
                                             }}
-                                            onClick={() => handleSort(col)}
-                                            title="Click to sort"
                                         >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <span>{col}</span>
-                                                <span style={{ fontSize: '10px', opacity: 0.7, display: 'flex', alignItems: 'center' }}>
+                                            <div
+                                                onClick={() => handleSort(col)}
+                                                title="Click to sort"
+                                                style={{
+                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                    cursor: 'pointer', userSelect: 'none', height: '100%',
+                                                    overflow: 'hidden', whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{col}</span>
+                                                <span style={{ fontSize: '10px', opacity: 0.7, display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '4px' }}>
                                                     {isSorted && (sortConfig.direction === 'asc' ? <LuChevronUp size={10} /> : <LuChevronDown size={10} />)}
                                                 </span>
                                             </div>
+
+                                            {/* Column Resizer Handle */}
+                                            <div
+                                                onMouseDown={(e) => handleResizeMouseDown(e, col)}
+                                                style={{
+                                                    position: 'absolute',
+                                                    right: 0,
+                                                    top: 0,
+                                                    bottom: 0,
+                                                    width: '6px',
+                                                    cursor: 'col-resize',
+                                                    backgroundColor: resizeState.isResizing && resizeState.column === col ? 'var(--accent-color-user)' : 'transparent',
+                                                    zIndex: 10,
+                                                    transition: 'background-color 0.1s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (!resizeState.isResizing) e.currentTarget.style.backgroundColor = 'var(--accent-muted)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (!resizeState.isResizing || resizeState.column !== col) e.currentTarget.style.backgroundColor = 'transparent';
+                                                }}
+                                            />
                                         </th>
                                     );
                                 })}
@@ -427,7 +506,7 @@ const ResultsTable = ({ data, executionTime, query, onDbChange, isReportMode = f
                                 currentData.map((row, rowIndex) => (
                                     <tr key={rowIndex}>
                                         {columns.map((col) => (
-                                            <td key={`${rowIndex}-${col}`} title={row ? (typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col] ?? '')) : ''} style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatValue(row ? row[col] : null)}</td>
+                                            <td key={`${rowIndex}-${col}`} title={row ? (typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col] ?? '')) : ''} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '4px 8px' }}>{formatValue(row ? row[col] : null)}</td>
                                         ))}
                                     </tr>
                                 ))
