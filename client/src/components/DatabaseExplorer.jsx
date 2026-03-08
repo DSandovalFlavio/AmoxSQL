@@ -7,6 +7,7 @@ import {
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
     LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye, LuShieldCheck
 } from "react-icons/lu";
+import DeleteConfirmModal from './DeleteConfirmModal';
 
 const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery, onQualityCheck }) => {
     const [tables, setTables] = useState([]);
@@ -23,6 +24,10 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName }
+
+    // Drop Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [tableToDelete, setTableToDelete] = useState(null);
 
     useEffect(() => {
         const handleClickOutside = () => {
@@ -76,6 +81,22 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
     const toggleExpand = (tableName) => {
         setExpandedTables(prev => ({ ...prev, [tableName]: !prev[tableName] }));
+    };
+
+    const confirmDrop = async () => {
+        if (!tableToDelete) return;
+        const res = await fetch('http://localhost:3001/api/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: `DROP TABLE IF EXISTS "${tableToDelete}"` })
+        });
+        if (res.ok) {
+            fetchTables();
+            setTableToDelete(null);
+        } else {
+            const data = await res.json();
+            throw new Error(data.error || 'Drop failed');
+        }
     };
 
     return (
@@ -359,31 +380,24 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: '#e06c75', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
                         onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                        onClick={async () => {
-                            const name = contextMenu.tableName;
+                        onClick={() => {
+                            setTableToDelete(contextMenu.tableName);
                             setContextMenu(null);
-                            if (!window.confirm(`Are you sure you want to drop table "${name}"?\n\nThis action cannot be undone.`)) return;
-                            try {
-                                const res = await fetch('http://localhost:3001/api/query', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ query: `DROP TABLE IF EXISTS "${name}"` })
-                                });
-                                if (res.ok) {
-                                    fetchTables();
-                                } else {
-                                    const data = await res.json();
-                                    alert(`Drop failed: ${data.error}`);
-                                }
-                            } catch (err) {
-                                alert(`Drop failed: ${err.message}`);
-                            }
+                            setDeleteModalOpen(true);
                         }}
                     >
                         <LuTable size={14} /> Drop Table...
                     </div>
                 </div>
             )}
+
+            <DeleteConfirmModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={confirmDrop}
+                itemName={tableToDelete}
+                itemType="Table"
+            />
         </div>
     );
 };

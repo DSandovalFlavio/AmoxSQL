@@ -5,6 +5,8 @@ import {
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
     LuPencil, LuTrash2
 } from "react-icons/lu";
+import DeleteConfirmModal from './DeleteConfirmModal';
+import AlertDialog from './AlertDialog';
 
 const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onEditChart, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
@@ -20,6 +22,13 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
     // Rename State
     const [renamingFile, setRenamingFile] = useState(null); // file object being renamed
     const [renameValue, setRenameValue] = useState('');
+
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [fileToDelete, setFileToDelete] = useState(null);
+
+    // Alert Modal State
+    const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
 
     useEffect(() => {
         fetchFiles(currentPath);
@@ -148,33 +157,33 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
             setRenamingFile(null);
             fetchFiles(currentPath);
         } catch (err) {
-            alert(`Rename failed: ${err.message}`);
+            setAlertData({ isOpen: true, message: `Rename failed: ${err.message}`, title: 'Rename Error', type: 'error' });
             setRenamingFile(null);
         }
     };
 
     // --- Delete Logic ---
-    const handleDelete = async (file) => {
+    const handleDeleteClick = (file) => {
         setContextMenu(null);
-        const type = file.isDirectory ? 'folder' : 'file';
-        if (!window.confirm(`Are you sure you want to delete this ${type}?\n\n${file.name}`)) return;
+        setFileToDelete(file);
+        setDeleteModalOpen(true);
+    };
 
-        try {
-            const response = await fetch('http://localhost:3001/api/file/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: file.path, isDirectory: file.isDirectory })
-            });
+    const confirmDelete = async () => {
+        if (!fileToDelete) return;
+        const response = await fetch('http://localhost:3001/api/file/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: fileToDelete.path, isDirectory: fileToDelete.isDirectory })
+        });
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Delete failed');
-            }
-
-            fetchFiles(currentPath);
-        } catch (err) {
-            alert(`Delete failed: ${err.message}`);
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Delete failed');
         }
+
+        fetchFiles(currentPath);
+        setFileToDelete(null);
     };
 
     return (
@@ -409,7 +418,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     </div>
                     {/* Delete */}
                     <div
-                        onClick={() => handleDelete(contextMenu.file)}
+                        onClick={() => handleDeleteClick(contextMenu.file)}
                         style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#e06c75', display: 'flex', alignItems: 'center', gap: '8px' }}
                         className="context-menu-item"
                     >
@@ -417,6 +426,22 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     </div>
                 </div>
             )}
+
+            <DeleteConfirmModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                itemName={fileToDelete?.name}
+                itemType={fileToDelete?.isDirectory ? 'Folder' : 'File'}
+            />
+
+            <AlertDialog
+                isOpen={alertData.isOpen}
+                onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
+                title={alertData.title}
+                message={alertData.message}
+                type={alertData.type}
+            />
         </div>
     );
 };

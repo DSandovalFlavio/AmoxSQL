@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LuFolderOpen, LuSparkles, LuBrain, LuRocket } from "react-icons/lu";
+import AlertDialog from './AlertDialog';
 
 const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
     if (!isOpen) return null;
@@ -12,6 +13,9 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
 
     // New DB State
     const [newDbName, setNewDbName] = useState('');
+
+    // Alert State
+    const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
 
     useEffect(() => {
         if (dbFiles.length > 0) {
@@ -28,7 +32,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
             onSelect({ path: ':memory:', readOnly: false });
         } else if (activeTab === 'CREATE') {
             if (!newDbName.trim()) {
-                alert("Please enter a database name");
+                setAlertData({ isOpen: true, message: "Please enter a database name." });
                 return;
             }
             let name = newDbName.trim();
@@ -198,6 +202,14 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                     </button>
                 </div>
             </div>
+
+            <AlertDialog
+                isOpen={alertData.isOpen}
+                onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
+                title="Validation Error"
+                message={alertData.message}
+                type="error"
+            />
         </div>
     );
 };

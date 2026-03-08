@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v1.7.0)
+# AmoxSQL (v1.8.0)
 
 > **The Modern Codex for Local Data Analysis.**
 >
@@ -104,14 +104,15 @@ AmoxSQL is designed for speed, privacy, and a superior developer experience.
 
 ### 📊 Data Visualization & IO
 * **Instant Visualizations**: Turn query results into charts immediately with an integrated graphing engine (built with Recharts).
-    * Supported types: Line, Multi-line, Bar (Horizontal/Vertical), Scatter, and Donut charts.
+    * Supported types: Column, Bar (Standard, Stacked, 100% Stacked), Line, Area (Standard, Stacked), Scatter, Bubble, Donut, Combo (Bar+Line), Funnel, and Heatmap.
 * **Persistent Chart Configurations (`.amoxvis`)**: Save your advanced visualization designs as `.amoxvis` files directly in your workspace. Edit, load, and keep your charts organized alongside SQL scripts.
 * **Advanced Charting Controls**:
     *   **Pivot & Aggregation**: Split series by column, summarize by time (Daily/Monthly/Yearly).
-    *   **Customization**: Granular control over colors, line styles, opacity, margins, layout spacing, and data label positioning.
+    *   **Customization**: Granular control over colors (18 palettes), fonts, line styles, opacity, margins, background tones, and smart data label positioning (with auto-hide and contrast adapting).
     *   **Axes & Scaling**: Toggle Logarithmic scale, dynamic X/Y bounds, and custom axis titles.
-    *   **Reference Indicators**: Add customizable horizontal/vertical reference lines and colored reference areas to highlight targets or thresholds.
-    *   **Number Formatting**: Display values in Compact (1.2k), Millions (1.2M), Currency, or Raw formats.
+    *   **Reference Indicators**: Add customizable horizontal/vertical reference lines and colored reference areas.
+    *   **Annotations & Context**: Add Goal lines, Trend lines (Linear/Moving Average), Storytelling text, and large Headline KPI numbers with Delta comparisons.
+    *   **Number Formatting**: Display values in Compact (1.2k), Millions (1.2M), Currency, or Percentage formats.
 * **Chart Export Presets**: Export charts as high-resolution PNGs optimized for specific platforms — PowerPoint 16:9, PowerPoint 4:3, Square (1:1), Phone Story (9:16), Wide Banner, or Original Size.
 * **Customizable Accent Palette**: 10 brand colors derived from the AmoxSQL logo gradient, plus Linear Blue.
 
@@ -151,10 +152,10 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-### 🎁 v1.7.0 — Free Public Release
+### 🎁 v1.8.0 — Free Public Release
 This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-👉 **[Download v1.7.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
+👉 **[Download v1.8.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
 ### 🚀 Future Versions — Sponsors Only
 Starting with v1.5+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:

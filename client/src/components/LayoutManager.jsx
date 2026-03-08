@@ -4,6 +4,7 @@ import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
 import { useToast } from './ToastProvider';
 import { resolveVariables } from './VariablesBar';
+import AlertDialog from './AlertDialog';
 
 const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult }, ref) => {
     const toast = useToast();
@@ -24,6 +25,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // Variables State (shared across session)
     const [queryVariables, setQueryVariables] = useState([]);
+
+    // Alert Modal State
+    const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
 
     // Helpers
     const getActiveTab = () => {
@@ -397,7 +401,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 executeQuery(newTab.id, query);
 
             } catch (err) {
-                alert(`Failed to open chart configuration: ${err.message}`);
+                setAlertData({ isOpen: true, message: `Failed to open chart configuration: ${err.message}`, title: 'Chart Error', type: 'error' });
             }
         }
     }));
@@ -611,6 +615,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 onClose={() => setShowPlanModal(false)}
                 plan={planData}
                 query={planQuery}
+            />
+
+            <AlertDialog
+                isOpen={alertData.isOpen}
+                onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
+                title={alertData.title}
+                message={alertData.message}
+                type={alertData.type}
             />
         </div >
     );

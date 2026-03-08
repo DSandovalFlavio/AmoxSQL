@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { LuDownload, LuCalendar, LuGitMerge, LuCircle, LuMaximize, LuMinimize, LuSave, LuUpload } from "react-icons/lu";
 import SaveQueryModal from './SaveQueryModal';
+import AlertDialog from './AlertDialog';
 
 // Distinctive color palettes for themes
 export const COLOR_PALETTES = {
@@ -177,6 +178,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [tooltipShowPercent, setTooltipShowPercent] = useState(initialChartConfig?.tooltipShowPercent !== undefined ? initialChartConfig.tooltipShowPercent : false);
     const [dataLabelPosition, setDataLabelPosition] = useState(initialChartConfig?.dataLabelPosition || 'top'); // 'outside', 'inside-end', 'inside-center', 'inside-start'
     const [bubbleSizeKey, setBubbleSizeKey] = useState(initialChartConfig?.bubbleSizeKey || '');
+
+    // Alert State
+    const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
 
     // --- New Customization State ---
     // General
@@ -1338,7 +1342,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
         } catch (err) {
             console.error("Export failed:", err);
-            alert("Could not export chart.");
+            setAlertData({ isOpen: true, message: "Could not export chart." });
         }
         setShowExportMenu(false);
     };
@@ -1454,7 +1458,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                 if (config.titleSpacing !== undefined) setTitleSpacing(config.titleSpacing);
             } catch (err) {
                 console.error("Error loading config:", err);
-                alert("Failed to parse configuration file.");
+                setAlertData({ isOpen: true, message: "Failed to parse configuration file." });
             }
         };
         reader.readAsText(file);
@@ -2263,6 +2267,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     {chartFootnote && <div style={{ textAlign: textAlign, marginTop: `${titleSpacing}px`, color: 'var(--text-muted)', fontSize: '12px', fontStyle: 'italic', borderTop: '1px solid var(--border-color)', paddingTop: '5px', whiteSpace: 'pre-wrap', paddingLeft: textAlign === 'left' ? '50px' : '0' }}>{chartFootnote}</div>}
                 </div>
             </div >
+
+            <AlertDialog
+                isOpen={alertData.isOpen}
+                onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
+                title="Chart Error"
+                message={alertData.message}
+                type="error"
+            />
         </div >
     );
 });

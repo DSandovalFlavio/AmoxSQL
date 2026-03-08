@@ -18,6 +18,7 @@
 import { memo, useMemo, useRef, useState, useCallback } from 'react';
 import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
+import AlertDialog from '../AlertDialog';
 
 // Core modules
 import { useChartState } from './useChartState';
@@ -60,6 +61,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
+    const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
 
     const chartRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -148,7 +150,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         try {
             await exportChartAsPng(chartRef.current, preset, state.chartType);
         } catch {
-            alert('Could not export chart.');
+            setAlertData({ isOpen: true, message: 'Could not export chart.' });
         }
         setShowExportMenu(false);
     }, [state.chartType]);
@@ -169,7 +171,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                 loadConfig(cfg);
             } catch (err) {
                 console.error('Error loading config:', err);
-                alert('Failed to parse configuration file.');
+                setAlertData({ isOpen: true, message: 'Failed to parse configuration file.' });
             }
         };
         reader.readAsText(file);
@@ -451,6 +453,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     )}
                 </div>
             </div>
+
+            <AlertDialog
+                isOpen={alertData.isOpen}
+                onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
+                title="Chart Error"
+                message={alertData.message}
+                type="error"
+            />
         </div>
     );
 });

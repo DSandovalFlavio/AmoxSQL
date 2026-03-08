@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { LuBot, LuX, LuLoader, LuDatabase, LuSettings, LuCpu, LuCloud, LuSparkles, LuTable, LuFile, LuBan } from 'react-icons/lu';
+import AlertDialog from './AlertDialog';
 
 const GEMINI_MODELS = [
     { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', size: 'Cloud' },
@@ -25,6 +26,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
     const [customModel, setCustomModel] = useState('');
     const [installedModels, setInstalledModels] = useState([]);
     const [isModelsLoading, setIsModelsLoading] = useState(false);
+
+    // Alert State
+    const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
 
     useEffect(() => {
         const loadConfig = async () => {
@@ -253,7 +257,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
                                 padding: '12px', fontSize: '12px', color: 'var(--feedback-warning-text)', display: 'flex', flexDirection: 'column', gap: '8px'
                             }}>
                                 <span>No local models installed.</span>
-                                <button onClick={() => { if (onOpenSettings) onOpenSettings('ai'); else alert('Open Settings > AI Assistant to install models.'); }} style={{
+                                <button onClick={() => { if (onOpenSettings) onOpenSettings('ai'); else setAlertData({ isOpen: true, message: 'Open Settings > AI Assistant to install models.' }); }} style={{
                                     backgroundColor: 'var(--feedback-warning-text)', color: 'var(--surface-base)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
                                 }}>Install Models in Settings</button>
                             </div>
@@ -408,6 +412,14 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings }) => {
 
                 </div>
             )}
+
+            <AlertDialog
+                isOpen={alertData.isOpen}
+                onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
+                title="AI Assistant Info"
+                message={alertData.message}
+                type="info"
+            />
         </div>
     );
 };
