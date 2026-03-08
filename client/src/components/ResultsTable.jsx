@@ -419,8 +419,9 @@ const ResultsTable = ({ data, types, executionTime, query, onDbChange, isReportM
             }
 
             {/* Results Content */}
-            <div key={viewMode} style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: viewMode === 'chart' ? '200px' : undefined, animation: 'fadeIn 0.25s ease' }}>
-                {viewMode === 'table' ? (
+            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: viewMode === 'chart' ? '200px' : undefined, animation: 'fadeIn 0.25s ease' }}>
+                {/* Table — always mounted, hidden via CSS */}
+                <div style={{ display: viewMode === 'table' ? 'contents' : 'none' }}>
                     <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontSize: `${editorSettings.resultsFontSize || 13}px`, tableLayout: 'fixed', width: '100%' }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                             <tr>
@@ -524,10 +525,16 @@ const ResultsTable = ({ data, types, executionTime, query, onDbChange, isReportM
                             )}
                         </tbody>
                     </table>
-                ) : viewMode === 'profile' ? (
-                    <DataProfiler data={data} />
-                ) : (
+                </div>
+
+                {/* Chart — always mounted, hidden via CSS to preserve config state */}
+                <div style={{ display: viewMode === 'chart' ? 'flex' : 'none', flex: 1, flexDirection: 'column', height: '100%' }}>
                     <DataVisualizer data={data} isReportMode={isReportMode} query={query} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} />
+                </div>
+
+                {/* Profile — conditional render (no critical state to preserve) */}
+                {viewMode === 'profile' && (
+                    <DataProfiler data={data} />
                 )}
             </div>
 

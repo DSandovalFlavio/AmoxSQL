@@ -277,20 +277,29 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
                     {/* ── Tab Content ── */}
                     <div style={{ flex: 1, overflowY: 'auto' }}>
-                        {activeTab === 'chart' && (
-                            <ChartTypeSelector
-                                currentType={state.chartType}
-                                onTypeChange={type => {
-                                    // Handle compound types
-                                    if (type === 'bar-stacked') setFields({ chartType: 'bar', barStackMode: 'stack' });
-                                    else if (type === 'bar-100') setFields({ chartType: 'bar', barStackMode: 'expand' });
-                                    else if (type === 'bar-horizontal-stacked') setFields({ chartType: 'bar-horizontal', barStackMode: 'stack' });
-                                    else if (type === 'bar-horizontal-100') setFields({ chartType: 'bar-horizontal', barStackMode: 'expand' });
-                                    else if (type === 'bubble') setFields({ chartType: 'scatter' });
-                                    else setFields({ chartType: type, barStackMode: type === 'bar' || type === 'bar-horizontal' ? 'none' : state.barStackMode });
-                                }}
-                            />
-                        )}
+                        {activeTab === 'chart' && (() => {
+                            // Compute the effective visual type including stack mode
+                            let effectiveType = state.chartType;
+                            if (state.chartType === 'bar' && state.barStackMode === 'stack') effectiveType = 'bar-stacked';
+                            else if (state.chartType === 'bar' && state.barStackMode === 'expand') effectiveType = 'bar-100';
+                            else if (state.chartType === 'bar-horizontal' && state.barStackMode === 'stack') effectiveType = 'bar-horizontal-stacked';
+                            else if (state.chartType === 'bar-horizontal' && state.barStackMode === 'expand') effectiveType = 'bar-horizontal-100';
+
+                            return (
+                                <ChartTypeSelector
+                                    currentType={effectiveType}
+                                    onTypeChange={type => {
+                                        // Handle compound types
+                                        if (type === 'bar-stacked') setFields({ chartType: 'bar', barStackMode: 'stack' });
+                                        else if (type === 'bar-100') setFields({ chartType: 'bar', barStackMode: 'expand' });
+                                        else if (type === 'bar-horizontal-stacked') setFields({ chartType: 'bar-horizontal', barStackMode: 'stack' });
+                                        else if (type === 'bar-horizontal-100') setFields({ chartType: 'bar-horizontal', barStackMode: 'expand' });
+                                        else if (type === 'bubble') setFields({ chartType: 'scatter' });
+                                        else setFields({ chartType: type, barStackMode: type === 'bar' || type === 'bar-horizontal' ? 'none' : state.barStackMode });
+                                    }}
+                                />
+                            );
+                        })()}
 
                         {activeTab === 'data' && (
                             <DataPanel
