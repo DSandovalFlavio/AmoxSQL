@@ -49,6 +49,25 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys }) => {
                     </SelectField>
                 )}
 
+                {showLabels && !isDonut && (
+                    <>
+                        <SliderField
+                            label="Label Size"
+                            value={state.dataLabelSize || 11}
+                            min={8} max={20}
+                            onChange={v => setField('dataLabelSize', v)}
+                            suffix="px"
+                        />
+                        <SliderField
+                            label="Hide if space <"
+                            value={state.dataLabelMinSpace ?? 30}
+                            min={0} max={100}
+                            onChange={v => setField('dataLabelMinSpace', v)}
+                            suffix="px"
+                        />
+                    </>
+                )}
+
                 {isDonut && showLabels && (
                     <>
                         <SelectField

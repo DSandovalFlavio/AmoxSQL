@@ -47,13 +47,15 @@ const ChartRenderer = memo(({
         chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey, bubbleSizeKey,
         numberFormat, decimalPlaces, gridMode, showAxisLines, yLogScale, yAxisDomain,
         showXAxisTitle, showYAxisTitle, customAxisTitles, xAxisLabelAngle,
-        showLabels, dataLabelPosition, tooltipShowPercent, legendPosition,
+        showLabels, dataLabelPosition, dataLabelSize, dataLabelMinSpace, tooltipShowPercent, legendPosition,
         lineType, lineAreaFill, showDots, barStackMode, barRadius, barColorMode,
         donutThickness, donutCenterKpi, donutLabelContent, donutLabelPosition,
         donutGroupingThreshold, scatterQuadrants, highlightConfig, seriesConfig,
         refLine, refArea, goalLine, trendLine, comboLineKeys,
         marginTop, marginBottom, marginLeft, marginRight,
     } = config;
+
+    const labelFontSize = dataLabelSize || 11;
 
     // ── Format functions ──
     const fmt = useCallback((value) => formatNumber(value, numberFormat, decimalPlaces), [numberFormat, decimalPlaces]);
@@ -121,6 +123,51 @@ const ChartRenderer = memo(({
         boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
     };
 
+    // ── Custom Legend Renderer ──
+    const CustomLegend = useCallback(({ payload }) => {
+        if (!payload || payload.length === 0) return null;
+        const isVert = legendPosition === 'left' || legendPosition === 'right';
+        return (
+            <div style={{
+                display: 'flex',
+                flexDirection: isVert ? 'column' : 'row',
+                flexWrap: 'wrap',
+                gap: '6px',
+                justifyContent: isVert ? 'flex-start' : 'center',
+                alignItems: 'center',
+                padding: legendPosition === 'top' ? '0 0 14px 0'
+                    : legendPosition === 'bottom' ? '14px 0 0 0'
+                        : isVert ? '0 10px' : '0',
+            }}>
+                {payload.map((entry, i) => (
+                    <span key={`legend-${i}`} style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--panel-section-bg, rgba(255,255,255,0.04))',
+                        fontSize: `${fontSize}px`,
+                        color: 'var(--text-secondary)',
+                        lineHeight: 1.3,
+                        whiteSpace: 'nowrap',
+                        cursor: 'default',
+                        transition: 'opacity 0.15s',
+                    }}>
+                        <span style={{
+                            width: '8px', height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: entry.color,
+                            flexShrink: 0,
+                        }} />
+                        {entry.value}
+                    </span>
+                ))}
+            </div>
+        );
+    }, [legendPosition, fontSize]);
+
     // ── Legend props ──
     const legendProps = useMemo(() => {
         if (legendPosition === 'none') return {};
@@ -129,10 +176,9 @@ const ChartRenderer = memo(({
             verticalAlign: legendPosition === 'bottom' ? 'bottom' : legendPosition === 'top' ? 'top' : 'middle',
             align: legendPosition === 'left' ? 'left' : legendPosition === 'right' ? 'right' : 'center',
             layout,
-            wrapperStyle: { fontSize: `${fontSize}px`, color: 'var(--text-secondary)', paddingTop: '5px' },
-            iconType: 'circle', iconSize: 8,
+            content: CustomLegend,
         };
-    }, [legendPosition, fontSize]);
+    }, [legendPosition, CustomLegend]);
 
     // ── Dynamic axis sizes ──
     const dynamicYAxisWidth = useMemo(() => {
@@ -162,16 +208,37 @@ const ChartRenderer = memo(({
     }, [processedData, xAxisKey, xAxisLabelAngle, isHorizontal, xAxisTickFormatter, showXAxisTitle]);
 
     // ── Label position mapping ──
+    // ── Contrast color helper ──
+    const getContrastColor = useCallback((hexColor) => {
+        if (!hexColor || hexColor.length < 7) return '#ffffff';
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const g = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
+        // Relative luminance (WCAG formula)
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.55 ? '#1a1a2e' : '#ffffff';
+    }, []);
+
     const labelContentRenderer = useCallback((props) => {
         if (!showLabels) return null;
         const { x, y, width, height, value } = props;
         if (value == null || value === 0) return null;
 
+        const isHoriz = chartType.startsWith('bar-horizontal');
+        const minSpace = dataLabelMinSpace ?? 30;
+
+        // Auto-hide if segment is too small to fit the label neatly
+        if (width !== undefined && height !== undefined) {
+            const relevantSpace = isHoriz ? width : height;
+            if (relevantSpace < minSpace) return null;
+        }
+
         const position = dataLabelPosition || 'outside';
         let textX = x + (width || 0) / 2, textY = y, textAnchor = 'middle', baseline = 'auto';
         const off = 5;
+        const isInside = position.startsWith('inside');
 
-        if (chartType.startsWith('bar-horizontal')) {
+        if (isHoriz) {
             if (position === 'outside') { textX = x + (width || 0) + off; textAnchor = 'start'; textY = y + (height || 0) / 2; baseline = 'central'; }
             else { textX = x + (width || 0) / 2; textY = y + (height || 0) / 2; baseline = 'central'; }
         } else {
@@ -181,13 +248,20 @@ const ChartRenderer = memo(({
             else if (position === 'inside-end') { textY = y + off * 2; baseline = 'auto'; }
         }
 
+        // Determine label color based on position:
+        // Inside → contrast with bar color; Outside → use theme text color
+        const fillColor = isInside && props.fill
+            ? getContrastColor(props.fill)
+            : 'var(--text-secondary)';
+
         return (
-            <text x={textX} y={textY} fill="var(--text-secondary)" fontSize={fontSize - 1}
-                textAnchor={textAnchor} dominantBaseline={baseline}>
+            <text x={textX} y={textY} fill={fillColor} fontSize={labelFontSize}
+                textAnchor={textAnchor} dominantBaseline={baseline}
+                fontWeight={isInside ? '600' : '400'}>
                 {fmt(value)}
             </text>
         );
-    }, [showLabels, dataLabelPosition, chartType, fmt, fontSize]);
+    }, [showLabels, dataLabelPosition, dataLabelMinSpace, chartType, fmt, labelFontSize, getContrastColor]);
 
     // ── Donut label ──
     const renderDonutLabel = useCallback(({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {

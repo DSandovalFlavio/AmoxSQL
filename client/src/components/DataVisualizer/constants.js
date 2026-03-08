@@ -124,6 +124,8 @@ export const DEFAULT_CONFIG = {
     // Labels & Tooltips
     showLabels: false,
     dataLabelPosition: 'top',
+    dataLabelSize: 11,
+    dataLabelMinSpace: 30,
     tooltipShowPercent: false,
     showPercentages: false,
 
