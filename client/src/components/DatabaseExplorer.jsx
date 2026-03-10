@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useDeferredValue } from 'react';
 import TablePreviewModal from './TablePreviewModal';
 import TableDetailsModal from './TableDetailsModal';
 import QueryHistoryModal from './QueryHistoryModal';
@@ -16,6 +16,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     const [detailsTable, setDetailsTable] = useState(null); // Full Details Modal
 
     const [searchQuery, setSearchQuery] = useState('');
+    const deferredSearchQuery = useDeferredValue(searchQuery);
     const [expandedTables, setExpandedTables] = useState({}); // { tableName: true/false }
 
     // History Modal State
@@ -179,13 +180,13 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     )}
 
                     {tables.filter(t => {
-                        if (!searchQuery) return true;
-                        const q = searchQuery.toLowerCase();
+                        if (!deferredSearchQuery) return true;
+                        const q = deferredSearchQuery.toLowerCase();
                         if (t.name.toLowerCase().includes(q)) return true;
                         if (t.columns && t.columns.some(col => col.column_name.toLowerCase().includes(q))) return true;
                         return false;
                     }).map(table => {
-                        const q = searchQuery.toLowerCase();
+                        const q = deferredSearchQuery.toLowerCase();
                         const matchesColumn = q && table.columns && table.columns.some(col => col.column_name.toLowerCase().includes(q)) && !table.name.toLowerCase().includes(q);
                         const isExpanded = !!expandedTables[table.name] || matchesColumn;
                         const TableIcon = table.type?.toLowerCase().includes('view') ? LuEye : LuTable;
@@ -238,7 +239,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                             const meta = getTypeMeta(col.data_type);
                                             return (
                                                 <div
-                                                    key={`${col.column_name}-${idx}`}
+                                                    key={`${col.column_name} -${idx} `}
                                                     draggable
                                                     onDragStart={(e) => {
                                                         e.dataTransfer.setData('text/plain', col.column_name);
@@ -325,7 +326,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
                         onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         onClick={() => {
-                            if (onSelectQuery) onSelectQuery(`SELECT * FROM "${contextMenu.tableName}" LIMIT 100;`);
+                            if (onSelectQuery) onSelectQuery(`SELECT * FROM "${contextMenu.tableName}" LIMIT 100; `);
                             setContextMenu(null);
                         }}
                     >

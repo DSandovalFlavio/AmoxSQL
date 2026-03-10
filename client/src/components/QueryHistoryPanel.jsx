@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useDeferredValue } from 'react';
 import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuTrash2 } from 'react-icons/lu';
 
 /**
@@ -9,6 +9,7 @@ const QueryHistoryPanel = ({ onSelect }) => {
     const [bookmarks, setBookmarks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
+    const deferredSearch = useDeferredValue(search);
     const [viewTab, setViewTab] = useState('history'); // 'history' | 'bookmarks'
 
     const fetchHistory = async () => {
@@ -79,7 +80,7 @@ const QueryHistoryPanel = ({ onSelect }) => {
         return d.toLocaleDateString();
     };
 
-    const q = search.toLowerCase();
+    const q = deferredSearch.toLowerCase();
     const activeList = viewTab === 'history'
         ? history.filter(h => h.query.toLowerCase().includes(q))
         : bookmarks.filter(b => b.query.toLowerCase().includes(q));

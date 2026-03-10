@@ -32,6 +32,7 @@ const EditorPane = ({
     const [resultsWidth, setResultsWidth] = useState(500);
     const isResizing = useRef(false);
     const containerRef = useRef(null);
+    const ghostRef = useRef(null);
 
     // CTE Debug State
     const [debugModalOpen, setDebugModalOpen] = useState(false);
@@ -45,10 +46,36 @@ const EditorPane = ({
     const startResizing = (e) => {
         e.preventDefault();
         isResizing.current = true;
+        document.body.style.cursor = isVertical ? 'col-resize' : 'row-resize';
+        document.body.style.userSelect = 'none';
+
+        if (ghostRef.current && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            ghostRef.current.style.display = 'block';
+            if (isVertical) {
+                ghostRef.current.style.left = `${e.clientX - rect.left}px`;
+                ghostRef.current.style.top = '0px';
+                ghostRef.current.style.width = '4px';
+                ghostRef.current.style.height = '100%';
+            } else {
+                ghostRef.current.style.top = `${e.clientY - rect.top}px`;
+                ghostRef.current.style.left = '0px';
+                ghostRef.current.style.height = '4px';
+                ghostRef.current.style.width = '100%';
+            }
+        }
     };
-    const stopResizing = () => { isResizing.current = false; };
-    const resize = (e) => {
+
+    const stopResizing = (e) => {
         if (!isResizing.current) return;
+        isResizing.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+
+        if (ghostRef.current) {
+            ghostRef.current.style.display = 'none';
+        }
+
         if (isVertical) {
             // Vertical layout: resize width from the right
             const container = containerRef.current;
@@ -63,6 +90,18 @@ const EditorPane = ({
             const newHeight = window.innerHeight - e.clientY;
             if (newHeight >= 50 && newHeight <= 800) {
                 setResultsHeight(newHeight);
+            }
+        }
+    };
+
+    const resize = (e) => {
+        if (!isResizing.current) return;
+        if (ghostRef.current && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            if (isVertical) {
+                ghostRef.current.style.left = `${e.clientX - rect.left}px`;
+            } else {
+                ghostRef.current.style.top = `${e.clientY - rect.top}px`;
             }
         }
     };
@@ -265,6 +304,19 @@ const EditorPane = ({
                         </div>
                     </div>
                 )}
+
+                {/* Ghost Splitter Line */}
+                <div
+                    ref={ghostRef}
+                    style={{
+                        position: 'absolute',
+                        display: 'none',
+                        backgroundColor: 'var(--accent-color-user)',
+                        zIndex: 9999,
+                        pointerEvents: 'none',
+                        opacity: 0.8
+                    }}
+                />
             </div>
 
             <DebugResultModal

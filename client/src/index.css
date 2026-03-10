@@ -2163,3 +2163,25 @@ tr:hover td {
   padding: 1px 6px;
   border-radius: 3px;
 }
+
+/* ==========================================================================
+   ResultsTable Hard-Coded Performance Optimizations
+   (Bypassing React Inline Styles entirely for large datagrid render speed)
+   ========================================================================== */
+
+/* Hardware Accelerated Zebra Striping */
+.results-table-root tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.results-table-root tbody tr:hover {
+  background-color: var(--row-hover);
+}
+
+.results-table-root td,
+.results-table-root th {
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

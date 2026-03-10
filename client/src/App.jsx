@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import ExtensionExplorer from './components/ExtensionExplorer';
@@ -226,7 +226,7 @@ function App() {
   }, [appPhase]);
 
   /* --- Execution Chain Handler --- */
-  const handleOpenChain = async () => {
+  const handleOpenChain = useCallback(async () => {
     try {
       const collectSqlFiles = async (dir = '') => {
         const res = await fetch(`http://localhost:3001/api/files?path=${encodeURIComponent(dir)}`);
@@ -250,7 +250,7 @@ function App() {
       setSqlFileList([]);
       setIsChainOpen(true);
     }
-  };
+  }, []);
 
   // Command Palette actions
   const commandPaletteActions = useMemo(() => {
@@ -268,41 +268,9 @@ function App() {
       }),
       { id: 'run-chain', label: 'Run Execution Chain...', category: 'Query', icon: LuLink, action: handleOpenChain },
     ];
-  }, [appPhase, showAiSidebar, theme]);
+  }, [appPhase, showAiSidebar, theme, handleOpenChain]);
 
-  const handleOpenProject = async (path) => {
-    try {
-      const response = await fetch('http://localhost:3001/api/project/open', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path })
-      });
-      const data = await response.json();
-
-      if (response.ok) {
-        setProjectPath(data.path);
-
-        // 2. Scan for Databases
-        try {
-          const scanRes = await fetch('http://localhost:3001/api/project/scan-dbs');
-          const dbs = await scanRes.json();
-
-          // Found DBs or Empty Project: Go to Selection Phase
-          setFoundDbs(dbs || []);
-          setAppPhase(PHASE.SELECTING_DB);
-        } catch (scanErr) {
-          console.warn("DB Scan failed, defaulting to memory", scanErr);
-          await startIdeSession(':memory:', false);
-        }
-      } else {
-        toast.error("Failed to open folder: " + data.error);
-      }
-    } catch (err) {
-      toast.error("Error opening folder: " + err.message);
-    }
-  };
-
-  const startIdeSession = async (dbPath, readOnly) => {
+  const startIdeSession = useCallback(async (dbPath, readOnly) => {
     // 1. Configure DB
     if (dbPath === ':memory:') {
       await fetch('http://localhost:3001/api/db/close', { method: 'POST' });
@@ -338,29 +306,53 @@ function App() {
     // 2. Enter IDE Phase
     setAppPhase(PHASE.IDE);
     setRefreshDbTrigger(prev => prev + 1);
-  };
+  }, [toast]);
 
-  const handleDbSelection = (selection) => {
+  const handleOpenProject = useCallback(async (path) => {
+    try {
+      const response = await fetch('http://localhost:3001/api/project/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setProjectPath(data.path);
+
+        // 2. Scan for Databases
+        try {
+          const scanRes = await fetch('http://localhost:3001/api/project/scan-dbs');
+          const dbs = await scanRes.json();
+
+          // Found DBs or Empty Project: Go to Selection Phase
+          setFoundDbs(dbs || []);
+          setAppPhase(PHASE.SELECTING_DB);
+        } catch (scanErr) {
+          console.warn("DB Scan failed, defaulting to memory", scanErr);
+          await startIdeSession(':memory:', false);
+        }
+      } else {
+        toast.error("Failed to open folder: " + data.error);
+      }
+    } catch (err) {
+      toast.error("Error opening folder: " + err.message);
+    }
+  }, [startIdeSession, toast]);
+
+  const handleDbSelection = useCallback((selection) => {
     startIdeSession(selection.path, selection.readOnly);
-  };
+  }, [startIdeSession]);
 
-  const handleCloseProject = () => {
+  const handleCloseProject = useCallback(() => {
     // Reset everything to Welcome State
     setAppPhase(PHASE.WELCOME);
     setProjectPath('');
-  };
+  }, []);
 
 
   /* --- File Handlers --- */
-  const handleFileClick = (path) => {
-    // Ideally this is handled by LayoutManager if it's already open?
-    // But we need to switch tabs. LayoutManager.openFile handles both open and focus.
-    // We assume file click means "Open/Focus". 
-    // BUT FileExplorer usually provides just path. We need CONTENT to open a file.
-    handleFileOpen(path);
-  };
-
-  const handleFileOpen = async (path) => {
+  const handleFileOpen = useCallback(async (path) => {
     try {
       const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(path)}`);
       const data = await response.json();
@@ -373,9 +365,17 @@ function App() {
     } catch (err) {
       toast.error(`Failed to open file: ${err.message}`);
     }
-  };
+  }, [toast]);
 
-  const handleImportRequest = (filePath, isFolder = false) => {
+  const handleFileClick = useCallback((path) => {
+    // Ideally this is handled by LayoutManager if it's already open?
+    // But we need to switch tabs. LayoutManager.openFile handles both open and focus.
+    // We assume file click means "Open/Focus". 
+    // BUT FileExplorer usually provides just path. We need CONTENT to open a file.
+    handleFileOpen(path);
+  }, [handleFileOpen]);
+
+  const handleImportRequest = useCallback((filePath, isFolder = false) => {
     setImportTargetFile(filePath);
     setImportIsFolder(isFolder);
 
@@ -385,9 +385,9 @@ function App() {
     } else {
       setIsImportModalOpen(true);
     }
-  };
+  }, []);
 
-  const performImport = async (tableName, cleanColumns, overridePath = null) => {
+  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null) => {
     try {
       const finalPath = overridePath || importTargetFile;
       const response = await fetch('http://localhost:3001/api/db/import', {
@@ -409,11 +409,11 @@ function App() {
     } catch (err) {
       return { success: false, error: err.message };
     }
-  };
+  }, [importTargetFile]);
 
 
 
-  const performExcelImport = async (config) => {
+  const performExcelImport = useCallback(async (config) => {
     try {
       const response = await fetch('http://localhost:3001/api/db/import-excel', {
         method: 'POST',
@@ -431,13 +431,13 @@ function App() {
     } catch (err) {
       return { success: false, error: err.message };
     }
-  };
+  }, []);
 
-  const handleNewFile = async (currentPath, type = 'sql') => {
+  const handleNewFile = useCallback(async (currentPath, type = 'sql') => {
     layoutRef.current?.createNew(type);
-  };
+  }, []);
 
-  const handleNewFolder = async (currentPath) => {
+  const handleNewFolder = useCallback(async (currentPath) => {
     const folderName = prompt("Enter folder name:");
     if (!folderName) return;
     const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
@@ -457,9 +457,9 @@ function App() {
     } catch (err) {
       toast.error(`Failed to create folder: ${err.message}`);
     }
-  };
+  }, []);
 
-  const performSave = async (filePath, content) => {
+  const performSave = useCallback(async (filePath, content) => {
     try {
       const response = await fetch('http://localhost:3001/api/file', {
         method: 'POST',
@@ -473,9 +473,9 @@ function App() {
     } catch (err) {
       return { success: false, error: err.message };
     }
-  };
+  }, []);
 
-  const handleSaveAs = async (filename, description) => {
+  const handleSaveAs = useCallback(async (filename, description) => {
     let contentToSave = pendingSaveContent;
     if (description) {
       contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
@@ -492,7 +492,7 @@ function App() {
     }
 
     return result;
-  };
+  }, [pendingSaveContent, performSave]);
 
   // --- Main Render Logic ---
 
