@@ -18,17 +18,18 @@ import LayoutManager from './components/LayoutManager';
 // New Components
 import WelcomeScreen from './components/WelcomeScreen';
 import ProjectInfo from './components/ProjectInfo';
-import DatabaseSelectionModal from './components/DatabaseSelectionModal';
 import AiSidebar from './components/AiSidebar';
 import StatusBar from './components/StatusBar';
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
-import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
-import DataQualityModal from './components/DataQualityModal';
-import SchemaDiffModal from './components/SchemaDiffModal';
-import ExecutionChainModal from './components/ExecutionChainModal';
 import { useToast } from './components/ToastProvider';
 
-import SettingsModal from './components/SettingsModal';
+// Ultra-heavy lazy loaded Modals (Zero Cost Startup)
+const DatabaseSelectionModal = lazy(() => import('./components/DatabaseSelectionModal'));
+const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal'));
+const DataQualityModal = lazy(() => import('./components/DataQualityModal'));
+const SchemaDiffModal = lazy(() => import('./components/SchemaDiffModal'));
+const ExecutionChainModal = lazy(() => import('./components/ExecutionChainModal'));
+const SettingsModal = lazy(() => import('./components/SettingsModal'));
 import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer } from "react-icons/lu";
 
 import './index.css';
@@ -845,64 +846,77 @@ function App() {
         </div>
       )}
 
+      {/* Ultra-Heavy Modals: Lazy Loaded to prevent V8 main-thread locking on boot */}
+      <Suspense fallback={null}>
+        <DatabaseSelectionModal
+          isOpen={appPhase === PHASE.SELECTING_DB}
+          projectPath={projectPath}
+          dbFiles={foundDbs}
+          onSelect={handleDbSelection}
+          onClose={handleCloseProject}
+        />
 
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        currentTheme={theme}
-        onThemeChange={setTheme}
-        currentAccent={accentColor}
-        onAccentChange={setAccentColor}
-        currentLayout={editorLayout}
-        onLayoutChange={setEditorLayout}
-        editorSettings={mergedEditorSettings}
-        onEditorSettingsChange={(updates) => setEditorSettings(prev => ({ ...prev, ...updates }))}
-      />
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          currentTheme={theme}
+          onThemeChange={setTheme}
+          currentAccent={accentColor}
+          onAccentChange={setAccentColor}
+          currentLayout={editorLayout}
+          onLayoutChange={setEditorLayout}
+          editorSettings={mergedEditorSettings}
+          onEditorSettingsChange={(updates) => setEditorSettings(prev => ({ ...prev, ...updates }))}
+        />
 
-      <KeyboardShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-      />
+        <KeyboardShortcutsModal
+          isOpen={isShortcutsOpen}
+          onClose={() => setIsShortcutsOpen(false)}
+        />
 
-      <DataQualityModal
-        isOpen={!!qualityCheckTable}
-        onClose={() => setQualityCheckTable(null)}
-        tableName={qualityCheckTable}
-      />
+        <DataQualityModal
+          isOpen={!!qualityCheckTable}
+          onClose={() => setQualityCheckTable(null)}
+          tableName={qualityCheckTable}
+        />
 
-      <SchemaDiffModal
-        isOpen={isSchemaDiffOpen}
-        onClose={() => setIsSchemaDiffOpen(false)}
-        tables={availableTables}
-      />
+        <SchemaDiffModal
+          isOpen={isSchemaDiffOpen}
+          onClose={() => setIsSchemaDiffOpen(false)}
+          tables={availableTables}
+        />
 
-      <SaveQueryModal
-        isOpen={isSaveModalOpen}
-        onClose={() => setIsSaveModalOpen(false)}
-        onSave={handleSaveAs}
-      />
+        <SaveQueryModal
+          isOpen={isSaveModalOpen}
+          onClose={() => setIsSaveModalOpen(false)}
+          onSave={handleSaveAs}
+        />
 
-      <ImportModal
-        isOpen={isImportModalOpen}
-        initialFile={importTargetFile || ''}
-        isFolder={importIsFolder}
-        onClose={() => setIsImportModalOpen(false)}
+        <ImportModal
+          isOpen={isImportModalOpen}
+          initialFile={importTargetFile || ''}
+          isFolder={importIsFolder}
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={performImport}
+        />
 
-        onImport={performImport}
-      />
+        <ImportExcelModal
+          isOpen={isExcelImportModalOpen}
+          initialFile={importTargetFile || ''}
+          onClose={() => setIsExcelImportModalOpen(false)}
+          onImport={(config) => performExcelImport(config)}
+        />
 
-      <ImportExcelModal
-        isOpen={isExcelImportModalOpen}
-        initialFile={importTargetFile || ''}
-        onClose={() => setIsExcelImportModalOpen(false)}
-        onImport={(config) => performExcelImport(config)}
-      />
+        <ExecutionChainModal
+          isOpen={isChainOpen}
+          onClose={() => setIsChainOpen(false)}
+          sqlFiles={sqlFileList}
+          dbPath={currentDb}
+          readOnly={dbReadOnly}
+          refreshTrigger={refreshDbTrigger}
+        />
+      </Suspense>
 
-      <ExecutionChainModal
-        isOpen={isChainOpen}
-        onClose={() => setIsChainOpen(false)}
-        sqlFiles={sqlFileList}
-      />
     </div>
   );
 }

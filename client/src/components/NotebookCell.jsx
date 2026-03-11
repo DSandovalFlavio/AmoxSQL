@@ -326,7 +326,8 @@ const NotebookCell = ({
                                                 data={result.data}
                                                 types={result.types}
                                                 executionTime={result.executionTime}
-                                                query={localContent}
+                                                query={result.executedQuery || localContent}
+                                                currentEditorQuery={localContent}
                                                 onDbChange={() => { }}
                                                 isReportMode={isReportMode}
                                                 initialChartConfig={initialCellState?.chartConfig || null}

@@ -187,17 +187,30 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
 
     // Initial load — use cache if available, only fetch project info fresh
     useEffect(() => {
+        // Only run environment check if we literally have no cached data at all
         if (!envStatus) {
-            // No cache — do full discovery
             checkEnv();
         }
-        detectProject();
-    }, [checkEnv, detectProject]);
+
+        // Prevent re-detecting the project every single time they switch tabs
+        if (!projectInfo) {
+            detectProject();
+        }
+    }, [checkEnv, detectProject, envStatus, projectInfo]);
 
     // Check exact DBT version when conda env changes
     useEffect(() => {
         if (!selectedCondaEnv || selectedCondaEnv === 'none') {
             setEnvDbtVersion(null);
+            return;
+        }
+
+        // Cache the version per environment to prevent redundant CLI calls
+        const envCacheKey = `amox-dbt-ver-${selectedCondaEnv}`;
+        const cachedVer = sessionStorage.getItem(envCacheKey);
+
+        if (cachedVer) {
+            setEnvDbtVersion(cachedVer);
             return;
         }
 
@@ -208,7 +221,12 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
                 const qs = cp && cp !== 'conda' ? `condaPath=${encodeURIComponent(cp)}&` : '';
                 const res = await fetch(`${API}/dbt/check-env-dbt?${qs}envName=${encodeURIComponent(selectedCondaEnv)}`);
                 const data = await res.json();
-                setEnvDbtVersion(data.found ? data.version : null);
+                if (data.found) {
+                    setEnvDbtVersion(data.version);
+                    sessionStorage.setItem(envCacheKey, data.version);
+                } else {
+                    setEnvDbtVersion(null);
+                }
             } catch (err) {
                 setEnvDbtVersion(null);
             }

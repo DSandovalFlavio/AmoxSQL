@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v1.8.0)
+# AmoxSQL (v1.9.0)
 
 > **The Modern Codex for Local Data Analysis.**
 >
@@ -152,10 +152,10 @@ This project is built with a modern, performance-oriented stack:
 
 ## ⬇️ Installation & Download
 
-### 🎁 v1.8.0 — Free Public Release
+### 🎁 v1.9.0 — Free Public Release
 This version is available for everyone. Download the source code and build it yourself, or grab the pre-built installer from the releases page.
 
-👉 **[Download v1.8.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
+👉 **[Download v1.9.0 from Releases](https://github.com/DSandovalFlavio/AmoxSQL/releases)**
 
 ### 🚀 Future Versions — Sponsors Only
 Starting with v1.5+, pre-built installers (`.exe`) will be available exclusively to **GitHub Sponsors** via a private repository. Sponsors get:

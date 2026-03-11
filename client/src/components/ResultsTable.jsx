@@ -5,7 +5,7 @@ import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import ExportDataModal from './ExportDataModal';
 
-const ResultsTable = ({ data, types, executionTime, query, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {} }) => {
+const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {} }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
@@ -184,29 +184,60 @@ const ResultsTable = ({ data, types, executionTime, query, onDbChange, isReportM
         setCurrentPage(1); // Reset to first page on filter
     };
 
+    const runExportWorker = async (action, exportData, columns = [], filenameSuffix = '') => {
+        if (!exportData || exportData.length === 0) return;
+
+        // Use toast if available via parent, or fallback to visual indicator
+        const btnId = `btn-${action}`;
+        const btn = document.getElementById(btnId);
+        const originalText = btn ? btn.innerText : '';
+        if (btn) btn.innerText = '⏳ Exporting...';
+
+        try {
+            const worker = new Worker('/exportWorker.js');
+
+            const result = await new Promise((resolve, reject) => {
+                worker.onmessage = (e) => {
+                    if (e.data.status === 'success') resolve(e.data.result);
+                    else reject(new Error(e.data.error));
+                };
+                worker.onerror = (err) => reject(err);
+
+                worker.postMessage({
+                    action,
+                    data: exportData,
+                    columns
+                });
+            });
+
+            worker.terminate();
+
+            const mimeType = action === 'exportCSV' ? 'text/csv;charset=utf-8;' : 'application/json';
+            const suffix = action === 'exportCSV' ? 'csv' : 'json';
+            const finalString = action === 'exportCSV' ? '\uFEFF' + result : result;
+
+            const blob = new Blob([finalString], { type: mimeType });
+            downloadBlob(blob, `query_results_${filenameSuffix}.${suffix}`);
+
+        } catch (error) {
+            console.error('Worker Export failed, falling back to main thread...', error);
+            // Fallback (rarely needed)
+            alert("Export worker failed. " + error.message);
+        } finally {
+            if (btn) btn.innerText = originalText;
+            setShowExportMenu(false);
+        }
+    };
+
     const handleExportCsv = () => {
         if (!sortedData || sortedData.length === 0) return;
-
         const headers = Object.keys(sortedData[0]);
-        const csvContent = [
-            headers.join(','),
-            ...sortedData.map(row => headers.map(header => {
-                const cell = row[header] === null ? '' : String(row[header]);
-                if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
-                    return `"${cell.replace(/"/g, '""')}"`;
-                }
-                return cell;
-            }).join(','))
-        ].join('\n');
-
-        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        downloadBlob(blob, `query_results_${timestamp()}.csv`);
+        runExportWorker('exportCSV', sortedData, headers, timestamp());
     };
 
     const handleExportJson = () => {
         if (!sortedData || sortedData.length === 0) return;
-        const blob = new Blob([JSON.stringify(sortedData, null, 2)], { type: 'application/json' });
-        downloadBlob(blob, `query_results_${timestamp()}.json`);
+        runExportWorker('exportJSON', sortedData, [], timestamp());
     };
 
     const handleCopyClipboard = () => {
@@ -532,10 +563,10 @@ const ResultsTable = ({ data, types, executionTime, query, onDbChange, isReportM
                     <DataVisualizer data={data} isReportMode={isReportMode} query={query} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} />
                 </div>
 
-                {/* Profile — conditional render (no critical state to preserve) */}
-                {viewMode === 'profile' && (
-                    <DataProfiler data={data} />
-                )}
+                {/* Profile — always mounted, hidden via CSS to preserve useMemo cache */}
+                <div style={{ display: viewMode === 'profile' ? 'flex' : 'none', flex: 1, flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                    <DataProfiler data={data} isActive={viewMode === 'profile'} query={query} />
+                </div>
             </div>
 
             <SaveToDbModal
@@ -547,7 +578,7 @@ const ResultsTable = ({ data, types, executionTime, query, onDbChange, isReportM
             <ExportDataModal
                 isOpen={isExportDataOpen}
                 onClose={() => setIsExportDataOpen(false)}
-                query={query}
+                query={currentEditorQuery || query}
             />
         </div >
     );

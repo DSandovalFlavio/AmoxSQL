@@ -130,7 +130,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const data = await response.json();
 
             if (response.ok) {
-                updateTab(pane, tabId, { results: data, resultsError: null, errorMarker: null });
+                updateTab(pane, tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null });
 
                 // Notify parent of query result for status bar
                 if (onQueryResult) {

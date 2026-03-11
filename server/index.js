@@ -628,6 +628,160 @@ app.post('/api/query', async (req, res) => {
     }
 });
 
+app.post('/api/profile', async (req, res) => {
+    const { query } = req.body;
+    if (!query) {
+        return res.status(400).json({ error: 'Query is required' });
+    }
+
+    try {
+        // Strip trailing semicolons to prevent syntax errors when nesting
+        const cleanQuery = query.trim().replace(/;+$/, '');
+
+        // 1. DuckDB SUMMARIZE for core statistics
+        const profileQuery = `SUMMARIZE ${cleanQuery}`;
+        const start = performance.now();
+        const profileData = await dbManager.systemQuery(profileQuery);
+
+        // 2. Fetch Global Stats
+        const globalRowsQuery = `SELECT COUNT(*) as total_rows FROM (${cleanQuery}) as sq`;
+        const globalDupesQuery = `SELECT COUNT(*) as duplicate_rows FROM (SELECT * FROM (${cleanQuery}) as sq GROUP BY ALL HAVING COUNT(*) > 1) as sq2`;
+
+        // 3. Build Advanced Summary & Correlation Queries
+        let advancedSelects = [];
+        let numericCols = [];
+        profileData.forEach(col => {
+            const isNumeric = ['INTEGER', 'BIGINT', 'DOUBLE', 'FLOAT', 'DECIMAL', 'HUGEINT', 'TINYINT', 'SMALLINT'].some(t => col.column_type.toUpperCase().includes(t));
+            const colName = col.column_name;
+            const safeCol = `"${colName}"`;
+
+            if (isNumeric) {
+                numericCols.push(colName);
+                advancedSelects.push(`SKEWNESS(${safeCol}) as "${colName}_skewness"`);
+                advancedSelects.push(`KURTOSIS(${safeCol}) as "${colName}_kurtosis"`);
+                advancedSelects.push(`COUNT(CASE WHEN ${safeCol} = 0 THEN 1 END) as "${colName}_zeros"`);
+                advancedSelects.push(`COUNT(CASE WHEN ${safeCol} < 0 THEN 1 END) as "${colName}_negatives"`);
+            } else {
+                advancedSelects.push(`MAX(LENGTH(CAST(${safeCol} AS VARCHAR))) as "${colName}_max_length"`);
+                advancedSelects.push(`MIN(LENGTH(CAST(${safeCol} AS VARCHAR))) as "${colName}_min_length"`);
+                advancedSelects.push(`AVG(LENGTH(CAST(${safeCol} AS VARCHAR))) as "${colName}_avg_length"`);
+            }
+        });
+
+        // Add correlation matrix if multiple numerics
+        let corrSelects = [];
+        if (numericCols.length > 1) {
+            for (let i = 0; i < numericCols.length; i++) {
+                for (let j = i + 1; j < numericCols.length; j++) {
+                    const c1 = numericCols[i];
+                    const c2 = numericCols[j];
+                    corrSelects.push(`CORR("${c1}", "${c2}") as "corr_${c1}_${c2}"`);
+                }
+            }
+        }
+
+        let advancedQuery = '';
+        if (advancedSelects.length > 0 || corrSelects.length > 0) {
+            const allSelects = [...advancedSelects, ...corrSelects].join(',\n');
+            advancedQuery = `SELECT \n${allSelects}\nFROM (${cleanQuery}) as subq`;
+        }
+
+        // 4. Fetch Visual Data (Histograms for numeric, Top 5 for text)
+        const visualQueries = profileData.map(col => {
+            const isNumeric = ['INTEGER', 'BIGINT', 'DOUBLE', 'FLOAT', 'DECIMAL', 'HUGEINT', 'TINYINT', 'SMALLINT'].some(t => col.column_type.toUpperCase().includes(t));
+            const colName = `"${col.column_name}"`;
+
+            if (isNumeric) {
+                if (col.min === null || col.max === null || col.min === col.max) return null;
+                const min = parseFloat(col.min);
+                const max = parseFloat(col.max);
+                const range = max - min;
+                const binWidth = range / 5;
+
+                return `SELECT 
+                    '${col.column_name}' as col_name,
+                    COUNT(CASE WHEN ${colName} >= ${min} AND ${colName} < ${min + binWidth} THEN 1 END) as b1,
+                    COUNT(CASE WHEN ${colName} >= ${min + binWidth} AND ${colName} < ${min + (binWidth * 2)} THEN 1 END) as b2,
+                    COUNT(CASE WHEN ${colName} >= ${min + (binWidth * 2)} AND ${colName} < ${min + (binWidth * 3)} THEN 1 END) as b3,
+                    COUNT(CASE WHEN ${colName} >= ${min + (binWidth * 3)} AND ${colName} < ${min + (binWidth * 4)} THEN 1 END) as b4,
+                    COUNT(CASE WHEN ${colName} >= ${min + (binWidth * 4)} AND ${colName} <= ${max} THEN 1 END) as b5
+                    FROM (${cleanQuery}) as subq`;
+            } else {
+                return `SELECT 
+                    '${col.column_name}' as col_name,
+                    ${colName} as val, 
+                    COUNT(*) as count 
+                    FROM (${cleanQuery}) as subq 
+                    WHERE ${colName} IS NOT NULL 
+                    GROUP BY ${colName} 
+                    ORDER BY count DESC 
+                    LIMIT 5`;
+            }
+        }).filter(q => q !== null);
+
+        let visuals = {};
+        if (visualQueries.length > 0) {
+            const visualResults = await Promise.all(visualQueries.map(q => dbManager.systemQuery(q)));
+            visualResults.forEach(res => {
+                if (!res || res.length === 0) return;
+                const colName = res[0].col_name;
+                if ('b1' in res[0]) {
+                    const row = res[0];
+                    visuals[colName] = { type: 'histogram', data: [Number(row.b1), Number(row.b2), Number(row.b3), Number(row.b4), Number(row.b5)] };
+                } else {
+                    visuals[colName] = { type: 'top', data: res.map(r => ({ value: String(r.val), count: Number(r.count) })) };
+                }
+            });
+        }
+
+        // 5. Execute Global & Advanced queries in parallel
+        const parallelExecutions = [
+            dbManager.systemQuery(globalRowsQuery),
+            dbManager.systemQuery(globalDupesQuery)
+        ];
+        if (advancedQuery) {
+            parallelExecutions.push(dbManager.systemQuery(advancedQuery));
+        }
+
+        const parallelResults = await Promise.all(parallelExecutions);
+
+        const totalRows = parallelResults[0][0]?.total_rows || 0;
+        const duplicateRows = parallelResults[1][0]?.duplicate_rows || 0;
+        const advancedStats = advancedQuery ? parallelResults[2][0] : {};
+
+        // Process Correlational Matrix
+        let correlations = [];
+        if (corrSelects.length > 0 && advancedStats) {
+            for (let i = 0; i < numericCols.length; i++) {
+                for (let j = i + 1; j < numericCols.length; j++) {
+                    const c1 = numericCols[i];
+                    const c2 = numericCols[j];
+                    const key = `corr_${c1}_${c2}`;
+                    if (advancedStats[key] !== undefined && advancedStats[key] !== null) {
+                        correlations.push({ col1: c1, col2: c2, score: advancedStats[key] });
+                    }
+                }
+            }
+        }
+
+        const end = performance.now();
+
+        res.json({
+            profile: profileData,
+            visuals: visuals,
+            advanced: advancedStats,
+            global: {
+                totalRows: Number(totalRows),
+                duplicateRows: Number(duplicateRows)
+            },
+            correlations: correlations,
+            executionTime: (end - start).toFixed(2)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 /* --- Data Export API (DuckDB COPY TO) --- */
 app.post('/api/export-data', async (req, res) => {
     const { query, format, filename } = req.body;
@@ -641,24 +795,16 @@ app.post('/api/export-data', async (req, res) => {
     }
 
     const fullPath = path.join(ROOT_DIR, filename).replace(/\\/g, '/');
+    const cleanQuery = query.trim().replace(/;+$/, '');
 
     try {
-        // Map format to DuckDB COPY options
         let copyFormat;
         if (format === 'csv') copyFormat = "CSV";
         else if (format === 'parquet') copyFormat = "PARQUET";
         else if (format === 'xlsx') {
-            // DuckDB doesn't support COPY TO xlsx natively, so we'll use a workaround:
-            // Install and load the spatial extension for xlsx support, or fall back to CSV
-            // Actually, let's use COPY with json + xlsx package, or just use the simple approach:
-            // Export as CSV and let the client rename, OR use DuckDB's INSTALL/LOAD approach
-            // For reliability, we'll create a temp table and export via the xlsx npm package
             try {
-                // Try using DuckDB's built-in xlsx if spatial extension is loaded
-                await dbManager.query(`COPY (${query}) TO '${fullPath}' WITH (FORMAT CSV, HEADER)`);
-                // Rename to xlsx — DuckDB doesn't natively write xlsx, so we export as CSV
-                // But let the user know
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${query}) t`);
+                await dbManager.query(`COPY (${cleanQuery}) TO '${fullPath}' WITH (FORMAT CSV, HEADER)`);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${cleanQuery}) t`);
                 const rowCount = countResult[0]?.cnt || 0;
                 return res.json({ success: true, path: filename, rowCount, note: 'Exported as CSV (rename to .csv for best compatibility)' });
             } catch (xlsxErr) {
@@ -667,11 +813,12 @@ app.post('/api/export-data', async (req, res) => {
         }
 
         // Count rows first
-        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${query}) t`);
+        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${cleanQuery}) t`);
         const rowCount = countResult[0]?.cnt || 0;
 
-        // Execute COPY TO
-        await dbManager.query(`COPY (${query}) TO '${fullPath}' (FORMAT ${copyFormat}, HEADER true)`);
+        // Execute COPY TO (Parquet doesn't accept HEADER)
+        const copyOptions = format === 'csv' ? "(HEADER, DELIMITER ',')" : "(FORMAT PARQUET)";
+        await dbManager.query(`COPY (${cleanQuery}) TO '${fullPath}' ${copyOptions}`);
 
         res.json({ success: true, path: filename, rowCount });
     } catch (err) {

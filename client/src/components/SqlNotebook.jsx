@@ -268,7 +268,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
         const result = await onRunQuery(cellContent);
 
         setResults(prev => {
-            const nextResults = { ...prev, [cellId]: result };
+            const nextResults = { ...prev, [cellId]: { ...result, executedQuery: cellContent } };
             // Persist state after query execution
             persistState(cellStates, nextResults, cells);
             return nextResults;
