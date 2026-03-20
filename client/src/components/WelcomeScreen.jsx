@@ -1,10 +1,20 @@
-import { useState, useRef } from 'react';
-import { LuFolderOpen, LuSettings } from "react-icons/lu";
+import { useState, useRef, useEffect } from 'react';
+import { LuFolderOpen, LuSettings, LuClock, LuTrash2 } from "react-icons/lu";
 import Logo from './Logo';
+
+const RECENT_KEY = 'amoxsql-recent-projects';
+
+const getRecentProjects = () => {
+    try {
+        const data = localStorage.getItem(RECENT_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch { return []; }
+};
 
 const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
     const [path, setPath] = useState('');
     const folderInputRef = useRef(null);
+    const [recentProjects, setRecentProjects] = useState(getRecentProjects);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -14,12 +24,10 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
     };
 
     const handleBrowseFolder = async () => {
-        // Electron: use native dialog via IPC
         if (window.electronAPI && window.electronAPI.selectFolder) {
             const selected = await window.electronAPI.selectFolder();
             if (selected) setPath(selected);
         } else {
-            // Browser fallback: use hidden directory input
             folderInputRef.current?.click();
         }
     };
@@ -27,7 +35,6 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
     const handleFolderInputChange = (e) => {
         const files = e.target.files;
         if (files && files.length > 0) {
-            // webkitRelativePath gives us the relative path, extract the root folder
             const relativePath = files[0].webkitRelativePath;
             if (relativePath) {
                 const folderName = relativePath.split('/')[0];
@@ -36,45 +43,60 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
         }
     };
 
+    const handleClearRecent = () => {
+        localStorage.removeItem(RECENT_KEY);
+        setRecentProjects([]);
+    };
+
+    useEffect(() => {
+        setRecentProjects(getRecentProjects());
+    }, []);
+
     return (
         <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
             height: '100vh',
             width: '100vw',
             backgroundColor: 'var(--surface-base)',
             color: 'var(--text-secondary)',
             fontFamily: 'inherit',
-            position: 'relative'
+            position: 'relative',
+            overflow: 'hidden',
+            paddingTop: '8vh'
         }}>
-            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                <div style={{ marginBottom: '-60px' }}>
-                    {/* AmoxSQL Logo */}
-                    <Logo width={360} height={360} />
+            {/* Compact Header: Logo + Title */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
+                <div style={{ marginBottom: '-55px' }}>
+                    <Logo width={250} height={250} />
                 </div>
-                <h1 style={{ fontSize: '42px', fontWeight: '700', color: 'var(--text-primary)', margin: '0', letterSpacing: '1px' }}>
+                <h1 style={{ fontSize: '36px', fontWeight: '700', color: 'var(--text-primary)', margin: '0', letterSpacing: '1px' }}>
                     Amox<span style={{ color: 'var(--accent-primary)' }}>SQL</span>
                 </h1>
-                <p style={{ fontSize: '16px', color: 'var(--text-tertiary)', marginTop: '10px', fontStyle: 'italic' }}>
+                <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', marginTop: '8px', fontStyle: 'italic' }}>
                     The Modern Codex for Local Data Analysis
                 </p>
             </div>
 
+            {/* Unified Card: Form + Recent Projects */}
             <div style={{
-                width: '450px',
-                padding: '30px',
+                width: '560px',
+                maxWidth: '90vw',
+                padding: '28px',
                 backgroundColor: 'var(--surface-raised)',
                 borderRadius: '12px',
                 boxShadow: 'var(--shadow-lg)',
-                border: '1px solid var(--border-default)'
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: '60vh',
             }}>
-                <h2 style={{ marginTop: 0, fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px', fontWeight: '600' }}>Open Workspace</h2>
+                <h2 style={{ marginTop: 0, fontSize: '16px', color: 'var(--text-primary)', marginBottom: '16px', fontWeight: '600' }}>Open Workspace</h2>
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>Project Path</label>
+                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)' }}>Project Path</label>
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <input
                                 type="text"
@@ -117,7 +139,6 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                             >
                                 <LuFolderOpen size={18} />
                             </button>
-                            {/* Hidden fallback input for browser mode */}
                             <input
                                 ref={folderInputRef}
                                 type="file"
@@ -127,7 +148,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                                 onChange={handleFolderInputChange}
                             />
                         </div>
-                        <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '6px' }}>
+                        <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '5px', marginBottom: '0' }}>
                             Paste the absolute path or click the folder icon to browse.
                         </p>
                     </div>
@@ -136,8 +157,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                         type="submit"
                         disabled={!path.trim()}
                         style={{
-                            marginTop: '10px',
-                            padding: '12px',
+                            padding: '11px',
                             backgroundColor: path.trim() ? 'var(--accent-primary)' : 'var(--surface-inset)',
                             color: path.trim() ? 'var(--surface-base)' : 'var(--text-disabled)',
                             border: 'none',
@@ -152,12 +172,92 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                     >
                         Open Project
                     </button>
-
-                    {/* Optional: Recent Projects list could go here later */}
                 </form>
+
+                {/* Recent Projects — inside the same card */}
+                {recentProjects.length > 0 && (
+                    <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-default)', paddingTop: '16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <LuClock size={14} style={{ color: 'var(--accent-primary)' }} /> Recent Projects
+                            </h3>
+                            <button
+                                onClick={handleClearRecent}
+                                title="Clear all recent projects"
+                                style={{
+                                    background: 'transparent', border: 'none',
+                                    color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px 8px',
+                                    borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px',
+                                    transition: 'all 120ms ease'
+                                }}
+                                onMouseOver={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#ef444410'; }}
+                                onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}
+                            >
+                                <LuTrash2 size={12} /> Clear
+                            </button>
+                        </div>
+
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+                            gap: '10px',
+                            overflowY: 'auto',
+                            maxHeight: '200px',
+                            paddingRight: '4px'
+                        }}>
+                            {recentProjects.map((p, i) => {
+                                const folderName = p.split(/[\\/]/).pop() || p;
+                                const directoryInfo = p.substring(0, p.length - folderName.length) || 'Root';
+
+                                return (
+                                    <button
+                                        key={i}
+                                        onClick={() => onOpenProject(p)}
+                                        title={p}
+                                        style={{
+                                            display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                                            backgroundColor: 'var(--surface-inset)', borderRadius: '8px',
+                                            border: '1px solid var(--border-default)', padding: '12px',
+                                            cursor: 'pointer', textAlign: 'left',
+                                            transition: 'all 150ms ease',
+                                            position: 'relative', overflow: 'hidden'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                                            e.currentTarget.style.backgroundColor = 'var(--surface-overlay)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--border-default)';
+                                            e.currentTarget.style.backgroundColor = 'var(--surface-inset)';
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', marginBottom: '4px' }}>
+                                            <LuFolderOpen size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                                            <span style={{
+                                                fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)',
+                                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                width: '100%'
+                                            }}>
+                                                {folderName}
+                                            </span>
+                                        </div>
+                                        <div style={{
+                                            fontSize: '10px', color: 'var(--text-tertiary)',
+                                            fontFamily: "'JetBrains Mono', monospace",
+                                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                            width: '100%', opacity: 0.7, paddingLeft: '24px'
+                                        }}>
+                                            {directoryInfo}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Settings Gear */}
+            {/* Settings Gear — bottom left */}
             <button
                 onClick={onOpenSettings}
                 title="Settings"
@@ -182,7 +282,8 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                 <LuSettings size={20} />
             </button>
 
-            <div style={{ position: 'absolute', bottom: '24px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
+            {/* Version — bottom center */}
+            <div style={{ position: 'absolute', bottom: '24px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
                 v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?.?.?'}
             </div>
         </div>

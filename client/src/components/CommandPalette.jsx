@@ -92,7 +92,6 @@ const CommandPalette = ({
         <div
             className="command-palette-overlay"
             onClick={onClose}
-            onKeyDown={handleKeyDown}
         >
             <div
                 className="command-palette"
@@ -154,6 +153,8 @@ export function buildDefaultActions({
     theme,
     setTheme,
     setIsShortcutsOpen,
+    setUiZoomLevel,
+    setEditorSettings,
 }) {
     return [
         // Query Actions
@@ -175,6 +176,13 @@ export function buildDefaultActions({
         { id: 'settings', label: 'Open Settings', category: 'Settings', icon: LuSettings, shortcut: 'Ctrl+,', action: () => setIsSettingsOpen(true) },
         { id: 'toggle-theme', label: theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme', category: 'Settings', icon: theme === 'dark' ? LuSun : LuMoon, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
         { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Settings', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => setIsShortcutsOpen?.(true) },
+
+        // View / Appearance
+        { id: 'zoom-in', label: 'Zoom In UI', category: 'View', icon: LuSearch, shortcut: 'Ctrl++', action: () => setUiZoomLevel?.(prev => Math.min(prev + 0.1, 2.0)) },
+        { id: 'zoom-out', label: 'Zoom Out UI', category: 'View', icon: LuSearch, shortcut: 'Ctrl+-', action: () => setUiZoomLevel?.(prev => Math.max(prev - 0.1, 0.5)) },
+        { id: 'zoom-reset', label: 'Reset UI Zoom', category: 'View', icon: LuSearch, shortcut: 'Ctrl+0', action: () => setUiZoomLevel?.(1.0) },
+        { id: 'toggle-minimap', label: 'Toggle Editor Minimap', category: 'View', icon: LuCode, action: () => setEditorSettings?.(prev => ({...prev, minimap: !prev.minimap})) },
+        { id: 'toggle-wordwrap', label: 'Toggle Editor Word Wrap', category: 'View', icon: LuCode, action: () => setEditorSettings?.(prev => ({...prev, wordWrap: prev.wordWrap === 'on' ? 'off' : 'on'})) },
 
         // DBT
         { id: 'dbt-panel', label: 'Show DBT Studio', category: 'DBT', icon: LuFolder, action: () => setActiveSidebarTab('dbt') },

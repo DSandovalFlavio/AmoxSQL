@@ -7,7 +7,7 @@ import {
     LineChart, Line, AreaChart, Area, BarChart, Bar, ComposedChart,
     PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-    ResponsiveContainer, ReferenceLine, ReferenceArea, LabelList, Funnel, FunnelChart,
+    ResponsiveContainer, ReferenceLine, ReferenceArea, LabelList, Funnel, FunnelChart, Treemap,
 } from 'recharts';
 import { formatNumber, createFormatter, formatDateLabel, createTooltipFormatter } from '../utils/numberFormat';
 import { computeTrendLine, processDonutData } from '../utils/dataProcessing';
@@ -800,6 +800,60 @@ const ChartRenderer = memo(({
                         </tbody>
                     </table>
                 </div>
+            );
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ TREEMAP ━━━
+        if (chartType === 'treemap') {
+            const treemapData = processedData.map((d, i) => ({
+                name: String(d[xAxisKey]),
+                size: Number(d[yAxisKeys[0]]) || 0,
+                fill: seriesConfig[d[xAxisKey]]?.color || activeColors[i % activeColors.length]
+            })).filter(d => d.size > 0);
+
+            const CustomizedTreemapContent = (props) => {
+                const { x, y, width, height, index, name, value, fill } = props;
+                if (!width || !height || width < 2 || height < 2) return null;
+                const textColor = getContrastColor(fill || '#000');
+                
+                return (
+                    <g>
+                        <rect x={x} y={y} width={width} height={height} 
+                              style={{ fill: fill || 'var(--accent-primary)', stroke: 'var(--surface-overlay)', strokeWidth: 1.5 }} />
+                        {showLabels && width > 40 && height > 30 && (
+                            <>
+                                <text x={x + width / 2} y={y + height / 2 - (height > 40 ? 6 : 0)} 
+                                      textAnchor="middle" fill={textColor} fontSize={fontSize} fontWeight="600"
+                                >
+                                    {name?.length > 15 && width < 100 ? name.substring(0, 12) + '...' : name}
+                                </text>
+                                {height > 40 && (
+                                    <text x={x + width / 2} y={y + height / 2 + 10} 
+                                          textAnchor="middle" fill={textColor} fontSize={fontSize - 1} opacity={0.8}
+                                    >
+                                        {fmt(value)}
+                                    </text>
+                                )}
+                            </>
+                        )}
+                    </g>
+                );
+            };
+
+            return (
+                <ResponsiveContainer width="100%" height="100%">
+                    <Treemap
+                        data={treemapData}
+                        dataKey="size"
+                        aspectRatio={4 / 3}
+                        stroke="var(--surface-overlay)"
+                        fill="var(--accent-primary)"
+                        content={<CustomizedTreemapContent />}
+                        isAnimationActive={false}
+                    >
+                        <Tooltip contentStyle={tooltipStyle} formatter={(val) => [fmt(val), yAxisKeys[0] || 'Size']} />
+                    </Treemap>
+                </ResponsiveContainer>
             );
         }
 

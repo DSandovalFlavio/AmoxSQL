@@ -141,6 +141,15 @@ const ChartIcon = ({ type, size = 28 }) => {
                 <rect x="18" y="18" width="5" height="5" rx="1" fill={color} opacity="0.9" />
             </svg>
         ),
+        'treemap': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <rect x="4" y="4" width="12" height="12" rx="1" fill={color} opacity="0.8" />
+                <rect x="18" y="4" width="6" height="6" rx="1" fill={color} opacity="0.5" />
+                <rect x="18" y="12" width="6" height="4" rx="1" fill={color} opacity="0.6" />
+                <rect x="4" y="18" width="8" height="6" rx="1" fill={color} opacity="0.4" />
+                <rect x="14" y="18" width="10" height="6" rx="1" fill={color} opacity="0.7" />
+            </svg>
+        ),
     };
 
     return icons[type] || icons['bar'];

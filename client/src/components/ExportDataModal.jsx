@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LuX, LuDownload, LuFileSpreadsheet, LuFile } from 'react-icons/lu';
+import { LuX, LuDownload, LuFileSpreadsheet, LuFile, LuCloud, LuHardDrive } from 'react-icons/lu';
 
 /**
  * ExportDataModal — Export query results to CSV, Parquet, or Excel (XLSX)
@@ -7,7 +7,10 @@ import { LuX, LuDownload, LuFileSpreadsheet, LuFile } from 'react-icons/lu';
  */
 const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
     const [format, setFormat] = useState('csv');
-    const [filename, setFilename] = useState('export');
+    const [filename, setFilename] = useState('export'); // For local
+    const [destination, setDestination] = useState(''); // For cloud
+    const [exportTarget, setExportTarget] = useState('local'); // 'local' or 'cloud'
+    const [cloudProvider, setCloudProvider] = useState('s3'); // 's3' or 'gcs'
     const [exporting, setExporting] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -23,21 +26,45 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
         setResult(null);
 
         try {
-            const response = await fetch('http://localhost:3001/api/export-data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query: query,
-                    format: format,
-                    filename: fullFilename,
-                }),
-            });
-            const data = await response.json();
+            if (exportTarget === 'local') {
+                const response = await fetch('http://localhost:3001/api/export-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        format: format,
+                        filename: fullFilename,
+                    }),
+                });
+                const data = await response.json();
 
-            if (response.ok) {
-                setResult(data);
+                if (response.ok) {
+                    setResult(data);
+                } else {
+                    setError(data.error || 'Export failed');
+                }
             } else {
-                setError(data.error || 'Export failed');
+                // Cloud Export
+                if (!destination.trim()) {
+                    throw new Error("Destination URI is required for cloud export");
+                }
+                const response = await fetch('http://localhost:3001/api/export/cloud', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        format: format,
+                        destination: destination,
+                        provider: cloudProvider
+                    }),
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    setResult({ path: destination, message: data.message });
+                } else {
+                    setError(data.error || 'Cloud export failed');
+                }
             }
         } catch (err) {
             setError(err.message);
@@ -88,11 +115,39 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                     </div>
                 </div>
 
+                {/* Target Selection */}
+                <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+                    <button
+                        onClick={() => setExportTarget('local')}
+                        style={{
+                            flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer',
+                            backgroundColor: exportTarget === 'local' ? 'var(--accent-primary)' : 'var(--input-bg)',
+                            color: exportTarget === 'local' ? '#fff' : 'var(--text-secondary)',
+                            border: exportTarget === 'local' ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '11px', fontWeight: 600
+                        }}
+                    >
+                        <LuHardDrive size={14} /> Local Server
+                    </button>
+                    <button
+                        onClick={() => setExportTarget('cloud')}
+                        style={{
+                            flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer',
+                            backgroundColor: exportTarget === 'cloud' ? 'var(--accent-primary)' : 'var(--input-bg)',
+                            color: exportTarget === 'cloud' ? '#fff' : 'var(--text-secondary)',
+                            border: exportTarget === 'cloud' ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '11px', fontWeight: 600
+                        }}
+                    >
+                        <LuCloud size={14} /> Cloud Storage
+                    </button>
+                </div>
+
                 {/* Format Selection */}
                 <div style={{ marginBottom: '16px' }}>
                     <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: '8px' }}>Format</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        {formatOptions.map(opt => (
+                        {formatOptions.filter(o => exportTarget === 'local' || o.value !== 'xlsx').map(opt => (
                             <button
                                 key={opt.value}
                                 onClick={() => setFormat(opt.value)}
@@ -110,38 +165,69 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                             </button>
                         ))}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                        {formatOptions.find(o => o.value === format)?.desc}
-                    </div>
                 </div>
 
-                {/* Filename */}
-                <div style={{ marginBottom: '20px' }}>
-                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Filename</label>
-                    <div style={{ display: 'flex', gap: '0', alignItems: 'stretch' }}>
-                        <input
-                            type="text"
-                            value={filename}
-                            onChange={e => setFilename(e.target.value)}
-                            placeholder="export"
-                            style={{
-                                flex: 1, backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
-                                border: '1px solid var(--border-color)', borderRight: 'none',
-                                borderRadius: '6px 0 0 6px', padding: '8px 10px', fontSize: '12px', outline: 'none',
-                            }}
-                        />
-                        <div style={{
-                            backgroundColor: 'var(--panel-section-bg)', border: '1px solid var(--border-color)',
-                            borderRadius: '0 6px 6px 0', padding: '8px 10px', fontSize: '12px',
-                            color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
-                        }}>
-                            {extensions[format]}
+                {exportTarget === 'local' ? (
+                    <div style={{ marginBottom: '20px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Filename</label>
+                        <div style={{ display: 'flex', gap: '0', alignItems: 'stretch' }}>
+                            <input
+                                type="text"
+                                value={filename}
+                                onChange={e => setFilename(e.target.value)}
+                                placeholder="export"
+                                style={{
+                                    flex: 1, backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
+                                    border: '1px solid var(--border-color)', borderRight: 'none',
+                                    borderRadius: '6px 0 0 6px', padding: '8px 10px', fontSize: '12px', outline: 'none',
+                                }}
+                            />
+                            <div style={{
+                                backgroundColor: 'var(--panel-section-bg)', border: '1px solid var(--border-color)',
+                                borderRadius: '0 6px 6px 0', padding: '8px 10px', fontSize: '12px',
+                                color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+                            }}>
+                                {extensions[format]}
+                            </div>
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                            File will be saved in your workspace directory.
                         </div>
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                        File will be saved in your workspace directory.
+                ) : (
+                    <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div>
+                            <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Cloud Provider</label>
+                            <select
+                                value={cloudProvider}
+                                onChange={(e) => setCloudProvider(e.target.value)}
+                                style={{
+                                    width: '100%', padding: '8px 10px', fontSize: '12px', backgroundColor: 'var(--input-bg)',
+                                    color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '6px', outline: 'none'
+                                }}
+                            >
+                                <option value="s3">Amazon S3</option>
+                                <option value="gcs">Google Cloud Storage (GCS)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Destination URI</label>
+                            <input
+                                type="text"
+                                value={destination}
+                                onChange={e => setDestination(e.target.value)}
+                                placeholder={cloudProvider === 's3' ? "s3://my-bucket/path/data-export" + (extensions[format] || '.csv') : "gs://my-bucket/path/data-export" + (extensions[format] || '.csv')}
+                                style={{
+                                    width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
+                                    border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none', fontFamily: 'monospace'
+                                }}
+                            />
+                            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                                Ensure your credentials are set in Settings &gt; Cloud Storage
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Error */}
                 {error && (

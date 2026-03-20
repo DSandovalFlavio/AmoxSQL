@@ -2,10 +2,12 @@ import { useState, useEffect, memo, useDeferredValue } from 'react';
 import TablePreviewModal from './TablePreviewModal';
 import TableDetailsModal from './TableDetailsModal';
 import QueryHistoryModal from './QueryHistoryModal';
+import ErDiagram from './ErDiagram';
 import {
     LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
-    LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye, LuShieldCheck
+    LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye, LuShieldCheck,
+    LuWorkflow, LuArrowLeft
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 
@@ -29,6 +31,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     // Drop Modal State
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [tableToDelete, setTableToDelete] = useState(null);
+
+    // ER Diagram view
+    const [showErDiagram, setShowErDiagram] = useState(false);
 
     useEffect(() => {
         const handleClickOutside = () => {
@@ -102,6 +107,23 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {/* ER Diagram Full Panel View */}
+            {showErDiagram ? (
+                <>
+                    <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px' }}>
+                        <button
+                            onClick={() => setShowErDiagram(false)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}
+                        >
+                            <LuArrowLeft size={14} /> Back to Schema
+                        </button>
+                    </div>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <ErDiagram onCreateTab={onSelectQuery ? (ddl) => onSelectQuery(ddl) : undefined} />
+                    </div>
+                </>
+            ) : (
+            <>
             {/* Header */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', position: 'relative' }}>
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Database Schema</span>
@@ -144,6 +166,17 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                 }}
                             >
                                 <LuHistory size={14} /> <span>Query History</span>
+                            </div>
+                            <div
+                                style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                                onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                                onClick={() => {
+                                    setShowErDiagram(true);
+                                    setShowHeaderMenu(false);
+                                }}
+                            >
+                                <LuWorkflow size={14} /> <span>ER Diagram</span>
                             </div>
                         </div>
                     )}
@@ -399,6 +432,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 itemName={tableToDelete}
                 itemType="Table"
             />
+            </>
+            )}
         </div>
     );
 };

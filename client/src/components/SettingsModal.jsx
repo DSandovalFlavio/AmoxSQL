@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud } from 'react-icons/lu';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -36,6 +36,12 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
     const [showUndocumented, setShowUndocumented] = useState(false);
 
+    // Cloud Storage State
+    const [s3Config, setS3Config] = useState({ accessKeyId: '', secretKey: '', region: '', endpoint: '', defaultBucket: '' });
+    const [gcsConfig, setGcsConfig] = useState({ accessKeyId: '', secretKey: '', defaultBucket: '' });
+    const [isTestingCloud, setIsTestingCloud] = useState(false);
+    const [cloudTestResult, setCloudTestResult] = useState(null);
+
     // Helper: open links in system browser (Electron) or new tab (browser)
     const openExternalLink = (e, url) => {
         e.preventDefault();
@@ -58,6 +64,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     if (data.usage) {
                         setGeminiUsage(data.usage);
                     }
+                    if (data.s3Config) setS3Config(data.s3Config);
+                    if (data.gcsConfig) setGcsConfig(data.gcsConfig);
                     if (data.provider !== 'gemini') {
                         fetchInstalledModels();
                     }
@@ -133,7 +141,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
             await fetch('http://localhost:3001/api/settings/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ geminiApiKey, provider, defaultModel })
+                body: JSON.stringify({ geminiApiKey, provider, defaultModel, s3Config, gcsConfig })
             });
 
             // Dispatch event to sync other components
@@ -202,6 +210,38 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 setCustomModelInput('');
                 fetchInstalledModels();
             }, 3000);
+        }
+    };
+
+    const handleTestCloudConnection = async (testProvider) => {
+        setIsTestingCloud(true);
+        setCloudTestResult(null);
+
+        // Save current config before testing to ensure server uses latest values
+        try {
+            await fetch('http://localhost:3001/api/settings/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ s3Config, gcsConfig })
+            });
+
+            const res = await fetch('http://localhost:3001/api/export/cloud/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider: testProvider })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                setCloudTestResult({ type: 'success', text: data.message });
+            } else {
+                setCloudTestResult({ type: 'error', text: data.error || data.message || 'Connection failed' });
+            }
+        } catch (err) {
+            setCloudTestResult({ type: 'error', text: err.message });
+        } finally {
+            setIsTestingCloud(false);
+            setTimeout(() => setCloudTestResult(null), 5000);
         }
     };
 
@@ -276,6 +316,19 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     </div>
 
                     <div
+                        onClick={() => setActiveTab('cloud')}
+                        style={{
+                            padding: '10px 15px', cursor: 'pointer',
+                            backgroundColor: activeTab === 'cloud' ? 'var(--sidebar-item-active-bg)' : 'transparent',
+                            color: activeTab === 'cloud' ? 'var(--text-active)' : 'var(--text-color)',
+                            display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px',
+                            borderLeft: activeTab === 'cloud' ? '3px solid var(--accent-color-user)' : '3px solid transparent'
+                        }}
+                    >
+                        <LuCloud size={16} /> Cloud Storage
+                    </div>
+
+                    <div
                         onClick={() => setActiveTab('about')}
                         style={{
                             padding: '10px 15px', cursor: 'pointer',
@@ -297,7 +350,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                     }}>
                         <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-active)' }}>
-                            {activeTab === 'appearance' ? 'Appearance' : activeTab === 'editor' ? 'Editor' : activeTab === 'ai' ? 'AI Settings' : activeTab === 'about' ? 'About AmoxSQL' : 'Settings'}
+                            {activeTab === 'appearance' ? 'Appearance' : activeTab === 'editor' ? 'Editor' : activeTab === 'ai' ? 'AI Settings' : activeTab === 'cloud' ? 'Cloud Storage' : activeTab === 'about' ? 'About AmoxSQL' : 'Settings'}
                         </h2>
                         <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-color)', padding: '5px', cursor: 'pointer', display: 'flex' }}>
                             <LuX size={18} />
@@ -965,6 +1018,110 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </p>
                                         </div>
 
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'cloud' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.25s ease' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <h3 style={{ fontSize: '13px', marginBottom: '8px', color: 'var(--text-active)' }}>S3 & GCS Export Configuration</h3>
+                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4', margin: 0, maxWidth: '500px' }}>
+                                            Connect your cloud storage buckets to export query results directly to S3 or Google Cloud Storage using DuckDB's native httpfs extension.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleSaveConfig}
+                                        disabled={isSaving}
+                                        style={{
+                                            padding: '8px 16px', backgroundColor: 'var(--accent-color-user)',
+                                            color: 'var(--button-text-color)', border: 'none', borderRadius: '4px', cursor: 'pointer',
+                                            fontWeight: 'bold', opacity: isSaving ? 0.7 : 1, transition: 'all 0.2s', fontSize: '12px'
+                                        }}
+                                    >
+                                        {isSaving ? 'Saving...' : 'Save Cloud Settings'}
+                                    </button>
+                                </div>
+
+                                {saveMessage && (
+                                    <div style={{ fontSize: '12px', padding: '10px', borderRadius: '4px', backgroundColor: saveMessage.type === 'success' ? '#10b98122' : '#ef444422', color: saveMessage.type === 'success' ? '#10b981' : '#ef4444', border: `1px solid ${saveMessage.type === 'success' ? '#10b98155' : '#ef444455'}` }}>
+                                        {saveMessage.text}
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '20px' }}>
+                                    {/* S3 Config */}
+                                    <div style={{ backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '15px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                            <h4 style={{ margin: 0, fontSize: '12px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: '6px' }}><LuCloud /> Amazon S3</h4>
+                                            <button onClick={() => handleTestCloudConnection('s3')} disabled={isTestingCloud} style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', cursor: isTestingCloud ? 'not-allowed' : 'pointer' }}>
+                                                {isTestingCloud ? 'Testing...' : 'Test Connection'}
+                                            </button>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Access Key ID</div>
+                                                <input type="text" value={s3Config.accessKeyId} onChange={(e) => setS3Config({...s3Config, accessKeyId: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none' }} placeholder="AKIAIOSFODNN7EXAMPLE" />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Secret Access Key</div>
+                                                <input type="password" value={s3Config.secretKey} onChange={(e) => setS3Config({...s3Config, secretKey: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none', fontFamily: 'monospace' }} placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Region</div>
+                                                <input type="text" value={s3Config.region} onChange={(e) => setS3Config({...s3Config, region: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none' }} placeholder="us-east-1" />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Endpoint (Optional - for MinIO/R2)</div>
+                                                <input type="text" value={s3Config.endpoint} onChange={(e) => setS3Config({...s3Config, endpoint: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none' }} placeholder="s3.us-east-1.amazonaws.com" />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Default Bucket (for testing)</div>
+                                                <input type="text" value={s3Config.defaultBucket} onChange={(e) => setS3Config({...s3Config, defaultBucket: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none' }} placeholder="my-bucket-name" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* GCS Config */}
+                                    <div style={{ backgroundColor: 'var(--sidebar-item-active-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '15px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                            <h4 style={{ margin: 0, fontSize: '12px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: '6px' }}><LuCloud /> Google Cloud Storage</h4>
+                                            <button onClick={() => handleTestCloudConnection('gcs')} disabled={isTestingCloud} style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', cursor: isTestingCloud ? 'not-allowed' : 'pointer' }}>
+                                                {isTestingCloud ? 'Testing...' : 'Test HMAC'}
+                                            </button>
+                                        </div>
+                                        <p style={{ margin: '0 0 10px 0', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                                            DuckDB connects to GCS using HMAC keys via the S3-compatible API. You must create an HMAC key in your Google Cloud Console.
+                                        </p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>HMAC Access ID</div>
+                                                <input type="text" value={gcsConfig.accessKeyId} onChange={(e) => setGcsConfig({...gcsConfig, accessKeyId: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none' }} placeholder="GOOG1EQX..." />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>HMAC Secret</div>
+                                                <input type="password" value={gcsConfig.secretKey} onChange={(e) => setGcsConfig({...gcsConfig, secretKey: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none', fontFamily: 'monospace' }} placeholder="..." />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Default Bucket</div>
+                                                <input type="text" value={gcsConfig.defaultBucket} onChange={(e) => setGcsConfig({...gcsConfig, defaultBucket: e.target.value})} style={{ width: '100%', padding: '6px 10px', fontSize: '11px', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none' }} placeholder="gs://my-bucket" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Test Result Display */}
+                                {cloudTestResult && (
+                                    <div style={{ 
+                                        padding: '12px 15px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px',
+                                        backgroundColor: cloudTestResult.type === 'success' ? '#10b98122' : '#ef444422',
+                                        color: cloudTestResult.type === 'success' ? '#10b981' : '#ef4444',
+                                        border: `1px solid ${cloudTestResult.type === 'success' ? '#10b98155' : '#ef444455'}`
+                                    }}>
+                                        {cloudTestResult.type === 'success' ? <LuCheck /> : <LuX />}
+                                        {cloudTestResult.text}
                                     </div>
                                 )}
                             </div>

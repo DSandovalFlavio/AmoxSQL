@@ -149,6 +149,58 @@ app.get('/api/db/tables', async (req, res) => {
     }
 });
 
+// ER Diagram schema — enriched with constraints
+app.get('/api/db/er-schema', async (req, res) => {
+    try {
+        // 1. Get all tables
+        const tables = await dbManager.systemQuery(
+            "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='main' AND table_name != 'amox_query_history'"
+        );
+
+        const result = [];
+        for (const t of tables) {
+            // 2. Columns for each table
+            const columns = await dbManager.systemQuery(
+                `SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = 'main' ORDER BY ordinal_position`
+            );
+
+            // 3. Constraints (PK, FK, UNIQUE)
+            let constraints = [];
+            try {
+                constraints = await dbManager.systemQuery(
+                    `SELECT tc.constraint_type, kcu.column_name, ccu.table_name AS foreign_table_name, ccu.column_name AS foreign_column_name
+                     FROM information_schema.table_constraints tc
+                     JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+                     LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name AND ccu.table_name != tc.table_name
+                     WHERE tc.table_name = '${t.table_name}' AND tc.table_schema = 'main'`
+                );
+            } catch (e) { /* constraints not available */ }
+
+            const pkColumns = new Set(constraints.filter(c => c.constraint_type === 'PRIMARY KEY').map(c => c.column_name));
+            const fkMap = {};
+            for (const c of constraints.filter(c => c.constraint_type === 'FOREIGN KEY')) {
+                fkMap[c.column_name] = { table: c.foreign_table_name, column: c.foreign_column_name };
+            }
+
+            result.push({
+                name: t.table_name,
+                type: t.table_type,
+                columns: columns.map(c => ({
+                    name: c.column_name,
+                    type: c.data_type,
+                    nullable: c.is_nullable === 'YES',
+                    isPK: pkColumns.has(c.column_name),
+                    fk: fkMap[c.column_name] || null,
+                })),
+            });
+        }
+
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch ER schema', details: err.message });
+    }
+});
+
 app.get('/api/db/file-schema', async (req, res) => {
     try {
         const filePath = req.query.path;
@@ -400,15 +452,92 @@ app.get('/api/settings/config', (req, res) => {
 });
 
 app.post('/api/settings/config', (req, res) => {
-    const { geminiApiKey, provider, defaultModel } = req.body;
+    const { geminiApiKey, provider, defaultModel, s3Config, gcsConfig } = req.body;
     try {
         const config = aiManager.getConfig();
         if (geminiApiKey !== undefined) config.geminiApiKey = geminiApiKey;
         if (provider !== undefined) config.provider = provider;
         if (defaultModel !== undefined) config.defaultModel = defaultModel;
+        if (s3Config !== undefined) config.s3Config = s3Config;
+        if (gcsConfig !== undefined) config.gcsConfig = gcsConfig;
 
         fs.writeFileSync(aiManager.configPath, JSON.stringify(config, null, 2));
         res.json({ success: true, config });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── Cloud Export (S3 / GCS via DuckDB httpfs) ──
+app.post('/api/export/cloud', async (req, res) => {
+    const { query, destination, format, provider: cloudProvider } = req.body;
+    // destination: s3://bucket/path/file.parquet or gs://bucket/path/file.csv
+    // format: parquet, csv, json
+    // cloudProvider: s3 or gcs
+    try {
+        const config = aiManager.getConfig();
+
+        // Load httpfs extension
+        await dbManager.systemQuery('INSTALL httpfs; LOAD httpfs;');
+
+        // Set credentials based on provider
+        if (cloudProvider === 's3') {
+            const s3 = config.s3Config || {};
+            if (s3.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${s3.accessKeyId}'`);
+            if (s3.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${s3.secretKey}'`);
+            if (s3.region) await dbManager.systemQuery(`SET s3_region='${s3.region}'`);
+            if (s3.endpoint) await dbManager.systemQuery(`SET s3_endpoint='${s3.endpoint}'`);
+        } else if (cloudProvider === 'gcs') {
+            const gcs = config.gcsConfig || {};
+            // GCS uses S3-compatible API via DuckDB
+            await dbManager.systemQuery(`SET s3_endpoint='storage.googleapis.com'`);
+            await dbManager.systemQuery(`SET s3_url_style='path'`);
+            if (gcs.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${gcs.accessKeyId}'`);
+            if (gcs.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${gcs.secretKey}'`);
+        }
+
+        // Build COPY statement
+        const formatUpper = (format || 'parquet').toUpperCase();
+        const copyOpts = formatUpper === 'CSV' ? "(FORMAT CSV, HEADER)" : formatUpper === 'JSON' ? "(FORMAT JSON, ARRAY true)" : "(FORMAT PARQUET)";
+        const copyQuery = `COPY (${query}) TO '${destination}' ${copyOpts}`;
+
+        await dbManager.systemQuery(copyQuery);
+        res.json({ success: true, message: `Exported to ${destination}` });
+    } catch (err) {
+        console.error('[Cloud Export] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/export/cloud/test', async (req, res) => {
+    const { provider: cloudProvider } = req.body;
+    try {
+        const config = aiManager.getConfig();
+        await dbManager.systemQuery('INSTALL httpfs; LOAD httpfs;');
+
+        if (cloudProvider === 's3') {
+            const s3 = config.s3Config || {};
+            if (s3.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${s3.accessKeyId}'`);
+            if (s3.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${s3.secretKey}'`);
+            if (s3.region) await dbManager.systemQuery(`SET s3_region='${s3.region}'`);
+            if (s3.endpoint) await dbManager.systemQuery(`SET s3_endpoint='${s3.endpoint}'`);
+            // Try to list a bucket
+            if (s3.defaultBucket) {
+                const result = await dbManager.systemQuery(`SELECT count(*) as cnt FROM glob('s3://${s3.defaultBucket}/*')`);
+                res.json({ success: true, message: `Connected. Found files in bucket.`, count: result[0]?.cnt });
+            } else {
+                res.json({ success: true, message: 'Credentials set. No bucket specified for testing.' });
+            }
+        } else if (cloudProvider === 'gcs') {
+            const gcs = config.gcsConfig || {};
+            await dbManager.systemQuery(`SET s3_endpoint='storage.googleapis.com'`);
+            await dbManager.systemQuery(`SET s3_url_style='path'`);
+            if (gcs.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${gcs.accessKeyId}'`);
+            if (gcs.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${gcs.secretKey}'`);
+            res.json({ success: true, message: 'GCS credentials configured.' });
+        } else {
+            res.json({ success: false, message: 'Unknown provider' });
+        }
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1118,8 +1247,8 @@ app.get('/api/schema', async (req, res) => {
 
 /* --- DBT Management APIs --- */
 
-// Validate environment: check Python, DBT, and Conda/Mamba availability
-app.get('/api/dbt/validate-env', (req, res) => {
+// Validate environment: check Python, DBT, and Conda/Mamba availability (ASYNC — non-blocking)
+app.get('/api/dbt/validate-env', async (req, res) => {
     const result = {
         python: false, pythonVersion: null,
         dbt: false, dbtVersion: null,
@@ -1128,32 +1257,45 @@ app.get('/api/dbt/validate-env', (req, res) => {
         activeCondaEnv: null,
     };
 
-    // Check Python
-    for (const cmd of ['python --version', 'python3 --version']) {
-        try {
-            const output = execSync(cmd, { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-            result.python = true;
-            result.pythonVersion = output.replace('Python ', '');
-            break;
-        } catch (e) { /* not found, try next */ }
+    const execAsync = (cmd, timeout = 5000) => new Promise((resolve) => {
+        exec(cmd, { encoding: 'utf8', timeout, maxBuffer: 1024 * 512 }, (err, stdout) => {
+            if (err) resolve({ ok: false, output: '' });
+            else resolve({ ok: true, output: (stdout || '').trim() });
+        });
+    });
+
+    // Run all independent checks concurrently (non-blocking)
+    const [pythonRes, python3Res, dbtRes, condaRes, mambaRes] = await Promise.all([
+        execAsync('python --version'),
+        execAsync('python3 --version'),
+        execAsync('dbt --version', 10000),
+        execAsync('conda --version'),
+        execAsync('mamba --version'),
+    ]);
+
+    // Python
+    if (pythonRes.ok) {
+        result.python = true;
+        result.pythonVersion = pythonRes.output.replace('Python ', '');
+    } else if (python3Res.ok) {
+        result.python = true;
+        result.pythonVersion = python3Res.output.replace('Python ', '');
     }
 
-    // Check DBT
-    try {
-        const output = execSync('dbt --version', { encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    // DBT
+    if (dbtRes.ok) {
         result.dbt = true;
-        const match = output.match(/installed:\s*([\d.]+)/);
-        result.dbtVersion = match ? match[1] : output.split('\n')[0];
-    } catch (e) { /* dbt not found */ }
+        const match = dbtRes.output.match(/installed:\s*([\d.]+)/);
+        result.dbtVersion = match ? match[1] : dbtRes.output.split('\n')[0];
+    }
 
-    // Check Conda — first try PATH
-    try {
-        const output = execSync('conda --version', { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    // Conda — PATH first
+    if (condaRes.ok) {
         result.conda = true;
-        result.condaVersion = output.replace('conda ', '');
+        result.condaVersion = condaRes.output.replace('conda ', '');
         result.condaPath = 'conda';
-    } catch (e) {
-        // Not in PATH — scan common install locations
+    } else {
+        // Not in PATH — scan common install locations (sequential fs checks are fast)
         const home = process.env.USERPROFILE || process.env.HOME || '';
         const localAppData = process.env.LOCALAPPDATA || '';
         const programData = process.env.ProgramData || 'C:\\ProgramData';
@@ -1172,6 +1314,7 @@ app.get('/api/dbt/validate-env', (req, res) => {
         ].filter(d => d && !d.startsWith(path.join('', '')));
 
         for (const dir of candidateDirs) {
+            if (result.conda) break;
             const exePaths = [
                 path.join(dir, 'condabin', 'conda.bat'),
                 path.join(dir, 'Scripts', 'conda.exe'),
@@ -1181,28 +1324,24 @@ app.get('/api/dbt/validate-env', (req, res) => {
             ];
             for (const condaExe of exePaths) {
                 if (fs.existsSync(condaExe)) {
-                    try {
-                        const out = execSync(`"${condaExe}" --version`, {
-                            encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
-                        }).trim();
+                    const scanRes = await execAsync(`"${condaExe}" --version`);
+                    if (scanRes.ok) {
                         result.conda = true;
-                        result.condaVersion = out.replace('conda ', '');
+                        result.condaVersion = scanRes.output.replace('conda ', '');
                         result.condaPath = condaExe;
                         break;
-                    } catch (ex) { /* found but can't exec */ }
+                    }
                 }
             }
-            if (result.conda) break;
         }
     }
 
-    // Check Mamba
-    try {
-        const output = execSync('mamba --version', { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    // Mamba
+    if (mambaRes.ok) {
         result.mamba = true;
-        const match = output.match(/mamba\s+([\d.]+)/);
-        result.mambaVersion = match ? match[1] : output.split('\n')[0];
-    } catch (e) { /* mamba not found */ }
+        const match = mambaRes.output.match(/mamba\s+([\d.]+)/);
+        result.mambaVersion = match ? match[1] : mambaRes.output.split('\n')[0];
+    }
 
     // Check active conda env
     if (process.env.CONDA_DEFAULT_ENV) {
@@ -1210,6 +1349,74 @@ app.get('/api/dbt/validate-env', (req, res) => {
     }
 
     res.json(result);
+});
+// Parse dbt manifest.json for DAG lineage
+app.get('/api/dbt/manifest', (req, res) => {
+    const manifestPath = path.join(ROOT_DIR, 'target', 'manifest.json');
+    if (!fs.existsSync(manifestPath)) {
+        return res.json({ exists: false, hint: 'Run "dbt compile" or "dbt run" first to generate the manifest.' });
+    }
+
+    try {
+        const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        const nodes = [];
+        const edges = [];
+
+        // Process nodes (models, seeds, snapshots, tests)
+        for (const [key, node] of Object.entries(raw.nodes || {})) {
+            const resourceType = node.resource_type; // model, test, seed, snapshot, analysis
+            nodes.push({
+                id: key,
+                name: node.name,
+                resourceType,
+                schema: node.schema,
+                materialized: node.config?.materialized || null,
+                path: node.original_file_path || node.path || null,
+                description: node.description || '',
+                tags: node.tags || [],
+            });
+
+            // Build edges from depends_on
+            for (const dep of (node.depends_on?.nodes || [])) {
+                edges.push({ from: dep, to: key });
+            }
+        }
+
+        // Process sources
+        for (const [key, source] of Object.entries(raw.sources || {})) {
+            nodes.push({
+                id: key,
+                name: `${source.source_name}.${source.name}`,
+                resourceType: 'source',
+                schema: source.schema,
+                materialized: null,
+                path: source.original_file_path || null,
+                description: source.description || '',
+                tags: source.tags || [],
+            });
+        }
+
+        // Process exposures
+        for (const [key, exposure] of Object.entries(raw.exposures || {})) {
+            nodes.push({
+                id: key,
+                name: exposure.name,
+                resourceType: 'exposure',
+                schema: null,
+                materialized: null,
+                path: exposure.original_file_path || null,
+                description: exposure.description || '',
+                tags: exposure.tags || [],
+            });
+            for (const dep of (exposure.depends_on?.nodes || [])) {
+                edges.push({ from: dep, to: key });
+            }
+        }
+
+        res.json({ exists: true, nodes, edges });
+    } catch (err) {
+        res.status(500).json({ exists: true, error: `Failed to parse manifest: ${err.message}` });
+    }
 });
 
 // List conda environments and check for dbt in each
@@ -1249,16 +1456,21 @@ app.get('/api/dbt/conda-envs', (req, res) => {
     }
 });
 
-// Check dbt version in a specific conda env (uses pip show — fast and reliable)
-app.get('/api/dbt/check-env-dbt', (req, res) => {
+// Check dbt version in a specific conda env (ASYNC — non-blocking)
+app.get('/api/dbt/check-env-dbt', async (req, res) => {
     const { envName, condaPath: cp } = req.query;
     if (!envName) return res.status(400).json({ error: 'envName is required' });
 
     const condaCmd = cp || 'conda';
     try {
-        const output = execSync(`"${condaCmd}" run --no-capture-output -n ${envName} pip show dbt-core`, {
-            encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe']
-        }).trim();
+        const output = await new Promise((resolve, reject) => {
+            exec(`"${condaCmd}" run --no-capture-output -n ${envName} pip show dbt-core`, {
+                encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 512
+            }, (err, stdout) => {
+                if (err) reject(err);
+                else resolve((stdout || '').trim());
+            });
+        });
         const match = output.match(/Version:\s*([\d.]+)/i);
         if (match) {
             res.json({ found: true, version: match[1] });

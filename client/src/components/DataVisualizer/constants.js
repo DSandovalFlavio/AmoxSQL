@@ -53,6 +53,7 @@ export const CHART_TYPES = [
     { key: 'combo', label: 'Combo', category: 'other', description: 'Bar + Line combined' },
     { key: 'funnel', label: 'Funnel', category: 'other', description: 'Funnel / pipeline' },
     { key: 'heatmap', label: 'Heatmap', category: 'other', description: 'Color intensity matrix' },
+    { key: 'treemap', label: 'Treemap', category: 'other', description: 'Hierarchical rectangles' },
 ];
 
 export const CHART_CATEGORIES = [

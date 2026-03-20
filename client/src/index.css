@@ -82,6 +82,111 @@
   --feedback-warning-bg: rgba(255, 152, 0, 0.10);
   --feedback-warning-border: rgba(255, 152, 0, 0.25);
   --feedback-warning-text: #ffa726;
+
+  /* ── Window Title Bar (Electron) ── */
+  --titlebar-height: 32px;
+  --titlebar-bg: #0F1012;
+  --titlebar-text: #A0A0A0;
+}
+
+.window-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--titlebar-height);
+  background: var(--titlebar-bg);
+  color: var(--titlebar-text);
+  user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  z-index: 9999;
+  position: sticky;
+  top: 0;
+  width: 100%;
+}
+
+.window-title-bar .drag-region {
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+}
+
+.window-title-bar .app-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.window-title-bar .window-controls {
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.window-title-bar .control-btn {
+  width: 46px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 0;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.window-title-bar .control-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.window-title-bar .control-btn.close:hover {
+  background: #E81123 !important;
+  color: #FFFFFF;
+}
+
+.window-title-bar .control-btn svg {
+  shape-rendering: crispEdges;
+}
+
+/* ── Column Context Menu ── */
+.column-context-menu {
+  background-color: var(--surface-overlay, #1a1b1f);
+  border: 1px solid var(--border-default, #2a2b2f);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  backdrop-filter: blur(12px);
+  animation: dropdown-in 0.12s ease-out;
+}
+.column-context-menu-item {
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #aaa);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  user-select: none;
+}
+.column-context-menu-item:hover {
+  background: var(--hover-bg, #ffffff12);
+  color: var(--text-primary, #fff);
+}
+.column-context-menu-separator {
+  height: 1px;
+  background: var(--border-subtle, #ffffff10);
+  margin: 4px 0;
 }
 
 /* ── Accent Variant: Linear Blue ── */
@@ -707,9 +812,9 @@ textarea::placeholder {
 }
 
 .results-container {
-  height: 300px;
   overflow: auto;
   background-color: var(--editor-bg);
+  min-height: 0;
 }
 
 /* Table Styles — Linear-inspired */

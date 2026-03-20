@@ -3,27 +3,31 @@ import ReactMarkdown from 'react-markdown';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
 import DebugResultModal from './DebugResultModal';
-import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal } from "react-icons/lu";
+import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal, LuCode, LuType, LuSettings2, LuExternalLink } from "react-icons/lu";
 
 const NotebookCell = ({
     id,
     type,
     content,
-    result, // { data, executionTime, error, loading }
+    metadata = {},
+    result,
+    environment,
     onUpdate,
     onRun,
     onDelete,
     onMoveUp,
     onMoveDown,
-    isPluginInstalled = true, // Assumption for now
-    isReportMode = false, // New Prop
-    hideCodeInReport = true, // Global control from Notebook
+    onEnvironmentChange,
+    isReportMode = false,
+    hideCodeInReport = true,
     cellIndex = 0,
-    onStateChange = null, // (cellIndex, stateUpdate) => void
-    initialCellState = null // { viewMode, chartConfig, resultHeight }
+    onStateChange = null,
+    initialCellState = null
 }) => {
     const [isEditingMarkdown, setIsEditingMarkdown] = useState(false);
     const [localContent, setLocalContent] = useState(content);
+    const [localMetadata, setLocalMetadata] = useState(metadata || {});
+    const [isHovered, setIsHovered] = useState(false);
 
     // Debug State
     const [debugModalOpen, setDebugModalOpen] = useState(false);
@@ -31,9 +35,49 @@ const NotebookCell = ({
     const [debugResult, setDebugResult] = useState(null);
     const [debugQuery, setDebugQuery] = useState('');
 
+    const [isPoppedOut, setIsPoppedOut] = useState(false);
+
+    // Listen for popout window being closed by the user
+    useEffect(() => {
+        if (!window.electronAPI?.onPopoutClosed) return;
+        const cleanup = window.electronAPI.onPopoutClosed(() => {
+            setIsPoppedOut(false);
+        });
+        return cleanup;
+    }, []);
+
+    const handlePopout = () => {
+        if (!result?.data) return;
+        const payload = {
+            data: result.data,
+            types: result.types,
+            executionTime: result.executionTime,
+            query: result.executedQuery || localContent,
+            cellTitle: `Cell ${cellIndex + 1}`,
+        };
+        window.electronAPI?.openPopout(payload);
+        setIsPoppedOut(true);
+    };
+
+    // Auto-update the pop-out window when results change
+    useEffect(() => {
+        if (!isPoppedOut || !result?.data) return;
+        const payload = {
+            data: result.data,
+            types: result.types,
+            executionTime: result.executionTime,
+            query: result.executedQuery || localContent,
+            cellTitle: `Cell ${cellIndex + 1}`,
+        };
+        window.electronAPI?.openPopout(payload);
+    }, [isPoppedOut, result]);
+
+    const metadataStr = JSON.stringify(metadata || {});
     useEffect(() => {
         setLocalContent(content);
-    }, [content]);
+        setLocalMetadata(metadata || {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [content, metadataStr]);
 
     // Resizable result height
     const [resultHeight, setResultHeight] = useState(initialCellState?.resultHeight || 400);
@@ -57,7 +101,6 @@ const NotebookCell = ({
         const handleMouseUp = (ev) => {
             if (isResizingResult.current) {
                 isResizingResult.current = false;
-                // Persist the final height using the mouseup event coordinates
                 const delta = ev.clientY - resizeStartY.current;
                 const finalHeight = Math.max(150, Math.min(1200, resizeStartHeight.current + delta));
                 setResultHeight(finalHeight);
@@ -71,18 +114,16 @@ const NotebookCell = ({
         window.addEventListener('mouseup', handleMouseUp);
     }, [resultHeight, onStateChange, cellIndex]);
 
-    // Chart config change handler
     const handleChartConfigChange = useCallback((config) => {
         if (onStateChange) onStateChange(cellIndex, { chartConfig: config });
     }, [onStateChange, cellIndex]);
 
-    // View mode change handler
     const handleViewModeChange = useCallback((mode) => {
         if (onStateChange) onStateChange(cellIndex, { viewMode: mode });
     }, [onStateChange, cellIndex]);
 
     const handleBlur = () => {
-        onUpdate(id, localContent);
+        onUpdate(id, localContent, localMetadata);
         if (type === 'markdown') {
             setIsEditingMarkdown(false);
         }
@@ -95,74 +136,27 @@ const NotebookCell = ({
     };
 
     const handleDebugCte = async (cteName) => {
-        // Construct the debug query
-        // Logic: Find the entire query, truncate AFTER the target CTE definition, 
-        // and append "SELECT * FROM cteName LIMIT 100"
-
-        let query = localContent;
-        // Simple heuristic: Find "cteName AS (" and count parentheses to find the end of it?
-        // Actually, we can just effectively run:
-        // WITH ... (all previous CTEs) ... target_cte AS (...) SELECT * FROM target_cte LIMIT 100;
-
-        // BETTER APPROACH for complex SQL:
-        // Just take the original query, wrap it in a subquery? No, `WITH` clause must be at top.
-        // We need to parse where certain CTEs end.
-
-        // Simplest HACK for MVP:
-        // Assume `WITH` is at the start.
-        // Identify the position of `cteName AS (`.
-        // We need the DEFINITION of this CTE and all PREVIOUS CTEs.
-        // If we simply cut the string at the end of this CTE's definition and append SELECT, it might work if we know where it ends.
-
-        // alternative: Use regex to find "cteName AS ( ... )". Finding closing parenthesis is hard with regex.
-        // Let's rely on the user writing valid SQL.
-
-        // PLAN B:
-        // Regex to find start of NEXT CTE (", next_cte AS") or start of main "SELECT".
-        // Truncate there.
-
         setDebugCteName(cteName);
         setDebugModalOpen(true);
-        setDebugResult(null); // Loading state
+        setDebugResult(null);
 
         try {
-            // We need a server endpoint to help us debug or we try to manipulate string here.
-            // Let's try string manipulation here.
             const cteStartRegex = new RegExp(`\\b${cteName}\\s+AS\\s*\\(`, 'i');
-            const match = cteStartRegex.exec(query);
+            const match = cteStartRegex.exec(localContent);
+            if (!match) throw new Error("Could not find CTE definition.");
 
-            if (!match) {
-                throw new Error("Could not find CTE definition.");
-            }
-
-            // We need to find the END of this CTE. 
-            // It ends at the next comma followed by an identifier and "AS (", OR at the main query body (SELECT/INSERT/UPDATE).
-            // This is brittle without a real parser.
-
-            // Let's try: append `SELECT * FROM cteName LIMIT 100` to the full query? 
-            // Result: "WITH ... SELECT ... ; SELECT * FROM cteName ..." -> This runs two queries. DuckDB returns result of last one?
-            // If we run multiple statements, we might get multiple results.
-            // Let's try running: `query; SELECT * FROM cteName LIMIT 100` is NOT valid if `query` is a SELECT.
-
-            // DuckDB doesn't persist updated CTEs across statements unless created as VIEW.
-            // We could try: `CREATE OR REPLACE TEMPORARY VIEW debug_view AS ( original_query_with_SELECT_replaced_by_counting?)` No.
-
-            // Back to truncation strategy.
-            // Find start of `cteName`.
-            // Use a simple paren counter starting from `(` after AS.
             let parenCount = 0;
             let foundStart = false;
             let cutIndex = -1;
 
-            for (let i = match.index; i < query.length; i++) {
-                if (query[i] === '(') {
+            for (let i = match.index; i < localContent.length; i++) {
+                if (localContent[i] === '(') {
                     parenCount++;
                     foundStart = true;
-                } else if (query[i] === ')') {
+                } else if (localContent[i] === ')') {
                     parenCount--;
                     if (foundStart && parenCount === 0) {
-                        // Found closing parenthesis of this CTE
-                        cutIndex = i + 1; // Include the ')'
+                        cutIndex = i + 1;
                         break;
                     }
                 }
@@ -170,20 +164,25 @@ const NotebookCell = ({
 
             if (cutIndex === -1) throw new Error("Could not parse CTE bounds.");
 
-            // Construct Query:
-            // "WITH ... (up to end of target CTE) SELECT * FROM cteName LIMIT 100"
-            // The problem is `WITH ... (end of CTE), next_cte ...` -> we have a comma there.
-            // The truncation must replace the comma (if present) or just stop.
-
-            const partialQuery = query.substring(0, cutIndex);
+            const partialQuery = localContent.substring(0, cutIndex);
             const debugQ = `${partialQuery} SELECT * FROM ${cteName} LIMIT 100`;
-            setDebugQuery(debugQ);
+            
+            // Need to inject variables here too for debugging
+            let injectedDebugQ = debugQ;
+            if (environment) {
+                Object.entries(environment).forEach(([key, value]) => {
+                    const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+                    const formattedValue = typeof value === 'string' ? `'${value}'` : value;
+                    injectedDebugQ = injectedDebugQ.replace(regex, formattedValue);
+                });
+            }
 
-            // Execute via fetch
+            setDebugQuery(injectedDebugQ);
+
             const response = await fetch('http://localhost:3001/api/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: debugQ }),
+                body: JSON.stringify({ query: injectedDebugQ }),
             });
             const data = await response.json();
 
@@ -192,42 +191,130 @@ const NotebookCell = ({
             } else {
                 setDebugResult({ error: data.error });
             }
-
         } catch (e) {
             setDebugResult({ error: e.message });
         }
     };
 
-    // In report mode, hide code cells that have no results to show
     const isEmptyInReport = isReportMode && type === 'code' && hideCodeInReport && !result;
 
+    const renderInputBlock = () => {
+        const varName = localMetadata.varName || '';
+        const inputType = localMetadata.inputType || 'text';
+        // Fallback value is what's in the environment if previously saved, else local content
+        const currentVal = environment && environment[varName] !== undefined ? environment[varName] : localContent;
+
+        return (
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px', backgroundColor: 'var(--editor-bg)', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Variable Name</label>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--panel-bg)', borderRadius: '6px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                        <span style={{ padding: '8px 10px', color: 'var(--text-muted)', backgroundColor: 'var(--header-bg)', borderRight: '1px solid var(--border-color)', fontSize: '14px', fontFamily: 'monospace' }}>{'{{'}</span>
+                        <input 
+                            type="text" 
+                            placeholder="my_var" 
+                            value={varName} 
+                            onChange={(e) => {
+                                const newName = e.target.value;
+                                setLocalMetadata({...localMetadata, varName: newName});
+                                onUpdate(id, localContent, {...localMetadata, varName: newName});
+                            }}
+                            style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-color)', padding: '8px 12px', fontSize: '14px', outline: 'none', fontFamily: 'monospace' }}
+                        />
+                        <span style={{ padding: '8px 10px', color: 'var(--text-muted)', backgroundColor: 'var(--header-bg)', borderLeft: '1px solid var(--border-color)', fontSize: '14px', fontFamily: 'monospace' }}>{'}}'}</span>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 2 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Value</label>
+                        <select 
+                            value={inputType}
+                            onChange={(e) => {
+                                const newType = e.target.value;
+                                setLocalMetadata({...localMetadata, inputType: newType});
+                                onUpdate(id, localContent, {...localMetadata, inputType: newType});
+                            }}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer', outline: 'none' }}
+                        >
+                            <option value="text">Text / String</option>
+                            <option value="number">Number</option>
+                            <option value="date">Date</option>
+                        </select>
+                    </div>
+                    <input 
+                        type={inputType} 
+                        placeholder="Expected value..." 
+                        value={currentVal || ''} 
+                        onChange={(e) => {
+                            let val = e.target.value;
+                            if (inputType === 'number') val = Number(val);
+                            setLocalContent(val);
+                            if (varName && onEnvironmentChange) {
+                                onEnvironmentChange(varName, val);
+                            }
+                        }}
+                        onBlur={() => onUpdate(id, localContent, localMetadata)}
+                        style={{ width: '100%', padding: '8px 12px', background: 'var(--panel-bg)', color: 'var(--text-color)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px', outline: 'none', transition: 'border-color 0.2s' }}
+                    />
+                </div>
+            </div>
+        );
+    };
+
+    // Card styling mimics modern block editors (Deepnote style)
+    const cardStyle = {
+        marginBottom: isReportMode ? '0px' : '16px',
+        border: isReportMode ? 'none' : (isHovered ? '1px solid var(--border-active)' : '1px solid var(--border-color)'),
+        borderRadius: '8px',
+        backgroundColor: isReportMode ? 'transparent' : 'var(--panel-bg)',
+        overflow: 'hidden',
+        display: isEmptyInReport ? 'none' : 'flex',
+        flexDirection: 'column',
+        boxShadow: isReportMode ? 'none' : (isHovered ? '0 4px 12px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.03)'),
+        transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+        position: 'relative'
+    };
+
     return (
-        <div className={isReportMode ? 'report-card' : ''} style={{
-            marginBottom: isReportMode ? '0px' : '24px',
-            border: isReportMode ? 'none' : '1px solid var(--border-color)',
-            borderRadius: '12px',
-            backgroundColor: isReportMode ? 'transparent' : 'var(--panel-bg)',
-            overflow: 'hidden',
-            display: isEmptyInReport ? 'none' : 'flex',
-            flexDirection: 'column',
-            boxShadow: isReportMode ? 'none' : '0 2px 8px rgba(0,0,0,0.1)'
-        }}>
-            {/* ... Header ... */}
+        <div 
+            className={`notebook-cell ${isReportMode ? 'report-card' : ''}`} 
+            style={cardStyle}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            {/* Left accent border to indicate block type */}
             {!isReportMode && (
                 <div style={{
-                    padding: '8px 16px',
+                    position: 'absolute',
+                    left: 0, top: 0, bottom: 0, width: '4px',
+                    backgroundColor: type === 'code' ? 'var(--accent-color-user)' : type === 'input' ? '#4ade80' : 'var(--border-color)',
+                    opacity: isHovered ? 1 : 0.4,
+                    transition: 'opacity 0.2s ease',
+                    borderTopLeftRadius: '8px',
+                    borderBottomLeftRadius: '8px',
+                    zIndex: 2
+                }} />
+            )}
+
+            {/* Block Action Header - Only visible on hover in edit mode, or always for code to show run button */}
+            {!isReportMode && (isHovered || type === 'code') && (
+                <div style={{
+                    padding: '6px 16px 6px 20px',
                     backgroundColor: 'var(--header-bg)',
                     borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     color: 'var(--text-muted)'
                 }}>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <span style={{ fontWeight: '600', color: type === 'code' ? 'var(--accent-color-user)' : 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            {type === 'code' ? 'SQL' : 'Text'}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600', color: type === 'code' ? 'var(--accent-color-user)' : type === 'input' ? '#4ade80' : 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            {type === 'code' && <><LuCode size={12}/> SQL</>}
+                            {type === 'input' && <><LuSettings2 size={12}/> Input</>}
+                            {type === 'markdown' && <><LuType size={12}/> Text</>}
                         </span>
+                        
                         {type === 'code' && (
                             <button
                                 onClick={() => onRun(id)}
@@ -237,38 +324,50 @@ const NotebookCell = ({
                                     opacity: 1,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '6px',
+                                    gap: '4px',
                                     fontWeight: '600',
                                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                     padding: '4px 10px',
-                                    borderRadius: '4px'
+                                    borderRadius: '4px',
+                                    marginLeft: '8px',
+                                    transition: 'background-color 0.2s'
                                 }}
                                 title="Run Cell (Ctrl+Enter)"
                             >
-                                <LuPlay size={14} fill="currentColor" /> Run
+                                <LuPlay size={12} fill="currentColor" /> Run
                             </button>
                         )}
+                        {/* Status Indicator */}
+                        {type === 'code' && result && (
+                            <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {result.loading && <><span className="spinner-small" style={{width: '10px', height: '10px', border: '2px solid var(--border-color)', borderTop: '2px solid var(--accent-color-user)', borderRadius: '50%', animation: 'spin 1s linear infinite'}}/> <span style={{color: 'var(--accent-color-user)'}}>Running...</span></>}
+                                {!result.loading && result.error && <span style={{color: '#ff6b6b'}}>● Failed</span>}
+                                {!result.loading && !result.error && result.data && <span style={{color: '#20c997'}}>● Success ({result.executionTime}ms)</span>}
+                            </span>
+                        )}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <button onClick={() => { onUpdate(id, localContent); onMoveUp(id); }} style={btnStyle} title="Move Up"><LuArrowUp size={16} /></button>
-                        <button onClick={() => { onUpdate(id, localContent); onMoveDown(id); }} style={btnStyle} title="Move Down"><LuArrowDown size={16} /></button>
-                        <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-color)', margin: '0 4px' }} />
-                        <button onClick={() => onDelete(id)} style={{ ...btnStyle, color: '#ff6b6b' }} title="Delete"><LuTrash2 size={14} /></button>
+                    
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', opacity: isHovered ? 1 : 0, transition: 'opacity 0.2s' }}>
+                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveUp(id); }} style={btnStyle} title="Move Up"><LuArrowUp size={14} /></button>
+                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveDown(id); }} style={btnStyle} title="Move Down"><LuArrowDown size={14} /></button>
+                        <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-color)', margin: '0 2px' }} />
+                        <button onClick={() => onDelete(id)} style={{ ...btnStyle, color: '#ff6b6b' }} title="Delete"><LuTrash2 size={13} /></button>
                     </div>
                 </div>
             )}
 
             {/* Cell Content */}
-            <div style={{ padding: type === 'markdown' && !isEditingMarkdown && !isReportMode ? '16px' : (isReportMode && type === 'markdown' ? '8px 0' : '0') }}>
-                {type === 'markdown' ? (
-                    // ... markdown render ...
+            <div style={{ padding: type === 'markdown' && !isEditingMarkdown && !isReportMode ? '16px 20px' : (isReportMode && type === 'markdown' ? '8px 0' : '0 0 0 4px') }}>
+                
+                {/* Markdown Block */}
+                {type === 'markdown' && (
                     isEditingMarkdown && !isReportMode ? (
                         <textarea
                             value={localContent}
                             onChange={(e) => setLocalContent(e.target.value)}
                             onBlur={handleBlur}
                             autoFocus
-                            style={{ width: '100%', minHeight: '120px', backgroundColor: 'var(--editor-bg)', color: 'var(--text-color)', border: 'none', padding: '16px', fontFamily: 'monospace', resize: 'vertical', fontSize: '14px', outline: 'none' }}
+                            style={{ width: '100%', minHeight: '80px', backgroundColor: 'transparent', color: 'var(--text-color)', border: 'none', padding: '16px', fontFamily: 'monospace', resize: 'vertical', fontSize: '14px', outline: 'none' }}
                             placeholder="Type markdown here... (Click outside to preview)"
                         />
                     ) : (
@@ -277,29 +376,40 @@ const NotebookCell = ({
                             style={{ minHeight: '24px', cursor: isReportMode ? 'default' : 'text' }}
                             title={isReportMode ? "" : "Double click to edit"}
                         >
-                            {localContent.trim() ? (
+                            {localContent && localContent.trim() ? (
                                 <div className="markdown-body" style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.7' }}>
                                     <ReactMarkdown>{localContent}</ReactMarkdown>
                                 </div>
                             ) : (
-                                !isReportMode && <div style={{ padding: '16px', fontStyle: 'italic', color: 'var(--text-muted)', backgroundColor: 'var(--editor-bg)', borderRadius: '6px' }}>Empty Markdown Cell (Double click to edit)</div>
+                                !isReportMode && <div style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Empty Markdown Cell (Double click to edit)</div>
                             )}
                         </div>
                     )
-                ) : (
-                    // Code Cell
+                )}
+
+                {/* Input Block */}
+                {type === 'input' && !isReportMode && (
+                    <div style={{ padding: '0px 16px 16px 16px' }}>
+                        {renderInputBlock()}
+                    </div>
+                )}
+                {/* Input blocks are completely hidden in report mode for now because they are for parametrization */}
+                {type === 'input' && isReportMode && null}
+
+                {/* Code Block */}
+                {type === 'code' && (
                     <div className="notebook-code-cell-content" style={{ display: 'flex', flexDirection: 'column' }}>
                         {/* Editor Area */}
                         {!(isReportMode && hideCodeInReport) && (
-                            <div style={{ height: 'auto', minHeight: '120px', borderLeft: '3px solid var(--accent-color-user)', marginBottom: (isReportMode && result) ? '16px' : '0' }}>
-                                <div style={{ height: `${Math.max(80, Math.min(400, (localContent?.split('\n').length || 3) * 20 + 20))}px` }} onKeyDown={handleKeyDown}>
+                            <div style={{ height: 'auto', minHeight: '80px' }}>
+                                <div style={{ height: `${Math.max(80, Math.min(400, ((localContent?.toString().split('\n').length) || 3) * 20 + 20))}px` }} onKeyDown={handleKeyDown}>
                                     <SqlEditor
-                                        value={localContent}
+                                        value={typeof localContent === 'string' ? localContent : ''}
                                         onChange={(val) => {
                                             setLocalContent(val);
-                                            onUpdate(id, val);
+                                            onUpdate(id, val, localMetadata);
                                         }}
-                                        onDebugCte={handleDebugCte} // Pass handler
+                                        onDebugCte={handleDebugCte}
                                     />
                                 </div>
                             </div>
@@ -315,47 +425,66 @@ const NotebookCell = ({
                                 paddingTop: isReportMode ? '16px' : '0',
                                 paddingBottom: isReportMode ? '8px' : '0'
                             }}>
-                                {result.loading && <div style={{ padding: '12px 16px', color: 'var(--accent-color-user)', fontWeight: '600', fontSize: '13px' }}>Executing query...</div>}
-                                {result.error && <div style={{ padding: '12px 16px', color: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.1)', fontFamily: 'monospace', fontSize: '13px' }}>Error: {result.error}</div>}
-                                {result.data && (
+                                {result.loading && !isReportMode && <div style={{ height: '2px', width: '100%', background: 'linear-gradient(90deg, transparent, var(--accent-color-user), transparent)', animation: 'slide 1.5s infinite linear' }} />}
+                                
+                                {result.error && <div style={{ padding: '12px 16px', color: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.05)', borderLeft: '3px solid #ff6b6b', fontFamily: 'monospace', fontSize: '13px', margin: isReportMode ? '0' : '16px' }}>Error: {result.error}</div>}
+                                
+                                {result.data && !result.error && (
                                     <>
-                                        <div style={
-                                            !isReportMode ? { height: `${resultHeight}px`, overflow: 'hidden' } : { height: 'auto', minHeight: '300px' }
-                                        }>
-                                            <ResultsTable
-                                                data={result.data}
-                                                types={result.types}
-                                                executionTime={result.executionTime}
-                                                query={result.executedQuery || localContent}
-                                                currentEditorQuery={localContent}
-                                                onDbChange={() => { }}
-                                                isReportMode={isReportMode}
-                                                initialChartConfig={initialCellState?.chartConfig || null}
-                                                initialViewMode={initialCellState?.viewMode || null}
-                                                onConfigChange={handleChartConfigChange}
-                                                onViewModeChange={handleViewModeChange}
-                                            />
-                                        </div>
+                                        {!isPoppedOut && (
+                                            <div style={
+                                                !isReportMode ? { height: `${resultHeight}px`, overflow: 'hidden' } : { height: 'auto', minHeight: '300px' }
+                                            }>
+                                                <ResultsTable
+                                                    data={result.data}
+                                                    types={result.types}
+                                                    executionTime={result.executionTime}
+                                                    query={result.executedQuery || localContent}
+                                                    currentEditorQuery={localContent}
+                                                    onDbChange={() => { }}
+                                                    isReportMode={isReportMode}
+                                                    initialChartConfig={initialCellState?.chartConfig || null}
+                                                    initialViewMode={initialCellState?.viewMode || null}
+                                                    onConfigChange={handleChartConfigChange}
+                                                    onViewModeChange={handleViewModeChange}
+                                                    onPopout={handlePopout}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {isPoppedOut && (
+                                            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', backgroundColor: 'var(--panel-bg)', borderRadius: '6px' }}>
+                                                Results are actively displayed in a detached window.
+                                                <div style={{ marginTop: '12px' }}>
+                                                    <button 
+                                                        onClick={() => setIsPoppedOut(false)}
+                                                        style={{ padding: '6px 12px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-active)' }}
+                                                    >
+                                                        Bring Back Here
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Resize Handle */}
-                                        {!isReportMode && (
+                                        {!isReportMode && !isPoppedOut && (
                                             <div
                                                 onMouseDown={handleResizeMouseDown}
                                                 style={{
-                                                    height: '6px',
+                                                    height: '8px',
                                                     cursor: 'row-resize',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    backgroundColor: 'var(--border-color)',
-                                                    opacity: 0.5,
-                                                    transition: 'opacity 0.2s',
-                                                    borderRadius: '0 0 4px 4px'
+                                                    backgroundColor: 'var(--panel-bg)',
+                                                    borderTop: '1px solid var(--border-color)',
+                                                    transition: 'background-color 0.2s',
                                                 }}
-                                                onMouseOver={e => e.currentTarget.style.opacity = '1'}
-                                                onMouseOut={e => e.currentTarget.style.opacity = '0.5'}
+                                                onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'}
+                                                onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--panel-bg)'}
                                                 title="Drag to resize results"
                                             >
-                                                <LuGripHorizontal size={12} style={{ color: 'var(--text-muted)' }} />
+                                                <LuGripHorizontal size={14} style={{ color: 'var(--text-muted)' }} />
                                             </div>
                                         )}
                                     </>
@@ -373,6 +502,16 @@ const NotebookCell = ({
                 result={debugResult}
                 query={debugQuery}
             />
+            
+            <style dangerouslySetInnerHTML={{__html: `
+                @keyframes slide {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+                @keyframes spin {
+                    100% { transform: rotate(360deg); }
+                }
+            `}} />
         </div >
     );
 };
@@ -382,10 +521,12 @@ const btnStyle = {
     border: 'none',
     color: 'var(--text-muted)',
     cursor: 'pointer',
-    padding: '2px 6px',
-    fontSize: '12px',
-    opacity: 0.7,
-    transition: 'opacity 0.2s'
+    padding: '4px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.2s'
 };
 
 export default NotebookCell;

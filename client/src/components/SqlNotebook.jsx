@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import NotebookCell from './NotebookCell';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2 } from "react-icons/lu";
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2 } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
-
-const CELL_MARKER_CODE = '-- !CELL:CODE!';
-const CELL_MARKER_MARKDOWN = '-- !CELL:MARKDOWN!';
+import { parseNotebookContent, serializeNotebookContent } from '../utils/notebookParser';
 
 const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     const [cells, setCells] = useState([]);
     const [results, setResults] = useState({});
+    
+    // Global environment variables (e.g. from input blocks)
+    const [environment, setEnvironment] = useState({});
 
-    // Cell-level persisted state (chartConfig, viewMode, resultHeight per cell index)
+    // Cell-level persisted state (chartConfig, viewMode, resultHeight)
     const [cellStates, setCellStates] = useState({});
 
     // View modes
@@ -22,66 +23,21 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     const saveStateTimer = useRef(null);
     const stateLoaded = useRef(false);
 
-    // 1. Initial Parse
+    // 1. Initial Parse (using structured JSON / Parser)
     useEffect(() => {
-        if (!content || !content.trim()) {
-            setCells([{ id: Date.now(), type: 'code', content: '' }]);
-            return;
-        }
-
-        const lines = content.split('\n');
-        const parsedCells = [];
-        let currentCell = { id: Date.now(), type: 'code', content: [] };
-
-        if (!content.includes(CELL_MARKER_CODE) && !content.includes(CELL_MARKER_MARKDOWN)) {
-            setCells([{ id: Date.now(), type: 'code', content: content }]);
-            return;
-        }
-
-        let isFirst = true;
-
-        lines.forEach((line) => {
-            const trimmed = line.trim();
-            if (trimmed === CELL_MARKER_CODE) {
-                if (!isFirst) {
-                    currentCell.content = currentCell.content.join('\n');
-                    parsedCells.push(currentCell);
-                }
-                currentCell = { id: Date.now() + Math.random(), type: 'code', content: [] };
-                isFirst = false;
-            } else if (trimmed === CELL_MARKER_MARKDOWN) {
-                if (!isFirst) {
-                    currentCell.content = currentCell.content.join('\n');
-                    parsedCells.push(currentCell);
-                }
-                currentCell = { id: Date.now() + Math.random(), type: 'markdown', content: [] };
-                isFirst = false;
-            } else {
-                if (isFirst && currentCell.type === 'code' && parsedCells.length === 0) {
-                    // collecting content before the first marker
-                }
-
-                let lineContent = line;
-                if (currentCell.type === 'markdown') {
-                    if (line.trim().startsWith('-- ')) {
-                        lineContent = line.trim().substring(3);
-                    } else if (line.trim().startsWith('--')) {
-                        lineContent = line.trim().substring(2);
-                    }
-                }
-
-                currentCell.content.push(lineContent);
-            }
-        });
-
-        currentCell.content = currentCell.content.join('\n');
-        parsedCells.push(currentCell);
-
+        const parsedCells = parseNotebookContent(content);
         setCells(parsedCells);
+        // Extract environment variables if it's the new format
+        try {
+            const parsed = JSON.parse(content);
+            if (parsed && parsed.environment) {
+                setEnvironment(parsed.environment);
+            }
+        } catch(e) { } // Ignore if not JSON
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run only once on mount
 
-    // 2. Load State from Sidecar File
+    // 2. Load Visual State from Sidecar File
     useEffect(() => {
         if (!filePath || stateLoaded.current) return;
         stateLoaded.current = true;
@@ -92,20 +48,15 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 const state = await res.json();
                 if (!state || !state.cells) return;
 
-                // Restore cell states
                 setCellStates(state.cells);
 
-                // Restore cached results
                 const restoredResults = {};
                 Object.entries(state.cells).forEach(([idx, cellState]) => {
                     if (cellState.result) {
-                        // We'll map by cell index — need to match with actual cell IDs after parse
                         restoredResults[idx] = cellState.result;
                     }
                 });
 
-                // Wait for cells to be parsed, then map index-based results to cell IDs
-                // Use a small timeout to ensure cells are set
                 setTimeout(() => {
                     setCells(currentCells => {
                         const mappedResults = {};
@@ -130,13 +81,12 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
         loadState();
     }, [filePath]);
 
-    // 3. Save State to Sidecar File (debounced)
+    // 3. Save Visual State to Sidecar File (debounced)
     const persistState = useCallback((updatedCellStates, updatedResults, currentCells) => {
         if (!filePath) return;
 
         if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
         saveStateTimer.current = setTimeout(() => {
-            // Build state object using cell indices
             const stateObj = { version: 1, cells: {} };
 
             currentCells.forEach((cell, idx) => {
@@ -144,8 +94,6 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 const existingState = updatedCellStates[idxStr] || {};
                 const cellResult = updatedResults[cell.id];
 
-                // Only cache successful results (not errors or loading states)
-                // Cap at 500 rows to keep state file size reasonable
                 const MAX_CACHED_ROWS = 500;
                 const cachedResult = (cellResult && cellResult.data && !cellResult.error && !cellResult.loading)
                     ? {
@@ -174,29 +122,22 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
         }, 1000);
     }, [filePath]);
 
-    // 4. Serialize Back to File
-    const save = (updatedCells) => {
-        const fileContent = updatedCells.map(cell => {
-            if (cell.type === 'code') {
-                return `${CELL_MARKER_CODE}\n${cell.content}`;
-            } else {
-                const commentedContent = cell.content.split('\n').map(l => `-- ${l}`).join('\n');
-                return `${CELL_MARKER_MARKDOWN}\n${commentedContent}`;
-            }
-        }).join('\n\n');
-
+    // 4. Serialize Back to File using new structured format
+    const save = (updatedCells, updatedEnvironment = environment) => {
+        const fileContent = serializeNotebookContent(updatedCells);
+        // We only pass changes to the parent
         onChange(fileContent);
     };
 
     // Cell Handlers
-    const updateCell = (id, newContent) => {
-        const updated = cells.map(c => c.id === id ? { ...c, content: newContent } : c);
+    const updateCell = (id, newContent, newMetadata = {}) => {
+        const updated = cells.map(c => c.id === id ? { ...c, content: newContent, ...newMetadata } : c);
         setCells(updated);
         save(updated);
     };
 
     const addCell = (type) => {
-        const newCell = { id: Date.now() + Math.random(), type, content: '' };
+        const newCell = { id: (Date.now() + Math.random()).toString(), type, content: '' };
         const updated = [...cells, newCell];
         setCells(updated);
         save(updated);
@@ -217,34 +158,11 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
         if (targetIndex < 0 || targetIndex >= cells.length) return;
 
         const updated = [...cells];
-
-        const originOldId = updated[index].id;
-        const targetOldId = updated[targetIndex].id;
-        const originNewId = Date.now() + Math.random();
-        const targetNewId = Date.now() + Math.random() + 1;
-
-        updated[index] = { ...updated[index], id: originNewId };
-        updated[targetIndex] = { ...updated[targetIndex], id: targetNewId };
-
         [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
 
         setCells(updated);
 
-        // Migrate results to new IDs
-        setResults(prev => {
-            const nextResults = { ...prev };
-            if (nextResults[originOldId]) {
-                nextResults[originNewId] = nextResults[originOldId];
-                delete nextResults[originOldId];
-            }
-            if (nextResults[targetOldId]) {
-                nextResults[targetNewId] = nextResults[targetOldId];
-                delete nextResults[targetOldId];
-            }
-            return nextResults;
-        });
-
-        // Swap cell states too
+        // Swap visual states
         setCellStates(prev => {
             const next = { ...prev };
             const originState = next[String(index)];
@@ -257,36 +175,86 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
         save(updated);
     };
 
-    // Native Browser Print (PDF Export)
     const handlePrint = () => {
         window.print();
     };
 
-    const handleRun = async (cellId, cellContent) => {
+    // Evaluate input variables in query (simple string replacement for now)
+    const injectEnvironmentVariables = (query, env) => {
+        let injectedQuery = query;
+        Object.entries(env).forEach(([key, value]) => {
+            // Replace {{variable}} with its value
+            const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+            // If it's a string, we might need to wrap in quotes, but for simplicity let's assume raw replacement
+            // Or we try to be smart: if value is string, wrap in ''; if number, leave as is.
+            const formattedValue = typeof value === 'string' ? `'${value}'` : value;
+            injectedQuery = injectedQuery.replace(regex, formattedValue);
+        });
+        return injectedQuery;
+    };
+
+    const handleRun = async (cellId, cellContent, currentEnv = environment) => {
         setResults(prev => ({ ...prev, [cellId]: { loading: true } }));
 
-        const result = await onRunQuery(cellContent);
+        const queryToRun = injectEnvironmentVariables(cellContent, currentEnv);
+        const result = await onRunQuery(queryToRun);
 
         setResults(prev => {
-            const nextResults = { ...prev, [cellId]: { ...result, executedQuery: cellContent } };
-            // Persist state after query execution
+            const nextResults = { ...prev, [cellId]: { ...result, executedQuery: queryToRun } };
             persistState(cellStates, nextResults, cells);
             return nextResults;
         });
     };
 
-    // Handle cell state change from NotebookCell (chartConfig, viewMode, resultHeight)
+    const handleEnvironmentChange = (key, value) => {
+        const newEnv = { ...environment, [key]: value };
+        setEnvironment(newEnv);
+        
+        // Reactive Execution (DAG): Auto-run dependent cells
+        cells.forEach(cell => {
+            if (cell.type === 'code' && typeof cell.content === 'string') {
+                const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+                if (regex.test(cell.content)) {
+                    // Re-run this cell because it depends on the changed variable
+                    handleRun(cell.id, cell.content, newEnv);
+                }
+            }
+        });
+        
+        // Save notebook with updated environment
+        try {
+            const parsed = JSON.parse(content || '{}');
+            parsed.environment = newEnv;
+            parsed.cells = cells;
+            onChange(JSON.stringify(parsed, null, 2));
+        } catch(e) {
+            // New format only
+            save(cells, newEnv);
+        }
+    };
+
     const handleCellStateChange = useCallback((cellIndex, stateUpdate) => {
         setCellStates(prev => {
             const idxStr = String(cellIndex);
-            const next = { ...prev, [idxStr]: { ...(prev[idxStr] || {}), ...stateUpdate } };
-            // Persist after update
+            const currentState = prev[idxStr] || {};
+            
+            // Prevent infinite loop by checking if state actually changed
+            let hasChanges = false;
+            for (const key in stateUpdate) {
+                if (currentState[key] !== stateUpdate[key]) {
+                    hasChanges = true;
+                    break;
+                }
+            }
+            
+            if (!hasChanges) return prev;
+
+            const next = { ...prev, [idxStr]: { ...currentState, ...stateUpdate } };
             persistState(next, results, cells);
             return next;
         });
     }, [persistState, results, cells]);
 
-    // Full View: Escape key handler
     useEffect(() => {
         if (!isFullView) return;
         const handleEsc = (e) => {
@@ -296,11 +264,8 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isFullView]);
 
-    // --- RENDER ---
-
     const toolbarContent = (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isFullView ? '16px' : '24px', position: 'sticky', top: 0, zIndex: 10, backgroundColor: isFullView ? '#0d0f11' : 'var(--editor-bg)', paddingBottom: '10px', paddingTop: '10px' }}>
-            {/* Mode Toggle */}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <div style={{ display: 'flex', backgroundColor: 'var(--panel-bg)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <button
@@ -329,7 +294,6 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                     </button>
                 </div>
 
-                {/* Full View Toggle */}
                 <button
                     onClick={() => setIsFullView(!isFullView)}
                     style={{
@@ -355,7 +319,6 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                             display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px',
                             opacity: hideCodeInReport ? 1 : 0.7
                         }}
-                        title="Toggle SQL Code Visibility"
                     >
                         {hideCodeInReport ? <LuEyeOff size={14} /> : <LuEye size={14} />} {hideCodeInReport ? 'Code Hidden' : 'Code Visible'}
                     </button>
@@ -367,7 +330,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                             display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'
                         }}
                     >
-                        <LuPrinter size={14} /> Print / Save PDF
+                        <LuPrinter size={14} /> Print
                     </button>
                     <button
                         onClick={() => generateHtmlReport(cells, results, hideCodeInReport)}
@@ -377,16 +340,16 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                             display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'
                         }}
                     >
-                        <LuFileCode size={14} /> Export HTML
+                        <LuFileCode size={14} /> HTML
                     </button>
                 </div>
             )}
 
-            {/* Add Buttons (Hidden in Report/FullView Mode) */}
             {viewMode === 'edit' && !isFullView && (
                 <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => addCell('code')} style={addBtnStyle}><LuPlus size={14} /> Code Cell</button>
-                    <button onClick={() => addCell('markdown')} style={addBtnStyle}><LuPlus size={14} /> Text Cell</button>
+                    <button onClick={() => addCell('code')} style={addBtnStyle}><LuPlus size={14} /> SQL</button>
+                    <button onClick={() => addCell('markdown')} style={addBtnStyle}><LuPlus size={14} /> Text</button>
+                    <button onClick={() => addCell('input')} style={{...addBtnStyle, color: 'var(--accent-color-user)', borderColor: 'var(--accent-color-user)'}}><LuSettings2 size={14} /> Input</button>
                 </div>
             )}
         </div>
@@ -404,7 +367,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 margin: '0 auto',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: isReportActive ? '32px' : '16px',
+                gap: isReportActive ? '32px' : '24px',
                 padding: isReportActive ? '48px 56px' : '0',
                 backgroundColor: isReportActive ? 'var(--surface-raised)' : 'transparent',
                 borderRadius: isReportActive ? '12px' : '0',
@@ -417,11 +380,13 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                         key={cell.id}
                         {...cell}
                         result={results[cell.id]}
+                        environment={environment}
                         onUpdate={updateCell}
                         onRun={(id) => handleRun(id, cell.content)}
                         onDelete={deleteCell}
                         onMoveUp={() => moveCell(cell.id, -1)}
                         onMoveDown={() => moveCell(cell.id, 1)}
+                        onEnvironmentChange={handleEnvironmentChange}
                         isReportMode={isReportActive}
                         hideCodeInReport={hideCodeInReport}
                         cellIndex={index}
@@ -432,15 +397,15 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
 
                 {viewMode === 'edit' && !isFullView && (
                     <div style={{ display: 'flex', gap: '12px', marginTop: '30px', marginBottom: '80px', justifyContent: 'center' }}>
-                        <button onClick={() => addCell('code')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent' }}><LuPlus size={16} /> Add Code</button>
+                        <button onClick={() => addCell('code')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent' }}><LuPlus size={16} /> Add SQL</button>
                         <button onClick={() => addCell('markdown')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent' }}><LuPlus size={16} /> Add Text</button>
+                        <button onClick={() => addCell('input')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent', color: 'var(--accent-color-user)', borderColor: 'var(--accent-color-user)' }}><LuSettings2 size={16} /> Add Input</button>
                     </div>
                 )}
             </div>
         </div>
     );
 
-    // Full View renders as a fixed overlay
     if (isFullView) {
         return (
             <div className="notebook-fullview-overlay" style={{

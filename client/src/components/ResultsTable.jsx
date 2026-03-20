@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink } from "react-icons/lu";
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import ExportDataModal from './ExportDataModal';
 
-const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {} }) => {
+const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
@@ -30,6 +30,9 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const deferredColumnFilters = useDeferredValue(columnFilters);
 
     const [showFilters, setShowFilters] = useState(false); // Toggle filter row
+
+    // --- Column Context Menu State ---
+    const [contextMenu, setContextMenu] = useState(null); // { x, y, column }
 
     // --- Column Resizing State ---
     const [columnWidths, setColumnWidths] = useState({}); // { [colName]: widthInPx }
@@ -83,6 +86,20 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
             document.body.style.cursor = '';
         };
     }, [resizeState]);
+
+    // --- Context Menu Dismiss ---
+    useEffect(() => {
+        if (!contextMenu) return;
+        const dismiss = () => setContextMenu(null);
+        window.addEventListener('click', dismiss);
+        window.addEventListener('contextmenu', dismiss);
+        window.addEventListener('scroll', dismiss, true);
+        return () => {
+            window.removeEventListener('click', dismiss);
+            window.removeEventListener('contextmenu', dismiss);
+            window.removeEventListener('scroll', dismiss, true);
+        };
+    }, [contextMenu]);
 
     // Reset page when data changes
     useEffect(() => {
@@ -371,7 +388,12 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 </div>
                             )}
 
-                            {/* Export / Save */}
+                            {/* Export / Save / Popout */}
+                            {onPopout && (
+                                <button onClick={onPopout} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <LuExternalLink size={14} /> Pop-out
+                                </button>
+                            )}
                             <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <LuSave size={14} /> Save to DB
                             </button>
@@ -462,6 +484,11 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                     return (
                                         <th
                                             key={col}
+                                            onContextMenu={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setContextMenu({ x: e.clientX, y: e.clientY, column: col });
+                                            }}
                                             style={{
                                                 position: 'relative',
                                                 backgroundColor: 'var(--table-header-bg)',
@@ -580,6 +607,41 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                 onClose={() => setIsExportDataOpen(false)}
                 query={currentEditorQuery || query}
             />
+
+            {/* Column Context Menu */}
+            {contextMenu && (
+                <div
+                    className="column-context-menu"
+                    style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 99999 }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div
+                        className="column-context-menu-item"
+                        onClick={() => { navigator.clipboard.writeText(contextMenu.column); setContextMenu(null); }}
+                    >
+                        <LuClipboardCopy size={13} /> Copy Column Name
+                    </div>
+                    <div
+                        className="column-context-menu-item"
+                        onClick={() => { navigator.clipboard.writeText(columns.join(', ')); setContextMenu(null); }}
+                    >
+                        <LuClipboardCopy size={13} /> Copy All Column Names
+                    </div>
+                    <div className="column-context-menu-separator" />
+                    <div
+                        className="column-context-menu-item"
+                        onClick={() => { handleSort(contextMenu.column); setContextMenu(null); }}
+                    >
+                        <LuChevronUp size={13} /> Sort Ascending
+                    </div>
+                    <div
+                        className="column-context-menu-item"
+                        onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'desc' }); setContextMenu(null); }}
+                    >
+                        <LuChevronDown size={13} /> Sort Descending
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

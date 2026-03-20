@@ -22,6 +22,7 @@ import AiSidebar from './components/AiSidebar';
 import StatusBar from './components/StatusBar';
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
 import { useToast } from './components/ToastProvider';
+import WindowTitleBar from './components/WindowTitleBar';
 
 // Ultra-heavy lazy loaded Modals (Zero Cost Startup)
 const DatabaseSelectionModal = lazy(() => import('./components/DatabaseSelectionModal'));
@@ -30,9 +31,12 @@ const DataQualityModal = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal = lazy(() => import('./components/SchemaDiffModal'));
 const ExecutionChainModal = lazy(() => import('./components/ExecutionChainModal'));
 const SettingsModal = lazy(() => import('./components/SettingsModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText } from "react-icons/lu";
 
 import './index.css';
+
+// Pop-out Results Page (standalone view for child window)
+import PopoutResultsPage from './components/PopoutResultsPage';
 
 // App Phases
 const PHASE = {
@@ -41,7 +45,15 @@ const PHASE = {
   IDE: 'IDE'
 };
 
+// Check if this window is a pop-out results window
+const isPopoutMode = new URLSearchParams(window.location.search).get('popout') === 'true';
+
 function App() {
+  // If this is a pop-out child window, render ONLY the results page
+  if (isPopoutMode) {
+    return <PopoutResultsPage />;
+  }
+
   const [appPhase, setAppPhase] = useState(PHASE.WELCOME);
   const toast = useToast();
 
@@ -50,6 +62,7 @@ function App() {
   // File Management State
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [pendingSaveContent, setPendingSaveContent] = useState('');
+  const [pendingSaveTab, setPendingSaveTab] = useState(null);
 
   // Database State
   const [currentDb, setCurrentDb] = useState(':memory:');
@@ -110,6 +123,15 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Editor & UI Preferences (centralized)
+  const [uiZoomLevel, setUiZoomLevel] = useState(() => {
+    return parseFloat(localStorage.getItem('amoxsql-ui-zoom')) || 1.0;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('amoxsql-ui-zoom', uiZoomLevel.toString());
+    document.body.style.zoom = uiZoomLevel;
+  }, [uiZoomLevel]);
+
   const [editorSettings, setEditorSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('amoxsql-editor-settings');
@@ -125,6 +147,7 @@ function App() {
     tabSize: 4,
     resultsFontSize: 13,
     defaultViewMode: 'table',
+    mouseWheelZoom: true,
     ...editorSettings,
   };
 
@@ -215,6 +238,24 @@ function App() {
         setIsSettingsOpen(true);
         return;
       }
+      // UI Zoom: Ctrl+Plus, Ctrl+Minus, Ctrl+0
+      if (e.ctrlKey) {
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault();
+          setUiZoomLevel(prev => Math.min(prev + 0.1, 2.0));
+          return;
+        }
+        if (e.key === '-') {
+          e.preventDefault();
+          setUiZoomLevel(prev => Math.max(prev - 0.1, 0.5));
+          return;
+        }
+        if (e.key === '0') {
+          e.preventDefault();
+          setUiZoomLevel(1.0);
+          return;
+        }
+      }
       // Keyboard Shortcuts: Ctrl+Shift+/
       if (e.ctrlKey && e.shiftKey && e.key === '/') {
         e.preventDefault();
@@ -237,7 +278,7 @@ function App() {
           if (f.isDirectory) {
             const sub = await collectSqlFiles(f.path);
             sqlFiles = sqlFiles.concat(sub);
-          } else if (f.name.endsWith('.sql')) {
+          } else if (f.name.endsWith('.sql') || f.name.endsWith('.md')) {
             sqlFiles.push(f.path);
           }
         }
@@ -266,6 +307,8 @@ function App() {
         theme,
         setTheme,
         setIsShortcutsOpen,
+        setUiZoomLevel,
+        setEditorSettings,
       }),
       { id: 'run-chain', label: 'Run Execution Chain...', category: 'Query', icon: LuLink, action: handleOpenChain },
     ];
@@ -321,12 +364,21 @@ function App() {
       if (response.ok) {
         setProjectPath(data.path);
 
+        // Save to recent projects
+        try {
+          const RECENT_KEY = 'amoxsql-recent-projects';
+          const MAX_RECENT = 5;
+          const existing = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+          const filtered = existing.filter(p => p !== data.path);
+          filtered.unshift(data.path);
+          localStorage.setItem(RECENT_KEY, JSON.stringify(filtered.slice(0, MAX_RECENT)));
+        } catch (e) { /* ignore localStorage errors */ }
+
         // 2. Scan for Databases
         try {
           const scanRes = await fetch('http://localhost:3001/api/project/scan-dbs');
           const dbs = await scanRes.json();
 
-          // Found DBs or Empty Project: Go to Selection Phase
           setFoundDbs(dbs || []);
           setAppPhase(PHASE.SELECTING_DB);
         } catch (scanErr) {
@@ -360,7 +412,7 @@ function App() {
       if (data.error) throw new Error(data.error);
 
       // determine type
-      const type = path.endsWith('.sqlnb') ? 'sqlnb' : 'sql';
+      const type = path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.md') ? 'md' : 'sql';
       layoutRef.current?.openFile(path, data.content, type);
 
     } catch (err) {
@@ -479,10 +531,18 @@ function App() {
   const handleSaveAs = useCallback(async (filename, description) => {
     let contentToSave = pendingSaveContent;
     if (description) {
-      contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
+      if (!filename.endsWith('.md')) {
+        contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
+      }
     }
-    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb')) {
-      filename += '.sql';
+    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.md')) {
+      if (pendingSaveTab && pendingSaveTab.type === 'sqlnb') {
+        filename += '.sqlnb';
+      } else if (pendingSaveTab && pendingSaveTab.type === 'md') {
+        filename += '.md';
+      } else {
+        filename += '.sql';
+      }
     }
 
     const result = await performSave(filename, contentToSave);
@@ -499,7 +559,8 @@ function App() {
 
   if (appPhase === PHASE.WELCOME) {
     return (
-      <>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+        <WindowTitleBar />
         <WelcomeScreen onOpenProject={handleOpenProject} onOpenSettings={() => setIsSettingsOpen(true)} />
         <SettingsModal
           isOpen={isSettingsOpen}
@@ -511,12 +572,13 @@ function App() {
           currentLayout={editorLayout}
           onLayoutChange={setEditorLayout}
         />
-      </>
+      </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+      <WindowTitleBar />
 
       {/* Command Palette — Global */}
       <CommandPalette
@@ -779,6 +841,13 @@ function App() {
                       >
                         <LuFilePlus size={14} /> Notebook
                       </div>
+                      <div onClick={() => { layoutRef.current?.createNew('md'); setShowToolbarNewMenu(false); }}
+                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
+                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      >
+                        <LuFileText size={14} /> Markdown
+                      </div>
                     </div>
                   )}
                 </div>
@@ -811,8 +880,9 @@ function App() {
                 editorLayout={editorLayout}
                 editorSettings={mergedEditorSettings}
                 onDbChange={() => setRefreshDbTrigger(p => p + 1)}
-                onRequestSaveAs={(content) => {
+                onRequestSaveAs={(content, tab) => {
                   setPendingSaveContent(content);
+                  setPendingSaveTab(tab);
                   setIsSaveModalOpen(true);
                 }}
                 onQueryResult={setLastQueryInfo}
@@ -888,6 +958,7 @@ function App() {
 
         <SaveQueryModal
           isOpen={isSaveModalOpen}
+          initialName={pendingSaveTab?.name || ''}
           onClose={() => setIsSaveModalOpen(false)}
           onSave={handleSaveAs}
         />

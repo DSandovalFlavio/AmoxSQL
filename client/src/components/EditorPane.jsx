@@ -19,6 +19,7 @@ const EditorPane = ({
     onDbChange,
     onDragStart,
     onReorder,
+    onFileDrop,       // (filePath) -> handle dropped file
     isActive,
     theme,
     editorLayout,
@@ -40,7 +41,49 @@ const EditorPane = ({
     const [debugResult, setDebugResult] = useState(null);
     const [debugQuery, setDebugQuery] = useState('');
 
+    // File Drop State
+    const [showDropZone, setShowDropZone] = useState(false);
+    const dropCounterRef = useRef(0);
+
+    const [isPoppedOut, setIsPoppedOut] = useState(false);
+
+    // Listen for popout window being closed by the user
+    useEffect(() => {
+        if (!window.electronAPI?.onPopoutClosed) return;
+        const cleanup = window.electronAPI.onPopoutClosed(() => {
+            setIsPoppedOut(false);
+        });
+        return cleanup;
+    }, []);
+
     const activeTab = tabs.find(t => t.id === activeTabId);
+
+    const handlePopout = () => {
+        if (!activeTab?.results) return;
+        const payload = {
+            data: activeTab.results.data,
+            types: activeTab.results.types,
+            executionTime: activeTab.results.executionTime,
+            query: activeTab.resultsQuery || activeTab.content,
+            cellTitle: activeTab.name,
+        };
+        window.electronAPI?.openPopout(payload);
+        setIsPoppedOut(true);
+    };
+
+    // Auto-update the pop-out window when results change
+    useEffect(() => {
+        if (!isPoppedOut || !activeTab?.results) return;
+        const payload = {
+            data: activeTab.results.data,
+            types: activeTab.results.types,
+            executionTime: activeTab.results.executionTime,
+            query: activeTab.resultsQuery || activeTab.content,
+            cellTitle: activeTab.name,
+        };
+        window.electronAPI?.openPopout(payload);
+    }, [isPoppedOut, activeTab?.results]);
+
 
     // Resizing Logic specific to this pane
     const startResizing = (e) => {
@@ -86,9 +129,13 @@ const EditorPane = ({
                 setResultsWidth(newWidth);
             }
         } else {
-            // Horizontal layout (default): resize height from the bottom
-            const newHeight = window.innerHeight - e.clientY;
-            if (newHeight >= 50 && newHeight <= 800) {
+            // Horizontal layout (default): resize height relative to the container, not window
+            const container = containerRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            const newHeight = rect.bottom - e.clientY;
+            const maxHeight = rect.height * 0.80; // Never exceed 80% of the container
+            if (newHeight >= 50 && newHeight <= maxHeight) {
                 setResultsHeight(newHeight);
             }
         }
@@ -199,16 +246,35 @@ const EditorPane = ({
             {activeTab.resultsError && <div style={{ color: 'red', padding: '10px' }}>Error: {activeTab.resultsError}</div>}
 
             {activeTab.results && (
-                <ResultsTable
-                    data={activeTab.results.data}
-                    types={activeTab.results.types}
-                    executionTime={activeTab.results.executionTime}
-                    query={activeTab.resultsQuery || activeTab.content}
-                    currentEditorQuery={activeTab.content}
-                    onDbChange={onDbChange}
-                    initialChartConfig={activeTab.initialChartConfig}
-                    editorSettings={editorSettings}
-                />
+                <>
+                    {!isPoppedOut && (
+                        <ResultsTable
+                            data={activeTab.results.data}
+                            types={activeTab.results.types}
+                            executionTime={activeTab.results.executionTime}
+                            query={activeTab.resultsQuery || activeTab.content}
+                            currentEditorQuery={activeTab.content}
+                            onDbChange={onDbChange}
+                            initialChartConfig={activeTab.initialChartConfig}
+                            editorSettings={editorSettings}
+                            onPopout={handlePopout}
+                        />
+                    )}
+                    
+                    {isPoppedOut && (
+                        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', backgroundColor: 'var(--panel-bg)', borderRadius: '6px', margin: '16px' }}>
+                            Results for {activeTab.name} are actively displayed in a detached window.
+                            <div style={{ marginTop: '12px' }}>
+                                <button 
+                                    onClick={() => setIsPoppedOut(false)}
+                                    style={{ padding: '6px 12px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-active)' }}
+                                >
+                                    Bring Back Here
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {!activeTab.results && !activeTab.resultsError && (
@@ -227,9 +293,41 @@ const EditorPane = ({
                 flexDirection: 'column',
                 backgroundColor: 'var(--editor-bg)',
                 borderLeft: '1px solid var(--border-color)',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                position: 'relative'
             }}
             onClickCapture={() => onTabClick && activeTabId && onTabClick(activeTabId)}
+            onDragEnter={(e) => {
+                if (e.dataTransfer.types.includes('Files')) {
+                    e.preventDefault();
+                    dropCounterRef.current++;
+                    setShowDropZone(true);
+                }
+            }}
+            onDragOver={(e) => {
+                if (e.dataTransfer.types.includes('Files')) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                }
+            }}
+            onDragLeave={(e) => {
+                dropCounterRef.current--;
+                if (dropCounterRef.current <= 0) {
+                    dropCounterRef.current = 0;
+                    setShowDropZone(false);
+                }
+            }}
+            onDrop={(e) => {
+                e.preventDefault();
+                dropCounterRef.current = 0;
+                setShowDropZone(false);
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0 && onFileDrop) {
+                    for (const file of files) {
+                        onFileDrop(file.path || file.name);
+                    }
+                }
+            }}
         >
             <TabBar
                 tabs={tabs}
@@ -241,7 +339,7 @@ const EditorPane = ({
                 onReorder={onReorder}
             />
 
-            <div ref={containerRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+            <div ref={containerRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', minHeight: 0 }}>
 
                 {/* Content Area */}
                 {isNotebook ? (
@@ -255,9 +353,9 @@ const EditorPane = ({
                         />
                     </div>
                 ) : (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: isVertical ? 'row' : 'column', overflow: 'hidden' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: isVertical ? 'row' : 'column', overflow: 'hidden', minHeight: 0 }}>
                         {/* Editor Section */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 60 }}>
                             {/* Variables Bar */}
                             <VariablesBar variables={variables || []} onChange={onVariablesChange || (() => { })} />
                             <div style={{
@@ -268,6 +366,7 @@ const EditorPane = ({
                             }}>
                                 <SqlEditor
                                     value={activeTab.content}
+                                    language={activeTab.type === 'md' ? 'markdown' : 'sql'}
                                     onChange={(val) => onContentChange(activeTab.id, val)}
                                     onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
                                     onRunQuery={(overrideQuery) => onRunQuery(activeTab.id, overrideQuery || activeTab.content)}
@@ -299,6 +398,8 @@ const EditorPane = ({
                             display: 'flex', flexDirection: 'column', overflow: 'auto'
                         } : {
                             height: resultsHeight,
+                            maxHeight: 'calc(100% - 60px)',
+                            flexShrink: 0,
                             display: 'flex', flexDirection: 'column', overflow: 'hidden'
                         }}>
                             {resultsContent}
@@ -327,6 +428,33 @@ const EditorPane = ({
                 result={debugResult}
                 query={debugQuery}
             />
+
+            {/* File Drop Overlay */}
+            {showDropZone && (
+                <div style={{
+                    position: 'absolute', inset: 0, zIndex: 9999,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    pointerEvents: 'none',
+                    border: '2px dashed var(--accent-primary)',
+                    borderRadius: '8px'
+                }}>
+                    <div style={{
+                        color: 'var(--accent-primary)',
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}>
+                        <span style={{ fontSize: '36px' }}>📁</span>
+                        Drop files to import
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400' }}>CSV, Parquet, XLSX, JSON, SQL</span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

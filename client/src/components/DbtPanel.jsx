@@ -4,8 +4,9 @@ import {
     LuChevronDown, LuChevronRight, LuPlus, LuTrash2,
     LuFolderOpen, LuFileCode, LuSettings2, LuTerminal,
     LuPackage, LuLoader, LuCircleAlert, LuSparkles,
-    LuClipboardCopy, LuSquareTerminal, LuWrench
+    LuClipboardCopy, LuSquareTerminal, LuWrench, LuGitBranch
 } from 'react-icons/lu';
+import DbtLineageGraph from './DbtLineageGraph';
 
 const API = 'http://localhost:3001/api';
 
@@ -185,18 +186,22 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
         setProjectLoading(false);
     }, []);
 
-    // Initial load — use cache if available, only fetch project info fresh
+    // Initial load — use cache if available and fresh, only fetch if stale
     useEffect(() => {
-        // Only run environment check if we literally have no cached data at all
-        if (!envStatus) {
+        // Environment: only re-check if cache is missing OR older than 1 hour
+        const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+        const isStale = !envCacheTime || (Date.now() - new Date(envCacheTime).getTime()) > CACHE_TTL_MS;
+
+        if (!envStatus || isStale) {
             checkEnv();
         }
 
-        // Prevent re-detecting the project every single time they switch tabs
+        // Project: only detect once per mount
         if (!projectInfo) {
             detectProject();
         }
-    }, [checkEnv, detectProject, envStatus, projectInfo]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Check exact DBT version when conda env changes
     useEffect(() => {
@@ -483,6 +488,7 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
         { id: 'config', label: 'Config', icon: LuSettings2 },
         { id: 'models', label: 'Models', icon: LuFileCode },
         { id: 'sources', label: 'Sources', icon: LuFolderOpen },
+        { id: 'lineage', label: 'Lineage', icon: LuGitBranch },
         { id: 'commands', label: 'Commands', icon: LuTerminal },
     ];
 
@@ -912,6 +918,20 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
                                     </div>
                                 )}
                             </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ========== LINEAGE SECTION ========== */}
+                {activeSection === 'lineage' && (
+                    <div className="dbt-section-content" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        {!projectInfo?.exists ? (
+                            <div className="dbt-empty-state">
+                                <LuCircleAlert size={24} />
+                                <p>Initialize a DBT project first.</p>
+                            </div>
+                        ) : (
+                            <DbtLineageGraph onFileOpen={onFileOpen} />
                         )}
                     </div>
                 )}

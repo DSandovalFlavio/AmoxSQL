@@ -6,6 +6,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const disposablesRef = useRef([]);
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
+    const completionProviderRef = useRef(null);
 
     const handleEditorChange = (value, event) => {
         onChange(value);
@@ -197,6 +198,94 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 'scrollbarSlider.hoverBackground': '#00000020',
             }
         });
+
+        // Register custom Monarch tokenizer so JOIN modifiers and DuckDB keywords highlight correctly
+        monaco.languages.setMonarchTokensProvider('sql', {
+            defaultToken: 'identifier',
+            ignoreCase: true,
+            tokenPostfix: '.sql',
+            keywords: [
+                'SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'FULL', 'CROSS', 'NATURAL',
+                'ON', 'AS', 'AND', 'OR', 'NOT', 'IN', 'IS', 'NULL', 'BETWEEN', 'LIKE', 'ILIKE',
+                'GROUP', 'BY', 'ORDER', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'ALL', 'EXCEPT', 'INTERSECT',
+                'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TABLE',
+                'VIEW', 'INDEX', 'IF', 'EXISTS', 'WITH', 'RECURSIVE', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+                'DISTINCT', 'ASC', 'DESC', 'CAST', 'OVER', 'PARTITION', 'WINDOW', 'ROWS', 'RANGE',
+                'UNBOUNDED', 'PRECEDING', 'FOLLOWING', 'CURRENT', 'ROW', 'EXCLUDE',
+                'LATERAL', 'UNNEST', 'PIVOT', 'UNPIVOT', 'QUALIFY', 'FETCH', 'RETURNING',
+                'USING', 'DESCRIBE', 'SUMMARIZE', 'EXPLAIN', 'ANALYZE', 'REPLACE',
+                'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'CONSTRAINT', 'UNIQUE', 'CHECK', 'DEFAULT',
+                'TRUE', 'FALSE', 'ANY', 'SOME', 'ROLLUP', 'CUBE', 'GROUPING',
+            ],
+            typeKeywords: [
+                'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'HUGEINT',
+                'FLOAT', 'DOUBLE', 'REAL', 'DECIMAL', 'NUMERIC',
+                'VARCHAR', 'TEXT', 'STRING', 'CHAR', 'BLOB', 'BYTEA',
+                'BOOLEAN', 'BOOL', 'DATE', 'TIME', 'TIMESTAMP', 'INTERVAL',
+                'JSON', 'UUID', 'MAP', 'LIST', 'STRUCT', 'ARRAY',
+            ],
+            operators: ['=', '<>', '!=', '<', '>', '<=', '>=', '+', '-', '*', '/', '%', '||', '::', '->>', '->'],
+            tokenizer: {
+                root: [
+                    // Jinja/DBT blocks
+                    [/\{\{/, 'jinja.variable', '@jinjaVariable'],
+                    [/\{%/, 'jinja.tag', '@jinjaTag'],
+                    [/\{#/, 'jinja.comment', '@jinjaComment'],
+                    // Comments
+                    [/--.*$/, 'comment'],
+                    [/\/\*/, 'comment', '@comment'],
+                    // Strings
+                    [/'/, 'string', '@string'],
+                    // Quoted identifiers
+                    [/"/, 'identifier.quote', '@quotedIdentifier'],
+                    // Numbers
+                    [/\d+\.?\d*([eE][-+]?\d+)?/, 'number'],
+                    [/\.\d+([eE][-+]?\d+)?/, 'number'],
+                    // Identifiers and keywords
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@typeKeywords': 'type',
+                            '@keywords': 'keyword',
+                            '@default': 'identifier'
+                        }
+                    }],
+                    // Operators
+                    [/[<>=!]+/, 'operator'],
+                    [/[+\-*/%|&~^]/, 'operator'],
+                    [/::/, 'operator'],
+                    [/->>?/, 'operator'],
+                    // Delimiters
+                    [/[;,.]/, 'delimiter'],
+                    [/[()\[\]]/, 'delimiter.parenthesis'],
+                ],
+                string: [
+                    [/[^']+/, 'string'],
+                    [/''/, 'string.escape'],
+                    [/'/, 'string', '@pop'],
+                ],
+                quotedIdentifier: [
+                    [/[^"]+/, 'identifier.quote'],
+                    [/"/, 'identifier.quote', '@pop'],
+                ],
+                comment: [
+                    [/[^/*]+/, 'comment'],
+                    [/\*\//, 'comment', '@pop'],
+                    [/[/*]/, 'comment'],
+                ],
+                jinjaVariable: [
+                    [/\}\}/, 'jinja.variable', '@pop'],
+                    [/./, 'jinja.variable'],
+                ],
+                jinjaTag: [
+                    [/%\}/, 'jinja.tag', '@pop'],
+                    [/./, 'jinja.tag'],
+                ],
+                jinjaComment: [
+                    [/#\}/, 'jinja.comment', '@pop'],
+                    [/./, 'jinja.comment'],
+                ],
+            }
+        });
     };
 
     // Use a ref to ensure the event listener always has access to the latest prop
@@ -217,6 +306,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // 1. Run Query (Ctrl+Enter)
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            if (props.language === 'markdown') return;
             // If debugging CTE, we might want to run that? No, standard run.
             if (props.onRunQuery) {
                 // Check for selection
@@ -247,7 +337,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         });
 
         // 4. Format Code (Ctrl+K)
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
+        const formatSql = () => {
+            if (props.language === 'markdown') return;
             const model = editor.getModel();
             let textToFormat = model.getValue();
             let range = null;
@@ -282,7 +373,22 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             } catch (err) {
                 console.error("Formatting failed:", err);
             }
+        };
+
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, formatSql);
+
+        // 4b. Format Code (Ctrl+Shift+F) — secondary keybinding
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, formatSql);
+
+        // 4c. Context menu action for Format SQL
+        const formatAction = editor.addAction({
+            id: 'format-sql-action',
+            label: 'Format SQL (Ctrl+K / Ctrl+Shift+F)',
+            contextMenuGroupId: '1_modification',
+            contextMenuOrder: 1.5,
+            run: formatSql
         });
+        disposablesRef.current.push(formatAction);
 
         // Inject CSS for CTE Debug Glpyh
         const styleId = 'cte-debug-styles';
@@ -380,17 +486,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // --- ENHANCED AUTOCOMPLETE ---
 
-        let schemaCache = { tables: {}, columns: {} };
+        // Use a global cache so all editor instances share the latest schema
+        if (!window.__amoxSqlSchemaCache) {
+            window.__amoxSqlSchemaCache = { tables: {}, allColumns: [] };
+        }
 
         // Fetch Full Schema (Tables + Columns)
         fetch('http://localhost:3001/api/db/tables')
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {
-                    // Structure: [{ name: 'table1', columns: [{column_name: 'col1', data_type: 'INTEGER'}, ...] }, ...]
                     const tables = {};
                     const allColumns = new Set();
-
                     data.forEach(t => {
                         tables[t.name] = t.columns.map(c => ({
                             name: c.column_name,
@@ -398,8 +505,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                         }));
                         t.columns.forEach(c => allColumns.add(c.column_name));
                     });
-
-                    schemaCache = {
+                    window.__amoxSqlSchemaCache = {
                         tables: tables,
                         allColumns: Array.from(allColumns)
                     };
@@ -407,214 +513,556 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             })
             .catch(err => console.warn("Schema fetch failed", err));
 
+        // ═══════════════════════════════════════════════════════════════
+        // AUTOCOMPLETE ENGINE v2 — Reverse-scan tokenizer architecture
+        // ═══════════════════════════════════════════════════════════════
+
+        // --- Phase 1: Isolate the current query (split by ;) ---
+        const isolateCurrentQuery = (fullText, cursorOffset) => {
+            // Find the ; before and after the cursor
+            let start = 0;
+            let end = fullText.length;
+            for (let i = cursorOffset - 1; i >= 0; i--) {
+                if (fullText[i] === ';') { start = i + 1; break; }
+            }
+            for (let i = cursorOffset; i < fullText.length; i++) {
+                if (fullText[i] === ';') { end = i; break; }
+            }
+            const queryText = fullText.substring(start, end);
+            const cursorInQuery = cursorOffset - start;
+            return { queryText, cursorInQuery };
+        };
+
+        // --- Phase 2: Simple SQL tokenizer ---
+        const SQL_STRUCTURAL_KEYWORDS = new Set([
+            'SELECT', 'FROM', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'FULL', 'CROSS', 'NATURAL',
+            'ON', 'WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'SET', 'INTO',
+            'VALUES', 'WITH', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER',
+            'UNION', 'EXCEPT', 'INTERSECT', 'BY', 'AS', 'AND', 'OR', 'NOT', 'IN',
+            'BETWEEN', 'LIKE', 'ILIKE', 'IS', 'NULL', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+            'DISTINCT', 'CAST', 'OVER', 'PARTITION', 'WINDOW', 'QUALIFY', 'LATERAL', 'UNNEST',
+            'PIVOT', 'UNPIVOT', 'FETCH', 'OFFSET', 'RETURNING', 'USING', 'DESCRIBE',
+            'SUMMARIZE', 'EXPLAIN', 'EXISTS', 'ALL', 'ANY', 'SOME', 'ASC', 'DESC',
+            'ROWS', 'RANGE', 'UNBOUNDED', 'PRECEDING', 'FOLLOWING', 'EXCLUDE', 'REPLACE',
+        ]);
+
+        const tokenizeSql = (text) => {
+            const tokens = [];
+            let i = 0;
+            while (i < text.length) {
+                const ch = text[i];
+
+                // Skip whitespace
+                if (/\s/.test(ch)) { i++; continue; }
+
+                // Line comment
+                if (ch === '-' && text[i + 1] === '-') {
+                    const end = text.indexOf('\n', i);
+                    i = end === -1 ? text.length : end + 1;
+                    continue;
+                }
+
+                // Block comment
+                if (ch === '/' && text[i + 1] === '*') {
+                    const end = text.indexOf('*/', i + 2);
+                    i = end === -1 ? text.length : end + 2;
+                    continue;
+                }
+
+                // String literal (single-quoted)
+                if (ch === "'") {
+                    let j = i + 1;
+                    while (j < text.length) {
+                        if (text[j] === "'" && text[j + 1] === "'") { j += 2; continue; }
+                        if (text[j] === "'") { j++; break; }
+                        j++;
+                    }
+                    tokens.push({ type: 'STRING', value: text.substring(i, j), start: i, end: j });
+                    i = j; continue;
+                }
+
+                // Quoted identifier (double-quoted)
+                if (ch === '"') {
+                    let j = i + 1;
+                    while (j < text.length && text[j] !== '"') j++;
+                    j++; // skip closing quote
+                    tokens.push({ type: 'IDENTIFIER', value: text.substring(i, j), start: i, end: j });
+                    i = j; continue;
+                }
+
+                // Dot
+                if (ch === '.') {
+                    tokens.push({ type: 'DOT', value: '.', start: i, end: i + 1 });
+                    i++; continue;
+                }
+
+                // Comma
+                if (ch === ',') {
+                    tokens.push({ type: 'COMMA', value: ',', start: i, end: i + 1 });
+                    i++; continue;
+                }
+
+                // Parentheses
+                if (ch === '(' || ch === ')') {
+                    tokens.push({ type: 'PAREN', value: ch, start: i, end: i + 1 });
+                    i++; continue;
+                }
+
+                // Operators and other single chars
+                if (/[=<>!+\-*/%|&~^]/.test(ch)) {
+                    tokens.push({ type: 'OPERATOR', value: ch, start: i, end: i + 1 });
+                    i++; continue;
+                }
+
+                // Semicolon (shouldn't appear since we isolated the query, but handle it)
+                if (ch === ';') {
+                    tokens.push({ type: 'SEMICOLON', value: ';', start: i, end: i + 1 });
+                    i++; continue;
+                }
+
+                // Word (keyword or identifier)
+                if (/[a-zA-Z_]/.test(ch)) {
+                    let j = i + 1;
+                    while (j < text.length && /[a-zA-Z0-9_]/.test(text[j])) j++;
+                    const word = text.substring(i, j);
+                    const upper = word.toUpperCase();
+                    const type = SQL_STRUCTURAL_KEYWORDS.has(upper) ? 'KEYWORD' : 'IDENTIFIER';
+                    tokens.push({ type, value: word, upper, start: i, end: j });
+                    i = j; continue;
+                }
+
+                // Number
+                if (/[0-9]/.test(ch)) {
+                    let j = i + 1;
+                    while (j < text.length && /[0-9.]/.test(text[j])) j++;
+                    tokens.push({ type: 'NUMBER', value: text.substring(i, j), start: i, end: j });
+                    i = j; continue;
+                }
+
+                // Jinja/DBT {{ }} {% %} — skip as opaque blocks
+                if (ch === '{' && (text[i + 1] === '{' || text[i + 1] === '%')) {
+                    const closer = text[i + 1] === '{' ? '}}' : '%}';
+                    const end = text.indexOf(closer, i + 2);
+                    i = end === -1 ? text.length : end + 2;
+                    continue;
+                }
+
+                // Unknown char, skip
+                i++;
+            }
+            return tokens;
+        };
+
+        // --- Phase 3: Resolve context via reverse scan ---
+        const resolveContext = (tokens, cursorInQuery, queryText) => {
+            const ctx = {
+                mode: 'ROOT_COMMAND',
+                clause: null,
+                targetAlias: null,
+                aliasMap: {},       // alias -> tableName
+                tableAliases: {},   // tableName -> alias
+                referencedTables: new Set()
+            };
+
+            // Find the token index at or just before the cursor
+            let cursorTokenIdx = -1;
+            for (let i = tokens.length - 1; i >= 0; i--) {
+                if (tokens[i].start < cursorInQuery) {
+                    cursorTokenIdx = i;
+                    break;
+                }
+            }
+
+            // A. Check DOT_PROPERTY: the token just before cursor is DOT
+            // Scenario: "alias." or "alias.partialWord"
+            if (cursorTokenIdx >= 0) {
+                const lastToken = tokens[cursorTokenIdx];
+                if (lastToken.type === 'DOT' && cursorTokenIdx > 0) {
+                    // The token before the dot is the alias/table
+                    const beforeDot = tokens[cursorTokenIdx - 1];
+                    if (beforeDot.type === 'IDENTIFIER' || beforeDot.type === 'KEYWORD') {
+                        ctx.mode = 'DOT_PROPERTY';
+                        const raw = beforeDot.value.replace(/^"|"$/g, '');
+                        ctx.targetAlias = raw.toLowerCase();
+                    }
+                }
+                // Also handle: alias.partialWord (cursor is on the word after dot)
+                if (ctx.mode !== 'DOT_PROPERTY' && cursorTokenIdx >= 1) {
+                    const prev = tokens[cursorTokenIdx - 1];
+                    if (prev.type === 'DOT' && cursorTokenIdx >= 2) {
+                        const beforeDot = tokens[cursorTokenIdx - 2];
+                        if (beforeDot.type === 'IDENTIFIER' || beforeDot.type === 'KEYWORD') {
+                            ctx.mode = 'DOT_PROPERTY';
+                            const raw = beforeDot.value.replace(/^"|"$/g, '');
+                            ctx.targetAlias = raw.toLowerCase();
+                        }
+                    }
+                }
+            }
+
+            // B. Reverse-scan for clause (skip if DOT_PROPERTY)
+            if (ctx.mode !== 'DOT_PROPERTY') {
+                // Walk backward from cursor to find the nearest structural clause keyword
+                const CLAUSE_KEYWORDS = new Set([
+                    'SELECT', 'FROM', 'JOIN', 'ON', 'WHERE', 'HAVING', 'LIMIT',
+                    'SET', 'INTO', 'VALUES', 'WITH', 'INSERT', 'UPDATE', 'DELETE',
+                    'CREATE', 'DROP', 'ALTER', 'UNION', 'EXCEPT', 'INTERSECT',
+                    'DESCRIBE', 'SUMMARIZE', 'EXPLAIN',
+                ]);
+                // Compound keywords: GROUP BY, ORDER BY, PARTITION BY
+                // We handle BY by looking at the token before it
+
+                for (let i = cursorTokenIdx; i >= 0; i--) {
+                    const tok = tokens[i];
+                    if (tok.type !== 'KEYWORD') continue;
+                    const up = tok.upper || tok.value.toUpperCase();
+
+                    // Handle "BY" — look at the keyword before it
+                    if (up === 'BY' && i > 0) {
+                        const prev = tokens[i - 1];
+                        if (prev.type === 'KEYWORD') {
+                            const prevUp = prev.upper || prev.value.toUpperCase();
+                            if (prevUp === 'GROUP' || prevUp === 'ORDER' || prevUp === 'PARTITION') {
+                                ctx.clause = prevUp + ' BY';
+                                break;
+                            }
+                        }
+                        continue; // skip bare BY
+                    }
+
+                    // Handle JOIN modifiers: LEFT, RIGHT, INNER, FULL, CROSS, NATURAL
+                    if (['LEFT', 'RIGHT', 'INNER', 'FULL', 'CROSS', 'NATURAL'].includes(up)) {
+                        // Look ahead for JOIN
+                        if (i + 1 < tokens.length) {
+                            const next = tokens[i + 1];
+                            if (next.type === 'KEYWORD' && (next.upper || next.value.toUpperCase()) === 'JOIN') {
+                                ctx.clause = 'JOIN';
+                                break;
+                            }
+                        }
+                        // If no JOIN follows, treat as regular keyword (skip)
+                        continue;
+                    }
+
+                    if (CLAUSE_KEYWORDS.has(up)) {
+                        ctx.clause = up;
+                        break;
+                    }
+                }
+
+                // Map clause to mode
+                if (['FROM', 'JOIN', 'INTO'].includes(ctx.clause)) {
+                    ctx.mode = 'TABLE_LIST';
+                } else if (['SELECT', 'WHERE', 'ON', 'GROUP BY', 'ORDER BY', 'PARTITION BY', 'HAVING', 'SET', 'WITH'].includes(ctx.clause)) {
+                    ctx.mode = 'COLUMN_LIST';
+                }
+                // Everything else stays ROOT_COMMAND
+            }
+
+            // C. Extract aliases and referenced tables (forward scan of all tokens)
+            for (let i = 0; i < tokens.length; i++) {
+                const tok = tokens[i];
+                if (tok.type !== 'KEYWORD') continue;
+                const up = tok.upper || tok.value.toUpperCase();
+
+                if (up === 'FROM' || up === 'JOIN') {
+                    // Next token(s) should be the table name
+                    let j = i + 1;
+                    if (j >= tokens.length) continue;
+                    const tableToken = tokens[j];
+                    if (tableToken.type !== 'IDENTIFIER' && tableToken.type !== 'KEYWORD') continue;
+                    const tableName = tableToken.value.replace(/^"|"$/g, '');
+                    ctx.referencedTables.add(tableName);
+
+                    // Check for alias: TABLE AS alias  or  TABLE alias
+                    j++;
+                    if (j < tokens.length) {
+                        const maybeAs = tokens[j];
+                        if (maybeAs.type === 'KEYWORD' && (maybeAs.upper || maybeAs.value.toUpperCase()) === 'AS') {
+                            j++;
+                            if (j < tokens.length && (tokens[j].type === 'IDENTIFIER' || tokens[j].type === 'KEYWORD')) {
+                                const alias = tokens[j].value.replace(/^"|"$/g, '');
+                                ctx.aliasMap[alias.toLowerCase()] = tableName;
+                                ctx.tableAliases[tableName.toLowerCase()] = alias;
+                            }
+                        } else if (maybeAs.type === 'IDENTIFIER') {
+                            // Implicit alias (no AS keyword) — but NOT if it's a structural keyword
+                            const maybeUp = maybeAs.upper || maybeAs.value.toUpperCase();
+                            const NOT_ALIAS = new Set(['ON', 'WHERE', 'LEFT', 'RIGHT', 'INNER', 'FULL', 'CROSS',
+                                'GROUP', 'ORDER', 'LIMIT', 'HAVING', 'UNION', 'SET', 'SELECT', 'AND', 'OR',
+                                'JOIN', 'NATURAL', 'INTO', 'VALUES', 'WITH', 'AS']);
+                            if (!NOT_ALIAS.has(maybeUp)) {
+                                const alias = maybeAs.value.replace(/^"|"$/g, '');
+                                ctx.aliasMap[alias.toLowerCase()] = tableName;
+                                ctx.tableAliases[tableName.toLowerCase()] = alias;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return ctx;
+        };
+
+        // Always update the autocomplete resolver (ref pattern bypasses React HMR closure traps)
+        completionProviderRef.current = async (model, position) => {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn,
+            };
+
+            // Get full text and cursor offset
+            const fullText = model.getValue();
+            const linesBeforeCursor = fullText.split('\n').slice(0, position.lineNumber - 1);
+            const charsInPreviousLines = linesBeforeCursor.reduce((sum, line) => sum + line.length + 1, 0);
+            const cursorOffset = charsInPreviousLines + (position.column - 1);
+
+            // --- FILE PATH AUTOCOMPLETE (inside single quotes) ---
+            const textUntilCursor = fullText.substring(0, cursorOffset);
+            const singleQuotes = (textUntilCursor.match(/'/g) || []).length;
+            if (singleQuotes % 2 === 1) {
+                const match = textUntilCursor.match(/'([^']*)$/);
+                const currentString = match ? match[1] : '';
+                let dirToFetch = '';
+                if (currentString.endsWith('/')) {
+                    dirToFetch = currentString;
+                } else {
+                    const parts = currentString.split('/');
+                    parts.pop();
+                    dirToFetch = parts.join('/');
+                }
+                try {
+                    const response = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dirToFetch)}`);
+                    const files = await response.json();
+                    return {
+                        suggestions: files.map(f => ({
+                            label: f.name,
+                            kind: f.isDirectory ? monaco.languages.CompletionItemKind.Folder : monaco.languages.CompletionItemKind.File,
+                            insertText: f.name,
+                            detail: f.isDirectory ? 'Folder' : 'File',
+                            sortText: (f.isDirectory ? '0_' : '1_') + f.name
+                        }))
+                    };
+                } catch (e) {
+                    return { suggestions: [] };
+                }
+            }
+
+            // --- SQL CONTEXT RESOLUTION ---
+            const schemaCache = window.__amoxSqlSchemaCache || { tables: {}, allColumns: [] };
+            const { queryText, cursorInQuery } = isolateCurrentQuery(fullText, cursorOffset);
+            const tokens = tokenizeSql(queryText);
+            const ctx = resolveContext(tokens, cursorInQuery, queryText);
+            const suggestions = [];
+
+
+
+            // GUARD: If user is currently typing a structural SQL keyword (e.g. "FROM", "WHERE"),
+            // return empty to prevent Monaco from showing stale function suggestions.
+            // The keyword will self-complete via Monaco's own word suggestions.
+            const TYPING_KEYWORDS = new Set([
+                'SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'FULL', 'CROSS',
+                'ON', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'SET', 'INTO', 'VALUES', 'WITH',
+                'AND', 'OR', 'NOT', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'IS', 'NULL',
+                'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER',
+                'UNION', 'EXCEPT', 'INTERSECT', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+                'CAST', 'AS', 'BY', 'NATURAL', 'USING', 'LATERAL', 'UNNEST', 'OVER', 'PARTITION',
+                'WINDOW', 'QUALIFY', 'PIVOT', 'UNPIVOT', 'FETCH', 'OFFSET', 'RETURNING',
+                'DESCRIBE', 'SUMMARIZE', 'EXPLAIN', 'EXISTS', 'ALL', 'ANY', 'SOME',
+            ]);
+            if (word.word.length > 0 && TYPING_KEYWORDS.has(word.word.toUpperCase())) {
+                // The word being typed is itself a SQL keyword — don't pollute with functions
+                // Instead offer just a few structural next-step keywords
+                const kw = word.word.toUpperCase();
+                suggestions.push({
+                    label: kw, kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: kw + ' ', detail: 'Keyword', range,
+                    sortText: '0_' + kw, filterText: kw + ' ' + kw.toLowerCase(),
+                    preselect: true,
+                });
+                return { suggestions, incomplete: true };
+            }
+
+            // === MODE: DOT_PROPERTY — Only columns of the referenced table ===
+            if (ctx.mode === 'DOT_PROPERTY') {
+                const resolvedTable = ctx.aliasMap[ctx.targetAlias] || Object.keys(schemaCache.tables).find(t => t.toLowerCase() === ctx.targetAlias) || ctx.targetAlias;
+                const columns = schemaCache.tables[resolvedTable];
+                if (columns) {
+                    columns.forEach(col => {
+                        suggestions.push({
+                            label: col.name,
+                            kind: monaco.languages.CompletionItemKind.Field,
+                            insertText: col.name,
+                            detail: `${col.type || 'Column'} (${resolvedTable})`,
+                            range, sortText: '0_' + col.name,
+                            filterText: col.name,
+                        });
+                    });
+                }
+                return { suggestions, incomplete: true }; // STRICT: nothing else
+            }
+
+            // === MODE: TABLE_LIST — Only tables + structural keywords ===
+            if (ctx.mode === 'TABLE_LIST') {
+                Object.keys(schemaCache.tables).forEach(tableName => {
+                    suggestions.push({
+                        label: tableName,
+                        kind: monaco.languages.CompletionItemKind.Class,
+                        insertText: tableName,
+                        detail: 'Table', range,
+                        sortText: '0_' + tableName,
+                        filterText: tableName + ' ' + tableName.toLowerCase()
+                    });
+                });
+                ['WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'AS', 'ON',
+                 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'RIGHT JOIN', 'CROSS JOIN',
+                 'LATERAL', 'UNNEST', 'SELECT'].forEach(kw => {
+                    suggestions.push({
+                        label: kw, kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: kw, detail: 'Keyword', range,
+                        sortText: '9_' + kw, filterText: kw + ' ' + kw.toLowerCase()
+                    });
+                });
+                return { suggestions, incomplete: true }; // STRICT: nothing else
+            }
+
+            // === MODE: COLUMN_LIST — Columns, aliases, functions, keywords, snippets ===
+            if (ctx.mode === 'COLUMN_LIST') {
+                // Aliases
+                Object.entries(ctx.aliasMap).forEach(([alias, table]) => {
+                    suggestions.push({
+                        label: alias, kind: monaco.languages.CompletionItemKind.Variable,
+                        insertText: alias, detail: `Alias → ${table}`, range,
+                        sortText: '1_a_' + alias, filterText: alias
+                    });
+                });
+
+                // Columns from referenced tables
+                if (ctx.referencedTables.size > 0) {
+                    const addedCols = new Set();
+                    ctx.referencedTables.forEach(table => {
+                        const cols = schemaCache.tables[table];
+                        if (cols) {
+                            const alias = ctx.tableAliases[table.toLowerCase()];
+                            cols.forEach(col => {
+                                const key = `${table}.${col.name}`;
+                                if (!addedCols.has(key)) {
+                                    addedCols.add(key);
+                                    suggestions.push({
+                                        label: col.name,
+                                        kind: monaco.languages.CompletionItemKind.Field,
+                                        insertText: alias ? `${alias}.${col.name}` : col.name,
+                                        detail: `${col.type || 'Column'} (${alias || table})`,
+                                        range, sortText: '1_b_' + col.name,
+                                        filterText: col.name + ' ' + col.name.toLowerCase(),
+                                    });
+                                }
+                            });
+                        }
+                    });
+                } else if (schemaCache.allColumns) {
+                    schemaCache.allColumns.forEach(col => {
+                        suggestions.push({
+                            label: col, kind: monaco.languages.CompletionItemKind.Field,
+                            insertText: col, detail: 'Column', range,
+                            sortText: '1_z_' + col, filterText: col + ' ' + col.toLowerCase(),
+                        });
+                    });
+                }
+            }
+
+            // For both COLUMN_LIST and ROOT_COMMAND — add snippets, keywords, functions, dbt
+
+            // Smart Snippets
+            const smartSnippets = [
+                { name: 'LEFT JOIN', insert: 'LEFT JOIN ${1:table_name} AS ${2:alias} ON ${2:alias}.${3:id} = ${4:other}.${3:id}', doc: 'Left Join Template' },
+                { name: 'INNER JOIN', insert: 'JOIN ${1:table_name} AS ${2:alias} ON ${2:alias}.${3:id} = ${4:other}.${3:id}', doc: 'Inner Join Template' },
+                { name: 'SUM_COL', insert: 'SUM(${1:column}) AS sum_${1:column}', doc: 'SUM with Alias' },
+                { name: 'AVG_COL', insert: 'AVG(${1:column}) AS avg_${1:column}', doc: 'AVG with Alias' },
+                { name: 'COUNT_COL', insert: 'COUNT(${1:column}) AS count_${1:column}', doc: 'COUNT with Alias' },
+                { name: 'CTE', insert: 'WITH ${1:cte_name} AS (\n\tSELECT * FROM ${2:table}\n)\nSELECT * FROM ${1:cte_name};', doc: 'Common Table Expression' }
+            ];
+            smartSnippets.forEach(snip => {
+                suggestions.push({
+                    label: `✨ ${snip.name}`, kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: snip.insert, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    detail: snip.doc, range, sortText: '5_s_' + snip.name,
+                    filterText: snip.name + ' ' + snip.name.toLowerCase()
+                });
+            });
+
+            // Keywords
+            const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'RIGHT JOIN', 'FULL OUTER JOIN', 'CROSS JOIN', 'WITH', 'AS', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'HAVING', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'UNION', 'UNION ALL', 'EXCEPT', 'INTERSECT', 'INSERT INTO', 'UPDATE', 'DELETE FROM', 'CREATE TABLE', 'CREATE VIEW', 'DROP TABLE', 'DROP VIEW', 'ALTER TABLE', 'OFFSET', 'FETCH', 'LATERAL', 'UNNEST', 'PIVOT', 'UNPIVOT', 'QUALIFY', 'WINDOW', 'OVER', 'PARTITION BY', 'ROWS', 'RANGE', 'UNBOUNDED', 'PRECEDING', 'FOLLOWING', 'CURRENT ROW', 'EXCLUDE', 'REPLACE', 'USING', 'NATURAL', 'RETURNING', 'DESCRIBE', 'SUMMARIZE', 'EXPLAIN', 'EXPLAIN ANALYZE'];
+            keywords.forEach(kw => {
+                suggestions.push({
+                    label: kw, kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: kw, detail: 'Keyword', range,
+                    filterText: kw + ' ' + kw.toLowerCase(), sortText: '3_' + kw
+                });
+            });
+
+            // DuckDB Functions (lazy-loaded)
+            if (!window.__duckdbFunctionCatalog) {
+                window.__duckdbFunctionCatalog = [];
+                fetch('http://localhost:3001/api/functions/catalog')
+                    .then(r => r.json())
+                    .then(data => {
+                        window.__duckdbFunctionCatalog = (data.functions || []).map(fn => ({
+                            name: fn.function_name,
+                            insert: fn.snippet || `${fn.function_name}()`,
+                            detail: fn.category ? `${fn.category}${fn.documented ? '' : ' · auto'}` : (fn.function_type || 'Function'),
+                            doc: fn.doc || fn.description || ''
+                        }));
+                    })
+                    .catch(err => console.warn('[Monaco] Failed to load function catalog', err));
+            }
+            (window.__duckdbFunctionCatalog || []).forEach(fn => {
+                suggestions.push({
+                    label: fn.name, kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: fn.insert, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    detail: `ƒ ${fn.detail || 'Function'}`,
+                    documentation: { value: fn.doc, isTrusted: true }, range,
+                    sortText: '4_' + fn.name, filterText: fn.name + ' ' + fn.name.toLowerCase()
+                });
+            });
+
+            // DBT / Jinja
+            const dbtItems = [
+                { name: 'ref', insert: "{{ ref('${1:model_name}') }}", doc: 'Reference another DBT model' },
+                { name: 'source', insert: "{{ source('${1:source_name}', '${2:table_name}') }}", doc: 'Reference a DBT source table' },
+                { name: 'config', insert: "{\n  config(\n    materialized='${1|view,table,incremental,ephemeral|}'\n  )\n}", doc: 'DBT model configuration block' },
+                { name: 'is_incremental', insert: '{% if is_incremental() %}\n    WHERE ${1:updated_at} > (SELECT MAX(${1:updated_at}) FROM {{ this }})\n{% endif %}', doc: 'Incremental model guard (DBT)' },
+                { name: 'this', insert: '{{ this }}', doc: 'Reference current model (incremental)' },
+                { name: 'var', insert: "{{ var('${1:variable_name}') }}", doc: 'Access a DBT project variable' },
+                { name: 'env_var', insert: "{{ env_var('${1:ENV_VARIABLE}') }}", doc: 'Access an environment variable' },
+                { name: 'macro', insert: '{% macro ${1:macro_name}(${2:args}) %}\n    ${3:-- logic}\n{% endmacro %}', doc: 'Define a reusable Jinja macro' }
+            ];
+            dbtItems.forEach(item => {
+                suggestions.push({
+                    label: `dbt: ${item.name}`, kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: item.insert, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    detail: 'DBT / Jinja', documentation: item.doc, range,
+                    sortText: '6_' + item.name, filterText: item.name + ' ' + item.name.toLowerCase()
+                });
+            });
+
+            return { suggestions, incomplete: true };
+        };
 
         // Register Completion Provider
         if (!window.__monacoSqlProviderRegistered) {
             window.__monacoSqlProviderRegistered = true;
 
-            // DuckDB function catalog is built during first completion call and cached on window
-
             const providerDisposable = monaco.languages.registerCompletionItemProvider('sql', {
                 triggerCharacters: ['.', '/', "'", '"'],
-                provideCompletionItems: async (model, position) => {
-                    const textUntilPosition = model.getValueInRange({
-                        startLineNumber: position.lineNumber,
-                        startColumn: 1,
-                        endLineNumber: position.lineNumber,
-                        endColumn: position.column
-                    });
-
-                    const word = model.getWordUntilPosition(position);
-                    const range = {
-                        startLineNumber: position.lineNumber,
-                        endLineNumber: position.lineNumber,
-                        startColumn: word.startColumn,
-                        endColumn: word.endColumn,
-                    };
-
-                    // 1. FILE PATH AUTOCOMPLETE (Context: Inside quotes)
-                    // Regex to check if we are inside a string literal (single or double quotes)
-                    // Simple check: count quotes to left. If odd, we are open.
-                    const singleQuotes = (textUntilPosition.match(/'/g) || []).length;
-                    const doubleQuotes = (textUntilPosition.match(/"/g) || []).length;
-
-                    // Heuristic: If odd single/double quotes, we are likely in a string.
-                    // We also check if the last char is / to trigger path suggestion
-                    const isInsideSingleString = singleQuotes % 2 === 1;
-                    // const isInsideDoubleString = doubleQuotes % 2 === 1; // SQL identifiers use double quotes, usually not file paths
-
-                    if (isInsideSingleString) {
-                        // Extract the string content being typed
-                        const match = textUntilPosition.match(/'([^']*)$/);
-                        const currentString = match ? match[1] : '';
-
-                        // Determine Directory to fetch
-                        // If ending with /, fetch that dir.
-                        // If not, fetch the parent dir.
-                        let dirToFetch = '';
-                        if (currentString.endsWith('/')) {
-                            dirToFetch = currentString;
-                        } else {
-                            const parts = currentString.split('/');
-                            parts.pop(); // Remove partial filename
-                            dirToFetch = parts.join('/');
-                        }
-
-                        // Call backend to list files
-                        try {
-                            const response = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dirToFetch)}`);
-                            const files = await response.json();
-
-                            // Map to suggestions
-                            // Note: ranges are handled by Monaco automatically if we don't specify, usually defaulting to 'wordUntilPosition'.
-                            // However, since we might be completing a complex path, checking the range is good.
-                            // Here we just let Monaco handle the filtering of the returned list against the "word" at cursor.
-
-                            const suggestions = files.map(f => ({
-                                label: f.name,
-                                kind: f.isDirectory ? monaco.languages.CompletionItemKind.Folder : monaco.languages.CompletionItemKind.File,
-                                insertText: f.name,
-                                detail: f.isDirectory ? 'Folder' : 'File',
-                                // Force sort order: folders then files
-                                sortText: (f.isDirectory ? '0_' : '1_') + f.name
-                            }));
-
-                            return { suggestions: suggestions };
-                        } catch (e) {
-                            return { suggestions: [] };
-                        }
+                provideCompletionItems: (model, position) => {
+                    if (completionProviderRef.current) {
+                        return completionProviderRef.current(model, position);
                     }
-
-                    // 2. SQL AUTOCOMPLETE (Tables & Columns)
-                    const suggestions = [];
-
-                    // Check for "Table." context
-                    // Get the text before the current word
-                    // Handle both simple (users.) and quoted ("My Table".) identifiers
-                    const textBeforeCursor = textUntilPosition.substring(0, textUntilPosition.length - word.word.length);
-                    const tableMatch = textBeforeCursor.match(/(?:(\w+)|"([^"]+)")\.\s*$/);
-
-                    if (tableMatch) {
-                        // Group 1 is simple, Group 2 is quoted
-                        const tableName = tableMatch[1] || tableMatch[2];
-                        const columns = schemaCache.tables[tableName];
-
-                        if (columns) {
-                            // Return ONLY columns for this table
-                            columns.forEach(col => {
-                                suggestions.push({
-                                    label: col.name, // Access .name property from our improved schema structure
-                                    kind: monaco.languages.CompletionItemKind.Field,
-                                    insertText: col.name,
-                                    detail: col.type || 'Column',
-                                    range: range
-                                });
-                            });
-                            return { suggestions: suggestions };
-                        }
-                    }
-
-                    // Default Context (Global)
-
-                    // Tables
-                    Object.keys(schemaCache.tables).forEach(tableName => {
-                        suggestions.push({
-                            label: tableName,
-                            kind: monaco.languages.CompletionItemKind.Class,
-                            insertText: tableName,
-                            detail: 'Table',
-                            range: range
-                        });
-                    });
-
-                    // Columns (Global, but lower priority)
-                    if (schemaCache.allColumns) {
-                        schemaCache.allColumns.forEach(col => {
-                            suggestions.push({
-                                label: col,
-                                kind: monaco.languages.CompletionItemKind.Field,
-                                insertText: col,
-                                detail: 'Column',
-                                range: range,
-                                sortText: 'z_' + col // Show columns after tables
-                            });
-                        });
-                    }
-
-                    // Keywords
-                    const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'RIGHT JOIN', 'FULL OUTER JOIN', 'CROSS JOIN', 'WITH', 'AS', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'ILIKE', 'HAVING', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'UNION', 'UNION ALL', 'EXCEPT', 'INTERSECT', 'INSERT INTO', 'UPDATE', 'DELETE FROM', 'CREATE TABLE', 'CREATE VIEW', 'DROP TABLE', 'DROP VIEW', 'ALTER TABLE', 'OFFSET', 'FETCH', 'LATERAL', 'UNNEST', 'PIVOT', 'UNPIVOT', 'QUALIFY', 'WINDOW', 'OVER', 'PARTITION BY', 'ROWS', 'RANGE', 'UNBOUNDED', 'PRECEDING', 'FOLLOWING', 'CURRENT ROW', 'EXCLUDE', 'REPLACE', 'USING', 'NATURAL', 'RETURNING', 'DESCRIBE', 'SUMMARIZE', 'EXPLAIN', 'EXPLAIN ANALYZE'];
-                    keywords.forEach(kw => {
-                        suggestions.push({
-                            label: kw,
-                            kind: monaco.languages.CompletionItemKind.Keyword,
-                            insertText: kw,
-                            range: range,
-                            sortText: 'y_' + kw
-                        });
-                    });
-
-                    // DuckDB Functions — loaded from API catalog (curated + introspection)
-                    if (!window.__duckdbFunctionCatalog) {
-                        // Initialize empty to prevent duplicate fetches
-                        window.__duckdbFunctionCatalog = [];
-                        // Fetch asynchronously — will be available for subsequent completions
-                        fetch('http://localhost:3001/api/functions/catalog')
-                            .then(r => r.json())
-                            .then(data => {
-                                window.__duckdbFunctionCatalog = (data.functions || []).map(fn => ({
-                                    name: fn.function_name,
-                                    insert: fn.snippet || `${fn.function_name}()`,
-                                    detail: fn.category ? `${fn.category}${fn.documented ? '' : ' · auto'}` : (fn.function_type || 'Function'),
-                                    doc: fn.doc || fn.description || ''
-                                }));
-                                console.log(`[Monaco] Function catalog loaded: ${window.__duckdbFunctionCatalog.length} functions`);
-                            })
-                            .catch(err => console.warn('[Monaco] Failed to load function catalog:', err));
-                    }
-
-                    window.__duckdbFunctionCatalog.forEach(fn => {
-                        suggestions.push({
-                            label: fn.name,
-                            kind: monaco.languages.CompletionItemKind.Function,
-                            insertText: fn.insert,
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            detail: fn.detail || 'Function',
-                            documentation: { value: fn.doc, isTrusted: true },
-                            range: range,
-                            sortText: 'x_' + fn.name,
-                        });
-                    });
-
-                    // DBT / Jinja completions
-                    const dbtItems = [
-                        { name: 'ref', insert: "{{ ref('${1:model_name}') }}", doc: 'Reference another DBT model' },
-                        { name: 'source', insert: "{{ source('${1:source_name}', '${2:table_name}') }}", doc: 'Reference a DBT source table' },
-                        { name: 'config', insert: "{\n  config(\n    materialized='${1|view,table,incremental,ephemeral|}'\n  )\n}", doc: 'DBT model configuration block' },
-                        { name: 'is_incremental', insert: '{% if is_incremental() %}\n    WHERE ${1:updated_at} > (SELECT MAX(${1:updated_at}) FROM {{ this }})\n{% endif %}', doc: 'Incremental model guard (DBT)' },
-                        { name: 'this', insert: '{{ this }}', doc: 'Reference current model (incremental)' },
-                        { name: 'var', insert: "{{ var('${1:variable_name}') }}", doc: 'Access a DBT project variable' },
-                        { name: 'env_var', insert: "{{ env_var('${1:ENV_VARIABLE}') }}", doc: 'Access an environment variable' },
-                        { name: 'macro', insert: '{% macro ${1:macro_name}(${2:args}) %}\n    ${3:-- logic}\n{% endmacro %}', doc: 'Define a reusable Jinja macro' },
-                        { name: 'for loop', insert: '{% for ${1:item} in ${2:items} %}\n    ${3}\n{% endfor %}', doc: 'Jinja for loop' },
-                        { name: 'if block', insert: '{% if ${1:condition} %}\n    ${2}\n{% endif %}', doc: 'Jinja conditional block' },
-                        { name: 'set variable', insert: "{% set ${1:var_name} = ${2:'value'} %}", doc: 'Set a Jinja variable' },
-                        { name: 'dbt_utils.star', insert: "{{ dbt_utils.star(ref('${1:model_name}')) }}", doc: 'Select all columns from a ref (dbt_utils)' },
-                    ];
-
-                    dbtItems.forEach(item => {
-                        suggestions.push({
-                            label: `dbt: ${item.name}`,
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: item.insert,
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            detail: 'DBT / Jinja',
-                            documentation: item.doc,
-                            range: range,
-                            sortText: 'w_' + item.name,
-                        });
-                    });
-
-                    return { suggestions: suggestions };
+                    return { suggestions: [] };
                 }
             });
 
@@ -680,7 +1128,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         const model = editor.getModel();
         if (!model) return;
 
-        if (props.errorMarker) {
+        if (props.errorMarker && props.language !== 'markdown') {
             const { line, column, message } = props.errorMarker;
             const safeLine = Math.min(Math.max(line, 1), model.getLineCount());
             const lineLength = model.getLineLength(safeLine);
@@ -706,7 +1154,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     return (
         <Editor
             height="100%"
-            defaultLanguage="sql"
+            language={props.language || 'sql'}
             value={value}
             onChange={handleEditorChange}
             theme={props.theme === 'light' ? 'duckdb-light' : 'duckdb-dark'}

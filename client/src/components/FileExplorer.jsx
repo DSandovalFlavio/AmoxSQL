@@ -3,7 +3,7 @@ import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
-    LuPencil, LuTrash2
+    LuPencil, LuTrash2, LuFileText
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -78,8 +78,8 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
             setCurrentPath(file.path.replace(/\\/g, '/'));
         } else {
             const lowerName = file.name.toLowerCase();
-            // SQL scripts & notebooks → open in editor
-            if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb')) {
+            // SQL scripts & notebooks & markdown files → open in editor
+            if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.md')) {
                 onFileOpen(file.path);
                 // Chart configs → open chart editor
             } else if (lowerName.endsWith('.amoxvis')) {
@@ -117,6 +117,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         if (file.isDirectory) return <LuFolder size={14} color="#E8BD36" />;
         if (lowerName.endsWith('.sql')) return <LuFileCode size={14} color="#4FC1FF" />;
         if (lowerName.endsWith('.sqlnb')) return <LuBookOpen size={14} color="#9CDCFE" />;
+        if (lowerName.endsWith('.md')) return <LuFileText size={14} color="#D4A76A" />;
         if (lowerName.endsWith('.amoxvis')) return <LuChartBar size={14} color="#FF69B4" />;
         if (lowerName.match(/\.(xlsx|xls|csv)$/i)) return <LuFileSpreadsheet size={14} color="#217346" />; // Green for Excel
         if (lowerName.match(/\.(parquet|json)$/i)) return <LuTable size={14} color="#CE9178" />;
@@ -200,6 +201,9 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     </button>
                     <button onClick={() => onNewFile(currentPath, 'sqlnb')} title="New SQL Notebook" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <LuBookOpen size={14} />
+                    </button>
+                    <button onClick={() => onNewFile(currentPath, 'md')} title="New Markdown File" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <LuFileText size={14} />
                     </button>
                     <button onClick={() => onNewFolder(currentPath)} title="New Folder" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <LuFolderPlus size={14} />

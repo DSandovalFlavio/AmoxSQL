@@ -6,6 +6,8 @@ import { useToast } from './ToastProvider';
 import { resolveVariables } from './VariablesBar';
 import AlertDialog from './AlertDialog';
 
+const TAB_STORAGE_KEY = 'amoxsql-open-tabs';
+
 const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult }, ref) => {
     const toast = useToast();
     // Layout State
@@ -28,6 +30,66 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
+
+    // --- Tab Persistence: Save to sessionStorage ---
+    useEffect(() => {
+        const tabMeta = {
+            leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
+            rightTabs: rightTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
+            leftActiveId,
+            rightActiveId,
+            splitEnabled
+        };
+        try {
+            sessionStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabMeta));
+        } catch { /* ignore */ }
+    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled]);
+
+    // --- Tab Persistence: Restore on mount ---
+    useEffect(() => {
+        const restoreTabs = async () => {
+            try {
+                const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
+                if (!saved) return;
+                const meta = JSON.parse(saved);
+                if (!meta.leftTabs?.length && !meta.rightTabs?.length) return;
+
+                const loadTab = async (t) => {
+                    if (!t.path) return null; // Skip unsaved tabs
+                    try {
+                        const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(t.path)}`);
+                        const data = await res.json();
+                        if (data.error) return null;
+                        return {
+                            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+                            path: t.path,
+                            name: t.name,
+                            type: t.type || 'sql',
+                            content: data.content,
+                            results: null,
+                            dirty: false
+                        };
+                    } catch { return null; }
+                };
+
+                const restoredLeft = (await Promise.all(meta.leftTabs.map(loadTab))).filter(Boolean);
+                const restoredRight = (await Promise.all((meta.rightTabs || []).map(loadTab))).filter(Boolean);
+
+                if (restoredLeft.length > 0) {
+                    setLeftTabs(restoredLeft);
+                    setLeftActiveId(restoredLeft[restoredLeft.length - 1].id);
+                }
+                if (restoredRight.length > 0) {
+                    setRightTabs(restoredRight);
+                    setRightActiveId(restoredRight[restoredRight.length - 1].id);
+                    setSplitEnabled(true);
+                }
+            } catch (e) {
+                console.warn('[TabPersistence] Restore failed:', e);
+            }
+        };
+        restoreTabs();
+    }, []); // Only on mount
 
     // Helpers
     const getActiveTab = () => {
@@ -173,7 +235,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         if (!tab.path) {
             if (onRequestSaveAs) {
-                onRequestSaveAs(tab.content);
+                onRequestSaveAs(tab.content, tab);
             } else {
                 console.warn("Save As function not connected.");
             }
@@ -271,7 +333,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     id: Date.now().toString(),
                     path: path,
                     name: path.split(/[/\\]/).pop(),
-                    type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : 'sql'),
+                    type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.md') ? 'md' : 'sql'),
                     content: content,
                     results: null,
                     dirty: false
@@ -291,11 +353,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const newTab = {
                 id: Date.now().toString(),
                 path: '',
-                name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : 'Untitled.sql',
+                name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : normalizedType === 'md' ? 'Untitled.md' : 'Untitled.sql',
                 type: normalizedType,
                 content: initialContent || (normalizedType === 'sqlnb'
                     ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
-                    : 'SELECT 1;'),
+                    : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' : 'SELECT 1;'),
                 results: null,
                 dirty: true
             };
@@ -322,51 +384,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 updateTab(activePane, tab.id, updates);
             }
         },
-        handleQueryFile: async (filePath) => {
-            const fileName = filePath.split(/[/\\]/).pop();
-            const normalizedPath = filePath.replace(/\\/g, '/');
-            const lowerName = fileName.toLowerCase();
 
-            let content = '';
-
-            // Excel files: Fetch sheet names and generate read_xlsx query
-            if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
-                try {
-                    const res = await fetch(`http://localhost:3001/api/files/inspect-excel?path=${encodeURIComponent(filePath)}`);
-                    const data = await res.json();
-                    const sheets = data.sheets || ['Sheet1'];
-
-                    const sheetComments = sheets.map(s =>
-                        `-- SELECT * FROM read_xlsx('${normalizedPath}', sheet='${s}') LIMIT 100;`
-                    ).join('\n');
-
-                    content = `/* \n * Direct Query on ${fileName}\n * Available sheets: ${sheets.join(', ')}\n */\n\n${sheetComments}\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='${sheets[0]}') LIMIT 100;`;
-                } catch (err) {
-                    content = `/* \n * Direct Query on ${fileName}\n * Error fetching sheets: ${err.message}\n */\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='Sheet1') LIMIT 100;`;
-                }
-            } else {
-                // CSV, Parquet, JSON — standard DuckDB auto-detect
-                content = `/* \n * Direct Query on ${fileName} \n */\n\nSELECT * FROM '${normalizedPath}' LIMIT 100;`;
-            }
-
-            const newTab = {
-                id: Date.now().toString(),
-                path: '',
-                name: `${fileName}.sql`,
-                type: 'sql',
-                content: content,
-                results: null,
-                dirty: true
-            };
-
-            if (activePane === 'left') {
-                setLeftTabs(prev => [...prev, newTab]);
-                setLeftActiveId(newTab.id);
-            } else {
-                setRightTabs(prev => [...prev, newTab]);
-                setRightActiveId(newTab.id);
-            }
-        },
+        // --- Standalone handleQueryFile function (used by imperative handle + DnD) ---
+        handleQueryFile: (filePath) => handleQueryFile(filePath),
         handleEditChart: async (filePath) => {
             try {
                 // Fetch the config
@@ -405,6 +425,54 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
         }
     }));
+
+    // --- handleQueryFile: Standalone function for DnD + imperative handle ---
+    const handleQueryFile = async (filePath) => {
+        const fileName = filePath.split(/[/\\]/).pop();
+        const normalizedPath = filePath.replace(/\\/g, '/');
+        const lowerName = fileName.toLowerCase();
+
+        // SQL and Markdown files: open directly
+        if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.md')) {
+            try {
+                const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
+                const data = await res.json();
+                if (!data.error) {
+                    const type = lowerName.endsWith('.sqlnb') ? 'sqlnb' : lowerName.endsWith('.md') ? 'md' : 'sql';
+                    const existing = [...leftTabs, ...rightTabs].find(t => t.path === filePath);
+                    if (existing) {
+                        if (leftTabs.find(t => t.id === existing.id)) setLeftActiveId(existing.id);
+                        else setRightActiveId(existing.id);
+                        return;
+                    }
+                    const newTab = { id: Date.now().toString(), path: filePath, name: fileName, type, content: data.content, results: null, dirty: false };
+                    if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
+                    else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
+                }
+            } catch (e) { console.error('[DnD] Failed to open SQL file:', e); }
+            return;
+        }
+
+        let content = '';
+
+        if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
+            try {
+                const res = await fetch(`http://localhost:3001/api/files/inspect-excel?path=${encodeURIComponent(filePath)}`);
+                const data = await res.json();
+                const sheets = data.sheets || ['Sheet1'];
+                const sheetComments = sheets.map(s => `-- SELECT * FROM read_xlsx('${normalizedPath}', sheet='${s}') LIMIT 100;`).join('\n');
+                content = `/* \n * Direct Query on ${fileName}\n * Available sheets: ${sheets.join(', ')}\n */\n\n${sheetComments}\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='${sheets[0]}') LIMIT 100;`;
+            } catch (err) {
+                content = `/* \n * Direct Query on ${fileName}\n * Error fetching sheets: ${err.message}\n */\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='Sheet1') LIMIT 100;`;
+            }
+        } else {
+            content = `/* \n * Direct Query on ${fileName} \n */\n\nSELECT * FROM '${normalizedPath}' LIMIT 100;`;
+        }
+
+        const newTab = { id: Date.now().toString(), path: '', name: `${fileName}.sql`, type: 'sql', content, results: null, dirty: true };
+        if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
+        else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
+    };
 
     // Drag & Drop State
     const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
@@ -580,9 +648,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     editorSettings={editorSettings}
                     variables={queryVariables}
                     onVariablesChange={setQueryVariables}
-                    // DnD Props
                     onDragStart={handleDragStart}
                     onReorder={handleReorder}
+                    onFileDrop={handleQueryFile}
                 />
 
                 {splitEnabled && (
@@ -603,9 +671,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         editorSettings={editorSettings}
                         variables={queryVariables}
                         onVariablesChange={setQueryVariables}
-                        // DnD Props
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}
+                        onFileDrop={handleQueryFile}
                     />
                 )}
             </div>
