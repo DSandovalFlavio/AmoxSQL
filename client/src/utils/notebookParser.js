@@ -76,6 +76,6 @@ export const serializeNotebookContent = (cells) => {
         cells: cells,
         environment: {}
     };
-    // Use format with 2 spaces for readability, similar to deepnote format
+    // Use format with 2 spaces for readability
     return JSON.stringify(defaultStructure, null, 2);
 };

@@ -1,12 +1,28 @@
+/**
+ * AmoxSQL AI — AI Manager
+ * 
+ * Manages LLM providers (Ollama local, Gemini cloud) and provides
+ * both the legacy generateQuery() method and the new tool-loop chat().
+ * 
+ * Uses Vercel AI SDK for the new agent chat functionality.
+ */
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { generateText, streamText } = require('ai');
+const { google } = require('@ai-sdk/google');
+const { createOllama } = require('ai-sdk-ollama');
+const ollama = createOllama();
+const { createTools } = require('./ai/tools');
+const { buildSystemPrompt } = require('./ai/systemPrompt');
+const { loadUserRules } = require('./ai/userRules');
+const { compactContext } = require('./ai/compaction');
+const { loadMemoriesText, extractMemories } = require('./ai/memory');
 
 class AiManager {
     constructor() {
         this.status = "READY";
-        this.provider = "ollama"; // 'ollama' or 'gemini'
+        this.provider = "ollama";
         this.modelName = "qwen3:1.7b";
 
         // Ensure config exists in home directory for secure storage
@@ -14,7 +30,8 @@ class AiManager {
         this.ensureConfig();
     }
 
-    // Config methods
+    // ─── Config Methods (unchanged) ───
+
     ensureConfig() {
         const dir = path.dirname(this.configPath);
         if (!fs.existsSync(dir)) {
@@ -45,7 +62,6 @@ class AiManager {
                 config.usage = { flashLite: 0, flash: 0, pro: 0, tokens: 0 };
                 fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
             }
-            // Ensure schema backwards compatibility
             if (!config.usage) {
                 config.usageDate = today;
                 config.usage = { flashLite: 0, flash: 0, pro: 0, tokens: 0 };
@@ -54,23 +70,259 @@ class AiManager {
 
             return config;
         } catch (e) {
-            return { geminiApiKey: "", provider: "ollama", defaultModel: "qwen3:1.7b", usageDate: new Date().toISOString().split('T')[0], usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 } };
+            return {
+                geminiApiKey: "", provider: "ollama", defaultModel: "qwen3:1.7b",
+                usageDate: new Date().toISOString().split('T')[0],
+                usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 }
+            };
         }
     }
 
     getStatus() {
-        // Native local model management is handled by Ollama, so the state is always READY.
         return { status: "READY", progress: 100 };
     }
 
     async initialize() {
-        // Load config on init
         const config = this.getConfig();
         this.provider = config.provider || "ollama";
         this.modelName = config.defaultModel || "qwen3:1.7b";
         this.status = "READY";
         console.log(`[AI] Initialized with Provider: ${this.provider}, Model: ${this.modelName}`);
     }
+
+    // ─── Vercel AI SDK Provider Resolution ───
+
+    /**
+     * Returns a Vercel AI SDK model instance based on provider and model name.
+     * @param {string} providerName - 'ollama' or 'gemini'
+     * @param {string} modelName - The model identifier
+     * @returns {object} Vercel AI SDK model instance
+     */
+    getModel(providerName, modelName) {
+        const config = this.getConfig();
+
+        if (providerName === 'gemini') {
+            if (!config.geminiApiKey) {
+                throw new Error("Gemini API Key is not configured. Please add it in Settings > AI Assistant.");
+            }
+            // Create Google AI provider with user's API key
+            return google(modelName || 'gemini-2.5-flash', {
+                apiKey: config.geminiApiKey,
+            });
+        } else {
+            // Ollama — local model
+            return ollama(modelName || 'qwen3:1.7b');
+        }
+    }
+
+    /**
+     * Track usage for Gemini models.
+     * @param {string} modelName 
+     * @param {object} usage - Token usage from Vercel AI SDK response
+     */
+    trackUsage(modelName, usage) {
+        try {
+            const config = this.getConfig();
+            if (usage) {
+                config.usage.tokens += (usage.totalTokens || 0);
+            }
+            if (modelName.includes('flash-lite')) {
+                config.usage.flashLite += 1;
+            } else if (modelName.includes('pro')) {
+                config.usage.pro += 1;
+            } else {
+                config.usage.flash += 1;
+            }
+            fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+        } catch (e) {
+            console.error("[AI] Failed to track usage:", e);
+        }
+    }
+
+    // ─── New: Tool Loop Chat (Vercel AI SDK) ───
+
+    /**
+     * Runs a full agent chat with tool loop.
+     * 
+     * @param {object} options
+     * @param {Array} options.messages - Conversation messages [{role, content}]
+     * @param {object} options.dbManager - DatabaseManager instance for DuckDB queries
+     * @param {string} options.providerOverride - 'ollama' or 'gemini'
+     * @param {string} options.modelOverride - Model name override
+     * @param {string} options.mode - 'assistant' or 'diving'
+     * @param {Array} options.tables - Table schemas for context
+     * @param {Array} options.files - File schemas for context
+     * @param {string} options.currentQuery - Current editor query (assistant mode)
+     * @param {object} options.currentResult - Current result (assistant mode)
+     * @param {object} options.currentChartConfig - Current chart config (assistant mode)
+     * @returns {object} Complete response with text, tool calls, and usage
+     */
+    async chat(options) {
+        const {
+            messages,
+            dbManager,
+            providerOverride,
+            modelOverride,
+            mode = 'diving',
+            tables = [],
+            files = [],
+            currentQuery = '',
+            currentResult = null,
+            currentChartConfig = null,
+        } = options;
+
+        const provider = providerOverride || this.provider;
+        const model = modelOverride || this.modelName;
+        const projectPath = process.cwd();
+
+        // Load dynamic human context (Fase 6)
+        const userRules = await loadUserRules(projectPath);
+        const memories = await loadMemoriesText(dbManager);
+
+        // Build dynamic system prompt
+        const systemPrompt = buildSystemPrompt({
+            tables, files, mode,
+            userRules, memories,
+            currentQuery, currentResult, currentChartConfig,
+        });
+
+        // Create tool context
+        const queryResults = new Map();
+        const tools = createTools({ dbManager, queryResults });
+
+        console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode}`);
+
+        try {
+            const llmModel = this.getModel(provider, model);
+            
+            // Compact context if necessary to avoid token overflow
+            const compactedMessages = await compactContext(llmModel, messages, 6000);
+
+            const result = await generateText({
+                model: llmModel,
+                system: systemPrompt,
+                messages: compactedMessages,
+                tools,
+                maxSteps: 10,
+                maxTokens: 16000,
+            });
+
+            // Run memory extraction in the background
+            extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+
+            // Track Gemini usage
+            if (provider === 'gemini' && result.usage) {
+                this.trackUsage(model, result.usage);
+            }
+
+            console.log(`[AI Chat] Complete | Steps: ${result.steps?.length || 1} | Tokens: ${result.usage?.totalTokens || '?'}`);
+
+            // Collect all tool results from steps
+            const toolResults = [];
+            if (result.steps) {
+                for (const step of result.steps) {
+                    if (step.toolCalls) {
+                        for (const tc of step.toolCalls) {
+                            toolResults.push({
+                                toolName: tc.toolName,
+                                args: tc.args,
+                                result: step.toolResults?.find(tr => tr.toolCallId === tc.toolCallId)?.result,
+                            });
+                        }
+                    }
+                }
+            }
+
+            return {
+                text: result.text,
+                toolResults,
+                queryResults: Object.fromEntries(queryResults),
+                usage: result.usage,
+                steps: result.steps?.length || 1,
+            };
+        } catch (err) {
+            console.error(`[AI Chat] Error:`, err);
+
+            // Provide helpful error messages
+            if (err.message && err.message.includes('fetch failed')) {
+                throw new Error(`Could not connect to ${provider === 'ollama' ? 'Ollama. Please ensure the Ollama app is running.' : 'Gemini API. Check your internet connection and API key.'}`);
+            }
+            if (err.message && err.message.includes('not found')) {
+                throw new Error(`Model '${model}' not found. ${provider === 'ollama' ? `Ensure you pulled it using: ollama pull ${model}` : 'Check the model name.'}`);
+            }
+            throw err;
+        }
+    }
+
+    /**
+     * Runs a streaming agent chat with tool loop.
+     * Returns a ReadableStream for SSE consumption.
+     * 
+     * @param {object} options - Same as chat()
+     * @returns {object} Vercel AI SDK streaming result
+     */
+    async streamChat(options) {
+        const {
+            messages,
+            dbManager,
+            providerOverride,
+            modelOverride,
+            mode = 'diving',
+            tables = [],
+            files = [],
+            currentQuery = '',
+            currentResult = null,
+            currentChartConfig = null,
+        } = options;
+
+        const provider = providerOverride || this.provider;
+        const model = modelOverride || this.modelName;
+        const projectPath = process.cwd();
+
+        // Load dynamic human context (Fase 6)
+        const userRules = await loadUserRules(projectPath);
+        const memories = await loadMemoriesText(dbManager);
+
+        const systemPrompt = buildSystemPrompt({
+            tables, files, mode,
+            userRules, memories,
+            currentQuery, currentResult, currentChartConfig,
+        });
+
+        const queryResults = new Map();
+        const tools = createTools({ dbManager, queryResults });
+
+        console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode}`);
+
+        const llmModel = this.getModel(provider, model);
+
+        // Compact context if necessary to avoid token overflow
+        const compactedMessages = await compactContext(llmModel, messages, 6000);
+
+        const result = streamText({
+            model: llmModel,
+            system: systemPrompt,
+            messages: compactedMessages,
+            tools,
+            maxSteps: 10,
+            maxTokens: 16000,
+            onFinish: async ({ usage }) => {
+                // Run memory extraction in the background
+                extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+                if (provider === 'gemini' && usage) {
+                    this.trackUsage(model, usage);
+                }
+                console.log(`[AI Stream] Complete | Tokens: ${usage?.totalTokens || '?'}`);
+            },
+        });
+
+        // Attach queryResults for downstream use
+        result._queryResults = queryResults;
+
+        return result;
+    }
+
+    // ─── Legacy: Simple SQL Generation (backward compatible) ───
 
     async generateQuery(schema, question, providerOverride, modelOverride) {
         const provider = providerOverride || this.provider;
@@ -99,61 +351,30 @@ ${schema}`;
 
         const userPrompt = `### Question\n${question}\n\nReview the schema carefully and return only the valid DuckDB SQL query starting with SELECT.`;
 
-        if (provider === "gemini") {
-            const config = this.getConfig();
-            if (!config.geminiApiKey) {
-                throw new Error("Gemini API Key is not configured. Please add it in settings.");
-            }
-            const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-            const geminiModel = genAI.getGenerativeModel({
-                model: model || "gemini-2.5-flash",
-                systemInstruction: systemPrompt
+        try {
+            const llmModel = this.getModel(provider, model);
+
+            const result = await generateText({
+                model: llmModel,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }],
+                maxTokens: 4000,
             });
 
-            console.log(`[AI] Prompting Gemini (${model})...`);
-            const result = await geminiModel.generateContent(userPrompt);
-
-            // Track Usage
-            try {
-                if (result.response.usageMetadata) {
-                    config.usage.tokens += result.response.usageMetadata.totalTokenCount || 0;
-                }
-                if (model.includes('flash-lite')) {
-                    config.usage.flashLite += 1;
-                } else if (model.includes('pro')) {
-                    config.usage.pro += 1;
-                } else {
-                    config.usage.flash += 1;
-                }
-                fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
-            } catch (e) {
-                console.error("Failed to track Gemini usage:", e);
+            // Track Gemini usage
+            if (provider === 'gemini' && result.usage) {
+                this.trackUsage(model, result.usage);
             }
 
-            return this.cleanSql(result.response.text());
-
-        } else {
-            // Ollama
-            const ollamaClient = require('ollama').default || require('ollama');
-
-            console.log(`[AI] Prompting Ollama (${model})...`);
-            try {
-                const response = await ollamaClient.chat({
-                    model: model,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                });
-                return this.cleanSql(response.message.content);
-            } catch (err) {
-                if (err.message && err.message.includes('not found')) {
-                    throw new Error(`Model '${model}' not found. Ensure you pulled it using: ollama pull ${model}`);
-                } else if (err.code === 'ECONNREFUSED' || (err.cause && err.cause.code === 'ECONNREFUSED') || (err.message && err.message.includes('fetch failed'))) {
-                    throw new Error("Could not connect to Ollama. Please ensure the Ollama app is running on your machine.");
-                }
-                throw err;
+            return this.cleanSql(result.text);
+        } catch (err) {
+            if (err.message && (err.message.includes('fetch failed') || err.message.includes('ECONNREFUSED'))) {
+                throw new Error(`Could not connect to ${provider === 'ollama' ? 'Ollama. Please ensure the Ollama app is running.' : 'Gemini API.'}`);
             }
+            if (err.message && err.message.includes('not found')) {
+                throw new Error(`Model '${model}' not found. ${provider === 'ollama' ? `Ensure you pulled it using: ollama pull ${model}` : ''}`);
+            }
+            throw err;
         }
     }
 
