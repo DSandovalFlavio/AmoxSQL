@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/flavi/Documents/Proyectos/IDE/.claude/worktrees/optimistic-blackburn -maxdepth 2 -name tsconfig*.json -o -name jest.config.* -o -name .babelrc* -o -name webpack* -o -name *.config.js)",
+      "Bash(grep -E \"\\\\.\\(js|jsx\\)$\")",
+      "Bash(grep -E \"\\\\.\\(jsx|js\\)$\")",
+      "Bash(npx vite:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const lu = require\\(''react-icons/lu''\\); const names = Object.keys\\(lu\\).filter\\(n => n.toLowerCase\\(\\).includes\\(''play''\\)\\); console.log\\(names.join\\(''\\\\n''\\)\\);\")",
+      "Bash(node -e \"const lu = require\\(''react-icons/lu''\\); console.log\\(''LuSquare'' in lu, ''LuChevronsUp'' in lu, ''LuChevronsDown'' in lu\\);\")"
+    ]
+  }
+}
