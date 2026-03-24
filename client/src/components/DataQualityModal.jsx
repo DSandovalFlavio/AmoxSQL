@@ -109,12 +109,12 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
 
     if (!isOpen) return null;
 
-    const scoreColor = (report?.score ?? 100) >= 80 ? '#10b981' : (report?.score ?? 100) >= 50 ? '#f59e0b' : '#ef4444';
+    const scoreColor = (report?.score ?? 100) >= 80 ? 'var(--color-success)' : (report?.score ?? 100) >= 50 ? 'var(--color-warning)' : 'var(--color-error)';
     const statusIcon = {
-        pass: <LuCircleCheck size={12} color="#10b981" />,
-        warn: <LuCircleAlert size={12} color="#f59e0b" />,
-        fail: <LuCircleAlert size={12} color="#ef4444" />,
-        info: <LuShieldCheck size={12} color="#6366f1" />,
+        pass: <LuCircleCheck size={12} color="var(--color-success)" />,
+        warn: <LuCircleAlert size={12} color="var(--color-warning)" />,
+        fail: <LuCircleAlert size={12} color="var(--color-error)" />,
+        info: <LuShieldCheck size={12} color="var(--color-info)" />,
     };
 
     return (
@@ -153,7 +153,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
                     )}
 
                     {error && (
-                        <div style={{ padding: '20px', color: '#ef4444', textAlign: 'center' }}>Error: {error}</div>
+                        <div style={{ padding: '20px', color: 'var(--color-error)', textAlign: 'center' }}>Error: {error}</div>
                     )}
 
                     {report && (
@@ -165,7 +165,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
                                 <ScoreCard label="Quality Score" value={`${report.score}%`} color={scoreColor} highlight />
                                 <ScoreCard label="Total Rows" value={report.totalRows.toLocaleString()} />
                                 <ScoreCard label="Columns" value={String(report.columnCount)} />
-                                <ScoreCard label="Duplicate Rows" value={String(report.dupCount)} color={report.dupCount > 0 ? '#f59e0b' : undefined} />
+                                <ScoreCard label="Duplicate Rows" value={String(report.dupCount)} color={report.dupCount > 0 ? 'var(--color-warning)' : undefined} />
                             </div>
 
                             {/* Column Quality Table */}
@@ -186,7 +186,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
                                                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 500 }}>{col.column}</span>
                                             </td>
                                             <td style={{ ...tdStyle, color: 'var(--text-tertiary)' }}>{col.type}</td>
-                                            <td style={{ ...tdStyle, color: col.nullPct > 5 ? '#ef4444' : col.nullPct > 0 ? '#f59e0b' : '#10b981' }}>
+                                            <td style={{ ...tdStyle, color: col.nullPct > 5 ? 'var(--color-error)' : col.nullPct > 0 ? 'var(--color-warning)' : 'var(--color-success)' }}>
                                                 {col.nullPct}%
                                             </td>
                                             <td style={tdStyle}>{col.approxUnique.toLocaleString()}</td>

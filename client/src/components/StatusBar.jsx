@@ -9,19 +9,10 @@ const StatusBar = ({ currentDb, dbReadOnly, lastQueryInfo, aiProvider }) => {
             {/* Left Side */}
             <div className="status-bar-section">
                 <div className="status-bar-item accent">
-                    <LuDatabase size={12} />
+                    <LuDatabase size={11} />
                     <span>{dbLabel}</span>
                     {modeLabel && (
-                        <span style={{
-                            fontSize: '10px',
-                            padding: '0 4px',
-                            borderRadius: '3px',
-                            backgroundColor: 'var(--accent-subtle)',
-                            border: '1px solid var(--accent-muted)',
-                            fontWeight: 600,
-                        }}>
-                            {modeLabel}
-                        </span>
+                        <span className="status-bar-badge">{modeLabel}</span>
                     )}
                 </div>
 
@@ -29,7 +20,7 @@ const StatusBar = ({ currentDb, dbReadOnly, lastQueryInfo, aiProvider }) => {
                     <>
                         <div className="status-bar-divider" />
                         <div className="status-bar-item">
-                            <LuClock size={11} />
+                            <LuClock size={10} />
                             <span>{lastQueryInfo.executionTime}</span>
                         </div>
                     </>
@@ -39,7 +30,7 @@ const StatusBar = ({ currentDb, dbReadOnly, lastQueryInfo, aiProvider }) => {
                     <>
                         <div className="status-bar-divider" />
                         <div className="status-bar-item">
-                            <LuRows3 size={11} />
+                            <LuRows3 size={10} />
                             <span>{lastQueryInfo.rowCount.toLocaleString()} rows</span>
                         </div>
                     </>
@@ -50,15 +41,15 @@ const StatusBar = ({ currentDb, dbReadOnly, lastQueryInfo, aiProvider }) => {
             <div className="status-bar-section">
                 {aiProvider && (
                     <>
-                        <div className="status-bar-item" style={{ opacity: 0.7 }}>
-                            <LuCpu size={11} />
+                        <div className="status-bar-item">
+                            <LuCpu size={10} />
                             <span>{aiProvider}</span>
                         </div>
                         <div className="status-bar-divider" />
                     </>
                 )}
-                <div className="status-bar-item" style={{ opacity: 0.5 }}>
-                    <LuCommand size={11} />
+                <div className="status-bar-item">
+                    <LuCommand size={10} />
                     <span>Ctrl+Shift+P</span>
                 </div>
             </div>

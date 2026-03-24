@@ -122,7 +122,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                         style={{
                             flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer',
                             backgroundColor: exportTarget === 'local' ? 'var(--accent-primary)' : 'var(--input-bg)',
-                            color: exportTarget === 'local' ? '#fff' : 'var(--text-secondary)',
+                            color: exportTarget === 'local' ? 'var(--button-text-color)' : 'var(--text-secondary)',
                             border: exportTarget === 'local' ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '11px', fontWeight: 600
                         }}
@@ -134,7 +134,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                         style={{
                             flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer',
                             backgroundColor: exportTarget === 'cloud' ? 'var(--accent-primary)' : 'var(--input-bg)',
-                            color: exportTarget === 'cloud' ? '#fff' : 'var(--text-secondary)',
+                            color: exportTarget === 'cloud' ? 'var(--button-text-color)' : 'var(--text-secondary)',
                             border: exportTarget === 'cloud' ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '11px', fontWeight: 600
                         }}
@@ -154,7 +154,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                                 style={{
                                     flex: 1, padding: '10px 8px', borderRadius: '8px', cursor: 'pointer',
                                     backgroundColor: format === opt.value ? 'var(--accent-primary)' : 'var(--input-bg)',
-                                    color: format === opt.value ? '#fff' : 'var(--text-secondary)',
+                                    color: format === opt.value ? 'var(--button-text-color)' : 'var(--text-secondary)',
                                     border: format === opt.value ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                                     fontSize: '11px', fontWeight: 600, transition: 'all 120ms ease',
@@ -231,14 +231,14 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
 
                 {/* Error */}
                 {error && (
-                    <div style={{ backgroundColor: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', fontSize: '11px', color: '#ef4444' }}>
+                    <div style={{ backgroundColor: 'var(--feedback-error-bg)', border: '1px solid var(--feedback-error-border)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', fontSize: '11px', color: 'var(--feedback-error)' }}>
                         {error}
                     </div>
                 )}
 
                 {/* Success */}
                 {result && (
-                    <div style={{ backgroundColor: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', fontSize: '11px', color: '#10b981' }}>
+                    <div style={{ backgroundColor: 'var(--feedback-success-bg)', border: '1px solid var(--feedback-success-border)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', fontSize: '11px', color: 'var(--feedback-success)' }}>
                         ✅ Exported to <strong>{result.path}</strong> ({result.rowCount ?? '?'} rows)
                     </div>
                 )}
@@ -250,7 +250,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                     style={{
                         width: '100%', padding: '10px', borderRadius: '8px', cursor: exporting ? 'wait' : 'pointer',
                         backgroundColor: exporting ? 'var(--accent-secondary)' : 'var(--accent-primary)',
-                        color: '#fff', border: 'none', fontSize: '13px', fontWeight: 600,
+                        color: 'var(--button-text-color)', border: 'none', fontSize: '13px', fontWeight: 600,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                         opacity: !query ? 0.5 : 1,
                     }}

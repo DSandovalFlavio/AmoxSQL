@@ -235,18 +235,16 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                     }}>
                                         {EXPORT_PRESETS.map(p => (
                                             <div key={p.label} onClick={() => handleDownload(p)}
-                                                style={{ padding: '5px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between' }}
-                                                onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                                                onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
+                                                className="dv-export-item"
+                                                style={{ padding: '5px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between' }}>
                                                 <span>{p.label}</span>
                                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{p.width}×{p.height}</span>
                                             </div>
                                         ))}
                                         <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
                                         <div onClick={() => handleDownload({ label: 'Original', width: chartRef.current?.offsetWidth || 1920, height: chartRef.current?.offsetHeight || 1080 })}
-                                            style={{ padding: '5px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px' }}
-                                            onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                                            onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
+                                            className="dv-export-item"
+                                            style={{ padding: '5px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px' }}>
                                             Original Size
                                         </div>
                                     </div>

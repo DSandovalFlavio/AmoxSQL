@@ -19,7 +19,8 @@ const MenuBar = ({ onOpenProject, currentPath, onRunChain }) => {
             <div style={{ position: 'relative' }}>
                 <div
                     onClick={() => toggleMenu('file')}
-                    style={{ padding: '0 8px', cursor: 'pointer', backgroundColor: activeMenu === 'file' ? 'var(--hover-bg)' : 'transparent', height: '28px', display: 'flex', alignItems: 'center', borderRadius: '4px', transition: 'background-color 120ms ease' }}
+                    className="mb-trigger"
+                    data-active={activeMenu === 'file'}
                 >
                     File
                 </div>
@@ -36,19 +37,13 @@ const MenuBar = ({ onOpenProject, currentPath, onRunChain }) => {
                     }}>
                         <div
                             onClick={() => { onOpenProject(); setActiveMenu(null); }}
-                            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background-color 120ms ease' }}
-                            className="menu-item"
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                            className="mb-item"
                         >
                             📂 Open Folder...
                         </div>
                         <div
                             onClick={() => { window.location.reload(); }}
-                            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background-color 120ms ease' }}
-                            className="menu-item"
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                            className="mb-item"
                         >
                             Reload Window
                         </div>
@@ -57,9 +52,7 @@ const MenuBar = ({ onOpenProject, currentPath, onRunChain }) => {
                                 <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
                                 <div
                                     onClick={() => { onRunChain(); setActiveMenu(null); }}
-                                    style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background-color 120ms ease' }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                                    className="mb-item"
                                 >
                                     🔗 Run Chain...
                                 </div>

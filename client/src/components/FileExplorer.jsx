@@ -114,15 +114,17 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
 
     const getIcon = (file) => {
         const lowerName = file.name.toLowerCase();
-        if (file.isDirectory) return <LuFolder size={14} color="#E8BD36" />;
-        if (lowerName.endsWith('.sql')) return <LuFileCode size={14} color="#4FC1FF" />;
-        if (lowerName.endsWith('.sqlnb')) return <LuBookOpen size={14} color="#9CDCFE" />;
-        if (lowerName.endsWith('.md')) return <LuFileText size={14} color="#D4A76A" />;
-        if (lowerName.endsWith('.amoxvis')) return <LuChartBar size={14} color="#FF69B4" />;
-        if (lowerName.match(/\.(xlsx|xls|csv)$/i)) return <LuFileSpreadsheet size={14} color="#217346" />; // Green for Excel
-        if (lowerName.match(/\.(parquet|json)$/i)) return <LuTable size={14} color="#CE9178" />;
-        if (lowerName.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="#DCDCAA" />;
-        return <LuFile size={14} color="#CCCCCC" />;
+        if (file.isDirectory) return <LuFolder size={14} color="var(--icon-folder)" />;
+        if (lowerName.endsWith('.sql')) return <LuFileCode size={14} color="var(--icon-sql)" />;
+        if (lowerName.endsWith('.sqlnb')) return <LuBookOpen size={14} color="var(--icon-notebook)" />;
+        if (lowerName.endsWith('.md')) return <LuFileText size={14} color="var(--icon-md)" />;
+        if (lowerName.endsWith('.amoxvis')) return <LuChartBar size={14} color="var(--icon-parquet)" />;
+        if (lowerName.match(/\.(xlsx|xls)$/i)) return <LuFileSpreadsheet size={14} color="var(--icon-excel)" />;
+        if (lowerName.match(/\.csv$/i)) return <LuFileSpreadsheet size={14} color="var(--icon-csv)" />;
+        if (lowerName.match(/\.parquet$/i)) return <LuTable size={14} color="var(--icon-parquet)" />;
+        if (lowerName.match(/\.json$/i)) return <LuTable size={14} color="var(--icon-json)" />;
+        if (lowerName.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="var(--icon-default)" />;
+        return <LuFile size={14} color="var(--icon-default)" />;
     };
 
     // --- Rename Logic ---
@@ -218,13 +220,12 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                 <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'wrap', minHeight: '20px' }}>
                     <span
                         onClick={() => setCurrentPath('')}
+                        className="breadcrumb-segment"
                         style={{
                             fontSize: '11px', color: currentPath ? 'var(--accent-color-user)' : 'var(--text-active)',
                             cursor: 'pointer', padding: '1px 4px', borderRadius: '3px',
                             transition: 'background-color 120ms ease', fontWeight: currentPath ? '400' : '600'
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                         /
                     </span>
@@ -236,6 +237,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>›</span>
                                 <span
                                     onClick={() => { if (!isLast) setCurrentPath(segmentPath); }}
+                                    className={!isLast ? 'breadcrumb-segment' : undefined}
                                     style={{
                                         fontSize: '11px',
                                         color: isLast ? 'var(--text-active)' : 'var(--accent-color-user)',
@@ -246,8 +248,6 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                         maxWidth: '100px'
                                     }}
-                                    onMouseOver={(e) => { if (!isLast) e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; }}
-                                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                                     title={segment}
                                 >
                                     {segment}
@@ -424,7 +424,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     {/* Delete */}
                     <div
                         onClick={() => handleDeleteClick(contextMenu.file)}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: '#e06c75', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--color-destructive)', display: 'flex', alignItems: 'center', gap: '8px' }}
                         className="context-menu-item"
                     >
                         <LuTrash2 size={14} /> Delete

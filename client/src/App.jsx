@@ -677,12 +677,11 @@ function App() {
             >
               <LuHistory size={20} />
             </button>
-            {/* Collapse Toggle */}
+            <div className="activity-bar-spacer" />
             <button
               onClick={() => setSidebarCollapsed(prev => !prev)}
               className="activity-bar-collapse-btn"
               title={sidebarCollapsed ? 'Show Sidebar (Ctrl+B)' : 'Hide Sidebar (Ctrl+B)'}
-              style={{ marginTop: 'auto' }}
             >
               {sidebarCollapsed ? <LuPanelLeftOpen size={18} /> : <LuPanelLeftClose size={18} />}
             </button>
@@ -690,7 +689,6 @@ function App() {
               onClick={() => setIsSettingsOpen(true)}
               className="activity-bar-btn activity-bar-btn--bottom"
               title="Settings (Ctrl+,)"
-              style={{ marginTop: '0' }}
             >
               <LuSettings size={20} />
             </button>
@@ -788,116 +786,69 @@ function App() {
 
           {/* Main Content with LayoutManager */}
           <div className="main-content">
-            {/* Global Toolbar — Linear Style */}
+            {/* Global Toolbar — Linear: compact, ghost buttons, minimal separators */}
             <div className="toolbar">
               <div className="toolbar-left">
-                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--accent-primary)', color: 'var(--surface-base)', border: 'none', fontWeight: '600' }}>
-                  <LuPlay size={14} fill="currentColor" /> Run
+                <button className="toolbar-btn-primary" onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)">
+                  <LuPlay size={13} fill="currentColor" /> Run
                 </button>
-                <button
-                  onClick={() => layoutRef.current?.handleTriggerAnalyze()}
-                  title="Analyze Query Plan (Ctrl+Shift+E)"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)', padding: '4px 8px' }}
-                >
-                  <LuActivity size={14} />
+                <button className="toolbar-btn-ghost active" onClick={() => layoutRef.current?.handleTriggerAnalyze()} title="Analyze Query Plan (Ctrl+Shift+E)">
+                  <LuActivity size={13} />
                 </button>
 
                 {/* Save Dropdown */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => { setShowToolbarSaveMenu(v => !v); setShowToolbarNewMenu(false); }}
-                    title="Save (Ctrl+S)"
-                    style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <LuSave size={14} /> Save ▾
+                <div className="toolbar-dropdown">
+                  <button className="toolbar-btn-ghost" onClick={() => { setShowToolbarSaveMenu(v => !v); setShowToolbarNewMenu(false); }} title="Save (Ctrl+S)">
+                    <LuSave size={13} /> Save ▾
                   </button>
                   {showToolbarSaveMenu && (
-                    <div style={{
-                      position: 'absolute', left: 0, top: '100%', marginTop: '4px',
-                      backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
-                      borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
-                      padding: '4px', minWidth: '160px', backdropFilter: 'blur(12px)',
-                      animation: 'dropdown-in 0.15s ease-out',
-                    }}>
-                      <div onClick={() => { layoutRef.current?.handleTriggerSave(); setShowToolbarSaveMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuSave size={14} /> Save
-                        <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--text-muted)' }}>Ctrl+S</span>
+                    <div className="toolbar-dropdown-menu">
+                      <div className="toolbar-dropdown-item" onClick={() => { layoutRef.current?.handleTriggerSave(); setShowToolbarSaveMenu(false); }}>
+                        <LuSave size={13} /> Save
+                        <span className="shortcut">Ctrl+S</span>
                       </div>
-                      <div onClick={() => {
+                      <div className="toolbar-dropdown-item" onClick={() => {
                         const content = layoutRef.current?.handleTriggerSave;
                         setPendingSaveContent('');
                         setIsSaveModalOpen(true);
                         setShowToolbarSaveMenu(false);
-                      }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuSave size={14} /> Save As…
+                      }}>
+                        <LuSave size={13} /> Save As…
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
+                <div className="toolbar-separator"></div>
 
                 {/* New Dropdown */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => { setShowToolbarNewMenu(v => !v); setShowToolbarSaveMenu(false); }}
-                    title="Create New File"
-                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
-                  >
-                    <LuFilePlus size={14} /> New ▾
+                <div className="toolbar-dropdown">
+                  <button className="toolbar-btn-ghost" onClick={() => { setShowToolbarNewMenu(v => !v); setShowToolbarSaveMenu(false); }} title="Create New File">
+                    <LuFilePlus size={13} /> New ▾
                   </button>
                   {showToolbarNewMenu && (
-                    <div style={{
-                      position: 'absolute', left: 0, top: '100%', marginTop: '4px',
-                      backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
-                      borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
-                      padding: '4px', minWidth: '170px', backdropFilter: 'blur(12px)',
-                      animation: 'dropdown-in 0.15s ease-out',
-                    }}>
-                      <div onClick={() => { layoutRef.current?.createNew('sql'); setShowToolbarNewMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuCode size={14} /> SQL Query
+                    <div className="toolbar-dropdown-menu" style={{ minWidth: '170px' }}>
+                      <div className="toolbar-dropdown-item" onClick={() => { layoutRef.current?.createNew('sql'); setShowToolbarNewMenu(false); }}>
+                        <LuCode size={13} /> SQL Query
                       </div>
-                      <div onClick={() => { layoutRef.current?.createNew('notebook'); setShowToolbarNewMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuFilePlus size={14} /> Notebook
+                      <div className="toolbar-dropdown-item" onClick={() => { layoutRef.current?.createNew('notebook'); setShowToolbarNewMenu(false); }}>
+                        <LuFilePlus size={13} /> Notebook
                       </div>
-                      <div onClick={() => { layoutRef.current?.createNew('md'); setShowToolbarNewMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuFileText size={14} /> Markdown
+                      <div className="toolbar-dropdown-item" onClick={() => { layoutRef.current?.createNew('md'); setShowToolbarNewMenu(false); }}>
+                        <LuFileText size={13} /> Markdown
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
-                <button
-                  onClick={handleOpenChain}
-                  title="Run Execution Chain"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
-                >
-                  <LuLink size={14} /> Chain
+                <div className="toolbar-separator"></div>
+                <button className="toolbar-btn-ghost" onClick={handleOpenChain} title="Run Execution Chain">
+                  <LuLink size={13} /> Chain
                 </button>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div className="toolbar-right">
                 <button
+                  className={`toolbar-btn-toggle${isDiving ? ' active' : ''}`}
                   onClick={() => {
                     if (isDiving) {
                       setIsDiving(false);
@@ -908,23 +859,16 @@ function App() {
                     }
                   }}
                   title="Toggle Data Diving"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '5px',
-                    backgroundColor: isDiving ? 'var(--accent-primary)' : 'transparent',
-                    color: isDiving ? 'var(--surface-base)' : 'var(--accent-primary)',
-                    borderColor: isDiving ? 'var(--accent-primary)' : 'var(--border-default)',
-                    fontWeight: isDiving ? '600' : '400',
-                  }}
                 >
-                  <LuSparkles size={14} /> {isDiving ? 'Exit Diving' : 'Data Diving'}
+                  <LuSparkles size={13} /> {isDiving ? 'Exit Diving' : 'Data Diving'}
                 </button>
                 {!isDiving && (
                   <button
+                    className={`toolbar-btn-toggle${showAiSidebar ? ' active' : ''}`}
                     onClick={() => setShowAiSidebar(!showAiSidebar)}
                     title="Toggle AI Assistant"
-                    style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: showAiSidebar ? 'var(--active-bg)' : 'transparent', color: 'var(--accent-primary)', borderColor: showAiSidebar ? 'var(--accent-primary)' : 'var(--border-default)' }}
                   >
-                    {showAiSidebar ? <><LuX /> Close AI</> : <><LuBot /> AI Assistant</>}
+                    {showAiSidebar ? <><LuX size={13} /> Close AI</> : <><LuBot size={13} /> AI Assistant</>}
                   </button>
                 )}
               </div>

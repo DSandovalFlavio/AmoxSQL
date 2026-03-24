@@ -13,10 +13,10 @@ const ICONS = {
 };
 
 const COLORS = {
-    success: { bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.3)', icon: '#10b981', text: '#6ee7b7' },
-    error: { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.3)', icon: '#ef4444', text: '#fca5a5' },
-    warning: { bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)', icon: '#f59e0b', text: '#fcd34d' },
-    info: { bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.3)', icon: '#3b82f6', text: '#93c5fd' },
+    success: { bg: 'var(--feedback-success-bg)', border: 'var(--feedback-success-border)', icon: 'var(--color-success)', text: 'var(--color-success-text)' },
+    error: { bg: 'var(--feedback-error-bg)', border: 'var(--feedback-error-border)', icon: 'var(--color-error)', text: 'var(--color-error-text)' },
+    warning: { bg: 'var(--feedback-warning-bg)', border: 'var(--feedback-warning-border)', icon: 'var(--color-warning)', text: 'var(--color-warning-text)' },
+    info: { bg: 'var(--feedback-info-bg)', border: 'var(--feedback-info-border)', icon: 'var(--color-info)', text: 'var(--color-info-text)' },
 };
 
 export function ToastProvider({ children }) {
@@ -110,12 +110,13 @@ export function ToastProvider({ children }) {
                                 height: '22px',
                                 borderRadius: '50%',
                                 backgroundColor: colors.icon,
+                                color: 'var(--surface-base)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 flexShrink: 0,
                             }}>
-                                <Icon size={12} color="#fff" />
+                                <Icon size={12} color="currentColor" />
                             </div>
                             <span style={{
                                 fontSize: '13px',

@@ -13,11 +13,10 @@ const PalettePreview = memo(({ colors, isActive, onClick }) => (
             display: 'flex', gap: '2px', padding: '4px 6px',
             cursor: 'pointer', borderRadius: '5px',
             border: isActive ? '2px solid var(--accent-color-user)' : '1px solid var(--border-color)',
-            background: isActive ? 'rgba(155, 135, 245, 0.1)' : 'transparent',
+            background: isActive ? 'var(--accent-subtle)' : 'transparent',
             transition: 'all 0.15s',
         }}
-        onMouseOver={e => { if (!isActive) e.currentTarget.style.borderColor = 'var(--accent-color-user)'; }}
-        onMouseOut={e => { if (!isActive) e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+        className={isActive ? '' : 'dv-palette-preview'}
     >
         {colors.slice(0, 8).map((c, i) => (
             <div key={i} style={{
@@ -149,7 +148,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                 {backgroundTone === 'custom' && (
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <SimpleColorPicker
-                            color={customBgColor || '#1e1f22'}
+                            color={customBgColor || 'var(--surface-base)'}
                             onChange={v => setField('customBgColor', v)}
                         />
                         <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Custom Background</span>

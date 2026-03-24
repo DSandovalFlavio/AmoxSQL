@@ -617,7 +617,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     transition: 'background-color 0.15s', position: 'relative', flexShrink: 0
                                                 }}
                                             >
-                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: '2px', left: editorSettings.minimap ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--surface-overlay)', position: 'absolute', top: '2px', left: editorSettings.minimap ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                                             </div>
                                         </div>
 
@@ -635,7 +635,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     transition: 'background-color 0.15s', position: 'relative', flexShrink: 0
                                                 }}
                                             >
-                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: '2px', left: editorSettings.wordWrap === 'on' ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--surface-overlay)', position: 'absolute', top: '2px', left: editorSettings.wordWrap === 'on' ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                                             </div>
                                         </div>
 
@@ -653,7 +653,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     transition: 'background-color 0.15s', position: 'relative', flexShrink: 0
                                                 }}
                                             >
-                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: '2px', left: (editorSettings.lineNumbers ?? 'on') === 'on' ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--surface-overlay)', position: 'absolute', top: '2px', left: (editorSettings.lineNumbers ?? 'on') === 'on' ? '18px' : '2px', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                                             </div>
                                         </div>
 
@@ -849,7 +849,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                             style={{
                                                                 padding: '8px', backgroundColor: 'var(--sidebar-item-active-bg)',
                                                                 border: '1px solid var(--border-color)', borderRadius: '4px',
-                                                                color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                                color: 'var(--color-error)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                             }}
                                                         >
                                                             <LuX size={14} />
@@ -874,7 +874,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                         <span>{geminiUsage.flashLite} / 1000</span>
                                                     </div>
                                                     <div style={{ height: '4px', backgroundColor: 'var(--input-bg)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                        <div style={{ height: '100%', width: `${Math.min((geminiUsage.flashLite / 1000) * 100, 100)}%`, backgroundColor: '#ff9800', transition: 'width 0.3s ease' }}></div>
+                                                        <div style={{ height: '100%', width: `${Math.min((geminiUsage.flashLite / 1000) * 100, 100)}%`, backgroundColor: 'var(--color-warning)', transition: 'width 0.3s ease' }}></div>
                                                     </div>
                                                 </div>
 
@@ -884,7 +884,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                         <span>{geminiUsage.flash} / 250</span>
                                                     </div>
                                                     <div style={{ height: '4px', backgroundColor: 'var(--input-bg)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                        <div style={{ height: '100%', width: `${Math.min((geminiUsage.flash / 250) * 100, 100)}%`, backgroundColor: '#4ade80', transition: 'width 0.3s ease' }}></div>
+                                                        <div style={{ height: '100%', width: `${Math.min((geminiUsage.flash / 250) * 100, 100)}%`, backgroundColor: 'var(--color-success)', transition: 'width 0.3s ease' }}></div>
                                                     </div>
                                                 </div>
 
@@ -948,14 +948,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             {/* Progress Bar */}
                                             {downloadProgress && (
                                                 <div style={{ marginBottom: '15px', backgroundColor: 'var(--sidebar-item-active-bg)', padding: '10px', borderRadius: '6px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px', color: downloadProgress.error ? '#ff6b6b' : 'var(--text-active)' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '6px', color: downloadProgress.error ? 'var(--color-error)' : 'var(--text-active)' }}>
                                                         <span>{downloadProgress.status}</span>
                                                         <span>{downloadProgress.percent}%</span>
                                                     </div>
                                                     <div style={{ height: '4px', backgroundColor: 'var(--input-bg)', borderRadius: '2px', overflow: 'hidden' }}>
                                                         <div style={{
                                                             height: '100%', width: `${downloadProgress.percent}%`,
-                                                            backgroundColor: downloadProgress.error ? '#ff6b6b' : 'var(--accent-color-user)',
+                                                            backgroundColor: downloadProgress.error ? 'var(--color-error)' : 'var(--accent-color-user)',
                                                             transition: 'width 0.2s'
                                                         }}></div>
                                                     </div>
@@ -979,8 +979,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                                 style={{
                                                                     width: '100%', padding: '4px', borderRadius: '4px', cursor: (isDownloading || isInstalled) ? 'default' : 'pointer',
                                                                     backgroundColor: isInstalled ? 'transparent' : 'var(--input-bg)',
-                                                                    color: isInstalled ? '#4ade80' : 'var(--text-color)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
-                                                                    border: isInstalled ? '1px solid #4ade8055' : '1px solid var(--border-color)'
+                                                                    color: isInstalled ? 'var(--color-success)' : 'var(--text-color)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                                                                    border: isInstalled ? '1px solid var(--color-success-bg)' : '1px solid var(--border-color)'
                                                                 }}
                                                             >
                                                                 {isInstalled ? <><LuCheck size={12} /> Installed</> : <><LuDownload size={12} /> Install</>}
@@ -1046,7 +1046,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 </div>
 
                                 {saveMessage && (
-                                    <div style={{ fontSize: '12px', padding: '10px', borderRadius: '4px', backgroundColor: saveMessage.type === 'success' ? '#10b98122' : '#ef444422', color: saveMessage.type === 'success' ? '#10b981' : '#ef4444', border: `1px solid ${saveMessage.type === 'success' ? '#10b98155' : '#ef444455'}` }}>
+                                    <div style={{ fontSize: '12px', padding: '10px', borderRadius: '4px', backgroundColor: saveMessage.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-error-bg)', color: saveMessage.type === 'success' ? 'var(--color-success)' : 'var(--color-error)', border: `1px solid ${saveMessage.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-error-bg)'}` }}>
                                         {saveMessage.text}
                                     </div>
                                 )}
@@ -1116,9 +1116,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 {cloudTestResult && (
                                     <div style={{ 
                                         padding: '12px 15px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px',
-                                        backgroundColor: cloudTestResult.type === 'success' ? '#10b98122' : '#ef444422',
-                                        color: cloudTestResult.type === 'success' ? '#10b981' : '#ef4444',
-                                        border: `1px solid ${cloudTestResult.type === 'success' ? '#10b98155' : '#ef444455'}`
+                                        backgroundColor: cloudTestResult.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
+                                        color: cloudTestResult.type === 'success' ? 'var(--color-success)' : 'var(--color-error)',
+                                        border: `1px solid ${cloudTestResult.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-error-bg)'}`
                                     }}>
                                         {cloudTestResult.type === 'success' ? <LuCheck /> : <LuX />}
                                         {cloudTestResult.text}
@@ -1164,7 +1164,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                                 {/* Sponsor CTA */}
                                 <div style={{ backgroundColor: 'var(--accent-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--accent-muted)', textAlign: 'center' }}>
-                                    <LuHeart size={20} style={{ color: '#ef4444', marginBottom: '8px' }} />
+                                    <LuHeart size={20} style={{ color: 'var(--color-error)', marginBottom: '8px' }} />
                                     <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--text-active)', lineHeight: '1.5' }}>
                                         <strong>Love AmoxSQL?</strong> Your support helps us keep building new features, improving performance, and making data analysis accessible to everyone.
                                     </p>
@@ -1198,7 +1198,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         <a href="https://github.com/dsandovalflavio" onClick={(e) => openExternalLink(e, 'https://github.com/dsandovalflavio')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-active)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
                                             <LuGlobe size={14} /> Creator Profile
                                         </a>
-                                        <a href="https://github.com/sponsors/dsandovalflavio" onClick={(e) => openExternalLink(e, 'https://github.com/sponsors/dsandovalflavio')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
+                                        <a href="https://github.com/sponsors/dsandovalflavio" onClick={(e) => openExternalLink(e, 'https://github.com/sponsors/dsandovalflavio')} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-error)', textDecoration: 'none', fontSize: '12px', padding: '6px 12px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', transition: 'all 0.2s', cursor: 'pointer' }}>
                                             <LuHeart size={14} /> Sponsor
                                         </a>
                                     </div>

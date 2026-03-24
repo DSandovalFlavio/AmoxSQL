@@ -9,13 +9,13 @@ const GAP_X = 80;
 const GAP_Y = 28;
 
 const TYPE_COLORS = {
-    source: { bg: '#1a3a2a', border: '#22c55e', text: '#4ade80' },
-    seed: { bg: '#2a2a1a', border: '#eab308', text: '#facc15' },
-    model: { bg: '#1a2a3a', border: '#3b82f6', text: '#60a5fa' },
-    snapshot: { bg: '#2a1a3a', border: '#a855f7', text: '#c084fc' },
-    test: { bg: '#3a2a1a', border: '#f97316', text: '#fb923c' },
-    exposure: { bg: '#3a1a2a', border: '#ec4899', text: '#f472b6' },
-    analysis: { bg: '#1a2a2a', border: '#14b8a6', text: '#2dd4bf' },
+    source:   { bg: 'var(--node-source-bg)',  border: 'var(--node-source-border)',  text: 'var(--node-source-text)' },
+    seed:     { bg: 'var(--node-staging-bg)', border: 'var(--node-staging-border)', text: 'var(--node-staging-text)' },
+    model:    { bg: 'var(--node-mart-bg)',    border: 'var(--node-mart-border)',    text: 'var(--node-mart-text)' },
+    snapshot: { bg: 'var(--node-other-bg)',   border: 'var(--node-other-border)',   text: 'var(--node-other-text)' },
+    test:     { bg: 'var(--node-other-bg)',   border: 'var(--node-other-border)',   text: 'var(--node-other-text)' },
+    exposure: { bg: 'var(--node-other-bg)',   border: 'var(--node-other-border)',   text: 'var(--node-other-text)' },
+    analysis: { bg: 'var(--node-other-bg)',   border: 'var(--node-other-border)',   text: 'var(--node-other-text)' },
 };
 
 // Simple topological layering (Sugiyama-like)
@@ -271,7 +271,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                                     {/* Resource type badge */}
                                     <rect
                                         x={6} y={6} width={48} height={16}
-                                        rx={3} fill={colors.border + '30'}
+                                        rx={3} fill={colors.border} fillOpacity={0.19}
                                     />
                                     <text x={30} y={17} textAnchor="middle"
                                         fill={colors.text} fontSize={8} fontWeight="600" fontFamily="'JetBrains Mono', monospace"

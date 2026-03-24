@@ -57,7 +57,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                 background: activeTab === id ? 'var(--sidebar-item-active-bg)' : 'transparent',
                 border: 'none',
                 borderBottom: activeTab === id ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                color: activeTab === id ? 'var(--text-active)' : '#888',
+                color: activeTab === id ? 'var(--text-active)' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 fontWeight: activeTab === id ? 'bold' : 'normal',
                 fontSize: '13px',
@@ -106,7 +106,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                     {activeTab === 'EXISTING' && (
                         <div>
                             <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', color: '#666' }}>Select Database File</label>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Select Database File</label>
                                 <select
                                     value={selectedPath || ''}
                                     onChange={(e) => setSelectedPath(e.target.value)}
@@ -119,21 +119,21 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                             </div>
 
                             <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '12px', textTransform: 'uppercase', color: '#666' }}>Connection Mode</label>
+                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Connection Mode</label>
 
-                                <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer', marginBottom: '15px', padding: '10px', border: mode === 'READ_ONLY' ? '1px solid var(--accent-color-user)' : '1px solid #333', borderRadius: '4px', background: mode === 'READ_ONLY' ? 'var(--accent-color-user-transparent)' : 'transparent' }}>
+                                <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer', marginBottom: '15px', padding: '10px', border: mode === 'READ_ONLY' ? '1px solid var(--accent-color-user)' : '1px solid var(--border-default)', borderRadius: '4px', background: mode === 'READ_ONLY' ? 'var(--accent-color-user-transparent)' : 'transparent' }}>
                                     <input type="radio" name="dbmode" value="READ_ONLY" checked={mode === 'READ_ONLY'} onChange={(e) => setMode(e.target.value)} style={{ marginTop: '3px' }} />
                                     <div style={{ marginLeft: '10px' }}>
                                         <div style={{ color: 'var(--accent-color-user)', fontWeight: 'bold', fontSize: '14px' }}>Read Only</div>
-                                        <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>Safe for browsing. Prevents file locks.</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Safe for browsing. Prevents file locks.</div>
                                     </div>
                                 </label>
 
-                                <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer', padding: '10px', border: mode === 'READ_WRITE' ? '1px solid #00aeff' : '1px solid #333', borderRadius: '4px', background: mode === 'READ_WRITE' ? 'rgba(0, 174, 255, 0.05)' : 'transparent' }}>
+                                <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer', padding: '10px', border: mode === 'READ_WRITE' ? '1px solid var(--color-info)' : '1px solid var(--border-default)', borderRadius: '4px', background: mode === 'READ_WRITE' ? 'var(--color-info-bg)' : 'transparent' }}>
                                     <input type="radio" name="dbmode" value="READ_WRITE" checked={mode === 'READ_WRITE'} onChange={(e) => setMode(e.target.value)} style={{ marginTop: '3px' }} />
                                     <div style={{ marginLeft: '10px' }}>
-                                        <div style={{ color: '#00aeff', fontWeight: 'bold', fontSize: '14px' }}>Read / Write</div>
-                                        <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>Exclusive lock. Create tables and edit data.</div>
+                                        <div style={{ color: 'var(--color-info)', fontWeight: 'bold', fontSize: '14px' }}>Read / Write</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Exclusive lock. Create tables and edit data.</div>
                                     </div>
                                 </label>
                             </div>
@@ -144,7 +144,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                     {activeTab === 'CREATE' && (
                         <div>
                             <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', color: '#666' }}>New Database Name</label>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>New Database Name</label>
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
                                     <input
                                         type="text"
@@ -158,7 +158,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                                         .duckdb
                                     </div>
                                 </div>
-                                <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '8px' }}>
                                     This will create a new file in your project folder.
                                 </p>
                             </div>
@@ -172,9 +172,9 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                     {/* --- TAB: MEMORY --- */}
                     {activeTab === 'MEMORY' && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', paddingTop: '20px' }}>
-                            <div style={{ marginBottom: '15px', color: '#888' }}><LuBrain size={48} /></div>
-                            <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>In-Memory Session</h4>
-                            <p style={{ fontSize: '13px', color: '#999', maxWidth: '300px', lineHeight: '1.5' }}>
+                            <div style={{ marginBottom: '15px', color: 'var(--text-secondary)' }}><LuBrain size={48} /></div>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>In-Memory Session</h4>
+                            <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', maxWidth: '300px', lineHeight: '1.5' }}>
                                 Run queries and analyze data without creating any files. All data will be lost when you close the app.
                             </p>
                         </div>
@@ -190,7 +190,7 @@ const DatabaseSelectionModal = ({ isOpen, dbFiles, onSelect, onCancel }) => {
                         style={{
                             backgroundColor: activeTab === 'CREATE' ? 'var(--accent-color-user)' : 'var(--accent-color-user)',
                             padding: '10px 24px', borderRadius: '4px', border: 'none',
-                            color: '#141517', fontWeight: 'bold', cursor: 'pointer',
+                            color: 'var(--surface-base)', fontWeight: 'bold', cursor: 'pointer',
                             transition: 'all 0.2s',
                             opacity: (activeTab === 'CREATE' && !newDbName.trim()) ? 0.5 : 1
                         }}

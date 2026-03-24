@@ -178,13 +178,13 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
 
     // Early Returns after all Hooks
     if (!data || data.length === 0) {
-        return <div style={{ padding: '10px' }}>No results{executionTime ? ` (${executionTime}ms)` : ''}</div>;
+        return <div className="rt-no-results">No results{executionTime ? ` (${executionTime}ms)` : ''}</div>;
     }
 
     const columns = (data && data.length > 0 && data[0]) ? Object.keys(data[0]) : [];
 
     if (columns.length === 0) {
-        return <div style={{ padding: '10px' }}>No columns found in result.</div>;
+        return <div className="rt-no-results">No columns found in result.</div>;
     }
 
     // Handlers
@@ -307,18 +307,15 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
 
     const formatValue = (val) => {
         try {
-            if (val === null || val === undefined) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>NULL</span>;
+            if (val === null || val === undefined) return <span className="rt-null">NULL</span>;
 
             if (typeof val === 'number') {
                 if (Number.isInteger(val)) {
                     return val.toLocaleString();
                 }
-                // Floats: Limit decimals but show full value on hover
-                // Using 'en-US' or undefined to get dot/comma based on locale, but typically dot for decimals in dev tools is preferred. 
-                // Let's use undefined to respect browser locale or force standard if needed. 
                 const formatted = val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
                 return (
-                    <span title={String(val)} style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}>
+                    <span title={String(val)} className="rt-float">
                         {formatted}
                     </span>
                 );
@@ -340,103 +337,79 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Header / Toolbar */}
+        <div className="rt-container">
+            {/* Toolbar */}
             {!isReportMode && (
-                <div style={{ padding: '8px 12px', background: 'var(--panel-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
-
+                <div className="rt-toolbar">
                     {/* Top Row: Controls & Stats */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <div className="rt-toolbar-row">
+                        <div className="rt-toolbar-left">
                             {/* View Switcher */}
-                            <div style={{ display: 'flex', backgroundColor: 'var(--input-bg)', borderRadius: '4px', padding: '2px', border: '1px solid var(--border-color)' }}>
-                                <button onClick={() => handleViewModeChange('table')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'table' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'table' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <LuTable size={14} /> Table
+                            <div className="rt-view-switcher">
+                                <button className={`rt-view-btn${viewMode === 'table' ? ' active' : ''}`} onClick={() => handleViewModeChange('table')}>
+                                    <LuTable size={13} /> Table
                                 </button>
-                                <button onClick={() => handleViewModeChange('chart')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'chart' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'chart' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <LuChartBar size={14} /> Chart
+                                <button className={`rt-view-btn${viewMode === 'chart' ? ' active' : ''}`} onClick={() => handleViewModeChange('chart')}>
+                                    <LuChartBar size={13} /> Chart
                                 </button>
-                                <button onClick={() => handleViewModeChange('profile')} style={{ padding: '4px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', backgroundColor: viewMode === 'profile' ? 'var(--accent-color-user)' : 'transparent', color: viewMode === 'profile' ? 'var(--button-text-color)' : 'var(--text-muted)', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <LuGauge size={14} /> Profile
+                                <button className={`rt-view-btn${viewMode === 'profile' ? ' active' : ''}`} onClick={() => handleViewModeChange('profile')}>
+                                    <LuGauge size={13} /> Profile
                                 </button>
                             </div>
 
-                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                            <span className="rt-stats">
                                 {totalRows} result{totalRows !== 1 ? 's' : ''} ({executionTime}ms)
                                 {data.length !== totalRows && ` [Filtered from ${data.length}]`}
                             </span>
                         </div>
 
                         {/* Right Actions */}
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div className="rt-toolbar-right">
                             {/* Global Search */}
                             {viewMode === 'table' && (
-                                <div style={{ position: 'relative' }}>
+                                <div className="rt-search">
                                     <input
                                         type="text"
-                                        placeholder="Global Search..."
+                                        className="rt-search-input"
+                                        placeholder="Search..."
                                         value={globalSearch}
                                         onChange={(e) => { setGlobalSearch(e.target.value); setCurrentPage(1); }}
-                                        style={{
-                                            backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)',
-                                            padding: '4px 8px 4px 28px', borderRadius: '4px', fontSize: '12px', width: '180px'
-                                        }}
                                     />
-                                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', opacity: 0.5, display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
-                                        <LuSearch size={14} />
+                                    <span className="rt-search-icon">
+                                        <LuSearch size={12} />
                                     </span>
                                 </div>
                             )}
 
-                            {/* Export / Save / Popout */}
                             {onPopout && (
-                                <button onClick={onPopout} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <LuExternalLink size={14} /> Pop-out
+                                <button className="rt-action-btn" onClick={onPopout}>
+                                    <LuExternalLink size={12} /> Pop-out
                                 </button>
                             )}
-                            <button onClick={() => setIsSaveDbModalOpen(true)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <LuSave size={14} /> Save to DB
+                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)}>
+                                <LuSave size={12} /> Save to DB
                             </button>
 
                             {/* Export Dropdown */}
-                            <div style={{ position: 'relative' }}>
-                                <button
-                                    onClick={() => setShowExportMenu(!showExportMenu)}
-                                    style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--sidebar-item-hover-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
-                                >
-                                    <LuFileDown size={14} /> Export ▾
+                            <div className="toolbar-dropdown">
+                                <button className="rt-action-btn" onClick={() => setShowExportMenu(!showExportMenu)}>
+                                    <LuFileDown size={12} /> Export ▾
                                 </button>
                                 {showExportMenu && (
-                                    <div style={{
-                                        position: 'absolute', right: 0, top: '100%', marginTop: '4px',
-                                        backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
-                                        borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
-                                        padding: '4px', minWidth: '160px', backdropFilter: 'blur(12px)',
-                                        animation: 'dropdown-in 0.15s ease-out',
-                                    }}>
-                                        <div style={{ padding: '4px 12px 2px', fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Export</div>
-                                        {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={14} />, fn: handleExportCsv },
-                                        { label: 'Export JSON', icon: <LuFileJson size={14} />, fn: handleExportJson },
-                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={14} />, fn: handleCopyClipboard },
+                                    <div className="toolbar-dropdown-menu" style={{ right: 0, left: 'auto' }}>
+                                        <div className="rt-dropdown-section">Quick Export</div>
+                                        {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv },
+                                        { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson },
+                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard },
                                         ].map(item => (
-                                            <div key={item.label}
-                                                onClick={() => { item.fn(); setShowExportMenu(false); }}
-                                                style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                                                onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                                                onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                                            >
+                                            <div key={item.label} className="toolbar-dropdown-item" onClick={() => { item.fn(); setShowExportMenu(false); }}>
                                                 {item.icon} {item.label}
                                             </div>
                                         ))}
-                                        <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
-                                        <div style={{ padding: '4px 12px 2px', fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Full Export (DuckDB)</div>
-                                        <div
-                                            onClick={() => { setIsExportDataOpen(true); setShowExportMenu(false); }}
-                                            style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease', fontWeight: 600 }}
-                                            onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; }}
-                                            onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
-                                        >
-                                            <LuFileDown size={14} /> Export to File…
+                                        <div className="rt-dropdown-separator" />
+                                        <div className="rt-dropdown-section">Full Export (DuckDB)</div>
+                                        <div className="toolbar-dropdown-item rt-dropdown-accent" onClick={() => { setIsExportDataOpen(true); setShowExportMenu(false); }}>
+                                            <LuFileDown size={13} /> Export to File…
                                         </div>
                                     </div>
                                 )}
@@ -446,119 +419,77 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
 
                     {/* Bottom Row: Pagination & Filters Toggle */}
                     {viewMode === 'table' && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', userSelect: 'none' }}>
-                                    <input type="checkbox" checked={showFilters} onChange={(e) => setShowFilters(e.target.checked)} style={{ accentColor: 'var(--accent-color-user)' }} />
-                                    Show Column Filters
-                                </label>
-                            </div>
+                        <div className="rt-pagination-row">
+                            <label className="rt-filter-toggle">
+                                <input type="checkbox" checked={showFilters} onChange={(e) => setShowFilters(e.target.checked)} />
+                                Column Filters
+                            </label>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ padding: '2px 6px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', cursor: 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}>&lt;</button>
-                                <span> Page {currentPage} of {totalPages} </span>
-                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ padding: '2px 6px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', cursor: 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}>&gt;</button>
-                                <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} style={{ marginLeft: '10px', background: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', padding: '2px', borderRadius: '3px' }}>
-                                    <option value={50}>50 rows</option>
-                                    <option value={100}>100 rows</option>
-                                    <option value={500}>500 rows</option>
-                                    <option value={1000}>1000 rows</option>
+                            <div className="rt-pagination">
+                                <button className="rt-pagination-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>&lt;</button>
+                                <span className="rt-page-info">Page {currentPage} of {totalPages}</span>
+                                <button className="rt-pagination-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>&gt;</button>
+                                <select className="rt-page-select" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={500}>500</option>
+                                    <option value={1000}>1000</option>
                                 </select>
                             </div>
                         </div>
                     )}
                 </div>
-            )
-            }
+            )}
 
             {/* Results Content */}
-            <div style={{ flex: 1, overflow: viewMode === 'chart' ? 'hidden' : (isReportMode ? 'visible' : 'auto'), border: isReportMode ? 'none' : '1px solid var(--border-color)', marginTop: isReportMode ? '0px' : '10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: viewMode === 'chart' ? '200px' : undefined, animation: 'fadeIn 0.25s ease' }}>
-                {/* Table — always mounted, hidden via CSS */}
+            <div className={`rt-content${isReportMode ? ' report-mode' : ''}`} style={viewMode === 'chart' ? { overflow: 'hidden', minHeight: '200px' } : undefined}>
+                {/* Table */}
                 <div style={{ display: viewMode === 'table' ? 'contents' : 'none' }}>
-                    <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontSize: `${editorSettings.resultsFontSize || 13}px`, tableLayout: 'fixed', width: '100%' }}>
-                        <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+                    <table className="rt-table" style={{ fontSize: `${editorSettings.resultsFontSize || 13}px` }}>
+                        <thead className="rt-thead">
                             <tr>
                                 {columns.map((col) => {
                                     const isSorted = sortConfig?.key === col;
-
                                     return (
                                         <th
                                             key={col}
+                                            className="rt-th"
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 setContextMenu({ x: e.clientX, y: e.clientY, column: col });
                                             }}
-                                            style={{
-                                                position: 'relative',
-                                                backgroundColor: 'var(--table-header-bg)',
-                                                color: 'var(--text-active)',
-                                                borderRight: '1px solid var(--border-color)',
-                                                borderBottom: '1px solid var(--border-color)',
-                                                width: columnWidths[col] || 150,
-                                                minWidth: '50px',
-                                                padding: '4px 8px'
-                                            }}
+                                            style={{ width: columnWidths[col] || 150 }}
                                         >
-                                            <div
-                                                onClick={() => handleSort(col)}
-                                                title="Click to sort"
-                                                style={{
-                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                    cursor: 'pointer', userSelect: 'none', height: '100%',
-                                                    overflow: 'hidden', whiteSpace: 'nowrap'
-                                                }}
-                                            >
-                                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{col}</span>
+                                            <div className="rt-th-inner" onClick={() => handleSort(col)} title="Click to sort">
+                                                <div className="rt-th-col">
+                                                    <span className="rt-th-name">{col}</span>
                                                     {types && types[col] && (
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>{types[col]}</span>
+                                                        <span className="rt-th-type">{types[col]}</span>
                                                     )}
                                                 </div>
-                                                <span style={{ fontSize: '10px', opacity: 0.7, display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '4px' }}>
+                                                <span className="rt-th-sort">
                                                     {isSorted && (sortConfig.direction === 'asc' ? <LuChevronUp size={10} /> : <LuChevronDown size={10} />)}
                                                 </span>
                                             </div>
-
-                                            {/* Column Resizer Handle */}
                                             <div
+                                                className={`rt-th-resizer${resizeState.isResizing && resizeState.column === col ? ' active' : ''}`}
                                                 onMouseDown={(e) => handleResizeMouseDown(e, col)}
-                                                style={{
-                                                    position: 'absolute',
-                                                    right: 0,
-                                                    top: 0,
-                                                    bottom: 0,
-                                                    width: '6px',
-                                                    cursor: 'col-resize',
-                                                    backgroundColor: resizeState.isResizing && resizeState.column === col ? 'var(--accent-color-user)' : 'transparent',
-                                                    zIndex: 10,
-                                                    transition: 'background-color 0.1s'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    if (!resizeState.isResizing) e.currentTarget.style.backgroundColor = 'var(--accent-muted)';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    if (!resizeState.isResizing || resizeState.column !== col) e.currentTarget.style.backgroundColor = 'transparent';
-                                                }}
                                             />
                                         </th>
                                     );
                                 })}
                             </tr>
-                            {/* Filter Row */}
                             {showFilters && !isReportMode && (
                                 <tr>
                                     {columns.map((col) => (
-                                        <td key={`filter-${col}`} style={{ padding: '4px', backgroundColor: 'var(--table-header-bg)', borderBottom: '1px solid var(--border-color)' }}>
+                                        <td key={`filter-${col}`} className="rt-filter-cell">
                                             <input
                                                 type="text"
+                                                className="rt-filter-input"
                                                 placeholder={`Filter ${col}...`}
                                                 value={columnFilters[col] || ''}
                                                 onChange={(e) => handleFilterChange(col, e.target.value)}
-                                                style={{
-                                                    width: '100%', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-active)',
-                                                    fontSize: '11px', padding: '2px 4px', borderRadius: '2px'
-                                                }}
                                             />
                                         </td>
                                     ))}
@@ -570,13 +501,15 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 currentData.map((row, rowIndex) => (
                                     <tr key={rowIndex}>
                                         {columns.map((col) => (
-                                            <td key={`${rowIndex}-${col}`} title={row ? (typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col] ?? '')) : ''} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '4px 8px' }}>{formatValue(row ? row[col] : null)}</td>
+                                            <td key={`${rowIndex}-${col}`} className="rt-td" title={row ? (typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col] ?? '')) : ''}>
+                                                {formatValue(row ? row[col] : null)}
+                                            </td>
                                         ))}
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                                    <td colSpan={columns.length} className="rt-empty">
                                         No matching records found.
                                     </td>
                                 </tr>
@@ -585,13 +518,13 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                     </table>
                 </div>
 
-                {/* Chart — always mounted, hidden via CSS to preserve config state */}
-                <div style={{ display: viewMode === 'chart' ? 'flex' : 'none', flex: 1, flexDirection: 'column', height: '100%' }}>
+                {/* Chart */}
+                <div className={`rt-panel chart${viewMode === 'chart' ? ' visible' : ' hidden'}`}>
                     <DataVisualizer data={data} isReportMode={isReportMode} query={query} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} />
                 </div>
 
-                {/* Profile — always mounted, hidden via CSS to preserve useMemo cache */}
-                <div style={{ display: viewMode === 'profile' ? 'flex' : 'none', flex: 1, flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                {/* Profile */}
+                <div className={`rt-panel profile${viewMode === 'profile' ? ' visible' : ' hidden'}`}>
                     <DataProfiler data={data} isActive={viewMode === 'profile'} query={query} />
                 </div>
             </div>
@@ -615,34 +548,22 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                     style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 99999 }}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div
-                        className="column-context-menu-item"
-                        onClick={() => { navigator.clipboard.writeText(contextMenu.column); setContextMenu(null); }}
-                    >
+                    <div className="column-context-menu-item" onClick={() => { navigator.clipboard.writeText(contextMenu.column); setContextMenu(null); }}>
                         <LuClipboardCopy size={13} /> Copy Column Name
                     </div>
-                    <div
-                        className="column-context-menu-item"
-                        onClick={() => { navigator.clipboard.writeText(columns.join(', ')); setContextMenu(null); }}
-                    >
+                    <div className="column-context-menu-item" onClick={() => { navigator.clipboard.writeText(columns.join(', ')); setContextMenu(null); }}>
                         <LuClipboardCopy size={13} /> Copy All Column Names
                     </div>
                     <div className="column-context-menu-separator" />
-                    <div
-                        className="column-context-menu-item"
-                        onClick={() => { handleSort(contextMenu.column); setContextMenu(null); }}
-                    >
+                    <div className="column-context-menu-item" onClick={() => { handleSort(contextMenu.column); setContextMenu(null); }}>
                         <LuChevronUp size={13} /> Sort Ascending
                     </div>
-                    <div
-                        className="column-context-menu-item"
-                        onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'desc' }); setContextMenu(null); }}
-                    >
+                    <div className="column-context-menu-item" onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'desc' }); setContextMenu(null); }}>
                         <LuChevronDown size={13} /> Sort Descending
                     </div>
                 </div>
             )}
-        </div >
+        </div>
     );
 }
 
