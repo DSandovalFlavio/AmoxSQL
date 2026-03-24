@@ -147,17 +147,17 @@ const QueryHistoryPanel = ({ onSelect }) => {
                             <span
                                 onClick={(e) => toggleBookmark(query, e)}
                                 title={starred ? 'Remove bookmark' : 'Bookmark'}
-                                style={{ cursor: 'pointer', color: starred ? '#f59e0b' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', transition: 'color 120ms ease' }}
+                                style={{ cursor: 'pointer', color: starred ? 'var(--feedback-warning)' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', transition: 'color 120ms ease' }}
                             >
-                                <LuStar size={11} fill={starred ? '#f59e0b' : 'none'} />
+                                <LuStar size={11} fill={starred ? 'var(--feedback-warning)' : 'none'} />
                             </span>
                         ) : (
                             <span
                                 onClick={(e) => removeBookmark(query, e)}
                                 title="Remove"
-                                style={{ cursor: 'pointer', color: '#f59e0b', display: 'flex', alignItems: 'center' }}
+                                style={{ cursor: 'pointer', color: 'var(--feedback-warning)', display: 'flex', alignItems: 'center' }}
                             >
-                                <LuStar size={11} fill="#f59e0b" />
+                                <LuStar size={11} fill="var(--feedback-warning)" />
                             </span>
                         )}
                         <span

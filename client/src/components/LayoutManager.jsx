@@ -617,20 +617,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     return (
         <div
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}
+            className="lm-container"
             onDragOver={handleGlobalDragOver}
             onDrop={handleGlobalDrop}
             onDragEnd={handleDragEnd}
         >
             {/* Visual Overlays for Drop Zones */}
             {dragOverZone === 'left-edge' && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '50%', height: '100%', background: 'var(--accent-color-user-transparent)', borderRight: '2px solid var(--accent-color-user)', zIndex: 9999, pointerEvents: 'none' }} />
+                <div className="lm-drop-zone left" />
             )}
             {dragOverZone === 'right-edge' && (
-                <div style={{ position: 'absolute', top: 0, right: 0, width: '50%', height: '100%', background: 'var(--accent-color-user-transparent)', borderLeft: '2px solid var(--accent-color-user)', zIndex: 9999, pointerEvents: 'none' }} />
+                <div className="lm-drop-zone right" />
             )}
 
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <div className="lm-panes">
                 <EditorPane
                     paneId="left"
                     isActive={activePane === 'left'}

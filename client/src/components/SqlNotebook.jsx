@@ -394,7 +394,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     }, [isFullView]);
 
     const toolbarContent = (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isFullView ? '16px' : '24px', position: 'sticky', top: 0, zIndex: 10, backgroundColor: isFullView ? '#0d0f11' : 'var(--editor-bg)', paddingBottom: '10px', paddingTop: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isFullView ? '16px' : '24px', position: 'sticky', top: 0, zIndex: 10, backgroundColor: isFullView ? 'var(--surface-base)' : 'var(--editor-bg)', paddingBottom: '10px', paddingTop: '10px' }}>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <div style={{ display: 'flex', backgroundColor: 'var(--panel-bg)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <button
@@ -443,7 +443,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                         onClick={runAll}
                         style={{
                             padding: '6px 14px', backgroundColor: 'var(--panel-bg)',
-                            color: '#20c997',
+                            color: 'var(--feedback-success)',
                             border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
                             display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease'
                         }}
@@ -455,9 +455,9 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                     <button
                         onClick={stopBatch}
                         style={{
-                            padding: '6px 14px', backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                            color: '#ff6b6b',
-                            border: '1px solid #ff6b6b', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                            padding: '6px 14px', backgroundColor: 'var(--feedback-error-bg)',
+                            color: 'var(--feedback-error)',
+                            border: '1px solid var(--feedback-error)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
                             display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease'
                         }}
                         title="Stop Execution"
@@ -516,7 +516,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     const isReportActive = viewMode === 'report' || isFullView;
 
     const notebookContent = (
-        <div className={`notebook-container ${isReportActive ? 'report-mode-container' : ''}`} style={{ padding: '20px', height: '100%', overflowY: 'auto', backgroundColor: isFullView ? '#0d0f11' : 'var(--editor-bg)' }}>
+        <div className={`notebook-container ${isReportActive ? 'report-mode-container' : ''}`} style={{ padding: '20px', height: '100%', overflowY: 'auto', backgroundColor: isFullView ? 'var(--surface-base)' : 'var(--editor-bg)' }}>
 
             {toolbarContent}
 
@@ -620,7 +620,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 position: 'fixed',
                 inset: 0,
                 zIndex: 9999,
-                backgroundColor: '#0d0f11',
+                backgroundColor: 'var(--surface-base)',
                 overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column'

@@ -17,8 +17,11 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.53",
     "@duckdb/node-api": "^1.5.0-r.1",
     "@google/generative-ai": "^0.24.1",
+    "ai": "^6.0.137",
+    "ai-sdk-ollama": "^3.8.2",
     "cors": "^2.8.6",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.2.1",

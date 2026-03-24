@@ -41,7 +41,7 @@ const OpenProjectModal = ({ isOpen, onClose, onOpen }) => {
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                         <button type="button" onClick={onClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
-                        <button type="submit" style={{ backgroundColor: 'var(--button-bg-primary)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Open</button>
+                        <button type="submit" style={{ backgroundColor: 'var(--button-bg-primary)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>Open</button>
                     </div>
                 </form>
             </div>

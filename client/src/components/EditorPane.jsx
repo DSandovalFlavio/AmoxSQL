@@ -229,9 +229,9 @@ const EditorPane = ({
 
     if (!activeTab) {
         return (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--editor-bg)', borderLeft: '1px solid var(--border-color)' }}>
+            <div className="ep-container">
                 <TabBar tabs={tabs} activeTabId={activeTabId} onTabClick={onTabClick} onTabClose={onTabClose} />
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
+                <div className="ep-empty-message">
                     No file open
                 </div>
             </div>
@@ -243,7 +243,7 @@ const EditorPane = ({
     // Results panel content (shared between both layouts)
     const resultsContent = (
         <>
-            {activeTab.resultsError && <div style={{ color: 'red', padding: '10px' }}>Error: {activeTab.resultsError}</div>}
+            {activeTab.resultsError && <div className="ep-error">Error: {activeTab.resultsError}</div>}
 
             {activeTab.results && (
                 <>
@@ -260,15 +260,12 @@ const EditorPane = ({
                             onPopout={handlePopout}
                         />
                     )}
-                    
+
                     {isPoppedOut && (
-                        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', backgroundColor: 'var(--panel-bg)', borderRadius: '6px', margin: '16px' }}>
+                        <div className="ep-popout-notice">
                             Results for {activeTab.name} are actively displayed in a detached window.
-                            <div style={{ marginTop: '12px' }}>
-                                <button 
-                                    onClick={() => setIsPoppedOut(false)}
-                                    style={{ padding: '6px 12px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-active)' }}
-                                >
+                            <div>
+                                <button onClick={() => setIsPoppedOut(false)}>
                                     Bring Back Here
                                 </button>
                             </div>
@@ -278,7 +275,7 @@ const EditorPane = ({
             )}
 
             {!activeTab.results && !activeTab.resultsError && (
-                <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                <div className="ep-no-results">
                     Run query (Ctrl+Enter) to see results.
                 </div>
             )}
@@ -287,15 +284,7 @@ const EditorPane = ({
 
     return (
         <div
-            style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'var(--editor-bg)',
-                borderLeft: '1px solid var(--border-color)',
-                overflow: 'hidden',
-                position: 'relative'
-            }}
+            className="ep-container"
             onClickCapture={() => onTabClick && activeTabId && onTabClick(activeTabId)}
             onDragEnter={(e) => {
                 if (e.dataTransfer.types.includes('Files')) {
@@ -339,11 +328,11 @@ const EditorPane = ({
                 onReorder={onReorder}
             />
 
-            <div ref={containerRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', minHeight: 0 }}>
+            <div ref={containerRef} className="ep-inner">
 
                 {/* Content Area */}
                 {isNotebook ? (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', outline: isActive ? '1px solid var(--accent-color-user)' : 'none', zIndex: isActive ? 1 : 0 }}>
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <SqlNotebook
                             key={activeTab.id}
                             content={activeTab.content}
@@ -353,17 +342,12 @@ const EditorPane = ({
                         />
                     </div>
                 ) : (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: isVertical ? 'row' : 'column', overflow: 'hidden', minHeight: 0 }}>
+                    <div className={`ep-editor-area${isVertical ? ' vertical' : ''}`}>
                         {/* Editor Section */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 60 }}>
+                        <div className="ep-editor-section">
                             {/* Variables Bar */}
                             <VariablesBar variables={variables || []} onChange={onVariablesChange || (() => { })} />
-                            <div style={{
-                                flex: 1,
-                                overflow: 'hidden',
-                                outline: isActive ? '1px solid var(--accent-color-user)' : 'none',
-                                zIndex: isActive ? 10 : 0
-                            }}>
+                            <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
                                 <SqlEditor
                                     value={activeTab.content}
                                     language={activeTab.type === 'md' ? 'markdown' : 'sql'}
@@ -381,44 +365,22 @@ const EditorPane = ({
 
                         {/* Resizer Handle */}
                         <div
-                            className="resizer-handle"
+                            className={`ep-resizer${isVertical ? ' vertical' : ''}`}
                             onMouseDown={startResizing}
-                            style={isVertical ? {
-                                width: '5px', height: '100%', cursor: 'col-resize',
-                                background: 'var(--border-color)', zIndex: 10, flexShrink: 0
-                            } : {
-                                height: '5px', width: '100%', cursor: 'row-resize',
-                                background: 'var(--border-color)', zIndex: 10, flexShrink: 0
-                            }}
-                        ></div>
+                        />
 
                         {/* Results Section */}
-                        <div className="results-container" style={isVertical ? {
-                            width: resultsWidth, minWidth: 200, height: '100%',
-                            display: 'flex', flexDirection: 'column', overflow: 'auto'
-                        } : {
-                            height: resultsHeight,
-                            maxHeight: 'calc(100% - 60px)',
-                            flexShrink: 0,
-                            display: 'flex', flexDirection: 'column', overflow: 'hidden'
-                        }}>
+                        <div
+                            className={`ep-results${isVertical ? ' vertical' : ''}`}
+                            style={isVertical ? { width: resultsWidth } : { height: resultsHeight }}
+                        >
                             {resultsContent}
                         </div>
                     </div>
                 )}
 
                 {/* Ghost Splitter Line */}
-                <div
-                    ref={ghostRef}
-                    style={{
-                        position: 'absolute',
-                        display: 'none',
-                        backgroundColor: 'var(--accent-color-user)',
-                        zIndex: 9999,
-                        pointerEvents: 'none',
-                        opacity: 0.8
-                    }}
-                />
+                <div ref={ghostRef} className="ep-ghost" />
             </div>
 
             <DebugResultModal
@@ -431,27 +393,11 @@ const EditorPane = ({
 
             {/* File Drop Overlay */}
             {showDropZone && (
-                <div style={{
-                    position: 'absolute', inset: 0, zIndex: 9999,
-                    background: 'rgba(0,0,0,0.6)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    pointerEvents: 'none',
-                    border: '2px dashed var(--accent-primary)',
-                    borderRadius: '8px'
-                }}>
-                    <div style={{
-                        color: 'var(--accent-primary)',
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        textAlign: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }}>
-                        <span style={{ fontSize: '36px' }}>📁</span>
+                <div className="ep-drop-overlay">
+                    <div className="ep-drop-content">
+                        <span className="ep-drop-icon">📁</span>
                         Drop files to import
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400' }}>CSV, Parquet, XLSX, JSON, SQL</span>
+                        <span className="ep-drop-subtitle">CSV, Parquet, XLSX, JSON, SQL</span>
                     </div>
                 </div>
             )}

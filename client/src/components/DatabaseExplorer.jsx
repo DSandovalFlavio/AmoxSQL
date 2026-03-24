@@ -106,75 +106,48 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div className="db-explorer">
             {/* ER Diagram Full Panel View */}
             {showErDiagram ? (
                 <>
-                    <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px' }}>
-                        <button
-                            onClick={() => setShowErDiagram(false)}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}
-                        >
+                    <div className="db-header">
+                        <button className="db-back-btn" onClick={() => setShowErDiagram(false)}>
                             <LuArrowLeft size={14} /> Back to Schema
                         </button>
                     </div>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div className="db-er-container">
                         <ErDiagram onCreateTab={onSelectQuery ? (ddl) => onSelectQuery(ddl) : undefined} />
                     </div>
                 </>
             ) : (
             <>
             {/* Header */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', position: 'relative' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Database Schema</span>
-                <div style={{ display: 'flex', gap: '5px' }}>
-                    <button onClick={fetchTables} title="Refresh" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center' }}>
+            <div className="db-header">
+                <span className="db-header-title">Database Schema</span>
+                <div className="db-header-actions">
+                    <button className="db-header-btn" onClick={fetchTables} title="Refresh">
                         <LuRefreshCw size={14} />
                     </button>
                     <button
+                        className="db-header-btn"
                         onClick={(e) => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); }}
                         title="Options"
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center' }}
                     >
                         <LuEllipsisVertical size={14} />
                     </button>
 
                     {/* Header Menu */}
                     {showHeaderMenu && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '30px',
-                            right: '10px',
-                            background: 'var(--surface-overlay)',
-                            border: '1px solid var(--border-default)',
-                            borderRadius: '8px',
-                            zIndex: 9999,
-                            boxShadow: 'var(--shadow-md)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            padding: '4px',
-                            minWidth: '140px',
-                            backdropFilter: 'blur(12px)'
-                        }}>
+                        <div className="ctx-menu" style={{ position: 'absolute', top: '30px', right: '10px' }}>
                             <div
-                                style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                                onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                                onClick={() => {
-                                    setShowHistory(true);
-                                    setShowHeaderMenu(false);
-                                }}
+                                className="ctx-menu-item"
+                                onClick={() => { setShowHistory(true); setShowHeaderMenu(false); }}
                             >
                                 <LuHistory size={14} /> <span>Query History</span>
                             </div>
                             <div
-                                style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                                onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                                onClick={() => {
-                                    setShowErDiagram(true);
-                                    setShowHeaderMenu(false);
-                                }}
+                                className="ctx-menu-item"
+                                onClick={() => { setShowErDiagram(true); setShowHeaderMenu(false); }}
                             >
                                 <LuWorkflow size={14} /> <span>ER Diagram</span>
                             </div>
@@ -184,31 +157,27 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             </div>
 
             {/* Content Container - Tree View & Search */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ padding: '10px 16px 12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <div style={{ position: 'relative' }}>
+            <div className="db-content">
+                <div className="db-search-wrap">
+                    <div className="db-search-container">
                         <input
+                            className="db-search-input"
                             type="text"
                             placeholder="Search tables, views & columns..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            style={{
-                                width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
-                                border: '1px solid var(--border-color)', borderRadius: '4px',
-                                padding: '4px 8px 4px 24px', fontSize: '11px', outline: 'none'
-                            }}
                         />
-                        <LuSearch size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <LuSearch size={12} className="db-search-icon" />
                     </div>
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {loading && <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>Loading...</div>}
+                <div className="db-tree">
+                    {loading && <div className="db-loading">Loading...</div>}
                     {!loading && tables.length === 0 && (
-                        <div style={{ padding: '32px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                            <LuTable size={32} color="var(--text-muted)" style={{ opacity: 0.35 }} />
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No tables found</span>
-                            <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Import files or run CREATE TABLE queries</span>
+                        <div className="db-empty">
+                            <LuTable size={32} className="db-empty-icon" />
+                            <span className="db-empty-title">No tables found</span>
+                            <span className="db-empty-hint">Import files or run CREATE TABLE queries</span>
                         </div>
                     )}
 
@@ -225,7 +194,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         const TableIcon = table.type?.toLowerCase().includes('view') ? LuEye : LuTable;
 
                         return (
-                            <div key={table.name} style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div key={table.name} className="db-table-item">
                                 {/* Table Item */}
                                 <div
                                     draggable
@@ -234,16 +203,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                         e.dataTransfer.setData('application/json', JSON.stringify({ type: 'table', name: table.name }));
                                     }}
                                     onClick={() => toggleExpand(table.name)}
-                                    className="file-item"
-                                    style={{
-                                        padding: '4px 10px 4px 0px', // Custom padding for chevron
-                                        cursor: 'pointer',
-                                        color: 'var(--text-active)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        fontSize: '13px',
-                                    }}
+                                    className="db-table-row"
                                     title="Drag to editor or right click for operations"
                                     onContextMenu={(e) => {
                                         e.preventDefault();
@@ -251,15 +211,15 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                         setContextMenu({ x: e.clientX, y: e.clientY, tableName: table.name });
                                     }}
                                 >
-                                    <div style={{ display: 'flex', width: '20px', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                    <div className="db-chevron">
                                         {isExpanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
                                     </div>
-                                    <TableIcon size={14} color="var(--accent-color-user)" />
-                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{table.name}</span>
+                                    <TableIcon size={14} style={{ color: 'var(--accent-primary)' }} />
+                                    <span className="db-table-name">{table.name}</span>
                                     <span
+                                        className="db-copy-btn"
                                         onClick={(e) => handleCopy(e, table.name)}
                                         title="Copy Table Name"
-                                        style={{ fontSize: '12px', color: 'var(--text-muted)', opacity: 0.6, marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
                                     >
                                         <LuClipboard size={12} />
                                     </span>
@@ -267,40 +227,31 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
                                 {/* Columns Node */}
                                 {isExpanded && table.columns && (
-                                    <div style={{ boxSizing: 'border-box', borderLeft: '1px solid var(--border-subtle)', margin: '0 0 4px 20px', display: 'flex', flexDirection: 'column' }}>
+                                    <div className="db-columns">
                                         {table.columns.map((col, idx) => {
                                             const meta = getTypeMeta(col.data_type);
                                             return (
                                                 <div
-                                                    key={`${col.column_name} -${idx} `}
+                                                    key={`${col.column_name}-${idx}`}
                                                     draggable
                                                     onDragStart={(e) => {
                                                         e.dataTransfer.setData('text/plain', col.column_name);
                                                         e.dataTransfer.setData('application/json', JSON.stringify({ type: 'column', name: col.column_name, tableName: table.name }));
                                                         e.stopPropagation();
                                                     }}
-                                                    className="file-item"
-                                                    style={{
-                                                        padding: '4px 10px 4px 10px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'space-between',
-                                                        fontSize: '12px',
-                                                        cursor: 'grab',
-                                                        color: 'var(--text-color)'
-                                                    }}
+                                                    className="db-column-row"
                                                     title="Drag column to editor"
                                                 >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                                                        <div style={{ width: '14px', textAlign: 'center', color: meta.color }}>{meta.icon}</div>
-                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.column_name}</span>
+                                                    <div className="db-column-left">
+                                                        <div className="db-column-icon" style={{ color: meta.color }}>{meta.icon}</div>
+                                                        <span className="db-column-name">{col.column_name}</span>
                                                     </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{col.data_type.toLowerCase()}</span>
+                                                    <div className="db-column-right">
+                                                        <span className="db-column-type">{col.data_type.toLowerCase()}</span>
                                                         <span
+                                                            className="db-column-copy"
                                                             onClick={(e) => handleCopy(e, col.column_name)}
                                                             title="Copy Column Name"
-                                                            style={{ cursor: 'pointer', opacity: 0.5, fontSize: '12px', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
                                                         >
                                                             <LuClipboard size={12} />
                                                         </span>
@@ -335,91 +286,48 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             <QueryHistoryModal
                 isOpen={showHistory}
                 onClose={() => setShowHistory(false)}
-                onSelect={onSelectQuery} // Pass select handler if parent supports it
+                onSelect={onSelectQuery}
             />
 
             {/* Custom Context Menu */}
             {contextMenu && (
-                <div style={{
-                    position: 'fixed',
-                    top: contextMenu.y,
-                    left: contextMenu.x,
-                    background: 'var(--surface-overlay)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '8px',
-                    zIndex: 9999,
-                    boxShadow: 'var(--shadow-md)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '4px',
-                    backdropFilter: 'blur(12px)'
-                }}>
-                    <div
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                        onClick={() => {
-                            if (onSelectQuery) onSelectQuery(`SELECT * FROM "${contextMenu.tableName}" LIMIT 100; `);
-                            setContextMenu(null);
-                        }}
-                    >
+                <div className="ctx-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+                    <div className="ctx-menu-item" onClick={() => {
+                        if (onSelectQuery) onSelectQuery(`SELECT * FROM "${contextMenu.tableName}" LIMIT 100; `);
+                        setContextMenu(null);
+                    }}>
                         <LuCode size={14} /> Select Top 100
                     </div>
-                    <div
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                        onClick={() => {
-                            setPreviewTable(contextMenu.tableName);
-                            setContextMenu(null);
-                        }}
-                    >
+                    <div className="ctx-menu-item" onClick={() => {
+                        setPreviewTable(contextMenu.tableName);
+                        setContextMenu(null);
+                    }}>
                         <LuEye size={14} /> Preview Table
                     </div>
-                    <div
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                        onClick={() => {
-                            navigator.clipboard.writeText(contextMenu.tableName);
-                            setContextMenu(null);
-                        }}
-                    >
+                    <div className="ctx-menu-item" onClick={() => {
+                        navigator.clipboard.writeText(contextMenu.tableName);
+                        setContextMenu(null);
+                    }}>
                         <LuClipboard size={14} /> Copy Name
                     </div>
-                    <div
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                        onClick={() => {
-                            setDetailsTable(contextMenu.tableName);
-                            setContextMenu(null);
-                        }}
-                    >
+                    <div className="ctx-menu-item" onClick={() => {
+                        setDetailsTable(contextMenu.tableName);
+                        setContextMenu(null);
+                    }}>
                         <LuInfo size={14} /> View Details
                     </div>
-                    <div
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                        onClick={() => {
-                            if (onQualityCheck) onQualityCheck(contextMenu.tableName);
-                            setContextMenu(null);
-                        }}
-                    >
+                    <div className="ctx-menu-item" onClick={() => {
+                        if (onQualityCheck) onQualityCheck(contextMenu.tableName);
+                        setContextMenu(null);
+                    }}>
                         <LuShieldCheck size={14} /> Quality Check
                     </div>
-                    <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px' }} />
-                    <div
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: '#e06c75', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                        onClick={() => {
-                            setTableToDelete(contextMenu.tableName);
-                            setContextMenu(null);
-                            setDeleteModalOpen(true);
-                        }}
-                    >
+                    <div className="ctx-menu-separator" />
+                    <div className="ctx-menu-item danger" onClick={() => {
+                        setTableToDelete(contextMenu.tableName);
+                        setContextMenu(null);
+                        setDeleteModalOpen(true);
+                    }}>
                         <LuTable size={14} /> Drop Table...
                     </div>
                 </div>

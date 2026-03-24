@@ -207,8 +207,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                     cursor: 'pointer', transition: 'all 0.15s',
                                     fontFamily: 'inherit',
                                 }}
-                                onMouseEnter={e => { e.target.style.borderColor = 'var(--accent-color-user)'; e.target.style.backgroundColor = 'var(--sidebar-item-active-bg)'; }}
-                                onMouseLeave={e => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.backgroundColor = 'var(--input-bg)'; }}
+                                className="ai-followup-btn"
                             >
                                 {suggestion}
                             </button>

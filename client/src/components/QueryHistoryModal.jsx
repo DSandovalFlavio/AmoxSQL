@@ -165,8 +165,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                                 cursor: 'pointer',
                                 transition: 'background 0.2s'
                             }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                className="qh-row"
                                 onClick={() => {
                                     if (onSelect) {
                                         onSelect(query);
