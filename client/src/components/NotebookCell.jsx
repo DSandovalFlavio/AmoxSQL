@@ -132,7 +132,29 @@ const NotebookCell = ({
         if (onStateChange) onStateChange(id, { viewMode: mode });
     }, [onStateChange, id]);
 
+    // Debounced propagation of content changes to parent
+    const contentTimerRef = useRef(null);
+    const localContentRef = useRef(localContent);
+    localContentRef.current = localContent;
+
+    useEffect(() => {
+        // Skip the initial render (content comes from parent)
+        if (localContent === content) return;
+
+        if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
+        contentTimerRef.current = setTimeout(() => {
+            onUpdate(id, localContentRef.current, localMetadata);
+        }, 300);
+
+        return () => {
+            if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [localContent]);
+
     const handleBlur = () => {
+        // Flush any pending debounce immediately on blur
+        if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
         onUpdate(id, localContent, localMetadata);
         if (type === 'markdown') {
             setIsEditingMarkdown(false);
@@ -334,16 +356,15 @@ const NotebookCell = ({
                     position: 'absolute',
                     left: 0, top: 0, bottom: 0, width: '4px',
                     backgroundColor: type === 'code' ? 'var(--accent-color-user)' : type === 'input' ? '#4ade80' : 'var(--border-color)',
-                    opacity: isHovered ? 1 : 0.4,
-                    transition: 'opacity 0.2s ease',
+                    opacity: 0.6,
                     borderTopLeftRadius: '8px',
                     borderBottomLeftRadius: '8px',
                     zIndex: 2
                 }} />
             )}
 
-            {/* Block Action Header - Only visible on hover in edit mode, or always for code to show run button */}
-            {!isReportMode && (isHovered || type === 'code') && (
+            {/* Block Action Header - Always visible in edit mode */}
+            {!isReportMode && (
                 <div style={{
                     padding: '6px 16px 6px 20px',
                     backgroundColor: 'var(--header-bg)',
@@ -393,7 +414,7 @@ const NotebookCell = ({
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', opacity: isHovered ? 1 : 0, transition: 'opacity 0.2s' }}>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                         {type === 'code' && onRunAbove && (
                             <button onClick={() => onRunAbove(id)} style={btnStyle} title="Run This & Above" disabled={isRunningBatch}><LuChevronsUp size={14} /></button>
                         )}
@@ -462,7 +483,6 @@ const NotebookCell = ({
                                         value={typeof localContent === 'string' ? localContent : ''}
                                         onChange={(val) => {
                                             setLocalContent(val);
-                                            onUpdate(id, val, localMetadata);
                                         }}
                                         onDebugCte={handleDebugCte}
                                     />
