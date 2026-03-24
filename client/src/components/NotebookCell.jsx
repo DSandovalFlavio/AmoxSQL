@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
 import DebugResultModal from './DebugResultModal';
-import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal, LuCode, LuType, LuSettings2, LuExternalLink } from "react-icons/lu";
+import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal, LuCode, LuType, LuSettings2, LuExternalLink, LuChevronsUp, LuChevronsDown } from "react-icons/lu";
 
 const NotebookCell = ({
     id,
@@ -22,7 +22,17 @@ const NotebookCell = ({
     hideCodeInReport = true,
     cellIndex = 0,
     onStateChange = null,
-    initialCellState = null
+    initialCellState = null,
+    // Drag & drop props
+    onDragStart = null,
+    onDragEnd = null,
+    onDragOver = null,
+    onDrop = null,
+    isDragging = false,
+    // Batch execution props
+    onRunAbove = null,
+    onRunBelow = null,
+    isRunningBatch = false,
 }) => {
     const [isEditingMarkdown, setIsEditingMarkdown] = useState(false);
     const [localContent, setLocalContent] = useState(content);
@@ -104,7 +114,7 @@ const NotebookCell = ({
                 const delta = ev.clientY - resizeStartY.current;
                 const finalHeight = Math.max(150, Math.min(1200, resizeStartHeight.current + delta));
                 setResultHeight(finalHeight);
-                if (onStateChange) onStateChange(cellIndex, { resultHeight: finalHeight });
+                if (onStateChange) onStateChange(id, { resultHeight: finalHeight });
             }
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
@@ -112,15 +122,15 @@ const NotebookCell = ({
 
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
-    }, [resultHeight, onStateChange, cellIndex]);
+    }, [resultHeight, onStateChange, id]);
 
     const handleChartConfigChange = useCallback((config) => {
-        if (onStateChange) onStateChange(cellIndex, { chartConfig: config });
-    }, [onStateChange, cellIndex]);
+        if (onStateChange) onStateChange(id, { chartConfig: config });
+    }, [onStateChange, id]);
 
     const handleViewModeChange = useCallback((mode) => {
-        if (onStateChange) onStateChange(cellIndex, { viewMode: mode });
-    }, [onStateChange, cellIndex]);
+        if (onStateChange) onStateChange(id, { viewMode: mode });
+    }, [onStateChange, id]);
 
     const handleBlur = () => {
         onUpdate(id, localContent, localMetadata);
@@ -261,6 +271,35 @@ const NotebookCell = ({
         );
     };
 
+    // Drag & drop handlers
+    const handleDragStart = (e) => {
+        if (isReportMode || !onDragStart) return;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', id);
+        onDragStart(id);
+    };
+
+    const handleDragOver = (e) => {
+        if (isReportMode || !onDragOver) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        // Determine if mouse is in top or bottom half
+        const rect = e.currentTarget.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const targetIdx = e.clientY < midY ? cellIndex : cellIndex + 1;
+        onDragOver(targetIdx);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onDrop) onDrop();
+    };
+
+    const handleDragEnd = () => {
+        if (onDragEnd) onDragEnd();
+    };
+
     // Card styling mimics modern block editors
     const cardStyle = {
         marginBottom: isReportMode ? '0px' : '16px',
@@ -271,8 +310,10 @@ const NotebookCell = ({
         display: isEmptyInReport ? 'none' : 'flex',
         flexDirection: 'column',
         boxShadow: isReportMode ? 'none' : (isHovered ? '0 4px 12px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.03)'),
-        transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
-        position: 'relative'
+        transition: 'box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease',
+        position: 'relative',
+        opacity: isDragging ? 0.4 : 1,
+        cursor: isReportMode ? 'default' : undefined
     };
 
     return (
@@ -281,6 +322,11 @@ const NotebookCell = ({
             style={cardStyle}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
+            draggable={!isReportMode}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
         >
             {/* Left accent border to indicate block type */}
             {!isReportMode && (
@@ -348,6 +394,15 @@ const NotebookCell = ({
                     </div>
 
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', opacity: isHovered ? 1 : 0, transition: 'opacity 0.2s' }}>
+                        {type === 'code' && onRunAbove && (
+                            <button onClick={() => onRunAbove(id)} style={btnStyle} title="Run This & Above" disabled={isRunningBatch}><LuChevronsUp size={14} /></button>
+                        )}
+                        {type === 'code' && onRunBelow && (
+                            <button onClick={() => onRunBelow(id)} style={btnStyle} title="Run This & Below" disabled={isRunningBatch}><LuChevronsDown size={14} /></button>
+                        )}
+                        {type === 'code' && (onRunAbove || onRunBelow) && (
+                            <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-color)', margin: '0 2px' }} />
+                        )}
                         <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveUp(id); }} style={btnStyle} title="Move Up"><LuArrowUp size={14} /></button>
                         <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveDown(id); }} style={btnStyle} title="Move Down"><LuArrowDown size={14} /></button>
                         <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-color)', margin: '0 2px' }} />
