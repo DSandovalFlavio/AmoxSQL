@@ -106,6 +106,17 @@ app.post('/api/db/connect', async (req, res) => {
     const { path: dbPath, readOnly } = req.body;
     try {
         await dbManager.connect(dbPath, ROOT_DIR, { readOnly: !!readOnly });
+
+        // Initialize AI persistence schema for this project's database
+        if (!readOnly) {
+            try {
+                const aiPersistence = require('./ai/persistence');
+                await aiPersistence.initSchema(dbManager);
+            } catch (aiErr) {
+                console.warn('[AI] Schema init warning (non-fatal):', aiErr.message);
+            }
+        }
+
         res.json({ success: true, path: dbManager.getCurrentPath() });
     } catch (err) {
         console.error("DB Connection Failed:", err);
@@ -600,6 +611,271 @@ app.post('/api/ai/generate', async (req, res) => {
         const sql = await aiManager.generateQuery(schema, question, provider, model);
         res.json({ sql });
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- AI Agent Chat API (Tool Loop) --- */
+
+/**
+ * Helper: Build table context from DuckDB for the AI agent.
+ */
+async function buildTableContext() {
+    try {
+        const tables = await dbManager.systemQuery(`
+            SELECT table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai')
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_schema, table_name
+        `);
+
+        const tableContexts = [];
+        for (const t of tables.slice(0, 30)) {
+            try {
+                const cols = await dbManager.systemQuery(`DESCRIBE "${t.table_name}"`);
+                const countRes = await dbManager.systemQuery(`SELECT COUNT(*) as cnt FROM "${t.table_name}"`);
+                tableContexts.push({
+                    name: t.table_name,
+                    schema: t.table_schema,
+                    columns: cols.map(c => ({ name: c.column_name, type: c.column_type })),
+                    rows: countRes[0]?.cnt || 0,
+                });
+            } catch {
+                tableContexts.push({ name: t.table_name, schema: t.table_schema, columns: [], rows: '?' });
+            }
+        }
+        return tableContexts;
+    } catch (err) {
+        console.error('[AI] Failed to build table context:', err);
+        return [];
+    }
+}
+
+/**
+ * Helper: Build file context from file paths for the AI agent.
+ */
+async function buildFileContext(contextFiles) {
+    if (!contextFiles || contextFiles.length === 0) return [];
+
+    const fileContexts = [];
+    for (const file of contextFiles) {
+        try {
+            let fullPath = path.isAbsolute(file.path) ? file.path : path.join(ROOT_DIR, file.path);
+            fullPath = fullPath.replace(/\\/g, '/');
+            const cols = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullPath}'`);
+            fileContexts.push({
+                name: file.name,
+                path: fullPath,
+                columns: cols.map(c => ({ name: c.column_name, type: c.column_type || c.data_type })),
+            });
+        } catch (err) {
+            fileContexts.push({ name: file.name, path: file.path, columns: [] });
+        }
+    }
+    return fileContexts;
+}
+
+/**
+ * POST /api/ai/chat — Non-streaming tool loop chat
+ * Body: { messages, provider?, model?, mode?, contextFiles?, currentQuery?, currentResult?, currentChartConfig? }
+ */
+app.post('/api/ai/chat', async (req, res) => {
+    const { messages, provider, model, mode, contextFiles, currentQuery, currentResult, currentChartConfig } = req.body;
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: "Messages array is required" });
+    }
+
+    try {
+        const [tables, files] = await Promise.all([
+            buildTableContext(),
+            buildFileContext(contextFiles),
+        ]);
+
+        const result = await aiManager.chat({
+            messages,
+            dbManager,
+            providerOverride: provider,
+            modelOverride: model,
+            mode: mode || 'diving',
+            tables,
+            files,
+            currentQuery,
+            currentResult,
+            currentChartConfig,
+        });
+
+        res.json(result);
+    } catch (err) {
+        console.error('[API] AI Chat error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/chat/stream — SSE streaming tool loop chat
+ * Body: same as /api/ai/chat
+ * Response: Server-Sent Events stream
+ */
+app.post('/api/ai/chat/stream', async (req, res) => {
+    const { messages, provider, model, mode, contextFiles, currentQuery, currentResult, currentChartConfig } = req.body;
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: "Messages array is required" });
+    }
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    try {
+        const [tables, files] = await Promise.all([
+            buildTableContext(),
+            buildFileContext(contextFiles),
+        ]);
+
+        const result = await aiManager.streamChat({
+            messages,
+            dbManager,
+            providerOverride: provider,
+            modelOverride: model,
+            mode: mode || 'diving',
+            tables,
+            files,
+            currentQuery,
+            currentResult,
+            currentChartConfig,
+        });
+
+        // Stream text deltas
+        for await (const part of result.fullStream) {
+            if (res.closed) {
+                console.log('[AI FULLSTREAM] Client disconnected, stopping stream.');
+                break;
+            }
+
+            if (part.type === 'text-delta') {
+                res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.textDelta || part.text })}\n\n`);
+            } else if (part.type === 'tool-call') {
+                res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: part.args || {}, toolCallId: part.toolCallId })}\n\n`);
+            } else if (part.type === 'tool-result') {
+                res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: part.result || { error: 'Failed' }, args: part.args || {} })}\n\n`);
+            } else if (part.type === 'step-finish') {
+                res.write(`data: ${JSON.stringify({ type: 'step-finish' })}\n\n`);
+            } else if (part.type === 'finish') {
+                const queryResults = result._queryResults ? Object.fromEntries(result._queryResults) : {};
+                res.write(`data: ${JSON.stringify({ type: 'finish', usage: part.usage, queryResults })}\n\n`);
+            } else if (part.type === 'error') {
+                res.write(`data: ${JSON.stringify({ type: 'error', error: part.error?.message || String(part.error) })}\n\n`);
+            }
+        }
+
+        res.write(`data: [DONE]\n\n`);
+        res.end();
+    } catch (err) {
+        console.error('[API] AI Stream error:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: err.message });
+        } else {
+            res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
+            res.end();
+        }
+    }
+});
+
+/* --- AI Conversation CRUD APIs --- */
+const aiPersistence = require('./ai/persistence');
+
+/**
+ * GET /api/ai/conversations — List conversations (newest first)
+ * Query: ?search=text&limit=50
+ */
+app.get('/api/ai/conversations', async (req, res) => {
+    try {
+        const { search, limit } = req.query;
+        const conversations = await aiPersistence.getConversations(dbManager, {
+            search,
+            limit: limit ? parseInt(limit) : 50,
+        });
+        res.json(conversations);
+    } catch (err) {
+        console.error('[API] List conversations error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * GET /api/ai/conversations/:id — Get a conversation with all messages/results
+ */
+app.get('/api/ai/conversations/:id', async (req, res) => {
+    try {
+        const conversation = await aiPersistence.getConversation(dbManager, req.params.id);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+        res.json(conversation);
+    } catch (err) {
+        console.error('[API] Get conversation error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/conversations — Create a new conversation
+ * Body: { mode?, provider?, model?, title? }
+ */
+app.post('/api/ai/conversations', async (req, res) => {
+    try {
+        const conversation = await aiPersistence.createConversation(dbManager, req.body);
+        res.json(conversation);
+    } catch (err) {
+        console.error('[API] Create conversation error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * DELETE /api/ai/conversations/:id — Delete a conversation and all its data
+ */
+app.delete('/api/ai/conversations/:id', async (req, res) => {
+    try {
+        const result = await aiPersistence.deleteConversation(dbManager, req.params.id);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Delete conversation error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/ai/conversations/:id/star — Toggle starred status
+ */
+app.put('/api/ai/conversations/:id/star', async (req, res) => {
+    try {
+        const result = await aiPersistence.toggleStar(dbManager, req.params.id);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Toggle star error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/ai/conversations/:id/title — Update conversation title
+ * Body: { title }
+ */
+app.put('/api/ai/conversations/:id/title', async (req, res) => {
+    const { title } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+
+    try {
+        const result = await aiPersistence.updateTitle(dbManager, req.params.id, title);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Update title error:', err);
         res.status(500).json({ error: err.message });
     }
 });
