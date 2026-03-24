@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import NotebookCell from './NotebookCell';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2 } from "react-icons/lu";
+import DeleteConfirmModal from './DeleteConfirmModal';
+import AlertDialog from './AlertDialog';
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
-import { parseNotebookContent, serializeNotebookContent } from '../utils/notebookParser';
+import { parseNotebookContent, parseNotebookEnvironment, serializeNotebookContent } from '../utils/notebookParser';
 
 const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     const [cells, setCells] = useState([]);
     const [results, setResults] = useState({});
-    
+
     // Global environment variables (e.g. from input blocks)
     const [environment, setEnvironment] = useState({});
 
-    // Cell-level persisted state (chartConfig, viewMode, resultHeight)
+    // Cell-level persisted state keyed by cell.id (chartConfig, viewMode, resultHeight)
     const [cellStates, setCellStates] = useState({});
 
     // View modes
@@ -19,121 +21,157 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     const [hideCodeInReport, setHideCodeInReport] = useState(false);
     const [isFullView, setIsFullView] = useState(false);
 
-    // State persistence refs
-    const saveStateTimer = useRef(null);
-    const stateLoaded = useRef(false);
+    // Delete confirmation modal
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [cellToDelete, setCellToDelete] = useState(null);
 
-    // 1. Initial Parse (using structured JSON / Parser)
+    // Drag & drop state
+    const [draggedCellId, setDraggedCellId] = useState(null);
+    const [dropTargetIndex, setDropTargetIndex] = useState(null);
+
+    // Alert dialog
+    const [alertOpen, setAlertOpen] = useState(false);
+    const [alertMessage, setAlertMessage] = useState('');
+
+    // Batch execution state
+    const [isRunningBatch, setIsRunningBatch] = useState(false);
+    const [batchProgress, setBatchProgress] = useState(null); // { current, total }
+    const abortBatchRef = useRef(false);
+
+    // Refs for accessing current state in save without stale closures
+    const cellStatesRef = useRef({});
+    const resultsRef = useRef({});
+    const cellsRef = useRef([]);
+    const saveStateTimer = useRef(null);
+
+    // Keep refs in sync
+    useEffect(() => { cellStatesRef.current = cellStates; }, [cellStates]);
+    useEffect(() => { resultsRef.current = results; }, [results]);
+    useEffect(() => { cellsRef.current = cells; }, [cells]);
+
+    // 1. Initial Parse — extract cells, environment, and embedded state from v3.0
     useEffect(() => {
         const parsedCells = parseNotebookContent(content);
+        const env = parseNotebookEnvironment(content);
         setCells(parsedCells);
-        // Extract environment variables if it's the new format
-        try {
-            const parsed = JSON.parse(content);
-            if (parsed && parsed.environment) {
-                setEnvironment(parsed.environment);
+        setEnvironment(env);
+
+        // Extract embedded state from v3.0 cells
+        const restoredStates = {};
+        const restoredResults = {};
+        parsedCells.forEach(cell => {
+            if (cell.state) {
+                const { result, ...visualState } = cell.state;
+                if (Object.keys(visualState).length > 0) {
+                    restoredStates[cell.id] = visualState;
+                }
+                if (result && result.data) {
+                    restoredResults[cell.id] = result;
+                }
             }
-        } catch(e) { } // Ignore if not JSON
+        });
+
+        if (Object.keys(restoredStates).length > 0) {
+            setCellStates(restoredStates);
+        }
+        if (Object.keys(restoredResults).length > 0) {
+            setResults(restoredResults);
+        }
+
+        // One-time migration: if a sidecar .state.json exists, load and merge it
+        if (filePath) {
+            migrateSidecarState(filePath, parsedCells);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run only once on mount
 
-    // 2. Load Visual State from Sidecar File
-    useEffect(() => {
-        if (!filePath || stateLoaded.current) return;
-        stateLoaded.current = true;
+    // One-time sidecar migration (v2.0 → v3.0)
+    const migrateSidecarState = async (path, currentCells) => {
+        try {
+            const res = await fetch(`http://localhost:3001/api/notebook-state?path=${encodeURIComponent(path)}`);
+            const state = await res.json();
+            if (!state || !state.cells) return;
 
-        const loadState = async () => {
-            try {
-                const res = await fetch(`http://localhost:3001/api/notebook-state?path=${encodeURIComponent(filePath)}`);
-                const state = await res.json();
-                if (!state || !state.cells) return;
-
-                setCellStates(state.cells);
-
-                const restoredResults = {};
-                Object.entries(state.cells).forEach(([idx, cellState]) => {
-                    if (cellState.result) {
-                        restoredResults[idx] = cellState.result;
-                    }
-                });
-
-                setTimeout(() => {
-                    setCells(currentCells => {
-                        const mappedResults = {};
-                        currentCells.forEach((cell, idx) => {
-                            const idxStr = String(idx);
-                            if (restoredResults[idxStr]) {
-                                mappedResults[cell.id] = restoredResults[idxStr];
-                            }
-                        });
-                        if (Object.keys(mappedResults).length > 0) {
-                            setResults(mappedResults);
-                        }
-                        return currentCells;
-                    });
-                }, 100);
-
-            } catch (err) {
-                console.warn('Failed to load notebook state:', err);
-            }
-        };
-
-        loadState();
-    }, [filePath]);
-
-    // 3. Save Visual State to Sidecar File (debounced)
-    const persistState = useCallback((updatedCellStates, updatedResults, currentCells) => {
-        if (!filePath) return;
-
-        if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
-        saveStateTimer.current = setTimeout(() => {
-            const stateObj = { version: 1, cells: {} };
-
+            // Map index-based sidecar state to id-based
+            const migratedStates = {};
+            const migratedResults = {};
             currentCells.forEach((cell, idx) => {
                 const idxStr = String(idx);
-                const existingState = updatedCellStates[idxStr] || {};
-                const cellResult = updatedResults[cell.id];
+                const sidecarState = state.cells[idxStr];
+                if (!sidecarState) return;
 
-                const MAX_CACHED_ROWS = 500;
-                const cachedResult = (cellResult && cellResult.data && !cellResult.error && !cellResult.loading)
-                    ? {
-                        data: cellResult.data.length > MAX_CACHED_ROWS
-                            ? cellResult.data.slice(0, MAX_CACHED_ROWS)
-                            : cellResult.data,
-                        executionTime: cellResult.executionTime,
-                        totalRows: cellResult.data.length,
-                        truncated: cellResult.data.length > MAX_CACHED_ROWS
-                    }
-                    : null;
-
-                if (cachedResult || existingState.chartConfig || existingState.viewMode || existingState.resultHeight) {
-                    stateObj.cells[idxStr] = {
-                        ...existingState,
-                        ...(cachedResult ? { result: cachedResult } : {})
-                    };
+                const { result, ...visualState } = sidecarState;
+                if (Object.keys(visualState).length > 0) {
+                    migratedStates[cell.id] = visualState;
+                }
+                if (result && result.data) {
+                    migratedResults[cell.id] = result;
                 }
             });
 
-            fetch('http://localhost:3001/api/notebook-state', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: filePath, state: stateObj })
-            }).catch(err => console.warn('Failed to save notebook state:', err));
-        }, 1000);
-    }, [filePath]);
-
-    // 4. Serialize Back to File using new structured format
-    const save = (updatedCells, updatedEnvironment = environment) => {
-        const fileContent = serializeNotebookContent(updatedCells);
-        // We only pass changes to the parent
-        onChange(fileContent);
+            if (Object.keys(migratedStates).length > 0) {
+                setCellStates(prev => {
+                    // Only merge if current state is empty (v3.0 state takes priority)
+                    if (Object.keys(prev).length > 0) return prev;
+                    return migratedStates;
+                });
+            }
+            if (Object.keys(migratedResults).length > 0) {
+                setResults(prev => {
+                    if (Object.keys(prev).length > 0) return prev;
+                    return migratedResults;
+                });
+            }
+        } catch (err) {
+            // Sidecar doesn't exist or can't be read — that's fine
+        }
     };
+
+    // 2. Serialize and save to file — merges cell state into cells before writing
+    const save = useCallback((updatedCells, updatedEnvironment = undefined) => {
+        const env = updatedEnvironment !== undefined ? updatedEnvironment : environment;
+        const cellsWithState = updatedCells.map(cell => {
+            const stateData = cellStatesRef.current[cell.id] || {};
+            const resultData = resultsRef.current[cell.id];
+            const hasResult = resultData && resultData.data && !resultData.loading && !resultData.error;
+
+            const state = {
+                ...stateData,
+                ...(hasResult ? { result: resultData } : {})
+            };
+
+            if (Object.keys(state).length === 0) return cell;
+            // Strip any existing state from cell before merging fresh
+            const { state: _existingState, ...cellWithoutState } = cell;
+            return { ...cellWithoutState, state };
+        });
+
+        const fileContent = serializeNotebookContent(cellsWithState, env);
+        onChange(fileContent);
+    }, [onChange, environment]);
+
+    // Debounced save for state-only changes (chart config, view mode, result height)
+    const saveStateOnly = useCallback(() => {
+        if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
+        saveStateTimer.current = setTimeout(() => {
+            save(cellsRef.current);
+        }, 1000);
+    }, [save]);
+
+    // Debounced save for content edits (typing in editor or renaming cells)
+    const contentSaveTimer = useRef(null);
+    const saveDebouncedContent = useCallback((updatedCells) => {
+        if (contentSaveTimer.current) clearTimeout(contentSaveTimer.current);
+        contentSaveTimer.current = setTimeout(() => {
+            save(updatedCells);
+        }, 500);
+    }, [save]);
 
     // Cell Handlers
     const updateCell = (id, newContent, newMetadata = {}) => {
         const updated = cells.map(c => c.id === id ? { ...c, content: newContent, ...newMetadata } : c);
         setCells(updated);
-        save(updated);
+        saveDebouncedContent(updated);
     };
 
     const addCell = (type) => {
@@ -144,11 +182,27 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     };
 
     const deleteCell = (id) => {
-        if (confirm('Delete this cell?')) {
-            const updated = cells.filter(c => c.id !== id);
-            setCells(updated);
-            save(updated);
-        }
+        setCellToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDeleteCell = async () => {
+        if (!cellToDelete) return;
+        const updated = cells.filter(c => c.id !== cellToDelete);
+        setCells(updated);
+        // Clean up state for deleted cell
+        setCellStates(prev => {
+            const next = { ...prev };
+            delete next[cellToDelete];
+            return next;
+        });
+        setResults(prev => {
+            const next = { ...prev };
+            delete next[cellToDelete];
+            return next;
+        });
+        save(updated);
+        setCellToDelete(null);
     };
 
     const moveCell = (id, direction) => {
@@ -159,85 +213,160 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
 
         const updated = [...cells];
         [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
-
         setCells(updated);
-
-        // Swap visual states
-        setCellStates(prev => {
-            const next = { ...prev };
-            const originState = next[String(index)];
-            const targetState = next[String(targetIndex)];
-            next[String(index)] = targetState || {};
-            next[String(targetIndex)] = originState || {};
-            return next;
-        });
-
         save(updated);
     };
+
+    // Drag & Drop handlers
+    const handleCellDragStart = useCallback((cellId) => {
+        setDraggedCellId(cellId);
+    }, []);
+
+    const handleCellDragEnd = useCallback(() => {
+        setDraggedCellId(null);
+        setDropTargetIndex(null);
+    }, []);
+
+    const handleCellDragOver = useCallback((targetIndex) => {
+        setDropTargetIndex(targetIndex);
+    }, []);
+
+    const handleCellDrop = useCallback(() => {
+        if (draggedCellId == null || dropTargetIndex == null) return;
+
+        const fromIndex = cells.findIndex(c => c.id === draggedCellId);
+        if (fromIndex < 0) return;
+
+        // Calculate the effective insertion index
+        let toIndex = dropTargetIndex;
+        if (toIndex > fromIndex) toIndex -= 1; // Adjust because removing shifts indices
+
+        if (fromIndex === toIndex) {
+            setDraggedCellId(null);
+            setDropTargetIndex(null);
+            return;
+        }
+
+        const updated = [...cells];
+        const [moved] = updated.splice(fromIndex, 1);
+        updated.splice(toIndex, 0, moved);
+
+        setCells(updated);
+        save(updated);
+        setDraggedCellId(null);
+        setDropTargetIndex(null);
+    }, [draggedCellId, dropTargetIndex, cells, save]);
+
+    // Evaluate input variables in query (simple string replacement for now)
+    const injectEnvironmentVariables = useCallback((query, env) => {
+        let injectedQuery = query;
+        Object.entries(env).forEach(([key, value]) => {
+            const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+            const formattedValue = typeof value === 'string' ? `'${value}'` : value;
+            injectedQuery = injectedQuery.replace(regex, formattedValue);
+        });
+        return injectedQuery;
+    }, []);
+
+    const handleRun = useCallback(async (cellId, cellContent = null, currentEnv = environment) => {
+        // Use ref for latest cells to avoid stale closure issues
+        const currentCells = cellsRef.current;
+
+        // If no content passed, read from the latest cells ref
+        const resolvedContent = cellContent || currentCells.find(c => c.id === cellId)?.content || '';
+
+        setResults(prev => ({ ...prev, [cellId]: { loading: true } }));
+
+        let queryToRun = injectEnvironmentVariables(resolvedContent, currentEnv);
+
+        // Execute the query
+        const result = await onRunQuery(queryToRun);
+
+        setResults(prev => {
+            const nextResults = { ...prev, [cellId]: { ...result, executedQuery: queryToRun } };
+            return nextResults;
+        });
+
+        // Debounced save to persist the new result
+        saveStateOnly();
+    }, [environment, injectEnvironmentVariables, onRunQuery, saveStateOnly]);
+
+    // Batch execution engine
+    const runCellsSequentially = useCallback(async (cellIds) => {
+        const codeCells = cellIds.filter(cid => {
+            const cell = cells.find(c => c.id === cid);
+            return cell && cell.type === 'code' && cell.content?.trim();
+        });
+
+        if (codeCells.length === 0) return;
+
+        setIsRunningBatch(true);
+        abortBatchRef.current = false;
+
+        for (let i = 0; i < codeCells.length; i++) {
+            if (abortBatchRef.current) break;
+
+            setBatchProgress({ current: i + 1, total: codeCells.length });
+            const cell = cells.find(c => c.id === codeCells[i]);
+            if (!cell) continue;
+
+            await handleRun(cell.id);
+
+            // Check for errors — stop on error
+            const result = resultsRef.current[cell.id];
+            if (result?.error) break;
+        }
+
+        setIsRunningBatch(false);
+        setBatchProgress(null);
+        abortBatchRef.current = false;
+    }, [cells, handleRun]);
+
+    const runAll = useCallback(() => {
+        runCellsSequentially(cells.map(c => c.id));
+    }, [cells, runCellsSequentially]);
+
+    const runAbove = useCallback((cellId) => {
+        const index = cells.findIndex(c => c.id === cellId);
+        if (index < 0) return;
+        runCellsSequentially(cells.slice(0, index + 1).map(c => c.id));
+    }, [cells, runCellsSequentially]);
+
+    const runBelow = useCallback((cellId) => {
+        const index = cells.findIndex(c => c.id === cellId);
+        if (index < 0) return;
+        runCellsSequentially(cells.slice(index).map(c => c.id));
+    }, [cells, runCellsSequentially]);
+
+    const stopBatch = useCallback(() => {
+        abortBatchRef.current = true;
+    }, []);
 
     const handlePrint = () => {
         window.print();
     };
 
-    // Evaluate input variables in query (simple string replacement for now)
-    const injectEnvironmentVariables = (query, env) => {
-        let injectedQuery = query;
-        Object.entries(env).forEach(([key, value]) => {
-            // Replace {{variable}} with its value
-            const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
-            // If it's a string, we might need to wrap in quotes, but for simplicity let's assume raw replacement
-            // Or we try to be smart: if value is string, wrap in ''; if number, leave as is.
-            const formattedValue = typeof value === 'string' ? `'${value}'` : value;
-            injectedQuery = injectedQuery.replace(regex, formattedValue);
-        });
-        return injectedQuery;
-    };
-
-    const handleRun = async (cellId, cellContent, currentEnv = environment) => {
-        setResults(prev => ({ ...prev, [cellId]: { loading: true } }));
-
-        const queryToRun = injectEnvironmentVariables(cellContent, currentEnv);
-        const result = await onRunQuery(queryToRun);
-
-        setResults(prev => {
-            const nextResults = { ...prev, [cellId]: { ...result, executedQuery: queryToRun } };
-            persistState(cellStates, nextResults, cells);
-            return nextResults;
-        });
-    };
-
     const handleEnvironmentChange = (key, value) => {
         const newEnv = { ...environment, [key]: value };
         setEnvironment(newEnv);
-        
+
         // Reactive Execution (DAG): Auto-run dependent cells
         cells.forEach(cell => {
             if (cell.type === 'code' && typeof cell.content === 'string') {
                 const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
                 if (regex.test(cell.content)) {
-                    // Re-run this cell because it depends on the changed variable
-                    handleRun(cell.id, cell.content, newEnv);
+                    handleRun(cell.id, null, newEnv);
                 }
             }
         });
-        
-        // Save notebook with updated environment
-        try {
-            const parsed = JSON.parse(content || '{}');
-            parsed.environment = newEnv;
-            parsed.cells = cells;
-            onChange(JSON.stringify(parsed, null, 2));
-        } catch(e) {
-            // New format only
-            save(cells, newEnv);
-        }
+
+        save(cells, newEnv);
     };
 
-    const handleCellStateChange = useCallback((cellIndex, stateUpdate) => {
+    const handleCellStateChange = useCallback((cellId, stateUpdate) => {
         setCellStates(prev => {
-            const idxStr = String(cellIndex);
-            const currentState = prev[idxStr] || {};
-            
+            const currentState = prev[cellId] || {};
+
             // Prevent infinite loop by checking if state actually changed
             let hasChanges = false;
             for (const key in stateUpdate) {
@@ -246,14 +375,14 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                     break;
                 }
             }
-            
+
             if (!hasChanges) return prev;
 
-            const next = { ...prev, [idxStr]: { ...currentState, ...stateUpdate } };
-            persistState(next, results, cells);
+            const next = { ...prev, [cellId]: { ...currentState, ...stateUpdate } };
             return next;
         });
-    }, [persistState, results, cells]);
+        saveStateOnly();
+    }, [saveStateOnly]);
 
     useEffect(() => {
         if (!isFullView) return;
@@ -307,6 +436,35 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                     {isFullView ? <LuMinimize2 size={14} /> : <LuMaximize2 size={14} />}
                     {isFullView ? 'Exit' : 'Present'}
                 </button>
+
+                {/* Run All / Stop */}
+                {!isRunningBatch ? (
+                    <button
+                        onClick={runAll}
+                        style={{
+                            padding: '6px 14px', backgroundColor: 'var(--panel-bg)',
+                            color: '#20c997',
+                            border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease'
+                        }}
+                        title="Run All Cells"
+                    >
+                        <LuCirclePlay size={14} /> Run All
+                    </button>
+                ) : (
+                    <button
+                        onClick={stopBatch}
+                        style={{
+                            padding: '6px 14px', backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            color: '#ff6b6b',
+                            border: '1px solid #ff6b6b', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease'
+                        }}
+                        title="Stop Execution"
+                    >
+                        <LuSquare size={12} fill="currentColor" /> Stop {batchProgress ? `(${batchProgress.current}/${batchProgress.total})` : ''}
+                    </button>
+                )}
             </div>
 
             {(viewMode === 'report' || isFullView) && (
@@ -376,24 +534,41 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 minHeight: isReportActive ? '297mm' : 'auto'
             }}>
                 {cells.map((cell, index) => (
-                    <NotebookCell
-                        key={cell.id}
-                        {...cell}
-                        result={results[cell.id]}
-                        environment={environment}
-                        onUpdate={updateCell}
-                        onRun={(id) => handleRun(id, cell.content)}
-                        onDelete={deleteCell}
-                        onMoveUp={() => moveCell(cell.id, -1)}
-                        onMoveDown={() => moveCell(cell.id, 1)}
-                        onEnvironmentChange={handleEnvironmentChange}
-                        isReportMode={isReportActive}
-                        hideCodeInReport={hideCodeInReport}
-                        cellIndex={index}
-                        onStateChange={handleCellStateChange}
-                        initialCellState={cellStates[String(index)] || null}
-                    />
+                    <React.Fragment key={cell.id}>
+                        {/* Drop indicator before cell */}
+                        {draggedCellId && dropTargetIndex === index && draggedCellId !== cell.id && (
+                            <div style={{ height: '3px', background: 'var(--accent-color-user)', borderRadius: '2px', margin: '4px 0', transition: 'opacity 0.15s ease', boxShadow: '0 0 8px var(--accent-color-user)' }} />
+                        )}
+                        <NotebookCell
+                            {...cell}
+                            result={results[cell.id]}
+                            environment={environment}
+                            onUpdate={updateCell}
+                            onRun={(id) => handleRun(id)}
+                            onDelete={deleteCell}
+                            onMoveUp={() => moveCell(cell.id, -1)}
+                            onMoveDown={() => moveCell(cell.id, 1)}
+                            onEnvironmentChange={handleEnvironmentChange}
+                            isReportMode={isReportActive}
+                            hideCodeInReport={hideCodeInReport}
+                            cellIndex={index}
+                            onStateChange={handleCellStateChange}
+                            initialCellState={cellStates[cell.id] || null}
+                            onDragStart={handleCellDragStart}
+                            onDragEnd={handleCellDragEnd}
+                            onDragOver={handleCellDragOver}
+                            onDrop={handleCellDrop}
+                            isDragging={draggedCellId === cell.id}
+                            onRunAbove={runAbove}
+                            onRunBelow={runBelow}
+                            isRunningBatch={isRunningBatch}
+                        />
+                    </React.Fragment>
                 ))}
+                {/* Drop indicator at the end */}
+                {draggedCellId && dropTargetIndex === cells.length && (
+                    <div style={{ height: '3px', background: 'var(--accent-color-user)', borderRadius: '2px', margin: '4px 0', boxShadow: '0 0 8px var(--accent-color-user)' }} />
+                )}
 
                 {viewMode === 'edit' && !isFullView && (
                     <div style={{ display: 'flex', gap: '12px', marginTop: '30px', marginBottom: '80px', justifyContent: 'center' }}>
@@ -404,6 +579,39 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 )}
             </div>
         </div>
+    );
+
+    const getCellDeleteLabel = () => {
+        if (!cellToDelete) return '';
+        const cell = cells.find(c => c.id === cellToDelete);
+        if (!cell) return '';
+        if (cell.type === 'code') {
+            const firstLine = (cell.content || '').split('\n')[0] || 'Empty SQL cell';
+            return firstLine.length > 50 ? firstLine.slice(0, 50) + '...' : firstLine;
+        }
+        if (cell.type === 'input') return `Input: {{${cell.metadata?.varName || 'unnamed'}}}`;
+        const snippet = (cell.content || '').split('\n')[0] || 'Empty text cell';
+        return snippet.length > 50 ? snippet.slice(0, 50) + '...' : snippet;
+    };
+
+    const deleteModal = (
+        <DeleteConfirmModal
+            isOpen={deleteModalOpen}
+            onClose={() => { setDeleteModalOpen(false); setCellToDelete(null); }}
+            onConfirm={confirmDeleteCell}
+            itemName={getCellDeleteLabel()}
+            itemType="Cell"
+        />
+    );
+
+    const alertModal = (
+        <AlertDialog
+            isOpen={alertOpen}
+            onClose={() => setAlertOpen(false)}
+            title="Dependency Error"
+            message={alertMessage}
+            type="error"
+        />
     );
 
     if (isFullView) {
@@ -418,11 +626,13 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 flexDirection: 'column'
             }}>
                 {notebookContent}
+                {deleteModal}
+                {alertModal}
             </div>
         );
     }
 
-    return notebookContent;
+    return <>{notebookContent}{deleteModal}{alertModal}</>;
 };
 
 const addBtnStyle = {
