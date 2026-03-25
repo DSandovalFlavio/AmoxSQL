@@ -130,24 +130,20 @@ const QueryHistoryPanel = ({ onSelect }) => {
         return (
             <div
                 key={idx}
-                className="file-item"
+                className="qh-item"
                 onClick={() => handleSelect(query)}
                 title="Click to insert into new editor"
-                style={{
-                    padding: '6px 12px', cursor: 'pointer',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    fontSize: '11px',
-                }}
             >
                 {/* Date & Actions */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px', width: '100%' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>{formatDate(date)}</span>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <div className="qh-item-header">
+                    <span className="qh-item-date">{formatDate(date)}</span>
+                    <div className="qh-item-actions">
                         {viewTab === 'history' ? (
                             <span
                                 onClick={(e) => toggleBookmark(query, e)}
                                 title={starred ? 'Remove bookmark' : 'Bookmark'}
-                                style={{ cursor: 'pointer', color: starred ? 'var(--feedback-warning)' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', transition: 'color 120ms ease' }}
+                                className="qh-action-btn"
+                                style={{ color: starred ? 'var(--feedback-warning)' : undefined }}
                             >
                                 <LuStar size={11} fill={starred ? 'var(--feedback-warning)' : 'none'} />
                             </span>
@@ -155,7 +151,8 @@ const QueryHistoryPanel = ({ onSelect }) => {
                             <span
                                 onClick={(e) => removeBookmark(query, e)}
                                 title="Remove"
-                                style={{ cursor: 'pointer', color: 'var(--feedback-warning)', display: 'flex', alignItems: 'center' }}
+                                className="qh-action-btn"
+                                style={{ color: 'var(--feedback-warning)' }}
                             >
                                 <LuStar size={11} fill="var(--feedback-warning)" />
                             </span>
@@ -163,23 +160,14 @@ const QueryHistoryPanel = ({ onSelect }) => {
                         <span
                             onClick={(e) => handleCopy(query, e)}
                             title="Copy"
-                            style={{ cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}
+                            className="qh-action-btn"
                         >
                             <LuClipboard size={11} />
                         </span>
                     </div>
                 </div>
                 {/* SQL Preview */}
-                <div style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '10px',
-                    color: 'var(--text-secondary)',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.4',
-                    overflow: 'hidden',
-                    maxHeight: '48px',
-                    width: '100%',
-                }}>
+                <div className="qh-item-sql">
                     {preview}{isTruncated ? '...' : ''}
                 </div>
             </div>
@@ -187,9 +175,9 @@ const QueryHistoryPanel = ({ onSelect }) => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
             {/* Header */}
-            <div className="sidebar-header" style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                     Query History
                 </span>
@@ -203,48 +191,32 @@ const QueryHistoryPanel = ({ onSelect }) => {
             </div>
 
             {/* Tab Switcher */}
-            <div style={{ padding: '0 16px 6px', display: 'flex', gap: '0', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div className="qh-tabs">
                 <button
                     onClick={() => setViewTab('history')}
-                    style={{
-                        flex: 1, padding: '4px 0', border: 'none', cursor: 'pointer',
-                        fontSize: '11px', fontWeight: 600,
-                        backgroundColor: 'transparent',
-                        color: viewTab === 'history' ? 'var(--accent-primary)' : 'var(--text-tertiary)',
-                        borderBottom: viewTab === 'history' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                    }}
+                    className={`qh-tab ${viewTab === 'history' ? 'qh-tab-active' : ''}`}
                 >
                     Recent
                 </button>
                 <button
                     onClick={() => setViewTab('bookmarks')}
-                    style={{
-                        flex: 1, padding: '4px 0', border: 'none', cursor: 'pointer',
-                        fontSize: '11px', fontWeight: 600,
-                        backgroundColor: 'transparent',
-                        color: viewTab === 'bookmarks' ? 'var(--accent-primary)' : 'var(--text-tertiary)',
-                        borderBottom: viewTab === 'bookmarks' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                    }}
+                    className={`qh-tab ${viewTab === 'bookmarks' ? 'qh-tab-active' : ''}`}
                 >
                     ★ Saved ({bookmarks.length})
                 </button>
             </div>
 
             {/* Search */}
-            <div style={{ padding: '6px 16px 8px' }}>
-                <div style={{ position: 'relative' }}>
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div className="fe-search">
+                    <LuSearch size={12} className="fe-search-icon" />
                     <input
                         type="text"
                         placeholder="Search queries..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        style={{
-                            width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
-                            border: '1px solid var(--border-color)', borderRadius: '4px',
-                            padding: '4px 8px 4px 24px', fontSize: '11px', outline: 'none',
-                        }}
+                        className="fe-search-input"
                     />
-                    <LuSearch size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }} />
                 </div>
             </div>
 
@@ -269,19 +241,7 @@ const QueryHistoryPanel = ({ onSelect }) => {
                 {/* Grouped history view */}
                 {viewTab === 'history' && groupedItems && groupedItems.map(group => (
                     <div key={group.label}>
-                        <div style={{
-                            padding: '6px 16px 4px',
-                            fontSize: '10px',
-                            fontWeight: '600',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            color: 'var(--text-tertiary)',
-                            borderBottom: '1px solid var(--border-subtle)',
-                            backgroundColor: 'var(--surface-inset)',
-                            position: 'sticky',
-                            top: 0,
-                            zIndex: 1,
-                        }}>
+                        <div className="qh-group-header">
                             {group.label}
                         </div>
                         {group.items.map((item, idx) => renderQueryItem(item, `${group.label}-${idx}`))}
@@ -293,10 +253,7 @@ const QueryHistoryPanel = ({ onSelect }) => {
             </div>
 
             {/* Footer */}
-            <div style={{
-                padding: '6px 16px', borderTop: '1px solid var(--border-subtle)',
-                fontSize: '10px', color: 'var(--text-tertiary)', textAlign: 'center',
-            }}>
+            <div className="qh-footer">
                 {viewTab === 'history'
                     ? `${history.length} queries · auto-prune 30d`
                     : `${bookmarks.length} saved`

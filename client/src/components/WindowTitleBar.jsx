@@ -17,7 +17,7 @@ const WindowTitleBar = () => {
     <div className="window-title-bar">
       <div className="drag-region">
         <div className="app-icon-container">
-            <span className="app-title">AmoxSQL</span>
+          <span className="app-title">AmoxSQL</span>
         </div>
       </div>
       <div className="window-controls">

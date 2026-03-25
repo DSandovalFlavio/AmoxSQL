@@ -192,40 +192,43 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
 
     return (
         <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Header: Matches DatabaseExplorer style */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px', height: '32px' }}>
+            {/* Header */}
+            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                     Files
                 </span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => onNewFile(currentPath, 'sql')} title="New SQL File" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <LuFilePlus size={14} />
+                <div className="fe-header-actions">
+                    <button onClick={() => onNewFile(currentPath, 'sql')} title="New SQL File" className="fe-header-btn">
+                        <LuFilePlus size={13} />
                     </button>
-                    <button onClick={() => onNewFile(currentPath, 'sqlnb')} title="New SQL Notebook" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <LuBookOpen size={14} />
+                    <button onClick={() => onNewFile(currentPath, 'sqlnb')} title="New SQL Notebook" className="fe-header-btn">
+                        <LuBookOpen size={13} />
                     </button>
-                    <button onClick={() => onNewFile(currentPath, 'md')} title="New Markdown File" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <LuFileText size={14} />
+                    <button onClick={() => onNewFile(currentPath, 'md')} title="New Markdown" className="fe-header-btn">
+                        <LuFileText size={13} />
                     </button>
-                    <button onClick={() => onNewFolder(currentPath)} title="New Folder" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <LuFolderPlus size={14} />
+                    <button onClick={() => onNewFolder(currentPath)} title="New Folder" className="fe-header-btn">
+                        <LuFolderPlus size={13} />
                     </button>
-                    <button onClick={() => fetchFiles(currentPath)} title="Refresh" style={{ padding: '0', background: 'transparent', color: 'var(--text-color)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                        <LuRefreshCw size={14} />
+                    <button onClick={() => fetchFiles(currentPath)} title="Refresh" className="fe-header-btn">
+                        <LuRefreshCw size={13} />
                     </button>
                 </div>
             </div>
-            <div style={{ padding: '8px 16px 10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                {/* Breadcrumbs Navigation */}
-                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexWrap: 'wrap', minHeight: '20px' }}>
+
+            {/* Breadcrumb + Search */}
+            <div className="fe-nav-section">
+                {/* Breadcrumbs */}
+                <div className="fe-breadcrumb">
+                    {currentPath && (
+                        <button onClick={handleUp} className="fe-breadcrumb-up" title="Go up">
+                            <LuArrowUp size={12} />
+                        </button>
+                    )}
                     <span
                         onClick={() => setCurrentPath('')}
-                        className="breadcrumb-segment"
-                        style={{
-                            fontSize: '11px', color: currentPath ? 'var(--accent-color-user)' : 'var(--text-active)',
-                            cursor: 'pointer', padding: '1px 4px', borderRadius: '3px',
-                            transition: 'background-color 120ms ease', fontWeight: currentPath ? '400' : '600'
-                        }}
+                        className="fe-breadcrumb-segment"
+                        style={{ fontWeight: currentPath ? '400' : '600', color: currentPath ? 'var(--accent-primary)' : 'var(--text-primary)' }}
                     >
                         /
                     </span>
@@ -233,21 +236,11 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                         const segmentPath = arr.slice(0, idx + 1).join('/');
                         const isLast = idx === arr.length - 1;
                         return (
-                            <span key={segmentPath} style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>›</span>
+                            <span key={segmentPath} className="fe-breadcrumb-part">
+                                <span className="fe-breadcrumb-sep">/</span>
                                 <span
                                     onClick={() => { if (!isLast) setCurrentPath(segmentPath); }}
-                                    className={!isLast ? 'breadcrumb-segment' : undefined}
-                                    style={{
-                                        fontSize: '11px',
-                                        color: isLast ? 'var(--text-active)' : 'var(--accent-color-user)',
-                                        cursor: isLast ? 'default' : 'pointer',
-                                        padding: '1px 4px', borderRadius: '3px',
-                                        fontWeight: isLast ? '600' : '400',
-                                        transition: 'background-color 120ms ease',
-                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                        maxWidth: '100px'
-                                    }}
+                                    className={`fe-breadcrumb-segment${isLast ? ' active' : ''}`}
                                     title={segment}
                                 >
                                     {segment}
@@ -256,24 +249,17 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                         );
                     })}
                 </div>
-                <div style={{ position: 'relative', marginTop: '4px' }}>
+
+                {/* Search */}
+                <div className="fe-search">
+                    <LuSearch size={12} className="fe-search-icon" />
                     <input
                         type="text"
                         placeholder="Search files..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{
-                            width: '100%',
-                            backgroundColor: 'var(--input-bg)',
-                            color: 'var(--text-active)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '4px',
-                            padding: '4px 8px 4px 24px',
-                            fontSize: '11px',
-                            outline: 'none'
-                        }}
+                        className="fe-search-input"
                     />
-                    <LuSearch size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }} />
                 </div>
             </div>
             <ul className="file-list">

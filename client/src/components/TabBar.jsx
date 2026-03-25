@@ -1,7 +1,19 @@
-import React from 'react';
-import { LuX } from 'react-icons/lu';
+import React, { useState, useRef, useEffect } from 'react';
+import { LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown } from 'react-icons/lu';
 
-const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder }) => {
+const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew }) => {
+    const [showNewMenu, setShowNewMenu] = useState(false);
+    const menuRef = useRef(null);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!showNewMenu) return;
+        const handler = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) setShowNewMenu(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showNewMenu]);
 
     const handleDragStart = (e, tabId) => {
         if (onDragStart) onDragStart(e, tabId, paneId);
@@ -19,32 +31,67 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
 
     return (
         <div className="tab-bar">
-            {tabs.map(tab => {
-                const isActive = tab.id === activeTabId;
-                return (
-                    <div
-                        key={tab.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, tab.id)}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, tab.id)}
-                        onClick={() => onTabClick(tab.id)}
-                        className={`tab-item${isActive ? ' active' : ''}`}
+            {/* New File Button — always first, like Chrome's "+" */}
+            {onCreateNew && (
+                <div className="tab-bar-new" ref={menuRef}>
+                    <button
+                        className="tab-bar-new-btn"
+                        onClick={() => onCreateNew('sql')}
+                        title="New SQL File"
                     >
-                        <span className="tab-label">
-                            {tab.name}
-                        </span>
-                        {tab.dirty && <span className="tab-dirty">●</span>}
-                        <span
-                            className="tab-close"
-                            onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
-                            title="Close"
+                        <LuPlus size={14} />
+                    </button>
+                    <button
+                        className="tab-bar-new-chevron"
+                        onClick={() => setShowNewMenu(v => !v)}
+                        title="New File Options"
+                    >
+                        <LuChevronDown size={10} />
+                    </button>
+                    {showNewMenu && (
+                        <div className="tab-bar-new-menu">
+                            <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('sql'); setShowNewMenu(false); }}>
+                                <LuCode size={13} /> SQL Query
+                            </div>
+                            <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('notebook'); setShowNewMenu(false); }}>
+                                <LuFilePlus size={13} /> Notebook
+                            </div>
+                            <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('md'); setShowNewMenu(false); }}>
+                                <LuFileText size={13} /> Markdown
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <div className="tab-bar-tabs">
+                {tabs.map(tab => {
+                    const isActive = tab.id === activeTabId;
+                    return (
+                        <div
+                            key={tab.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, tab.id)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, tab.id)}
+                            onClick={() => onTabClick(tab.id)}
+                            className={`tab-item${isActive ? ' active' : ''}`}
                         >
-                            <LuX size={12} />
-                        </span>
-                    </div>
-                );
-            })}
+                            <span className="tab-label">
+                                {tab.name}
+                            </span>
+                            {tab.dirty && <span className="tab-dirty">●</span>}
+                            <span
+                                className="tab-close"
+                                onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
+                                title="Close"
+                            >
+                                <LuX size={12} />
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 };
