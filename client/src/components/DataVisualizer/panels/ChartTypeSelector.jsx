@@ -194,8 +194,7 @@ const ChartTypeSelector = memo(({ currentType, onTypeChange }) => {
                                 borderRadius: '4px',
                                 transition: 'background 0.15s',
                             }}
-                            onMouseOver={e => e.currentTarget.style.background = 'var(--hover-bg)'}
-                            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                            className="dv-category-header"
                         >
                             <span>{category.label}</span>
                             <span style={{
@@ -233,18 +232,7 @@ const ChartTypeSelector = memo(({ currentType, onTypeChange }) => {
                                                 transition: 'all 0.15s',
                                                 minHeight: '48px',
                                             }}
-                                            onMouseOver={e => {
-                                                if (!isActive) {
-                                                    e.currentTarget.style.borderColor = 'var(--accent-color-user)';
-                                                    e.currentTarget.style.color = 'var(--text-active)';
-                                                }
-                                            }}
-                                            onMouseOut={e => {
-                                                if (!isActive) {
-                                                    e.currentTarget.style.borderColor = 'var(--border-color)';
-                                                    e.currentTarget.style.color = 'var(--text-secondary)';
-                                                }
-                                            }}
+                                            className={isActive ? '' : 'dv-chart-type-btn'}
                                         >
                                             <ChartIcon type={type.key} size={24} />
                                             <span style={{

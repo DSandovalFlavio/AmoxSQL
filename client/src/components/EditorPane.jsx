@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
-import TabBar from './TabBar';
 import SqlEditor from './SqlEditor';
 import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
-import VariablesBar from './VariablesBar';
+import { VariablesToggle, VariablesPanel } from './VariablesBar';
 
 const EditorPane = ({
     paneId,
@@ -26,6 +26,10 @@ const EditorPane = ({
     editorSettings,
     variables,
     onVariablesChange,
+    onCreateNew,      // (type) -> create new file from TabBar
+    onRequestSaveAs,  // () -> open save-as modal
+    showAiSidebar,    // boolean — AI sidebar visible?
+    onToggleAi,       // () -> toggle AI sidebar
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -57,6 +61,23 @@ const EditorPane = ({
     }, []);
 
     const activeTab = tabs.find(t => t.id === activeTabId);
+
+    // Action bar state (must be before any early return)
+    const [showSaveMenu, setShowSaveMenu] = useState(false);
+    const saveMenuRef = useRef(null);
+    const [lastEditTime, setLastEditTime] = useState(null);
+    const [lastRunTime, setLastRunTime] = useState(null);
+    const [varsExpanded, setVarsExpanded] = useState(false);
+
+    // Close save dropdown on outside click
+    useEffect(() => {
+        if (!showSaveMenu) return;
+        const handler = (e) => {
+            if (saveMenuRef.current && !saveMenuRef.current.contains(e.target)) setShowSaveMenu(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showSaveMenu]);
 
     const handlePopout = () => {
         if (!activeTab?.results) return;
@@ -229,10 +250,21 @@ const EditorPane = ({
 
     if (!activeTab) {
         return (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--editor-bg)', borderLeft: '1px solid var(--border-color)' }}>
-                <TabBar tabs={tabs} activeTabId={activeTabId} onTabClick={onTabClick} onTabClose={onTabClose} />
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
-                    No file open
+            <div className="ep-container">
+                <div className="ep-empty-state">
+                    <p className="ep-empty-subtitle">Create a new file to get started</p>
+                    <div className="ep-empty-cards">
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('sql')}>
+                            <LuCode size={24} />
+                            <span className="ep-empty-card-title">SQL Query</span>
+                            <span className="ep-empty-card-desc">Write and execute SQL</span>
+                        </button>
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('notebook')}>
+                            <LuFilePlus size={24} />
+                            <span className="ep-empty-card-title">SQL Notebook</span>
+                            <span className="ep-empty-card-desc">Cells with code & markdown</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -240,10 +272,32 @@ const EditorPane = ({
 
     const isNotebook = activeTab.name.endsWith('.sqlnb');
 
+    // Track last edit time on content change
+    const handleContentChangeWithTimestamp = (tabId, newContent) => {
+        setLastEditTime(new Date());
+        onContentChange(tabId, newContent);
+    };
+
+    // Track last run time
+    const handleRunWithTimestamp = async (tabId, query) => {
+        setLastRunTime(new Date());
+        return onRunQuery(tabId, query);
+    };
+
+    const formatTimeAgo = (date) => {
+        if (!date) return '—';
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        if (diff < 5) return 'just now';
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     // Results panel content (shared between both layouts)
     const resultsContent = (
         <>
-            {activeTab.resultsError && <div style={{ color: 'red', padding: '10px' }}>Error: {activeTab.resultsError}</div>}
+            {activeTab.resultsError && <div className="ep-error">Error: {activeTab.resultsError}</div>}
 
             {activeTab.results && (
                 <>
@@ -260,15 +314,12 @@ const EditorPane = ({
                             onPopout={handlePopout}
                         />
                     )}
-                    
+
                     {isPoppedOut && (
-                        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', backgroundColor: 'var(--panel-bg)', borderRadius: '6px', margin: '16px' }}>
+                        <div className="ep-popout-notice">
                             Results for {activeTab.name} are actively displayed in a detached window.
-                            <div style={{ marginTop: '12px' }}>
-                                <button 
-                                    onClick={() => setIsPoppedOut(false)}
-                                    style={{ padding: '6px 12px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-active)' }}
-                                >
+                            <div>
+                                <button onClick={() => setIsPoppedOut(false)}>
                                     Bring Back Here
                                 </button>
                             </div>
@@ -278,7 +329,7 @@ const EditorPane = ({
             )}
 
             {!activeTab.results && !activeTab.resultsError && (
-                <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                <div className="ep-no-results">
                     Run query (Ctrl+Enter) to see results.
                 </div>
             )}
@@ -287,15 +338,7 @@ const EditorPane = ({
 
     return (
         <div
-            style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'var(--editor-bg)',
-                borderLeft: '1px solid var(--border-color)',
-                overflow: 'hidden',
-                position: 'relative'
-            }}
+            className="ep-container"
             onClickCapture={() => onTabClick && activeTabId && onTabClick(activeTabId)}
             onDragEnter={(e) => {
                 if (e.dataTransfer.types.includes('Files')) {
@@ -329,96 +372,148 @@ const EditorPane = ({
                 }
             }}
         >
-            <TabBar
-                tabs={tabs}
-                activeTabId={activeTabId}
-                onTabClick={onTabClick}
-                onTabClose={onTabClose}
-                paneId={paneId}
-                onDragStart={onDragStart}
-                onReorder={onReorder}
-            />
-
-            <div ref={containerRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', minHeight: 0 }}>
+            <div ref={containerRef} className="ep-inner">
 
                 {/* Content Area */}
                 {isNotebook ? (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', outline: isActive ? '1px solid var(--accent-color-user)' : 'none', zIndex: isActive ? 1 : 0 }}>
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <SqlNotebook
                             key={activeTab.id}
                             content={activeTab.content}
                             onChange={(val) => onContentChange(activeTab.id, val)}
                             onRunQuery={(q) => onRunQuery(activeTab.id, q)}
+                            onSave={() => onSave && onSave()}
                             filePath={activeTab.path || null}
                         />
                     </div>
                 ) : (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: isVertical ? 'row' : 'column', overflow: 'hidden', minHeight: 0 }}>
-                        {/* Editor Section */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 60 }}>
-                            {/* Variables Bar */}
-                            <VariablesBar variables={variables || []} onChange={onVariablesChange || (() => { })} />
-                            <div style={{
-                                flex: 1,
-                                overflow: 'hidden',
-                                outline: isActive ? '1px solid var(--accent-color-user)' : 'none',
-                                zIndex: isActive ? 10 : 0
-                            }}>
-                                <SqlEditor
-                                    value={activeTab.content}
-                                    language={activeTab.type === 'md' ? 'markdown' : 'sql'}
-                                    onChange={(val) => onContentChange(activeTab.id, val)}
-                                    onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
-                                    onRunQuery={(overrideQuery) => onRunQuery(activeTab.id, overrideQuery || activeTab.content)}
-                                    onSave={() => onSave && onSave()}
-                                    onAnalyze={() => onAnalyze && onAnalyze()}
-                                    theme={theme}
-                                    errorMarker={activeTab.errorMarker}
-                                    editorSettings={editorSettings}
-                                />
+                    <div className={`ep-editor-area${isVertical ? ' vertical' : ''}`}>
+                        {/* Editor Card — "message box" style with rounded borders */}
+                        <div className="ep-editor-card">
+                            {/* Action Bar — header of the card */}
+                            <div className="ep-action-bar">
+                                <div className="ep-action-left">
+                                    {/* Run + Analyze group */}
+                                    <div className="ep-action-group">
+                                        <button
+                                            className="ep-action-run"
+                                            onClick={() => handleRunWithTimestamp(activeTab.id, activeTab.content)}
+                                            title="Run (Ctrl+Enter)"
+                                        >
+                                            <LuPlay size={13} fill="currentColor" /> Run
+                                        </button>
+                                        <button
+                                            className="ep-action-btn"
+                                            onClick={() => onAnalyze && onAnalyze()}
+                                            title="Analyze Query Plan (Ctrl+Shift+E)"
+                                        >
+                                            <LuActivity size={13} />
+                                        </button>
+                                    </div>
+
+                                    {/* Save group */}
+                                    <div className="ep-action-group" ref={saveMenuRef}>
+                                        <button
+                                            className="ep-action-btn"
+                                            onClick={() => onSave && onSave()}
+                                            title="Save (Ctrl+S)"
+                                        >
+                                            <LuSave size={13} /> Save
+                                        </button>
+                                        <button
+                                            className="ep-action-chevron"
+                                            onClick={() => setShowSaveMenu(v => !v)}
+                                            title="Save Options"
+                                        >
+                                            <LuChevronDown size={10} />
+                                        </button>
+                                        {showSaveMenu && (
+                                            <div className="ep-action-dropdown">
+                                                <div className="ep-action-dropdown-item" onClick={() => { onSave && onSave(); setShowSaveMenu(false); }}>
+                                                    Save
+                                                </div>
+                                                <div className="ep-action-dropdown-item" onClick={() => { onRequestSaveAs && onRequestSaveAs(); setShowSaveMenu(false); }}>
+                                                    Save As…
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Variables toggle */}
+                                    <VariablesToggle
+                                        count={(variables || []).length}
+                                        isExpanded={varsExpanded}
+                                        onToggle={() => setVarsExpanded(v => !v)}
+                                        onAdd={() => {
+                                            const vars = variables || [];
+                                            const name = `var_${vars.length + 1}`;
+                                            onVariablesChange && onVariablesChange([...vars, { name, value: '', type: 'text' }]);
+                                            if (!varsExpanded) setVarsExpanded(true);
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="ep-action-right">
+                                    <span className="ep-action-timestamps">
+                                        Edited {formatTimeAgo(lastEditTime)} · Ran {formatTimeAgo(lastRunTime)}
+                                    </span>
+
+                                    {/* AI Toggle per editor */}
+                                    {onToggleAi && (
+                                        <button
+                                            className={`ep-action-ai${showAiSidebar ? ' active' : ''}`}
+                                            onClick={onToggleAi}
+                                            title="Toggle AI Assistant"
+                                        >
+                                            {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
+                                            <span>{showAiSidebar ? 'Close AI' : 'AI'}</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Variables panel — expandable row below action bar */}
+                            {varsExpanded && (variables || []).length > 0 && (
+                                <VariablesPanel variables={variables || []} onChange={onVariablesChange || (() => { })} />
+                            )}
+
+                            {/* Editor Section — body of the card */}
+                            <div className="ep-editor-section">
+                                <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
+                                    <SqlEditor
+                                        value={activeTab.content}
+                                        language={activeTab.type === 'md' ? 'markdown' : 'sql'}
+                                        onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                                        onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
+                                        onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}
+                                        onSave={() => onSave && onSave()}
+                                        onAnalyze={() => onAnalyze && onAnalyze()}
+                                        theme={theme}
+                                        errorMarker={activeTab.errorMarker}
+                                        editorSettings={editorSettings}
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        {/* Resizer Handle */}
+                        {/* Resizer Handle — pill-style drag indicator */}
                         <div
-                            className="resizer-handle"
+                            className={`ep-resizer${isVertical ? ' vertical' : ''}`}
                             onMouseDown={startResizing}
-                            style={isVertical ? {
-                                width: '5px', height: '100%', cursor: 'col-resize',
-                                background: 'var(--border-color)', zIndex: 10, flexShrink: 0
-                            } : {
-                                height: '5px', width: '100%', cursor: 'row-resize',
-                                background: 'var(--border-color)', zIndex: 10, flexShrink: 0
-                            }}
-                        ></div>
+                        />
 
-                        {/* Results Section */}
-                        <div className="results-container" style={isVertical ? {
-                            width: resultsWidth, minWidth: 200, height: '100%',
-                            display: 'flex', flexDirection: 'column', overflow: 'auto'
-                        } : {
-                            height: resultsHeight,
-                            maxHeight: 'calc(100% - 60px)',
-                            flexShrink: 0,
-                            display: 'flex', flexDirection: 'column', overflow: 'hidden'
-                        }}>
+                        {/* Results Card — rounded container for results */}
+                        <div
+                            className={`ep-results${isVertical ? ' vertical' : ''}`}
+                            style={isVertical ? { width: resultsWidth } : { height: resultsHeight }}
+                        >
                             {resultsContent}
                         </div>
                     </div>
                 )}
 
                 {/* Ghost Splitter Line */}
-                <div
-                    ref={ghostRef}
-                    style={{
-                        position: 'absolute',
-                        display: 'none',
-                        backgroundColor: 'var(--accent-color-user)',
-                        zIndex: 9999,
-                        pointerEvents: 'none',
-                        opacity: 0.8
-                    }}
-                />
+                <div ref={ghostRef} className="ep-ghost" />
             </div>
 
             <DebugResultModal
@@ -431,27 +526,11 @@ const EditorPane = ({
 
             {/* File Drop Overlay */}
             {showDropZone && (
-                <div style={{
-                    position: 'absolute', inset: 0, zIndex: 9999,
-                    background: 'rgba(0,0,0,0.6)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    pointerEvents: 'none',
-                    border: '2px dashed var(--accent-primary)',
-                    borderRadius: '8px'
-                }}>
-                    <div style={{
-                        color: 'var(--accent-primary)',
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        textAlign: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }}>
-                        <span style={{ fontSize: '36px' }}>📁</span>
+                <div className="ep-drop-overlay">
+                    <div className="ep-drop-content">
+                        <span className="ep-drop-icon">📁</span>
                         Drop files to import
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400' }}>CSV, Parquet, XLSX, JSON, SQL</span>
+                        <span className="ep-drop-subtitle">CSV, Parquet, XLSX, JSON, SQL</span>
                     </div>
                 </div>
             )}

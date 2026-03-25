@@ -75,6 +75,20 @@ const createWindow = () => {
         backgroundColor: '#0F1012'
     });
 
+    // Disable Chromium's native zoom — app uses CSS zoom via body.style.zoom
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        if (input.control && !input.shift && !input.alt) {
+            if (input.key === '=' || input.key === '+' || input.key === '-' || input.key === '0') {
+                // Let the renderer's keydown handler manage zoom
+                // but prevent Chromium from also zooming
+                mainWindow.webContents.setZoomLevel(0);
+            }
+        }
+    });
+
+    // Also block Ctrl+mousewheel zoom
+    mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
+
     // Load the App
     if (!app.isPackaged) {
         mainWindow.loadURL('http://localhost:5173');

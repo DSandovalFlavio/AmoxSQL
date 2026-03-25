@@ -341,102 +341,72 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
     // ─── Main chat panel (shared between sidebar and diving) ───
     const chatPanel = (
-        <div style={{
-            flex: 1, height: '100%',
-            backgroundColor: 'var(--sidebar-bg)', borderLeft: isDiving ? 'none' : '1px solid var(--border-color)',
-            display: 'flex', flexDirection: 'column', color: 'var(--text-color)', fontFamily: 'system-ui, sans-serif',
-            minWidth: 0,
-        }}>
+        <div className={`ai-panel${isDiving ? ' no-border' : ''}`}>
             {/* ─── Header ─── */}
-            <div style={{
-                height: '40px', padding: '0 16px', boxSizing: 'border-box',
-                borderBottom: '1px solid var(--border-color)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="ai-header">
+                <div className="ai-header-left">
                     {isDiving && onExitDiving && (
-                        <button onClick={onExitDiving} title="Back to Editor" style={{
-                            background: 'none', border: 'none', padding: '4px',
-                            color: 'var(--text-muted)', cursor: 'pointer', display: 'flex',
-                        }}>
+                        <button className="ai-icon-btn" onClick={onExitDiving} title="Back to Editor">
                             <LuArrowLeft size={16} />
                         </button>
                     )}
-                    <LuBot size={16} style={{ color: 'var(--accent-color-user)' }} />
-                    <span style={{ fontWeight: '500', color: 'var(--text-active)', fontSize: '13px' }}>
+                    <LuBot size={16} style={{ color: 'var(--accent-primary)' }} />
+                    <span className="ai-title">
                         {isDiving ? 'Data Diving' : 'AmoxSQL AI'}
                     </span>
                     {provider === 'gemini' && (
-                        <span style={{
-                            fontSize: '9px', padding: '1px 5px', borderRadius: '3px',
-                            backgroundColor: 'var(--feedback-warning-bg)', color: 'var(--feedback-warning-text)',
-                            fontWeight: '600', letterSpacing: '0.5px',
-                        }}>CLOUD</span>
+                        <span className="ai-badge-cloud">CLOUD</span>
                     )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className="ai-header-right">
                     {messages.length > 0 && (
-                        <button onClick={handleClearChat} title="Clear chat" style={{
-                            padding: '4px', background: 'none', border: 'none',
-                            color: 'var(--text-muted)', cursor: 'pointer', display: 'flex',
-                        }}>
+                        <button className="ai-icon-btn" onClick={handleClearChat} title="Clear chat">
                             <LuTrash2 size={14} />
                         </button>
                     )}
-                    <button onClick={onClose} style={{
-                        padding: '4px', background: 'none', border: 'none',
-                        color: 'var(--text-muted)', cursor: 'pointer', display: 'flex',
-                    }}>
+                    <button className="ai-icon-btn" onClick={onClose}>
                         <LuX size={16} />
                     </button>
                 </div>
             </div>
 
             {status === 'LOADING' && (
-                <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-color-user)' }} />
-                    <h3 style={{ color: 'var(--text-active)', margin: '0', fontSize: '14px' }}>Loading AI Engine...</h3>
+                <div className="ai-loading">
+                    <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
+                    <h3>Loading AI Engine...</h3>
                 </div>
             )}
 
             {status === 'ERROR' && (
-                <div style={{ padding: '20px', color: 'var(--feedback-error-text)', textAlign: 'center', fontSize: '13px' }}>
+                <div className="ai-error-state">
                     Error loading AI configuration.
-                    <button onClick={() => setStatus('READY')} style={{ display: 'block', margin: '15px auto', padding: '5px 10px', backgroundColor: 'var(--feedback-error-text)', color: 'var(--button-text-color)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Retry</button>
+                    <button onClick={() => setStatus('READY')}>Retry</button>
                 </div>
             )}
 
             {status === 'READY' && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div className="ai-ready">
 
                     {/* ─── Model Selector (compact) ─── */}
-                    <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                            {provider === 'ollama' ? <LuCpu size={12} color="var(--text-muted)" /> : <LuCloud size={12} color="var(--text-muted)" />}
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                                {provider === 'ollama' ? 'Ollama (Local)' : 'Gemini (Cloud)'}
-                            </span>
+                    <div className="ai-model-selector">
+                        <div className="ai-model-provider">
+                            {provider === 'ollama' ? <LuCpu size={12} /> : <LuCloud size={12} />}
+                            <span>{provider === 'ollama' ? 'Ollama (Local)' : 'Gemini (Cloud)'}</span>
                         </div>
 
                         {provider === 'ollama' && isModelsLoading ? (
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <div className="ai-model-loading">
                                 <LuLoader size={10} style={{ animation: 'spin 2s linear infinite' }} /> Loading models...
                             </div>
                         ) : provider === 'ollama' && installedModels.length === 0 ? (
-                            <button onClick={() => { if (onOpenSettings) onOpenSettings('ai'); }} style={{
-                                width: '100%', padding: '6px', fontSize: '11px',
-                                backgroundColor: 'var(--feedback-warning-bg)', color: 'var(--feedback-warning-text)',
-                                border: '1px solid var(--feedback-warning-border)', borderRadius: '4px', cursor: 'pointer',
-                            }}>Install Models in Settings</button>
+                            <button className="ai-install-btn" onClick={() => { if (onOpenSettings) onOpenSettings('ai'); }}>
+                                Install Models in Settings
+                            </button>
                         ) : (
                             <select
+                                className="ai-model-select"
                                 value={selectedModel}
                                 onChange={(e) => setSelectedModel(e.target.value)}
-                                style={{
-                                    width: '100%', padding: '5px 8px', fontSize: '11px',
-                                    backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
-                                    border: '1px solid var(--border-color)', borderRadius: '4px', outline: 'none', cursor: 'pointer',
-                                }}
                             >
                                 {provider === 'ollama' ? (
                                     installedModels.map(m => (
@@ -452,53 +422,37 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
                         {selectedModel === 'custom' && provider === 'gemini' && (
                             <input
+                                className="ai-model-input"
                                 type="text" value={customModel}
                                 onChange={(e) => setCustomModel(e.target.value)}
                                 placeholder="e.g. gemini-1.5-pro"
-                                style={{
-                                    width: '100%', padding: '5px 8px', fontSize: '11px', marginTop: '6px',
-                                    backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
-                                    border: '1px solid var(--border-color)', borderRadius: '4px', boxSizing: 'border-box', outline: 'none',
-                                }}
                             />
                         )}
                     </div>
 
-                    {/* ─── Context (Drag & Drop — collapsible) ─── */}
-                    <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                    {/* ─── Context (Drag & Drop) ─── */}
+                    <div className="ai-context-section">
+                        <div className="ai-context-label">
                             <LuDatabase size={10} />
                             <span>Context</span>
-                            <span style={{ fontWeight: '400' }}>({contextObjects.length})</span>
+                            <span className="count">({contextObjects.length})</span>
                         </div>
                         <div
+                            className={`ai-context-drop${contextObjects.length > 0 ? ' has-items' : ''}${isDragOver ? ' drag-over' : ''}`}
                             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                             onDragLeave={() => setIsDragOver(false)}
                             onDrop={handleDrop}
-                            style={{
-                                minHeight: contextObjects.length > 0 ? 'auto' : '40px',
-                                maxHeight: '90px', overflowY: 'auto',
-                                border: isDragOver ? '1px dashed var(--accent-color-user)' : '1px dashed var(--border-color)',
-                                backgroundColor: isDragOver ? 'var(--accent-color-user-transparent)' : 'transparent',
-                                borderRadius: '4px', padding: '6px', transition: 'all 0.2s',
-                                display: 'flex', flexWrap: 'wrap', gap: '4px', alignContent: 'flex-start',
-                            }}
                         >
                             {contextObjects.length === 0 ? (
-                                <div style={{ color: 'var(--text-muted)', fontSize: '10px', margin: 'auto' }}>
+                                <div className="ai-context-empty">
                                     Drop tables or files here...
                                 </div>
                             ) : (
                                 contextObjects.map((obj, i) => (
-                                    <div key={i} style={{
-                                        display: 'flex', alignItems: 'center', gap: '4px',
-                                        backgroundColor: 'var(--sidebar-item-active-bg)',
-                                        padding: '3px 8px', borderRadius: '3px',
-                                        border: '1px solid var(--border-color)', fontSize: '11px',
-                                    }}>
-                                        {obj.type === 'table' ? <LuTable size={10} color="var(--accent-color-user)" /> : <LuFile size={10} color="#CE9178" />}
-                                        <span style={{ color: 'var(--text-active)', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{obj.name}</span>
-                                        <button onClick={() => removeContextObj(i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0', display: 'flex', marginLeft: '2px' }}>
+                                    <div key={i} className="ai-context-chip">
+                                        {obj.type === 'table' ? <LuTable size={10} style={{ color: 'var(--accent-primary)' }} /> : <LuFile size={10} style={{ color: 'var(--syntax-string)' }} />}
+                                        <span>{obj.name}</span>
+                                        <button onClick={() => removeContextObj(i)}>
                                             <LuX size={10} />
                                         </button>
                                     </div>
@@ -508,19 +462,14 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     </div>
 
                     {/* ─── Chat Messages ─── */}
-                    <div style={{
-                        flex: 1, overflowY: 'auto', overflowX: 'hidden',
-                    }}>
+                    <div className="ai-messages">
                         {messages.length === 0 && !isGenerating && (
-                            <div style={{
-                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                                height: '100%', padding: '20px', textAlign: 'center',
-                            }}>
-                                <LuSparkles size={28} style={{ color: 'var(--accent-color-user)', marginBottom: '12px', opacity: 0.5 }} />
-                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                            <div className="ai-empty-state">
+                                <LuSparkles size={28} style={{ color: 'var(--accent-primary)', marginBottom: '12px', opacity: 0.5 }} />
+                                <div className="hint">
                                     Ask anything about your data.
                                     <br />
-                                    <span style={{ fontSize: '11px' }}>Drop tables/files above for context.</span>
+                                    <span>Drop tables/files above for context.</span>
                                 </div>
                             </div>
                         )}
@@ -542,23 +491,12 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
                         {/* Streaming assistant message */}
                         {isGenerating && (streamingText || activeToolCalls.length > 0) && (
-                            <div style={{
-                                padding: '12px 16px',
-                                backgroundColor: 'var(--sidebar-item-active-bg)',
-                                borderBottom: '1px solid var(--border-color)',
-                                display: 'flex', gap: '10px',
-                            }}>
-                                <div style={{
-                                    width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    backgroundColor: 'var(--border-color)', color: 'var(--accent-color-user)',
-                                }}>
+                            <div className="ai-streaming-msg">
+                                <div className="ai-avatar">
                                     <LuBot size={13} />
                                 </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--accent-color-user)', marginBottom: '4px', textTransform: 'uppercase' }}>
-                                        AmoxSQL AI
-                                    </div>
+                                <div className="ai-streaming-body">
+                                    <div className="ai-streaming-label">AmoxSQL AI</div>
                                     {activeToolCalls.map((tc, i) => (
                                         <ToolCallBlock
                                             key={tc.toolCallId || i}
@@ -569,14 +507,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                                         />
                                     ))}
                                     {streamingText && (
-                                        <div style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--text-active)', wordBreak: 'break-word' }}>
+                                        <div className="ai-streaming-text">
                                             {streamingText}
-                                            <span style={{
-                                                display: 'inline-block', width: '6px', height: '14px',
-                                                backgroundColor: 'var(--accent-color-user)',
-                                                marginLeft: '2px', animation: 'blink 1s step-end infinite',
-                                                verticalAlign: 'text-bottom',
-                                            }} />
+                                            <span className="ai-cursor" />
                                         </div>
                                     )}
                                 </div>
@@ -585,10 +518,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
                         {/* Generating indicator (no text yet) */}
                         {isGenerating && !streamingText && activeToolCalls.length === 0 && (
-                            <div style={{
-                                padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                gap: '8px', fontSize: '12px', color: 'var(--text-muted)',
-                            }}>
+                            <div className="ai-thinking">
                                 <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
                                 Thinking...
                             </div>
@@ -599,66 +529,39 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
                     {/* ─── Error ─── */}
                     {errorMsg && (
-                        <div style={{
-                            padding: '6px 16px', backgroundColor: 'var(--feedback-error-bg)',
-                            borderTop: '1px solid var(--feedback-error-border)',
-                            fontSize: '11px', color: 'var(--feedback-error-text)',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        }}>
-                            <span style={{ flex: 1 }}>{errorMsg}</span>
-                            <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', color: 'var(--feedback-error-text)', cursor: 'pointer', padding: '2px' }}>
+                        <div className="ai-error-bar">
+                            <span>{errorMsg}</span>
+                            <button onClick={() => setErrorMsg(null)}>
                                 <LuX size={12} />
                             </button>
                         </div>
                     )}
 
                     {/* ─── Input Area ─── */}
-                    <div style={{
-                        padding: '10px 16px', borderTop: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--sidebar-bg)', flexShrink: 0,
-                    }}>
-                        <div style={{
-                            display: 'flex', gap: '8px', alignItems: 'flex-end',
-                        }}>
+                    <div className="ai-input-area">
+                        <div className="ai-input-row">
                             <textarea
+                                className="ai-textarea"
                                 ref={inputRef}
                                 value={inputText}
                                 onChange={(e) => setInputText(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask about your data..."
                                 rows={1}
-                                style={{
-                                    flex: 1, minHeight: '36px', maxHeight: '100px', boxSizing: 'border-box',
-                                    backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)',
-                                    borderRadius: '8px', padding: '8px 12px',
-                                    color: 'var(--text-active)', fontSize: '13px',
-                                    resize: 'none', outline: 'none', fontFamily: 'inherit',
-                                    lineHeight: '1.4',
-                                }}
                                 onInput={(e) => {
                                     e.target.style.height = 'auto';
                                     e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
                                 }}
                             />
                             <button
+                                className={`ai-send-btn${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
                                 onClick={isGenerating ? handleCancel : () => handleSend()}
                                 disabled={!isGenerating && !inputText.trim()}
-                                style={{
-                                    width: '36px', height: '36px', flexShrink: 0,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    backgroundColor: isGenerating
-                                        ? 'var(--feedback-error-bg)'
-                                        : (inputText.trim() ? 'var(--accent-color-user)' : 'var(--border-color)'),
-                                    color: isGenerating ? 'var(--feedback-error-text)' : 'var(--button-text-color)',
-                                    border: 'none', borderRadius: '8px',
-                                    cursor: (!isGenerating && !inputText.trim()) ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.15s',
-                                }}
                             >
                                 {isGenerating ? <LuX size={16} /> : <LuSend size={15} />}
                             </button>
                         </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', textAlign: 'center' }}>
+                        <div className="ai-input-hint">
                             Enter to send · Shift+Enter for newline
                         </div>
                     </div>
@@ -672,26 +575,13 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                 message={alertData.message}
                 type="info"
             />
-
-            {/* Blink animation for streaming cursor */}
-            <style>{`
-                @keyframes blink {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0; }
-                }
-            `}</style>
         </div>
     );
 
     // ─── Main return: wrap with ConversationList when diving ───
     if (isDiving) {
         return (
-            <div style={{
-                width, height: '100%',
-                display: 'flex',
-                flexDirection: 'row',
-                backgroundColor: 'var(--sidebar-bg)',
-            }}>
+            <div className="ai-diving-container" style={{ width }}>
                 {showConversations && (
                     <ConversationList
                         activeId={conversationId}

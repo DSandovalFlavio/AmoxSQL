@@ -140,7 +140,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
                             {successSummary}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>
+                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>
                                 Close
                             </button>
                         </div>
@@ -242,7 +242,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                                     <button type="button" onClick={onClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer' }}>Import Config</button>
+                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>Import Config</button>
                                 </div>
                             </form>
                         )}

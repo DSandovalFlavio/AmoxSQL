@@ -127,9 +127,9 @@ const SnippetsPanel = ({ onInsert }) => {
     })).filter(cat => cat.snippets.length > 0);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
             {/* Header */}
-            <div className="sidebar-header" style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>SQL Snippets</span>
                 <button
                     onClick={() => setShowAddForm(!showAddForm)}
@@ -141,7 +141,7 @@ const SnippetsPanel = ({ onInsert }) => {
             </div>
 
             {/* Search */}
-            <div style={{ padding: '6px 16px 10px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
                 <div style={{ position: 'relative' }}>
                     <input
                         type="text"
@@ -160,7 +160,7 @@ const SnippetsPanel = ({ onInsert }) => {
 
             {/* Add Custom Form */}
             {showAddForm && (
-                <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <input
                         type="text"
                         placeholder="Snippet name..."
@@ -193,22 +193,22 @@ const SnippetsPanel = ({ onInsert }) => {
                             <div
                                 onClick={() => toggleCategory(cat.category)}
                                 style={{
-                                    padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px',
-                                    cursor: 'pointer', fontSize: '11px', fontWeight: 600,
-                                    color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px',
-                                    borderBottom: '1px solid var(--border-subtle)',
+                                    padding: '10px 14px 4px', display: 'flex', alignItems: 'center', gap: '6px',
+                                    cursor: 'pointer', fontSize: '10px', fontWeight: 600,
+                                    color: 'var(--text-disabled)', textTransform: 'uppercase', letterSpacing: '0.5px',
                                 }}
                             >
-                                {isExpanded ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
+                                {isExpanded ? <LuChevronDown size={10} /> : <LuChevronRight size={10} />}
                                 {cat.category}
-                                <span style={{ marginLeft: 'auto', fontSize: '10px', opacity: 0.6 }}>{cat.snippets.length}</span>
+                                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+                                <span style={{ fontSize: '9px', color: 'var(--text-disabled)' }}>{cat.snippets.length}</span>
                             </div>
                             {isExpanded && cat.snippets.map((snip, idx) => (
                                 <div
                                     key={`${cat.category}-${idx}`}
                                     className="file-item"
                                     style={{
-                                        padding: '6px 12px 6px 24px', display: 'flex', flexDirection: 'column', gap: '2px',
+                                        padding: '8px 14px 8px 28px', display: 'flex', flexDirection: 'column', gap: '3px',
                                         cursor: 'pointer', fontSize: '12px',
                                     }}
                                     onClick={() => handleInsert(snip.sql)}

@@ -203,7 +203,7 @@ const DataProfiler = ({ data, isActive, query }) => {
                         <OverviewStat label="Number of Variables" value={globalStats?.cols || 0} />
                         <OverviewStat label="Number of Observations" value={fmt(globalStats?.totalRows)} />
                         <OverviewStat label="Missing Cells (%)" value={`${(profile.reduce((acc, col) => acc + parseFloat(col.nullPct), 0) / (profile.length || 1)).toFixed(1)}%`} />
-                        <OverviewStat label="Duplicate Rows" value={fmt(globalStats?.duplicateRows)} color={globalStats?.duplicateRows > 0 ? '#ef4444' : undefined} />
+                        <OverviewStat label="Duplicate Rows" value={fmt(globalStats?.duplicateRows)} color={globalStats?.duplicateRows > 0 ? 'var(--color-error)' : undefined} />
                     </div>
                 </div>
 
@@ -215,13 +215,13 @@ const DataProfiler = ({ data, isActive, query }) => {
                     </h3>
                     {alerts.length === 0 ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)', fontSize: '13px', paddingTop: '10px' }}>
-                            <LuCircleCheck size={16} color="#10b981" /> No severe data quality issues detected.
+                            <LuCircleCheck size={16} color="var(--color-success)" /> No severe data quality issues detected.
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {alerts.map((al, idx) => (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', padding: '8px', backgroundColor: 'var(--bg-color)', borderRadius: '6px', borderLeft: `3px solid ${al.type === 'danger' ? '#ef4444' : al.type === 'warning' ? '#f59e0b' : '#3b82f6'}` }}>
-                                    {al.type === 'danger' ? <LuTriangleAlert size={15} color="#ef4444" style={{ marginTop: '2px' }} /> : <LuInfo size={15} color={al.type === 'warning' ? '#f59e0b' : '#3b82f6'} style={{ marginTop: '2px' }} />}
+                                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', padding: '8px', backgroundColor: 'var(--bg-color)', borderRadius: '6px', borderLeft: `3px solid ${al.type === 'danger' ? 'var(--color-error)' : al.type === 'warning' ? 'var(--color-warning)' : 'var(--color-info)'}` }}>
+                                    {al.type === 'danger' ? <LuTriangleAlert size={15} color="var(--color-error)" style={{ marginTop: '2px' }} /> : <LuInfo size={15} color={al.type === 'warning' ? 'var(--color-warning)' : 'var(--color-info)'} style={{ marginTop: '2px' }} />}
                                     <span style={{ color: 'var(--text-secondary)' }}>{al.msg}</span>
                                 </div>
                             ))}
@@ -259,8 +259,8 @@ const DataProfiler = ({ data, isActive, query }) => {
                                 <div style={{
                                     width: '32px', height: '32px', borderRadius: '8px',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    backgroundColor: col.dtype === 'numeric' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                                    color: col.dtype === 'numeric' ? '#3b82f6' : '#f59e0b',
+                                    backgroundColor: col.dtype === 'numeric' ? 'color-mix(in srgb, var(--color-info) 12%, transparent)' : 'color-mix(in srgb, var(--color-warning) 12%, transparent)',
+                                    color: col.dtype === 'numeric' ? 'var(--color-info)' : 'var(--color-warning)',
                                     flexShrink: 0,
                                 }}>
                                     {col.dtype === 'numeric' ? <LuHash size={16} /> : <LuType size={16} />}
@@ -273,7 +273,7 @@ const DataProfiler = ({ data, isActive, query }) => {
 
                             <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
                                 <MiniStat label="Distinct" value={`${fmt(col.uniqueCount)} (${col.uniquePct}%)`} />
-                                <MiniStat label="Missing" value={`${fmt(col.nullCount)} (${col.nullPct}%)`} color={parseFloat(col.nullPct) > 20 ? '#ef4444' : undefined} />
+                                <MiniStat label="Missing" value={`${fmt(col.nullCount)} (${col.nullPct}%)`} color={parseFloat(col.nullPct) > 20 ? 'var(--color-error)' : undefined} />
                                 {col.dtype === 'numeric' && (
                                     <>
                                         <MiniStat label="Zeros" value={`${fmt(col.zeros)} (${(col.zeros / col.total * 100).toFixed(1)}%)`} />

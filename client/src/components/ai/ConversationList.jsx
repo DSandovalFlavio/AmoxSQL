@@ -92,8 +92,7 @@ const ConversationList = ({ activeId, onSelect, onNew, onClose }) => {
                             borderLeft: conv.id === activeId ? '2px solid var(--accent-color-user)' : '2px solid transparent',
                             transition: 'all 0.12s',
                         }}
-                        onMouseEnter={e => { if (conv.id !== activeId) e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; }}
-                        onMouseLeave={e => { if (conv.id !== activeId) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        className={conv.id === activeId ? '' : 'ai-conv-item'}
                     >
                         <LuMessageSquare size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                         <span style={{
@@ -203,8 +202,7 @@ const ConversationList = ({ activeId, onSelect, onNew, onClose }) => {
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                         transition: 'opacity 0.15s',
                     }}
-                    onMouseEnter={e => e.target.style.opacity = '0.9'}
-                    onMouseLeave={e => e.target.style.opacity = '1'}
+                    className="ai-new-conv-btn"
                 >
                     <LuPlus size={14} /> New Conversation
                 </button>

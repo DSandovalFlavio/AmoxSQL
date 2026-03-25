@@ -39,7 +39,7 @@ const DebugResultModal = ({ isOpen, onClose, cteName, result, query }) => {
                     {result ? (
                         <>
                             {result.error ? (
-                                <div style={{ color: '#ff6b6b', padding: '20px' }}>
+                                <div style={{ color: 'var(--color-error)', padding: '20px' }}>
                                     Error executing CTE: {result.error}
                                 </div>
                             ) : (

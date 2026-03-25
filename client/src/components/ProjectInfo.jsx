@@ -5,7 +5,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
     const projectName = projectPath ? projectPath.split(/[/\\]/).pop() : 'Untitled';
 
     // Determine Mode Label
-    let connectionInfo = { label: 'In-Memory', color: '#909296', icon: <LuBrain size={14} />, status: 'Active' };
+    let connectionInfo = { label: 'In-Memory', color: 'var(--text-tertiary)', icon: <LuBrain size={14} />, status: 'Active' };
 
     // Safety check: ensure currentDb is a string
     const isAttached = currentDb && typeof currentDb === 'string' && currentDb !== ':memory:';
@@ -13,7 +13,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
     if (isAttached) {
         const dbName = currentDb.split(/[/\\]/).pop();
         const modeLabel = readOnly ? 'Read Only' : 'Read/Write';
-        const modeColor = readOnly ? '#FFA500' : 'var(--accent-color-user)'; // Orange for RO, Accent for RW
+        const modeColor = readOnly ? 'var(--color-warning)' : 'var(--accent-color-user)'; // Warning color for RO, Accent for RW
         connectionInfo = { label: dbName, color: modeColor, icon: <LuDatabase size={14} />, status: 'Connected', mode: modeLabel };
     }
 
