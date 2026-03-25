@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuX } from 'react-icons/lu';
+import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare } from 'react-icons/lu';
 
 const API = 'http://localhost:3001';
 
@@ -7,7 +7,7 @@ const API = 'http://localhost:3001';
  * ConversationList — Sidebar panel in Data Diving mode.
  * Lists conversations grouped by date with search, star, and delete.
  */
-const ConversationList = ({ activeId, onSelect, onNew, onClose }) => {
+const ConversationList = ({ activeId, onSelect, onNew }) => {
     const [conversations, setConversations] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
@@ -118,11 +118,6 @@ const ConversationList = ({ activeId, onSelect, onNew, onClose }) => {
                     <button onClick={onNew} title="New Conversation" className="ai-conv-header-btn ai-conv-header-btn--accent">
                         <LuPlus size={16} />
                     </button>
-                    {onClose && (
-                        <button onClick={onClose} title="Close" className="ai-conv-header-btn">
-                            <LuX size={16} />
-                        </button>
-                    )}
                 </div>
             </div>
 
