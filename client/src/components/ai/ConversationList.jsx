@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuX } from 'react-icons/lu';
+import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare } from 'react-icons/lu';
 
 const API = 'http://localhost:3001';
 
@@ -7,7 +7,7 @@ const API = 'http://localhost:3001';
  * ConversationList — Sidebar panel in Data Diving mode.
  * Lists conversations grouped by date with search, star, and delete.
  */
-const ConversationList = ({ activeId, onSelect, onNew, onClose }) => {
+const ConversationList = ({ activeId, onSelect, onNew }) => {
     const [conversations, setConversations] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
@@ -76,50 +76,29 @@ const ConversationList = ({ activeId, onSelect, onNew, onClose }) => {
         if (items.length === 0) return null;
         return (
             <div key={label}>
-                <div style={{
-                    fontSize: '10px', fontWeight: '600', textTransform: 'uppercase',
-                    color: 'var(--text-muted)', padding: '10px 16px 4px',
-                    letterSpacing: '0.5px',
-                }}>{label}</div>
+                <div className="ai-conv-group">{label}</div>
                 {items.map(conv => (
                     <div
                         key={conv.id}
                         onClick={() => onSelect(conv.id)}
-                        style={{
-                            padding: '8px 16px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            backgroundColor: conv.id === activeId ? 'var(--sidebar-item-active-bg)' : 'transparent',
-                            borderLeft: conv.id === activeId ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                            transition: 'all 0.12s',
-                        }}
-                        className={conv.id === activeId ? '' : 'ai-conv-item'}
+                        className={`ai-conv-item${conv.id === activeId ? ' ai-conv-item--active' : ''}`}
                     >
-                        <LuMessageSquare size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                        <span style={{
-                            flex: 1, fontSize: '12px', color: 'var(--text-active)',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>
+                        <LuMessageSquare size={13} className="ai-conv-item-icon" />
+                        <span className="ai-conv-item-title">
                             {conv.title || 'New Conversation'}
                         </span>
-                        <div style={{ display: 'flex', gap: '2px', opacity: 0.6 }} className="conv-actions">
+                        <div className="ai-conv-item-actions">
                             <button
                                 onClick={(e) => handleToggleStar(e, conv.id)}
                                 title={conv.is_starred ? 'Unstar' : 'Star'}
-                                style={{
-                                    background: 'none', border: 'none', padding: '2px',
-                                    color: conv.is_starred ? 'var(--feedback-warning-text)' : 'var(--text-muted)',
-                                    cursor: 'pointer', display: 'flex',
-                                }}
+                                className={`ai-conv-action-btn${conv.is_starred ? ' ai-conv-action-btn--starred' : ''}`}
                             >
                                 <LuStar size={11} fill={conv.is_starred ? 'currentColor' : 'none'} />
                             </button>
                             <button
                                 onClick={(e) => handleDelete(e, conv.id)}
                                 title="Delete"
-                                style={{
-                                    background: 'none', border: 'none', padding: '2px',
-                                    color: 'var(--text-muted)', cursor: 'pointer', display: 'flex',
-                                }}
+                                className="ai-conv-action-btn ai-conv-action-btn--delete"
                             >
                                 <LuTrash2 size={11} />
                             </button>
@@ -131,91 +110,44 @@ const ConversationList = ({ activeId, onSelect, onNew, onClose }) => {
     };
 
     return (
-        <div style={{
-            width: '260px', minWidth: '260px', height: '100%',
-            backgroundColor: 'var(--sidebar-bg)',
-            borderRight: '1px solid var(--border-color)',
-            display: 'flex', flexDirection: 'column',
-        }}>
+        <div className="ai-conv">
             {/* Header */}
-            <div style={{
-                padding: '12px 16px', borderBottom: '1px solid var(--border-color)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-active)' }}>Conversations</span>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                        onClick={onNew}
-                        title="New Conversation"
-                        style={{
-                            background: 'none', border: 'none', padding: '4px',
-                            color: 'var(--accent-color-user)', cursor: 'pointer', display: 'flex',
-                        }}
-                    >
+            <div className="ai-conv-header">
+                <span className="ai-conv-header-title">Conversations</span>
+                <div className="ai-conv-header-actions">
+                    <button onClick={onNew} title="New Conversation" className="ai-conv-header-btn ai-conv-header-btn--accent">
                         <LuPlus size={16} />
                     </button>
-                    {onClose && (
-                        <button
-                            onClick={onClose}
-                            title="Close"
-                            style={{
-                                background: 'none', border: 'none', padding: '4px',
-                                color: 'var(--text-muted)', cursor: 'pointer', display: 'flex',
-                            }}
-                        >
-                            <LuX size={16} />
-                        </button>
-                    )}
                 </div>
             </div>
 
             {/* Search */}
-            <div style={{ padding: '8px 12px' }}>
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)',
-                    borderRadius: '6px', padding: '5px 10px',
-                }}>
-                    <LuSearch size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <div className="ai-conv-search">
+                <div className="fe-search">
+                    <LuSearch size={12} className="fe-search-icon" />
                     <input
-                        type="text" value={search}
+                        type="text"
+                        value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search conversations..."
-                        style={{
-                            flex: 1, border: 'none', outline: 'none', fontSize: '11px',
-                            backgroundColor: 'transparent', color: 'var(--text-active)',
-                            fontFamily: 'inherit',
-                        }}
+                        className="fe-search-input"
                     />
                 </div>
             </div>
 
             {/* New Conversation Button */}
-            <div style={{ padding: '4px 12px 8px' }}>
-                <button
-                    onClick={onNew}
-                    style={{
-                        width: '100%', padding: '8px 12px',
-                        backgroundColor: 'var(--accent-color-user)', color: 'var(--button-text-color)',
-                        border: 'none', borderRadius: '6px', cursor: 'pointer',
-                        fontSize: '12px', fontWeight: '600',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                        transition: 'opacity 0.15s',
-                    }}
-                    className="ai-new-conv-btn"
-                >
+            <div className="ai-conv-new-btn-wrap">
+                <button onClick={onNew} className="ai-conv-new-btn">
                     <LuPlus size={14} /> New Conversation
                 </button>
             </div>
 
             {/* Conversation List */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="ai-conv-list">
                 {loading ? (
-                    <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                        Loading...
-                    </div>
+                    <div className="ai-conv-empty">Loading...</div>
                 ) : conversations.length === 0 ? (
-                    <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+                    <div className="ai-conv-empty">
                         {search ? 'No conversations found.' : 'No conversations yet.'}
                     </div>
                 ) : (
