@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter } from "react-icons/lu";
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
@@ -355,6 +355,11 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 <button className={`rt-view-btn${viewMode === 'profile' ? ' active' : ''}`} onClick={() => handleViewModeChange('profile')}>
                                     <LuGauge size={13} /> Profile
                                 </button>
+                                {viewMode === 'table' && (
+                                    <button className={`rt-view-btn rt-filter-btn${showFilters ? ' active' : ''}`} onClick={() => setShowFilters(f => !f)}>
+                                        <LuFilter size={13} /> Filters
+                                    </button>
+                                )}
                             </div>
 
                             <span className="rt-stats">
@@ -417,27 +422,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                         </div>
                     </div>
 
-                    {/* Bottom Row: Pagination & Filters Toggle */}
-                    {viewMode === 'table' && (
-                        <div className="rt-pagination-row">
-                            <label className="rt-filter-toggle">
-                                <input type="checkbox" checked={showFilters} onChange={(e) => setShowFilters(e.target.checked)} />
-                                Column Filters
-                            </label>
-
-                            <div className="rt-pagination">
-                                <button className="rt-pagination-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>&lt;</button>
-                                <span className="rt-page-info">Page {currentPage} of {totalPages}</span>
-                                <button className="rt-pagination-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>&gt;</button>
-                                <select className="rt-page-select" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                    <option value={500}>500</option>
-                                    <option value={1000}>1000</option>
-                                </select>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -516,6 +500,23 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             )}
                         </tbody>
                     </table>
+
+                    {/* Pagination Footer — below table */}
+                    {!isReportMode && totalPages > 1 && (
+                        <div className="rt-pagination-footer">
+                            <div className="rt-pagination">
+                                <button className="rt-pagination-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>&lt;</button>
+                                <span className="rt-page-info">Page {currentPage} of {totalPages}</span>
+                                <button className="rt-pagination-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>&gt;</button>
+                                <select className="rt-page-select" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={500}>500</option>
+                                    <option value={1000}>1000</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Chart */}

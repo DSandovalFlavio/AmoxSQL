@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import NotebookCell from './NotebookCell';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare } from "react-icons/lu";
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
 import { parseNotebookContent, parseNotebookEnvironment, serializeNotebookContent } from '../utils/notebookParser';
 
-const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
+const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null }) => {
     const [cells, setCells] = useState([]);
     const [results, setResults] = useState({});
 
@@ -394,129 +395,99 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     }, [isFullView]);
 
     const toolbarContent = (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isFullView ? '16px' : '24px', position: 'sticky', top: 0, zIndex: 10, backgroundColor: isFullView ? 'var(--surface-base)' : 'var(--editor-bg)', paddingBottom: '10px', paddingTop: '10px' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <div style={{ display: 'flex', backgroundColor: 'var(--panel-bg)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+        <div className="snb-toolbar">
+            {/* Left: Mode switcher + primary actions */}
+            <div className="snb-toolbar-left">
+                {/* Mode switcher pill */}
+                <div className="snb-mode-switcher">
                     <button
                         onClick={() => setViewMode('edit')}
-                        style={{
-                            padding: '6px 16px',
-                            backgroundColor: viewMode === 'edit' ? 'var(--accent-color-user)' : 'transparent',
-                            color: viewMode === 'edit' ? 'var(--button-text-color)' : 'var(--text-muted)',
-                            border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                            display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease'
-                        }}
+                        className={`snb-mode-btn ${viewMode === 'edit' ? 'snb-mode-btn--active' : ''}`}
                     >
-                        <LuPenLine size={14} /> Edit
+                        <LuPenLine size={13} /> Edit
                     </button>
                     <button
                         onClick={() => setViewMode('report')}
-                        style={{
-                            padding: '6px 16px',
-                            backgroundColor: viewMode === 'report' ? 'var(--accent-color-user)' : 'transparent',
-                            color: viewMode === 'report' ? 'var(--button-text-color)' : 'var(--text-muted)',
-                            border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                            display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease'
-                        }}
+                        className={`snb-mode-btn ${viewMode === 'report' ? 'snb-mode-btn--active' : ''}`}
                     >
-                        <LuFileText size={14} /> Report
+                        <LuFileText size={13} /> Report
                     </button>
                 </div>
 
-                <button
-                    onClick={() => setIsFullView(!isFullView)}
-                    style={{
-                        padding: '6px 14px', backgroundColor: isFullView ? 'var(--accent-color-user)' : 'var(--panel-bg)',
-                        color: isFullView ? 'var(--button-text-color)' : 'var(--text-active)',
-                        border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
-                        display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease'
-                    }}
-                    title={isFullView ? "Exit Full View (Esc)" : "Full View - Presentation Mode"}
-                >
-                    {isFullView ? <LuMinimize2 size={14} /> : <LuMaximize2 size={14} />}
-                    {isFullView ? 'Exit' : 'Present'}
-                </button>
+                {/* Separator */}
+                <div className="snb-separator" />
 
                 {/* Run All / Stop */}
                 {!isRunningBatch ? (
-                    <button
-                        onClick={runAll}
-                        style={{
-                            padding: '6px 14px', backgroundColor: 'var(--panel-bg)',
-                            color: 'var(--feedback-success)',
-                            border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
-                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease'
-                        }}
-                        title="Run All Cells"
-                    >
+                    <button onClick={runAll} className="snb-btn snb-btn--run" title="Run All Cells (Ctrl+Shift+Enter)">
                         <LuCirclePlay size={14} /> Run All
                     </button>
                 ) : (
-                    <button
-                        onClick={stopBatch}
-                        style={{
-                            padding: '6px 14px', backgroundColor: 'var(--feedback-error-bg)',
-                            color: 'var(--feedback-error)',
-                            border: '1px solid var(--feedback-error)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
-                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', transition: 'all 0.2s ease'
-                        }}
-                        title="Stop Execution"
-                    >
+                    <button onClick={stopBatch} className="snb-btn snb-btn--stop" title="Stop Execution">
                         <LuSquare size={12} fill="currentColor" /> Stop {batchProgress ? `(${batchProgress.current}/${batchProgress.total})` : ''}
+                    </button>
+                )}
+
+                {/* Save */}
+                {onSave && (
+                    <button onClick={onSave} className="snb-btn snb-btn--ghost" title="Save (Ctrl+S)">
+                        <LuSave size={13} /> Save
                     </button>
                 )}
             </div>
 
-            {(viewMode === 'report' || isFullView) && (
-                <div className="report-toolbar-actions" style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                        onClick={() => setHideCodeInReport(!hideCodeInReport)}
-                        style={{
-                            padding: '8px 16px', backgroundColor: 'var(--panel-bg)', color: 'var(--text-active)',
-                            border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
-                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px',
-                            opacity: hideCodeInReport ? 1 : 0.7
-                        }}
-                    >
-                        {hideCodeInReport ? <LuEyeOff size={14} /> : <LuEye size={14} />} {hideCodeInReport ? 'Code Hidden' : 'Code Visible'}
-                    </button>
-                    <button
-                        onClick={handlePrint}
-                        style={{
-                            padding: '8px 16px', backgroundColor: 'var(--panel-bg)', color: 'var(--text-active)',
-                            border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
-                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'
-                        }}
-                    >
-                        <LuPrinter size={14} /> Print
-                    </button>
-                    <button
-                        onClick={() => generateHtmlReport(cells, results, hideCodeInReport)}
-                        style={{
-                            padding: '8px 16px', backgroundColor: 'var(--panel-bg)', color: 'var(--accent-color-user)',
-                            border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
-                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'
-                        }}
-                    >
-                        <LuFileCode size={14} /> HTML
-                    </button>
-                </div>
-            )}
+            {/* Right: Context-dependent actions */}
+            <div className="snb-toolbar-right">
+                {/* Report/Present mode: toggle code + export actions */}
+                {(viewMode === 'report' || isFullView) && (
+                    <>
+                        <button
+                            onClick={() => setHideCodeInReport(!hideCodeInReport)}
+                            className={`snb-btn snb-btn--ghost ${hideCodeInReport ? 'snb-btn--toggled' : ''}`}
+                        >
+                            {hideCodeInReport ? <LuEyeOff size={13} /> : <LuEye size={13} />}
+                            {hideCodeInReport ? 'Code Hidden' : 'Show Code'}
+                        </button>
+                        <button onClick={handlePrint} className="snb-btn snb-btn--ghost" title="Print">
+                            <LuPrinter size={13} /> Print
+                        </button>
+                        <button
+                            onClick={() => generateHtmlReport(cells, results, hideCodeInReport)}
+                            className="snb-btn snb-btn--accent"
+                            title="Export as HTML Report"
+                        >
+                            <LuFileCode size={13} /> Export HTML
+                        </button>
+                    </>
+                )}
 
-            {viewMode === 'edit' && !isFullView && (
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => addCell('code')} style={addBtnStyle}><LuPlus size={14} /> SQL</button>
-                    <button onClick={() => addCell('markdown')} style={addBtnStyle}><LuPlus size={14} /> Text</button>
-                    <button onClick={() => addCell('input')} style={{...addBtnStyle, color: 'var(--accent-color-user)', borderColor: 'var(--accent-color-user)'}}><LuSettings2 size={14} /> Input</button>
-                </div>
-            )}
+                {/* Present toggle (always visible) */}
+                <button
+                    onClick={() => setIsFullView(!isFullView)}
+                    className={`snb-btn ${isFullView ? 'snb-btn--active' : 'snb-btn--ghost'}`}
+                    title={isFullView ? "Exit Full View (Esc)" : "Presentation Mode"}
+                >
+                    {isFullView ? <LuMinimize2 size={13} /> : <LuMaximize2 size={13} />}
+                    {isFullView ? 'Exit' : 'Present'}
+                </button>
+
+                {/* Edit mode: add cell buttons */}
+                {viewMode === 'edit' && !isFullView && (
+                    <>
+                        <div className="snb-separator" />
+                        <button onClick={() => addCell('code')} className="snb-btn snb-btn--ghost"><LuPlus size={13} /> SQL</button>
+                        <button onClick={() => addCell('markdown')} className="snb-btn snb-btn--ghost"><LuPlus size={13} /> Text</button>
+                        <button onClick={() => addCell('input')} className="snb-btn snb-btn--accent-outline"><LuSettings2 size={13} /> Input</button>
+                    </>
+                )}
+            </div>
         </div>
     );
 
     const isReportActive = viewMode === 'report' || isFullView;
 
     const notebookContent = (
-        <div className={`notebook-container ${isReportActive ? 'report-mode-container' : ''}`} style={{ padding: '20px', height: '100%', overflowY: 'auto', backgroundColor: isFullView ? 'var(--surface-base)' : 'var(--editor-bg)' }}>
+        <div className={`notebook-container ${isReportActive ? 'report-mode-container' : ''}`} style={{ padding: '20px', height: '100%', overflowY: 'auto', backgroundColor: isFullView ? 'var(--surface-base)' : 'var(--surface-inset)' }}>
 
             {toolbarContent}
 
@@ -571,10 +542,10 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 )}
 
                 {viewMode === 'edit' && !isFullView && (
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '30px', marginBottom: '80px', justifyContent: 'center' }}>
-                        <button onClick={() => addCell('code')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent' }}><LuPlus size={16} /> Add SQL</button>
-                        <button onClick={() => addCell('markdown')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent' }}><LuPlus size={16} /> Add Text</button>
-                        <button onClick={() => addCell('input')} style={{ ...addBtnStyle, padding: '10px 24px', borderStyle: 'solid', backgroundColor: 'transparent', color: 'var(--accent-color-user)', borderColor: 'var(--accent-color-user)' }}><LuSettings2 size={16} /> Add Input</button>
+                    <div className="snb-bottom-add">
+                        <button onClick={() => addCell('code')} className="snb-btn snb-btn--ghost snb-btn--lg"><LuPlus size={15} /> Add SQL</button>
+                        <button onClick={() => addCell('markdown')} className="snb-btn snb-btn--ghost snb-btn--lg"><LuPlus size={15} /> Add Text</button>
+                        <button onClick={() => addCell('input')} className="snb-btn snb-btn--accent-outline snb-btn--lg"><LuSettings2 size={15} /> Add Input</button>
                     </div>
                 )}
             </div>
@@ -615,11 +586,11 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
     );
 
     if (isFullView) {
-        return (
+        return ReactDOM.createPortal(
             <div className="notebook-fullview-overlay" style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 9999,
+                zIndex: 99999,
                 backgroundColor: 'var(--surface-base)',
                 overflowY: 'auto',
                 display: 'flex',
@@ -628,26 +599,13 @@ const SqlNotebook = ({ content, onChange, onRunQuery, filePath = null }) => {
                 {notebookContent}
                 {deleteModal}
                 {alertModal}
-            </div>
+            </div>,
+            document.body
         );
     }
 
     return <>{notebookContent}{deleteModal}{alertModal}</>;
 };
 
-const addBtnStyle = {
-    backgroundColor: 'var(--panel-bg)',
-    color: 'var(--text-active)',
-    border: '1px solid var(--border-color)',
-    padding: '6px 14px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    transition: 'background-color 0.2s ease, border-color 0.2s ease'
-};
 
 export default SqlNotebook;

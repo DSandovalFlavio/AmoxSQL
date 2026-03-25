@@ -8,7 +8,7 @@ import AlertDialog from './AlertDialog';
 
 const TAB_STORAGE_KEY = 'amoxsql-open-tabs';
 
-const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange }, ref) => {
     const toast = useToast();
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
@@ -43,7 +43,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         try {
             sessionStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabMeta));
         } catch { /* ignore */ }
-    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled]);
+
+        // Notify parent of tab changes for rendering in WindowTitleBar
+        if (onTabsChange) {
+            const tabs = activePane === 'left' ? leftTabs : rightTabs;
+            const activeTabId = activePane === 'left' ? leftActiveId : rightActiveId;
+            onTabsChange({ tabs, activeTabId, paneId: activePane });
+        }
+    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane]);
 
     // --- Tab Persistence: Restore on mount ---
     useEffect(() => {
@@ -319,8 +326,45 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     };
 
+    // Extracted createNew so it can be passed to EditorPanes + exposed via ref
+    const createNew = (type, initialContent) => {
+        const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb' : type;
+        const newTab = {
+            id: Date.now().toString(),
+            path: '',
+            name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : normalizedType === 'md' ? 'Untitled.md' : 'Untitled.sql',
+            type: normalizedType,
+            content: initialContent || (normalizedType === 'sqlnb'
+                ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
+                : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' : 'SELECT 1;'),
+            results: null,
+            dirty: true
+        };
+        if (activePane === 'left') {
+            setLeftTabs(prev => [...prev, newTab]);
+            setLeftActiveId(newTab.id);
+        } else {
+            setRightTabs(prev => [...prev, newTab]);
+            setRightActiveId(newTab.id);
+        }
+    };
+
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
+        // Expose tab state for rendering TabBar in WindowTitleBar
+        getTabBarProps: () => ({
+            tabs: activePane === 'left' ? leftTabs : rightTabs,
+            activeTabId: activePane === 'left' ? leftActiveId : rightActiveId,
+            onTabClick: (id) => {
+                if (activePane === 'left') setLeftActiveId(id);
+                else setRightActiveId(id);
+            },
+            onTabClose: handleTabClose,
+            onDragStart: handleDragStart,
+            onReorder: handleReorder,
+            onCreateNew: createNew,
+            paneId: activePane,
+        }),
         openFile: async (path, content, type) => {
             const pane = activePane === 'left' ? leftTabs : rightTabs;
             const existing = pane.find(t => t.path === path);
@@ -347,28 +391,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 }
             }
         },
-        createNew: (type, initialContent) => {
-            // Normalize 'notebook' to 'sqlnb' for consistent handling
-            const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb' : type;
-            const newTab = {
-                id: Date.now().toString(),
-                path: '',
-                name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : normalizedType === 'md' ? 'Untitled.md' : 'Untitled.sql',
-                type: normalizedType,
-                content: initialContent || (normalizedType === 'sqlnb'
-                    ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
-                    : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' : 'SELECT 1;'),
-                results: null,
-                dirty: true
-            };
-            if (activePane === 'left') {
-                setLeftTabs(prev => [...prev, newTab]);
-                setLeftActiveId(newTab.id);
-            } else {
-                setRightTabs(prev => [...prev, newTab]);
-                setRightActiveId(newTab.id);
-            }
-        },
+        createNew,
         handleTriggerRun: () => handleRunActive(),
         handleTriggerSave: () => handleSaveActive(),
         handleTriggerAnalyze: () => handleAnalyzeActive(),
@@ -651,6 +674,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onDragStart={handleDragStart}
                     onReorder={handleReorder}
                     onFileDrop={handleQueryFile}
+                    onCreateNew={createNew}
+                    onRequestSaveAs={() => onRequestSaveAs && onRequestSaveAs('', getActiveTab())}
+                    showAiSidebar={showAiSidebar}
+                    onToggleAi={onToggleAi}
                 />
 
                 {splitEnabled && (
@@ -674,6 +701,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}
                         onFileDrop={handleQueryFile}
+                        onCreateNew={createNew}
+                        onRequestSaveAs={() => onRequestSaveAs && onRequestSaveAs('', getActiveTab())}
+                        showAiSidebar={showAiSidebar}
+                        onToggleAi={onToggleAi}
                     />
                 )}
             </div>

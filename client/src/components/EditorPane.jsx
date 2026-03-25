@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
-import TabBar from './TabBar';
 import SqlEditor from './SqlEditor';
 import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
-import VariablesBar from './VariablesBar';
+import { VariablesToggle, VariablesPanel } from './VariablesBar';
 
 const EditorPane = ({
     paneId,
@@ -26,6 +26,10 @@ const EditorPane = ({
     editorSettings,
     variables,
     onVariablesChange,
+    onCreateNew,      // (type) -> create new file from TabBar
+    onRequestSaveAs,  // () -> open save-as modal
+    showAiSidebar,    // boolean — AI sidebar visible?
+    onToggleAi,       // () -> toggle AI sidebar
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -57,6 +61,23 @@ const EditorPane = ({
     }, []);
 
     const activeTab = tabs.find(t => t.id === activeTabId);
+
+    // Action bar state (must be before any early return)
+    const [showSaveMenu, setShowSaveMenu] = useState(false);
+    const saveMenuRef = useRef(null);
+    const [lastEditTime, setLastEditTime] = useState(null);
+    const [lastRunTime, setLastRunTime] = useState(null);
+    const [varsExpanded, setVarsExpanded] = useState(false);
+
+    // Close save dropdown on outside click
+    useEffect(() => {
+        if (!showSaveMenu) return;
+        const handler = (e) => {
+            if (saveMenuRef.current && !saveMenuRef.current.contains(e.target)) setShowSaveMenu(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showSaveMenu]);
 
     const handlePopout = () => {
         if (!activeTab?.results) return;
@@ -230,15 +251,48 @@ const EditorPane = ({
     if (!activeTab) {
         return (
             <div className="ep-container">
-                <TabBar tabs={tabs} activeTabId={activeTabId} onTabClick={onTabClick} onTabClose={onTabClose} />
-                <div className="ep-empty-message">
-                    No file open
+                <div className="ep-empty-state">
+                    <p className="ep-empty-subtitle">Create a new file to get started</p>
+                    <div className="ep-empty-cards">
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('sql')}>
+                            <LuCode size={24} />
+                            <span className="ep-empty-card-title">SQL Query</span>
+                            <span className="ep-empty-card-desc">Write and execute SQL</span>
+                        </button>
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('notebook')}>
+                            <LuFilePlus size={24} />
+                            <span className="ep-empty-card-title">SQL Notebook</span>
+                            <span className="ep-empty-card-desc">Cells with code & markdown</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         );
     }
 
     const isNotebook = activeTab.name.endsWith('.sqlnb');
+
+    // Track last edit time on content change
+    const handleContentChangeWithTimestamp = (tabId, newContent) => {
+        setLastEditTime(new Date());
+        onContentChange(tabId, newContent);
+    };
+
+    // Track last run time
+    const handleRunWithTimestamp = async (tabId, query) => {
+        setLastRunTime(new Date());
+        return onRunQuery(tabId, query);
+    };
+
+    const formatTimeAgo = (date) => {
+        if (!date) return '—';
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        if (diff < 5) return 'just now';
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
     // Results panel content (shared between both layouts)
     const resultsContent = (
@@ -318,16 +372,6 @@ const EditorPane = ({
                 }
             }}
         >
-            <TabBar
-                tabs={tabs}
-                activeTabId={activeTabId}
-                onTabClick={onTabClick}
-                onTabClose={onTabClose}
-                paneId={paneId}
-                onDragStart={onDragStart}
-                onReorder={onReorder}
-            />
-
             <div ref={containerRef} className="ep-inner">
 
                 {/* Content Area */}
@@ -338,38 +382,127 @@ const EditorPane = ({
                             content={activeTab.content}
                             onChange={(val) => onContentChange(activeTab.id, val)}
                             onRunQuery={(q) => onRunQuery(activeTab.id, q)}
+                            onSave={() => onSave && onSave()}
                             filePath={activeTab.path || null}
                         />
                     </div>
                 ) : (
                     <div className={`ep-editor-area${isVertical ? ' vertical' : ''}`}>
-                        {/* Editor Section */}
-                        <div className="ep-editor-section">
-                            {/* Variables Bar */}
-                            <VariablesBar variables={variables || []} onChange={onVariablesChange || (() => { })} />
-                            <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
-                                <SqlEditor
-                                    value={activeTab.content}
-                                    language={activeTab.type === 'md' ? 'markdown' : 'sql'}
-                                    onChange={(val) => onContentChange(activeTab.id, val)}
-                                    onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
-                                    onRunQuery={(overrideQuery) => onRunQuery(activeTab.id, overrideQuery || activeTab.content)}
-                                    onSave={() => onSave && onSave()}
-                                    onAnalyze={() => onAnalyze && onAnalyze()}
-                                    theme={theme}
-                                    errorMarker={activeTab.errorMarker}
-                                    editorSettings={editorSettings}
-                                />
+                        {/* Editor Card — "message box" style with rounded borders */}
+                        <div className="ep-editor-card">
+                            {/* Action Bar — header of the card */}
+                            <div className="ep-action-bar">
+                                <div className="ep-action-left">
+                                    {/* Run + Analyze group */}
+                                    <div className="ep-action-group">
+                                        <button
+                                            className="ep-action-run"
+                                            onClick={() => handleRunWithTimestamp(activeTab.id, activeTab.content)}
+                                            title="Run (Ctrl+Enter)"
+                                        >
+                                            <LuPlay size={13} fill="currentColor" /> Run
+                                        </button>
+                                        <button
+                                            className="ep-action-btn"
+                                            onClick={() => onAnalyze && onAnalyze()}
+                                            title="Analyze Query Plan (Ctrl+Shift+E)"
+                                        >
+                                            <LuActivity size={13} />
+                                        </button>
+                                    </div>
+
+                                    {/* Save group */}
+                                    <div className="ep-action-group" ref={saveMenuRef}>
+                                        <button
+                                            className="ep-action-btn"
+                                            onClick={() => onSave && onSave()}
+                                            title="Save (Ctrl+S)"
+                                        >
+                                            <LuSave size={13} /> Save
+                                        </button>
+                                        <button
+                                            className="ep-action-chevron"
+                                            onClick={() => setShowSaveMenu(v => !v)}
+                                            title="Save Options"
+                                        >
+                                            <LuChevronDown size={10} />
+                                        </button>
+                                        {showSaveMenu && (
+                                            <div className="ep-action-dropdown">
+                                                <div className="ep-action-dropdown-item" onClick={() => { onSave && onSave(); setShowSaveMenu(false); }}>
+                                                    Save
+                                                </div>
+                                                <div className="ep-action-dropdown-item" onClick={() => { onRequestSaveAs && onRequestSaveAs(); setShowSaveMenu(false); }}>
+                                                    Save As…
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Variables toggle */}
+                                    <VariablesToggle
+                                        count={(variables || []).length}
+                                        isExpanded={varsExpanded}
+                                        onToggle={() => setVarsExpanded(v => !v)}
+                                        onAdd={() => {
+                                            const vars = variables || [];
+                                            const name = `var_${vars.length + 1}`;
+                                            onVariablesChange && onVariablesChange([...vars, { name, value: '', type: 'text' }]);
+                                            if (!varsExpanded) setVarsExpanded(true);
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="ep-action-right">
+                                    <span className="ep-action-timestamps">
+                                        Edited {formatTimeAgo(lastEditTime)} · Ran {formatTimeAgo(lastRunTime)}
+                                    </span>
+
+                                    {/* AI Toggle per editor */}
+                                    {onToggleAi && (
+                                        <button
+                                            className={`ep-action-ai${showAiSidebar ? ' active' : ''}`}
+                                            onClick={onToggleAi}
+                                            title="Toggle AI Assistant"
+                                        >
+                                            {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
+                                            <span>{showAiSidebar ? 'Close AI' : 'AI'}</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Variables panel — expandable row below action bar */}
+                            {varsExpanded && (variables || []).length > 0 && (
+                                <VariablesPanel variables={variables || []} onChange={onVariablesChange || (() => { })} />
+                            )}
+
+                            {/* Editor Section — body of the card */}
+                            <div className="ep-editor-section">
+                                <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
+                                    <SqlEditor
+                                        value={activeTab.content}
+                                        language={activeTab.type === 'md' ? 'markdown' : 'sql'}
+                                        onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                                        onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
+                                        onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}
+                                        onSave={() => onSave && onSave()}
+                                        onAnalyze={() => onAnalyze && onAnalyze()}
+                                        theme={theme}
+                                        errorMarker={activeTab.errorMarker}
+                                        editorSettings={editorSettings}
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        {/* Resizer Handle */}
+                        {/* Resizer Handle — pill-style drag indicator */}
                         <div
                             className={`ep-resizer${isVertical ? ' vertical' : ''}`}
                             onMouseDown={startResizing}
                         />
 
-                        {/* Results Section */}
+                        {/* Results Card — rounded container for results */}
                         <div
                             className={`ep-results${isVertical ? ' vertical' : ''}`}
                             style={isVertical ? { width: resultsWidth } : { height: resultsHeight }}
