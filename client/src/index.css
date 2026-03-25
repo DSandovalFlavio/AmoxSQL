@@ -435,6 +435,242 @@
 }
 
 /* ═══════════════════════════════════════════════
+   DARK THEME: ONYX
+   Between Obsidian and Carbon — very dark with subtle blue undertone
+   ═══════════════════════════════════════════════ */
+.theme-onyx {
+  --surface-base:    #131517;
+  --surface-raised:  #1a1c20;
+  --surface-overlay: #1f2126;
+  --surface-inset:   #101113;
+
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+
+  --text-primary:   rgba(255, 255, 255, 0.90);
+  --text-secondary: rgba(255, 255, 255, 0.54);
+  --text-tertiary:  rgba(255, 255, 255, 0.34);
+  --text-disabled:  rgba(255, 255, 255, 0.19);
+
+  --hover-bg:   rgba(255, 255, 255, 0.05);
+  --active-bg:  rgba(255, 255, 255, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-header-bg: #1c1e23;
+  --table-row-hover: rgba(255, 255, 255, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: CARBON
+   Blue-grey undertone, still very dark
+   ═══════════════════════════════════════════════ */
+.theme-carbon {
+  --surface-base:    #151719;
+  --surface-raised:  #1c1f24;
+  --surface-overlay: #22252b;
+  --surface-inset:   #121315;
+
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong:  rgba(255, 255, 255, 0.17);
+
+  --text-primary:   rgba(255, 255, 255, 0.90);
+  --text-secondary: rgba(255, 255, 255, 0.54);
+  --text-tertiary:  rgba(255, 255, 255, 0.34);
+  --text-disabled:  rgba(255, 255, 255, 0.19);
+
+  --hover-bg:   rgba(255, 255, 255, 0.05);
+  --active-bg:  rgba(255, 255, 255, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
+
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-header-bg: #1e2127;
+  --table-row-hover: rgba(255, 255, 255, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: GRAPHITE
+   Mid-dark with warm grey, comfortable for long sessions
+   ═══════════════════════════════════════════════ */
+.theme-graphite {
+  --surface-base:    #191b1e;
+  --surface-raised:  #222529;
+  --surface-overlay: #292c32;
+  --surface-inset:   #141618;
+
+  --border-subtle:  rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.11);
+  --border-strong:  rgba(255, 255, 255, 0.18);
+
+  --text-primary:   rgba(255, 255, 255, 0.90);
+  --text-secondary: rgba(255, 255, 255, 0.56);
+  --text-tertiary:  rgba(255, 255, 255, 0.36);
+  --text-disabled:  rgba(255, 255, 255, 0.20);
+
+  --hover-bg:   rgba(255, 255, 255, 0.05);
+  --active-bg:  rgba(255, 255, 255, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.38);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.48);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.58);
+
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-header-bg: #24272c;
+  --table-row-hover: rgba(255, 255, 255, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: NORD DARK
+   Nord-inspired polar night, darker variant
+   ═══════════════════════════════════════════════ */
+.theme-nord {
+  --surface-base:    #1a1e25;
+  --surface-raised:  #222833;
+  --surface-overlay: #2e3440;
+  --surface-inset:   #151920;
+
+  --border-subtle:  rgba(216, 222, 233, 0.07);
+  --border-default: rgba(216, 222, 233, 0.11);
+  --border-strong:  rgba(216, 222, 233, 0.18);
+
+  --text-primary:   #d8dee9;
+  --text-secondary: #8d99a8;
+  --text-tertiary:  #5d6b7d;
+  --text-disabled:  #434c5e;
+
+  --hover-bg:   rgba(216, 222, 233, 0.05);
+  --active-bg:  rgba(216, 222, 233, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
+
+  /* Nord frost accent (default) */
+  --accent-primary: #81a1c1;
+  --accent-muted:   rgba(129, 161, 193, 0.18);
+  --accent-subtle:  rgba(129, 161, 193, 0.08);
+  --focus-ring:     rgba(129, 161, 193, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+
+  /* Nord-tuned feedback */
+  --feedback-success:      #a3be8c;
+  --feedback-success-bg:   rgba(163, 190, 140, 0.10);
+  --feedback-success-text: #a3be8c;
+  --feedback-error:        #bf616a;
+  --feedback-error-bg:     rgba(191, 97, 106, 0.10);
+  --feedback-error-text:   #bf616a;
+  --feedback-warning:      #ebcb8b;
+  --feedback-warning-bg:   rgba(235, 203, 139, 0.10);
+  --feedback-warning-text: #ebcb8b;
+
+  /* Nord syntax */
+  --syntax-keyword:  #81a1c1;
+  --syntax-string:   #a3be8c;
+  --syntax-number:   #b48ead;
+  --syntax-function: #88c0d0;
+  --syntax-comment:  #616e88;
+  --syntax-type:     #8fbcbb;
+  --syntax-operator: #81a1c1;
+  --syntax-variable: #d8dee9;
+  --syntax-constant: #b48ead;
+
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-header-bg: #2e3440;
+  --table-row-hover: rgba(216, 222, 233, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   SOBER ACCENT PALETTES
+   Muted, professional tones for dark themes
+   ═══════════════════════════════════════════════ */
+.accent-sage {
+  --accent-primary: oklch(0.72 0.10 155);     /* Muted sage green */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+.accent-amber {
+  --accent-primary: oklch(0.78 0.12 75);      /* Warm amber/gold */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+.accent-rose {
+  --accent-primary: oklch(0.68 0.14 15);      /* Muted rose/coral */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+.accent-lavender {
+  --accent-primary: oklch(0.70 0.12 300);     /* Soft lavender/purple */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+.accent-steel {
+  --accent-primary: oklch(0.68 0.06 250);     /* Cool steel blue-grey */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+.accent-copper {
+  --accent-primary: oklch(0.72 0.10 50);      /* Warm copper/terracotta */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+/* ═══════════════════════════════════════════════
    LIGHT THEME (oklch surfaces + inverted hierarchy)
    ═══════════════════════════════════════════════ */
 .light-theme {
@@ -566,10 +802,218 @@
 }
 
 /* ═══════════════════════════════════════════════
+   LIGHT THEME: IVORY
+   Warm paper-like tones inspired by Solarized Light (Ethan Schoonover).
+   Reduces blue light and glare; cream backgrounds with low-chroma text
+   for extended reading sessions without fatigue.
+   ═══════════════════════════════════════════════ */
+.theme-ivory {
+  /* ── Surfaces: warm cream/parchment tones ── */
+  --surface-base:    #faf6ef;   /* warm paper */
+  --surface-raised:  #f3ede4;   /* sidebar/cards */
+  --surface-overlay: #ffffff;   /* modals/popups */
+  --surface-inset:   #ede7dc;   /* inputs/recessed */
+
+  /* ── Borders: warm, low contrast ── */
+  --border-subtle:  rgba(120, 100, 70, 0.10);
+  --border-default: rgba(120, 100, 70, 0.16);
+  --border-strong:  rgba(120, 100, 70, 0.24);
+
+  /* ── Text: warm dark, not pure black ── */
+  --text-primary:   #3b3228;   /* espresso — high readability, no harsh black */
+  --text-secondary: #6b5e50;   /* warm medium */
+  --text-tertiary:  #9a8d7e;   /* muted warm */
+  --text-disabled:  #c4b9aa;   /* faded parchment */
+
+  /* ── Accent: deep teal — pairs with warm backgrounds ── */
+  --accent-primary: #2b7a78;
+  --accent-muted:   rgba(43, 122, 120, 0.15);
+  --accent-subtle:  rgba(43, 122, 120, 0.06);
+  --focus-ring:     rgba(43, 122, 120, 0.30);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+
+  /* ── Interaction states ── */
+  --hover-bg:   rgba(120, 100, 70, 0.06);
+  --active-bg:  rgba(120, 100, 70, 0.10);
+
+  /* ── Shadows: very soft warm ── */
+  --shadow-sm: 0 1px 2px rgba(100, 80, 50, 0.06);
+  --shadow-md: 0 4px 12px rgba(100, 80, 50, 0.08);
+  --shadow-lg: 0 8px 30px rgba(100, 80, 50, 0.12);
+
+  /* ── Titlebar ── */
+  --titlebar-bg: #f3ede4;
+  --titlebar-text: #6b5e50;
+
+  /* ── Feedback: desaturated warm tones ── */
+  --feedback-success:        #5a8a5c;
+  --feedback-success-bg:     rgba(90, 138, 92, 0.08);
+  --feedback-success-border: rgba(90, 138, 92, 0.20);
+  --feedback-success-text:   #4a7a4c;
+  --feedback-error:          #b85450;
+  --feedback-error-bg:       rgba(184, 84, 80, 0.08);
+  --feedback-error-border:   rgba(184, 84, 80, 0.20);
+  --feedback-error-text:     #a54440;
+  --feedback-warning:        #b8923a;
+  --feedback-warning-bg:     rgba(184, 146, 58, 0.08);
+  --feedback-warning-border: rgba(184, 146, 58, 0.20);
+  --feedback-warning-text:   #a5822a;
+  --color-destructive:       #b85450;
+  --color-destructive-bg:    rgba(184, 84, 80, 0.08);
+  --color-destructive-text:  #a54440;
+
+  /* ── Syntax: warm palette, solarized-inspired ── */
+  --syntax-keyword:   #b58900;   /* yellow-gold */
+  --syntax-string:    #2aa198;   /* teal-cyan */
+  --syntax-number:    #d33682;   /* magenta */
+  --syntax-function:  #268bd2;   /* blue */
+  --syntax-comment:   #b0a090;   /* warm muted */
+  --syntax-type:      #6c71c4;   /* violet */
+  --syntax-operator:  #cb4b16;   /* orange */
+  --syntax-variable:  #586e75;   /* warm grey */
+  --syntax-constant:  #859900;   /* green */
+
+  /* ── Database types ── */
+  --type-integer:  #268bd2;
+  --type-float:    #2aa198;
+  --type-text:     #b58900;
+  --type-datetime: #6c71c4;
+  --type-boolean:  #d33682;
+  --type-default:  #586e75;
+
+  /* ── Legacy aliases ── */
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #ffffff;
+  --sidebar-item-active-text: var(--accent-primary);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: rgba(120, 100, 70, 0.10);
+  --tooltip-bg: var(--surface-overlay);
+  --table-header-bg: #ede7dc;
+  --table-row-hover: rgba(120, 100, 70, 0.04);
+}
+
+/* ═══════════════════════════════════════════════
+   LIGHT THEME: MIST
+   Cool blue-grey pastels inspired by Rosé Pine Dawn.
+   Ultra-low saturation with a subtle blue undertone —
+   softer than pure white, like a foggy morning.
+   ═══════════════════════════════════════════════ */
+.theme-mist {
+  /* ── Surfaces: cool blue-grey pastels ── */
+  --surface-base:    #f2f4f8;   /* cool off-white */
+  --surface-raised:  #e8ecf2;   /* blue-grey cards */
+  --surface-overlay: #ffffff;   /* modals */
+  --surface-inset:   #dce1e9;   /* recessed areas */
+
+  /* ── Borders: cool grey ── */
+  --border-subtle:  rgba(70, 85, 110, 0.09);
+  --border-default: rgba(70, 85, 110, 0.15);
+  --border-strong:  rgba(70, 85, 110, 0.23);
+
+  /* ── Text: slate tones, never pure black ── */
+  --text-primary:   #2c3444;   /* deep slate */
+  --text-secondary: #566178;   /* medium slate */
+  --text-tertiary:  #8590a2;   /* muted */
+  --text-disabled:  #b0b8c8;   /* faded */
+
+  /* ── Accent: muted indigo — complements cool greys ── */
+  --accent-primary: #5568a8;
+  --accent-muted:   rgba(85, 104, 168, 0.14);
+  --accent-subtle:  rgba(85, 104, 168, 0.06);
+  --focus-ring:     rgba(85, 104, 168, 0.30);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+
+  /* ── Interaction states ── */
+  --hover-bg:   rgba(70, 85, 110, 0.06);
+  --active-bg:  rgba(70, 85, 110, 0.10);
+
+  /* ── Shadows: cool and diffuse ── */
+  --shadow-sm: 0 1px 3px rgba(50, 60, 80, 0.06);
+  --shadow-md: 0 4px 12px rgba(50, 60, 80, 0.08);
+  --shadow-lg: 0 8px 30px rgba(50, 60, 80, 0.12);
+
+  /* ── Titlebar ── */
+  --titlebar-bg: #e8ecf2;
+  --titlebar-text: #566178;
+
+  /* ── Feedback: desaturated cool tones ── */
+  --feedback-success:        #4d8a5e;
+  --feedback-success-bg:     rgba(77, 138, 94, 0.08);
+  --feedback-success-border: rgba(77, 138, 94, 0.18);
+  --feedback-success-text:   #3d7a4e;
+  --feedback-error:          #c0544e;
+  --feedback-error-bg:       rgba(192, 84, 78, 0.08);
+  --feedback-error-border:   rgba(192, 84, 78, 0.18);
+  --feedback-error-text:     #a5443e;
+  --feedback-warning:        #b08830;
+  --feedback-warning-bg:     rgba(176, 136, 48, 0.08);
+  --feedback-warning-border: rgba(176, 136, 48, 0.18);
+  --feedback-warning-text:   #9a7820;
+  --color-destructive:       #c0544e;
+  --color-destructive-bg:    rgba(192, 84, 78, 0.08);
+  --color-destructive-text:  #a5443e;
+
+  /* ── Syntax: muted and easy on the eyes ── */
+  --syntax-keyword:   #7c5cc2;   /* soft purple */
+  --syntax-string:    #468a6e;   /* forest green */
+  --syntax-number:    #c06838;   /* burnt orange */
+  --syntax-function:  #4a72b8;   /* slate blue */
+  --syntax-comment:   #9aa0b0;   /* ghost grey */
+  --syntax-type:      #3a8a88;   /* teal */
+  --syntax-operator:  #906a4a;   /* warm brown */
+  --syntax-variable:  #2c3444;   /* deep slate */
+  --syntax-constant:  #7c5cc2;   /* soft purple */
+
+  /* ── Database types ── */
+  --type-integer:  #4a72b8;
+  --type-float:    #3a8a88;
+  --type-text:     #c06838;
+  --type-datetime: #7c5cc2;
+  --type-boolean:  #468a6e;
+  --type-default:  #566178;
+
+  /* ── Legacy aliases ── */
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #ffffff;
+  --sidebar-item-active-text: var(--accent-primary);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: rgba(70, 85, 110, 0.10);
+  --tooltip-bg: var(--surface-overlay);
+  --table-header-bg: #dce1e9;
+  --table-row-hover: rgba(70, 85, 110, 0.04);
+}
+
+/* ═══════════════════════════════════════════════
    LIGHT THEME ACCENT PRESETS
    (darker oklch values for contrast on light bg)
    ═══════════════════════════════════════════════ */
-.light-theme.accent-linear {
+.light-theme.accent-linear,
+.theme-ivory.accent-linear,
+.theme-mist.accent-linear {
   --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -579,7 +1023,9 @@
   --sidebar-item-active-text: var(--accent-primary);
 }
 
-.light-theme.accent-amox-2 {
+.light-theme.accent-amox-2,
+.theme-ivory.accent-amox-2,
+.theme-mist.accent-amox-2 {
   --accent-primary: oklch(0.62 0.13 195);      /* ≈ #00CFDA */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -589,7 +1035,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-3 {
+.light-theme.accent-amox-3,
+.theme-ivory.accent-amox-3,
+.theme-mist.accent-amox-3 {
   --accent-primary: oklch(0.61 0.125 197);     /* ≈ #00C4D9 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -599,7 +1047,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-4 {
+.light-theme.accent-amox-4,
+.theme-ivory.accent-amox-4,
+.theme-mist.accent-amox-4 {
   --accent-primary: oklch(0.59 0.12 202);      /* ≈ #00B5D6 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -609,7 +1059,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-5 {
+.light-theme.accent-amox-5,
+.theme-ivory.accent-amox-5,
+.theme-mist.accent-amox-5 {
   --accent-primary: oklch(0.57 0.12 212);      /* ≈ #00A5D4 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -619,7 +1071,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-6 {
+.light-theme.accent-amox-6,
+.theme-ivory.accent-amox-6,
+.theme-mist.accent-amox-6 {
   --accent-primary: oklch(0.55 0.13 228);      /* ≈ #0097D1 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -629,7 +1083,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-7 {
+.light-theme.accent-amox-7,
+.theme-ivory.accent-amox-7,
+.theme-mist.accent-amox-7 {
   --accent-primary: oklch(0.53 0.14 245);      /* ≈ #0088CC */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -639,7 +1095,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-8 {
+.light-theme.accent-amox-8,
+.theme-ivory.accent-amox-8,
+.theme-mist.accent-amox-8 {
   --accent-primary: oklch(0.51 0.16 255);      /* ≈ #0078C8 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -649,7 +1107,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-9 {
+.light-theme.accent-amox-9,
+.theme-ivory.accent-amox-9,
+.theme-mist.accent-amox-9 {
   --accent-primary: oklch(0.49 0.18 262);      /* ≈ #006AC2 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -659,7 +1119,9 @@
   --button-text-color: #ffffff;
 }
 
-.light-theme.accent-amox-10 {
+.light-theme.accent-amox-10,
+.theme-ivory.accent-amox-10,
+.theme-mist.accent-amox-10 {
   --accent-primary: oklch(0.47 0.20 268);      /* ≈ #005ABB */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);

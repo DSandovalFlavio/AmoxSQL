@@ -75,19 +75,33 @@ const createWindow = () => {
         backgroundColor: '#0F1012'
     });
 
-    // Disable Chromium's native zoom — app uses CSS zoom via body.style.zoom
+    // === ZOOM SYSTEM ===
+    // Zoom is managed centrally from main process via webContents.setZoomFactor().
+    // We intercept Ctrl+Plus/Minus/0, preventDefault to stop Chromium's default,
+    // then apply our own zoom factor and notify the renderer to sync UI state.
+    mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
+
     mainWindow.webContents.on('before-input-event', (event, input) => {
-        if (input.control && !input.shift && !input.alt) {
-            if (input.key === '=' || input.key === '+' || input.key === '-' || input.key === '0') {
-                // Let the renderer's keydown handler manage zoom
-                // but prevent Chromium from also zooming
-                mainWindow.webContents.setZoomLevel(0);
+        if (input.control && !input.shift && !input.alt && input.type === 'keyDown') {
+            if (input.key === '=' || input.key === '+') {
+                event.preventDefault();
+                const current = mainWindow.webContents.getZoomFactor();
+                const next = Math.min(current + 0.1, 2.0);
+                mainWindow.webContents.setZoomFactor(next);
+                mainWindow.webContents.send('zoom:changed', next);
+            } else if (input.key === '-') {
+                event.preventDefault();
+                const current = mainWindow.webContents.getZoomFactor();
+                const next = Math.max(current - 0.1, 0.5);
+                mainWindow.webContents.setZoomFactor(next);
+                mainWindow.webContents.send('zoom:changed', next);
+            } else if (input.key === '0') {
+                event.preventDefault();
+                mainWindow.webContents.setZoomFactor(1.0);
+                mainWindow.webContents.send('zoom:changed', 1.0);
             }
         }
     });
-
-    // Also block Ctrl+mousewheel zoom
-    mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
 
     // Load the App
     if (!app.isPackaged) {
