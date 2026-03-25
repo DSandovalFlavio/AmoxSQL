@@ -127,10 +127,21 @@ function App() {
     return parseFloat(localStorage.getItem('amoxsql-ui-zoom')) || 1.0;
   });
 
+  // Persist zoom to localStorage (main process handles the actual zoom)
   useEffect(() => {
     localStorage.setItem('amoxsql-ui-zoom', uiZoomLevel.toString());
-    document.body.style.zoom = uiZoomLevel;
   }, [uiZoomLevel]);
+
+  // Listen for zoom changes from main process (Ctrl+Plus/Minus/0)
+  useEffect(() => {
+    if (window.electronAPI?.zoom?.onChanged) {
+      const cleanup = window.electronAPI.zoom.onChanged((factor) => {
+        const rounded = Math.round(factor * 10) / 10;
+        setUiZoomLevel(rounded);
+      });
+      return cleanup;
+    }
+  }, []);
 
   const [editorSettings, setEditorSettings] = useState(() => {
     try {
@@ -154,10 +165,17 @@ function App() {
   // Apply Theme & Accent Classes
   useEffect(() => {
     localStorage.setItem('amoxsql-theme', theme);
+    // Remove all theme classes first
+    const themeClasses = ['light-theme', 'theme-onyx', 'theme-carbon', 'theme-graphite', 'theme-nord', 'theme-ivory', 'theme-mist'];
+    themeClasses.forEach(c => document.body.classList.remove(c));
+    // Apply the selected theme class (dark/obsidian = default, no class)
     if (theme === 'light') {
       document.body.classList.add('light-theme');
-    } else {
-      document.body.classList.remove('light-theme');
+    } else if (theme === 'ivory' || theme === 'mist') {
+      // Light variant themes get their own class (they define their own light surfaces)
+      document.body.classList.add(`theme-${theme}`);
+    } else if (theme !== 'dark') {
+      document.body.classList.add(`theme-${theme}`);
     }
   }, [theme]);
 
@@ -192,6 +210,9 @@ function App() {
   // --- Global Keyboard Shortcuts ---
   useEffect(() => {
     const handler = (e) => {
+      // Zoom is handled by Electron main process (before-input-event)
+      // React only receives the result via IPC 'zoom:changed'
+
       // Command Palette: Ctrl+Shift+P
       if (e.ctrlKey && e.shiftKey && e.key === 'P') {
         e.preventDefault();
@@ -238,24 +259,7 @@ function App() {
         setIsSettingsOpen(true);
         return;
       }
-      // UI Zoom: Ctrl+Plus, Ctrl+Minus, Ctrl+0
-      if (e.ctrlKey) {
-        if (e.key === '=' || e.key === '+') {
-          e.preventDefault();
-          setUiZoomLevel(prev => Math.min(prev + 0.1, 2.0));
-          return;
-        }
-        if (e.key === '-') {
-          e.preventDefault();
-          setUiZoomLevel(prev => Math.max(prev - 0.1, 0.5));
-          return;
-        }
-        if (e.key === '0') {
-          e.preventDefault();
-          setUiZoomLevel(1.0);
-          return;
-        }
-      }
+      // (Zoom is handled by Electron main process)
       // Keyboard Shortcuts: Ctrl+Shift+/
       if (e.ctrlKey && e.shiftKey && e.key === '/') {
         e.preventDefault();
