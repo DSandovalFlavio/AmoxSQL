@@ -2,6 +2,140 @@ import React, { useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 
+/**
+ * Monaco Editor Color Palettes — hex equivalents of CSS design tokens.
+ *
+ * These mirror the oklch / rgba values defined in index.css (:root and .light-theme).
+ * Monaco requires bare hex strings and can't read CSS variables, so we maintain
+ * this JS mapping. Keep in sync when updating design tokens in index.css.
+ *
+ * Hex values are derived from the oklch() approximations noted in CSS comments.
+ * rgba text colors are flattened: rgba(255,255,255,a) → rgb(a*255) on dark,
+ * rgba(0,0,0,a) → rgb(255 - a*255) on light.
+ */
+const MONACO_PALETTE = {
+    dark: {
+        // Surfaces (from oklch values in :root)
+        bg:         '141517',  // --surface-base    oklch(0.145 0.006 270)
+        raised:     '191B1F',  // --surface-raised  oklch(0.175 0.008 270)
+        overlay:    '1F2125',  // --surface-overlay oklch(0.195 0.008 270)
+        // Text (rgba flattened against dark bg)
+        fg:         'EBEBEB',  // --text-primary    rgba(255,255,255,0.92)
+        fgMuted:    '8F9099',  // --text-secondary  rgba(255,255,255,0.56)
+        fgDim:      '5C5E66',  // --text-tertiary   rgba(255,255,255,0.36)
+        fgDisabled: '333538',  // --text-disabled   rgba(255,255,255,0.20)
+        // Accent
+        accent:     '00DDDD',  // --accent-primary  oklch(0.905 0.155 195)
+        // Syntax highlighting
+        keyword:    '9B8FF2',  // --syntax-keyword  oklch(0.72 0.12 280)
+        string:     'D4A76A',  // --syntax-string   oklch(0.76 0.10 70)
+        number:     'E0A86E',  // --syntax-number   oklch(0.78 0.11 60)
+        fn:         '6EC5D4',  // --syntax-function oklch(0.80 0.09 200)
+        comment:    '5C5F66',  // --syntax-comment  oklch(0.46 0.01 270)
+        type:       '4FC1FF',  // --syntax-type     oklch(0.79 0.12 235)
+        operator:   'C4B99A',  // --syntax-operator oklch(0.78 0.06 60)
+        variable:   'D1D3D8',  // --syntax-variable oklch(0.85 0.04 265)
+        constant:   '5EC9A0',  // --syntax-constant oklch(0.80 0.10 150)
+        error:      'E06C75',  // --feedback-error
+    },
+    light: {
+        // Surfaces
+        bg:         'FAFBFC',  // --surface-base    oklch(0.985 0.003 265)
+        raised:     'F2F3F5',  // --surface-raised  oklch(0.965 0.004 265)
+        overlay:    'FFFFFF',  // --surface-overlay oklch(1.000 0 0)
+        // Text (rgba flattened against light bg)
+        fg:         '141414',  // --text-primary    rgba(0,0,0,0.92)
+        fgMuted:    '474747',  // --text-secondary  rgba(0,0,0,0.72)
+        fgDim:      '737373',  // --text-tertiary   rgba(0,0,0,0.55)
+        fgDisabled: 'A6A6A6',  // --text-disabled   rgba(0,0,0,0.35)
+        // Accent
+        accent:     '0059FF',  // --accent-primary  oklch(0.49 0.220 265)
+        // Syntax highlighting (darker for light bg)
+        keyword:    '5E6AD2',  // --syntax-keyword  oklch(0.48 0.16 280)
+        string:     'B35E1A',  // --syntax-string   oklch(0.52 0.12 45)
+        number:     'C46D1A',  // --syntax-number   oklch(0.55 0.13 55)
+        fn:         '1E8A9E',  // --syntax-function oklch(0.50 0.12 200)
+        comment:    'A0A3AA',  // --syntax-comment  oklch(0.55 0.02 270)
+        type:       '1A8E80',  // --syntax-type     oklch(0.48 0.14 235)
+        operator:   '6B6E76',  // --syntax-operator oklch(0.55 0.08 50)
+        variable:   '3B3D42',  // --syntax-variable oklch(0.35 0.03 265)
+        constant:   '1A8E60',  // --syntax-constant oklch(0.48 0.14 150)
+        error:      'C13A3A',  // --feedback-error (light)
+    },
+};
+
+/**
+ * Build Monaco theme from the palette. No runtime CSS resolution needed.
+ */
+const buildMonacoTheme = (isDark) => {
+    const p = isDark ? MONACO_PALETTE.dark : MONACO_PALETTE.light;
+    return {
+        base: isDark ? 'vs-dark' : 'vs',
+        inherit: false,
+        rules: [
+            { token: '', foreground: p.fg, background: p.bg },
+            { token: 'comment', foreground: p.comment, fontStyle: 'italic' },
+            { token: 'comment.sql', foreground: p.comment, fontStyle: 'italic' },
+            { token: 'keyword', foreground: p.keyword, fontStyle: 'bold' },
+            { token: 'keyword.sql', foreground: p.keyword, fontStyle: 'bold' },
+            { token: 'operator', foreground: p.operator },
+            { token: 'operator.sql', foreground: p.operator },
+            { token: 'delimiter', foreground: p.operator },
+            { token: 'string', foreground: p.string },
+            { token: 'string.sql', foreground: p.string },
+            { token: 'number', foreground: p.number },
+            { token: 'number.sql', foreground: p.number },
+            { token: 'identifier', foreground: p.variable },
+            { token: 'identifier.sql', foreground: p.variable },
+            { token: 'identifier.quote', foreground: p.variable },
+            { token: 'type', foreground: p.type },
+            { token: 'type.sql', foreground: p.type },
+            { token: 'predefined', foreground: p.fn },
+            { token: 'predefined.sql', foreground: p.fn },
+            { token: 'tag', foreground: p.keyword },
+            { token: 'attribute.name', foreground: p.type },
+            // Jinja / DBT
+            { token: 'jinja.block', foreground: p.error, fontStyle: 'bold' },
+            { token: 'jinja.tag', foreground: p.constant },
+            { token: 'jinja.variable', foreground: p.fn },
+            { token: 'jinja.comment', foreground: p.comment, fontStyle: 'italic' },
+        ],
+        colors: {
+            'editor.background':                `#${p.bg}`,
+            'editor.foreground':                `#${p.fg}`,
+            'editor.lineHighlightBackground':   `#${p.raised}`,
+            'editor.lineHighlightBorder':       '#00000000',
+            'editorGutter.background':          `#${p.bg}`,
+            'editorLineNumber.foreground':      `#${p.fgDisabled}`,
+            'editorLineNumber.activeForeground': `#${p.fgDim}`,
+            'editorCursor.foreground':          `#${p.accent}`,
+            'editor.selectionBackground':       `#${p.keyword}30`,
+            'editor.inactiveSelectionBackground': `#${p.keyword}18`,
+            'editor.selectionHighlightBackground': `#${p.keyword}15`,
+            'editor.findMatchBackground':       `#${p.string}40`,
+            'editor.findMatchHighlightBackground': `#${p.string}25`,
+            'editorIndentGuide.background':     `#${p.overlay}`,
+            'editorIndentGuide.activeBackground': `#${p.overlay}`,
+            'editorBracketMatch.background':    `#${p.keyword}20`,
+            'editorBracketMatch.border':        `#${p.keyword}80`,
+            'editorWidget.background':          `#${p.overlay}`,
+            'editorWidget.border':              `#${p.overlay}`,
+            'editorSuggestWidget.background':   `#${p.overlay}`,
+            'editorSuggestWidget.border':       `#${p.overlay}`,
+            'editorSuggestWidget.foreground':   `#${p.fg}`,
+            'editorSuggestWidget.selectedBackground': `#${p.raised}`,
+            'editorSuggestWidget.highlightForeground': `#${p.accent}`,
+            'editorHoverWidget.background':     `#${p.overlay}`,
+            'editorHoverWidget.border':         `#${p.overlay}`,
+            'scrollbar.shadow':                 '#00000000',
+            'scrollbarSlider.background':       isDark ? '#ffffff12' : '#00000010',
+            'scrollbarSlider.hoverBackground':  isDark ? '#ffffff20' : '#00000020',
+            'scrollbarSlider.activeBackground': isDark ? '#ffffff30' : '#00000030',
+            'minimap.background':               `#${p.bg}`,
+        }
+    };
+};
+
 const SqlEditor = ({ value, onChange, ...props }) => {
     const disposablesRef = useRef([]);
     const editorRef = useRef(null);
@@ -17,187 +151,9 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     };
 
     const handleEditorWillMount = (monaco) => {
-        // ── Linear-inspired SQL Theme (Dark) ──
-        monaco.editor.defineTheme('duckdb-dark', {
-            base: 'vs-dark',
-            inherit: false,
-            rules: [
-                // Base
-                { token: '', foreground: 'C8C9CD', background: '141517' },
-
-                // Comments — muted, recessive
-                { token: 'comment', foreground: '5C5F66', fontStyle: 'italic' },
-                { token: 'comment.sql', foreground: '5C5F66', fontStyle: 'italic' },
-
-                // SQL Keywords — soft lavender/indigo (Linear accent feel)
-                { token: 'keyword', foreground: '9BA1F2', fontStyle: 'bold' },
-                { token: 'keyword.sql', foreground: '9BA1F2', fontStyle: 'bold' },
-
-                // Operators — subtle, doesn't compete
-                { token: 'operator', foreground: '8B8D93' },
-                { token: 'operator.sql', foreground: '8B8D93' },
-                { token: 'delimiter', foreground: '8B8D93' },
-
-                // Strings — warm sand/beige
-                { token: 'string', foreground: 'D4A76A' },
-                { token: 'string.sql', foreground: 'D4A76A' },
-
-                // Numbers — soft amber
-                { token: 'number', foreground: 'E0A86E' },
-                { token: 'number.sql', foreground: 'E0A86E' },
-
-                // Identifiers / Column names — clean white-ish
-                { token: 'identifier', foreground: 'D1D3D8' },
-                { token: 'identifier.sql', foreground: 'D1D3D8' },
-
-                // Quoted identifiers (e.g., "Column Name")
-                { token: 'identifier.quote', foreground: 'B8C4DA' },
-
-                // Type keywords (INT, VARCHAR etc.)
-                { token: 'type', foreground: '7ECAC2' },
-                { token: 'type.sql', foreground: '7ECAC2' },
-
-                // Functions — muted teal/cyan
-                { token: 'predefined', foreground: '6EC5D4' },
-                { token: 'predefined.sql', foreground: '6EC5D4' },
-
-                // Tags / Special tokens
-                { token: 'tag', foreground: '9BA1F2' },
-                { token: 'attribute.name', foreground: '7ECAC2' },
-
-                // Jinja / DBT tokens
-                { token: 'jinja.block', foreground: 'E06C75', fontStyle: 'bold' },
-                { token: 'jinja.tag', foreground: 'C678DD' },
-                { token: 'jinja.variable', foreground: '61AFEF' },
-                { token: 'jinja.comment', foreground: '5C5F66', fontStyle: 'italic' },
-            ],
-            colors: {
-                // Editor chrome
-                'editor.background': '#141517',
-                'editor.foreground': '#C8C9CD',
-                'editor.lineHighlightBackground': '#1C1D21',
-                'editor.lineHighlightBorder': '#00000000',
-                'editorGutter.background': '#141517',
-                'editorLineNumber.foreground': '#3D3F44',
-                'editorLineNumber.activeForeground': '#7A7C82',
-                'editorCursor.foreground': '#00DDDD',
-
-                // Selection
-                'editor.selectionBackground': '#9BA1F230',
-                'editor.inactiveSelectionBackground': '#9BA1F218',
-                'editor.selectionHighlightBackground': '#9BA1F215',
-
-                // Find / search
-                'editor.findMatchBackground': '#D4A76A40',
-                'editor.findMatchHighlightBackground': '#D4A76A25',
-
-                // Indentation guides
-                'editorIndentGuide.background': '#1F2125',
-                'editorIndentGuide.activeBackground': '#2A2B2F',
-
-                // Bracket matching
-                'editorBracketMatch.background': '#9BA1F220',
-                'editorBracketMatch.border': '#9BA1F280',
-
-                // Widgets (autocomplete, hover)
-                'editorWidget.background': '#1A1B1F',
-                'editorWidget.border': '#2A2B2F',
-                'editorSuggestWidget.background': '#1A1B1F',
-                'editorSuggestWidget.border': '#2A2B2F',
-                'editorSuggestWidget.foreground': '#C8C9CD',
-                'editorSuggestWidget.selectedBackground': '#2A2C31',
-                'editorSuggestWidget.highlightForeground': '#9BA1F2',
-                'editorHoverWidget.background': '#1A1B1F',
-                'editorHoverWidget.border': '#2A2B2F',
-
-                // Scrollbar
-                'scrollbar.shadow': '#00000000',
-                'scrollbarSlider.background': '#ffffff12',
-                'scrollbarSlider.hoverBackground': '#ffffff20',
-                'scrollbarSlider.activeBackground': '#ffffff30',
-
-                // Minimap (disabled, but just in case)
-                'minimap.background': '#141517',
-            }
-        });
-
-        // ── Linear-inspired SQL Theme (Light) ──
-        monaco.editor.defineTheme('duckdb-light', {
-            base: 'vs',
-            inherit: false,
-            rules: [
-                // Base
-                { token: '', foreground: '3B3D42', background: 'FAFBFC' },
-
-                // Comments
-                { token: 'comment', foreground: 'A0A3AA', fontStyle: 'italic' },
-                { token: 'comment.sql', foreground: 'A0A3AA', fontStyle: 'italic' },
-
-                // SQL Keywords — muted indigo
-                { token: 'keyword', foreground: '5E6AD2', fontStyle: 'bold' },
-                { token: 'keyword.sql', foreground: '5E6AD2', fontStyle: 'bold' },
-
-                // Operators
-                { token: 'operator', foreground: '6B6E76' },
-                { token: 'operator.sql', foreground: '6B6E76' },
-                { token: 'delimiter', foreground: '6B6E76' },
-
-                // Strings — warm brown
-                { token: 'string', foreground: 'B35E1A' },
-                { token: 'string.sql', foreground: 'B35E1A' },
-
-                // Numbers — darker amber
-                { token: 'number', foreground: 'C46D1A' },
-                { token: 'number.sql', foreground: 'C46D1A' },
-
-                // Identifiers
-                { token: 'identifier', foreground: '3B3D42' },
-                { token: 'identifier.sql', foreground: '3B3D42' },
-
-                // Types
-                { token: 'type', foreground: '1A8E80' },
-                { token: 'type.sql', foreground: '1A8E80' },
-
-                // Functions
-                { token: 'predefined', foreground: '1E8A9E' },
-                { token: 'predefined.sql', foreground: '1E8A9E' },
-
-                // Jinja / DBT tokens (light theme)
-                { token: 'jinja.block', foreground: 'C13A3A', fontStyle: 'bold' },
-                { token: 'jinja.tag', foreground: '8B3D9E' },
-                { token: 'jinja.variable', foreground: '2A6BB5' },
-                { token: 'jinja.comment', foreground: 'A0A3AA', fontStyle: 'italic' },
-            ],
-            colors: {
-                'editor.background': '#FAFBFC',
-                'editor.foreground': '#3B3D42',
-                'editor.lineHighlightBackground': '#F0F1F4',
-                'editor.lineHighlightBorder': '#00000000',
-                'editorGutter.background': '#FAFBFC',
-                'editorLineNumber.foreground': '#C0C2C7',
-                'editorLineNumber.activeForeground': '#6B6E76',
-                'editorCursor.foreground': '#5E6AD2',
-
-                'editor.selectionBackground': '#5E6AD230',
-                'editor.inactiveSelectionBackground': '#5E6AD218',
-
-                'editorBracketMatch.background': '#5E6AD220',
-                'editorBracketMatch.border': '#5E6AD280',
-
-                'editorWidget.background': '#FFFFFF',
-                'editorWidget.border': '#E2E3E7',
-                'editorSuggestWidget.background': '#FFFFFF',
-                'editorSuggestWidget.border': '#E2E3E7',
-                'editorSuggestWidget.selectedBackground': '#E8EAED',
-                'editorSuggestWidget.highlightForeground': '#5E6AD2',
-                'editorHoverWidget.background': '#FFFFFF',
-                'editorHoverWidget.border': '#E2E3E7',
-
-                'scrollbar.shadow': '#00000000',
-                'scrollbarSlider.background': '#00000010',
-                'scrollbarSlider.hoverBackground': '#00000020',
-            }
-        });
+        // ── Build themes from CSS design tokens (single source of truth) ──
+        monaco.editor.defineTheme('duckdb-dark', buildMonacoTheme(true));
+        monaco.editor.defineTheme('duckdb-light', buildMonacoTheme(false));
 
         // Register custom Monarch tokenizer so JOIN modifiers and DuckDB keywords highlight correctly
         monaco.languages.setMonarchTokensProvider('sql', {
@@ -1148,6 +1104,16 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             monaco.editor.setModelMarkers(model, 'duckdb-error', []);
         }
     }, [props.errorMarker]);
+
+    // ── Re-sync Monaco theme when app theme or accent changes ──
+    useEffect(() => {
+        if (!monacoRef.current) return;
+        const isDark = props.theme !== 'light';
+        const themeName = isDark ? 'duckdb-dark' : 'duckdb-light';
+        // Re-read CSS variables (which may have changed) and redefine the theme
+        monacoRef.current.editor.defineTheme(themeName, buildMonacoTheme(isDark));
+        monacoRef.current.editor.setTheme(themeName);
+    }, [props.theme]);
 
     const es = props.editorSettings || {};
 

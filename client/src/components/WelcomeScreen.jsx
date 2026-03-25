@@ -134,8 +134,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                                     justifyContent: 'center',
                                     transition: 'background-color 120ms ease, border-color 120ms ease'
                                 }}
-                                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
-                                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'var(--surface-overlay)'; e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+                                className="ws-icon-btn"
                             >
                                 <LuFolderOpen size={18} />
                             </button>
@@ -167,8 +166,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                             cursor: path.trim() ? 'pointer' : 'default',
                             transition: 'background-color 200ms ease, filter 200ms ease'
                         }}
-                        onMouseOver={(e) => { if (path.trim()) e.currentTarget.style.filter = 'brightness(1.1)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.filter = 'none'; }}
+                        className="ws-open-btn"
                     >
                         Open Project
                     </button>
@@ -190,8 +188,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                                     borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px',
                                     transition: 'all 120ms ease'
                                 }}
-                                onMouseOver={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#ef444410'; }}
-                                onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}
+                                className="ws-clear-btn"
                             >
                                 <LuTrash2 size={12} /> Clear
                             </button>
@@ -222,14 +219,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                                             transition: 'all 150ms ease',
                                             position: 'relative', overflow: 'hidden'
                                         }}
-                                        onMouseOver={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                                            e.currentTarget.style.backgroundColor = 'var(--surface-overlay)';
-                                        }}
-                                        onMouseOut={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--border-default)';
-                                            e.currentTarget.style.backgroundColor = 'var(--surface-inset)';
-                                        }}
+                                        className="ws-recent-item"
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', marginBottom: '4px' }}>
                                             <LuFolderOpen size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
@@ -276,8 +266,7 @@ const WelcomeScreen = ({ onOpenProject, onOpenSettings }) => {
                     alignItems: 'center',
                     justifyContent: 'center'
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.backgroundColor = 'var(--hover-bg)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                className="ws-settings-btn"
             >
                 <LuSettings size={20} />
             </button>

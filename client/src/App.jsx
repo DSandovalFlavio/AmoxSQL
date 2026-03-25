@@ -19,10 +19,11 @@ import LayoutManager from './components/LayoutManager';
 import WelcomeScreen from './components/WelcomeScreen';
 import ProjectInfo from './components/ProjectInfo';
 import AiSidebar from './components/AiSidebar';
-import StatusBar from './components/StatusBar';
+// StatusBar removed — info redundant with ResultsTable + ProjectInfo
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
 import { useToast } from './components/ToastProvider';
 import WindowTitleBar from './components/WindowTitleBar';
+import TabBar from './components/TabBar';
 
 // Ultra-heavy lazy loaded Modals (Zero Cost Startup)
 const DatabaseSelectionModal = lazy(() => import('./components/DatabaseSelectionModal'));
@@ -59,6 +60,9 @@ function App() {
 
   const layoutRef = useRef(null);
 
+  // Tab bar state — synced from LayoutManager for rendering in WindowTitleBar
+  const [titleBarTabs, setTitleBarTabs] = useState(null);
+
   // File Management State
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [pendingSaveContent, setPendingSaveContent] = useState('');
@@ -85,9 +89,6 @@ function App() {
   const [showAiSidebar, setShowAiSidebar] = useState(false);
   const [isDiving, setIsDiving] = useState(false);
 
-  // Toolbar Dropdown State
-  const [showToolbarSaveMenu, setShowToolbarSaveMenu] = useState(false);
-  const [showToolbarNewMenu, setShowToolbarNewMenu] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
 
   // Sidebar Architecture State
@@ -101,8 +102,6 @@ function App() {
   // Command Palette State
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  // Status Bar State — last query info
-  const [lastQueryInfo, setLastQueryInfo] = useState(null);
 
   // Keyboard Shortcuts Modal
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -633,70 +632,98 @@ function App() {
       {appPhase === PHASE.IDE && (
         <div className="app-container" style={{ height: '100%', display: 'flex' }}>
 
-          {/* Activity Bar — Linear Style */}
-          <div className="activity-bar">
-            <button
-              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('files'); }}
-              className={`activity-bar-btn ${activeSidebarTab === 'files' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-              title="Explorer (Ctrl+Shift+E)"
-            >
-              <LuFolder size={20} />
-            </button>
-            <button
-              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('schema'); }}
-              className={`activity-bar-btn ${activeSidebarTab === 'schema' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-              title="Database Schema (Ctrl+Shift+D)"
-            >
-              <LuDatabase size={20} />
-            </button>
-            <button
-              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('extensions'); }}
-              className={`activity-bar-btn ${activeSidebarTab === 'extensions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-              title="Extensions"
-            >
-              <LuPuzzle size={20} />
-            </button>
-            <button
-              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('dbt'); }}
-              className={`activity-bar-btn ${activeSidebarTab === 'dbt' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-              title="DBT Studio"
-            >
-              <LuContainer size={20} />
-            </button>
-            <button
-              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('snippets'); }}
-              className={`activity-bar-btn ${activeSidebarTab === 'snippets' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-              title="SQL Snippets"
-            >
-              <LuCode size={20} />
-            </button>
-            <button
-              onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('history'); }}
-              className={`activity-bar-btn ${activeSidebarTab === 'history' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-              title="Query History"
-            >
-              <LuHistory size={20} />
-            </button>
-            {/* Collapse Toggle */}
-            <button
-              onClick={() => setSidebarCollapsed(prev => !prev)}
-              className="activity-bar-collapse-btn"
-              title={sidebarCollapsed ? 'Show Sidebar (Ctrl+B)' : 'Hide Sidebar (Ctrl+B)'}
-              style={{ marginTop: 'auto' }}
-            >
-              {sidebarCollapsed ? <LuPanelLeftOpen size={18} /> : <LuPanelLeftClose size={18} />}
-            </button>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="activity-bar-btn activity-bar-btn--bottom"
-              title="Settings (Ctrl+,)"
-              style={{ marginTop: '0' }}
-            >
-              <LuSettings size={20} />
-            </button>
-          </div>
+          {/* Left Panel Card — Activity Bar + Sidebar unified */}
+          <div className="left-panel-card">
+            <div className="activity-bar">
+              <button
+                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('files'); }}
+                className={`activity-bar-btn ${activeSidebarTab === 'files' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Explorer (Ctrl+Shift+E)"
+              >
+                <LuFolder size={20} />
+              </button>
+              <button
+                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('schema'); }}
+                className={`activity-bar-btn ${activeSidebarTab === 'schema' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Database Schema (Ctrl+Shift+D)"
+              >
+                <LuDatabase size={20} />
+              </button>
+              <button
+                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('extensions'); }}
+                className={`activity-bar-btn ${activeSidebarTab === 'extensions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Extensions"
+              >
+                <LuPuzzle size={20} />
+              </button>
+              <button
+                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('dbt'); }}
+                className={`activity-bar-btn ${activeSidebarTab === 'dbt' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="DBT Studio"
+              >
+                <LuContainer size={20} />
+              </button>
+              <button
+                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('snippets'); }}
+                className={`activity-bar-btn ${activeSidebarTab === 'snippets' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="SQL Snippets"
+              >
+                <LuCode size={20} />
+              </button>
+              <button
+                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('history'); }}
+                className={`activity-bar-btn ${activeSidebarTab === 'history' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Query History"
+              >
+                <LuHistory size={20} />
+              </button>
+              <div className="activity-bar-spacer" />
 
-          <div className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
+              {/* Data Diving toggle */}
+              <button
+                onClick={() => {
+                  if (isDiving) {
+                    setIsDiving(false);
+                    setShowAiSidebar(false);
+                  } else {
+                    setIsDiving(true);
+                    setShowAiSidebar(true);
+                  }
+                }}
+                className={`activity-bar-btn${isDiving ? ' activity-bar-btn--active' : ''}`}
+                title="Toggle Data Diving"
+              >
+                <LuSparkles size={20} />
+              </button>
+
+              {/* Execution Chain */}
+              <button
+                onClick={handleOpenChain}
+                className="activity-bar-btn"
+                title="Run Execution Chain"
+              >
+                <LuLink size={20} />
+              </button>
+
+              <div className="activity-bar-separator" />
+
+              <button
+                onClick={() => setSidebarCollapsed(prev => !prev)}
+                className="activity-bar-collapse-btn"
+                title={sidebarCollapsed ? 'Show Sidebar (Ctrl+B)' : 'Hide Sidebar (Ctrl+B)'}
+              >
+                {sidebarCollapsed ? <LuPanelLeftOpen size={18} /> : <LuPanelLeftClose size={18} />}
+              </button>
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="activity-bar-btn activity-bar-btn--bottom"
+                title="Settings (Ctrl+,)"
+              >
+                <LuSettings size={20} />
+              </button>
+            </div>
+
+            <div className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
 
             {/* Top Section: Project Info */}
             <ProjectInfo
@@ -759,176 +786,66 @@ function App() {
                 <QueryHistoryPanel onSelect={(sql) => layoutRef.current?.createNew('sql', sql)} />
               </div>
             )}
-          </div>
+            </div>{/* end .sidebar */}
 
-          {/* Sidebar Resize Handle */}
-          {!sidebarCollapsed && (
-            <div
-              className={`sidebar-resize-handle ${isResizingSidebar.current ? 'sidebar-resize-handle--active' : ''}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                isResizingSidebar.current = true;
-                const startX = e.clientX;
-                const startWidth = sidebarWidth;
-                const onMouseMove = (ev) => {
-                  const delta = ev.clientX - startX;
-                  const newWidth = Math.min(480, Math.max(200, startWidth + delta));
-                  setSidebarWidth(newWidth);
-                };
-                const onMouseUp = () => {
-                  isResizingSidebar.current = false;
-                  document.removeEventListener('mousemove', onMouseMove);
-                  document.removeEventListener('mouseup', onMouseUp);
-                };
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-              }}
-            />
-          )}
+            {/* Sidebar Resize Handle — inside the card */}
+            {!sidebarCollapsed && (
+              <div
+                className={`sidebar-resize-handle ${isResizingSidebar.current ? 'sidebar-resize-handle--active' : ''}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  isResizingSidebar.current = true;
+                  const startX = e.clientX;
+                  const startWidth = sidebarWidth;
+                  const onMouseMove = (ev) => {
+                    const delta = ev.clientX - startX;
+                    const newWidth = Math.min(480, Math.max(200, startWidth + delta));
+                    setSidebarWidth(newWidth);
+                  };
+                  const onMouseUp = () => {
+                    isResizingSidebar.current = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                  };
+                  document.addEventListener('mousemove', onMouseMove);
+                  document.addEventListener('mouseup', onMouseUp);
+                }}
+              />
+            )}
+          </div>
 
           {/* Main Content with LayoutManager */}
           <div className="main-content">
-            {/* Global Toolbar — Linear Style */}
-            <div className="toolbar">
-              <div className="toolbar-left">
-                <button onClick={() => layoutRef.current?.handleTriggerRun()} title="Run Active (Ctrl+Enter)" style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--accent-primary)', color: 'var(--surface-base)', border: 'none', fontWeight: '600' }}>
-                  <LuPlay size={14} fill="currentColor" /> Run
-                </button>
-                <button
-                  onClick={() => layoutRef.current?.handleTriggerAnalyze()}
-                  title="Analyze Query Plan (Ctrl+Shift+E)"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)', padding: '4px 8px' }}
-                >
-                  <LuActivity size={14} />
-                </button>
-
-                {/* Save Dropdown */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => { setShowToolbarSaveMenu(v => !v); setShowToolbarNewMenu(false); }}
-                    title="Save (Ctrl+S)"
-                    style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <LuSave size={14} /> Save ▾
-                  </button>
-                  {showToolbarSaveMenu && (
-                    <div style={{
-                      position: 'absolute', left: 0, top: '100%', marginTop: '4px',
-                      backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
-                      borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
-                      padding: '4px', minWidth: '160px', backdropFilter: 'blur(12px)',
-                      animation: 'dropdown-in 0.15s ease-out',
-                    }}>
-                      <div onClick={() => { layoutRef.current?.handleTriggerSave(); setShowToolbarSaveMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuSave size={14} /> Save
-                        <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--text-muted)' }}>Ctrl+S</span>
-                      </div>
-                      <div onClick={() => {
-                        const content = layoutRef.current?.handleTriggerSave;
-                        setPendingSaveContent('');
-                        setIsSaveModalOpen(true);
-                        setShowToolbarSaveMenu(false);
-                      }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuSave size={14} /> Save As…
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
-
-                {/* New Dropdown */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => { setShowToolbarNewMenu(v => !v); setShowToolbarSaveMenu(false); }}
-                    title="Create New File"
-                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
-                  >
-                    <LuFilePlus size={14} /> New ▾
-                  </button>
-                  {showToolbarNewMenu && (
-                    <div style={{
-                      position: 'absolute', left: 0, top: '100%', marginTop: '4px',
-                      backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
-                      borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 999,
-                      padding: '4px', minWidth: '170px', backdropFilter: 'blur(12px)',
-                      animation: 'dropdown-in 0.15s ease-out',
-                    }}>
-                      <div onClick={() => { layoutRef.current?.createNew('sql'); setShowToolbarNewMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuCode size={14} /> SQL Query
-                      </div>
-                      <div onClick={() => { layoutRef.current?.createNew('notebook'); setShowToolbarNewMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuFilePlus size={14} /> Notebook
-                      </div>
-                      <div onClick={() => { layoutRef.current?.createNew('md'); setShowToolbarNewMenu(false); }}
-                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '6px', transition: 'background-color 120ms ease' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        <LuFileText size={14} /> Markdown
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 4px' }}></div>
-                <button
-                  onClick={handleOpenChain}
-                  title="Run Execution Chain"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px' }}
-                >
-                  <LuLink size={14} /> Chain
-                </button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <button
-                  onClick={() => {
-                    if (isDiving) {
-                      setIsDiving(false);
-                      setShowAiSidebar(false);
-                    } else {
-                      setIsDiving(true);
-                      setShowAiSidebar(true);
-                    }
+            {/* Tab Bar Card — floating, only above editor + AI area, hidden when no tabs */}
+            {titleBarTabs && titleBarTabs.tabs.length > 0 && (
+              <div className="tab-bar-card">
+                <TabBar
+                  tabs={titleBarTabs.tabs}
+                  activeTabId={titleBarTabs.activeTabId}
+                  onTabClick={(id) => {
+                    const props = layoutRef.current?.getTabBarProps();
+                    if (props) props.onTabClick(id);
                   }}
-                  title="Toggle Data Diving"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '5px',
-                    backgroundColor: isDiving ? 'var(--accent-primary)' : 'transparent',
-                    color: isDiving ? 'var(--surface-base)' : 'var(--accent-primary)',
-                    borderColor: isDiving ? 'var(--accent-primary)' : 'var(--border-default)',
-                    fontWeight: isDiving ? '600' : '400',
+                  onTabClose={(id) => {
+                    const props = layoutRef.current?.getTabBarProps();
+                    if (props) props.onTabClose(id);
                   }}
-                >
-                  <LuSparkles size={14} /> {isDiving ? 'Exit Diving' : 'Data Diving'}
-                </button>
-                {!isDiving && (
-                  <button
-                    onClick={() => setShowAiSidebar(!showAiSidebar)}
-                    title="Toggle AI Assistant"
-                    style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: showAiSidebar ? 'var(--active-bg)' : 'transparent', color: 'var(--accent-primary)', borderColor: showAiSidebar ? 'var(--accent-primary)' : 'var(--border-default)' }}
-                  >
-                    {showAiSidebar ? <><LuX /> Close AI</> : <><LuBot /> AI Assistant</>}
-                  </button>
-                )}
+                  paneId={titleBarTabs.paneId}
+                  onDragStart={(e, tabId, paneId) => {
+                    const props = layoutRef.current?.getTabBarProps();
+                    if (props?.onDragStart) props.onDragStart(e, tabId, paneId);
+                  }}
+                  onReorder={(src, target, paneId) => {
+                    const props = layoutRef.current?.getTabBarProps();
+                    if (props?.onReorder) props.onReorder(src, target, paneId);
+                  }}
+                  onCreateNew={(type) => {
+                    const props = layoutRef.current?.getTabBarProps();
+                    if (props?.onCreateNew) props.onCreateNew(type);
+                  }}
+                />
               </div>
-            </div>
+            )}
 
             {/* Content Area containing Editor AND AI Sidebar */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -945,7 +862,10 @@ function App() {
                     setPendingSaveTab(tab);
                     setIsSaveModalOpen(true);
                   }}
-                  onQueryResult={setLastQueryInfo}
+                  onQueryResult={() => {}}
+                  showAiSidebar={showAiSidebar}
+                  onToggleAi={() => setShowAiSidebar(v => !v)}
+                  onTabsChange={setTitleBarTabs}
                 />
               </div>
 
@@ -959,7 +879,9 @@ function App() {
                 overflow: 'hidden',
                 transition: isDiving ? 'none' : 'width 0.2s ease, opacity 0.2s ease',
                 pointerEvents: (showAiSidebar || isDiving) ? 'auto' : 'none',
-                borderLeft: (!isDiving && showAiSidebar) ? '1px solid var(--border-subtle)' : 'none'
+                margin: (!isDiving && showAiSidebar) ? '6px 8px 6px 0' : isDiving ? '6px 8px' : '0',
+                borderRadius: 'var(--radius-lg)',
+                border: (showAiSidebar || isDiving) ? '1px solid var(--border-subtle)' : 'none',
               }}>
                 <AiSidebar
                   width={isDiving ? '100%' : '350px'}
@@ -974,12 +896,6 @@ function App() {
               </div>
             </div>
 
-            {/* Status Bar */}
-            <StatusBar
-              currentDb={currentDb}
-              dbReadOnly={dbReadOnly}
-              lastQueryInfo={lastQueryInfo}
-            />
           </div>
 
         </div>

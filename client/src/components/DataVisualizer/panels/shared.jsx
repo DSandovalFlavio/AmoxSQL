@@ -184,12 +184,11 @@ export const SimpleColorPicker = memo(({ color, onChange }) => {
                                             style={{
                                                 width: '18px', height: '18px',
                                                 backgroundColor: c, cursor: 'pointer',
-                                                border: color === c ? '2px solid white' : '1px solid rgba(255,255,255,0.15)',
+                                                border: color === c ? '2px solid var(--text-primary)' : '1px solid var(--border-subtle)',
                                                 borderRadius: '3px', boxSizing: 'border-box',
                                                 transition: 'transform 0.1s',
                                             }}
-                                            onMouseOver={e => e.currentTarget.style.transform = 'scale(1.2)'}
-                                            onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                                            className="dv-color-swatch"
                                             title={c}
                                         />
                                     ))}

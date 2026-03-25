@@ -13,7 +13,7 @@ const HeadlineOverlay = memo(({ headline, headlineData, numberFormat, decimalPla
 
     const fmt = (v) => formatNumber(v, numberFormat, decimalPlaces);
 
-    const deltaColor = headlineData.delta > 0 ? '#22c55e' : headlineData.delta < 0 ? '#ef4444' : 'var(--text-muted)';
+    const deltaColor = headlineData.delta > 0 ? 'var(--color-success)' : headlineData.delta < 0 ? 'var(--color-error)' : 'var(--text-muted)';
     const deltaIcon = headlineData.delta > 0 ? '▲' : headlineData.delta < 0 ? '▼' : '●';
 
     return (

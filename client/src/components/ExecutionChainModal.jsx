@@ -97,8 +97,8 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
         const r = results[idx];
         if (!r) return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--border-color)', display: 'inline-block' }} />;
         if (r.status === 'running') return <LuLoader size={16} style={{ color: 'var(--accent-primary)', animation: 'spin 1s linear infinite' }} />;
-        if (r.status === 'success') return <LuCheck size={16} style={{ color: '#10b981' }} />;
-        if (r.status === 'error') return <LuCircleAlert size={16} style={{ color: '#ef4444' }} />;
+        if (r.status === 'success') return <LuCheck size={16} style={{ color: 'var(--color-success)' }} />;
+        if (r.status === 'error') return <LuCircleAlert size={16} style={{ color: 'var(--color-error)' }} />;
     };
 
     return (
@@ -172,7 +172,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                                     <div key={idx} style={{
                                         display: 'flex', alignItems: 'center', gap: '8px',
                                         padding: '8px 10px', borderRadius: '6px',
-                                        backgroundColor: currentStep === idx ? 'rgba(0,200,255,0.08)' : r?.status === 'error' ? 'rgba(239,68,68,0.08)' : r?.status === 'success' ? 'rgba(16,185,129,0.05)' : 'var(--input-bg)',
+                                        backgroundColor: currentStep === idx ? 'var(--color-info-bg)' : r?.status === 'error' ? 'var(--color-error-bg)' : r?.status === 'success' ? 'var(--color-success-bg)' : 'var(--input-bg)',
                                         border: `1px solid ${currentStep === idx ? 'var(--accent-primary)' : 'var(--border-color)'}`,
                                         transition: 'all 120ms ease',
                                     }}>
@@ -207,9 +207,9 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                 {/* Error Detail */}
                 {Object.values(results).find(r => r.status === 'error') && (
                     <div style={{
-                        backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+                        backgroundColor: 'var(--color-error-bg)', border: '1px solid var(--feedback-error-border)',
                         borderRadius: '6px', padding: '10px 12px', marginBottom: '12px', fontSize: '11px',
-                        color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'pre-wrap',
+                        color: 'var(--color-error)', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'pre-wrap',
                         maxHeight: '100px', overflowY: 'auto',
                     }}>
                         {Object.values(results).find(r => r.status === 'error')?.error}
@@ -219,8 +219,8 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                 {/* Success */}
                 {allDone && (
                     <div style={{
-                        backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)',
-                        borderRadius: '6px', padding: '10px 12px', marginBottom: '12px', fontSize: '11px', color: '#10b981',
+                        backgroundColor: 'var(--color-success-bg)', border: '1px solid var(--feedback-success-border)',
+                        borderRadius: '6px', padding: '10px 12px', marginBottom: '12px', fontSize: '11px', color: 'var(--color-success)',
                     }}>
                         ✅ All {chain.length} steps completed successfully!
                     </div>

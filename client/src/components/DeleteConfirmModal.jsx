@@ -44,7 +44,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, itemName, itemType }) 
                 <div style={{ marginBottom: '20px', fontSize: '13px', color: 'var(--text-color)', lineHeight: '1.5' }}>
                     Are you sure you want to delete this {itemType.toLowerCase()}?<br /><br />
                     <strong style={{ color: 'var(--text-active)', wordBreak: 'break-all' }}>{itemName}</strong>
-                    {itemType === 'Table' && <div style={{ marginTop: '10px', color: '#e06c75', fontWeight: 'bold' }}>This action cannot be undone.</div>}
+                    {itemType === 'Table' && <div style={{ marginTop: '10px', color: 'var(--color-destructive)', fontWeight: 'bold' }}>This action cannot be undone.</div>}
                 </div>
 
                 {error && <div style={{ padding: '10px', backgroundColor: 'var(--feedback-error-bg)', color: 'var(--feedback-error-text)', borderRadius: '4px', marginBottom: '15px', fontSize: '12px', border: '1px solid var(--feedback-error-border)' }}>{error}</div>}
@@ -57,8 +57,8 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, itemName, itemType }) 
                         Cancel
                     </button>
                     <button type="button" onClick={handleDelete} disabled={loading} style={{
-                        backgroundColor: '#e06c75', padding: '6px 16px', borderRadius: '3px',
-                        border: 'none', color: '#fff', fontWeight: 'bold', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1
+                        backgroundColor: 'var(--color-destructive)', padding: '6px 16px', borderRadius: '3px',
+                        border: 'none', color: 'var(--color-destructive-text)', fontWeight: 'bold', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1
                     }}>
                         {loading ? 'Deleting...' : 'Delete'}
                     </button>

@@ -147,7 +147,7 @@ const ChartRenderer = memo(({
                         padding: '3px 10px',
                         borderRadius: '20px',
                         border: '1px solid var(--border-color)',
-                        background: 'var(--panel-section-bg, rgba(255,255,255,0.04))',
+                        background: 'var(--panel-section-bg, var(--hover-bg))',
                         fontSize: `${fontSize}px`,
                         color: 'var(--text-secondary)',
                         lineHeight: 1.3,

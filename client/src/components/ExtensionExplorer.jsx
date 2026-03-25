@@ -8,10 +8,9 @@ const ExtensionExplorer = () => {
     const [extensions, setExtensions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [installName, setInstallName] = useState('');
+    const [query, setQuery] = useState('');
     const [installing, setInstalling] = useState(false);
     const [installMsg, setInstallMsg] = useState(null);
-    const [filter, setFilter] = useState('');
 
     const fetchExtensions = async () => {
         setLoading(true);
@@ -30,21 +29,21 @@ const ExtensionExplorer = () => {
 
     useEffect(() => { fetchExtensions(); }, []);
 
-    const handleInstall = async () => {
-        const name = installName.trim();
-        if (!name) return;
+    const handleInstall = async (name) => {
+        const extName = (name || query).trim();
+        if (!extName) return;
         setInstalling(true);
         setInstallMsg(null);
         try {
             const res = await fetch('http://localhost:3001/api/db/extensions/install', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name: extName })
             });
             const data = await res.json();
             if (res.ok) {
                 setInstallMsg({ type: 'success', text: data.message });
-                setInstallName('');
+                setQuery('');
                 fetchExtensions();
             } else {
                 setInstallMsg({ type: 'error', text: data.details || data.error });
@@ -57,7 +56,7 @@ const ExtensionExplorer = () => {
     };
 
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter') handleInstall();
+        if (e.key === 'Enter' && query.trim()) handleInstall();
     };
 
     // Determine if extension is "core" based on install_mode or installed_from
@@ -68,13 +67,18 @@ const ExtensionExplorer = () => {
         return mode === 'repository' || from.includes('core') || (!ext.installed && !ext.install_mode);
     };
 
-    // Filter logic
+    // Filter logic — unified query filters and can install
     const filtered = extensions.filter(ext => {
-        if (!filter) return true;
-        const q = filter.toLowerCase();
+        if (!query) return true;
+        const q = query.toLowerCase();
         return (ext.extension_name || '').toLowerCase().includes(q) ||
             (ext.description || '').toLowerCase().includes(q);
     });
+
+    // Show install button if query doesn't exactly match any extension
+    const showInstallBtn = query.trim() && !extensions.some(
+        e => (e.extension_name || '').toLowerCase() === query.trim().toLowerCase()
+    );
 
     // Sort: installed+loaded first, then installed, then rest
     const sorted = [...filtered].sort((a, b) => {
@@ -91,7 +95,7 @@ const ExtensionExplorer = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
             {/* Header */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px' }}>
+            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <LuPackage size={12} /> EXTENSIONS
                 </span>
@@ -104,76 +108,43 @@ const ExtensionExplorer = () => {
                 </button>
             </div>
 
-            {/* Install bar */}
-            <div className="ext-install-bar">
-                <div style={{ display: 'flex', gap: '6px', padding: '6px 12px' }}>
-                    <input
-                        type="text"
-                        value={installName}
-                        onChange={(e) => setInstallName(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Extension name..."
-                        disabled={installing}
-                        style={{
-                            flex: 1, padding: '6px 10px', fontSize: '12px',
-                            backgroundColor: 'var(--surface-inset)',
-                            border: '1px solid var(--border-default)',
-                            borderRadius: '6px', color: 'var(--text-primary)',
-                            outline: 'none'
-                        }}
-                    />
-                    <button
-                        onClick={handleInstall}
-                        disabled={installing || !installName.trim()}
-                        title="Install & Load extension"
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '4px',
-                            padding: '5px 10px', fontSize: '11px', fontWeight: 600,
-                            backgroundColor: 'var(--accent-primary)',
-                            color: 'var(--surface-base)',
-                            border: 'none', borderRadius: '6px',
-                            cursor: installing ? 'wait' : 'pointer',
-                            opacity: (!installName.trim() || installing) ? 0.5 : 1
-                        }}
-                    >
-                        {installing ? <LuLoader size={12} className="ext-spin" /> : <LuDownload size={12} />}
-                        Install
-                    </button>
+            {/* Unified search + install */}
+            <div className="ext-search-section">
+                <div className="ext-search-row">
+                    <div className="fe-search" style={{ flex: 1 }}>
+                        <LuSearch size={12} className="fe-search-icon" />
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => { setQuery(e.target.value); setInstallMsg(null); }}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Search or install extension..."
+                            disabled={installing}
+                            className="fe-search-input"
+                        />
+                    </div>
+                    {showInstallBtn && (
+                        <button
+                            onClick={() => handleInstall()}
+                            disabled={installing}
+                            title={`Install "${query.trim()}"`}
+                            className="ext-install-btn"
+                        >
+                            {installing ? <LuLoader size={12} className="ext-spin" /> : <LuDownload size={12} />}
+                            Install
+                        </button>
+                    )}
                 </div>
                 {installMsg && (
-                    <div style={{
-                        padding: '4px 12px 6px', fontSize: '11px',
-                        color: installMsg.type === 'success' ? 'var(--feedback-success-text)' : 'var(--feedback-error-text)',
-                        display: 'flex', alignItems: 'center', gap: '4px'
-                    }}>
+                    <div className={`ext-install-msg ${installMsg.type}`}>
                         {installMsg.type === 'success' ? <LuCheck size={11} /> : <LuCircleAlert size={11} />}
                         {installMsg.text}
                     </div>
                 )}
             </div>
 
-            {/* Filter / Search */}
-            <div style={{ padding: '4px 12px 6px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                    <LuSearch size={12} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-disabled)', pointerEvents: 'none' }} />
-                    <input
-                        type="text"
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        placeholder="Filter extensions..."
-                        style={{
-                            width: '100%', padding: '5px 8px 5px 26px', fontSize: '11px',
-                            backgroundColor: 'var(--surface-inset)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '5px', color: 'var(--text-primary)',
-                            outline: 'none'
-                        }}
-                    />
-                </div>
-            </div>
-
             {/* Stats bar */}
-            <div style={{ padding: '2px 14px 6px', display: 'flex', gap: '12px', fontSize: '10px', color: 'var(--text-tertiary)' }}>
+            <div className="ext-stats-bar">
                 <span>{extensions.length} total</span>
                 <span style={{ color: 'var(--feedback-success-text)' }}>● {installedCount} installed</span>
                 <span style={{ color: 'var(--accent-primary)' }}>● {loadedCount} loaded</span>
@@ -203,10 +174,10 @@ const ExtensionExplorer = () => {
                         { label: 'Available', items: sorted.filter(e => !e.installed), color: 'var(--text-tertiary)' },
                     ].filter(g => g.items.length > 0);
 
-                    if (groups.length === 0 && filter) {
+                    if (groups.length === 0 && query) {
                         return (
                             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '12px' }}>
-                                No extensions match "{filter}"
+                                No extensions match "{query}"
                             </div>
                         );
                     }
@@ -214,24 +185,20 @@ const ExtensionExplorer = () => {
                     return groups.map(group => (
                         <div key={group.label}>
                             <div style={{
-                                padding: '6px 14px 4px',
+                                padding: '10px 14px 4px',
                                 fontSize: '10px',
                                 fontWeight: '600',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.5px',
-                                color: 'var(--text-tertiary)',
-                                borderBottom: '1px solid var(--border-subtle)',
-                                backgroundColor: 'var(--surface-inset)',
+                                color: 'var(--text-disabled)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                position: 'sticky',
-                                top: 0,
-                                zIndex: 1,
                             }}>
-                                <LuCircle size={6} fill={group.color} color={group.color} />
+                                <LuCircle size={5} fill={group.color} color={group.color} />
                                 {group.label}
-                                <span style={{ marginLeft: 'auto', fontSize: '9px', color: 'var(--text-disabled)' }}>{group.items.length}</span>
+                                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+                                <span style={{ fontSize: '9px', color: 'var(--text-disabled)' }}>{group.items.length}</span>
                             </div>
                             {group.items.map(ext => {
                                 const core = isCore(ext);

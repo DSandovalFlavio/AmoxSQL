@@ -37,7 +37,6 @@ const NotebookCell = ({
     const [isEditingMarkdown, setIsEditingMarkdown] = useState(false);
     const [localContent, setLocalContent] = useState(content);
     const [localMetadata, setLocalMetadata] = useState(metadata || {});
-    const [isHovered, setIsHovered] = useState(false);
 
     // Debug State
     const [debugModalOpen, setDebugModalOpen] = useState(false);
@@ -233,15 +232,14 @@ const NotebookCell = ({
     const renderInputBlock = () => {
         const varName = localMetadata.varName || '';
         const inputType = localMetadata.inputType || 'text';
-        // Fallback value is what's in the environment if previously saved, else local content
         const currentVal = environment && environment[varName] !== undefined ? environment[varName] : localContent;
 
         return (
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px', backgroundColor: 'var(--editor-bg)', borderRadius: '6px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Variable Name</label>
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--panel-bg)', borderRadius: '6px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
-                        <span style={{ padding: '8px 10px', color: 'var(--text-muted)', backgroundColor: 'var(--header-bg)', borderRight: '1px solid var(--border-color)', fontSize: '14px', fontFamily: 'monospace' }}>{'{{'}</span>
+            <div className="nb-input-block">
+                <div className="nb-input-group nb-input-group--var">
+                    <label className="nb-input-label">Variable Name</label>
+                    <div className="nb-input-var-wrap">
+                        <span className="nb-input-var-bracket nb-input-var-bracket--left">{'{{'}</span>
                         <input
                             type="text"
                             placeholder="my_var"
@@ -251,14 +249,14 @@ const NotebookCell = ({
                                 setLocalMetadata({ ...localMetadata, varName: newName });
                                 onUpdate(id, localContent, { ...localMetadata, varName: newName });
                             }}
-                            style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-color)', padding: '8px 12px', fontSize: '14px', outline: 'none', fontFamily: 'monospace' }}
+                            className="nb-input-field"
                         />
-                        <span style={{ padding: '8px 10px', color: 'var(--text-muted)', backgroundColor: 'var(--header-bg)', borderLeft: '1px solid var(--border-color)', fontSize: '14px', fontFamily: 'monospace' }}>{'}}'}</span>
+                        <span className="nb-input-var-bracket nb-input-var-bracket--right">{'}}'}</span>
                     </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 2 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Value</label>
+                <div className="nb-input-group nb-input-group--val">
+                    <div className="nb-input-val-header">
+                        <label className="nb-input-label">Value</label>
                         <select
                             value={inputType}
                             onChange={(e) => {
@@ -266,7 +264,7 @@ const NotebookCell = ({
                                 setLocalMetadata({ ...localMetadata, inputType: newType });
                                 onUpdate(id, localContent, { ...localMetadata, inputType: newType });
                             }}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer', outline: 'none' }}
+                            className="nb-input-type-select"
                         >
                             <option value="text">Text / String</option>
                             <option value="number">Number</option>
@@ -286,7 +284,7 @@ const NotebookCell = ({
                             }
                         }}
                         onBlur={() => onUpdate(id, localContent, localMetadata)}
-                        style={{ width: '100%', padding: '8px 12px', background: 'var(--panel-bg)', color: 'var(--text-color)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px', outline: 'none', transition: 'border-color 0.2s' }}
+                        className="nb-input-value"
                     />
                 </div>
             </div>
@@ -305,7 +303,6 @@ const NotebookCell = ({
         if (isReportMode || !onDragOver) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        // Determine if mouse is in top or bottom half
         const rect = e.currentTarget.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
         const targetIdx = e.clientY < midY ? cellIndex : cellIndex + 1;
@@ -322,118 +319,74 @@ const NotebookCell = ({
         if (onDragEnd) onDragEnd();
     };
 
-    // Card styling mimics modern block editors
-    const cardStyle = {
-        marginBottom: isReportMode ? '0px' : '16px',
-        border: isReportMode ? 'none' : (isHovered ? '1px solid var(--border-active)' : '1px solid var(--border-color)'),
-        borderRadius: '8px',
-        backgroundColor: isReportMode ? 'transparent' : 'var(--panel-bg)',
-        overflow: 'hidden',
-        display: isEmptyInReport ? 'none' : 'flex',
-        flexDirection: 'column',
-        boxShadow: isReportMode ? 'none' : (isHovered ? '0 4px 12px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.03)'),
-        transition: 'box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease',
-        position: 'relative',
-        opacity: isDragging ? 0.4 : 1,
-        cursor: isReportMode ? 'default' : undefined
-    };
+    // Build cell className
+    const cellClasses = [
+        'nb-cell',
+        isReportMode && 'report-mode',
+        isDragging && 'dragging',
+        isEmptyInReport && 'empty-report',
+    ].filter(Boolean).join(' ');
 
     return (
         <div
-            className={`notebook-cell ${isReportMode ? 'report-card' : ''}`}
-            style={cardStyle}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            className={cellClasses}
             draggable={!isReportMode}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
         >
-            {/* Left accent border to indicate block type */}
+            {/* Left accent indicator */}
             {!isReportMode && (
-                <div style={{
-                    position: 'absolute',
-                    left: 0, top: 0, bottom: 0, width: '4px',
-                    backgroundColor: type === 'code' ? 'var(--accent-color-user)' : type === 'input' ? '#4ade80' : 'var(--border-color)',
-                    opacity: 0.6,
-                    borderTopLeftRadius: '8px',
-                    borderBottomLeftRadius: '8px',
-                    zIndex: 2
-                }} />
+                <div className={`nb-accent nb-accent--${type === 'code' ? 'code' : type === 'input' ? 'input' : 'text'}`} />
             )}
 
-            {/* Block Action Header - Always visible in edit mode */}
+            {/* Block Action Toolbar — visible on hover via CSS */}
             {!isReportMode && (
-                <div style={{
-                    padding: '6px 16px 6px 20px',
-                    backgroundColor: 'var(--header-bg)',
-                    borderBottom: '1px solid var(--border-color)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: '11px',
-                    color: 'var(--text-muted)'
-                }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600', color: type === 'code' ? 'var(--accent-color-user)' : type === 'input' ? '#4ade80' : 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <div className="nb-toolbar">
+                    <div className="nb-toolbar-left">
+                        <span className={`nb-type-badge nb-type-badge--${type === 'code' ? 'code' : type === 'input' ? 'input' : 'text'}`}>
                             {type === 'code' && <><LuCode size={12} /> SQL</>}
                             {type === 'input' && <><LuSettings2 size={12} /> Input</>}
                             {type === 'markdown' && <><LuType size={12} /> Text</>}
                         </span>
 
                         {type === 'code' && (
-                            <button
-                                onClick={() => onRun(id)}
-                                style={{
-                                    ...btnStyle,
-                                    color: 'var(--accent-color-user)',
-                                    opacity: 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    fontWeight: '600',
-                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                    padding: '4px 10px',
-                                    borderRadius: '4px',
-                                    marginLeft: '8px',
-                                    transition: 'background-color 0.2s'
-                                }}
-                                title="Run Cell (Ctrl+Enter)"
-                            >
+                            <button onClick={() => onRun(id)} className="nb-btn--run" title="Run Cell (Ctrl+Enter)">
                                 <LuPlay size={12} fill="currentColor" /> Run
                             </button>
                         )}
                         {/* Status Indicator */}
                         {type === 'code' && result && (
-                            <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {result.loading && <><span className="spinner-small" style={{ width: '10px', height: '10px', border: '2px solid var(--border-color)', borderTop: '2px solid var(--accent-color-user)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> <span style={{ color: 'var(--accent-color-user)' }}>Running...</span></>}
-                                {!result.loading && result.error && <span style={{ color: '#ff6b6b' }}>● Failed</span>}
-                                {!result.loading && !result.error && result.data && <span style={{ color: '#20c997' }}>● Success ({result.executionTime}ms)</span>}
+                            <span className="nb-status">
+                                {result.loading && <><span className="nb-spinner" /> <span className="nb-status--running">Running...</span></>}
+                                {!result.loading && result.error && <span className="nb-status--error">● Failed</span>}
+                                {!result.loading && !result.error && result.data && <span className="nb-status--success">● Success ({result.executionTime}ms)</span>}
                             </span>
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <div className="nb-toolbar-right">
                         {type === 'code' && onRunAbove && (
-                            <button onClick={() => onRunAbove(id)} style={btnStyle} title="Run This & Above" disabled={isRunningBatch}><LuChevronsUp size={14} /></button>
+                            <button onClick={() => onRunAbove(id)} className="nb-btn" title="Run This & Above" disabled={isRunningBatch}><LuChevronsUp size={14} /></button>
                         )}
                         {type === 'code' && onRunBelow && (
-                            <button onClick={() => onRunBelow(id)} style={btnStyle} title="Run This & Below" disabled={isRunningBatch}><LuChevronsDown size={14} /></button>
+                            <button onClick={() => onRunBelow(id)} className="nb-btn" title="Run This & Below" disabled={isRunningBatch}><LuChevronsDown size={14} /></button>
                         )}
-                        {type === 'code' && (onRunAbove || onRunBelow) && (
-                            <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-color)', margin: '0 2px' }} />
-                        )}
-                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveUp(id); }} style={btnStyle} title="Move Up"><LuArrowUp size={14} /></button>
-                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveDown(id); }} style={btnStyle} title="Move Down"><LuArrowDown size={14} /></button>
-                        <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-color)', margin: '0 2px' }} />
-                        <button onClick={() => onDelete(id)} style={{ ...btnStyle, color: '#ff6b6b' }} title="Delete"><LuTrash2 size={13} /></button>
+                        {type === 'code' && (onRunAbove || onRunBelow) && <div className="nb-separator" />}
+                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveUp(id); }} className="nb-btn" title="Move Up"><LuArrowUp size={14} /></button>
+                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveDown(id); }} className="nb-btn" title="Move Down"><LuArrowDown size={14} /></button>
+                        <div className="nb-separator" />
+                        <button onClick={() => onDelete(id)} className="nb-btn nb-btn--danger" title="Delete"><LuTrash2 size={13} /></button>
                     </div>
                 </div>
             )}
 
             {/* Cell Content */}
-            <div style={{ padding: type === 'markdown' && !isEditingMarkdown && !isReportMode ? '16px 20px' : (isReportMode && type === 'markdown' ? '8px 0' : '0 0 0 4px') }}>
+            <div className={
+                type === 'markdown' && !isEditingMarkdown && !isReportMode ? 'nb-content--md' :
+                isReportMode && type === 'markdown' ? 'nb-content--md-report' : 'nb-content'
+            }>
 
                 {/* Markdown Block */}
                 {type === 'markdown' && (
@@ -443,21 +396,21 @@ const NotebookCell = ({
                             onChange={(e) => setLocalContent(e.target.value)}
                             onBlur={handleBlur}
                             autoFocus
-                            style={{ width: '100%', minHeight: '80px', backgroundColor: 'transparent', color: 'var(--text-color)', border: 'none', padding: '16px', fontFamily: 'monospace', resize: 'vertical', fontSize: '14px', outline: 'none' }}
+                            className="nb-md-edit"
                             placeholder="Type markdown here... (Click outside to preview)"
                         />
                     ) : (
                         <div
                             onDoubleClick={() => !isReportMode && setIsEditingMarkdown(true)}
-                            style={{ minHeight: '24px', cursor: isReportMode ? 'default' : 'text' }}
+                            className={`nb-md-preview ${isReportMode ? 'report-mode' : ''}`}
                             title={isReportMode ? "" : "Double click to edit"}
                         >
                             {localContent && localContent.trim() ? (
-                                <div className="markdown-body" style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.7' }}>
+                                <div className="markdown-body nb-md-body">
                                     <ReactMarkdown>{localContent}</ReactMarkdown>
                                 </div>
                             ) : (
-                                !isReportMode && <div style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Empty Markdown Cell (Double click to edit)</div>
+                                !isReportMode && <div className="nb-md-empty">Empty Markdown Cell (Double click to edit)</div>
                             )}
                         </div>
                     )
@@ -465,19 +418,18 @@ const NotebookCell = ({
 
                 {/* Input Block */}
                 {type === 'input' && !isReportMode && (
-                    <div style={{ padding: '0px 16px 16px 16px' }}>
+                    <div className="nb-input-wrap">
                         {renderInputBlock()}
                     </div>
                 )}
-                {/* Input blocks are completely hidden in report mode for now because they are for parametrization */}
                 {type === 'input' && isReportMode && null}
 
                 {/* Code Block */}
                 {type === 'code' && (
-                    <div className="notebook-code-cell-content" style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div className="nb-code-content">
                         {/* Editor Area */}
                         {!(isReportMode && hideCodeInReport) && (
-                            <div style={{ height: 'auto', minHeight: '80px' }}>
+                            <div className="nb-code-editor-wrap">
                                 <div style={{ height: `${Math.max(80, Math.min(400, ((localContent?.toString().split('\n').length) || 3) * 20 + 20))}px` }} onKeyDown={handleKeyDown}>
                                     <SqlEditor
                                         value={typeof localContent === 'string' ? localContent : ''}
@@ -491,25 +443,18 @@ const NotebookCell = ({
                         )}
                         {/* Results Area */}
                         {result && (
-                            <div data-cell-id={id} style={{
-                                borderTop: !isReportMode ? '1px solid var(--border-color)' : 'none',
-                                borderBottom: isReportMode ? '1px solid var(--border-subtle)' : 'none',
-                                backgroundColor: isReportMode ? 'transparent' : 'var(--editor-bg)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                paddingTop: isReportMode ? '16px' : '0',
-                                paddingBottom: isReportMode ? '8px' : '0'
-                            }}>
-                                {result.loading && !isReportMode && <div style={{ height: '2px', width: '100%', background: 'linear-gradient(90deg, transparent, var(--accent-color-user), transparent)', animation: 'slide 1.5s infinite linear' }} />}
+                            <div data-cell-id={id} className={`nb-results ${isReportMode ? 'nb-results--report' : ''}`}>
+                                {result.loading && !isReportMode && <div className="nb-loading-bar" />}
 
-                                {result.error && <div style={{ padding: '12px 16px', color: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.05)', borderLeft: '3px solid #ff6b6b', fontFamily: 'monospace', fontSize: '13px', margin: isReportMode ? '0' : '16px' }}>Error: {result.error}</div>}
+                                {result.error && <div className={`nb-error-msg ${isReportMode ? 'report-mode' : ''}`}>Error: {result.error}</div>}
 
                                 {result.data && !result.error && (
                                     <>
                                         {!isPoppedOut && (
-                                            <div style={
-                                                !isReportMode ? { height: `${resultHeight}px`, overflow: 'hidden' } : { height: 'auto', minHeight: '300px' }
-                                            }>
+                                            <div
+                                                className={isReportMode ? 'nb-results-height--report' : 'nb-results-height'}
+                                                style={!isReportMode ? { height: `${resultHeight}px` } : undefined}
+                                            >
                                                 <ResultsTable
                                                     data={result.data}
                                                     types={result.types}
@@ -528,13 +473,10 @@ const NotebookCell = ({
                                         )}
 
                                         {isPoppedOut && (
-                                            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', backgroundColor: 'var(--panel-bg)', borderRadius: '6px' }}>
+                                            <div className="nb-popout-placeholder">
                                                 Results are actively displayed in a detached window.
-                                                <div style={{ marginTop: '12px' }}>
-                                                    <button
-                                                        onClick={() => setIsPoppedOut(false)}
-                                                        style={{ padding: '6px 12px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-active)' }}
-                                                    >
+                                                <div className="nb-popout-actions">
+                                                    <button onClick={() => setIsPoppedOut(false)} className="nb-popout-btn">
                                                         Bring Back Here
                                                     </button>
                                                 </div>
@@ -543,23 +485,8 @@ const NotebookCell = ({
 
                                         {/* Resize Handle */}
                                         {!isReportMode && !isPoppedOut && (
-                                            <div
-                                                onMouseDown={handleResizeMouseDown}
-                                                style={{
-                                                    height: '8px',
-                                                    cursor: 'row-resize',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    backgroundColor: 'var(--panel-bg)',
-                                                    borderTop: '1px solid var(--border-color)',
-                                                    transition: 'background-color 0.2s',
-                                                }}
-                                                onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'}
-                                                onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--panel-bg)'}
-                                                title="Drag to resize results"
-                                            >
-                                                <LuGripHorizontal size={14} style={{ color: 'var(--text-muted)' }} />
+                                            <div onMouseDown={handleResizeMouseDown} className="nb-resize-handle" title="Drag to resize results">
+                                                <LuGripHorizontal size={14} />
                                             </div>
                                         )}
                                     </>
@@ -577,32 +504,8 @@ const NotebookCell = ({
                 result={debugResult}
                 query={debugQuery}
             />
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                @keyframes slide {
-                    0% { transform: translateX(-100%); }
-                    100% { transform: translateX(100%); }
-                }
-                @keyframes spin {
-                    100% { transform: rotate(360deg); }
-                }
-            `}} />
-        </div >
+        </div>
     );
-};
-
-const btnStyle = {
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    padding: '4px',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background-color 0.2s'
 };
 
 export default NotebookCell;
