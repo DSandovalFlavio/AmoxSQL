@@ -471,6 +471,17 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                                     <br />
                                     <span>Drop tables/files above for context.</span>
                                 </div>
+                                <div className="ai-quick-actions">
+                                    <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
+                                        Show all tables
+                                    </button>
+                                    <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
+                                        Describe schema
+                                    </button>
+                                    <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
+                                        Sample data
+                                    </button>
+                                </div>
                             </div>
                         )}
 

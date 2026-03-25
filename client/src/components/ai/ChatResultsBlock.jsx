@@ -14,7 +14,7 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
     // Find the data in previous messages
     const { data, sourceQuery, executionTime } = useMemo(() => {
         if (!allMessages || !chartConfig?.queryId) return { data: null, sourceQuery: null, executionTime: null };
-        
+
         for (const msg of allMessages) {
             if (msg.toolCalls) {
                 for (const tc of msg.toolCalls) {
@@ -33,11 +33,7 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
 
     if (!data || data.length === 0) {
         return (
-            <div style={{
-                padding: '10px', backgroundColor: 'var(--input-bg)',
-                borderRadius: '6px', fontSize: '11px', color: 'var(--text-muted)',
-                margin: '8px 0', border: '1px solid var(--border-color)',
-            }}>
+            <div className="ai-chart ai-chart--empty">
                 [Chart: Waiting for data {chartConfig?.queryId}]
             </div>
         );
@@ -118,38 +114,31 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
     const isExpandedMode = isExpanded || isDiving;
 
     return (
-        <div style={{
-            margin: '8px 0', border: '1px solid var(--border-color)', borderRadius: '8px',
-            backgroundColor: 'var(--sidebar-bg)', overflow: 'hidden',
-        }}>
+        <div className="ai-chart">
             {/* Header */}
-            <div style={{
-                padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--panel-bg)',
-            }}>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-active)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="ai-chart-header">
+                <span className="ai-chart-title">
                     {chartConfig.title || 'Data Visualization'}
-                </div>
+                </span>
                 {!isDiving && (
                     <button
+                        className="ai-chart-btn"
                         onClick={() => setIsExpanded(!isExpanded)}
                         title={isExpanded ? 'Collapse' : 'Expand'}
-                        style={{
-                            background: 'none', border: 'none', color: 'var(--text-muted)',
-                            cursor: 'pointer', padding: '2px', display: 'flex',
-                        }}
                     >
-                        <LuMaximize2 size={13} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                        <LuMaximize2
+                            size={13}
+                            style={{
+                                transform: isExpanded ? 'rotate(180deg)' : 'none',
+                                transition: 'transform 0.2s',
+                            }}
+                        />
                     </button>
                 )}
             </div>
 
             {/* Chart Area */}
-            <div style={{
-                height: isExpandedMode ? '350px' : '220px',
-                padding: '16px 16px 12px 0',
-                transition: 'height 0.2s ease',
-            }}>
+            <div className={`ai-chart-area${isExpandedMode ? ' ai-chart-area--expanded' : ''}`}>
                 <ChartRenderer
                     config={fullConfig}
                     processedData={processedData}
@@ -162,16 +151,13 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             </div>
 
             {/* Footer / Actions */}
-            <div style={{
-                padding: '8px 12px', borderTop: '1px solid var(--border-color)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                backgroundColor: 'var(--input-bg)',
-            }}>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            <div className="ai-chart-footer">
+                <span className="ai-chart-meta">
                     Based on {data.length} rows {executionTime ? `(${executionTime}ms)` : ''}
                 </span>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div className="ai-chart-footer-actions">
                     <button
+                        className="ai-chart-btn ai-chart-btn--primary"
                         onClick={() => {
                             if (onExportNotebook) {
                                 // Extract surrounding markdown if available, or just generic message
@@ -180,21 +166,12 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                             }
                         }}
                         title="Export to new SQL Notebook"
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
-                            background: 'var(--accent-color-user)', border: '1px solid var(--accent-color-user)',
-                            borderRadius: '4px', color: 'var(--button-text-color)', fontSize: '10px', cursor: 'pointer',
-                        }}
                     >
                         <LuFileJson size={11} /> To Notebook
                     </button>
                     <button
+                        className="ai-chart-btn"
                         title="Export Config JSON"
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
-                            background: 'var(--sidebar-bg)', border: '1px solid var(--border-color)',
-                            borderRadius: '4px', color: 'var(--text-muted)', fontSize: '10px', cursor: 'pointer',
-                        }}
                     >
                         <LuFileJson size={11} /> Config
                     </button>
