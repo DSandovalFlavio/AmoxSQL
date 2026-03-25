@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
@@ -7,6 +7,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         minimize: () => ipcRenderer.send('window-control:minimize'),
         maximize: () => ipcRenderer.send('window-control:maximize'),
         close: () => ipcRenderer.send('window-control:close')
+    },
+    // UI Zoom
+    zoom: {
+        setFactor: (factor) => webFrame.setZoomFactor(factor),
+        getFactor: () => webFrame.getZoomFactor(),
+        onChanged: (callback) => {
+            const handler = (_event, factor) => callback(factor);
+            ipcRenderer.on('zoom:changed', handler);
+            return () => ipcRenderer.removeListener('zoom:changed', handler);
+        },
     },
     // Pop-out Results Window
     openPopout: (data) => ipcRenderer.invoke('popout:open', data),
@@ -24,6 +34,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Preload script
+    // Restore saved zoom level on startup
+    try {
+        const saved = localStorage.getItem('amoxsql-ui-zoom');
+        if (saved) {
+            const factor = parseFloat(saved);
+            if (factor >= 0.5 && factor <= 2.0) {
+                webFrame.setZoomFactor(factor);
+            }
+        }
+    } catch (e) { /* ignore */ }
     console.log('Electron Preloaded');
 });

@@ -364,106 +364,108 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 {/* Theme Selection */}
                                 <div>
                                     <h3 style={{ fontSize: '13px', marginBottom: '10px', color: 'var(--text-active)' }}>Color Theme</h3>
-                                    <div style={{ display: 'flex', gap: '20px' }}>
-
-                                        {/* Dark Option */}
-                                        <div
-                                            onClick={() => onThemeChange('dark')}
-                                            style={{
-                                                flex: 1, cursor: 'pointer',
-                                                border: currentTheme === 'dark' ? '2px solid var(--accent-color-user)' : '1px solid var(--border-color)',
-                                                borderRadius: '8px', padding: '15px', backgroundColor: '#1e1f22',
-                                                opacity: currentTheme === 'dark' ? 1 : 0.7, transition: 'all 0.2s'
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#fff' }}>
-                                                <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1px solid #555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    {currentTheme === 'dark' && <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#00ffff' }}></div>}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
+                                        {[
+                                            { id: 'dark',     label: 'Obsidian',  icon: <LuMoon size={14} />, sidebar: '#0e0f11', editor: '#141518', text: '#ccc', desc: 'Deepest dark' },
+                                            { id: 'onyx',     label: 'Onyx',      icon: <LuMoon size={14} />, sidebar: '#101113', editor: '#1a1c20', text: '#ccc', desc: 'Near-black blue' },
+                                            { id: 'carbon',   label: 'Carbon',    icon: <LuMoon size={14} />, sidebar: '#121315', editor: '#1c1f24', text: '#bbb', desc: 'Blue-grey dark' },
+                                            { id: 'graphite', label: 'Graphite',  icon: <LuMoon size={14} />, sidebar: '#141618', editor: '#222529', text: '#bbb', desc: 'Warm dark grey' },
+                                            { id: 'nord',     label: 'Nord Dark', icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
+                                            { id: 'ivory',    label: 'Ivory',     icon: <LuSun size={14} />,  sidebar: '#f3ede4', editor: '#faf6ef', text: '#3b3228', desc: 'Warm paper' },
+                                            { id: 'mist',     label: 'Mist',      icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
+                                            { id: 'light',    label: 'Light',     icon: <LuSun size={14} />,  sidebar: '#f2f3f5', editor: '#ffffff', text: '#333',    desc: 'Clean & bright' },
+                                        ].map(t => (
+                                            <div
+                                                key={t.id}
+                                                onClick={() => onThemeChange(t.id)}
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    border: currentTheme === t.id ? '2px solid var(--accent-color-user)' : '1px solid var(--border-color)',
+                                                    borderRadius: '10px', padding: '12px',
+                                                    backgroundColor: t.editor,
+                                                    opacity: currentTheme === t.id ? 1 : 0.65,
+                                                    transition: 'all 0.2s',
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: t.text, fontSize: '12px', fontWeight: 600 }}>
+                                                    {t.icon} {t.label}
                                                 </div>
-                                                <LuMoon size={18} /> Dark
-                                            </div>
-                                            <div style={{ display: 'flex', height: '80px', borderRadius: '6px', overflow: 'hidden', fontSize: '10px' }}>
-                                                <div style={{ width: '30%', background: '#141517', borderRight: '1px solid #333' }}></div>
-                                                <div style={{ flex: 1, background: '#1e1f22', color: '#ccc', padding: '8px' }}>
-                                                    SELECT * FROM...
+                                                <div style={{ display: 'flex', height: '48px', borderRadius: '6px', overflow: 'hidden', fontSize: '9px' }}>
+                                                    <div style={{ width: '30%', background: t.sidebar, borderRight: `1px solid ${t.id === 'light' ? '#dee2e6' : '#333'}` }}></div>
+                                                    <div style={{ flex: 1, background: t.editor, color: t.text, padding: '6px', fontFamily: 'monospace' }}>
+                                                        SELECT *
+                                                    </div>
                                                 </div>
+                                                <div style={{ fontSize: '10px', color: t.text, opacity: 0.5, marginTop: '6px' }}>{t.desc}</div>
                                             </div>
-                                        </div>
-
-                                        {/* Light Option */}
-                                        <div
-                                            onClick={() => onThemeChange('light')}
-                                            style={{
-                                                flex: 1, cursor: 'pointer',
-                                                border: currentTheme === 'light' ? '2px solid var(--accent-color-user)' : '1px solid var(--border-color)',
-                                                borderRadius: '8px', padding: '15px', backgroundColor: '#ffffff',
-                                                opacity: currentTheme === 'light' ? 1 : 0.7, transition: 'all 0.2s'
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#000' }}>
-                                                <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    {currentTheme === 'light' && <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#0059ff' }}></div>}
-                                                </div>
-                                                <LuSun size={18} /> Light
-                                            </div>
-                                            <div style={{ display: 'flex', height: '80px', borderRadius: '6px', overflow: 'hidden', fontSize: '10px', border: '1px solid #eee' }}>
-                                                <div style={{ width: '30%', background: '#f8f9fa', borderRight: '1px solid #dee2e6' }}></div>
-                                                <div style={{ flex: 1, background: '#ffffff', color: '#333', padding: '8px' }}>
-                                                    SELECT * FROM...
-                                                </div>
-                                            </div>
-                                        </div>
-
+                                        ))}
                                     </div>
-                                </div>
-
-                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    Current Accent Color: <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: 'var(--accent-color-user)', borderRadius: '50%' }}></span> {
-                                        (() => {
-                                            const names = { cyan: 'Cyan #00FFFF', linear: 'Linear Blue #5E6AD2', 'amox-2': '#00F5FF', 'amox-3': '#00ECFF', 'amox-4': '#00DAFF', 'amox-5': '#00C8FF', 'amox-6': '#00B6FF', 'amox-7': '#00A3FF', 'amox-8': '#0090FF', 'amox-9': '#007CFF', 'amox-10': '#0068FF' };
-                                            return names[currentAccent] || currentAccent;
-                                        })()
-                                    }
                                 </div>
 
                                 {/* Accent Color Selection */}
                                 <div>
                                     <h3 style={{ fontSize: '13px', marginBottom: '10px', color: 'var(--text-active)' }}>Accent Color</h3>
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+
+                                    {/* Vibrant palette */}
+                                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Vibrant</p>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
                                         {[
                                             { id: 'cyan', color: '#00FFFF', label: 'Cyan (Default)' },
-                                            { id: 'amox-2', color: '#00F5FF', label: 'AmoxSQL 2' },
-                                            { id: 'amox-3', color: '#00ECFF', label: 'AmoxSQL 3' },
-                                            { id: 'amox-4', color: '#00DAFF', label: 'AmoxSQL 4' },
-                                            { id: 'amox-5', color: '#00C8FF', label: 'AmoxSQL 5' },
-                                            { id: 'amox-6', color: '#00B6FF', label: 'AmoxSQL 6' },
-                                            { id: 'amox-7', color: '#00A3FF', label: 'AmoxSQL 7' },
-                                            { id: 'amox-8', color: '#0090FF', label: 'AmoxSQL 8' },
-                                            { id: 'amox-9', color: '#007CFF', label: 'AmoxSQL 9' },
-                                            { id: 'amox-10', color: '#0068FF', label: 'AmoxSQL 10' },
+                                            { id: 'amox-2', color: '#00F5FF', label: 'Aqua' },
+                                            { id: 'amox-4', color: '#00DAFF', label: 'Sky' },
+                                            { id: 'amox-6', color: '#00B6FF', label: 'Azure' },
+                                            { id: 'amox-8', color: '#0090FF', label: 'Blue' },
+                                            { id: 'amox-10', color: '#0068FF', label: 'Cobalt' },
                                             { id: 'linear', color: '#5E6AD2', label: 'Linear Blue' },
                                         ].map(swatch => (
                                             <div
                                                 key={swatch.id}
                                                 onClick={() => onAccentChange && onAccentChange(swatch.id)}
                                                 style={{
-                                                    width: '36px', height: '36px', borderRadius: '10px', cursor: 'pointer',
+                                                    width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
                                                     background: swatch.color,
                                                     border: currentAccent === swatch.id ? '2px solid var(--text-primary)' : '2px solid transparent',
                                                     outline: currentAccent === swatch.id ? '2px solid var(--accent-color-user)' : 'none',
                                                     outlineOffset: '2px',
-                                                    transition: 'all 0.2s',
+                                                    transition: 'all 0.15s',
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                 }}
                                                 title={swatch.label}
                                             >
-                                                {currentAccent === swatch.id && <span style={{ color: swatch.id === 'linear' ? '#fff' : '#000', fontWeight: 'bold', fontSize: '13px' }}>✓</span>}
+                                                {currentAccent === swatch.id && <span style={{ color: '#000', fontWeight: 'bold', fontSize: '12px' }}>✓</span>}
                                             </div>
                                         ))}
                                     </div>
-                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                                        Choose from the AmoxSQL brand palette or the Linear-inspired Blue.
-                                    </p>
+
+                                    {/* Sober palette */}
+                                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Sober</p>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        {[
+                                            { id: 'sage', color: '#7dab8a', label: 'Sage', checkColor: '#000' },
+                                            { id: 'amber', color: '#d4a853', label: 'Amber', checkColor: '#000' },
+                                            { id: 'rose', color: '#c97878', label: 'Rose', checkColor: '#000' },
+                                            { id: 'lavender', color: '#a88ec4', label: 'Lavender', checkColor: '#000' },
+                                            { id: 'steel', color: '#8a9bb0', label: 'Steel', checkColor: '#000' },
+                                            { id: 'copper', color: '#c4956a', label: 'Copper', checkColor: '#000' },
+                                        ].map(swatch => (
+                                            <div
+                                                key={swatch.id}
+                                                onClick={() => onAccentChange && onAccentChange(swatch.id)}
+                                                style={{
+                                                    width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
+                                                    background: swatch.color,
+                                                    border: currentAccent === swatch.id ? '2px solid var(--text-primary)' : '2px solid transparent',
+                                                    outline: currentAccent === swatch.id ? '2px solid var(--accent-color-user)' : 'none',
+                                                    outlineOffset: '2px',
+                                                    transition: 'all 0.15s',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}
+                                                title={swatch.label}
+                                            >
+                                                {currentAccent === swatch.id && <span style={{ color: swatch.checkColor, fontWeight: 'bold', fontSize: '12px' }}>✓</span>}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {/* Editor Layout Selection */}
