@@ -8,6 +8,10 @@ import ChatResultsBlock from './ChatResultsBlock';
  * ChatMessage — Renders a single message in the AI chat.
  * Supports user messages, assistant responses with markdown,
  * tool call indicators, SQL blocks, chart results, and follow-up suggestions.
+ *
+ * Linear UI redesign: all inline styles replaced with ai-msg-* CSS classes.
+ * User messages render as right-aligned bubbles, assistant messages as
+ * left-aligned cards with avatar and grouped content sections.
  */
 const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onFollowUp, onExportNotebook }) => {
     const isUser = role === 'user';
@@ -28,38 +32,33 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
         tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart'
     ) || [];
 
+    // --- User message: right-aligned bubble, no avatar ---
+    if (isUser) {
+        return (
+            <div className="ai-msg ai-msg--user">
+                <div className="ai-msg-bubble">
+                    <span className="ai-msg-role">You</span>
+                    <div className="ai-msg-text">
+                        <p>{content}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- Assistant message: left-aligned card with avatar ---
     return (
-        <div style={{
-            display: 'flex', gap: '10px',
-            padding: '12px 16px',
-            backgroundColor: isUser ? 'transparent' : 'var(--sidebar-item-active-bg)',
-            borderBottom: '1px solid var(--border-color)',
-        }}>
-            {/* Avatar */}
-            <div style={{
-                width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: isUser ? 'var(--accent-color-user)' : 'var(--border-color)',
-                color: isUser ? 'var(--button-text-color)' : 'var(--accent-color-user)',
-                marginTop: '2px',
-            }}>
-                {isUser ? <LuUser size={13} /> : <LuBot size={13} />}
+        <div className="ai-msg ai-msg--assistant">
+            <div className="ai-msg-avatar">
+                <LuBot size={14} />
             </div>
 
-            {/* Content */}
-            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                {/* Role label */}
-                <div style={{
-                    fontSize: '11px', fontWeight: '600',
-                    color: isUser ? 'var(--text-active)' : 'var(--accent-color-user)',
-                    marginBottom: '4px', textTransform: 'uppercase',
-                }}>
-                    {isUser ? 'You' : 'AmoxSQL AI'}
-                </div>
+            <div className="ai-msg-body">
+                <span className="ai-msg-role">AmoxSQL AI</span>
 
-                {/* Other tool calls (shown before text for assistant) */}
-                {isAssistant && otherCalls.length > 0 && (
-                    <div style={{ marginBottom: '6px' }}>
+                {/* Other tool calls (shown before text) */}
+                {otherCalls.length > 0 && (
+                    <div className="ai-msg-tools">
                         {otherCalls.map((tc, i) => (
                             <ToolCallBlock
                                 key={i}
@@ -73,8 +72,8 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                 )}
 
                 {/* SQL blocks */}
-                {isAssistant && sqlCalls.length > 0 && (
-                    <div style={{ marginBottom: '6px' }}>
+                {sqlCalls.length > 0 && (
+                    <div className="ai-msg-tools">
                         {sqlCalls.map((tc, i) => (
                             <div key={i}>
                                 <SqlBlock
@@ -83,21 +82,15 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                     defaultExpanded={sqlCalls.length <= 2}
                                 />
                                 {tc.result && !tc.result.error && tc.result.rowCount !== undefined && (
-                                    <div style={{
-                                        fontSize: '11px', color: 'var(--feedback-success-text)',
-                                        marginBottom: '6px', marginLeft: '4px',
-                                    }}>
-                                        ✓ {tc.result.rowCount} rows ({tc.result.executionTime}ms)
+                                    <div className="ai-msg-sql-result ai-msg-sql-result--success">
+                                        <span className="ai-msg-sql-result__icon">&#10003;</span>
+                                        {tc.result.rowCount} rows ({tc.result.executionTime}ms)
                                     </div>
                                 )}
                                 {tc.result?.error && (
-                                    <div style={{
-                                        fontSize: '11px', color: 'var(--feedback-error-text)',
-                                        marginBottom: '6px', padding: '4px 8px',
-                                        backgroundColor: 'var(--feedback-error-bg)',
-                                        borderRadius: '4px',
-                                    }}>
-                                        ✗ {tc.result.error}
+                                    <div className="ai-msg-sql-result ai-msg-sql-result--error">
+                                        <span className="ai-msg-sql-result__icon">&#10007;</span>
+                                        {tc.result.error}
                                     </div>
                                 )}
                             </div>
@@ -107,70 +100,48 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
 
                 {/* Text content (markdown) */}
                 {content && (
-                    <div className="ai-message-content" style={{
-                        fontSize: '13px', lineHeight: '1.6',
-                        color: 'var(--text-active)',
-                        wordBreak: 'break-word',
-                    }}>
-                        {isUser ? (
-                            <p style={{ margin: 0 }}>{content}</p>
-                        ) : (
-                            <ReactMarkdown
-                                components={{
-                                    p: ({ children }) => <p style={{ margin: '0 0 8px 0' }}>{children}</p>,
-                                    pre: ({ children, ...props }) => (
-                                        <pre style={{
-                                            backgroundColor: 'var(--input-bg)', padding: '8px 10px',
-                                            borderRadius: '4px', fontSize: '12px', overflowX: 'auto',
-                                            border: '1px solid var(--border-color)',
-                                            fontFamily: "'Cascadia Code', 'Consolas', monospace",
-                                            margin: '0 0 8px 0',
-                                        }} {...props}>{children}</pre>
-                                    ),
-                                    code: ({ className, children, ...props }) => {
-                                        const match = /language-(\w+)/.exec(className || '');
-                                        return match ? (
-                                            <code className={className} {...props}>{children}</code>
-                                        ) : (
-                                            <code style={{
-                                                backgroundColor: 'var(--input-bg)', padding: '1px 4px',
-                                                borderRadius: '3px', fontSize: '12px',
-                                                fontFamily: "'Cascadia Code', 'Consolas', monospace",
-                                            }} {...props}>{children}</code>
-                                        );
-                                    },
-                                    ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
-                                    ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
-                                    li: ({ children }) => <li style={{ marginBottom: '2px', fontSize: '13px' }}>{children}</li>,
-                                    strong: ({ children }) => <strong style={{ color: 'var(--text-active)' }}>{children}</strong>,
-                                    h1: ({ children }) => <h3 style={{ margin: '8px 0 4px', fontSize: '15px', color: 'var(--text-active)' }}>{children}</h3>,
-                                    h2: ({ children }) => <h3 style={{ margin: '8px 0 4px', fontSize: '14px', color: 'var(--text-active)' }}>{children}</h3>,
-                                    h3: ({ children }) => <h4 style={{ margin: '6px 0 4px', fontSize: '13px', color: 'var(--text-active)' }}>{children}</h4>,
-                                    table: ({ children }) => (
-                                        <div style={{ overflowX: 'auto', margin: '6px 0' }}>
-                                            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '11px' }}>{children}</table>
-                                        </div>
-                                    ),
-                                    th: ({ children }) => <th style={{ padding: '4px 8px', borderBottom: '2px solid var(--border-color)', textAlign: 'left', color: 'var(--text-active)', fontWeight: '600' }}>{children}</th>,
-                                    td: ({ children }) => <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-color)' }}>{children}</td>,
-                                }}
-                            >
-                                {content}
-                            </ReactMarkdown>
-                        )}
+                    <div className="ai-msg-text">
+                        <ReactMarkdown
+                            components={{
+                                p: ({ children }) => <p>{children}</p>,
+                                pre: ({ children, ...props }) => (
+                                    <pre className="ai-msg-code-block" {...props}>{children}</pre>
+                                ),
+                                code: ({ className, children, ...props }) => {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    return match ? (
+                                        <code className={className} {...props}>{children}</code>
+                                    ) : (
+                                        <code className="ai-msg-inline-code" {...props}>{children}</code>
+                                    );
+                                },
+                                ul: ({ children }) => <ul>{children}</ul>,
+                                ol: ({ children }) => <ol>{children}</ol>,
+                                li: ({ children }) => <li>{children}</li>,
+                                strong: ({ children }) => <strong>{children}</strong>,
+                                h1: ({ children }) => <h3>{children}</h3>,
+                                h2: ({ children }) => <h3>{children}</h3>,
+                                h3: ({ children }) => <h4>{children}</h4>,
+                                table: ({ children }) => (
+                                    <div className="ai-msg-table-wrap">
+                                        <table>{children}</table>
+                                    </div>
+                                ),
+                                th: ({ children }) => <th>{children}</th>,
+                                td: ({ children }) => <td>{children}</td>,
+                            }}
+                        >
+                            {content}
+                        </ReactMarkdown>
                         {isStreaming && (
-                            <span style={{
-                                display: 'inline-block', width: '6px', height: '14px',
-                                backgroundColor: 'var(--accent-color-user)',
-                                marginLeft: '2px', animation: 'blink 1s step-end infinite',
-                            }} />
+                            <span className="ai-msg-cursor" />
                         )}
                     </div>
                 )}
 
                 {/* Chart blocks (shown after text) */}
-                {isAssistant && chartCalls.length > 0 && (
-                    <div style={{ marginTop: '8px', marginBottom: '6px' }}>
+                {chartCalls.length > 0 && (
+                    <div className="ai-msg-tools ai-msg-tools--charts">
                         {chartCalls.map((tc, i) => (
                             <div key={i}>
                                 <ToolCallBlock
@@ -192,26 +163,21 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     </div>
                 )}
 
-                {/* Follow-up suggestions */}
+                {/* Follow-up suggestions as pills */}
                 {followUps.length > 0 && (
-                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Suggestions:</div>
-                        {followUps.map((suggestion, i) => (
-                            <button
-                                key={i}
-                                onClick={() => onFollowUp && onFollowUp(suggestion)}
-                                style={{
-                                    textAlign: 'left', padding: '8px 12px',
-                                    backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)',
-                                    borderRadius: '6px', color: 'var(--text-active)', fontSize: '12px',
-                                    cursor: 'pointer', transition: 'all 0.15s',
-                                    fontFamily: 'inherit',
-                                }}
-                                className="ai-followup-btn"
-                            >
-                                {suggestion}
-                            </button>
-                        ))}
+                    <div className="ai-msg-followups">
+                        <span className="ai-msg-followups__label">Suggestions</span>
+                        <div className="ai-msg-followups__list">
+                            {followUps.map((suggestion, i) => (
+                                <button
+                                    key={i}
+                                    className="ai-msg-followup"
+                                    onClick={() => onFollowUp && onFollowUp(suggestion)}
+                                >
+                                    {suggestion}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

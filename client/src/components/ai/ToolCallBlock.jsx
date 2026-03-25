@@ -27,92 +27,70 @@ const ToolCallBlock = ({ toolName, args, result, isLoading = false }) => {
     const label = TOOL_LABELS[toolName] || toolName;
     const hasError = result?.error;
 
+    const stateClass = isLoading
+        ? 'ai-tool--loading'
+        : hasError
+            ? 'ai-tool--error'
+            : 'ai-tool--success';
+
     return (
-        <div style={{
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            margin: '6px 0',
-            overflow: 'hidden',
-            backgroundColor: 'var(--sidebar-bg)',
-            opacity: isLoading ? 0.9 : 1,
-        }}>
+        <div className={`ai-tool ${stateClass}`}>
             {/* Header */}
             <div
+                className="ai-tool-header"
                 onClick={() => !isLoading && setIsExpanded(!isExpanded)}
-                style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '7px 10px', cursor: isLoading ? 'default' : 'pointer',
-                    fontSize: '11px', color: 'var(--text-muted)',
-                }}
+                data-clickable={!isLoading}
             >
-                {isLoading ? (
-                    <LuLoader size={12} style={{ animation: 'spin 2s linear infinite', color: 'var(--accent-color-user)' }} />
-                ) : hasError ? (
-                    <LuX size={12} style={{ color: 'var(--feedback-error-text)' }} />
-                ) : (
-                    <LuCheck size={12} style={{ color: 'var(--feedback-success-text)' }} />
-                )}
-
-                <Icon size={12} style={{ color: 'var(--accent-color-user)' }} />
-
-                <span style={{ flex: 1, fontWeight: '500' }}>
-                    {isLoading ? `${label}...` : label}
-                    {toolName === 'execute_sql' && result?.rowCount !== undefined && !hasError && (
-                        <span style={{ fontWeight: '400', marginLeft: '6px' }}>
-                            — {result.rowCount} rows ({result.executionTime}ms)
-                        </span>
-                    )}
-                    {toolName === 'describe_table' && args?.table_name && (
-                        <span style={{ fontWeight: '400', marginLeft: '6px' }}>
-                            — {args.table_name}
-                        </span>
-                    )}
-                    {hasError && (
-                        <span style={{ color: 'var(--feedback-error-text)', fontWeight: '400', marginLeft: '6px' }}>
-                            Error
-                        </span>
+                <span className="ai-tool-icon">
+                    {isLoading ? (
+                        <LuLoader size={13} className="ai-tool-spinner" />
+                    ) : hasError ? (
+                        <LuX size={13} />
+                    ) : (
+                        <LuCheck size={13} />
                     )}
                 </span>
 
+                <Icon size={13} className="ai-tool-type-icon" />
+
+                <span className="ai-tool-label">
+                    {isLoading ? `${label}...` : label}
+                </span>
+
+                {toolName === 'execute_sql' && result?.rowCount !== undefined && !hasError && (
+                    <span className="ai-tool-meta">
+                        {result.rowCount} rows &middot; {result.executionTime}ms
+                    </span>
+                )}
+                {toolName === 'describe_table' && args?.table_name && (
+                    <span className="ai-tool-meta">{args.table_name}</span>
+                )}
+                {hasError && (
+                    <span className="ai-tool-meta ai-tool-meta--error">Error</span>
+                )}
+
                 {!isLoading && (
-                    isExpanded ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />
+                    <span className="ai-tool-chevron">
+                        {isExpanded ? <LuChevronDown size={13} /> : <LuChevronRight size={13} />}
+                    </span>
                 )}
             </div>
 
             {/* Expandable details */}
             {isExpanded && !isLoading && (
-                <div style={{
-                    borderTop: '1px solid var(--border-color)',
-                    padding: '8px 10px',
-                    fontSize: '11px',
-                    maxHeight: '150px',
-                    overflowY: 'auto',
-                }}>
+                <div className="ai-tool-details">
                     {args && (
-                        <div style={{ marginBottom: '6px' }}>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: '600', marginBottom: '3px' }}>Input:</div>
-                            <pre style={{
-                                margin: 0, padding: '6px 8px',
-                                backgroundColor: 'var(--input-bg)', borderRadius: '4px',
-                                fontSize: '10px', color: 'var(--text-color)',
-                                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                                fontFamily: "'Cascadia Code', 'Consolas', monospace",
-                            }}>
+                        <div className="ai-tool-details-section">
+                            <div className="ai-tool-details-label">Input</div>
+                            <pre className="ai-tool-pre">
                                 {typeof args === 'string' ? args : JSON.stringify(args, null, 2)}
                             </pre>
                         </div>
                     )}
                     {result && (
-                        <div>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: '600', marginBottom: '3px' }}>Output:</div>
-                            <pre style={{
-                                margin: 0, padding: '6px 8px',
-                                backgroundColor: 'var(--input-bg)', borderRadius: '4px',
-                                fontSize: '10px', color: hasError ? 'var(--feedback-error-text)' : 'var(--text-color)',
-                                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                                fontFamily: "'Cascadia Code', 'Consolas', monospace",
-                                maxHeight: '80px', overflowY: 'auto',
-                            }}>
+                        <div className="ai-tool-details-section">
+                            <div className="ai-tool-details-label">Output</div>
+                            <pre className={`ai-tool-pre ${hasError ? 'ai-tool-pre--error' : ''}`}>
                                 {typeof result === 'string' ? result : JSON.stringify(result, null, 2).substring(0, 500)}
                             </pre>
                         </div>

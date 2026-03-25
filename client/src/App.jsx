@@ -883,9 +883,10 @@ function App() {
                 overflow: 'hidden',
                 transition: isDiving ? 'none' : 'width 0.2s ease, opacity 0.2s ease',
                 pointerEvents: (showAiSidebar || isDiving) ? 'auto' : 'none',
-                margin: (!isDiving && showAiSidebar) ? '6px 8px 6px 0' : isDiving ? '6px 8px' : '0',
+                margin: (showAiSidebar || isDiving) ? (isDiving ? '6px 8px 6px 6px' : '6px 8px 6px 0') : '0',
                 borderRadius: 'var(--radius-lg)',
                 border: (showAiSidebar || isDiving) ? '1px solid var(--border-subtle)' : 'none',
+                boxShadow: isDiving ? 'var(--shadow-md)' : 'none',
               }}>
                 <AiSidebar
                   width={isDiving ? '100%' : '350px'}

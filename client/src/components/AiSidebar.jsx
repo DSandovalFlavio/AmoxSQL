@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuDatabase, LuCpu, LuCloud, LuSparkles, LuTable, LuFile, LuSend, LuTrash2, LuArrowLeft } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSparkles, LuTable, LuFile, LuSend, LuTrash2, LuArrowLeft, LuDatabase } from 'react-icons/lu';
 import ChatMessage from './ai/ChatMessage';
 import ToolCallBlock from './ai/ToolCallBlock';
 import ConversationList from './ai/ConversationList';
+import AiContextPanel from './ai/AiContextPanel';
 import AlertDialog from './AlertDialog';
 
 const API = 'http://localhost:3001';
@@ -35,7 +36,6 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const [activeToolCalls, setActiveToolCalls] = useState([]);
     const [errorMsg, setErrorMsg] = useState(null);
     const [conversationId, setConversationId] = useState(null);
-    const [showConversations, setShowConversations] = useState(isDiving);
 
     // ─── Refs ───
     const chatEndRef = useRef(null);
@@ -184,7 +184,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
-                buffer = lines.pop(); // Keep incomplete line in buffer
+                buffer = lines.pop();
 
                 for (const line of lines) {
                     if (!line.startsWith('data: ')) continue;
@@ -210,7 +210,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                             toolResults.push({
                                 toolName: event.toolName,
                                 toolCallId: event.toolCallId,
-                                args: null, // Will be merged
+                                args: null,
                                 result: event.result,
                             });
                             setActiveToolCalls(prev =>
@@ -219,7 +219,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                                     : tc)
                             );
                         } else if (event.type === 'step-finish') {
-                            // Step finished — text might reset for next step
+                            // Step finished
                         } else if (event.type === 'error') {
                             throw new Error(event.error);
                         }
@@ -229,7 +229,6 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                 }
             }
 
-            // Merge tool calls using the local active tool states we gathered from the stream
             const mergedToolCalls = activeToolCallsRef.current.map(tc => {
                 const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
                 return {
@@ -238,14 +237,12 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     result: resultMatch?.result || tc.result,
                 };
             });
-            
+
             setActiveToolCalls([]);
             activeToolCallsRef.current = [];
 
-            // Wait a tick for state to settle
             await new Promise(r => setTimeout(r, 50));
 
-            // Add assistant message
             const assistantMsg = {
                 role: 'assistant',
                 content: fullText,
@@ -254,7 +251,6 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             setMessages(prev => [...prev, assistantMsg]);
             setStreamingText('');
 
-            // Save model as default (background)
             fetch(`${API}/api/settings/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -318,7 +314,6 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             if (res.ok) {
                 const conv = await res.json();
                 setConversationId(conv.id);
-                // Rebuild messages from persisted data
                 const loadedMessages = (conv.messages || []).map(m => ({
                     role: m.role,
                     content: m.content,
@@ -339,21 +334,272 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
         }
     };
 
-    // ─── Main chat panel (shared between sidebar and diving) ───
-    const chatPanel = (
-        <div className={`ai-panel${isDiving ? ' no-border' : ''}`}>
+    const modelToUse = selectedModel === 'custom' ? customModel : selectedModel;
+
+    // ─── Chat messages area (shared between sidebar and diving) ───
+    const chatMessages = (
+        <>
+            {messages.length === 0 && !isGenerating && (
+                <div className={`ai-empty-state${isDiving ? ' ai-empty-state--diving' : ''}`}>
+                    <div className="ai-empty-state-icon">
+                        <LuSparkles size={isDiving ? 40 : 28} />
+                    </div>
+                    {isDiving && (
+                        <h2 className="ai-empty-state-title">Data Diving</h2>
+                    )}
+                    <div className="ai-empty-state-hint">
+                        Ask anything about your data.
+                        {!isDiving && <><br /><span>Drop tables/files above for context.</span></>}
+                    </div>
+                    <div className="ai-quick-actions">
+                        <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
+                            Show all tables
+                        </button>
+                        <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
+                            Describe schema
+                        </button>
+                        <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
+                            Sample data
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {messages.map((msg, i) => (
+                <ChatMessage
+                    key={i}
+                    role={msg.role}
+                    content={msg.content}
+                    toolCalls={msg.toolCalls}
+                    allMessages={messages}
+                    isDiving={isDiving}
+                    isStreaming={false}
+                    onRunSql={onRunSql}
+                    onFollowUp={(text) => handleSend(text)}
+                    onExportNotebook={onExportNotebook}
+                />
+            ))}
+
+            {/* Streaming assistant message */}
+            {isGenerating && (streamingText || activeToolCalls.length > 0) && (
+                <div className="ai-streaming-msg">
+                    <div className="ai-avatar">
+                        <LuBot size={13} />
+                    </div>
+                    <div className="ai-streaming-body">
+                        <div className="ai-streaming-label">AmoxSQL AI</div>
+                        {activeToolCalls.map((tc, i) => (
+                            <ToolCallBlock
+                                key={tc.toolCallId || i}
+                                toolName={tc.toolName}
+                                args={tc.args}
+                                result={tc.result}
+                                isLoading={tc.isLoading}
+                            />
+                        ))}
+                        {streamingText && (
+                            <div className="ai-streaming-text">
+                                {streamingText}
+                                <span className="ai-cursor" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Generating indicator */}
+            {isGenerating && !streamingText && activeToolCalls.length === 0 && (
+                <div className="ai-thinking">
+                    <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
+                    Thinking...
+                </div>
+            )}
+
+            <div ref={chatEndRef} />
+        </>
+    );
+
+    // ─── Input composer ───
+    const inputComposer = (
+        <div className={`ai-input-area${isDiving ? ' ai-input-area--diving' : ''}`}>
+            <div className="ai-input-row">
+                <textarea
+                    className="ai-textarea"
+                    ref={inputRef}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask about your data..."
+                    rows={1}
+                    onInput={(e) => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                    }}
+                />
+                <button
+                    className={`ai-send-btn${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
+                    onClick={isGenerating ? handleCancel : () => handleSend()}
+                    disabled={!isGenerating && !inputText.trim()}
+                >
+                    {isGenerating ? <LuX size={16} /> : <LuSend size={15} />}
+                </button>
+            </div>
+            {isDiving && (
+                <div className="ai-input-footer">
+                    <div className="ai-diving-model">
+                        {provider === 'ollama' ? <LuCpu size={11} /> : <LuCloud size={11} />}
+                        {provider === 'ollama' && isModelsLoading ? (
+                            <span className="ai-diving-model-text">Loading...</span>
+                        ) : (
+                            <select
+                                className="ai-diving-model-select"
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                            >
+                                {provider === 'ollama' ? (
+                                    installedModels.map(m => (
+                                        <option key={m.name} value={m.name}>{m.name}</option>
+                                    ))
+                                ) : (
+                                    GEMINI_MODELS.map(m => (
+                                        <option key={m.id} value={m.id}>{m.label}</option>
+                                    ))
+                                )}
+                            </select>
+                        )}
+                    </div>
+                    <div className="ai-input-hint">
+                        Enter to send · Shift+Enter for newline
+                    </div>
+                </div>
+            )}
+            {!isDiving && (
+                <div className="ai-input-hint">
+                    Enter to send · Shift+Enter for newline
+                </div>
+            )}
+        </div>
+    );
+
+    // ═══════════════════════════════════════════════════════
+    // DATA DIVING MODE — 3-column layout
+    // ═══════════════════════════════════════════════════════
+    if (isDiving) {
+        return (
+            <div className="ai-diving" style={{ width }}>
+                {/* ─── Left column: Conversations ─── */}
+                <ConversationList
+                    activeId={conversationId}
+                    onSelect={handleSelectConversation}
+                    onNew={handleNewConversation}
+                />
+
+                {/* ─── Center column: Chat ─── */}
+                <div className="ai-diving-center">
+                    {/* Diving header */}
+                    <div className="ai-diving-header">
+                        <div className="ai-diving-header-left">
+                            {onExitDiving && (
+                                <button className="ai-icon-btn" onClick={onExitDiving} title="Back to Editor">
+                                    <LuArrowLeft size={16} />
+                                </button>
+                            )}
+                            <LuBot size={16} className="ai-diving-header-icon" />
+                            <span className="ai-diving-header-title">Data Diving</span>
+                            {provider === 'gemini' && (
+                                <span className="ai-badge-cloud">CLOUD</span>
+                            )}
+                        </div>
+                        <div className="ai-diving-header-right">
+                            {messages.length > 0 && (
+                                <button className="ai-icon-btn" onClick={handleClearChat} title="Clear chat">
+                                    <LuTrash2 size={14} />
+                                </button>
+                            )}
+                            <button className="ai-icon-btn" onClick={onClose}>
+                                <LuX size={16} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {status === 'LOADING' && (
+                        <div className="ai-loading">
+                            <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
+                            <h3>Loading AI Engine...</h3>
+                        </div>
+                    )}
+
+                    {status === 'ERROR' && (
+                        <div className="ai-error-state">
+                            Error loading AI configuration.
+                            <button onClick={() => setStatus('READY')}>Retry</button>
+                        </div>
+                    )}
+
+                    {status === 'READY' && (
+                        <div className="ai-diving-chat">
+                            {/* Scrollable message area with centered content */}
+                            <div className="ai-diving-messages">
+                                <div className="ai-diving-messages-inner">
+                                    {chatMessages}
+                                </div>
+                            </div>
+
+                            {/* Error */}
+                            {errorMsg && (
+                                <div className="ai-error-bar">
+                                    <span>{errorMsg}</span>
+                                    <button onClick={() => setErrorMsg(null)}>
+                                        <LuX size={12} />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Floating composer */}
+                            <div className="ai-diving-composer-wrap">
+                                <div className="ai-diving-composer">
+                                    {inputComposer}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* ─── Right column: Context Panel ─── */}
+                {status === 'READY' && (
+                    <AiContextPanel
+                        contextObjects={contextObjects}
+                        isDragOver={isDragOver}
+                        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                        onDragLeave={() => setIsDragOver(false)}
+                        onDrop={handleDrop}
+                        onRemoveContext={removeContextObj}
+                        onQuickAction={(text) => handleSend(text)}
+                        hasMessages={messages.length > 0}
+                    />
+                )}
+
+                <AlertDialog
+                    isOpen={alertData.isOpen}
+                    onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
+                    title="AI Assistant Info"
+                    message={alertData.message}
+                    type="info"
+                />
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // SIDEBAR MODE — Original compact layout
+    // ═══════════════════════════════════════════════════════
+    return (
+        <div className="ai-panel">
             {/* ─── Header ─── */}
             <div className="ai-header">
                 <div className="ai-header-left">
-                    {isDiving && onExitDiving && (
-                        <button className="ai-icon-btn" onClick={onExitDiving} title="Back to Editor">
-                            <LuArrowLeft size={16} />
-                        </button>
-                    )}
                     <LuBot size={16} style={{ color: 'var(--accent-primary)' }} />
-                    <span className="ai-title">
-                        {isDiving ? 'Data Diving' : 'AmoxSQL AI'}
-                    </span>
+                    <span className="ai-title">AmoxSQL AI</span>
                     {provider === 'gemini' && (
                         <span className="ai-badge-cloud">CLOUD</span>
                     )}
@@ -386,7 +632,6 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
             {status === 'READY' && (
                 <div className="ai-ready">
-
                     {/* ─── Model Selector (compact) ─── */}
                     <div className="ai-model-selector">
                         <div className="ai-model-provider">
@@ -463,68 +708,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
                     {/* ─── Chat Messages ─── */}
                     <div className="ai-messages">
-                        {messages.length === 0 && !isGenerating && (
-                            <div className="ai-empty-state">
-                                <LuSparkles size={28} style={{ color: 'var(--accent-primary)', marginBottom: '12px', opacity: 0.5 }} />
-                                <div className="hint">
-                                    Ask anything about your data.
-                                    <br />
-                                    <span>Drop tables/files above for context.</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {messages.map((msg, i) => (
-                            <ChatMessage
-                                key={i}
-                                role={msg.role}
-                                content={msg.content}
-                                toolCalls={msg.toolCalls}
-                                allMessages={messages}
-                                isDiving={isDiving}
-                                isStreaming={false}
-                                onRunSql={onRunSql}
-                                onFollowUp={(text) => handleSend(text)}
-                                onExportNotebook={onExportNotebook}
-                            />
-                        ))}
-
-                        {/* Streaming assistant message */}
-                        {isGenerating && (streamingText || activeToolCalls.length > 0) && (
-                            <div className="ai-streaming-msg">
-                                <div className="ai-avatar">
-                                    <LuBot size={13} />
-                                </div>
-                                <div className="ai-streaming-body">
-                                    <div className="ai-streaming-label">AmoxSQL AI</div>
-                                    {activeToolCalls.map((tc, i) => (
-                                        <ToolCallBlock
-                                            key={tc.toolCallId || i}
-                                            toolName={tc.toolName}
-                                            args={tc.args}
-                                            result={tc.result}
-                                            isLoading={tc.isLoading}
-                                        />
-                                    ))}
-                                    {streamingText && (
-                                        <div className="ai-streaming-text">
-                                            {streamingText}
-                                            <span className="ai-cursor" />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Generating indicator (no text yet) */}
-                        {isGenerating && !streamingText && activeToolCalls.length === 0 && (
-                            <div className="ai-thinking">
-                                <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
-                                Thinking...
-                            </div>
-                        )}
-
-                        <div ref={chatEndRef} />
+                        {chatMessages}
                     </div>
 
                     {/* ─── Error ─── */}
@@ -538,33 +722,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     )}
 
                     {/* ─── Input Area ─── */}
-                    <div className="ai-input-area">
-                        <div className="ai-input-row">
-                            <textarea
-                                className="ai-textarea"
-                                ref={inputRef}
-                                value={inputText}
-                                onChange={(e) => setInputText(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Ask about your data..."
-                                rows={1}
-                                onInput={(e) => {
-                                    e.target.style.height = 'auto';
-                                    e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
-                                }}
-                            />
-                            <button
-                                className={`ai-send-btn${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
-                                onClick={isGenerating ? handleCancel : () => handleSend()}
-                                disabled={!isGenerating && !inputText.trim()}
-                            >
-                                {isGenerating ? <LuX size={16} /> : <LuSend size={15} />}
-                            </button>
-                        </div>
-                        <div className="ai-input-hint">
-                            Enter to send · Shift+Enter for newline
-                        </div>
-                    </div>
+                    {inputComposer}
                 </div>
             )}
 
@@ -577,26 +735,6 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             />
         </div>
     );
-
-    // ─── Main return: wrap with ConversationList when diving ───
-    if (isDiving) {
-        return (
-            <div className="ai-diving-container" style={{ width }}>
-                {showConversations && (
-                    <ConversationList
-                        activeId={conversationId}
-                        onSelect={handleSelectConversation}
-                        onNew={handleNewConversation}
-                        onClose={() => setShowConversations(false)}
-                    />
-                )}
-                {chatPanel}
-            </div>
-        );
-    }
-
-    // Non-diving: just the chat panel at sidebar width
-    return chatPanel;
 };
 
 export default AiSidebar;
