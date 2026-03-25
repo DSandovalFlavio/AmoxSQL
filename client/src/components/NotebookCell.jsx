@@ -131,7 +131,29 @@ const NotebookCell = ({
         if (onStateChange) onStateChange(id, { viewMode: mode });
     }, [onStateChange, id]);
 
+    // Debounced propagation of content changes to parent
+    const contentTimerRef = useRef(null);
+    const localContentRef = useRef(localContent);
+    localContentRef.current = localContent;
+
+    useEffect(() => {
+        // Skip the initial render (content comes from parent)
+        if (localContent === content) return;
+
+        if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
+        contentTimerRef.current = setTimeout(() => {
+            onUpdate(id, localContentRef.current, localMetadata);
+        }, 300);
+
+        return () => {
+            if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [localContent]);
+
     const handleBlur = () => {
+        // Flush any pending debounce immediately on blur
+        if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
         onUpdate(id, localContent, localMetadata);
         if (type === 'markdown') {
             setIsEditingMarkdown(false);
@@ -413,7 +435,6 @@ const NotebookCell = ({
                                         value={typeof localContent === 'string' ? localContent : ''}
                                         onChange={(val) => {
                                             setLocalContent(val);
-                                            onUpdate(id, val, localMetadata);
                                         }}
                                         onDebugCte={handleDebugCte}
                                     />
