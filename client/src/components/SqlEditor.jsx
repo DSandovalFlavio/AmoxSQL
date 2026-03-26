@@ -66,28 +66,23 @@ const MONACO_PALETTE = {
 
 /**
  * Resolve a CSS variable to a 6-digit hex color (without #).
- * Handles hex, rgb(), rgba(), oklch(), and any CSS color via Canvas 2D.
+ * Uses a temporary DOM element so the browser resolves oklch(), rgba(), etc.
  * Falls back to the provided default if resolution fails.
  */
 const cssVarToHex = (varName, fallback) => {
     if (typeof document === 'undefined') return fallback;
     try {
-        const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-        if (!raw) return fallback;
+        // Use a temp element — the browser resolves ANY color format (oklch, rgba, etc.)
+        // to rgb() via getComputedStyle, which Canvas cannot do for oklch.
+        const el = document.createElement('div');
+        el.style.color = `var(${varName})`;
+        document.body.appendChild(el);
+        const resolved = getComputedStyle(el).color; // always returns rgb(r, g, b) or rgba(r, g, b, a)
+        document.body.removeChild(el);
 
-        // Already hex → strip # and return first 6 chars
-        if (raw.startsWith('#')) return raw.slice(1, 7);
+        if (!resolved || resolved === 'rgba(0, 0, 0, 0)') return fallback;
 
-        // Use canvas to convert any CSS color to a resolved value
-        const ctx = document.createElement('canvas').getContext('2d');
-        ctx.fillStyle = '#000000'; // reset
-        ctx.fillStyle = raw;
-        const resolved = ctx.fillStyle; // returns #rrggbb or rgba(r,g,b,a)
-
-        // Canvas returned hex
-        if (resolved.startsWith('#')) return resolved.slice(1, 7);
-
-        // Canvas returned rgb()/rgba() — parse and convert
+        // Parse rgb(r, g, b) or rgba(r, g, b, a)
         const match = resolved.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
         if (match) {
             const [, r, g, b] = match;
