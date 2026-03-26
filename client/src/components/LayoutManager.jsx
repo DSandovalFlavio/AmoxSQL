@@ -332,13 +332,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const newTab = {
             id: Date.now().toString(),
             path: '',
-            name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : normalizedType === 'md' ? 'Untitled.md' : 'Untitled.sql',
+            name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : normalizedType === 'md' ? 'Untitled.md' : normalizedType === 'er-diagram' ? 'ER Diagram' : 'Untitled.sql',
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
                 ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
-                : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' : 'SELECT 1;'),
+                : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' : normalizedType === 'er-diagram' ? '' : 'SELECT 1;'),
             results: null,
-            dirty: true
+            dirty: normalizedType !== 'er-diagram'
         };
         if (activePane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);

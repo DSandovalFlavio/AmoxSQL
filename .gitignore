@@ -135,3 +135,7 @@ logs/
 release.md
 
 documentacion/
+
+.claude/
+plan.md
+.claude/settings.local.json
