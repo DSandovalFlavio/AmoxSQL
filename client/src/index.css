@@ -5220,6 +5220,273 @@ tr:hover td {
   background: rgba(0, 0, 0, 0.18);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   MONACO SUGGEST WIDGET — Linear UI Override
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Main suggest popup container */
+.monaco-editor .suggest-widget {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-default) !important;
+  overflow: hidden;
+  padding: 4px 0 !important;
+}
+
+/* ── Suggestion rows ── */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row {
+  padding: 0 6px !important;
+  border-radius: 0 !important;
+}
+
+/* Selected/focused row — inset pill highlight */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row.focused {
+  border-radius: var(--radius-sm) !important;
+}
+
+/* Row inner layout — override Monaco inline lineHeight */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row > .contents > .main {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* ── Icon container — spacing from text ── */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row > .icon {
+  margin-right: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+/* ── Icon glyph — colored rounded square ── */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row .codicon[class*="symbol-"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+}
+/* Also target the ::before pseudo-element icon */
+.monaco-editor .suggest-widget .monaco-icon-label::before {
+  width: 22px !important;
+  height: 22px !important;
+  padding-right: 8px !important;
+}
+
+/* Icon color coding by type */
+.monaco-editor .suggest-widget .codicon-symbol-function,
+.monaco-editor .suggest-widget .codicon-symbol-method {
+  background: rgba(110, 197, 212, 0.15) !important;
+  color: #6EC5D4 !important;
+}
+.monaco-editor .suggest-widget .codicon-symbol-field,
+.monaco-editor .suggest-widget .codicon-symbol-property {
+  background: rgba(94, 201, 160, 0.15) !important;
+  color: #5EC9A0 !important;
+}
+.monaco-editor .suggest-widget .codicon-symbol-keyword {
+  background: rgba(155, 143, 242, 0.15) !important;
+  color: #9B8FF2 !important;
+}
+.monaco-editor .suggest-widget .codicon-symbol-snippet {
+  background: rgba(224, 168, 110, 0.15) !important;
+  color: #E0A86E !important;
+}
+.monaco-editor .suggest-widget .codicon-symbol-class,
+.monaco-editor .suggest-widget .codicon-symbol-struct {
+  background: rgba(79, 193, 255, 0.15) !important;
+  color: #4FC1FF !important;
+}
+.monaco-editor .suggest-widget .codicon-symbol-variable {
+  background: rgba(209, 211, 216, 0.15) !important;
+  color: var(--text-secondary) !important;
+}
+.monaco-editor .suggest-widget .codicon-symbol-folder,
+.monaco-editor .suggest-widget .codicon-symbol-file {
+  background: rgba(212, 167, 106, 0.15) !important;
+  color: #D4A76A !important;
+}
+/* Light theme icon adjustments */
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-function,
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-method {
+  background: rgba(30, 138, 158, 0.12) !important;
+  color: #1E8A9E !important;
+}
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-field,
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-property {
+  background: rgba(26, 142, 96, 0.12) !important;
+  color: #1A8E60 !important;
+}
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-keyword {
+  background: rgba(94, 106, 210, 0.12) !important;
+  color: #5E6AD2 !important;
+}
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-snippet {
+  background: rgba(196, 109, 26, 0.12) !important;
+  color: #C46D1A !important;
+}
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-class,
+.light-theme .monaco-editor .suggest-widget .codicon-symbol-struct {
+  background: rgba(26, 142, 128, 0.12) !important;
+  color: #1A8E80 !important;
+}
+
+/* ── Label text (suggestion name) ── */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row .contents .main .monaco-icon-label-container {
+  font-weight: 500 !important;
+}
+
+/* ── Detail/type label (right side) ── */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row .contents .main .type-label,
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row .contents .main .details-label {
+  color: var(--text-tertiary) !important;
+  font-size: var(--text-xs) !important;
+  opacity: 0.8 !important;
+  margin-left: auto !important;
+  padding-left: 12px !important;
+  font-weight: 400 !important;
+}
+
+/* ── Slim scrollbar ── */
+.monaco-editor .suggest-widget .monaco-scrollable-element > .scrollbar > .slider {
+  background: var(--border-default) !important;
+  border-radius: 9999px !important;
+  width: 4px !important;
+}
+.monaco-editor .suggest-widget .monaco-scrollable-element > .scrollbar {
+  width: 6px !important;
+}
+
+/* ── Suggest details (documentation) panel ── */
+.monaco-editor .suggest-details {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-default) !important;
+}
+.monaco-editor .suggest-details .body {
+  padding: 10px 12px !important;
+  font-size: var(--text-sm) !important;
+  line-height: 1.5;
+}
+.monaco-editor .suggest-details .header {
+  padding: 8px 12px !important;
+  font-size: var(--text-sm) !important;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ── Parameter hints popup ── */
+.monaco-editor .parameter-hints-widget {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-default) !important;
+  padding: 6px 10px !important;
+}
+.monaco-editor .parameter-hints-widget .active {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+/* ── Hover widget (tooltip) ── */
+.monaco-hover {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-default) !important;
+  max-width: 520px !important;
+  overflow: hidden !important;
+}
+.monaco-hover .hover-contents {
+  padding: 0 !important;
+  font-size: var(--text-sm) !important;
+  line-height: 1.6;
+}
+/* Hover row — each contents[] item */
+.monaco-hover .hover-row {
+  padding: 0 !important;
+}
+.monaco-hover .hover-row:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+/* Markdown container padding */
+.monaco-hover .markdown-hover {
+  padding: 10px 14px !important;
+}
+/* Signature code block (first section) */
+.monaco-hover .markdown-hover code,
+.monaco-hover .markdown-hover pre {
+  background: transparent !important;
+  font-family: 'JetBrains Mono', 'Consolas', monospace !important;
+  font-size: 13px !important;
+}
+.monaco-hover .markdown-hover pre {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+.monaco-hover .markdown-hover pre code {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+/* Inline code (category badge, param names) */
+.monaco-hover .markdown-hover code:not(pre code) {
+  background: var(--surface-inset) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 2px 7px !important;
+  font-size: var(--text-xs) !important;
+  color: var(--accent-primary) !important;
+  font-weight: 500 !important;
+}
+/* Markdown paragraphs */
+.monaco-hover .markdown-hover p {
+  margin: 4px 0 0 0 !important;
+  color: var(--text-secondary) !important;
+}
+/* Markdown bold (function name in description) */
+.monaco-hover .markdown-hover strong {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+/* Tables in hover (parameter tables) */
+.monaco-hover .markdown-hover table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: var(--text-xs) !important;
+  margin: 8px 0 0 0 !important;
+}
+.monaco-hover .markdown-hover th {
+  background: var(--surface-inset) !important;
+  padding: 6px 12px !important;
+  text-align: left !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  border-bottom: 1px solid var(--border-default) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  font-size: 10px !important;
+}
+.monaco-hover .markdown-hover td {
+  padding: 6px 12px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+}
+.monaco-hover .markdown-hover tr:last-child td {
+  border-bottom: none !important;
+}
+
+/* ── Status bar (bottom hints) ── */
+.monaco-editor .suggest-widget .suggest-status-bar {
+  border-top: 1px solid var(--border-subtle) !important;
+  padding: 4px 8px !important;
+  font-size: var(--text-xs) !important;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+}
+
 /* --- REPORT MODE STYLES --- */
 .report-card {
   background-color: var(--surface-raised);

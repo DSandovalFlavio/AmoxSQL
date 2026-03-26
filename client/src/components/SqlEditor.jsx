@@ -119,14 +119,16 @@ const buildMonacoTheme = (isDark) => {
             'editorBracketMatch.background':    `#${p.keyword}20`,
             'editorBracketMatch.border':        `#${p.keyword}80`,
             'editorWidget.background':          `#${p.overlay}`,
-            'editorWidget.border':              `#${p.overlay}`,
+            'editorWidget.border':              '#00000000',
             'editorSuggestWidget.background':   `#${p.overlay}`,
-            'editorSuggestWidget.border':       `#${p.overlay}`,
+            'editorSuggestWidget.border':       '#00000000',
             'editorSuggestWidget.foreground':   `#${p.fg}`,
-            'editorSuggestWidget.selectedBackground': `#${p.raised}`,
+            'editorSuggestWidget.selectedBackground': `#${isDark ? '2A2D35' : 'E8EAEF'}`,
+            'editorSuggestWidget.selectedForeground': `#${p.fg}`,
             'editorSuggestWidget.highlightForeground': `#${p.accent}`,
+            'editorSuggestWidget.focusHighlightForeground': `#${p.accent}`,
             'editorHoverWidget.background':     `#${p.overlay}`,
-            'editorHoverWidget.border':         `#${p.overlay}`,
+            'editorHoverWidget.border':         '#00000000',
             'scrollbar.shadow':                 '#00000000',
             'scrollbarSlider.background':       isDark ? '#ffffff12' : '#00000010',
             'scrollbarSlider.hoverBackground':  isDark ? '#ffffff20' : '#00000020',
@@ -1047,18 +1049,31 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     const fn = hoverLookup[word.word.toLowerCase()];
                     if (!fn) return null;
 
-                    // Build rich Markdown content
-                    const lines = [];
-                    lines.push(`**${fn.name}** — _${fn.detail || 'Function'}_`);
-                    lines.push('');
-                    lines.push(fn.doc);
+                    // Build rich hover with signature header + description + params
+                    const contents = [];
+
+                    // 1) Signature block — function name with syntax highlight style
+                    const category = fn.detail || 'Function';
+                    contents.push({
+                        value: `\`\`\`\n${fn.name}(${fn.insert ? fn.insert.replace(/\$\{\d+:([^}]+)\}/g, '$1').replace(/\$\{\d+\|([^}]+)\|?\}/g, '$1').replace(fn.name, '').replace(/^\(/, '').replace(/\)$/, '') : '…'})\n\`\`\``,
+                        isTrusted: true
+                    });
+
+                    // 2) Category badge + description
+                    const descLines = [];
+                    descLines.push(`\`${category}\``);
+                    descLines.push('');
+                    if (fn.doc) {
+                        descLines.push(fn.doc);
+                    }
+                    contents.push({ value: descLines.join('\n'), isTrusted: true });
 
                     return {
                         range: new monaco.Range(
                             position.lineNumber, word.startColumn,
                             position.lineNumber, word.endColumn
                         ),
-                        contents: [{ value: lines.join('\n'), isTrusted: true }]
+                        contents
                     };
                 }
             });
@@ -1138,6 +1153,9 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 glyphMargin: true,
                 lineDecorationsWidth: 10,
                 lineNumbersMinChars: 3,
+                fixedOverflowWidgets: true,
+                suggestLineHeight: 32,
+                suggestFontSize: 13,
                 suggest: {
                     showKeywords: false, // We provide our own
                 }
