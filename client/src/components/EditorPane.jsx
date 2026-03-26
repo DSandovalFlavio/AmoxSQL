@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus } from 'react-icons/lu';
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
 import { VariablesToggle, VariablesPanel } from './VariablesBar';
+import ErDiagram from './ErDiagram';
 
 const EditorPane = ({
     paneId,
@@ -270,7 +271,8 @@ const EditorPane = ({
         );
     }
 
-    const isNotebook = activeTab.name.endsWith('.sqlnb');
+    const isNotebook = activeTab.name.endsWith('.sqlnb') || activeTab.type === 'sqlnb';
+    const isErDiagram = activeTab.type === 'er-diagram';
 
     // Track last edit time on content change
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -375,7 +377,11 @@ const EditorPane = ({
             <div ref={containerRef} className="ep-inner">
 
                 {/* Content Area */}
-                {isNotebook ? (
+                {isErDiagram ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
+                        <ErDiagram onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                    </div>
+                ) : isNotebook ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <SqlNotebook
                             key={activeTab.id}
@@ -528,7 +534,7 @@ const EditorPane = ({
             {showDropZone && (
                 <div className="ep-drop-overlay">
                     <div className="ep-drop-content">
-                        <span className="ep-drop-icon">📁</span>
+                        <span className="ep-drop-icon"><LuFolder size={48} /></span>
                         Drop files to import
                         <span className="ep-drop-subtitle">CSV, Parquet, XLSX, JSON, SQL</span>
                     </div>

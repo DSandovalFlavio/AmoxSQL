@@ -7,7 +7,21 @@
       "Bash(npx vite:*)",
       "Bash(npm install:*)",
       "Bash(node -e \"const lu = require\\(''react-icons/lu''\\); const names = Object.keys\\(lu\\).filter\\(n => n.toLowerCase\\(\\).includes\\(''play''\\)\\); console.log\\(names.join\\(''\\\\n''\\)\\);\")",
-      "Bash(node -e \"const lu = require\\(''react-icons/lu''\\); console.log\\(''LuSquare'' in lu, ''LuChevronsUp'' in lu, ''LuChevronsDown'' in lu\\);\")"
+      "Bash(node -e \"const lu = require\\(''react-icons/lu''\\); console.log\\(''LuSquare'' in lu, ''LuChevronsUp'' in lu, ''LuChevronsDown'' in lu\\);\")",
+      "Bash(node -c server/ai/tools.js)",
+      "Bash(node -c server/ai/skills.js)",
+      "Bash(node -c server/ai/testRunner.js)",
+      "Bash(node -c server/ai/compaction.js)",
+      "Bash(node -c server/ai/systemPrompt.js)",
+      "Bash(node -c server/AiManager.js)",
+      "Bash(node -c server/index.js)",
+      "Bash(npx -y acorn-jsx --ecma2020 client/src/components/AiSidebar.jsx)",
+      "Bash(git fetch:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(grep -rn:*)",
+      "Bash(node -c server/ai/persistence.js)",
+      "Bash(npx -y acorn --ecma2020 --module --allow-import-export-everywhere src/components/AiSidebar.jsx)"
     ]
   }
 }

@@ -763,6 +763,7 @@ function App() {
                   onTablesLoaded={setAvailableTables}
                   onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
                   onQualityCheck={(tableName) => setQualityCheckTable(tableName)}
+                  onOpenErDiagram={() => layoutRef.current?.createNew('er-diagram')}
                 />
               </div>
             )}

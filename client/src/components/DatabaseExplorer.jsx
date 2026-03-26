@@ -2,7 +2,6 @@ import { useState, useEffect, memo, useDeferredValue } from 'react';
 import TablePreviewModal from './TablePreviewModal';
 import TableDetailsModal from './TableDetailsModal';
 import QueryHistoryModal from './QueryHistoryModal';
-import ErDiagram from './ErDiagram';
 import {
     LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
@@ -11,7 +10,7 @@ import {
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 
-const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery, onQualityCheck }) => {
+const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery, onQualityCheck, onOpenErDiagram }) => {
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(false);
     const [previewTable, setPreviewTable] = useState(null); // Simple preview
@@ -32,8 +31,6 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [tableToDelete, setTableToDelete] = useState(null);
 
-    // ER Diagram view
-    const [showErDiagram, setShowErDiagram] = useState(false);
 
     useEffect(() => {
         const handleClickOutside = () => {
@@ -107,20 +104,6 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
     return (
         <div className="db-explorer">
-            {/* ER Diagram Full Panel View */}
-            {showErDiagram ? (
-                <>
-                    <div className="db-header">
-                        <button className="db-back-btn" onClick={() => setShowErDiagram(false)}>
-                            <LuArrowLeft size={14} /> Back to Schema
-                        </button>
-                    </div>
-                    <div className="db-er-container">
-                        <ErDiagram onCreateTab={onSelectQuery ? (ddl) => onSelectQuery(ddl) : undefined} />
-                    </div>
-                </>
-            ) : (
-            <>
             {/* Header */}
             <div className="db-header">
                 <span className="db-header-title">Database Schema</span>
@@ -147,7 +130,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                             </div>
                             <div
                                 className="ctx-menu-item"
-                                onClick={() => { setShowErDiagram(true); setShowHeaderMenu(false); }}
+                                onClick={() => { if (onOpenErDiagram) onOpenErDiagram(); setShowHeaderMenu(false); }}
                             >
                                 <LuWorkflow size={14} /> <span>ER Diagram</span>
                             </div>
@@ -340,8 +323,6 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 itemName={tableToDelete}
                 itemType="Table"
             />
-            </>
-            )}
         </div>
     );
 };

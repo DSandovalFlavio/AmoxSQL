@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     LuRefreshCw, LuLoader, LuCircleAlert, LuZoomIn, LuZoomOut,
-    LuMaximize2, LuKey, LuLink, LuCopy, LuCheck, LuDatabase
+    LuMaximize2, LuKey, LuLink, LuCopy, LuCheck, LuDatabase, LuEye, LuTable
 } from 'react-icons/lu';
 
 const API = 'http://localhost:3001/api';
@@ -310,9 +310,14 @@ const ErDiagram = ({ onCreateTab }) => {
                                         fill={isSelected ? 'var(--accent-primary)' : 'var(--surface-overlay)'} />
 
                                     {/* Table icon + name */}
-                                    <text x={12} y={23} fill={isSelected ? '#fff' : 'var(--text-primary)'}
+                                    <foreignObject x={8} y={11} width={14} height={14}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                            {table.type === 'VIEW' ? <LuEye size={12} color={isSelected ? '#fff' : 'var(--text-primary)'} /> : <LuTable size={12} color={isSelected ? '#fff' : 'var(--text-primary)'} />}
+                                        </div>
+                                    </foreignObject>
+                                    <text x={26} y={23} fill={isSelected ? '#fff' : 'var(--text-primary)'}
                                         fontSize={12} fontWeight="600" fontFamily="'Inter', sans-serif">
-                                        {table.type === 'VIEW' ? '👁 ' : '📋 '}{table.name.length > 22 ? table.name.slice(0, 20) + '…' : table.name}
+                                        {table.name.length > 22 ? table.name.slice(0, 20) + '…' : table.name}
                                     </text>
 
                                     {/* Column count badge */}
@@ -333,11 +338,19 @@ const ErDiagram = ({ onCreateTab }) => {
 
                                                 {/* PK icon */}
                                                 {col.isPK && (
-                                                    <text x={8} y={y + 16} fontSize={10} fill="#eab308">🔑</text>
+                                                    <foreignObject x={8} y={y + 5} width={12} height={12}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                                            <LuKey size={10} color="#eab308" />
+                                                        </div>
+                                                    </foreignObject>
                                                 )}
                                                 {/* FK icon */}
                                                 {col.fk && !col.isPK && (
-                                                    <text x={8} y={y + 16} fontSize={10} fill="var(--accent-primary)">🔗</text>
+                                                    <foreignObject x={8} y={y + 5} width={12} height={12}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                                            <LuLink size={10} color="var(--accent-primary)" />
+                                                        </div>
+                                                    </foreignObject>
                                                 )}
 
                                                 {/* Column name */}
@@ -376,7 +389,7 @@ const ErDiagram = ({ onCreateTab }) => {
                             boxShadow: 'var(--shadow-lg)', maxWidth: '350px', zIndex: 10,
                         }}>
                             <div style={{ fontWeight: '600', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {table.type === 'VIEW' ? '👁' : '📋'} {table.name}
+                                {table.type === 'VIEW' ? <LuEye size={12} /> : <LuTable size={12} />} {table.name}
                                 <span style={{ fontSize: '9px', color: 'var(--text-tertiary)', fontWeight: '400' }}>
                                     ({table.type})
                                 </span>
