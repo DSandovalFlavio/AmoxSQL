@@ -65,10 +65,76 @@ const MONACO_PALETTE = {
 };
 
 /**
- * Build Monaco theme from the palette. No runtime CSS resolution needed.
+ * Resolve a CSS variable to a 6-digit hex color (without #).
+ * Handles hex, rgb(), rgba(), oklch(), and any CSS color via Canvas 2D.
+ * Falls back to the provided default if resolution fails.
+ */
+const cssVarToHex = (varName, fallback) => {
+    if (typeof document === 'undefined') return fallback;
+    try {
+        const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        if (!raw) return fallback;
+
+        // Already hex → strip # and return first 6 chars
+        if (raw.startsWith('#')) return raw.slice(1, 7);
+
+        // Use canvas to convert any CSS color to a resolved value
+        const ctx = document.createElement('canvas').getContext('2d');
+        ctx.fillStyle = '#000000'; // reset
+        ctx.fillStyle = raw;
+        const resolved = ctx.fillStyle; // returns #rrggbb or rgba(r,g,b,a)
+
+        // Canvas returned hex
+        if (resolved.startsWith('#')) return resolved.slice(1, 7);
+
+        // Canvas returned rgb()/rgba() — parse and convert
+        const match = resolved.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
+        if (match) {
+            const [, r, g, b] = match;
+            return [r, g, b].map(c => Number(c).toString(16).padStart(2, '0')).join('');
+        }
+
+        return fallback;
+    } catch {
+        return fallback;
+    }
+};
+
+/**
+ * Build Monaco theme by reading live CSS variables from the active theme.
+ * Falls back to MONACO_PALETTE when CSS variables aren't available (SSR, initial mount).
  */
 const buildMonacoTheme = (isDark) => {
-    const p = isDark ? MONACO_PALETTE.dark : MONACO_PALETTE.light;
+    const fallback = isDark ? MONACO_PALETTE.dark : MONACO_PALETTE.light;
+
+    // Read surface/text/accent from live CSS variables
+    const p = {
+        bg:         cssVarToHex('--surface-base', fallback.bg),
+        raised:     cssVarToHex('--surface-raised', fallback.raised),
+        overlay:    cssVarToHex('--surface-overlay', fallback.overlay),
+        fg:         cssVarToHex('--text-primary', fallback.fg),
+        fgMuted:    cssVarToHex('--text-secondary', fallback.fgMuted),
+        fgDim:      cssVarToHex('--text-tertiary', fallback.fgDim),
+        fgDisabled: cssVarToHex('--text-disabled', fallback.fgDisabled),
+        accent:     cssVarToHex('--accent-primary', fallback.accent),
+        // Syntax colors — read from CSS variables, fall back to palette
+        keyword:    cssVarToHex('--syntax-keyword', fallback.keyword),
+        string:     cssVarToHex('--syntax-string', fallback.string),
+        number:     cssVarToHex('--syntax-number', fallback.number),
+        fn:         cssVarToHex('--syntax-function', fallback.fn),
+        comment:    cssVarToHex('--syntax-comment', fallback.comment),
+        type:       cssVarToHex('--syntax-type', fallback.type),
+        operator:   cssVarToHex('--syntax-operator', fallback.operator),
+        variable:   cssVarToHex('--syntax-variable', fallback.variable),
+        constant:   cssVarToHex('--syntax-constant', fallback.constant),
+        error:      cssVarToHex('--feedback-error', fallback.error),
+    };
+
+    // Derive selection highlight from raised surface
+    const selBg = isDark
+        ? `#${p.raised}` // use raised surface for selected row
+        : `#${p.raised}`;
+
     return {
         base: isDark ? 'vs-dark' : 'vs',
         inherit: false,
@@ -123,7 +189,7 @@ const buildMonacoTheme = (isDark) => {
             'editorSuggestWidget.background':   `#${p.overlay}`,
             'editorSuggestWidget.border':       '#00000000',
             'editorSuggestWidget.foreground':   `#${p.fg}`,
-            'editorSuggestWidget.selectedBackground': `#${isDark ? '2A2D35' : 'E8EAEF'}`,
+            'editorSuggestWidget.selectedBackground': selBg,
             'editorSuggestWidget.selectedForeground': `#${p.fg}`,
             'editorSuggestWidget.highlightForeground': `#${p.accent}`,
             'editorSuggestWidget.focusHighlightForeground': `#${p.accent}`,
