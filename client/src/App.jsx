@@ -897,6 +897,11 @@ function App() {
                   isDiving={isDiving}
                   onExitDiving={() => { setIsDiving(false); setShowAiSidebar(false); }}
                   onExportNotebook={handleExportNotebook}
+                  onOpenFile={(filePath) => {
+                    setIsDiving(false);
+                    setShowAiSidebar(false);
+                    layoutRef.current?.loadFile(filePath);
+                  }}
                 />
               </div>
             </div>

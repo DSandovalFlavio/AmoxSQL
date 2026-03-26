@@ -18,6 +18,7 @@ const { buildSystemPrompt } = require('./ai/systemPrompt');
 const { loadUserRules } = require('./ai/userRules');
 const { compactContext } = require('./ai/compaction');
 const { loadMemoriesText, extractMemories } = require('./ai/memory');
+const { getSkill } = require('./ai/skills');
 
 class AiManager {
     constructor() {
@@ -169,26 +170,29 @@ class AiManager {
             currentQuery = '',
             currentResult = null,
             currentChartConfig = null,
+            activeSkillId = null,
         } = options;
 
         const provider = providerOverride || this.provider;
         const model = modelOverride || this.modelName;
         const projectPath = process.cwd();
 
-        // Load dynamic human context (Fase 6)
+        // Load dynamic human context
         const userRules = await loadUserRules(projectPath);
         const memories = await loadMemoriesText(dbManager);
+        const activeSkill = activeSkillId ? await getSkill(projectPath, activeSkillId) : null;
 
         // Build dynamic system prompt
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
+            activeSkill,
         });
 
         // Create tool context
         const queryResults = new Map();
-        const tools = createTools({ dbManager, queryResults });
+        const tools = createTools({ dbManager, queryResults, projectPath });
 
         console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode}`);
 
@@ -196,7 +200,7 @@ class AiManager {
             const llmModel = this.getModel(provider, model);
             
             // Compact context if necessary to avoid token overflow
-            const compactedMessages = await compactContext(llmModel, messages, 6000);
+            const compactedMessages = await compactContext(llmModel, messages, null, model);
 
             const result = await generateText({
                 model: llmModel,
@@ -273,31 +277,34 @@ class AiManager {
             currentQuery = '',
             currentResult = null,
             currentChartConfig = null,
+            activeSkillId = null,
         } = options;
 
         const provider = providerOverride || this.provider;
         const model = modelOverride || this.modelName;
         const projectPath = process.cwd();
 
-        // Load dynamic human context (Fase 6)
+        // Load dynamic human context
         const userRules = await loadUserRules(projectPath);
         const memories = await loadMemoriesText(dbManager);
+        const activeSkill = activeSkillId ? await getSkill(projectPath, activeSkillId) : null;
 
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
+            activeSkill,
         });
 
         const queryResults = new Map();
-        const tools = createTools({ dbManager, queryResults });
+        const tools = createTools({ dbManager, queryResults, projectPath });
 
         console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode}`);
 
         const llmModel = this.getModel(provider, model);
 
         // Compact context if necessary to avoid token overflow
-        const compactedMessages = await compactContext(llmModel, messages, 6000);
+        const compactedMessages = await compactContext(llmModel, messages, null, model);
 
         const result = streamText({
             model: llmModel,

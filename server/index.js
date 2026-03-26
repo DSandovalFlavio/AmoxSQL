@@ -620,7 +620,18 @@ app.post('/api/ai/generate', async (req, res) => {
 /**
  * Helper: Build table context from DuckDB for the AI agent.
  */
+// Table context cache with 5-minute TTL
+let _tableContextCache = null;
+let _tableContextCacheTime = 0;
+const TABLE_CONTEXT_TTL = 5 * 60 * 1000; // 5 minutes
+
 async function buildTableContext() {
+    // Return cached result if fresh
+    const now = Date.now();
+    if (_tableContextCache && (now - _tableContextCacheTime) < TABLE_CONTEXT_TTL) {
+        return _tableContextCache;
+    }
+
     try {
         const tables = await dbManager.systemQuery(`
             SELECT table_schema, table_name
@@ -645,11 +656,22 @@ async function buildTableContext() {
                 tableContexts.push({ name: t.table_name, schema: t.table_schema, columns: [], rows: '?' });
             }
         }
+
+        _tableContextCache = tableContexts;
+        _tableContextCacheTime = now;
         return tableContexts;
     } catch (err) {
         console.error('[AI] Failed to build table context:', err);
         return [];
     }
+}
+
+/**
+ * Invalidate the table context cache (call after schema changes).
+ */
+function invalidateTableContextCache() {
+    _tableContextCache = null;
+    _tableContextCacheTime = 0;
 }
 
 /**
@@ -719,7 +741,7 @@ app.post('/api/ai/chat', async (req, res) => {
  * Response: Server-Sent Events stream
  */
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, currentQuery, currentResult, currentChartConfig } = req.body;
+    const { messages, provider, model, mode, contextFiles, currentQuery, currentResult, currentChartConfig, activeSkillId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -748,6 +770,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            activeSkillId,
         });
 
         // Stream text deltas
@@ -788,6 +811,8 @@ app.post('/api/ai/chat/stream', async (req, res) => {
 
 /* --- AI Conversation CRUD APIs --- */
 const aiPersistence = require('./ai/persistence');
+const aiSkills = require('./ai/skills');
+const aiTestRunner = require('./ai/testRunner');
 
 /**
  * GET /api/ai/conversations — List conversations (newest first)
@@ -795,10 +820,11 @@ const aiPersistence = require('./ai/persistence');
  */
 app.get('/api/ai/conversations', async (req, res) => {
     try {
-        const { search, limit } = req.query;
+        const { search, limit, offset } = req.query;
         const conversations = await aiPersistence.getConversations(dbManager, {
             search,
             limit: limit ? parseInt(limit) : 50,
+            offset: offset ? parseInt(offset) : 0,
         });
         res.json(conversations);
     } catch (err) {
@@ -876,6 +902,154 @@ app.put('/api/ai/conversations/:id/title', async (req, res) => {
         res.json(result);
     } catch (err) {
         console.error('[API] Update title error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/conversations/:id/messages — Add a message to a conversation
+ * Body: { role, content, toolCalls?, tokenCount? }
+ */
+app.post('/api/ai/conversations/:id/messages', async (req, res) => {
+    const { role, content, toolCalls, tokenCount } = req.body;
+    if (!role) return res.status(400).json({ error: 'Role is required' });
+
+    try {
+        const message = await aiPersistence.addMessage(dbManager, {
+            conversationId: req.params.id,
+            role,
+            content: content || '',
+            toolCalls,
+            tokenCount,
+        });
+        res.json(message);
+    } catch (err) {
+        console.error('[API] Add message error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/conversations/:id/query-results — Save a query result
+ * Body: { messageId, sqlQuery, columns, data, rowCount, executionTime, error }
+ */
+app.post('/api/ai/conversations/:id/query-results', async (req, res) => {
+    const { messageId, sqlQuery, columns, data, rowCount, executionTime, error } = req.body;
+    if (!messageId || !sqlQuery) return res.status(400).json({ error: 'messageId and sqlQuery are required' });
+
+    try {
+        const result = await aiPersistence.saveQueryResult(dbManager, {
+            messageId, sqlQuery, columns, data, rowCount, executionTime, error,
+        });
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Save query result error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/conversations/:id/chart-configs — Save a chart config
+ * Body: { queryResultId, chartType, config }
+ */
+app.post('/api/ai/conversations/:id/chart-configs', async (req, res) => {
+    const { queryResultId, chartType, config } = req.body;
+    if (!queryResultId) return res.status(400).json({ error: 'queryResultId is required' });
+
+    try {
+        const result = await aiPersistence.saveChartConfig(dbManager, {
+            queryResultId, chartType, config,
+        });
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Save chart config error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/ai/conversations/:id/title/auto — Auto-generate title from first message
+ * Body: { firstMessage }
+ */
+app.put('/api/ai/conversations/:id/title/auto', async (req, res) => {
+    const { firstMessage } = req.body;
+    if (!firstMessage) return res.status(400).json({ error: 'firstMessage is required' });
+
+    try {
+        const title = firstMessage.length > 60 ? firstMessage.substring(0, 57) + '...' : firstMessage;
+        const result = await aiPersistence.updateTitle(dbManager, req.params.id, title);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Auto title error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- AI Skills APIs --- */
+
+/**
+ * GET /api/ai/skills — List available skills for the current project
+ */
+app.get('/api/ai/skills', async (req, res) => {
+    try {
+        const skills = await aiSkills.loadSkills(ROOT_DIR);
+        res.json(skills.map(s => ({ id: s.id, name: s.name, description: s.description })));
+    } catch (err) {
+        console.error('[API] Load skills error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * GET /api/ai/skills/:id — Get a single skill's full content
+ */
+app.get('/api/ai/skills/:id', async (req, res) => {
+    try {
+        const skill = await aiSkills.getSkill(ROOT_DIR, req.params.id);
+        if (!skill) return res.status(404).json({ error: 'Skill not found' });
+        res.json(skill);
+    } catch (err) {
+        console.error('[API] Get skill error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- AI Agent Test APIs --- */
+
+/**
+ * GET /api/ai/tests — List available test cases
+ */
+app.get('/api/ai/tests', async (req, res) => {
+    try {
+        const tests = await aiTestRunner.loadTests(ROOT_DIR);
+        res.json(tests);
+    } catch (err) {
+        console.error('[API] Load tests error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/tests/run — Run all tests or a specific test
+ * Body: { testId? } — if testId provided, runs only that test
+ */
+app.post('/api/ai/tests/run', async (req, res) => {
+    const { testId } = req.body || {};
+
+    try {
+        if (testId) {
+            const tests = await aiTestRunner.loadTests(ROOT_DIR);
+            const test = tests.find(t => t.id === testId);
+            if (!test) return res.status(404).json({ error: 'Test not found' });
+
+            const result = await aiTestRunner.runTest(test, aiManager, dbManager);
+            res.json({ total: 1, passed: result.pass ? 1 : 0, failed: result.pass ? 0 : 1, results: [result] });
+        } else {
+            const summary = await aiTestRunner.runAllTests(ROOT_DIR, aiManager, dbManager);
+            res.json(summary);
+        }
+    } catch (err) {
+        console.error('[API] Run tests error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1021,6 +1195,14 @@ app.post('/api/query', async (req, res) => {
         const start = performance.now();
         const result = await dbManager.queryWithMetadata(query);
         const end = performance.now();
+
+        // Invalidate table context cache if query may have changed schema
+        const upperQuery = query.toUpperCase().trim();
+        if (upperQuery.startsWith('CREATE') || upperQuery.startsWith('DROP') ||
+            upperQuery.startsWith('ALTER') || upperQuery.startsWith('INSERT') ||
+            upperQuery.startsWith('DELETE') || upperQuery.startsWith('UPDATE')) {
+            invalidateTableContextCache();
+        }
 
         res.json({
             data: result.rows,

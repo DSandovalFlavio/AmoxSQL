@@ -67,6 +67,7 @@ function buildSystemPrompt(options = {}) {
         currentQuery = '',
         currentResult = null,
         currentChartConfig = null,
+        activeSkill = null,
     } = options;
 
     const now = new Date().toLocaleString('en-US', {
@@ -93,6 +94,8 @@ ${now}
 - **list_tables**: See all available tables with column counts and row counts
 - **describe_table**: Get detailed schema and sample data from a table
 - **display_chart**: Create a chart visualization from query results
+- **read_file**: Read a text file from the project directory for additional context (SQL files, docs, CSVs)
+- **build_notebook**: Create a SQL Notebook (.sqlnb) with markdown + SQL cells for comprehensive analysis
 - **suggest_followups**: Suggest follow-up questions (call this last)
 
 ## Tool Usage Rules
@@ -101,6 +104,7 @@ ${now}
 3. When showing results that would benefit from visualization, call \`display_chart\` AFTER \`execute_sql\`.
 4. Call \`suggest_followups\` as your LAST tool call to end the analysis.
 5. You can make multiple tool calls in sequence — first explore the schema, then query, then visualize.
+6. SQL queries have a **30-second timeout**. If a query times out, simplify it (add LIMIT, filter with WHERE, or break into smaller queries).
 
 ## DuckDB SQL Rules
 - Use double quotes for identifiers with special characters: \`"column name"\`
@@ -170,7 +174,21 @@ You are the user's full data analysis partner. Take initiative — explore the d
 2. Write and execute analytical queries
 3. Visualize interesting findings with charts
 4. Summarize insights in clear markdown
-5. Suggest follow-up explorations`;
+5. Suggest follow-up explorations
+
+### When to Create Notebooks
+Use \`build_notebook\` when the user asks for a comprehensive analysis, report, or reusable exploration. Structure the notebook with:
+- A markdown cell with title and context
+- Alternating markdown (explanation) and code (SQL) cells
+- SQL cells should be standalone and executable
+- The user can then open the notebook, execute cells, and add charts`;
+    }
+
+    // Inject active skill if present
+    if (activeSkill && activeSkill.content) {
+        prompt += `\n\n## Active Skill: ${activeSkill.name || 'Custom'}
+You are currently operating with the following specialized instructions. Follow them precisely:
+${activeSkill.content}`;
     }
 
     // Inject user rules if present
