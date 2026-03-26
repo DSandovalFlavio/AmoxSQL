@@ -114,13 +114,14 @@ class AiPersistence {
      * Get all conversations, newest first.
      * @param {object} options - { search, limit }
      */
-    async getConversations(dbManager, { search, limit = 50 } = {}) {
+    async getConversations(dbManager, { search, limit = 50, offset = 0 } = {}) {
         let query = `SELECT * FROM amoxsql_ai.conversations`;
         if (search) {
             const safeSearch = search.replace(/'/g, "''");
             query += ` WHERE title ILIKE '%${safeSearch}%'`;
         }
         query += ` ORDER BY updated_at DESC LIMIT ${limit}`;
+        if (offset > 0) query += ` OFFSET ${offset}`;
 
         return dbManager.systemQuery(query);
     }

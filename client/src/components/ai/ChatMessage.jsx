@@ -1,8 +1,33 @@
 import ReactMarkdown from 'react-markdown';
-import { LuUser, LuBot } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
+
+/**
+ * Extract unique table references from SQL queries in tool calls.
+ */
+function extractCitations(toolCalls) {
+    if (!toolCalls) return [];
+    const tables = new Set();
+    for (const tc of toolCalls) {
+        if (tc.toolName === 'execute_sql' && tc.args?.query) {
+            // Extract FROM/JOIN table references
+            const sql = tc.args.query.toUpperCase();
+            const matches = sql.matchAll(/(?:FROM|JOIN)\s+"?(\w+)"?(?:\."?(\w+)"?)?/gi);
+            for (const m of matches) {
+                const tbl = m[2] || m[1];
+                if (tbl && !['INFORMATION_SCHEMA', 'PG_CATALOG', 'AMOXSQL_AI'].includes(tbl.toUpperCase())) {
+                    tables.add(m[2] ? `${m[1]}.${m[2]}` : m[1]);
+                }
+            }
+        }
+        if (tc.toolName === 'describe_table' && tc.args?.table_name) {
+            tables.add(tc.args.table_name);
+        }
+    }
+    return [...tables];
+}
 
 /**
  * ChatMessage — Renders a single message in the AI chat.
@@ -13,7 +38,7 @@ import ChatResultsBlock from './ChatResultsBlock';
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onFollowUp, onExportNotebook }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onFollowUp, onExportNotebook, onOpenFile }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -27,10 +52,16 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Chart visualizations from display_chart tool calls
     const chartCalls = toolCalls?.filter(tc => tc.toolName === 'display_chart') || [];
 
-    // Other tool calls (list_tables, describe_table)
+    // Other tool calls (list_tables, describe_table, read_file)
     const otherCalls = toolCalls?.filter(tc =>
-        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart'
+        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook'
     ) || [];
+
+    // Notebook creation results
+    const notebookCalls = toolCalls?.filter(tc => tc.toolName === 'build_notebook' && tc.result?.success) || [];
+
+    // Citations: tables referenced in this response
+    const citations = isAssistant ? extractCitations(toolCalls) : [];
 
     // --- User message: right-aligned bubble, no avatar ---
     if (isUser) {
@@ -136,6 +167,60 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         {isStreaming && (
                             <span className="ai-msg-cursor" />
                         )}
+                    </div>
+                )}
+
+                {/* Citations — tables referenced in this response */}
+                {citations.length > 0 && (
+                    <div style={{
+                        marginTop: '6px', marginBottom: '6px',
+                        display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center',
+                    }}>
+                        <LuDatabase size={10} style={{ color: 'var(--text-muted)', marginRight: '2px' }} />
+                        {citations.map((table, i) => (
+                            <span key={i} style={{
+                                fontSize: '10px', padding: '1px 6px',
+                                backgroundColor: 'var(--sidebar-item-active-bg)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '3px', color: 'var(--accent-color-user)',
+                                fontFamily: "'Cascadia Code', 'Consolas', monospace",
+                            }}>
+                                {table}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* Notebook creation results */}
+                {notebookCalls.length > 0 && (
+                    <div style={{ marginTop: '6px', marginBottom: '6px' }}>
+                        {notebookCalls.map((tc, i) => (
+                            <div key={i} style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                padding: '8px 12px',
+                                backgroundColor: 'var(--sidebar-item-active-bg)',
+                                border: '1px solid var(--accent-color-user)',
+                                borderRadius: '6px', fontSize: '12px',
+                            }}>
+                                <span style={{ color: 'var(--accent-color-user)' }}>📓</span>
+                                <span style={{ flex: 1, color: 'var(--text-active)' }}>
+                                    Notebook created: <strong>{tc.result.fileName}</strong> ({tc.result.cellCount} cells)
+                                </span>
+                                {onOpenFile && (
+                                    <button
+                                        onClick={() => onOpenFile(tc.result.path)}
+                                        style={{
+                                            padding: '3px 10px', fontSize: '11px',
+                                            backgroundColor: 'var(--accent-color-user)',
+                                            color: 'var(--button-text-color)',
+                                            border: 'none', borderRadius: '4px', cursor: 'pointer',
+                                        }}
+                                    >
+                                        Open
+                                    </button>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 )}
 

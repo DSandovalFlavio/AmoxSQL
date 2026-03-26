@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSparkles, LuTable, LuFile, LuSend, LuTrash2, LuArrowLeft, LuDatabase } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSparkles, LuTable, LuFile, LuSend, LuTrash2, LuArrowLeft, LuDatabase, LuWand } from 'react-icons/lu';
 import ChatMessage from './ai/ChatMessage';
 import ToolCallBlock from './ai/ToolCallBlock';
 import ConversationList from './ai/ConversationList';
@@ -15,7 +15,7 @@ const GEMINI_MODELS = [
     { id: 'custom', label: 'Custom Model...', size: 'Cloud' }
 ];
 
-const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, isDiving = false, onExitDiving, onExportNotebook }) => {
+const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, isDiving = false, onExitDiving, onExportNotebook, onOpenFile }) => {
     // ─── Config State ───
     const [status, setStatus] = useState('LOADING');
     const [provider, setProvider] = useState('ollama');
@@ -23,6 +23,10 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const [customModel, setCustomModel] = useState('');
     const [installedModels, setInstalledModels] = useState([]);
     const [isModelsLoading, setIsModelsLoading] = useState(false);
+
+    // ─── Skills State (Data Diving only) ───
+    const [availableSkills, setAvailableSkills] = useState([]);
+    const [activeSkillId, setActiveSkillId] = useState(null);
 
     // ─── Context State ───
     const [contextObjects, setContextObjects] = useState([]);
@@ -96,6 +100,21 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
         return () => window.removeEventListener('amox_settings_updated', loadConfig);
     }, []);
 
+    // ─── Load Skills (Data Diving) ───
+    useEffect(() => {
+        if (!isDiving) return;
+        const loadSkills = async () => {
+            try {
+                const res = await fetch(`${API}/api/ai/skills`);
+                if (res.ok) {
+                    const skills = await res.json();
+                    setAvailableSkills(skills);
+                }
+            } catch (err) { console.error('Failed to load skills:', err); }
+        };
+        loadSkills();
+    }, [isDiving]);
+
     // ─── Auto-scroll ───
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,6 +138,82 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const removeContextObj = (index) => {
         setContextObjects(prev => prev.filter((_, i) => i !== index));
     };
+
+    // ─── Persistence helpers (Data Diving only) ───
+    const ensureConversation = useCallback(async (modelToUse) => {
+        if (!isDiving) return null;
+        if (conversationId) return conversationId;
+
+        try {
+            const res = await fetch(`${API}/api/ai/conversations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'diving', provider, model: modelToUse }),
+            });
+            if (res.ok) {
+                const conv = await res.json();
+                setConversationId(conv.id);
+                return conv.id;
+            }
+        } catch (err) { console.error('Failed to create conversation:', err); }
+        return null;
+    }, [isDiving, conversationId, provider]);
+
+    const persistMessage = useCallback(async (convId, role, content, toolCalls) => {
+        if (!convId) return null;
+        try {
+            const res = await fetch(`${API}/api/ai/conversations/${convId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role, content, toolCalls }),
+            });
+            if (res.ok) return await res.json();
+        } catch (err) { console.error('Failed to persist message:', err); }
+        return null;
+    }, []);
+
+    const persistQueryResult = useCallback(async (convId, messageId, toolResult) => {
+        if (!convId || !messageId) return null;
+        try {
+            const res = await fetch(`${API}/api/ai/conversations/${convId}/query-results`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messageId,
+                    sqlQuery: toolResult.query || toolResult.sql || '',
+                    columns: toolResult.columns,
+                    data: toolResult.data,
+                    rowCount: toolResult.rowCount,
+                    executionTime: toolResult.executionTime,
+                    error: toolResult.error,
+                }),
+            });
+            if (res.ok) return await res.json();
+        } catch (err) { console.error('Failed to persist query result:', err); }
+        return null;
+    }, []);
+
+    const persistChartConfig = useCallback(async (convId, queryResultId, chartType, config) => {
+        if (!convId || !queryResultId) return;
+        try {
+            await fetch(`${API}/api/ai/conversations/${convId}/chart-configs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ queryResultId, chartType, config }),
+            });
+        } catch (err) { console.error('Failed to persist chart config:', err); }
+    }, []);
+
+    const autoTitle = useCallback(async (convId, firstMessage) => {
+        if (!convId) return;
+        try {
+            await fetch(`${API}/api/ai/conversations/${convId}/title/auto`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstMessage }),
+            });
+        } catch (err) { console.error('Failed to auto-title:', err); }
+    }, []);
 
     // ─── Send Message ───
     const handleSend = useCallback(async (overrideText) => {
@@ -152,6 +247,19 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
         abortControllerRef.current = new AbortController();
 
+        // Persistence: ensure conversation exists and persist user message (diving only)
+        let activeConvId = null;
+        const isFirstMessage = messages.length === 0;
+        if (isDiving) {
+            activeConvId = await ensureConversation(modelToUse);
+            if (activeConvId) {
+                persistMessage(activeConvId, 'user', text).catch(() => {});
+                if (isFirstMessage) {
+                    autoTitle(activeConvId, text).catch(() => {});
+                }
+            }
+        }
+
         try {
             const res = await fetch(`${API}/api/ai/chat/stream`, {
                 method: 'POST',
@@ -160,8 +268,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     messages: apiMessages,
                     provider,
                     model: modelToUse,
-                    mode: 'assistant',
+                    mode: isDiving ? 'diving' : 'assistant',
                     contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
+                    activeSkillId: isDiving && activeSkillId ? activeSkillId : undefined,
                 }),
                 signal: abortControllerRef.current.signal,
             });
@@ -210,7 +319,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                             toolResults.push({
                                 toolName: event.toolName,
                                 toolCallId: event.toolCallId,
-                                args: null,
+                                args: event.args || null,
                                 result: event.result,
                             });
                             setActiveToolCalls(prev =>
@@ -251,6 +360,34 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             setMessages(prev => [...prev, assistantMsg]);
             setStreamingText('');
 
+            // Persistence: save assistant message and tool results (diving only)
+            if (isDiving && activeConvId) {
+                (async () => {
+                    try {
+                        const savedMsg = await persistMessage(activeConvId, 'assistant', fullText, mergedToolCalls);
+                        if (!savedMsg) return;
+
+                        // Persist query results and chart configs from tool calls
+                        const queryResultIdMap = new Map(); // queryId -> persisted DB id
+                        for (const tc of mergedToolCalls) {
+                            if (tc.toolName === 'execute_sql' && tc.result && !tc.result.error) {
+                                const persisted = await persistQueryResult(activeConvId, savedMsg.id, tc.result);
+                                if (persisted && tc.result.queryId) {
+                                    queryResultIdMap.set(tc.result.queryId, persisted.id);
+                                }
+                            }
+                            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
+                                const qrDbId = queryResultIdMap.get(tc.args?.query_id);
+                                if (qrDbId) {
+                                    await persistChartConfig(activeConvId, qrDbId, tc.result.chartType || tc.args?.chart_type, tc.result);
+                                }
+                            }
+                        }
+                    } catch (err) { console.error('Failed to persist assistant data:', err); }
+                })();
+            }
+
+            // Save model as default (background)
             fetch(`${API}/api/settings/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -269,7 +406,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             setIsGenerating(false);
             abortControllerRef.current = null;
         }
-    }, [inputText, isGenerating, messages, selectedModel, customModel, provider, contextObjects]);
+    }, [inputText, isGenerating, messages, selectedModel, customModel, provider, contextObjects, isDiving, activeSkillId, ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle]);
 
     // ─── Keyboard shortcut ───
     const handleKeyDown = (e) => {
@@ -289,22 +426,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     };
 
     // ─── Conversation management (Data Diving) ───
-    const handleNewConversation = async () => {
+    const handleNewConversation = () => {
         handleClearChat();
-        if (isDiving) {
-            try {
-                const modelToUse = selectedModel === 'custom' ? customModel : selectedModel;
-                const res = await fetch(`${API}/api/ai/conversations`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mode: 'diving', provider, model: modelToUse }),
-                });
-                if (res.ok) {
-                    const conv = await res.json();
-                    setConversationId(conv.id);
-                }
-            } catch (err) { console.error('Failed to create conversation:', err); }
-        }
+        // Conversation will be created lazily on first message via ensureConversation
     };
 
     const handleSelectConversation = async (id) => {
@@ -314,11 +438,68 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             if (res.ok) {
                 const conv = await res.json();
                 setConversationId(conv.id);
-                const loadedMessages = (conv.messages || []).map(m => ({
-                    role: m.role,
-                    content: m.content,
-                    toolCalls: m.tool_calls || undefined,
-                }));
+                // Build lookup maps for query results and chart configs
+                const queryResultsByMsgId = {};
+                for (const qr of (conv.queryResults || [])) {
+                    if (!queryResultsByMsgId[qr.message_id]) queryResultsByMsgId[qr.message_id] = [];
+                    queryResultsByMsgId[qr.message_id].push(qr);
+                }
+                const chartConfigsByQrId = {};
+                for (const cc of (conv.chartConfigs || [])) {
+                    chartConfigsByQrId[cc.query_result_id] = cc;
+                }
+
+                // Rebuild messages with enriched tool calls
+                const loadedMessages = (conv.messages || []).map(m => {
+                    let toolCalls = m.tool_calls || undefined;
+
+                    // Enrich tool calls with persisted query results and chart configs
+                    if (toolCalls && Array.isArray(toolCalls) && queryResultsByMsgId[m.id]) {
+                        const qResults = queryResultsByMsgId[m.id];
+                        let qrIndex = 0;
+                        toolCalls = toolCalls.map(tc => {
+                            if (tc.toolName === 'execute_sql' && qrIndex < qResults.length) {
+                                const qr = qResults[qrIndex++];
+                                return {
+                                    ...tc,
+                                    result: {
+                                        ...tc.result,
+                                        queryId: qr.id,
+                                        query: qr.sql_query,
+                                        columns: qr.columns_info || tc.result?.columns,
+                                        data: qr.data || tc.result?.data,
+                                        rowCount: qr.row_count ?? tc.result?.rowCount,
+                                        executionTime: qr.execution_time ?? tc.result?.executionTime,
+                                    },
+                                };
+                            }
+                            if (tc.toolName === 'display_chart') {
+                                // Find matching chart config via query result
+                                for (const qr of qResults) {
+                                    const cc = chartConfigsByQrId[qr.id];
+                                    if (cc) {
+                                        return {
+                                            ...tc,
+                                            result: {
+                                                ...tc.result,
+                                                ...(cc.config || {}),
+                                                queryId: qr.id,
+                                            },
+                                        };
+                                    }
+                                }
+                            }
+                            return tc;
+                        });
+                    }
+
+                    return {
+                        role: m.role,
+                        content: m.content,
+                        toolCalls,
+                    };
+                });
+
                 setMessages(loadedMessages);
                 setStreamingText('');
                 setActiveToolCalls([]);
@@ -377,6 +558,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     onRunSql={onRunSql}
                     onFollowUp={(text) => handleSend(text)}
                     onExportNotebook={onExportNotebook}
+                    onOpenFile={onOpenFile}
                 />
             ))}
 
@@ -674,6 +856,28 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                             />
                         )}
                     </div>
+
+                    {/* ─── Skill Selector (Data Diving only) ─── */}
+                    {isDiving && availableSkills.length > 0 && (
+                        <div className="ai-skill-selector">
+                            <div className="ai-skill-label">
+                                <LuWand size={10} />
+                                <span>Skill</span>
+                            </div>
+                            <select
+                                className="ai-skill-select"
+                                value={activeSkillId || ''}
+                                onChange={(e) => setActiveSkillId(e.target.value || null)}
+                            >
+                                <option value="">General (no skill)</option>
+                                {availableSkills.map(s => (
+                                    <option key={s.id} value={s.id} title={s.description}>
+                                        {s.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     {/* ─── Context (Drag & Drop) ─── */}
                     <div className="ai-context-section">

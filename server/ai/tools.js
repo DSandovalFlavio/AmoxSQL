@@ -8,16 +8,22 @@
  */
 const { z } = require('zod');
 const { tool } = require('ai');
+const fs = require('fs');
+const path = require('path');
+
+const SQL_TIMEOUT_MS = 30000; // 30 seconds
+const MAX_FILE_SIZE = 50 * 1024; // 50KB
 
 /**
  * Creates the complete set of agent tools.
  * @param {object} context - Runtime context
  * @param {object} context.dbManager - DatabaseManager instance
  * @param {Map} context.queryResults - Map to store query results by ID
+ * @param {string} context.projectPath - Project root directory
  * @returns {object} Tools object for Vercel AI SDK
  */
 function createTools(context) {
-    const { dbManager, queryResults } = context;
+    const { dbManager, queryResults, projectPath } = context;
 
     return {
         /**
@@ -25,14 +31,19 @@ function createTools(context) {
          * The agent uses this to run analytical queries.
          */
         execute_sql: tool({
-            description: 'Execute a SQL query against the DuckDB database. Use this to analyze data, aggregate metrics, join tables, and answer questions. Always verify column names exist before using them. The query must be valid DuckDB SQL.',
+            description: 'Execute a SQL query against the DuckDB database. Use this to analyze data, aggregate metrics, join tables, and answer questions. Always verify column names exist before using them. The query must be valid DuckDB SQL. Queries have a 30-second timeout.',
             parameters: z.object({
                 query: z.string().describe('The DuckDB SQL query to execute. Must be a valid SELECT statement.'),
             }),
             execute: async ({ query }) => {
                 try {
                     const start = performance.now();
-                    const result = await dbManager.queryWithMetadata(query);
+                    const result = await Promise.race([
+                        dbManager.queryWithMetadata(query),
+                        new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error(`Query exceeded timeout of ${SQL_TIMEOUT_MS / 1000}s`)), SQL_TIMEOUT_MS)
+                        ),
+                    ]);
                     const end = performance.now();
                     const executionTime = Math.round(end - start);
 
@@ -63,9 +74,12 @@ function createTools(context) {
                         truncated: result.rows.length > MAX_ROWS,
                     };
                 } catch (err) {
+                    const isTimeout = err.message.includes('timeout');
                     return {
                         error: err.message,
-                        hint: 'Check that the table and column names exist. Use list_tables or describe_table to verify.',
+                        hint: isTimeout
+                            ? 'The query took too long. Try adding LIMIT, simplifying JOINs, or filtering with WHERE to reduce data volume.'
+                            : 'Check that the table and column names exist. Use list_tables or describe_table to verify.',
                     };
                 }
             },
@@ -208,6 +222,142 @@ function createTools(context) {
                     chartConfig,
                     dataRowCount: queryResult.rowCount,
                 };
+            },
+        }),
+
+        /**
+         * read_file — Reads a file from the project directory.
+         * Useful for reading SQL files, documentation, CSV headers, etc.
+         */
+        read_file: tool({
+            description: 'Read a text file from the project directory. Use this to read SQL files, documentation, CSV files, or any text file for additional context. Limited to 50KB files.',
+            parameters: z.object({
+                file_path: z.string().describe('Relative path to the file from the project root (e.g., "queries/analysis.sql", "docs/README.md").'),
+            }),
+            execute: async ({ file_path: filePath }) => {
+                try {
+                    if (!projectPath) {
+                        return { error: 'No project directory available.' };
+                    }
+
+                    // Security: prevent path traversal
+                    const normalized = path.normalize(filePath);
+                    if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
+                        return { error: 'Invalid path. Use relative paths within the project directory.' };
+                    }
+
+                    const fullPath = path.join(projectPath, normalized);
+                    const resolvedPath = path.resolve(fullPath);
+                    const resolvedProject = path.resolve(projectPath);
+
+                    if (!resolvedPath.startsWith(resolvedProject)) {
+                        return { error: 'Path is outside the project directory.' };
+                    }
+
+                    if (!fs.existsSync(fullPath)) {
+                        return { error: `File not found: ${filePath}` };
+                    }
+
+                    const stat = await fs.promises.stat(fullPath);
+                    if (stat.isDirectory()) {
+                        // Return directory listing instead
+                        const entries = await fs.promises.readdir(fullPath, { withFileTypes: true });
+                        return {
+                            type: 'directory',
+                            path: filePath,
+                            entries: entries.slice(0, 100).map(e => ({
+                                name: e.name,
+                                isDirectory: e.isDirectory(),
+                            })),
+                        };
+                    }
+
+                    if (stat.size > MAX_FILE_SIZE) {
+                        return { error: `File too large (${(stat.size / 1024).toFixed(1)}KB). Limit is ${MAX_FILE_SIZE / 1024}KB.` };
+                    }
+
+                    // Check if likely binary
+                    const ext = path.extname(fullPath).toLowerCase();
+                    const binaryExts = ['.db', '.duckdb', '.sqlite', '.parquet', '.xlsx', '.xls', '.zip', '.gz', '.tar', '.png', '.jpg', '.gif', '.pdf', '.exe', '.dll', '.wasm'];
+                    if (binaryExts.includes(ext)) {
+                        return { error: `Cannot read binary file (${ext}). Only text files are supported.` };
+                    }
+
+                    const content = await fs.promises.readFile(fullPath, 'utf8');
+                    const lines = content.split('\n').length;
+
+                    return {
+                        path: filePath,
+                        content,
+                        size: stat.size,
+                        lines,
+                    };
+                } catch (err) {
+                    return { error: err.message };
+                }
+            },
+        }),
+
+        /**
+         * build_notebook — Creates a SQL Notebook (.sqlnb) with analysis cells.
+         * The user can then open, execute, and expand the notebook.
+         */
+        build_notebook: tool({
+            description: 'Create a SQL Notebook (.sqlnb) file with multiple analysis cells (markdown + SQL code). Use this when the user asks for a comprehensive analysis, report, or exploration that would benefit from being saved as a reusable notebook.',
+            parameters: z.object({
+                title: z.string().describe('The title for the notebook and filename.'),
+                cells: z.array(z.object({
+                    type: z.enum(['markdown', 'code']).describe('Cell type: "markdown" for explanatory text, "code" for SQL queries.'),
+                    content: z.string().describe('The cell content. Markdown text or SQL query.'),
+                })).min(2).describe('Array of notebook cells. Start with a markdown cell for context, alternate between markdown and code cells.'),
+            }),
+            execute: async ({ title, cells }) => {
+                try {
+                    if (!projectPath) {
+                        return { error: 'No project directory available.' };
+                    }
+
+                    // Build v3.0 notebook structure
+                    const notebookCells = cells.map((cell, i) => ({
+                        id: `${Date.now()}_${i}`,
+                        type: cell.type,
+                        content: cell.content,
+                    }));
+
+                    const notebook = {
+                        version: '3.0',
+                        cells: notebookCells,
+                        environment: {},
+                    };
+
+                    // Sanitize filename
+                    const safeName = title
+                        .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+                        .replace(/\s+/g, '_')
+                        .substring(0, 60);
+                    const fileName = `${safeName}.sqlnb`;
+                    const filePath = path.join(projectPath, fileName);
+
+                    // Avoid overwriting existing files
+                    let finalPath = filePath;
+                    let counter = 1;
+                    while (fs.existsSync(finalPath)) {
+                        finalPath = path.join(projectPath, `${safeName}_${counter}.sqlnb`);
+                        counter++;
+                    }
+
+                    await fs.promises.writeFile(finalPath, JSON.stringify(notebook, null, 2), 'utf8');
+
+                    const relativePath = path.relative(projectPath, finalPath);
+                    return {
+                        success: true,
+                        path: relativePath,
+                        cellCount: cells.length,
+                        fileName: path.basename(finalPath),
+                    };
+                } catch (err) {
+                    return { error: err.message };
+                }
             },
         }),
 

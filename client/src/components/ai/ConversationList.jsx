@@ -1,37 +1,62 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare } from 'react-icons/lu';
 
 const API = 'http://localhost:3001';
+const PAGE_SIZE = 20;
 
 /**
  * ConversationList — Sidebar panel in Data Diving mode.
- * Lists conversations grouped by date with search, star, and delete.
+ * Lists conversations grouped by date with search, star, delete, and pagination.
  */
 const ConversationList = ({ activeId, onSelect, onNew }) => {
     const [conversations, setConversations] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
+    const [hasMore, setHasMore] = useState(true);
+    const listRef = useRef(null);
 
-    // Fetch conversations
-    const fetchConversations = async () => {
+    // Fetch conversations with pagination
+    const fetchConversations = useCallback(async (append = false) => {
         try {
             const params = new URLSearchParams();
             if (search) params.set('search', search);
+            const limit = append ? PAGE_SIZE : PAGE_SIZE;
+            const offset = append ? conversations.length : 0;
+            params.set('limit', limit + 1); // Fetch one extra to detect hasMore
+            if (offset > 0) params.set('offset', offset);
             const res = await fetch(`${API}/api/ai/conversations?${params}`);
             if (res.ok) {
                 const data = await res.json();
-                setConversations(data);
+                const newHasMore = data.length > limit;
+                const items = newHasMore ? data.slice(0, limit) : data;
+                setHasMore(newHasMore);
+                if (append) {
+                    setConversations(prev => [...prev, ...items]);
+                } else {
+                    setConversations(items);
+                }
             }
         } catch (err) {
             console.error('Failed to fetch conversations:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [search, conversations.length]);
 
     useEffect(() => {
-        fetchConversations();
+        setLoading(true);
+        setHasMore(true);
+        fetchConversations(false);
     }, [search]);
+
+    // Infinite scroll handler
+    const handleScroll = useCallback(() => {
+        if (!listRef.current || !hasMore || loading) return;
+        const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+        if (scrollHeight - scrollTop - clientHeight < 100) {
+            fetchConversations(true);
+        }
+    }, [hasMore, loading, fetchConversations]);
 
     // Group by date
     const grouped = useMemo(() => {
@@ -143,7 +168,7 @@ const ConversationList = ({ activeId, onSelect, onNew }) => {
             </div>
 
             {/* Conversation List */}
-            <div className="ai-conv-list">
+            <div className="ai-conv-list" ref={listRef} onScroll={handleScroll}>
                 {loading ? (
                     <div className="ai-conv-empty">Loading...</div>
                 ) : conversations.length === 0 ? (
@@ -152,11 +177,16 @@ const ConversationList = ({ activeId, onSelect, onNew }) => {
                     </div>
                 ) : (
                     <>
-                        {renderGroup('⭐ Starred', grouped.starred)}
+                        {renderGroup('Starred', grouped.starred)}
                         {renderGroup('Today', grouped.today)}
                         {renderGroup('Yesterday', grouped.yesterday)}
                         {renderGroup('This Week', grouped.thisWeek)}
                         {renderGroup('Older', grouped.older)}
+                        {hasMore && (
+                            <div style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                Loading more...
+                            </div>
+                        )}
                     </>
                 )}
             </div>
