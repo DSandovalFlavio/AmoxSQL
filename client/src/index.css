@@ -5391,37 +5391,52 @@ tr:hover td {
 }
 
 /* ── Hover widget (tooltip) ── */
-.monaco-hover {
+
+/* Outer resizable wrapper — this is the REAL border/radius container */
+.monaco-editor .monaco-resizable-hover {
+  border: 1px solid var(--border-default) !important;
   border-radius: var(--radius-lg) !important;
   box-shadow: none !important;
-  border: 1px solid var(--border-default) !important;
-  max-width: 520px !important;
   overflow: hidden !important;
 }
+
+/* Inner hover — remove its own border (parent handles it) */
+.monaco-editor .monaco-resizable-hover > .monaco-hover {
+  border: none !important;
+  border-radius: 0 !important;
+}
+/* Fallback for hovers without resizable wrapper */
+.monaco-editor .monaco-hover {
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden !important;
+}
+
+/* Content area */
 .monaco-hover .hover-contents {
   padding: 0 !important;
   font-size: var(--text-sm) !important;
   line-height: 1.6;
+  max-width: 520px !important;
 }
-/* Hover row — each contents[] item */
+
+/* Hover rows — each contents[] item */
 .monaco-hover .hover-row {
   padding: 0 !important;
 }
-.monaco-hover .hover-row:not(:last-child) {
-  border-bottom: 1px solid var(--border-subtle) !important;
+.monaco-hover .hover-row + .hover-row {
+  border-top: 1px solid var(--border-subtle) !important;
 }
+
 /* Markdown container padding */
-.monaco-hover .markdown-hover {
+.monaco-hover .markdown-hover > .hover-contents {
   padding: 10px 14px !important;
+  max-width: 520px !important;
 }
-/* Signature code block (first section) */
-.monaco-hover .markdown-hover code,
+
+/* ── Signature code block ── */
 .monaco-hover .markdown-hover pre {
   background: transparent !important;
-  font-family: 'JetBrains Mono', 'Consolas', monospace !important;
-  font-size: 13px !important;
-}
-.monaco-hover .markdown-hover pre {
   margin: 0 !important;
   padding: 0 !important;
   border: none !important;
@@ -5431,9 +5446,14 @@ tr:hover td {
   padding: 0 !important;
   background: transparent !important;
   border: none !important;
+  border-radius: 0 !important;
+  font-family: 'JetBrains Mono', 'Consolas', monospace !important;
+  font-size: 13px !important;
+  color: var(--text-primary) !important;
 }
-/* Inline code (category badge, param names) */
-.monaco-hover .markdown-hover code:not(pre code) {
+
+/* ── Inline code (category badge, param names) ── */
+.monaco-hover .markdown-hover code {
   background: var(--surface-inset) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--radius-sm) !important;
@@ -5441,42 +5461,49 @@ tr:hover td {
   font-size: var(--text-xs) !important;
   color: var(--accent-primary) !important;
   font-weight: 500 !important;
+  font-family: 'JetBrains Mono', 'Consolas', monospace !important;
 }
-/* Markdown paragraphs */
+
+/* ── Markdown text ── */
 .monaco-hover .markdown-hover p {
-  margin: 4px 0 0 0 !important;
+  margin: 6px 0 0 0 !important;
   color: var(--text-secondary) !important;
 }
-/* Markdown bold (function name in description) */
+.monaco-hover .markdown-hover p:first-child {
+  margin-top: 0 !important;
+}
 .monaco-hover .markdown-hover strong {
   color: var(--text-primary) !important;
   font-weight: 600 !important;
 }
-/* Tables in hover (parameter tables) */
+
+/* ── Tables (parameter tables) — bleed to edges ── */
 .monaco-hover .markdown-hover table {
-  width: 100% !important;
   border-collapse: collapse !important;
   font-size: var(--text-xs) !important;
-  margin: 8px 0 0 0 !important;
+  margin: 8px -14px -10px -14px !important;
+  width: calc(100% + 28px) !important;
 }
 .monaco-hover .markdown-hover th {
   background: var(--surface-inset) !important;
-  padding: 6px 12px !important;
+  padding: 6px 14px !important;
   text-align: left !important;
   font-weight: 600 !important;
   color: var(--text-secondary) !important;
-  border-bottom: 1px solid var(--border-default) !important;
+  border-top: 1px solid var(--border-subtle) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
   text-transform: uppercase !important;
   letter-spacing: 0.04em !important;
   font-size: 10px !important;
 }
 .monaco-hover .markdown-hover td {
-  padding: 6px 12px !important;
+  padding: 7px 14px !important;
   border-bottom: 1px solid var(--border-subtle) !important;
   color: var(--text-primary) !important;
 }
 .monaco-hover .markdown-hover tr:last-child td {
   border-bottom: none !important;
+  padding-bottom: 10px !important;
 }
 
 /* ── Status bar (bottom hints) ── */
