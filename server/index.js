@@ -1416,6 +1416,46 @@ app.post('/api/export-data', async (req, res) => {
 
 // (Removed duplicate `/api/db/tables` endpoint from here to avoid conflicts)
 
+/* --- dbt Integration API --- */
+
+// GET /api/dbt/manifest — Read target/manifest.json from project root
+app.get('/api/dbt/manifest', (req, res) => {
+    try {
+        const manifestPath = path.join(ROOT_DIR, 'target', 'manifest.json');
+        if (!fs.existsSync(manifestPath)) {
+            return res.json({ available: false, models: [], sources: [] });
+        }
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        
+        // Extract Models
+        const models = Object.values(manifest.nodes || {})
+            .filter(n => n.resource_type === 'model')
+            .map(n => ({
+                name: n.name,
+                schema: n.schema || '',
+                description: n.description || ''
+            }));
+            
+        // Extract Sources
+        const sourcesMap = {};
+        Object.values(manifest.sources || {}).forEach(s => {
+            const srcName = s.source_name;
+            if (!sourcesMap[srcName]) {
+                sourcesMap[srcName] = { name: srcName, schema: s.source_description || '', tables: [] };
+            }
+            sourcesMap[srcName].tables.push({
+                name: s.name,
+                description: s.description || ''
+            });
+        });
+        const sources = Object.values(sourcesMap);
+
+        res.json({ available: true, models, sources });
+    } catch (err) {
+        console.error('[dbt] Error reading manifest:', err);
+        res.status(500).json({ error: err.message, available: false });
+    }
+});
 /* --- DuckDB Function Catalog API --- */
 const AMOX_DIR = () => path.join(ROOT_DIR, '.amox');
 const ensureAmoxDir = () => { if (!fs.existsSync(AMOX_DIR())) fs.mkdirSync(AMOX_DIR(), { recursive: true }); };

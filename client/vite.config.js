@@ -12,6 +12,12 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  worker: {
+    format: 'es',
+  },
+  optimizeDeps: {
+    exclude: ['web-tree-sitter'],
+  },
   build: {
     sourcemap: false,
     chunkSizeWarningLimit: 1000

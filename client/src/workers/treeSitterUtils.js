@@ -1,0 +1,186 @@
+/**
+ * Utilities for analyzing the Tree-sitter SQL Abstract Syntax Tree.
+ */
+
+/**
+ * Finds the nearest enclosing statement or subquery for a given node.
+ * Uses a heuristic of looking for nodes that typically act as query boundaries.
+ */
+export function findEnclosingStatement(node) {
+    let current = node;
+    const STATEMENT_TYPES = new Set([
+        'statement',
+        'select_statement',
+        'select',
+        'subquery',
+        'insert_statement',
+        'update_statement',
+        'delete_statement'
+    ]);
+
+    while (current) {
+        if (STATEMENT_TYPES.has(current.type)) {
+            return current;
+        }
+        current = current.parent;
+    }
+    return null;
+}
+
+/**
+ * Determines the specific clause context the node is in.
+ * e.g., 'SELECT', 'FROM', 'WHERE', 'JOIN', 'ORDER BY'
+ */
+export function determineClause(node, statementNode) {
+    if (!statementNode) return 'ROOT';
+
+    let current = node;
+    while (current && current !== statementNode) {
+        // Most SQL grammars have node types like from_clause, where_clause, etc.
+        if (current.type === 'from_clause') return 'FROM';
+        if (current.type === 'where_clause') return 'WHERE';
+        if (current.type === 'join_clause' || current.type === 'join') return 'JOIN';
+        if (current.type === 'group_by_clause') return 'GROUP BY';
+        if (current.type === 'order_by_clause') return 'ORDER BY';
+        if (current.type === 'having_clause') return 'HAVING';
+        if (current.type === 'window_clause') return 'WINDOW';
+        if (current.type === 'qualify_clause' || current.type === 'qualify') return 'QUALIFY';
+        if (current.type === 'limit_clause') return 'LIMIT';
+        if (current.type === 'with_clause' || current.type === 'cte') return 'CTE';
+        if (current.type === 'select_clause_body' || current.type === 'select_expression') return 'SELECT';
+        current = current.parent;
+    }
+    
+    // If we're inside the statement but not in a specific clause, default to root or select
+    return 'SELECT'; 
+}
+
+/**
+ * Walks the AST to extract tables and their aliases from the FROM and JOIN clauses
+ * of the given statement node.
+ * Returns { aliasMap: { 'u': 'usuarios' }, referencedTables: Set('usuarios') }
+ */
+export function extractTablesAndAliases(statementNode) {
+    const aliasMap = {};
+    const referencedTables = new Set();
+    const tableAliases = {};
+
+    if (!statementNode) {
+        return { aliasMap, referencedTables, tableAliases };
+    }
+
+    // A simple recursive walker to find aliases and relation names within this statement scope
+    function walk(node) {
+        // Stop walking into subqueries to avoid polluting the current scope
+        if (node !== statementNode && (node.type === 'subquery' || node.type === 'select' || node.type === 'select_statement')) {
+            return;
+        }
+
+        // Tree-sitter SQL usually represents a table as `relation` or `object_reference`
+        // and an alias is often a sibling or wrapped in `aliased_relation`
+        if (node.type === 'aliased_relation' || node.type === 'alias') {
+            // Simplified handling: typically child(0) is the table, child(2) is the alias identifier
+            const tableNode = node.children.find(c => c.type === 'relation' || c.type === 'object_reference' || c.type === 'identifier');
+            let aliasNode = node.children.find(c => c.type === 'identifier' && c !== tableNode);
+            
+            if (!aliasNode && node.isNamed) {
+                // sometimes the node itself might be the alias wrapper
+                 aliasNode = node.children[node.children.length - 1]; 
+            }
+
+            if (tableNode && aliasNode) {
+                const tableName = tableNode.text.replace(/^['"]|['"]$/g, '').toLowerCase();
+                const aliasName = aliasNode.text.replace(/^['"]|['"]$/g, '').toLowerCase();
+                if (tableName && aliasName && tableName.toLowerCase() !== 'as') {
+                     aliasMap[aliasName] = tableName;
+                     tableAliases[tableName] = aliasName;
+                     referencedTables.add(tableName);
+                }
+            }
+        } else if (node.type === 'relation' || node.type === 'object_reference') {
+             // Just a table, no alias
+             const tableName = node.text.replace(/^['"]|['"]$/g, '').toLowerCase();
+             referencedTables.add(tableName);
+        }
+
+        for (let i = 0; i < node.namedChildCount; i++) {
+            walk(node.namedChild(i));
+        }
+    }
+
+    walk(statementNode);
+    return { aliasMap, referencedTables, tableAliases };
+}
+
+/**
+ * Checks if the cursor is at the right side of a DOT '.'
+ * e.g. "alias." or "alias.partial_word"
+ * Returns the target alias string or null.
+ */
+export function isDotAccess(node, position, fullText) {
+    let current = node;
+    
+    // Walk up slightly to see if we're in a field expression (alias.column)
+    while (current && current.type !== 'statement' && current.type !== 'select') {
+        if (current.type === 'field' || current.type === 'object_reference' || current.type === 'column_reference' || current.type === 'dot_expression') {
+            // Check if there is a dot
+            const text = current.text;
+            if (text.includes('.')) {
+                // If it's a field like "u.something", the first child is usually the alias
+                const parts = text.split('.');
+                if (parts.length >= 2) {
+                     return parts[0].replace(/^"|"$/g, '').toLowerCase();
+                }
+            }
+        }
+        current = current.parent;
+    }
+    
+    // Heuristic fallback for incomplete typing (where Tree-sitter marks as ERROR)
+    // If tree-sitter marks it as error, the node might just be an ERROR node.
+    // Let's do a quick regex on the line text up to the cursor.
+    const lines = fullText.split('\n');
+    if (position.row < lines.length) {
+        const lineToCursor = lines[position.row].substring(0, position.column);
+        // Match a word followed by a dot, possibly followed by incomplete word
+        const match = lineToCursor.match(/\b([a-zA-Z0-9_]+)\.\w*$/);
+        if (match) {
+            return match[1].toLowerCase();
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Quick Regex-based check to see if we are inside a Jinja {{ }} block
+ */
+export function isJinjaContext(text, cursorOffset) {
+    // Find the last {{ and }} before cursor
+    const lastOpen = text.lastIndexOf('{{', cursorOffset);
+    if (lastOpen === -1) return false;
+    
+    const lastClose = text.lastIndexOf('}}', cursorOffset);
+    // If the last open tag is AFTER the last close tag, we are inside a block
+    return lastOpen > lastClose;
+}
+
+/**
+ * Checks if cursor is in a "clean start" position:
+ * empty document, or after a `;` with only whitespace/comments following.
+ * Used to show only DDL/DML keywords (SELECT, WITH, CREATE…) without noise.
+ */
+export function isCleanStart(text, cursorOffset) {
+    const textBefore = text.substring(0, cursorOffset).trimEnd();
+    // Totally empty editor
+    if (textBefore.length === 0) return true;
+    // Cursor right after a semicolon (with optional whitespace)
+    if (textBefore.endsWith(';')) return true;
+    // Check for whitespace-only content after the last semicolon
+    const lastSemicolon = textBefore.lastIndexOf(';');
+    if (lastSemicolon !== -1) {
+        const afterSemi = textBefore.substring(lastSemicolon + 1).trim();
+        return afterSemi.length === 0;
+    }
+    return false;
+}
