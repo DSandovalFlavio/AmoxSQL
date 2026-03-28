@@ -37,6 +37,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const [inputText, setInputText] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [streamingText, setStreamingText] = useState('');
+    const [isThinking, setIsThinking] = useState(false); // Tracks if currently inside <think> tags during stream
     const [activeToolCalls, setActiveToolCalls] = useState([]);
     const [errorMsg, setErrorMsg] = useState(null);
     const [conversationId, setConversationId] = useState(null);
@@ -237,10 +238,14 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
         setActiveToolCalls([]);
         activeToolCallsRef.current = [];
 
-        // Build context files array for the API
+        // Build context files and tables array for the API
         const contextFiles = contextObjects
             .filter(o => o.type === 'file')
             .map(o => ({ name: o.name, path: o.path }));
+            
+        const contextTables = contextObjects
+            .filter(o => o.type === 'table')
+            .map(o => ({ name: o.name }));
 
         // Build messages array for the API (only role + content)
         const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
@@ -270,6 +275,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     model: modelToUse,
                     mode: isDiving ? 'diving' : 'assistant',
                     contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
+                    contextTables: contextTables.length > 0 ? contextTables : undefined,
                     activeSkillId: isDiving && activeSkillId ? activeSkillId : undefined,
                 }),
                 signal: abortControllerRef.current.signal,
@@ -306,6 +312,12 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                         if (event.type === 'text-delta') {
                             fullText += event.text;
                             setStreamingText(fullText);
+
+                            // Detect if we are inside a <think> block
+                            const openCount = (fullText.match(/<think>/g) || []).length;
+                            const closeCount = (fullText.match(/<\/think>/g) || []).length;
+                            setIsThinking(openCount > closeCount);
+
                         } else if (event.type === 'tool-call') {
                             const newActiveCall = {
                                 toolCallId: event.toolCallId,
@@ -579,6 +591,15 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                                 isLoading={tc.isLoading}
                             />
                         ))}
+                        
+                        {isThinking && (
+                            <div className="ai-msg-thinking" style={{ marginTop: 8, marginBottom: 8, borderColor: 'transparent', backgroundColor: 'transparent' }}>
+                                <div className="ai-msg-thinking__toggle" style={{ cursor: 'default' }}>
+                                    <LuBrain size={12} className="ai-msg-thinking__icon fa-spin" style={{ animation: 'blink 1.5s infinite' }} />
+                                    <span>Reasoning...</span>
+                                </div>
+                            </div>
+                        )}
                         {streamingText && (
                             <div className="ai-streaming-text">
                                 {streamingText}

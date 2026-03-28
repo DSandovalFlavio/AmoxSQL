@@ -3461,6 +3461,57 @@ tr:hover .rt-td {
   vertical-align: text-bottom;
 }
 
+/* ── Message — Thinking/Reasoning block ── */
+
+.ai-msg-thinking {
+  margin: 6px 0;
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid color-mix(in srgb, var(--accent-primary) 60%, #a855f7);
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in srgb, var(--surface-inset) 80%, transparent);
+  overflow: hidden;
+}
+
+.ai-msg-thinking__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-mini);
+  font-weight: var(--weight-semibold);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ai-msg-thinking__toggle:hover {
+  background-color: var(--hover-bg);
+  color: var(--text-secondary);
+}
+
+.ai-msg-thinking__icon {
+  color: color-mix(in srgb, var(--accent-primary) 60%, #a855f7);
+}
+
+.ai-msg-thinking__content {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed, 1.6);
+  color: var(--text-secondary);
+  font-style: italic;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
 /* ── Message — Follow-up suggestions ── */
 
 .ai-msg-followups {

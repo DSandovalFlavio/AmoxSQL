@@ -625,21 +625,36 @@ let _tableContextCache = null;
 let _tableContextCacheTime = 0;
 const TABLE_CONTEXT_TTL = 5 * 60 * 1000; // 5 minutes
 
-async function buildTableContext() {
+async function buildTableContext(contextTables = null) {
+    // If contextTables is explicitly provided but empty, return empty
+    if (contextTables && contextTables.length === 0) return [];
+
+    // Skip cache if explicitly requesting certain tables
+    const useCache = !contextTables;
+
     // Return cached result if fresh
     const now = Date.now();
-    if (_tableContextCache && (now - _tableContextCacheTime) < TABLE_CONTEXT_TTL) {
+    if (useCache && _tableContextCache && (now - _tableContextCacheTime) < TABLE_CONTEXT_TTL) {
         return _tableContextCache;
     }
 
     try {
-        const tables = await dbManager.systemQuery(`
+        let query = `
             SELECT table_schema, table_name
             FROM information_schema.tables
             WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai')
             AND table_type = 'BASE TABLE'
-            ORDER BY table_schema, table_name
-        `);
+        `;
+
+        // If explicit context tables requested, filter by them
+        if (contextTables) {
+            const tableNames = contextTables.map(t => `'${t.name.replace(/'/g, "''")}'`).join(',');
+            query += `\n            AND table_name IN (${tableNames})`;
+        }
+
+        query += `\n            ORDER BY table_schema, table_name`;
+
+        const tables = await dbManager.systemQuery(query);
 
         const tableContexts = [];
         for (const t of tables.slice(0, 30)) {
@@ -685,14 +700,42 @@ async function buildFileContext(contextFiles) {
         try {
             let fullPath = path.isAbsolute(file.path) ? file.path : path.join(ROOT_DIR, file.path);
             fullPath = fullPath.replace(/\\/g, '/');
-            const cols = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullPath}'`);
+            
+            // Get proper read function based on extension
+            const ext = (fullPath.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+            let readFn = 'read_csv_auto';
+            if (ext === '.parquet') readFn = 'read_parquet';
+            else if (ext === '.json' || ext === '.jsonl') readFn = 'read_json_auto';
+            else if (ext === '.xlsx' || ext === '.xls') readFn = 'read_xlsx';
+            
+            const queryRef = `${readFn}('${fullPath}')`;
+            console.log(`[AI File Context] Loading schema for: ${queryRef}`);
+            
+            const cols = await dbManager.systemQuery(`DESCRIBE SELECT * FROM ${queryRef}`);
+
+            // Fetch sample rows (3) for data format context
+            let sampleRows = [];
+            let rowCount = null;
+            try {
+                sampleRows = await dbManager.systemQuery(`SELECT * FROM ${queryRef} LIMIT 3`);
+            } catch { /* ignore sample read errors */ }
+
+            // Approximate row count
+            try {
+                const countRes = await dbManager.systemQuery(`SELECT COUNT(*) as cnt FROM ${queryRef}`);
+                rowCount = countRes[0]?.cnt || null;
+            } catch { /* ignore count errors */ }
+
             fileContexts.push({
                 name: file.name,
                 path: fullPath,
                 columns: cols.map(c => ({ name: c.column_name, type: c.column_type || c.data_type })),
+                sampleRows,
+                rowCount,
             });
         } catch (err) {
-            fileContexts.push({ name: file.name, path: file.path, columns: [] });
+            console.warn(`[AI File Context] 🛑 Failed to load schema for ${file.name}:`, err.message);
+            fileContexts.push({ name: file.name, path: file.path, columns: [], sampleRows: [], rowCount: null });
         }
     }
     return fileContexts;
@@ -703,15 +746,20 @@ async function buildFileContext(contextFiles) {
  * Body: { messages, provider?, model?, mode?, contextFiles?, currentQuery?, currentResult?, currentChartConfig? }
  */
 app.post('/api/ai/chat', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, currentQuery, currentResult, currentChartConfig } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
     }
 
     try {
+        // If the user provides explicit context items, we only load those.
+        // If NO explicit context items are provided, we load the whole DB schema.
+        const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
+        const tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+
         const [tables, files] = await Promise.all([
-            buildTableContext(),
+            buildTableContext(tablesToLoad),
             buildFileContext(contextFiles),
         ]);
 
@@ -739,9 +787,13 @@ app.post('/api/ai/chat', async (req, res) => {
  * POST /api/ai/chat/stream — SSE streaming tool loop chat
  * Body: same as /api/ai/chat
  * Response: Server-Sent Events stream
+ * 
+ * Automatically selects prompt-only mode for low-tier models.
  */
+const { getModelProfile: getModelProfileForRoute } = require('./ai/modelProfiles');
+
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, currentQuery, currentResult, currentChartConfig, activeSkillId } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -754,12 +806,15 @@ app.post('/api/ai/chat/stream', async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
     try {
+        const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
+        const tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+
         const [tables, files] = await Promise.all([
-            buildTableContext(),
+            buildTableContext(tablesToLoad),
             buildFileContext(contextFiles),
         ]);
 
-        const result = await aiManager.streamChat({
+        const chatOptions = {
             messages,
             dbManager,
             providerOverride: provider,
@@ -771,33 +826,56 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             currentResult,
             currentChartConfig,
             activeSkillId,
-        });
+        };
 
-        // Stream text deltas
-        for await (const part of result.fullStream) {
-            if (res.closed) {
-                console.log('[AI FULLSTREAM] Client disconnected, stopping stream.');
-                break;
+        // Detect model tier to choose between tool-loop and prompt-only
+        const resolvedModel = model || aiManager.modelName;
+        const resolvedProvider = provider || aiManager.provider;
+        const profile = getModelProfileForRoute(resolvedModel, resolvedProvider);
+
+        if (profile.tier === 'low') {
+            // ── Prompt-Only Mode for low-tier models ──
+            console.log(`[API] Using prompt-only mode for ${resolvedModel} (tier: low)`);
+
+            for await (const event of aiManager.promptOnlyStreamChat(chatOptions)) {
+                if (res.closed) {
+                    console.log('[AI PromptOnly] Client disconnected, stopping.');
+                    break;
+                }
+                res.write(`data: ${JSON.stringify(event)}\n\n`);
             }
 
-            if (part.type === 'text-delta') {
-                res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.textDelta || part.text })}\n\n`);
-            } else if (part.type === 'tool-call') {
-                res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: part.args || {}, toolCallId: part.toolCallId })}\n\n`);
-            } else if (part.type === 'tool-result') {
-                res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: part.result || { error: 'Failed' }, args: part.args || {} })}\n\n`);
-            } else if (part.type === 'step-finish') {
-                res.write(`data: ${JSON.stringify({ type: 'step-finish' })}\n\n`);
-            } else if (part.type === 'finish') {
-                const queryResults = result._queryResults ? Object.fromEntries(result._queryResults) : {};
-                res.write(`data: ${JSON.stringify({ type: 'finish', usage: part.usage, queryResults })}\n\n`);
-            } else if (part.type === 'error') {
-                res.write(`data: ${JSON.stringify({ type: 'error', error: part.error?.message || String(part.error) })}\n\n`);
+            res.write(`data: [DONE]\n\n`);
+            res.end();
+        } else {
+            // ── Standard Tool-Loop Mode for medium+ tiers ──
+            const result = await aiManager.streamChat(chatOptions);
+
+            for await (const part of result.fullStream) {
+                if (res.closed) {
+                    console.log('[AI FULLSTREAM] Client disconnected, stopping stream.');
+                    break;
+                }
+
+                if (part.type === 'text-delta') {
+                    res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.textDelta || part.text })}\n\n`);
+                } else if (part.type === 'tool-call') {
+                    res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: part.args || {}, toolCallId: part.toolCallId })}\n\n`);
+                } else if (part.type === 'tool-result') {
+                    res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: part.result || { error: 'Failed' }, args: part.args || {} })}\n\n`);
+                } else if (part.type === 'step-finish') {
+                    res.write(`data: ${JSON.stringify({ type: 'step-finish' })}\n\n`);
+                } else if (part.type === 'finish') {
+                    const queryResults = result._queryResults ? Object.fromEntries(result._queryResults) : {};
+                    res.write(`data: ${JSON.stringify({ type: 'finish', usage: part.usage, queryResults })}\n\n`);
+                } else if (part.type === 'error') {
+                    res.write(`data: ${JSON.stringify({ type: 'error', error: part.error?.message || String(part.error) })}\n\n`);
+                }
             }
+
+            res.write(`data: [DONE]\n\n`);
+            res.end();
         }
-
-        res.write(`data: [DONE]\n\n`);
-        res.end();
     } catch (err) {
         console.error('[API] AI Stream error:', err);
         if (!res.headersSent) {
@@ -807,6 +885,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             res.end();
         }
     }
+
 });
 
 /* --- AI Conversation CRUD APIs --- */

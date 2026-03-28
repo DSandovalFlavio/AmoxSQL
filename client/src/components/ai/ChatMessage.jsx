@@ -1,8 +1,75 @@
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { LuUser, LuBot, LuDatabase } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
+
+/**
+ * Parses thinking tokens (<think>...</think>) from model output.
+ * Returns an array of {type: 'text'|'thinking', content} parts.
+ */
+function parseThinkingBlocks(text) {
+    if (!text) return [{ type: 'text', content: '' }];
+
+    const parts = [];
+    const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = thinkRegex.exec(text)) !== null) {
+        // Text before this thinking block
+        if (match.index > lastIndex) {
+            const textBefore = text.slice(lastIndex, match.index).trim();
+            if (textBefore) parts.push({ type: 'text', content: textBefore });
+        }
+        // The thinking block itself
+        const thinking = match[1].trim();
+        if (thinking) parts.push({ type: 'thinking', content: thinking });
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Remaining text after last thinking block
+    if (lastIndex < text.length) {
+        const remaining = text.slice(lastIndex).trim();
+        if (remaining) parts.push({ type: 'text', content: remaining });
+    }
+
+    // If no thinking blocks found, return text as-is
+    if (parts.length === 0) {
+        return [{ type: 'text', content: text }];
+    }
+
+    return parts;
+}
+
+/**
+ * ThinkingBlock — Collapsible block showing model reasoning.
+ */
+const ThinkingBlock = ({ content }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+        <div className="ai-msg-thinking">
+            <button
+                className="ai-msg-thinking__toggle"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <LuBrain size={12} className="ai-msg-thinking__icon" />
+                <span>Reasoning</span>
+                {isExpanded
+                    ? <LuChevronDown size={12} />
+                    : <LuChevronRight size={12} />
+                }
+            </button>
+            {isExpanded && (
+                <div className="ai-msg-thinking__content">
+                    {content}
+                </div>
+            )}
+        </div>
+    );
+};
 
 /**
  * Extract unique table references from SQL queries in tool calls.
@@ -129,46 +196,57 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     </div>
                 )}
 
-                {/* Text content (markdown) */}
-                {content && (
-                    <div className="ai-msg-text">
-                        <ReactMarkdown
-                            components={{
-                                p: ({ children }) => <p>{children}</p>,
-                                pre: ({ children, ...props }) => (
-                                    <pre className="ai-msg-code-block" {...props}>{children}</pre>
-                                ),
-                                code: ({ className, children, ...props }) => {
-                                    const match = /language-(\w+)/.exec(className || '');
-                                    return match ? (
-                                        <code className={className} {...props}>{children}</code>
-                                    ) : (
-                                        <code className="ai-msg-inline-code" {...props}>{children}</code>
-                                    );
-                                },
-                                ul: ({ children }) => <ul>{children}</ul>,
-                                ol: ({ children }) => <ol>{children}</ol>,
-                                li: ({ children }) => <li>{children}</li>,
-                                strong: ({ children }) => <strong>{children}</strong>,
-                                h1: ({ children }) => <h3>{children}</h3>,
-                                h2: ({ children }) => <h3>{children}</h3>,
-                                h3: ({ children }) => <h4>{children}</h4>,
-                                table: ({ children }) => (
-                                    <div className="ai-msg-table-wrap">
-                                        <table>{children}</table>
-                                    </div>
-                                ),
-                                th: ({ children }) => <th>{children}</th>,
-                                td: ({ children }) => <td>{children}</td>,
-                            }}
-                        >
-                            {content}
-                        </ReactMarkdown>
-                        {isStreaming && (
-                            <span className="ai-msg-cursor" />
-                        )}
-                    </div>
-                )}
+                {/* Text content (markdown) — with thinking block support */}
+                {content && (() => {
+                    const parts = parseThinkingBlocks(content);
+                    return (
+                        <div className="ai-msg-text">
+                            {parts.map((part, idx) => {
+                                if (part.type === 'thinking') {
+                                    return <ThinkingBlock key={idx} content={part.content} />;
+                                }
+                                return (
+                                    <ReactMarkdown
+                                        key={idx}
+                                        components={{
+                                            p: ({ children }) => <p>{children}</p>,
+                                            pre: ({ children, ...props }) => (
+                                                <pre className="ai-msg-code-block" {...props}>{children}</pre>
+                                            ),
+                                            code: ({ className, children, ...props }) => {
+                                                const match = /language-(\w+)/.exec(className || '');
+                                                return match ? (
+                                                    <code className={className} {...props}>{children}</code>
+                                                ) : (
+                                                    <code className="ai-msg-inline-code" {...props}>{children}</code>
+                                                );
+                                            },
+                                            ul: ({ children }) => <ul>{children}</ul>,
+                                            ol: ({ children }) => <ol>{children}</ol>,
+                                            li: ({ children }) => <li>{children}</li>,
+                                            strong: ({ children }) => <strong>{children}</strong>,
+                                            h1: ({ children }) => <h3>{children}</h3>,
+                                            h2: ({ children }) => <h3>{children}</h3>,
+                                            h3: ({ children }) => <h4>{children}</h4>,
+                                            table: ({ children }) => (
+                                                <div className="ai-msg-table-wrap">
+                                                    <table>{children}</table>
+                                                </div>
+                                            ),
+                                            th: ({ children }) => <th>{children}</th>,
+                                            td: ({ children }) => <td>{children}</td>,
+                                        }}
+                                    >
+                                        {part.content}
+                                    </ReactMarkdown>
+                                );
+                            })}
+                            {isStreaming && (
+                                <span className="ai-msg-cursor" />
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Citations — tables referenced in this response */}
                 {citations.length > 0 && (
