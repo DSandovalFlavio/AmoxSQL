@@ -10,7 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { generateText, streamText } = require('ai');
-const { google } = require('@ai-sdk/google');
+const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 const { createOllama } = require('ai-sdk-ollama');
 const ollama = createOllama();
 const { createTools } = require('./ai/tools');
@@ -19,6 +19,8 @@ const { loadUserRules } = require('./ai/userRules');
 const { compactContext } = require('./ai/compaction');
 const { loadMemoriesText, extractMemories } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
+const { getModelProfile } = require('./ai/modelProfiles');
+const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
 
 class AiManager {
     constructor() {
@@ -107,9 +109,10 @@ class AiManager {
                 throw new Error("Gemini API Key is not configured. Please add it in Settings > AI Assistant.");
             }
             // Create Google AI provider with user's API key
-            return google(modelName || 'gemini-2.5-flash', {
-                apiKey: config.geminiApiKey,
+            const google = createGoogleGenerativeAI({
+                apiKey: config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
             });
+            return google(modelName || 'gemini-2.5-flash');
         } else {
             // Ollama — local model
             return ollama(modelName || 'qwen3:1.7b');
@@ -182,19 +185,22 @@ class AiManager {
         const memories = await loadMemoriesText(dbManager);
         const activeSkill = activeSkillId ? await getSkill(projectPath, activeSkillId) : null;
 
-        // Build dynamic system prompt
+        // Get model profile for adaptive parameters
+        const profile = getModelProfile(model, provider);
+
+        // Build dynamic system prompt (tier-adaptive)
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
-            activeSkill,
+            activeSkill, modelProfile: profile,
         });
 
         // Create tool context
         const queryResults = new Map();
         const tools = createTools({ dbManager, queryResults, projectPath });
 
-        console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode}`);
+        console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
         try {
             const llmModel = this.getModel(provider, model);
@@ -206,20 +212,22 @@ class AiManager {
                 model: llmModel,
                 system: systemPrompt,
                 messages: compactedMessages,
-                tools,
-                maxSteps: 10,
-                maxTokens: 16000,
+                tools: profile.supportsToolCalling ? tools : undefined,
+                maxSteps: profile.maxSteps,
+                maxTokens: profile.maxTokens,
             });
 
-            // Run memory extraction in the background
-            extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+            // Run memory extraction in the background (skip for low-tier models)
+            if (profile.supportsMemory) {
+                extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+            }
 
             // Track Gemini usage
             if (provider === 'gemini' && result.usage) {
                 this.trackUsage(model, result.usage);
             }
 
-            console.log(`[AI Chat] Complete | Steps: ${result.steps?.length || 1} | Tokens: ${result.usage?.totalTokens || '?'}`);
+            console.log(`[AI Chat] Complete | Steps: ${result.steps?.length || 1} | Tokens: ${result.usage?.totalTokens || '?'} | Tier: ${profile.tier}`);
 
             // Collect all tool results from steps
             const toolResults = [];
@@ -289,17 +297,20 @@ class AiManager {
         const memories = await loadMemoriesText(dbManager);
         const activeSkill = activeSkillId ? await getSkill(projectPath, activeSkillId) : null;
 
+        // Get model profile for adaptive parameters
+        const profile = getModelProfile(model, provider);
+
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
-            activeSkill,
+            activeSkill, modelProfile: profile,
         });
 
         const queryResults = new Map();
         const tools = createTools({ dbManager, queryResults, projectPath });
 
-        console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode}`);
+        console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
         const llmModel = this.getModel(provider, model);
 
@@ -310,16 +321,18 @@ class AiManager {
             model: llmModel,
             system: systemPrompt,
             messages: compactedMessages,
-            tools,
-            maxSteps: 10,
-            maxTokens: 16000,
+            tools: profile.supportsToolCalling ? tools : undefined,
+            maxSteps: profile.maxSteps,
+            maxTokens: profile.maxTokens,
             onFinish: async ({ usage }) => {
-                // Run memory extraction in the background
-                extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+                // Run memory extraction in the background (skip for low-tier models)
+                if (profile.supportsMemory) {
+                    extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+                }
                 if (provider === 'gemini' && usage) {
                     this.trackUsage(model, usage);
                 }
-                console.log(`[AI Stream] Complete | Tokens: ${usage?.totalTokens || '?'}`);
+                console.log(`[AI Stream] Complete | Tokens: ${usage?.totalTokens || '?'} | Tier: ${profile.tier}`);
             },
         });
 
@@ -328,6 +341,222 @@ class AiManager {
 
         return result;
     }
+
+    // ─── Prompt-Only Stream Chat (Low-Tier Models) ───
+
+    /**
+     * Handles chat for low-tier models that don't support tool calling.
+     * Uses a 2-pass approach:
+     *   Pass 1: LLM generates SQL referencing virtual table names
+     *   Pass 2: Server extracts SQL, corrects table names, executes, 
+     *           and optionally asks LLM to summarize results
+     * 
+     * Returns an async generator that yields SSE-compatible events.
+     * 
+     * @param {object} options - Same as streamChat()
+     * @returns {AsyncGenerator} Yields SSE event objects
+     */
+    async *promptOnlyStreamChat(options) {
+        const {
+            messages,
+            dbManager,
+            providerOverride,
+            modelOverride,
+            mode = 'diving',
+            tables = [],
+            files = [],
+            currentQuery = '',
+        } = options;
+
+        const provider = providerOverride || this.provider;
+        const model = modelOverride || this.modelName;
+        const profile = getModelProfile(model, provider);
+
+        console.log(`[AI PromptOnly] Starting | Provider: ${provider} | Model: ${model} | Tier: ${profile.tier}`);
+
+        // Build virtual table mapping
+        const { virtualMap, schemaText } = buildVirtualMapping(files, tables);
+        console.log(`\n[AI Schema Context Generated]:\n${schemaText}\n-------------------------\n`);
+
+        // Build compact system prompt with virtual schema
+        const systemPrompt = `You are a DuckDB SQL expert. Generate valid DuckDB SQL to answer user questions.
+
+Rules:
+- Write your SQL inside a \`\`\`sql code block
+- CRITICAL: Use ONLY the exact table names provided in the schema below. NEVER invent table names (e.g. do not use 'web_sales' unless it is listed below).
+- Use double quotes for identifiers with spaces: "column name"
+- Use single quotes for string literals: 'value'
+- Time functions: YEAR(col), MONTH(col), DATE_TRUNC('month', col)
+- If unsure about column names, use SELECT * FROM table_name LIMIT 5 first
+
+${schemaText}`;
+
+        const llmModel = this.getModel(provider, model);
+
+        // Compact messages for small context
+        let currentMessages = await compactContext(llmModel, messages, null, model);
+
+        let queryResults = [];
+        let finalAssistantText = '';
+        const maxRetries = 1;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            // ── Pass 1: Generate text with SQL ──
+            const pass1 = streamText({
+                model: llmModel,
+                system: systemPrompt,
+                messages: currentMessages,
+                maxTokens: profile.maxTokens,
+            });
+
+            let fullText = '';
+            if (attempt > 0) {
+                yield { type: 'text-delta', text: '\n\n*Auto-correcting query...*\n\n' };
+            }
+
+            for await (const part of pass1.fullStream) {
+                if (part.type === 'text-delta') {
+                    fullText += part.textDelta || part.text || '';
+                    yield { type: 'text-delta', text: part.textDelta || part.text || '' };
+                }
+            }
+
+            finalAssistantText = fullText;
+
+            // ── Extract and execute SQL blocks ──
+            const sqlBlocks = extractSqlBlocks(fullText);
+
+            if (sqlBlocks.length > 0) {
+                queryResults = [];
+                let hasErrors = false;
+                let lastErrorMsg = '';
+
+                for (let i = 0; i < sqlBlocks.length; i++) {
+                    const originalSql = sqlBlocks[i];
+                    const correctedSql = interceptTableNames(originalSql, virtualMap);
+
+                    // Emit synthetic tool-call event
+                    const toolCallId = `pom_${Date.now()}_${attempt}_${i}`;
+                    yield {
+                        type: 'tool-call',
+                        toolName: 'execute_sql',
+                        toolCallId,
+                        args: { query: correctedSql },
+                    };
+
+                    // Execute the corrected SQL
+                    try {
+                        const SQL_TIMEOUT = 30000;
+                        const resultPromise = dbManager.queryWithMetadata(correctedSql);
+                        const result = await Promise.race([
+                            resultPromise,
+                            new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error('Query timeout (30s)')), SQL_TIMEOUT)
+                            ),
+                        ]);
+
+                        const MAX_ROWS = 200;
+                        const data = result.rows.length > MAX_ROWS
+                            ? result.rows.slice(0, MAX_ROWS)
+                            : result.rows;
+
+                        const queryId = `qr_${Date.now()}_${attempt}_${i}`;
+                        const toolResult = {
+                            queryId,
+                            query: correctedSql,
+                            columns: result.types
+                                ? Object.entries(result.types).map(([name, type]) => ({ name, type }))
+                                : [],
+                            data,
+                            rowCount: result.rows.length,
+                            executionTime: 0,
+                            truncated: result.rows.length > MAX_ROWS,
+                        };
+
+                        queryResults.push({ sql: correctedSql, result: toolResult });
+
+                        yield {
+                            type: 'tool-result',
+                            toolName: 'execute_sql',
+                            toolCallId,
+                            result: toolResult,
+                            args: { query: correctedSql },
+                        };
+                    } catch (err) {
+                        hasErrors = true;
+                        lastErrorMsg = err.message;
+                        queryResults.push({ sql: correctedSql, result: { error: err.message } });
+                        yield {
+                            type: 'tool-result',
+                            toolName: 'execute_sql',
+                            toolCallId,
+                            result: { error: err.message },
+                            args: { query: correctedSql },
+                        };
+                    }
+                }
+
+                // If query failed and retries remain, loop to re-prompt the LLM
+                if (hasErrors && attempt < maxRetries) {
+                    currentMessages = [
+                        ...currentMessages,
+                        { role: 'assistant', content: fullText },
+                        {
+                            role: 'user',
+                            content: `Your SQL query failed with this error:\n\n${lastErrorMsg}\n\nWARNING: You MUST use the exact table names and column names provided in the schema context. Do not invent table names that are not in the schema. Please fix the query.`
+                        }
+                    ];
+                    continue;
+                }
+            }
+
+            break; // Success or out of retries
+        }
+
+        // ── Pass 2: Ask LLM to summarize the results ──
+        if (queryResults.length > 0) {
+            const resultsContext = queryResults.map((qr, i) => {
+                if (qr.result.error) {
+                    return `Query ${i + 1} failed: ${qr.result.error}`;
+                }
+                return `Query ${i + 1}: ${qr.sql}\n${formatResultForContext(qr.result.data, 15)}`;
+            }).join('\n\n');
+
+            yield { type: 'step-finish' };
+
+            try {
+                const summaryMessages = [
+                    ...currentMessages,
+                    { role: 'assistant', content: finalAssistantText },
+                    {
+                        role: 'user',
+                        content: `Here are the query results:\n\n${resultsContext}\n\nPlease provide a clear, concise summary of these results. Use markdown formatting.`,
+                    },
+                ];
+
+                const pass2 = streamText({
+                    model: llmModel,
+                    system: 'You are a data analyst. Summarize the query results concisely in markdown. Highlight key insights.',
+                    messages: summaryMessages,
+                    maxTokens: profile.maxTokens,
+                });
+
+                yield { type: 'text-delta', text: '\n\n---\n\n' };
+
+                for await (const part of pass2.fullStream) {
+                    if (part.type === 'text-delta') {
+                        yield { type: 'text-delta', text: part.textDelta || part.text || '' };
+                    }
+                }
+            } catch (err) {
+                console.warn('[AI PromptOnly] Pass 2 summary failed:', err.message);
+            }
+        }
+
+        yield { type: 'step-finish' };
+        yield { type: 'finish', usage: {} };
+    }
+
 
     // ─── Legacy: Simple SQL Generation (backward compatible) ───
 

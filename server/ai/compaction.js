@@ -1,4 +1,5 @@
 const { generateText } = require('ai');
+const { getModelProfile, getModelContextWindow } = require('./modelProfiles');
 
 /**
  * Calculates a rough token count for a string.
@@ -7,38 +8,6 @@ const { generateText } = require('ai');
 function estimateTokens(text) {
     if (!text) return 0;
     return Math.ceil(text.length / 3.5);
-}
-
-/**
- * Known context window sizes for common models.
- * Returns a reasonable default for unknown models.
- */
-function getModelContextWindow(modelName) {
-    if (!modelName) return 8000;
-    const name = String(modelName).toLowerCase();
-
-    // Gemini models
-    if (name.includes('gemini-2.5-pro') || name.includes('gemini-2.0-pro')) return 1000000;
-    if (name.includes('gemini-2.5-flash') && !name.includes('lite')) return 500000;
-    if (name.includes('gemini-2.5-flash-lite') || name.includes('flash-lite')) return 100000;
-    if (name.includes('gemini-1.5-pro')) return 1000000;
-    if (name.includes('gemini-1.5-flash')) return 500000;
-    if (name.includes('gemini')) return 100000;
-
-    // Small local models (Ollama)
-    if (name.includes('qwen') && name.includes('1.7b')) return 8000;
-    if (name.includes('qwen') && name.includes('4b')) return 16000;
-    if (name.includes('qwen') && name.includes('7b')) return 32000;
-    if (name.includes('qwen') && name.includes('14b')) return 64000;
-    if (name.includes('llama') && name.includes('8b')) return 32000;
-    if (name.includes('llama') && name.includes('70b')) return 64000;
-    if (name.includes('mistral')) return 32000;
-    if (name.includes('phi')) return 16000;
-    if (name.includes('deepseek')) return 64000;
-    if (name.includes('codellama')) return 16000;
-
-    // Default for unknown models
-    return 8000;
 }
 
 /**

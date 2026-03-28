@@ -48,26 +48,66 @@ If there are no facts or rules to extract, return empty arrays. DO NOT make thin
             })
         });
 
-        const memories = result.object;
-
-        if (memories.global_rules && memories.global_rules.length > 0) {
-            for (const rule of memories.global_rules) {
-                await aiPersistence.addMemory(dbManager, { category: 'global_rule', content: rule });
-            }
-        }
-
-        if (memories.personal_facts && memories.personal_facts.length > 0) {
-            for (const fact of memories.personal_facts) {
-                await aiPersistence.addMemory(dbManager, { category: 'personal_fact', content: fact });
-            }
-        }
-
-        if ((memories.global_rules?.length > 0) || (memories.personal_facts?.length > 0)) {
-            console.log(`[AI Memory] Extracted ${memories.global_rules?.length || 0} rules and ${memories.personal_facts?.length || 0} facts.`);
-        }
+        await saveMemories(result.object, dbManager);
 
     } catch (err) {
-        console.warn('[AI Memory] Failed to extract memory:', err.message);
+        console.warn(`[AI Memory] generateObject failed (${err.message}). Attempting fallback with generateText...`);
+        
+        // Fallback for models without reliable structured output
+        try {
+            const fallbackPrompt = `${systemPrompt}
+            
+Respond EXCLUSIVELY with valid JSON matching this schema:
+{
+  "global_rules": ["rule 1", "rule 2"],
+  "personal_facts": ["fact 1"]
+}`;
+            
+            const { generateText } = require('ai');
+            const fallbackResult = await generateText({
+                model,
+                system: fallbackPrompt,
+                messages: [{ role: 'user', content: `Transcript:\n${transcript}` }],
+                maxTokens: 500
+            });
+            
+            // Extract JSON from potential markdown blocks
+            let jsonText = fallbackResult.text.trim();
+            jsonText = jsonText.replace(/```json/ig, '').replace(/```/g, '').trim();
+            
+            const memories = JSON.parse(jsonText);
+            await saveMemories(memories, dbManager);
+            
+        } catch (fallbackErr) {
+            console.warn('[AI Memory] Fallback also failed:', fallbackErr.message);
+        }
+    }
+}
+
+async function saveMemories(memories, dbManager) {
+    if (!memories) return;
+    
+    let savedCount = 0;
+    if (memories.global_rules && Array.isArray(memories.global_rules)) {
+        for (const rule of memories.global_rules) {
+            if (rule.trim()) {
+                await aiPersistence.addMemory(dbManager, { category: 'global_rule', content: rule.trim() });
+                savedCount++;
+            }
+        }
+    }
+
+    if (memories.personal_facts && Array.isArray(memories.personal_facts)) {
+        for (const fact of memories.personal_facts) {
+            if (fact.trim()) {
+                await aiPersistence.addMemory(dbManager, { category: 'personal_fact', content: fact.trim() });
+                savedCount++;
+            }
+        }
+    }
+
+    if (savedCount > 0) {
+        console.log(`[AI Memory] Saved ${savedCount} explicit memories.`);
     }
 }
 
