@@ -78,9 +78,12 @@ function extractCitations(toolCalls) {
     if (!toolCalls) return [];
     const tables = new Set();
     for (const tc of toolCalls) {
-        if (tc.toolName === 'execute_sql' && tc.args?.query) {
+        const sqlArg = tc.toolName === 'execute_sql' && tc.args?.query
+            ? tc.args.query
+            : null;
+        if (sqlArg) {
             // Extract FROM/JOIN table references
-            const sql = tc.args.query.toUpperCase();
+            const sql = sqlArg.toUpperCase();
             const matches = sql.matchAll(/(?:FROM|JOIN)\s+"?(\w+)"?(?:\."?(\w+)"?)?/gi);
             for (const m of matches) {
                 const tbl = m[2] || m[1];
@@ -105,7 +108,7 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onFollowUp, onExportNotebook, onOpenFile }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onFollowUp, onExportNotebook, onOpenFile }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -177,6 +180,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 <SqlBlock
                                     sql={tc.args?.query || ''}
                                     onRun={onRunSql}
+                                    onApplyToFile={!isDiving ? onApplyToFile : undefined}
                                     defaultExpanded={sqlCalls.length <= 2}
                                 />
                                 {tc.result && !tc.result.error && tc.result.rowCount !== undefined && (
@@ -188,7 +192,13 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 {tc.result?.error && (
                                     <div className="ai-msg-sql-result ai-msg-sql-result--error">
                                         <span className="ai-msg-sql-result__icon">&#10007;</span>
-                                        {tc.result.error}
+                                        <span className="ai-msg-sql-error-text">{tc.result.error}</span>
+                                    </div>
+                                )}
+                                {!tc.result && (
+                                    <div className="ai-msg-sql-result ai-msg-sql-result--error">
+                                        <span className="ai-msg-sql-result__icon">&#10007;</span>
+                                        <span className="ai-msg-sql-error-text">Failed — no result returned</span>
                                     </div>
                                 )}
                             </div>

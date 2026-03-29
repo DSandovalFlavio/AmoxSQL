@@ -8,7 +8,7 @@ const PAGE_SIZE = 20;
  * ConversationList — Sidebar panel in Data Diving mode.
  * Lists conversations grouped by date with search, star, delete, and pagination.
  */
-const ConversationList = ({ activeId, onSelect, onNew }) => {
+const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
     const [conversations, setConversations] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
@@ -20,6 +20,7 @@ const ConversationList = ({ activeId, onSelect, onNew }) => {
         try {
             const params = new URLSearchParams();
             if (search) params.set('search', search);
+            if (mode) params.set('mode', mode);
             const limit = append ? PAGE_SIZE : PAGE_SIZE;
             const offset = append ? conversations.length : 0;
             params.set('limit', limit + 1); // Fetch one extra to detect hasMore

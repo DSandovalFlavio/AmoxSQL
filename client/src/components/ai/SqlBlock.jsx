@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LuCopy, LuPlay, LuChevronDown, LuChevronRight } from 'react-icons/lu';
+import { LuCopy, LuPlay, LuChevronDown, LuChevronRight, LuFileInput } from 'react-icons/lu';
 
 /**
  * SqlBlock — Collapsible SQL code block with copy, run, and syntax highlighting.
@@ -7,7 +7,7 @@ import { LuCopy, LuPlay, LuChevronDown, LuChevronRight } from 'react-icons/lu';
  *
  * Linear UI redesign: all styles in index.css under ai-sql-* classes.
  */
-const SqlBlock = ({ sql, onRun, defaultExpanded = true }) => {
+const SqlBlock = ({ sql, onRun, onApplyToFile, defaultExpanded = true }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const [copied, setCopied] = useState(false);
 
@@ -46,6 +46,15 @@ const SqlBlock = ({ sql, onRun, defaultExpanded = true }) => {
                     >
                         <LuCopy size={11} /> {copied ? 'Copied!' : 'Copy'}
                     </button>
+                    {onApplyToFile && (
+                        <button
+                            className="ai-sql-btn"
+                            onClick={() => onApplyToFile(sql)}
+                            title="Apply to current file"
+                        >
+                            <LuFileInput size={11} /> Apply
+                        </button>
+                    )}
                     {onRun && (
                         <button
                             className="ai-sql-btn ai-sql-btn--accent"
