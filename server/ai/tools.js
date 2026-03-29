@@ -15,28 +15,32 @@ const SQL_TIMEOUT_MS = 30000; // 30 seconds
 const MAX_FILE_SIZE = 50 * 1024; // 50KB
 
 /**
- * Creates the complete set of agent tools.
+ * Creates the complete set of agent tools, filtered by mode.
  * @param {object} context - Runtime context
  * @param {object} context.dbManager - DatabaseManager instance
  * @param {Map} context.queryResults - Map to store query results by ID
  * @param {string} context.projectPath - Project root directory
+ * @param {string} [context.mode='diving'] - 'assistant' | 'diving'
  * @returns {object} Tools object for Vercel AI SDK
  */
 function createTools(context) {
-    const { dbManager, queryResults, projectPath } = context;
+    const { dbManager, queryResults, projectPath, mode = 'diving' } = context;
 
-    return {
+    const allTools = {
         /**
          * execute_sql — Executes a SQL query against DuckDB.
          * The agent uses this to run analytical queries.
          */
         execute_sql: tool({
             description: 'Execute a SQL query against the DuckDB database. Use this to analyze data, aggregate metrics, join tables, and answer questions. Always verify column names exist before using them. The query must be valid DuckDB SQL. Queries have a 30-second timeout.',
-            parameters: z.object({
+            inputSchema: z.object({
                 query: z.string().describe('The DuckDB SQL query to execute. Must be a valid SELECT statement.'),
             }),
             execute: async ({ query }) => {
                 try {
+                    if (!query || typeof query !== 'string') {
+                        return { error: `Invalid query parameter. Expected a SQL string.` };
+                    }
                     const start = performance.now();
                     const result = await Promise.race([
                         dbManager.queryWithMetadata(query),
@@ -74,9 +78,10 @@ function createTools(context) {
                         truncated: result.rows.length > MAX_ROWS,
                     };
                 } catch (err) {
-                    const isTimeout = err.message.includes('timeout');
+                    const errMsg = err?.message || String(err);
+                    const isTimeout = errMsg.includes('timeout');
                     return {
-                        error: err.message,
+                        error: errMsg,
                         hint: isTimeout
                             ? 'The query took too long. Try adding LIMIT, simplifying JOINs, or filtering with WHERE to reduce data volume.'
                             : 'Check that the table and column names exist. Use list_tables or describe_table to verify.',
@@ -90,7 +95,7 @@ function createTools(context) {
          */
         list_tables: tool({
             description: 'List all tables available in the current DuckDB database with their column counts and approximate row counts. Use this first to understand what data is available before writing queries.',
-            parameters: z.object({}),
+            inputSchema: z.object({}),
             execute: async () => {
                 try {
                     // Get tables from information_schema
@@ -131,7 +136,7 @@ function createTools(context) {
 
                     return { tables: tablesWithCounts };
                 } catch (err) {
-                    return { error: err.message };
+                    return { error: err?.message || String(err) };
                 }
             },
         }),
@@ -141,7 +146,7 @@ function createTools(context) {
          */
         describe_table: tool({
             description: 'Get the full schema (column names, types) and a few sample rows from a specific table. Use this to understand the structure and content of a table before writing queries.',
-            parameters: z.object({
+            inputSchema: z.object({
                 table_name: z.string().describe('The name of the table to describe. Use just the table name if in the main schema, or "schema.table" for other schemas.'),
             }),
             execute: async ({ table_name }) => {
@@ -162,7 +167,7 @@ function createTools(context) {
                         sampleRows: sample,
                     };
                 } catch (err) {
-                    return { error: err.message };
+                    return { error: err?.message || String(err) };
                 }
             },
         }),
@@ -173,7 +178,7 @@ function createTools(context) {
          */
         display_chart: tool({
             description: `Generate a chart visualization from a previous query result. You MUST reference a queryId from a previous execute_sql call. Available chart types: bar, bar-stacked, bar-horizontal, line, area, donut, scatter, combo, funnel, heatmap, treemap. Choose the chart type that best represents the data pattern.`,
-            parameters: z.object({
+            inputSchema: z.object({
                 query_id: z.string().describe('The queryId from a previous execute_sql result.'),
                 chart_type: z.enum([
                     'bar', 'bar-stacked', 'bar-horizontal', 'bar-100',
@@ -231,7 +236,7 @@ function createTools(context) {
          */
         read_file: tool({
             description: 'Read a text file from the project directory. Use this to read SQL files, documentation, CSV files, or any text file for additional context. Limited to 50KB files.',
-            parameters: z.object({
+            inputSchema: z.object({
                 file_path: z.string().describe('Relative path to the file from the project root (e.g., "queries/analysis.sql", "docs/README.md").'),
             }),
             execute: async ({ file_path: filePath }) => {
@@ -293,7 +298,7 @@ function createTools(context) {
                         lines,
                     };
                 } catch (err) {
-                    return { error: err.message };
+                    return { error: err?.message || String(err) };
                 }
             },
         }),
@@ -304,7 +309,7 @@ function createTools(context) {
          */
         build_notebook: tool({
             description: 'Create a SQL Notebook (.sqlnb) file with multiple analysis cells (markdown + SQL code). Use this when the user asks for a comprehensive analysis, report, or exploration that would benefit from being saved as a reusable notebook.',
-            parameters: z.object({
+            inputSchema: z.object({
                 title: z.string().describe('The title for the notebook and filename.'),
                 cells: z.array(z.object({
                     type: z.enum(['markdown', 'code']).describe('Cell type: "markdown" for explanatory text, "code" for SQL queries.'),
@@ -356,7 +361,7 @@ function createTools(context) {
                         fileName: path.basename(finalPath),
                     };
                 } catch (err) {
-                    return { error: err.message };
+                    return { error: err?.message || String(err) };
                 }
             },
         }),
@@ -367,7 +372,7 @@ function createTools(context) {
          */
         suggest_followups: tool({
             description: 'After answering the user\'s question, suggest 2-4 relevant follow-up questions they might want to explore next. This should be the LAST tool you call.',
-            parameters: z.object({
+            inputSchema: z.object({
                 suggestions: z.array(z.string()).min(2).max(4)
                     .describe('Array of 2-4 follow-up question suggestions based on the analysis.'),
             }),
@@ -376,6 +381,63 @@ function createTools(context) {
             },
         }),
     };
+
+    // ─── Mode-specific tools ───
+
+    // Assistant-only tools: edit active file and update chart config
+    if (mode === 'assistant') {
+        allTools.edit_file = tool({
+            description: 'Replace the content of the currently active SQL file or notebook in the editor. Use when the user asks you to fix, improve, rewrite, or modify their query or notebook. The changes will be applied to the active editor tab without writing to disk — the user can review, undo, or save.',
+            inputSchema: z.object({
+                content: z.string().describe('The complete new content for the file.'),
+                description: z.string().describe('Brief description of what was changed.'),
+            }),
+            execute: async ({ content, description: desc }) => {
+                return { success: true, content, description: desc, action: 'edit_file' };
+            },
+        });
+
+        allTools.update_chart_config = tool({
+            description: 'Update the chart configuration for the current visualization. Use when the user asks to change chart type, colors, axes, labels, formatting, or any visual property. The changes will be merged into the active chart config.',
+            inputSchema: z.object({
+                changes: z.record(z.any()).describe('Object with chart config properties to change. Valid keys include: chartType, xAxisKey, yAxisKeys, colorTheme, chartTitle, chartSubtitle, showLabels, dataLabelPosition, numberFormat, gridMode, lineType, barRadius, donutThickness, legendPosition, and many more.'),
+                explanation: z.string().describe('Brief explanation of the visual changes.'),
+            }),
+            execute: async ({ changes, explanation }) => {
+                return { success: true, changes, explanation, action: 'update_chart_config' };
+            },
+        });
+
+        // Assistant doesn't get build_notebook
+        delete allTools.build_notebook;
+    }
+
+    // Vault tool — available in both modes
+    allTools.save_to_vault = tool({
+        description: 'Save an important analysis or query to the vault for permanent reference. Use when the user wants to bookmark, archive, or save a query/analysis for future reference. The vault persists even if files are deleted.',
+        inputSchema: z.object({
+            title: z.string().describe('A descriptive title for the saved analysis.'),
+            description: z.string().optional().describe('Optional longer description of the analysis.'),
+            sql_content: z.string().describe('The SQL query or content to save.'),
+            tags: z.array(z.string()).optional().describe('Optional tags for categorization (e.g., ["performance", "sales"]).'),
+        }),
+        execute: async ({ title, description: desc, sql_content, tags }) => {
+            try {
+                const aiPersistence = require('./persistence');
+                const entry = await aiPersistence.saveToVault(dbManager, {
+                    title,
+                    description: desc,
+                    sqlContent: sql_content,
+                    tags: tags ? tags.join(',') : null,
+                });
+                return { success: true, id: entry.id, title };
+            } catch (err) {
+                return { error: err?.message || String(err) };
+            }
+        },
+    });
+
+    return allTools;
 }
 
 module.exports = { createTools };

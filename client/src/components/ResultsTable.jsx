@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage } from "react-icons/lu";
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
@@ -10,6 +10,10 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
+    const [showVaultPrompt, setShowVaultPrompt] = useState(false);
+    const [vaultTitle, setVaultTitle] = useState('');
+    const [vaultTags, setVaultTags] = useState('');
+    const [vaultSaving, setVaultSaving] = useState(false);
     const [isExportDataOpen, setIsExportDataOpen] = useState(false);
 
     // View State
@@ -257,6 +261,32 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         runExportWorker('exportJSON', sortedData, [], timestamp());
     };
 
+    const handleSaveToVault = async () => {
+        if (!vaultTitle.trim()) return;
+        setVaultSaving(true);
+        try {
+            const sqlContent = query || currentEditorQuery || '';
+            const res = await fetch('http://localhost:3001/api/ai/vault', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: vaultTitle.trim(),
+                    sqlContent,
+                    tags: vaultTags.trim() || null,
+                    resultSnapshot: JSON.stringify({ rowCount: totalRows, columns: headers.slice(0, 10) }),
+                }),
+            });
+            if (!res.ok) throw new Error('Failed to save');
+            setShowVaultPrompt(false);
+            setVaultTitle('');
+            setVaultTags('');
+        } catch (err) {
+            console.error('Save to vault failed:', err);
+        } finally {
+            setVaultSaving(false);
+        }
+    };
+
     const handleCopyClipboard = () => {
         if (!sortedData || sortedData.length === 0) return;
         const headers = Object.keys(sortedData[0]);
@@ -394,6 +424,41 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)}>
                                 <LuSave size={12} /> Save to DB
                             </button>
+                            <div className="toolbar-dropdown">
+                                <button className="rt-action-btn" onClick={() => { setVaultTitle(''); setVaultTags(''); setShowVaultPrompt(v => !v); }}>
+                                    <LuPackage size={12} /> Vault
+                                </button>
+                                {showVaultPrompt && (
+                                    <div className="toolbar-dropdown-menu vault-save-dropdown">
+                                        <div className="vault-save-dropdown-label">Save to Analysis Vault</div>
+                                        <input
+                                            type="text"
+                                            className="vault-save-dropdown-input"
+                                            value={vaultTitle}
+                                            onChange={e => setVaultTitle(e.target.value)}
+                                            placeholder="Analysis title..."
+                                            autoFocus
+                                            onKeyDown={e => { if (e.key === 'Enter') handleSaveToVault(); if (e.key === 'Escape') setShowVaultPrompt(false); }}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="vault-save-dropdown-input"
+                                            value={vaultTags}
+                                            onChange={e => setVaultTags(e.target.value)}
+                                            placeholder="Tags (comma separated)..."
+                                            onKeyDown={e => { if (e.key === 'Enter') handleSaveToVault(); if (e.key === 'Escape') setShowVaultPrompt(false); }}
+                                        />
+                                        <button
+                                            className="vault-save-dropdown-btn"
+                                            onClick={handleSaveToVault}
+                                            disabled={!vaultTitle.trim() || vaultSaving}
+                                        >
+                                            <LuPackage size={12} />
+                                            {vaultSaving ? 'Saving...' : 'Save'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Export Dropdown */}
                             <div className="toolbar-dropdown">

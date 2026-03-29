@@ -18,7 +18,8 @@ import LayoutManager from './components/LayoutManager';
 // New Components
 import WelcomeScreen from './components/WelcomeScreen';
 import ProjectInfo from './components/ProjectInfo';
-import AiSidebar from './components/AiSidebar';
+import AiAssistantPanel from './components/ai/AiAssistantPanel';
+import AiDivingPanel from './components/ai/AiDivingPanel';
 // StatusBar removed — info redundant with ResultsTable + ProjectInfo
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
 import { useToast } from './components/ToastProvider';
@@ -32,7 +33,8 @@ const DataQualityModal = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal = lazy(() => import('./components/SchemaDiffModal'));
 const ExecutionChainModal = lazy(() => import('./components/ExecutionChainModal'));
 const SettingsModal = lazy(() => import('./components/SettingsModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage } from "react-icons/lu";
+const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 
 import './index.css';
 
@@ -88,6 +90,8 @@ function App() {
   // AI Integration State
   const [showAiSidebar, setShowAiSidebar] = useState(false);
   const [isDiving, setIsDiving] = useState(false);
+  const [activeTabInfo, setActiveTabInfo] = useState(null); // Info from active editor tab for AI assistant
+  // showVault removed — vault is now a sidebar tab ('vault')
 
   const [availableTables, setAvailableTables] = useState([]);
 
@@ -681,6 +685,15 @@ function App() {
               >
                 <LuHistory size={20} />
               </button>
+              {/* Analysis Vault */}
+              <button
+                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('vault'); }}
+                className={`activity-bar-btn ${activeSidebarTab === 'vault' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Analysis Vault"
+              >
+                <LuPackage size={20} />
+              </button>
+
               <div className="activity-bar-spacer" />
 
               {/* Data Diving toggle */}
@@ -791,6 +804,19 @@ function App() {
                 <QueryHistoryPanel onSelect={(sql) => layoutRef.current?.createNew('sql', sql)} />
               </div>
             )}
+
+            {activeSidebarTab === 'vault' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>}>
+                  <AnalysisVault
+                    onOpenInEditor={(sql) => {
+                      layoutRef.current?.createNew('sql', sql);
+                    }}
+                    onClose={() => setActiveSidebarTab('files')}
+                  />
+                </Suspense>
+              </div>
+            )}
             </div>{/* end .sidebar */}
 
             {/* Sidebar Resize Handle — inside the card */}
@@ -870,11 +896,16 @@ function App() {
                   onQueryResult={() => {}}
                   showAiSidebar={showAiSidebar}
                   onToggleAi={() => setShowAiSidebar(v => !v)}
-                  onTabsChange={setTitleBarTabs}
+                  onTabsChange={(tabData) => {
+                    setTitleBarTabs(tabData);
+                    // Update active tab info for AI assistant
+                    const info = layoutRef.current?.getActiveTabInfo();
+                    setActiveTabInfo(info || null);
+                  }}
                 />
               </div>
 
-              {/* Right Panel: AI Assistant / Data Diving */}
+              {/* Right Panel: AI Assistant (sidebar) or Data Diving (full screen) */}
               <div style={{
                 width: isDiving ? '100%' : (showAiSidebar ? '350px' : '0px'),
                 flexGrow: isDiving ? 1 : 0,
@@ -889,21 +920,35 @@ function App() {
                 border: (showAiSidebar || isDiving) ? '1px solid var(--border-subtle)' : 'none',
                 boxShadow: isDiving ? 'var(--shadow-md)' : 'none',
               }}>
-                <AiSidebar
-                  width={isDiving ? '100%' : '350px'}
-                  onClose={() => { setShowAiSidebar(false); setIsDiving(false); }}
-                  availableTables={availableTables}
-                  onOpenSettings={() => setIsSettingsOpen(true)}
-                  onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
-                  isDiving={isDiving}
-                  onExitDiving={() => { setIsDiving(false); setShowAiSidebar(false); }}
-                  onExportNotebook={handleExportNotebook}
-                  onOpenFile={(filePath) => {
-                    setIsDiving(false);
-                    setShowAiSidebar(false);
-                    layoutRef.current?.loadFile(filePath);
-                  }}
-                />
+                {isDiving ? (
+                  <AiDivingPanel
+                    width="100%"
+                    onClose={() => { setShowAiSidebar(false); setIsDiving(false); }}
+                    onExitDiving={() => { setIsDiving(false); setShowAiSidebar(false); }}
+                    onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
+                    onExportNotebook={handleExportNotebook}
+                    onOpenFile={(filePath) => {
+                      setIsDiving(false);
+                      setShowAiSidebar(false);
+                      layoutRef.current?.handleQueryFile(filePath);
+                    }}
+                    availableTables={availableTables}
+                  />
+                ) : (
+                  <AiAssistantPanel
+                    activeFilePath={activeTabInfo?.path || null}
+                    activeFileType={activeTabInfo?.type || null}
+                    activeFileContent={activeTabInfo?.content || null}
+                    activeResult={activeTabInfo?.results || null}
+                    activeChartConfig={activeTabInfo?.chartConfig || null}
+                    onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
+                    onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
+                    onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
+                    onClose={() => setShowAiSidebar(false)}
+                    availableTables={availableTables}
+                    onOpenSettings={() => setIsSettingsOpen(true)}
+                  />
+                )}
               </div>
             </div>
 
@@ -934,6 +979,7 @@ function App() {
           editorSettings={mergedEditorSettings}
           onEditorSettingsChange={(updates) => setEditorSettings(prev => ({ ...prev, ...updates }))}
         />
+
 
         <KeyboardShortcutsModal
           isOpen={isShortcutsOpen}

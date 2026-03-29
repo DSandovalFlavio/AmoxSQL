@@ -793,10 +793,15 @@ app.post('/api/ai/chat', async (req, res) => {
 const { getModelProfile: getModelProfileForRoute } = require('./ai/modelProfiles');
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
+    }
+
+    // Log assistant context for debugging
+    if (mode === 'assistant') {
+        console.log(`[AI Assistant Context] filePath=${filePath || 'none'} | fileType=${fileType || 'none'} | hasQuery=${!!currentQuery} | hasResult=${!!currentResult} | hasChart=${!!currentChartConfig}`);
     }
 
     // Set up SSE headers
@@ -826,6 +831,8 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             currentResult,
             currentChartConfig,
             activeSkillId,
+            filePath,
+            fileType,
         };
 
         // Detect model tier to choose between tool-loop and prompt-only
@@ -860,9 +867,23 @@ app.post('/api/ai/chat/stream', async (req, res) => {
                 if (part.type === 'text-delta') {
                     res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.textDelta || part.text })}\n\n`);
                 } else if (part.type === 'tool-call') {
-                    res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: part.args || {}, toolCallId: part.toolCallId })}\n\n`);
+                    // AI SDK v6 uses `input` instead of `args` for tool-call parts
+                    const toolArgs = part.input ?? part.args ?? {};
+                    res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: toolArgs, toolCallId: part.toolCallId })}\n\n`);
                 } else if (part.type === 'tool-result') {
-                    res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: part.result || { error: 'Failed' }, args: part.args || {} })}\n\n`);
+                    // AI SDK v6 uses `output` instead of `result`, and `input` instead of `args`
+                    const toolResult = part.output ?? part.result ?? { error: 'Tool returned no result' };
+                    const toolArgs = part.input ?? part.args ?? {};
+                    if (toolResult.error) {
+                        console.error(`[AI Tool Error] ${part.toolName}:`, toolResult.error);
+                    }
+                    res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: toolResult, args: toolArgs })}\n\n`);
+                } else if (part.type === 'tool-error') {
+                    // AI SDK v6 emits tool-error when a tool throws an unhandled exception
+                    const errorMsg = part.error?.message || String(part.error || 'Unknown tool error');
+                    const toolArgs = part.input ?? part.args ?? {};
+                    console.error(`[AI Tool Error] ${part.toolName}: ${errorMsg}`);
+                    res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: { error: errorMsg }, args: toolArgs })}\n\n`);
                 } else if (part.type === 'step-finish') {
                     res.write(`data: ${JSON.stringify({ type: 'step-finish' })}\n\n`);
                 } else if (part.type === 'finish') {
@@ -899,15 +920,33 @@ const aiTestRunner = require('./ai/testRunner');
  */
 app.get('/api/ai/conversations', async (req, res) => {
     try {
-        const { search, limit, offset } = req.query;
+        const { search, limit, offset, mode } = req.query;
         const conversations = await aiPersistence.getConversations(dbManager, {
             search,
             limit: limit ? parseInt(limit) : 50,
             offset: offset ? parseInt(offset) : 0,
+            mode,
         });
         res.json(conversations);
     } catch (err) {
         console.error('[API] List conversations error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * GET /api/ai/conversations/by-file — Get conversations for a specific file
+ * Query: ?path=relative/path/to/file.sql
+ * NOTE: Must be registered BEFORE /api/ai/conversations/:id to avoid route conflict
+ */
+app.get('/api/ai/conversations/by-file', async (req, res) => {
+    try {
+        const { path: filePath } = req.query;
+        if (!filePath) return res.status(400).json({ error: 'path query parameter is required' });
+        const conversations = await aiPersistence.getConversationsByFile(dbManager, filePath);
+        res.json(conversations);
+    } catch (err) {
+        console.error('[API] Get conversations by file error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1089,6 +1128,153 @@ app.get('/api/ai/skills/:id', async (req, res) => {
         res.json(skill);
     } catch (err) {
         console.error('[API] Get skill error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- AI File-Conversation & Session APIs --- */
+
+/**
+ * PUT /api/ai/conversations/:id/session-name — Update session name
+ * Body: { sessionName }
+ */
+app.put('/api/ai/conversations/:id/session-name', async (req, res) => {
+    try {
+        const { sessionName } = req.body;
+        if (!sessionName) return res.status(400).json({ error: 'sessionName is required' });
+        const result = await aiPersistence.updateSessionName(dbManager, req.params.id, sessionName);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Update session name error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- AI Diving Session APIs --- */
+
+/**
+ * GET /api/ai/sessions — List diving sessions with artifact counts
+ * Query: ?search=text&limit=50&offset=0
+ */
+app.get('/api/ai/sessions', async (req, res) => {
+    try {
+        const { search, limit, offset } = req.query;
+        const sessions = await aiPersistence.getDivingSessions(dbManager, {
+            search,
+            limit: limit ? parseInt(limit) : 50,
+            offset: offset ? parseInt(offset) : 0,
+        });
+        res.json(sessions);
+    } catch (err) {
+        console.error('[API] List diving sessions error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * GET /api/ai/sessions/:id/artifacts — Get artifacts for a session
+ */
+app.get('/api/ai/sessions/:id/artifacts', async (req, res) => {
+    try {
+        const artifacts = await aiPersistence.getArtifacts(dbManager, req.params.id);
+        res.json(artifacts);
+    } catch (err) {
+        console.error('[API] Get session artifacts error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/sessions/:id/artifacts — Add an artifact to a session
+ * Body: { artifactType, filePath, fileName, createdBy?, sqlSnapshot?, metadata?, saveLocation? }
+ */
+app.post('/api/ai/sessions/:id/artifacts', async (req, res) => {
+    try {
+        const artifact = await aiPersistence.createArtifact(dbManager, {
+            conversationId: req.params.id,
+            ...req.body,
+        });
+        res.json(artifact);
+    } catch (err) {
+        console.error('[API] Create artifact error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * DELETE /api/ai/sessions/:id/artifacts/:artifactId — Delete an artifact
+ */
+app.delete('/api/ai/sessions/:id/artifacts/:artifactId', async (req, res) => {
+    try {
+        const result = await aiPersistence.deleteArtifact(dbManager, req.params.artifactId);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Delete artifact error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- Analysis Vault APIs --- */
+
+/**
+ * GET /api/ai/vault — List vault entries
+ * Query: ?search=text&tags=tag1&limit=50&offset=0
+ */
+app.get('/api/ai/vault', async (req, res) => {
+    try {
+        const { search, tags, limit, offset } = req.query;
+        const entries = await aiPersistence.getVaultEntries(dbManager, {
+            search,
+            tags,
+            limit: limit ? parseInt(limit) : 50,
+            offset: offset ? parseInt(offset) : 0,
+        });
+        res.json(entries);
+    } catch (err) {
+        console.error('[API] List vault entries error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/vault — Save an analysis to the vault
+ * Body: { title, description?, sqlContent?, resultSnapshot?, chartConfig?, tags?, sourceFile?, conversationId? }
+ */
+app.post('/api/ai/vault', async (req, res) => {
+    try {
+        const { title } = req.body;
+        if (!title) return res.status(400).json({ error: 'title is required' });
+        const entry = await aiPersistence.saveToVault(dbManager, req.body);
+        res.json(entry);
+    } catch (err) {
+        console.error('[API] Save to vault error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/ai/vault/:id — Update a vault entry
+ * Body: { title?, description?, tags? }
+ */
+app.put('/api/ai/vault/:id', async (req, res) => {
+    try {
+        const result = await aiPersistence.updateVaultEntry(dbManager, req.params.id, req.body);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Update vault entry error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * DELETE /api/ai/vault/:id — Delete a vault entry
+ */
+app.delete('/api/ai/vault/:id', async (req, res) => {
+    try {
+        const result = await aiPersistence.deleteVaultEntry(dbManager, req.params.id);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Delete vault entry error:', err);
         res.status(500).json({ error: err.message });
     }
 });
