@@ -188,7 +188,7 @@ class DatabaseManager {
         // Log it (fire & forget logic inside)
         // Only log if we have an attached DB (implicit check in _logQuery)
         // And ensure we don't cause infinite text loop
-        if (!sql.includes('amox_query_history')) {
+        if (sql && !sql.includes('amox_query_history')) {
             this._logQuery(sql);
         }
 
@@ -202,14 +202,14 @@ class DatabaseManager {
             return rows;
 
         } catch (err) {
-            throw new Error(err.message);
+            throw new Error(err?.message || String(err));
         }
     }
 
     async queryWithMetadata(sql) {
         if (!this.connection) await this._initSystem();
 
-        if (!sql.includes('amox_query_history')) {
+        if (sql && !sql.includes('amox_query_history')) {
             this._logQuery(sql);
         }
 
@@ -229,7 +229,7 @@ class DatabaseManager {
             return { rows, types };
 
         } catch (err) {
-            throw new Error(err.message);
+            throw new Error(err?.message || String(err));
         }
     }
 

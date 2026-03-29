@@ -174,6 +174,8 @@ class AiManager {
             currentResult = null,
             currentChartConfig = null,
             activeSkillId = null,
+            filePath = null,
+            fileType = null,
         } = options;
 
         const provider = providerOverride || this.provider;
@@ -194,11 +196,12 @@ class AiManager {
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
             activeSkill, modelProfile: profile,
+            filePath, fileType,
         });
 
-        // Create tool context
+        // Create tool context (mode-aware for tool filtering)
         const queryResults = new Map();
-        const tools = createTools({ dbManager, queryResults, projectPath });
+        const tools = createTools({ dbManager, queryResults, projectPath, mode });
 
         console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
@@ -237,8 +240,12 @@ class AiManager {
                         for (const tc of step.toolCalls) {
                             toolResults.push({
                                 toolName: tc.toolName,
-                                args: tc.args,
-                                result: step.toolResults?.find(tr => tr.toolCallId === tc.toolCallId)?.result,
+                                args: tc.input ?? tc.args,
+                                // AI SDK v6 uses `output` instead of `result`
+                                result: (() => {
+                                    const tr = step.toolResults?.find(tr => tr.toolCallId === tc.toolCallId);
+                                    return tr?.output ?? tr?.result;
+                                })(),
                             });
                         }
                     }
@@ -286,6 +293,8 @@ class AiManager {
             currentResult = null,
             currentChartConfig = null,
             activeSkillId = null,
+            filePath = null,
+            fileType = null,
         } = options;
 
         const provider = providerOverride || this.provider;
@@ -305,10 +314,11 @@ class AiManager {
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
             activeSkill, modelProfile: profile,
+            filePath, fileType,
         });
 
         const queryResults = new Map();
-        const tools = createTools({ dbManager, queryResults, projectPath });
+        const tools = createTools({ dbManager, queryResults, projectPath, mode });
 
         console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 

@@ -390,6 +390,8 @@ const EditorPane = ({
                             onRunQuery={(q) => onRunQuery(activeTab.id, q)}
                             onSave={() => onSave && onSave()}
                             filePath={activeTab.path || null}
+                            onToggleAi={onToggleAi}
+                            showAiSidebar={showAiSidebar}
                         />
                     </div>
                 ) : (

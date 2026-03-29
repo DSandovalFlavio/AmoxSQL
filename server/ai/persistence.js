@@ -84,6 +84,54 @@ class AiPersistence {
                 )
             `);
 
+            // ─── Schema Migration: new columns for conversations ───
+            const migrationColumns = [
+                { name: 'file_path', type: 'VARCHAR' },
+                { name: 'session_name', type: 'VARCHAR' },
+                { name: 'description', type: 'VARCHAR' },
+                { name: 'archived', type: 'BOOLEAN DEFAULT false' },
+            ];
+            for (const col of migrationColumns) {
+                try {
+                    await dbManager.systemQuery(
+                        `ALTER TABLE amoxsql_ai.conversations ADD COLUMN ${col.name} ${col.type}`
+                    );
+                } catch { /* column already exists — safe to ignore */ }
+            }
+
+            // ─── Session Artifacts (Data Diving) ───
+            await dbManager.systemQuery(`
+                CREATE TABLE IF NOT EXISTS amoxsql_ai.session_artifacts (
+                    id              VARCHAR PRIMARY KEY,
+                    conversation_id VARCHAR NOT NULL,
+                    artifact_type   VARCHAR NOT NULL,
+                    file_path       VARCHAR,
+                    file_name       VARCHAR,
+                    created_by      VARCHAR DEFAULT 'ai',
+                    sql_snapshot    VARCHAR,
+                    metadata        VARCHAR,
+                    save_location   VARCHAR DEFAULT 'session',
+                    created_at      TIMESTAMP DEFAULT current_timestamp
+                )
+            `);
+
+            // ─── Analysis Vault ───
+            await dbManager.systemQuery(`
+                CREATE TABLE IF NOT EXISTS amoxsql_ai.analysis_vault (
+                    id              VARCHAR PRIMARY KEY,
+                    conversation_id VARCHAR,
+                    title           VARCHAR NOT NULL,
+                    description     VARCHAR,
+                    sql_content     VARCHAR,
+                    result_snapshot VARCHAR,
+                    chart_config    VARCHAR,
+                    tags            VARCHAR,
+                    source_file     VARCHAR,
+                    created_at      TIMESTAMP DEFAULT current_timestamp,
+                    updated_at      TIMESTAMP DEFAULT current_timestamp
+                )
+            `);
+
             console.log('[AI Persistence] Schema amoxsql_ai initialized.');
         } catch (err) {
             console.warn('[AI Persistence] Schema init warning:', err.message);
@@ -96,34 +144,54 @@ class AiPersistence {
      * Create a new conversation.
      * @returns {object} The created conversation
      */
-    async createConversation(dbManager, { mode = 'diving', provider, model, title } = {}) {
+    async createConversation(dbManager, { mode = 'diving', provider, model, title, file_path, session_name, description } = {}) {
         const id = generateId();
         const safeTitle = (title || 'New Conversation').replace(/'/g, "''");
         const safeProvider = (provider || '').replace(/'/g, "''");
         const safeModel = (model || '').replace(/'/g, "''");
+        const safeFilePath = file_path ? file_path.replace(/'/g, "''") : null;
+        const safeSessionName = session_name ? session_name.replace(/'/g, "''") : null;
+        const safeDescription = description ? description.replace(/'/g, "''") : null;
 
         await dbManager.systemQuery(`
-            INSERT INTO amoxsql_ai.conversations (id, title, mode, provider, model)
-            VALUES ('${id}', '${safeTitle}', '${mode}', '${safeProvider}', '${safeModel}')
+            INSERT INTO amoxsql_ai.conversations (id, title, mode, provider, model, file_path, session_name, description)
+            VALUES ('${id}', '${safeTitle}', '${mode}', '${safeProvider}', '${safeModel}', ${safeFilePath ? `'${safeFilePath}'` : 'NULL'}, ${safeSessionName ? `'${safeSessionName}'` : 'NULL'}, ${safeDescription ? `'${safeDescription}'` : 'NULL'})
         `);
 
-        return { id, title: title || 'New Conversation', mode, provider, model, is_starred: false, created_at: new Date().toISOString() };
+        return { id, title: title || 'New Conversation', mode, provider, model, is_starred: false, file_path: file_path || null, session_name: session_name || null, description: description || null, created_at: new Date().toISOString() };
     }
 
     /**
      * Get all conversations, newest first.
      * @param {object} options - { search, limit }
      */
-    async getConversations(dbManager, { search, limit = 50, offset = 0 } = {}) {
-        let query = `SELECT * FROM amoxsql_ai.conversations`;
+    async getConversations(dbManager, { search, limit = 50, offset = 0, mode } = {}) {
+        const conditions = [];
         if (search) {
             const safeSearch = search.replace(/'/g, "''");
-            query += ` WHERE title ILIKE '%${safeSearch}%'`;
+            conditions.push(`title ILIKE '%${safeSearch}%'`);
         }
+        if (mode) {
+            conditions.push(`mode = '${mode}'`);
+        }
+        let query = `SELECT * FROM amoxsql_ai.conversations`;
+        if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
         query += ` ORDER BY updated_at DESC LIMIT ${limit}`;
         if (offset > 0) query += ` OFFSET ${offset}`;
 
         return dbManager.systemQuery(query);
+    }
+
+    /**
+     * Get conversations associated with a specific file (assistant mode).
+     */
+    async getConversationsByFile(dbManager, filePath) {
+        const safePath = filePath.replace(/'/g, "''");
+        return dbManager.systemQuery(`
+            SELECT * FROM amoxsql_ai.conversations
+            WHERE file_path = '${safePath}' AND mode = 'assistant'
+            ORDER BY updated_at DESC
+        `);
     }
 
     /**
@@ -206,7 +274,23 @@ class AiPersistence {
             await dbManager.systemQuery(`DELETE FROM amoxsql_ai.messages WHERE conversation_id = '${id}'`);
         }
 
+        // Delete session artifacts
+        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.session_artifacts WHERE conversation_id = '${id}'`);
+
         await dbManager.systemQuery(`DELETE FROM amoxsql_ai.conversations WHERE id = '${id}'`);
+        return { success: true };
+    }
+
+    /**
+     * Update session name for a diving conversation.
+     */
+    async updateSessionName(dbManager, id, sessionName) {
+        const safeName = sessionName.replace(/'/g, "''");
+        await dbManager.systemQuery(`
+            UPDATE amoxsql_ai.conversations
+            SET session_name = '${safeName}', updated_at = current_timestamp
+            WHERE id = '${id}'
+        `);
         return { success: true };
     }
 
@@ -319,6 +403,146 @@ class AiPersistence {
             VALUES ('${id}', '${category}', '${safeContent}')
         `);
         return { id };
+    }
+
+    // ─── Session Artifacts ───
+
+    /**
+     * Create an artifact linked to a diving session.
+     */
+    async createArtifact(dbManager, { conversationId, artifactType, filePath, fileName, createdBy = 'ai', sqlSnapshot, metadata, saveLocation = 'session' }) {
+        const id = generateId();
+        const safePath = filePath ? filePath.replace(/'/g, "''") : null;
+        const safeName = fileName ? fileName.replace(/'/g, "''") : null;
+        const safeSql = sqlSnapshot ? sqlSnapshot.replace(/'/g, "''") : null;
+        const safeMeta = metadata ? JSON.stringify(metadata).replace(/'/g, "''") : null;
+
+        await dbManager.systemQuery(`
+            INSERT INTO amoxsql_ai.session_artifacts (id, conversation_id, artifact_type, file_path, file_name, created_by, sql_snapshot, metadata, save_location)
+            VALUES ('${id}', '${conversationId}', '${artifactType}', ${safePath ? `'${safePath}'` : 'NULL'}, ${safeName ? `'${safeName}'` : 'NULL'}, '${createdBy}', ${safeSql ? `'${safeSql}'` : 'NULL'}, ${safeMeta ? `'${safeMeta}'` : 'NULL'}, '${saveLocation}')
+        `);
+
+        return { id, conversationId, artifactType, filePath, fileName, createdBy, saveLocation, created_at: new Date().toISOString() };
+    }
+
+    /**
+     * Get all artifacts for a session.
+     */
+    async getArtifacts(dbManager, conversationId) {
+        const artifacts = await dbManager.systemQuery(`
+            SELECT * FROM amoxsql_ai.session_artifacts
+            WHERE conversation_id = '${conversationId}'
+            ORDER BY created_at ASC
+        `);
+        for (const a of artifacts) {
+            if (a.metadata) { try { a.metadata = JSON.parse(a.metadata); } catch {} }
+        }
+        return artifacts;
+    }
+
+    /**
+     * Delete an artifact.
+     */
+    async deleteArtifact(dbManager, id) {
+        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.session_artifacts WHERE id = '${id}'`);
+        return { success: true };
+    }
+
+    /**
+     * Get diving sessions with artifact counts.
+     */
+    async getDivingSessions(dbManager, { search, limit = 50, offset = 0 } = {}) {
+        const conditions = [`c.mode = 'diving'`];
+        if (search) {
+            const safeSearch = search.replace(/'/g, "''");
+            conditions.push(`(c.title ILIKE '%${safeSearch}%' OR c.session_name ILIKE '%${safeSearch}%')`);
+        }
+
+        const query = `
+            SELECT c.*, COUNT(a.id) AS artifact_count
+            FROM amoxsql_ai.conversations c
+            LEFT JOIN amoxsql_ai.session_artifacts a ON a.conversation_id = c.id
+            WHERE ${conditions.join(' AND ')}
+            GROUP BY c.id, c.title, c.mode, c.is_starred, c.provider, c.model,
+                     c.created_at, c.updated_at, c.file_path, c.session_name,
+                     c.description, c.archived
+            ORDER BY c.updated_at DESC
+            LIMIT ${limit}${offset > 0 ? ` OFFSET ${offset}` : ''}
+        `;
+        return dbManager.systemQuery(query);
+    }
+
+    // ─── Analysis Vault ───
+
+    /**
+     * Save an analysis to the vault.
+     */
+    async saveToVault(dbManager, { conversationId, title, description, sqlContent, resultSnapshot, chartConfig, tags, sourceFile }) {
+        const id = generateId();
+        const safeTitle = title.replace(/'/g, "''");
+        const safeDesc = description ? description.replace(/'/g, "''") : null;
+        const safeSql = sqlContent ? sqlContent.replace(/'/g, "''") : null;
+        const safeResult = resultSnapshot ? JSON.stringify(resultSnapshot).replace(/'/g, "''") : null;
+        const safeChart = chartConfig ? JSON.stringify(chartConfig).replace(/'/g, "''") : null;
+        const safeTags = tags ? tags.replace(/'/g, "''") : null;
+        const safeSource = sourceFile ? sourceFile.replace(/'/g, "''") : null;
+
+        await dbManager.systemQuery(`
+            INSERT INTO amoxsql_ai.analysis_vault (id, conversation_id, title, description, sql_content, result_snapshot, chart_config, tags, source_file)
+            VALUES ('${id}', ${conversationId ? `'${conversationId}'` : 'NULL'}, '${safeTitle}', ${safeDesc ? `'${safeDesc}'` : 'NULL'}, ${safeSql ? `'${safeSql}'` : 'NULL'}, ${safeResult ? `'${safeResult}'` : 'NULL'}, ${safeChart ? `'${safeChart}'` : 'NULL'}, ${safeTags ? `'${safeTags}'` : 'NULL'}, ${safeSource ? `'${safeSource}'` : 'NULL'})
+        `);
+
+        return { id, title, description, tags, sourceFile, created_at: new Date().toISOString() };
+    }
+
+    /**
+     * Get vault entries with optional search and tag filter.
+     */
+    async getVaultEntries(dbManager, { search, tags, limit = 50, offset = 0 } = {}) {
+        const conditions = [];
+        if (search) {
+            const safeSearch = search.replace(/'/g, "''");
+            conditions.push(`(title ILIKE '%${safeSearch}%' OR description ILIKE '%${safeSearch}%')`);
+        }
+        if (tags) {
+            const safeTags = tags.replace(/'/g, "''");
+            conditions.push(`tags ILIKE '%${safeTags}%'`);
+        }
+
+        let query = `SELECT * FROM amoxsql_ai.analysis_vault`;
+        if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
+        query += ` ORDER BY updated_at DESC LIMIT ${limit}`;
+        if (offset > 0) query += ` OFFSET ${offset}`;
+
+        const entries = await dbManager.systemQuery(query);
+        for (const e of entries) {
+            if (e.result_snapshot) { try { e.result_snapshot = JSON.parse(e.result_snapshot); } catch {} }
+            if (e.chart_config) { try { e.chart_config = JSON.parse(e.chart_config); } catch {} }
+        }
+        return entries;
+    }
+
+    /**
+     * Update a vault entry.
+     */
+    async updateVaultEntry(dbManager, id, changes) {
+        const sets = [];
+        if (changes.title !== undefined) sets.push(`title = '${changes.title.replace(/'/g, "''")}'`);
+        if (changes.description !== undefined) sets.push(`description = '${changes.description.replace(/'/g, "''")}'`);
+        if (changes.tags !== undefined) sets.push(`tags = '${changes.tags.replace(/'/g, "''")}'`);
+        if (sets.length === 0) return { success: true };
+
+        sets.push(`updated_at = current_timestamp`);
+        await dbManager.systemQuery(`UPDATE amoxsql_ai.analysis_vault SET ${sets.join(', ')} WHERE id = '${id}'`);
+        return { success: true };
+    }
+
+    /**
+     * Delete a vault entry.
+     */
+    async deleteVaultEntry(dbManager, id) {
+        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.analysis_vault WHERE id = '${id}'`);
+        return { success: true };
     }
 }
 

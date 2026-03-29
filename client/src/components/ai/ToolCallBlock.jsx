@@ -66,7 +66,7 @@ const ToolCallBlock = ({ toolName, args, result, isLoading = false }) => {
                     <span className="ai-tool-meta">{args.table_name}</span>
                 )}
                 {hasError && (
-                    <span className="ai-tool-meta ai-tool-meta--error">Error</span>
+                    <span className="ai-tool-meta ai-tool-meta--error">Failed</span>
                 )}
 
                 {!isLoading && (
@@ -75,6 +75,13 @@ const ToolCallBlock = ({ toolName, args, result, isLoading = false }) => {
                     </span>
                 )}
             </div>
+
+            {/* Error preview — always visible when failed */}
+            {hasError && !isExpanded && (
+                <div className="ai-tool-error-preview">
+                    {result.error}
+                </div>
+            )}
 
             {/* Expandable details */}
             {isExpanded && !isLoading && (
@@ -89,9 +96,11 @@ const ToolCallBlock = ({ toolName, args, result, isLoading = false }) => {
                     )}
                     {result && (
                         <div className="ai-tool-details-section">
-                            <div className="ai-tool-details-label">Output</div>
+                            <div className="ai-tool-details-label">
+                                {hasError ? 'Error Details' : 'Output'}
+                            </div>
                             <pre className={`ai-tool-pre ${hasError ? 'ai-tool-pre--error' : ''}`}>
-                                {typeof result === 'string' ? result : JSON.stringify(result, null, 2).substring(0, 500)}
+                                {typeof result === 'string' ? result : JSON.stringify(result, null, 2).substring(0, 800)}
                             </pre>
                         </div>
                     )}

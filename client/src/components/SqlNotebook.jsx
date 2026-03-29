@@ -3,11 +3,11 @@ import ReactDOM from 'react-dom';
 import NotebookCell from './NotebookCell';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave } from "react-icons/lu";
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
 import { parseNotebookContent, parseNotebookEnvironment, serializeNotebookContent } from '../utils/notebookParser';
 
-const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null }) => {
+const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, onToggleAi, showAiSidebar }) => {
     const [cells, setCells] = useState([]);
     const [results, setResults] = useState({});
 
@@ -433,6 +433,21 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null })
                     <button onClick={onSave} className="snb-btn snb-btn--ghost" title="Save (Ctrl+S)">
                         <LuSave size={13} /> Save
                     </button>
+                )}
+
+                {/* AI Assistant */}
+                {onToggleAi && (
+                    <>
+                        <div className="snb-separator" />
+                        <button
+                            onClick={onToggleAi}
+                            className={`snb-btn ${showAiSidebar ? 'snb-btn--active' : 'snb-btn--accent-outline'}`}
+                            title={showAiSidebar ? 'Close AI Assistant' : 'Open AI Assistant'}
+                        >
+                            {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
+                            {showAiSidebar ? 'Close AI' : 'AI'}
+                        </button>
+                    </>
                 )}
             </div>
 
