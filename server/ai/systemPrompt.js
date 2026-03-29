@@ -150,7 +150,10 @@ ${now}
 - **describe_table**: Get detailed schema and sample data from a table
 - **display_chart**: Create a chart visualization from query results
 - **read_file**: Read a text file from the project directory for additional context (SQL files, docs, CSVs)
-- **build_notebook**: Create a SQL Notebook (.sqlnb) with markdown + SQL cells for comprehensive analysis
+- **build_notebook**: Create a SQL Notebook (.sqlnb) with markdown + SQL cells for comprehensive analysis (diving mode)
+- **edit_file**: Replace the content of the active file in the editor (assistant mode)
+- **update_chart_config**: Modify the active chart's visual configuration (assistant mode)
+- **save_to_vault**: Save an important analysis to the permanent vault for future reference
 - **suggest_followups**: Suggest follow-up questions (call this last)
 
 ## Tool Usage Rules
@@ -206,9 +209,14 @@ ${formatFileSchemas(files)}`;
     // Mode-specific instructions
     if (mode === 'assistant') {
         prompt += `\n\n## Mode: Editor Assistant
-You are helping the user while they work in the SQL editor. Be concise — the sidebar has limited space.
+You are helping the user while they work in the SQL editor or notebook. Be concise — the sidebar has limited space.
+This conversation is linked to the active file. The user can see their chat history per file.`;
 
-### Context from Editor`;
+        if (options.filePath) {
+            prompt += `\n\n### Active File: \`${options.filePath}\` (${options.fileType || 'sql'})`;
+        }
+
+        prompt += `\n\n### Context from Editor`;
 
         if (currentQuery) {
             prompt += `\n**Current query in editor:**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
@@ -222,14 +230,36 @@ You are helping the user while they work in the SQL editor. Be concise — the s
 
         if (currentChartConfig) {
             prompt += `\n**Current chart:** ${currentChartConfig.chartType} chart, X: ${currentChartConfig.xAxisKey}, Y: ${currentChartConfig.yAxisKeys?.join(', ')}`;
+            // Inject full chart config schema documentation so the AI can modify any property
+            prompt += `\n\n### Chart Configuration Schema
+You can use \`update_chart_config\` to change ANY of these properties:
+**Chart Types**: bar, bar-stacked, bar-horizontal, bar-100, line, area, donut, scatter, bubble, combo, funnel, heatmap, treemap
+**Data Config**: xAxisKey (string), yAxisKeys (string[]), rightYAxisKey (string), splitByKey (string), bubbleSizeKey (string), dateAggregation ("none"|"year"|"quarter"|"month"|"week"|"day"), sortMode ("none"|"asc"|"desc"), limit (number, max rows)
+**Labels & Tooltips**: showLabels (bool), dataLabelPosition ("outside"|"inside"|"top"|"center"), dataLabelSize (number), tooltipShowPercent (bool), showPercentages (bool)
+**Colors & Theme**: colorTheme ("default"|"vivid"|"set1"|"set2"|"pastel"|"dark2"|"blues"|"greens"|"reds"|"purples"|"ocean"|"sunset"|"corporate"|"neon"), backgroundTone ("transparent"|"light"|"medium"|"dark"), fontFamily (string), textScale (number 0.5-2)
+**Number Formatting**: numberFormat ("compact"|"standard"|"currency"|"percent"|"scientific"), decimalPlaces (number 0-6)
+**Grid & Axes**: gridMode ("both"|"x"|"y"|"none"), showAxisLines (bool), yLogScale (bool), yAxisDomain (array), xAxisLabelAngle (number), xAxisTitle (string), yAxisTitle (string)
+**Line Charts**: lineType ("monotone"|"linear"|"step"|"natural"), lineAreaFill (bool), showDots (bool), isCumulative (bool)
+**Bar Charts**: barRadius (number 0-20), barStackMode ("none"|"stacked"|"percent")
+**Donut**: donutThickness (number 0-100)
+**Scatter**: scatterQuadrants (bool)
+**Storytelling**: chartTitle (string), chartSubtitle (string), chartFootnote (string), textAlign ("left"|"center"|"right")
+**Legend**: legendPosition ("bottom"|"top"|"left"|"right"|"none")
+**Reference Lines**: refLine ({axis, value, label, color}), goalLine ({value, label, color}), trendLine (bool)
+**Current config values:**
+\`\`\`json
+${JSON.stringify(currentChartConfig, null, 2)}
+\`\`\``;
         }
 
-        prompt += `\n\nYou can help with:
-- Generating new SQL queries
-- Explaining or optimizing the current query
-- Fixing errors in the current query
-- Suggesting better visualizations for the current result
-- Adding analysis cells to the user's notebook`;
+        prompt += `\n\n### Your Capabilities
+- **edit_file**: Replace the active file content (fix queries, optimize SQL, rewrite code). Changes appear in the editor for user review.
+- **update_chart_config**: Modify any chart property (change type, colors, labels, axes, formatting). Changes apply instantly.
+- **save_to_vault**: Save important analyses permanently (survives file deletion).
+- Generate new SQL queries
+- Explain or optimize the current query
+- Fix errors in the current query
+- Suggest better visualizations for the current result`;
 
     } else {
         prompt += `\n\n## Mode: Data Diving

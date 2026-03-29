@@ -410,6 +410,42 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         // --- Standalone handleQueryFile function (used by imperative handle + DnD) ---
         handleQueryFile: (filePath) => handleQueryFile(filePath),
+        // ─── AI Integration: update active tab content (for edit_file tool) ───
+        updateActiveContent: (content) => {
+            const tab = getActiveTab();
+            if (tab) {
+                updateTab(activePane, tab.id, { content, dirty: true });
+            }
+        },
+
+        // ─── AI Integration: merge chart config changes (for update_chart_config tool) ───
+        updateActiveChartConfig: (changes) => {
+            const tab = getActiveTab();
+            if (tab) {
+                const current = tab.chartConfig || tab.initialChartConfig || {};
+                updateTab(activePane, tab.id, {
+                    chartConfig: { ...current, ...changes },
+                    initialChartConfig: { ...current, ...changes },
+                });
+            }
+        },
+
+        // ─── AI Integration: get info about the active tab ───
+        getActiveTabInfo: () => {
+            const tab = getActiveTab();
+            if (!tab) return null;
+            return {
+                path: tab.path,
+                name: tab.name,
+                type: tab.type,
+                content: tab.content,
+                results: tab.results,
+                resultsQuery: tab.resultsQuery,
+                chartConfig: tab.chartConfig || tab.initialChartConfig || null,
+                dirty: tab.dirty,
+            };
+        },
+
         handleEditChart: async (filePath) => {
             try {
                 // Fetch the config
