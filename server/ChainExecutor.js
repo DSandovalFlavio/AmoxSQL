@@ -190,9 +190,87 @@ class ChainExecutor {
         return { resultType: 'unknown', details: {} };
     }
 
+    // --- Output Context ---
+
+    /**
+     * Resolve the output reference from upstream parent nodes.
+     * Returns the table/view name or query that can be used by downstream nodes.
+     * If multiple parents, returns an array of references.
+     */
+    resolveUpstreamOutputs(nodeId, parentMap, nodeOutputs) {
+        const parents = parentMap.get(nodeId) || [];
+        const outputs = [];
+        for (const pid of parents) {
+            const out = nodeOutputs.get(pid);
+            if (out) outputs.push(out);
+        }
+        return outputs;
+    }
+
+    /**
+     * Build a SELECT query from an upstream output reference.
+     */
+    outputToQuery(output) {
+        if (!output) return null;
+        if (output.table) return `SELECT * FROM "${output.table}"`;
+        if (output.view) return `SELECT * FROM "${output.view}"`;
+        if (output.query) return output.query;
+        return null;
+    }
+
+    /**
+     * Extract the output reference from a node's execution result.
+     * This is stored in nodeOutputs so downstream nodes can use it.
+     */
+    extractOutputRef(node, sql, resultType, resultSummary, upstreamOutputs = []) {
+        // For table_ref, the output is the referenced table
+        if (node.type === 'table_ref') {
+            return { table: node.config?.tableName || null };
+        }
+
+        // Assert and checkpoint are pass-through: forward the upstream output
+        if (node.type === 'assert' || node.type === 'checkpoint') {
+            if (resultSummary.table) return { table: resultSummary.table };
+            return upstreamOutputs[0] || null;
+        }
+
+        // For import nodes, the output is the created table
+        if (resultType === 'table_created' && resultSummary.table) {
+            return { table: resultSummary.table };
+        }
+
+        // For CREATE TABLE/VIEW, extract the name
+        if (resultType === 'table_created' && resultSummary.table) {
+            return { table: resultSummary.table };
+        }
+        if (resultType === 'view_created' && resultSummary.view) {
+            return { view: resultSummary.view };
+        }
+
+        // For sql_file/sql_inline that do CREATE TABLE/VIEW, extract from detected details
+        if (resultSummary.table && (resultType === 'table_created' || resultType === 'rows_inserted')) {
+            return { table: resultSummary.table };
+        }
+        if (resultSummary.view) {
+            return { view: resultSummary.view };
+        }
+
+        // For SELECT queries, wrap as subquery reference
+        if (resultType === 'query_result' && sql) {
+            return { query: sql.replace(/;\s*$/, '') };
+        }
+
+        // For merge_tables, the output is the merged table
+        if (node.type === 'merge_tables' && resultSummary.table) {
+            return { table: resultSummary.table };
+        }
+
+        return null;
+    }
+
     // --- Node Execution ---
 
-    async executeNode(node, dbManager, projectPath) {
+    async executeNode(node, dbManager, projectPath, upstreamOutputs = []) {
         const { type, config = {} } = node;
         let sql = '';
         let resultType = 'unknown';
@@ -218,6 +296,115 @@ class ChainExecutor {
                 break;
             }
 
+            case 'table_ref': {
+                const tableName = config.tableName || '';
+                if (!tableName) throw new Error('Table Reference node has no table selected');
+                // Validate table exists
+                const checkResult = await dbManager.query(
+                    `SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_name = '${tableName.replace(/'/g, "''")}'`
+                );
+                const exists = checkResult[0]?.cnt > 0;
+                if (!exists) throw new Error(`Table "${tableName}" does not exist`);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                sql = `-- Table Reference: ${tableName}`;
+                resultType = 'table_referenced';
+                resultSummary = { table: tableName, rowCount };
+                break;
+            }
+
+            case 'merge_tables': {
+                const targetTable = config.tableName || 'merged_data';
+                const mergeMode = config.mergeMode || 'union_all';
+
+                // Build UNION ALL / UNION from upstream outputs
+                const queries = [];
+                for (const out of upstreamOutputs) {
+                    const q = this.outputToQuery(out);
+                    if (q) queries.push(q);
+                }
+                if (queries.length === 0) {
+                    throw new Error('Merge Tables node has no upstream data sources connected');
+                }
+
+                const joiner = mergeMode === 'union' ? ' UNION ' : ' UNION ALL ';
+                const combinedQuery = queries.join(joiner);
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS ${combinedQuery}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount, sourceCount: queries.length };
+                break;
+            }
+
+            case 'assert': {
+                const assertType = config.assertType || 'row_count_gt';
+                const targetTable = config.tableName || '';
+
+                // Resolve table: use config or first upstream output
+                let tableToCheck = targetTable;
+                if (!tableToCheck && upstreamOutputs.length > 0) {
+                    const up = upstreamOutputs[0];
+                    tableToCheck = up.table || up.view || '';
+                }
+                if (!tableToCheck) throw new Error('Assert node: no table specified and no upstream table found');
+
+                if (assertType === 'row_count_gt') {
+                    const threshold = parseInt(config.threshold) || 0;
+                    sql = `SELECT COUNT(*) as cnt FROM "${tableToCheck}"`;
+                    const result = await dbManager.query(sql);
+                    const count = result[0]?.cnt || 0;
+                    if (count <= threshold) {
+                        throw new Error(`Assertion failed: "${tableToCheck}" has ${count} rows (expected > ${threshold})`);
+                    }
+                    resultType = 'assertion_passed';
+                    resultSummary = { table: tableToCheck, assertion: `rows > ${threshold}`, actual: count };
+                } else if (assertType === 'not_empty') {
+                    sql = `SELECT COUNT(*) as cnt FROM "${tableToCheck}"`;
+                    const result = await dbManager.query(sql);
+                    const count = result[0]?.cnt || 0;
+                    if (count === 0) {
+                        throw new Error(`Assertion failed: "${tableToCheck}" is empty`);
+                    }
+                    resultType = 'assertion_passed';
+                    resultSummary = { table: tableToCheck, assertion: 'not empty', actual: count };
+                } else if (assertType === 'no_nulls') {
+                    const column = config.column || '';
+                    if (!column) throw new Error('Assert "no nulls": column not specified');
+                    sql = `SELECT COUNT(*) as cnt FROM "${tableToCheck}" WHERE "${column}" IS NULL`;
+                    const result = await dbManager.query(sql);
+                    const nullCount = result[0]?.cnt || 0;
+                    if (nullCount > 0) {
+                        throw new Error(`Assertion failed: "${tableToCheck}"."${column}" has ${nullCount} NULL values`);
+                    }
+                    resultType = 'assertion_passed';
+                    resultSummary = { table: tableToCheck, assertion: `no nulls in ${column}`, actual: 0 };
+                } else if (assertType === 'unique') {
+                    const column = config.column || '';
+                    if (!column) throw new Error('Assert "unique": column not specified');
+                    sql = `SELECT COUNT(*) - COUNT(DISTINCT "${column}") as dupes FROM "${tableToCheck}"`;
+                    const result = await dbManager.query(sql);
+                    const dupes = result[0]?.dupes || 0;
+                    if (dupes > 0) {
+                        throw new Error(`Assertion failed: "${tableToCheck}"."${column}" has ${dupes} duplicate values`);
+                    }
+                    resultType = 'assertion_passed';
+                    resultSummary = { table: tableToCheck, assertion: `${column} is unique`, actual: 'pass' };
+                } else if (assertType === 'custom_query') {
+                    sql = config.query || '';
+                    if (!sql) throw new Error('Assert "custom query": no query provided');
+                    const result = await dbManager.query(sql);
+                    const count = Array.isArray(result) ? result.length : 0;
+                    if (count === 0) {
+                        throw new Error('Assertion failed: custom query returned no rows (expected at least 1)');
+                    }
+                    resultType = 'assertion_passed';
+                    resultSummary = { assertion: 'custom query', actual: `${count} rows` };
+                }
+                break;
+            }
+
             case 'import_file': {
                 const sourcePath = path.resolve(projectPath, config.sourcePath).replace(/\\/g, '/');
                 const tableName = config.tableName || 'imported_data';
@@ -235,7 +422,7 @@ class ChainExecutor {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${sourcePath}', auto_detect=true)`;
                 }
 
-                const result = await dbManager.query(sql);
+                await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
                 const rowCount = countResult[0]?.cnt || 0;
                 resultType = 'table_created';
@@ -268,7 +455,19 @@ class ChainExecutor {
             case 'export_file': {
                 const outputPath = path.resolve(projectPath, config.outputPath).replace(/\\/g, '/');
                 const format = config.format || 'csv';
-                const query = config.query || '';
+                let query = config.query || '';
+
+                // AUTO-RESOLVE: If no query configured, use upstream node's output
+                if (!query && upstreamOutputs.length > 0) {
+                    const upstreamQuery = this.outputToQuery(upstreamOutputs[0]);
+                    if (upstreamQuery) {
+                        query = upstreamQuery;
+                    }
+                }
+
+                if (!query) {
+                    throw new Error('Export node has no query and no upstream data source connected. Connect a node that produces a table or write a query manually.');
+                }
 
                 // Ensure output directory exists
                 const outputDir = path.dirname(outputPath);
@@ -289,15 +488,345 @@ class ChainExecutor {
                 await dbManager.query(sql);
                 const stat = fs.existsSync(outputPath) ? fs.statSync(outputPath) : null;
                 resultType = 'file_exported';
-                resultSummary = { path: config.outputPath, format, size: stat ? `${(stat.size / 1024).toFixed(1)} KB` : 'unknown' };
+                resultSummary = { path: config.outputPath, format, size: stat ? `${(stat.size / 1024).toFixed(1)} KB` : 'unknown', resolvedQuery: query };
                 break;
             }
 
             case 'checkpoint': {
                 resultType = 'checkpoint_reached';
                 resultSummary = { label: config.resumeLabel || node.label || 'Checkpoint' };
-                // Checkpoint signals the executor to pause — handled by the run loop
                 return { sql: '', resultType, resultSummary, isCheckpoint: true };
+            }
+
+            case 'join_tables': {
+                const targetTable = config.tableName || 'joined_data';
+                const joinType = config.joinType || 'LEFT';
+                const leftKey = config.leftKey || '';
+                const rightKey = config.rightKey || '';
+
+                if (upstreamOutputs.length < 2) {
+                    throw new Error('Join node requires exactly 2 upstream nodes connected (left and right tables)');
+                }
+                if (!leftKey || !rightKey) {
+                    throw new Error('Join node: left key and right key columns must be specified');
+                }
+
+                const leftQuery = this.outputToQuery(upstreamOutputs[0]);
+                const rightQuery = this.outputToQuery(upstreamOutputs[1]);
+                if (!leftQuery || !rightQuery) {
+                    throw new Error('Join node: could not resolve upstream tables');
+                }
+
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${leftQuery}) AS _left ${joinType} JOIN (${rightQuery}) AS _right ON _left."${leftKey}" = _right."${rightKey}"`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount, joinType };
+                break;
+            }
+
+            case 'filter': {
+                const targetTable = config.tableName || 'filtered_data';
+                const conditions = config.conditions || [];
+
+                // Resolve source from upstream or config
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Filter node: no upstream data source connected and no source table specified');
+                }
+
+                if (conditions.length === 0) {
+                    throw new Error('Filter node: at least one filter condition is required');
+                }
+
+                const connector = config.connector || 'AND';
+                const whereClauses = conditions.map(c => {
+                    const col = `"${c.column}"`;
+                    switch (c.operator) {
+                        case '=': return `${col} = '${(c.value || '').replace(/'/g, "''")}'`;
+                        case '!=': return `${col} != '${(c.value || '').replace(/'/g, "''")}'`;
+                        case '>': return `${col} > ${c.value}`;
+                        case '>=': return `${col} >= ${c.value}`;
+                        case '<': return `${col} < ${c.value}`;
+                        case '<=': return `${col} <= ${c.value}`;
+                        case 'LIKE': return `${col} LIKE '${(c.value || '').replace(/'/g, "''")}'`;
+                        case 'NOT LIKE': return `${col} NOT LIKE '${(c.value || '').replace(/'/g, "''")}'`;
+                        case 'IS NULL': return `${col} IS NULL`;
+                        case 'IS NOT NULL': return `${col} IS NOT NULL`;
+                        case 'IN': {
+                            const vals = (c.value || '').split(',').map(v => `'${v.trim().replace(/'/g, "''")}'`).join(', ');
+                            return `${col} IN (${vals})`;
+                        }
+                        default: return `${col} = '${(c.value || '').replace(/'/g, "''")}'`;
+                    }
+                });
+
+                const whereStr = whereClauses.join(` ${connector} `);
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src WHERE ${whereStr}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount, conditionCount: conditions.length };
+                break;
+            }
+
+            case 'group_aggregate': {
+                const targetTable = config.tableName || 'aggregated_data';
+                const groupColumns = config.groupColumns || [];
+                const aggregations = config.aggregations || [];
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Group/Aggregate node: no upstream data source connected');
+                }
+                if (aggregations.length === 0) {
+                    throw new Error('Group/Aggregate node: at least one aggregation is required');
+                }
+
+                const selectParts = [];
+                for (const col of groupColumns) {
+                    selectParts.push(`"${col}"`);
+                }
+                for (const agg of aggregations) {
+                    const alias = agg.alias || `${agg.func.toLowerCase()}_${agg.column}`;
+                    if (agg.func === 'COUNT' && agg.column === '*') {
+                        selectParts.push(`COUNT(*) AS "${alias}"`);
+                    } else {
+                        selectParts.push(`${agg.func}("${agg.column}") AS "${alias}"`);
+                    }
+                }
+
+                const groupByStr = groupColumns.length > 0
+                    ? ` GROUP BY ${groupColumns.map(c => `"${c}"`).join(', ')}`
+                    : '';
+
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${selectParts.join(', ')} FROM (${sourceQuery}) AS _src${groupByStr}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount };
+                break;
+            }
+
+            case 'select_columns': {
+                const targetTable = config.tableName || 'selected_columns';
+                const columns = config.columns || [];
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Select Columns node: no upstream data source connected');
+                }
+                if (columns.length === 0) {
+                    throw new Error('Select Columns node: at least one column must be selected');
+                }
+
+                const colExprs = columns.map(c => {
+                    if (c.alias && c.alias !== c.name) {
+                        return `"${c.name}" AS "${c.alias}"`;
+                    }
+                    return `"${c.name}"`;
+                });
+
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount, columnCount: columns.length };
+                break;
+            }
+
+            case 'deduplicate': {
+                const targetTable = config.tableName || 'deduplicated';
+                const keyColumns = config.keyColumns || [];
+                const keepPolicy = config.keep || 'first';
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Deduplicate node: no upstream data source connected');
+                }
+
+                if (keyColumns.length === 0) {
+                    // Deduplicate all columns
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT DISTINCT * FROM (${sourceQuery}) AS _src`;
+                } else {
+                    const partitionBy = keyColumns.map(c => `"${c}"`).join(', ');
+                    const order = keepPolicy === 'last' ? 'DESC' : 'ASC';
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${partitionBy} ORDER BY rowid ${order}) AS _rn FROM (${sourceQuery}) AS _src) WHERE _rn = 1`;
+                }
+                await dbManager.query(sql);
+                // Remove helper column if present
+                try { await dbManager.query(`ALTER TABLE "${targetTable}" DROP COLUMN IF EXISTS _rn`); } catch {}
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount };
+                break;
+            }
+
+            case 'add_column': {
+                const targetTable = config.tableName || 'with_column';
+                const newColumns = config.newColumns || [];
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Add Column node: no upstream data source connected');
+                }
+                if (newColumns.length === 0) {
+                    throw new Error('Add Column node: at least one column definition is required');
+                }
+
+                const colExprs = newColumns.map(c => `(${c.expression}) AS "${c.name}"`);
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT *, ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount, addedColumns: newColumns.length };
+                break;
+            }
+
+            case 'sort': {
+                const targetTable = config.tableName || 'sorted_data';
+                const sortColumns = config.sortColumns || [];
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Sort node: no upstream data source connected');
+                }
+                if (sortColumns.length === 0) {
+                    throw new Error('Sort node: at least one sort column is required');
+                }
+
+                const orderParts = sortColumns.map(c => `"${c.column}" ${c.direction || 'ASC'}`);
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src ORDER BY ${orderParts.join(', ')}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount };
+                break;
+            }
+
+            case 'sample': {
+                const targetTable = config.tableName || 'sample_data';
+                const sampleType = config.sampleType || 'rows';
+                const sampleValue = parseInt(config.sampleValue) || 100;
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Sample node: no upstream data source connected');
+                }
+
+                if (sampleType === 'percent') {
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src USING SAMPLE ${Math.min(sampleValue, 100)}%`;
+                } else {
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src LIMIT ${sampleValue}`;
+                }
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount, sampleType, sampleValue };
+                break;
+            }
+
+            case 'pivot': {
+                const targetTable = config.tableName || 'pivoted_data';
+                const groupColumn = config.groupColumn || '';
+                const pivotColumn = config.pivotColumn || '';
+                const valueColumn = config.valueColumn || '';
+                const aggFunc = config.aggFunc || 'SUM';
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!sourceQuery && config.sourceTable) {
+                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                }
+                if (!sourceQuery) {
+                    throw new Error('Pivot node: no upstream data source connected');
+                }
+                if (!groupColumn || !pivotColumn || !valueColumn) {
+                    throw new Error('Pivot node: group column, pivot column, and value column are all required');
+                }
+
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS PIVOT (${sourceQuery}) ON "${pivotColumn}" USING ${aggFunc}("${valueColumn}") GROUP BY "${groupColumn}"`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount };
+                break;
+            }
+
+            case 'rename_table': {
+                let sourceTable = '';
+                if (upstreamOutputs.length > 0) {
+                    sourceTable = upstreamOutputs[0].table || upstreamOutputs[0].view || '';
+                }
+                if (!sourceTable && config.sourceTable) {
+                    sourceTable = config.sourceTable;
+                }
+                const newName = config.newName || '';
+                if (!sourceTable) {
+                    throw new Error('Rename Table node: no upstream table found');
+                }
+                if (!newName) {
+                    throw new Error('Rename Table node: new table name is required');
+                }
+
+                sql = `ALTER TABLE "${sourceTable}" RENAME TO "${newName}"`;
+                await dbManager.query(sql);
+                resultType = 'table_created';
+                resultSummary = { table: newName, renamedFrom: sourceTable };
+                break;
             }
 
             default:
@@ -373,6 +902,9 @@ class ChainExecutor {
         let completedCount = 0;
         let failed = false;
 
+        // Track node outputs for data flow between connected nodes
+        const nodeOutputs = new Map(); // nodeId -> { table?, view?, query? }
+
         try {
             for (const layer of layers) {
                 // Check cancellation
@@ -399,6 +931,9 @@ class ChainExecutor {
                         continue;
                     }
 
+                    // Resolve upstream outputs for this node
+                    const upstreamOutputs = this.resolveUpstreamOutputs(nodeId, parentMap, nodeOutputs);
+
                     // Mark as running
                     await chainPersistence.updateNodeRun(dbManager, nodeRunId, { status: 'running' });
                     nodeStatuses.set(nodeId, 'running');
@@ -406,8 +941,14 @@ class ChainExecutor {
                     const startTime = Date.now();
 
                     try {
-                        const result = await this.executeNode(node, dbManager, projectPath);
+                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs);
                         const durationMs = Date.now() - startTime;
+
+                        // Store output reference for downstream nodes
+                        const outputRef = this.extractOutputRef(node, result.sql, result.resultType, result.resultSummary, upstreamOutputs);
+                        if (outputRef) {
+                            nodeOutputs.set(nodeId, outputRef);
+                        }
 
                         // Handle checkpoint
                         if (result.isCheckpoint) {

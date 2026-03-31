@@ -16,6 +16,7 @@ const ChainToolbar = ({
     onRunFromNode,
     onRunToNode,
     onCancel,
+    onSave,
     onExportYaml,
     onImportYaml,
     onAutoLayout,
@@ -81,6 +82,16 @@ const ChainToolbar = ({
             </div>
 
             <div className="chain-toolbar-right">
+                <button
+                    className={`chain-toolbar-btn-icon ${isDirty ? 'chain-toolbar-btn-save-dirty' : ''}`}
+                    onClick={onSave}
+                    title="Save (Ctrl+S)"
+                >
+                    <LuSave size={18} />
+                </button>
+
+                <div className="chain-toolbar-separator" />
+
                 <button className="chain-toolbar-btn-icon" onClick={onAutoLayout} title="Auto-layout">
                     <LuLayoutDashboard size={18} />
                 </button>

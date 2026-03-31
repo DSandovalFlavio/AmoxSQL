@@ -21,6 +21,19 @@ import ImportFileNode from './nodes/ImportFileNode';
 import ImportFolderNode from './nodes/ImportFolderNode';
 import ExportFileNode from './nodes/ExportFileNode';
 import CheckpointNode from './nodes/CheckpointNode';
+import TableRefNode from './nodes/TableRefNode';
+import MergeTablesNode from './nodes/MergeTablesNode';
+import AssertNode from './nodes/AssertNode';
+import JoinTablesNode from './nodes/JoinTablesNode';
+import FilterNode from './nodes/FilterNode';
+import GroupAggregateNode from './nodes/GroupAggregateNode';
+import SelectColumnsNode from './nodes/SelectColumnsNode';
+import DeduplicateNode from './nodes/DeduplicateNode';
+import AddColumnNode from './nodes/AddColumnNode';
+import SortNode from './nodes/SortNode';
+import SampleNode from './nodes/SampleNode';
+import PivotNode from './nodes/PivotNode';
+import RenameTableNode from './nodes/RenameTableNode';
 import { NODE_TYPES } from './chainNodeTypes';
 import { hasCycle, generateNodeId, generateEdgeId } from './chainUtils';
 
@@ -31,6 +44,19 @@ const nodeTypes = {
     import_folder: ImportFolderNode,
     export_file: ExportFileNode,
     checkpoint: CheckpointNode,
+    table_ref: TableRefNode,
+    merge_tables: MergeTablesNode,
+    assert: AssertNode,
+    join_tables: JoinTablesNode,
+    filter: FilterNode,
+    group_aggregate: GroupAggregateNode,
+    select_columns: SelectColumnsNode,
+    deduplicate: DeduplicateNode,
+    add_column: AddColumnNode,
+    sort: SortNode,
+    sample: SampleNode,
+    pivot: PivotNode,
+    rename_table: RenameTableNode,
 };
 
 const defaultEdgeOptions = {
