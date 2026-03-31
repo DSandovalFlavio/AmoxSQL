@@ -3,7 +3,7 @@ import {
     LuPlay, LuSave, LuFilePlus, LuSettings, LuMoon, LuSun,
     LuBot, LuDatabase, LuFolder, LuPuzzle, LuHistory,
     LuCode, LuBookOpen, LuSearch, LuActivity, LuCommand,
-    LuKeyboard
+    LuKeyboard, LuGitBranch
 } from 'react-icons/lu';
 
 const CommandPalette = ({
@@ -165,6 +165,7 @@ export function buildDefaultActions({
         // File Actions
         { id: 'new-sql', label: 'New SQL Query', category: 'File', icon: LuFilePlus, action: () => layoutRef.current?.createNew('sql') },
         { id: 'new-notebook', label: 'New Notebook', category: 'File', icon: LuBookOpen, action: () => layoutRef.current?.createNew('notebook') },
+        { id: 'new-chain', label: 'New Execution Chain', category: 'File', icon: LuGitBranch, action: () => layoutRef.current?.createNew('sqlchain') },
 
         // Navigation
         { id: 'nav-files', label: 'Show File Explorer', category: 'Navigation', icon: LuFolder, shortcut: 'Ctrl+Shift+E', action: () => setActiveSidebarTab('files') },

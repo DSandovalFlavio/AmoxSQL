@@ -9764,3 +9764,848 @@ tr:hover td {
 .qh-row:hover {
   background-color: var(--hover-bg);
 }
+
+/* ============================================================
+ * Execution Chain — DAG Builder Styles
+ * ============================================================ */
+
+/* ── Chain Editor Container ── */
+.chain-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--surface-base);
+  position: relative;
+}
+
+.chain-editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Chain Canvas ── */
+.chain-canvas-container {
+  flex: 1;
+  height: 100%;
+}
+
+.chain-canvas-container .react-flow__pane {
+  cursor: grab;
+}
+
+.chain-canvas-container .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+/* React Flow controls theming */
+.chain-controls {
+  background: var(--surface-overlay) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.chain-controls button {
+  background: var(--surface-overlay) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.chain-controls button:hover {
+  background: var(--hover-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+.chain-controls button svg {
+  fill: currentColor !important;
+}
+
+/* Minimap theming */
+.chain-minimap {
+  background: var(--surface-overlay) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* ── Chain Toolbar ── */
+.chain-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-default);
+  gap: 8px;
+  min-height: 40px;
+}
+
+.chain-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chain-toolbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chain-toolbar-dirty {
+  color: var(--accent-primary);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.chain-toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chain-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.chain-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-overlay);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.chain-toolbar-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.chain-toolbar-btn-primary {
+  background: var(--accent-primary);
+  color: #000;
+  border-color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.chain-toolbar-btn-primary:hover {
+  opacity: 0.9;
+  color: #000;
+}
+
+.chain-toolbar-btn-danger {
+  background: oklch(0.55 0.15 25);
+  color: #fff;
+  border-color: oklch(0.55 0.15 25);
+}
+
+.chain-toolbar-btn-danger:hover {
+  opacity: 0.9;
+  color: #fff;
+}
+
+.chain-toolbar-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.chain-toolbar-btn-icon:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border-default);
+  margin: 0 4px;
+}
+
+/* ── Chain Node (Base) ── */
+.chain-node {
+  background: var(--node-bg, var(--surface-overlay));
+  border: 2px solid var(--node-border, var(--border-default));
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-width: 180px;
+  max-width: 260px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-family: inherit;
+}
+
+.chain-node:hover {
+  box-shadow: 0 0 0 1px var(--node-border, var(--border-strong)), var(--shadow-md);
+}
+
+.chain-node-selected {
+  box-shadow: 0 0 0 2px var(--accent-primary), var(--shadow-lg) !important;
+}
+
+.chain-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.chain-node-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #000;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.chain-node-status {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+}
+
+.chain-node-duration {
+  font-size: 9px;
+  opacity: 0.7;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chain-node-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.chain-node-description {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.chain-node-config-summary {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 3px 6px;
+  background: oklch(0 0 0 / 0.15);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.chain-node-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid oklch(1 0 0 / 0.08);
+}
+
+.chain-node-result-type {
+  font-size: 9px;
+  font-weight: 600;
+  color: oklch(0.75 0.15 155);
+  text-transform: uppercase;
+}
+
+.chain-node-result-detail {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chain-node-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: oklch(0.3 0.06 25 / 0.3);
+  border-radius: 4px;
+  font-size: 9px;
+  color: oklch(0.8 0.1 25);
+}
+
+.chain-node-error span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Handles */
+.chain-handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: var(--node-border, var(--border-strong)) !important;
+  border: 2px solid var(--node-bg, var(--surface-overlay)) !important;
+}
+
+.chain-handle:hover {
+  background: var(--accent-primary) !important;
+}
+
+/* Spin animation */
+.chain-node-spin {
+  animation: chain-spin 1s linear infinite;
+}
+
+@keyframes chain-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Node Palette ── */
+.chain-palette {
+  width: 200px;
+  min-width: 200px;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  transition: width 150ms ease, min-width 150ms ease;
+  overflow: hidden;
+}
+
+.chain-palette-collapsed {
+  width: 36px;
+  min-width: 36px;
+}
+
+.chain-palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chain-palette-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chain-palette-collapsed .chain-palette-title {
+  display: none;
+}
+
+.chain-palette-toggle {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.chain-palette-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.chain-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: grab;
+  transition: all 120ms ease;
+  border: 1px solid transparent;
+}
+
+.chain-palette-item:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-default);
+}
+
+.chain-palette-item:active {
+  cursor: grabbing;
+  opacity: 0.8;
+}
+
+.chain-palette-item-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid;
+}
+
+.chain-palette-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.chain-palette-item-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.chain-palette-item-desc {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Config Panel ── */
+.chain-config-panel {
+  width: 280px;
+  min-width: 280px;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.chain-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chain-config-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chain-config-close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.chain-config-close:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.chain-config-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chain-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chain-config-field label,
+.chain-config-section label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.chain-config-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 120ms ease;
+  box-sizing: border-box;
+}
+
+.chain-config-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.chain-config-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 120ms ease;
+  box-sizing: border-box;
+}
+
+.chain-config-textarea:focus {
+  border-color: var(--accent-primary);
+}
+
+.chain-config-sql {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.chain-config-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.chain-config-select:focus {
+  border-color: var(--accent-primary);
+}
+
+.chain-config-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
+}
+
+.chain-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chain-config-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.chain-config-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.chain-config-action-btn:hover {
+  background: var(--hover-bg);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.chain-config-hint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.chain-config-delete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid oklch(0.5 0.1 25);
+  border-radius: 6px;
+  color: oklch(0.7 0.12 25);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.chain-config-delete:hover {
+  background: oklch(0.3 0.06 25 / 0.3);
+}
+
+/* ── History Panel ── */
+.chain-history-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  box-shadow: var(--shadow-lg);
+}
+
+.chain-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chain-history-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chain-history-loading,
+.chain-history-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.chain-history-run {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.chain-history-run-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 120ms ease;
+  font-size: 11px;
+}
+
+.chain-history-run-header:hover {
+  background: var(--hover-bg);
+}
+
+.chain-history-run-expand {
+  color: var(--text-tertiary);
+}
+
+.chain-history-run-date {
+  color: var(--text-primary);
+  flex: 1;
+  font-size: 11px;
+}
+
+.chain-history-run-mode {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  padding: 1px 5px;
+  background: var(--surface-inset);
+  border-radius: 3px;
+}
+
+.chain-history-run-count {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chain-history-run-duration {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chain-history-run-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-disabled);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+}
+
+.chain-history-run-delete:hover {
+  color: oklch(0.7 0.12 25);
+  background: oklch(0.3 0.06 25 / 0.2);
+}
+
+.chain-history-nodes {
+  padding: 4px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chain-history-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 10px;
+  border-radius: 4px;
+}
+
+.chain-history-node:hover {
+  background: var(--hover-bg);
+}
+
+.chain-history-node-label {
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-history-node-type {
+  color: var(--text-disabled);
+  font-size: 9px;
+}
+
+.chain-history-node-duration {
+  color: var(--text-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+}
+
+.chain-history-node-result {
+  color: oklch(0.7 0.12 155);
+  font-size: 9px;
+}
+
+.chain-history-node-error {
+  color: oklch(0.7 0.12 25);
+  font-size: 9px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-history-resume {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 8px 8px;
+  padding: 6px;
+  background: var(--accent-primary);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chain-history-resume:hover {
+  opacity: 0.9;
+}
+
+/* ── Status Bar ── */
+.chain-status-bar {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.chain-status-running {
+  background: oklch(0.25 0.06 250 / 0.5);
+  color: oklch(0.8 0.1 250);
+}
+
+.chain-status-completed {
+  background: oklch(0.25 0.06 155 / 0.5);
+  color: oklch(0.8 0.1 155);
+}
+
+.chain-status-failed {
+  background: oklch(0.25 0.06 25 / 0.5);
+  color: oklch(0.8 0.1 25);
+}
+
+.chain-status-paused {
+  background: oklch(0.25 0.06 85 / 0.5);
+  color: oklch(0.8 0.1 85);
+}
+
+.chain-status-cancelled {
+  background: oklch(0.2 0 0 / 0.5);
+  color: oklch(0.6 0 0);
+}
+
+/* ── React Flow Edge Animations ── */
+.chain-canvas-container .react-flow__edge-path {
+  stroke: oklch(0.45 0.02 250);
+  stroke-width: 2;
+}
+
+.chain-canvas-container .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--accent-primary);
+  stroke-width: 3;
+}
+
+.chain-canvas-container .react-flow__connection-line {
+  stroke: var(--accent-primary);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}

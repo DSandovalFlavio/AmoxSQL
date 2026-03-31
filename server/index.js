@@ -115,6 +115,13 @@ app.post('/api/db/connect', async (req, res) => {
             } catch (aiErr) {
                 console.warn('[AI] Schema init warning (non-fatal):', aiErr.message);
             }
+            // Initialize chain execution history schema
+            try {
+                const chainPersistenceModule = require('./ChainPersistence');
+                await chainPersistenceModule.initSchema(dbManager);
+            } catch (chainErr) {
+                console.warn('[Chains] Schema init warning (non-fatal):', chainErr.message);
+            }
         }
 
         res.json({ success: true, path: dbManager.getCurrentPath() });
@@ -642,7 +649,7 @@ async function buildTableContext(contextTables = null) {
         let query = `
             SELECT table_schema, table_name
             FROM information_schema.tables
-            WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai')
+            WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains')
             AND table_type = 'BASE TABLE'
         `;
 
@@ -2750,6 +2757,217 @@ app.post('/api/dbt/execute', (req, res) => {
     req.on('close', () => {
         try { child.kill(); } catch (e) { /* already dead */ }
     });
+});
+
+/* ============================================================
+ * Execution Chain APIs
+ * ============================================================ */
+const chainPersistence = require('./ChainPersistence');
+const chainExecutor = require('./ChainExecutor');
+
+// Run a chain
+app.post('/api/chains/run', async (req, res) => {
+    const { chainDefinition, chainFile, mode, startNodeId } = req.body;
+    if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition is required' });
+
+    try {
+        // Validate first
+        const validation = chainExecutor.validate(chainDefinition, ROOT_DIR);
+        if (!validation.valid) {
+            return res.status(400).json({ error: 'Validation failed', details: validation.errors });
+        }
+
+        // Execute asynchronously — respond with runId immediately
+        const result = await chainExecutor.run(dbManager, chainDefinition, ROOT_DIR, {
+            mode: mode || 'full',
+            startNodeId,
+            chainFile: chainFile || '',
+        });
+
+        res.json(result);
+    } catch (err) {
+        console.error('[Chains] Run error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get run status (for polling)
+app.get('/api/chains/run/:runId/status', async (req, res) => {
+    try {
+        const run = await chainPersistence.getRun(dbManager, req.params.runId);
+        const nodeRuns = await chainPersistence.getNodeRuns(dbManager, req.params.runId);
+        res.json({ run, nodeRuns });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Cancel a running chain
+app.post('/api/chains/run/:runId/cancel', (req, res) => {
+    chainExecutor.cancelRun(req.params.runId);
+    res.json({ success: true });
+});
+
+// Resume from checkpoint (re-run from a specific node)
+app.post('/api/chains/run/:runId/resume', async (req, res) => {
+    const { chainDefinition, chainFile, startNodeId } = req.body;
+    if (!chainDefinition || !startNodeId) {
+        return res.status(400).json({ error: 'chainDefinition and startNodeId required' });
+    }
+    try {
+        const result = await chainExecutor.run(dbManager, chainDefinition, ROOT_DIR, {
+            mode: 'from_node',
+            startNodeId,
+            chainFile: chainFile || '',
+        });
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Validate a chain definition
+app.post('/api/chains/validate', (req, res) => {
+    const { chainDefinition } = req.body;
+    if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition required' });
+    const result = chainExecutor.validate(chainDefinition, ROOT_DIR);
+    res.json(result);
+});
+
+// List recent runs (history)
+app.get('/api/chains/history', async (req, res) => {
+    const { chainFile, limit } = req.query;
+    try {
+        const runs = await chainPersistence.listRuns(dbManager, {
+            chainFile,
+            limit: parseInt(limit) || 20,
+        });
+        res.json({ runs });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get detailed run
+app.get('/api/chains/history/:runId', async (req, res) => {
+    try {
+        const run = await chainPersistence.getRun(dbManager, req.params.runId);
+        const nodeRuns = await chainPersistence.getNodeRuns(dbManager, req.params.runId);
+        res.json({ run, nodeRuns });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete a run
+app.delete('/api/chains/history/:runId', async (req, res) => {
+    try {
+        await chainPersistence.deleteRun(dbManager, req.params.runId);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Export chain as YAML
+app.post('/api/chains/export-yaml', (req, res) => {
+    const { chainDefinition } = req.body;
+    if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition required' });
+    try {
+        const { version, name, description, nodes, edges, variables } = chainDefinition;
+        const yamlObj = {
+            version,
+            name,
+            description: description || undefined,
+            nodes: (nodes || []).map(n => ({
+                id: n.id,
+                type: n.type,
+                label: n.label,
+                description: n.description || undefined,
+                config: n.config,
+            })),
+            edges: (edges || []).map(e => ({
+                source: e.source,
+                target: e.target,
+            })),
+            variables: variables && Object.keys(variables).length > 0 ? variables : undefined,
+        };
+        const yamlStr = yaml.dump(yamlObj, { indent: 2, lineWidth: 120, noRefs: true });
+        res.json({ yaml: yamlStr });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Import YAML to chain definition
+app.post('/api/chains/import-yaml', (req, res) => {
+    const { yamlContent } = req.body;
+    if (!yamlContent) return res.status(400).json({ error: 'yamlContent required' });
+    try {
+        const parsed = yaml.load(yamlContent);
+        res.json({ chainDefinition: parsed });
+    } catch (err) {
+        res.status(400).json({ error: `Invalid YAML: ${err.message}` });
+    }
+});
+
+// Create a new SQL file from the chain canvas
+app.post('/api/chains/create-sql-file', (req, res) => {
+    const { filePath, template } = req.body;
+    if (!filePath) return res.status(400).json({ error: 'filePath required' });
+
+    const fullPath = path.resolve(ROOT_DIR, filePath);
+
+    // Security: ensure path is within project
+    if (!fullPath.startsWith(ROOT_DIR)) {
+        return res.status(403).json({ error: 'Path outside project directory' });
+    }
+
+    // Create parent directories if needed
+    const dir = path.dirname(fullPath);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
+    if (fs.existsSync(fullPath)) {
+        return res.status(409).json({ error: 'File already exists' });
+    }
+
+    const content = template || `-- ${path.basename(filePath)}\n-- Created from Execution Chain\n\n`;
+    fs.writeFileSync(fullPath, content, 'utf-8');
+    res.json({ success: true, path: filePath });
+});
+
+// Scan folder for files matching a pattern
+app.get('/api/chains/scan-folder', (req, res) => {
+    const { folder, pattern } = req.query;
+    if (!folder) return res.status(400).json({ error: 'folder required' });
+
+    const fullPath = path.resolve(ROOT_DIR, folder);
+    if (!fullPath.startsWith(ROOT_DIR)) {
+        return res.status(403).json({ error: 'Path outside project directory' });
+    }
+
+    if (!fs.existsSync(fullPath)) {
+        return res.json({ files: [], count: 0 });
+    }
+
+    try {
+        const allFiles = fs.readdirSync(fullPath);
+        const ext = pattern ? pattern.replace('*', '') : '';
+        const filtered = ext ? allFiles.filter(f => f.endsWith(ext)) : allFiles;
+        res.json({ files: filtered, count: filtered.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Detect result type from SQL
+app.post('/api/chains/detect-result-type', (req, res) => {
+    const { sql } = req.body;
+    if (!sql) return res.status(400).json({ error: 'sql required' });
+    const result = chainExecutor.detectResultType(sql);
+    res.json(result);
 });
 
 // Serve Static Assets in Production (Electron App)

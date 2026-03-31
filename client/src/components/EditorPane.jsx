@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
@@ -6,6 +6,8 @@ import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
 import { VariablesToggle, VariablesPanel } from './VariablesBar';
 import ErDiagram from './ErDiagram';
+
+const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 
 const EditorPane = ({
     paneId,
@@ -31,6 +33,7 @@ const EditorPane = ({
     onRequestSaveAs,  // () -> open save-as modal
     showAiSidebar,    // boolean — AI sidebar visible?
     onToggleAi,       // () -> toggle AI sidebar
+    onOpenFile,       // (filePath) -> open a file in a new tab (used by ChainEditor)
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -272,6 +275,7 @@ const EditorPane = ({
     }
 
     const isNotebook = activeTab.name.endsWith('.sqlnb') || activeTab.type === 'sqlnb';
+    const isChain = activeTab.name.endsWith('.sqlchain') || activeTab.type === 'sqlchain';
     const isErDiagram = activeTab.type === 'er-diagram';
 
     // Track last edit time on content change
@@ -380,6 +384,18 @@ const EditorPane = ({
                 {isErDiagram ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
                         <ErDiagram onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                    </div>
+                ) : isChain ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<div style={{ padding: 24, color: 'var(--text-tertiary)' }}>Loading chain editor...</div>}>
+                            <ChainEditor
+                                key={activeTab.id}
+                                content={activeTab.content}
+                                onChange={(val) => onContentChange(activeTab.id, val)}
+                                filePath={activeTab.path || null}
+                                onOpenFile={onOpenFile}
+                            />
+                        </Suspense>
                     </div>
                 ) : isNotebook ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
