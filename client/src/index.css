@@ -9838,48 +9838,55 @@ tr:hover td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
+  padding: 8px 16px;
   background: var(--surface-raised);
   border-bottom: 1px solid var(--border-default);
-  gap: 8px;
-  min-height: 40px;
+  gap: 12px;
+  min-height: 46px;
 }
 
 .chain-toolbar-left {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .chain-toolbar-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .chain-toolbar-dirty {
   color: var(--accent-primary);
   font-weight: 700;
   font-size: 16px;
+  margin-left: -6px;
 }
 
 .chain-toolbar-center {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  justify-content: center;
+  flex: 1;
 }
 
 .chain-toolbar-right {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
+/* ── Buttons with icon + label ── */
 .chain-toolbar-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 6px;
+  padding: 6px 12px;
   border: 1px solid var(--border-default);
   border-radius: 6px;
   background: var(--surface-overlay);
@@ -9887,6 +9894,7 @@ tr:hover td {
   font-size: 12px;
   cursor: pointer;
   transition: all 120ms ease;
+  white-space: nowrap;
 }
 
 .chain-toolbar-btn:hover {
@@ -9918,28 +9926,46 @@ tr:hover td {
   color: #fff;
 }
 
-.chain-toolbar-btn-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--surface-overlay);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 120ms ease;
+/* ── Save button (next to chain name) ── */
+.chain-toolbar-btn-save {
+  border-color: var(--border-subtle);
+  background: transparent;
+  color: var(--text-tertiary);
+  padding: 4px 10px;
+  font-size: 11px;
 }
 
-.chain-toolbar-btn-icon:hover {
-  background: var(--hover-bg);
+.chain-toolbar-btn-save:hover {
+  background: var(--surface-overlay);
   color: var(--text-primary);
 }
 
 .chain-toolbar-btn-save-dirty {
   color: var(--accent-primary);
+  border-color: var(--accent-primary);
   animation: chain-save-pulse 2s ease-in-out infinite;
+}
+
+/* ── Tool buttons (right side, icon + small label) ── */
+.chain-toolbar-btn-tool {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.chain-toolbar-btn-tool:hover {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
 }
 
 @keyframes chain-save-pulse {
@@ -9949,7 +9975,7 @@ tr:hover td {
 
 .chain-toolbar-separator {
   width: 1px;
-  height: 20px;
+  height: 22px;
   background: var(--border-default);
   margin: 0 4px;
 }
@@ -10506,6 +10532,74 @@ tr:hover td {
 
 .chain-config-delete:hover {
   background: oklch(0.3 0.06 25 / 0.3);
+}
+
+/* ── SQL Preview ── */
+.chain-config-sql-preview {
+  margin-top: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chain-config-sql-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface-overlay);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease;
+}
+
+.chain-config-sql-preview-header:hover {
+  background: var(--hover-bg);
+}
+
+.chain-config-sql-copy {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.chain-config-sql-copy:hover {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.chain-config-sql-preview-code {
+  margin: 0;
+  padding: 8px 10px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  color: oklch(0.8 0.08 250);
+  background: oklch(0.14 0.01 250);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chain-config-sql-preview-empty {
+  padding: 8px 10px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-style: italic;
 }
 
 /* ── History Panel ── */
