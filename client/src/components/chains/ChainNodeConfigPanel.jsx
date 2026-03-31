@@ -2,9 +2,10 @@
  * ChainNodeConfigPanel — Right-side config panel for the selected node.
  * Displays editable label, description, and type-specific configuration fields.
  */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-    LuX, LuFileCode2, LuPlus, LuExternalLink, LuTrash2, LuMinus
+    LuX, LuFileCode2, LuPlus, LuExternalLink, LuTrash2, LuMinus,
+    LuCode, LuChevronDown, LuChevronRight, LuCopy
 } from 'react-icons/lu';
 import { NODE_TYPES } from './chainNodeTypes';
 
@@ -145,6 +146,13 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 {node.data.nodeType === 'rename_table' && (
                     <RenameTableConfig config={config} onChange={updateConfig} />
                 )}
+
+                {node.data.nodeType === 'create_table' && (
+                    <CreateTableConfig config={config} onChange={updateConfig} />
+                )}
+
+                {/* SQL Preview */}
+                <SqlPreview nodeType={node.data.nodeType} config={config} />
 
                 <div className="chain-config-separator" />
 
@@ -991,5 +999,204 @@ const RenameTableConfig = ({ config, onChange }) => (
         </p>
     </div>
 );
+
+const CreateTableConfig = ({ config, onChange }) => (
+    <div className="chain-config-section">
+        <label>Target Table Name</label>
+        <input
+            type="text"
+            value={config.tableName || ''}
+            onChange={(e) => onChange('tableName', e.target.value)}
+            placeholder="my_new_table"
+            className="chain-config-input"
+        />
+        <label>SQL Query <span className="chain-config-optional">(optional)</span></label>
+        <textarea
+            value={config.query || ''}
+            onChange={(e) => onChange('query', e.target.value)}
+            placeholder="SELECT * FROM ..."
+            className="chain-config-textarea chain-config-sql"
+            rows={4}
+        />
+        {!config.query && (
+            <p className="chain-config-hint chain-config-hint-info">
+                💡 If empty, the table will be created from the upstream node's output.
+            </p>
+        )}
+    </div>
+);
+
+/**
+ * SQL Preview — Shows the SQL that will be generated for a node.
+ * Helps users learn SQL by seeing what happens behind the scenes.
+ */
+const generateSqlPreview = (nodeType, config) => {
+    const c = config || {};
+    switch (nodeType) {
+        case 'sql_file':
+            return c.filePath ? `-- Contents of ${c.filePath}\n-- (SQL from file will be executed as-is)` : null;
+        case 'sql_inline':
+            return c.query || null;
+        case 'table_ref':
+            return c.tableName ? `SELECT * FROM "${c.tableName}"` : null;
+        case 'import_file': {
+            if (!c.sourcePath) return null;
+            const tbl = c.tableName || 'imported_data';
+            const ft = c.fileType || 'csv';
+            const reader = ft === 'parquet' ? 'read_parquet' : ft === 'json' ? 'read_json_auto' : ft === 'xlsx' ? 'read_xlsx' : 'read_csv';
+            const opts = ft === 'csv' ? ", auto_detect=true, header=true" : '';
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM ${reader}('${c.sourcePath}'${opts})`;
+        }
+        case 'import_folder': {
+            if (!c.folderPath) return null;
+            const tbl = c.tableName || 'imported_data';
+            const pattern = c.filePattern || '*.csv';
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM read_csv(\n  '${c.folderPath}/${pattern}',\n  auto_detect=true, header=true,\n  union_by_name=true\n)`;
+        }
+        case 'export_file': {
+            if (!c.outputPath) return null;
+            const q = c.query || 'SELECT * FROM <upstream_table>';
+            const fmt = (c.format || 'csv').toUpperCase();
+            return `COPY (\n  ${q}\n) TO '${c.outputPath}'\n(FORMAT ${fmt}, HEADER)`;
+        }
+        case 'create_table': {
+            if (!c.tableName) return null;
+            const q = c.query || 'SELECT * FROM <upstream_table>';
+            return `CREATE OR REPLACE TABLE "${c.tableName}" AS\n${q}`;
+        }
+        case 'filter': {
+            const conds = c.conditions || [];
+            if (conds.length === 0) return null;
+            const connector = c.connector || 'AND';
+            const tbl = c.tableName || 'filtered_data';
+            const where = conds.map(cond => {
+                const col = `"${cond.column || '?'}"`;
+                if (cond.operator === 'IS NULL' || cond.operator === 'IS NOT NULL') return `${col} ${cond.operator}`;
+                return `${col} ${cond.operator || '='} '${cond.value || ''}'`;
+            }).join(`\n  ${connector} `);
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM <upstream_table>\nWHERE ${where}`;
+        }
+        case 'group_aggregate': {
+            const groups = c.groupColumns || [];
+            const aggs = c.aggregations || [];
+            if (aggs.length === 0) return null;
+            const tbl = c.tableName || 'aggregated_data';
+            const selects = [
+                ...groups.map(g => `"${g}"`),
+                ...aggs.map(a => a.func === 'COUNT' && a.column === '*' ? `COUNT(*) AS "${a.alias || 'count'}"` : `${a.func}("${a.column}") AS "${a.alias || `${a.func.toLowerCase()}_${a.column}`}"`)
+            ];
+            const groupBy = groups.length > 0 ? `\nGROUP BY ${groups.map(g => `"${g}"`).join(', ')}` : '';
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT\n  ${selects.join(',\n  ')}\nFROM <upstream_table>${groupBy}`;
+        }
+        case 'join_tables': {
+            const tbl = c.tableName || 'joined_data';
+            const jt = c.joinType || 'LEFT';
+            const lk = c.leftKey || '?';
+            const rk = c.rightKey || '?';
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT *\nFROM <left_table> AS _left\n${jt} JOIN <right_table> AS _right\n  ON _left."${lk}" = _right."${rk}"`;
+        }
+        case 'select_columns': {
+            const cols = c.columns || [];
+            if (cols.length === 0) return null;
+            const tbl = c.tableName || 'selected_columns';
+            const colList = cols.map(col => col.alias && col.alias !== col.name ? `"${col.name}" AS "${col.alias}"` : `"${col.name}"`);
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT\n  ${colList.join(',\n  ')}\nFROM <upstream_table>`;
+        }
+        case 'deduplicate': {
+            const keys = c.keyColumns || [];
+            const tbl = c.tableName || 'deduplicated';
+            if (keys.length === 0) return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT DISTINCT *\nFROM <upstream_table>`;
+            const partition = keys.map(k => `"${k}"`).join(', ');
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM (\n  SELECT *, ROW_NUMBER() OVER (\n    PARTITION BY ${partition}\n  ) AS _rn\n  FROM <upstream_table>\n) WHERE _rn = 1`;
+        }
+        case 'add_column': {
+            const cols = c.newColumns || [];
+            if (cols.length === 0) return null;
+            const tbl = c.tableName || 'with_column';
+            const exprs = cols.map(col => `(${col.expression || '?'}) AS "${col.name || 'new_col'}"`);
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT\n  *,\n  ${exprs.join(',\n  ')}\nFROM <upstream_table>`;
+        }
+        case 'sort': {
+            const sorts = c.sortColumns || [];
+            if (sorts.length === 0) return null;
+            const tbl = c.tableName || 'sorted_data';
+            const orderBy = sorts.map(s => `"${s.column || '?'}" ${s.direction || 'ASC'}`).join(', ');
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM <upstream_table>\nORDER BY ${orderBy}`;
+        }
+        case 'sample': {
+            const tbl = c.tableName || 'sample_data';
+            const val = c.sampleValue || '100';
+            if (c.sampleType === 'percent') return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM <upstream_table>\nUSING SAMPLE ${val}%`;
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM <upstream_table>\nLIMIT ${val}`;
+        }
+        case 'pivot': {
+            if (!c.groupColumn || !c.pivotColumn || !c.valueColumn) return null;
+            const tbl = c.tableName || 'pivoted_data';
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nPIVOT <upstream_table>\nON "${c.pivotColumn}"\nUSING ${c.aggFunc || 'SUM'}("${c.valueColumn}")\nGROUP BY "${c.groupColumn}"`;
+        }
+        case 'rename_table':
+            return c.newName ? `ALTER TABLE <upstream_table>\nRENAME TO "${c.newName}"` : null;
+        case 'assert': {
+            const at = c.assertType || 'not_empty';
+            const tbl = c.tableName || '<upstream_table>';
+            if (at === 'not_empty') return `-- Assertion: table is not empty\nSELECT COUNT(*) FROM "${tbl}"\n-- Fails if count = 0`;
+            if (at === 'row_count_gt') return `-- Assertion: row count > ${c.threshold || 0}\nSELECT COUNT(*) FROM "${tbl}"\n-- Fails if count <= ${c.threshold || 0}`;
+            if (at === 'no_nulls') return `-- Assertion: no NULL values\nSELECT COUNT(*) FROM "${tbl}"\nWHERE "${c.column || '?'}" IS NULL\n-- Fails if count > 0`;
+            if (at === 'unique') return `-- Assertion: unique values\nSELECT COUNT(*) - COUNT(DISTINCT "${c.column || '?'}")\nFROM "${tbl}"\n-- Fails if result > 0`;
+            if (at === 'custom_query') return c.query || null;
+            return null;
+        }
+        default:
+            return null;
+    }
+};
+
+const SqlPreview = ({ nodeType, config }) => {
+    const [expanded, setExpanded] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const sql = generateSqlPreview(nodeType, config);
+
+    if (!sql && nodeType === 'checkpoint') return null;
+    if (!sql) return (
+        <div className="chain-config-sql-preview">
+            <div className="chain-config-sql-preview-header" onClick={() => setExpanded(!expanded)}>
+                {expanded ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
+                <LuCode size={12} />
+                <span>SQL Preview</span>
+            </div>
+            {expanded && (
+                <div className="chain-config-sql-preview-empty">
+                    Configure the node to see the generated SQL
+                </div>
+            )}
+        </div>
+    );
+
+    const handleCopy = (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(sql);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
+    return (
+        <div className="chain-config-sql-preview">
+            <div className="chain-config-sql-preview-header" onClick={() => setExpanded(!expanded)}>
+                {expanded ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
+                <LuCode size={12} />
+                <span>SQL Preview</span>
+                {expanded && (
+                    <button className="chain-config-sql-copy" onClick={handleCopy} title="Copy SQL">
+                        <LuCopy size={11} />
+                        <span>{copied ? 'Copied!' : 'Copy'}</span>
+                    </button>
+                )}
+            </div>
+            {expanded && (
+                <pre className="chain-config-sql-preview-code">{sql}</pre>
+            )}
+        </div>
+    );
+};
 
 export default ChainNodeConfigPanel;

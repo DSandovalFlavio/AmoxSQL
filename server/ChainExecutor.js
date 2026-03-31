@@ -492,6 +492,28 @@ class ChainExecutor {
                 break;
             }
 
+            case 'create_table': {
+                const targetTable = config.tableName || '';
+                if (!targetTable) throw new Error('Create Table node: table name is required');
+
+                let query = config.query || '';
+                // Auto-resolve from upstream if no query
+                if (!query && upstreamOutputs.length > 0) {
+                    query = this.outputToQuery(upstreamOutputs[0]);
+                }
+                if (!query) {
+                    throw new Error('Create Table node has no query and no upstream data source connected');
+                }
+
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS ${query}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                const rowCount = countResult[0]?.cnt || 0;
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount };
+                break;
+            }
+
             case 'checkpoint': {
                 resultType = 'checkpoint_reached';
                 resultSummary = { label: config.resumeLabel || node.label || 'Checkpoint' };

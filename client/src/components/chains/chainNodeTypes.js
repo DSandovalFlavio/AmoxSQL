@@ -6,7 +6,8 @@ import {
     LuFileCode2, LuCode, LuFileInput, LuFolderInput,
     LuFileOutput, LuPause, LuTable2, LuMerge, LuShieldCheck,
     LuFilter, LuGroup, LuColumns3, LuCopyMinus, LuCalculator,
-    LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle
+    LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle,
+    LuTableProperties
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -69,6 +70,18 @@ export const NODE_TYPES = {
             accent: 'oklch(0.65 0.15 50)',
         },
         defaultConfig: { query: '', format: 'csv', outputPath: '' },
+    },
+    create_table: {
+        id: 'create_table',
+        label: 'Create Table',
+        description: 'Create a new table from upstream data or a custom query',
+        icon: LuTableProperties,
+        color: {
+            bg: 'oklch(0.22 0.04 190)',
+            border: 'oklch(0.35 0.08 190)',
+            accent: 'oklch(0.65 0.15 190)',
+        },
+        defaultConfig: { tableName: '', query: '' },
     },
     checkpoint: {
         id: 'checkpoint',
@@ -269,7 +282,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'output',
         label: 'Output',
-        types: ['export_file'],
+        types: ['export_file', 'create_table'],
     },
     {
         id: 'control',
