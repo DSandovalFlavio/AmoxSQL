@@ -3,7 +3,7 @@ import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
-    LuPencil, LuTrash2, LuFileText, LuGitBranch
+    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -415,6 +415,34 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                         className="context-menu-item"
                     >
                         <LuTrash2 size={14} /> Delete
+                    </div>
+
+                    {/* Separator */}
+                    <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
+
+                    {/* Copy Path */}
+                    <div
+                        onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\//g, '/')); setContextMenu(null); }}
+                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        className="context-menu-item"
+                    >
+                        <LuCopy size={14} /> Copy Path
+                    </div>
+                    {/* Copy Relative Path */}
+                    <div
+                        onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\\/g, '/')); setContextMenu(null); }}
+                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        className="context-menu-item"
+                    >
+                        <LuClipboard size={14} /> Copy Relative Path
+                    </div>
+                    {/* Copy Name */}
+                    <div
+                        onClick={() => { navigator.clipboard.writeText(contextMenu.file.name); setContextMenu(null); }}
+                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        className="context-menu-item"
+                    >
+                        <LuType size={14} /> Copy Name
                     </div>
                 </div>
             )}

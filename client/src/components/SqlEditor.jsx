@@ -542,6 +542,32 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             window.__amoxSqlSchemaCache = { tables: {}, allColumns: [] };
         }
 
+        // Reusable file schema scanner — used at init AND on text changes
+        function scanAndCacheFileSchemas(text) {
+            if (!window.__amoxSqlSchemaCache) return;
+
+            const fileRegex = /['"]([^'"]+\.(csv|parquet|json|xlsx))['"]/gi;
+            let fm;
+            while ((fm = fileRegex.exec(text)) !== null) {
+                const fileName = fm[1].toLowerCase();
+                if (!window.__amoxSqlSchemaCache.tables[fileName]) {
+                    window.__amoxSqlSchemaCache.tables[fileName] = [];
+                    fetch(`http://localhost:3001/api/db/file-schema?path=${encodeURIComponent(fm[1])}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data && !data.error && Array.isArray(data)) {
+                                const fileCols = data.map(c => ({ name: c.column_name, type: c.column_type }));
+                                window.__amoxSqlSchemaCache.tables[fileName] = fileCols;
+                                if (workerBridgeRef.current) {
+                                    workerBridgeRef.current.updateSchema(window.__amoxSqlSchemaCache);
+                                }
+                            }
+                        })
+                        .catch(err => console.warn('[Monaco] File schema fetch failed:', err));
+                }
+            }
+        }
+
         // Initialize Web Worker Bridge
         if (!workerBridgeRef.current) {
             workerBridgeRef.current = new SqlWorkerBridge();
@@ -571,6 +597,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                                 allColumns: Array.from(allColumns)
                             };
                             workerBridgeRef.current.updateSchema(window.__amoxSqlSchemaCache);
+
+                            // CRITICAL: Scan initial text for file references IMMEDIATELY
+                            // so pre-filled queries (Direct Query, loaded files) have their
+                            // file schemas ready before the user triggers autocomplete.
+                            const currentText = editor.getValue();
+                            if (currentText) {
+                                scanAndCacheFileSchemas(currentText);
+                            }
                         }
                     })
                     .catch(err => console.warn("Schema fetch failed", err));
@@ -599,37 +633,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
             if (fileScanTimeout) clearTimeout(fileScanTimeout);
             fileScanTimeout = setTimeout(() => {
-                if (window.__amoxSqlSchemaCache) {
-                    const fileMatches = [...text.matchAll(/['"]([^'"]+\.(csv|parquet|json|xlsx))['"]/gi)];
-                    fileMatches.forEach(match => {
-                        const fileName = match[1].toLowerCase();
-                        if (!window.__amoxSqlSchemaCache.tables[fileName]) {
-                            // Mark to prevent infinite loops while fetching
-                            window.__amoxSqlSchemaCache.tables[fileName] = [];
-                            
-                            fetch(`http://localhost:3001/api/db/file-schema?path=${encodeURIComponent(match[1])}`)
-                                .then(r => r.json())
-                                .then(data => {
-                                    if (data && !data.error && Array.isArray(data)) {
-                                        const fileCols = data.map(c => ({
-                                            name: c.column_name,
-                                            type: c.column_type
-                                        }));
-                                        window.__amoxSqlSchemaCache.tables[fileName] = fileCols;
-                                        // Also merge file columns into allColumns so the fallback
-                                        // path (when scope detection fails) includes CSV/JSON/Parquet columns
-                                        const existingCols = new Set(window.__amoxSqlSchemaCache.allColumns || []);
-                                        fileCols.forEach(c => existingCols.add(c.name));
-                                        window.__amoxSqlSchemaCache.allColumns = Array.from(existingCols);
-                                        if (workerBridgeRef.current) {
-                                            workerBridgeRef.current.updateSchema(window.__amoxSqlSchemaCache);
-                                        }
-                                    }
-                                })
-                                .catch(err => console.warn('[Monaco] Failed to fetch file schema for autocomplete:', err));
-                        }
-                    });
-                }
+                scanAndCacheFileSchemas(text);
             }, 300);
         });
         disposablesRef.current.push(changeModelDisposable);

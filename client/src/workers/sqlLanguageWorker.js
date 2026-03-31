@@ -207,7 +207,19 @@ function getCompletions(line, column, triggerChar) {
     // --- FILE REFERENCE RESOLUTION (regex fallback for tree-sitter) ---
     // Tree-sitter SQL grammar treats 'file.csv' as a string literal, not a relation.
     // Use regex to extract file references + aliases from raw text.
-    const searchText = (statementNode ? statementNode.text : currentText);
+    // IMPORTANT: statementNode.text is unreliable — tree-sitter often splits the query
+    // into smaller nodes (e.g., 'statement' only covers 'SELECT col', not the FROM clause).
+    // Instead, find the full SQL statement by scanning between semicolons.
+    let searchText;
+    {
+        const beforeCursor = currentText.substring(0, offset);
+        const afterCursor = currentText.substring(offset);
+        const lastSemi = beforeCursor.lastIndexOf(';');
+        const nextSemi = afterCursor.indexOf(';');
+        const stmtStart = lastSemi >= 0 ? lastSemi + 1 : 0;
+        const stmtEnd = nextSemi >= 0 ? offset + nextSemi + 1 : currentText.length;
+        searchText = currentText.substring(stmtStart, stmtEnd).trim();
+    }
     const fileRefs = extractFileReferences(searchText);
 
     // Merge file references into scope maps
@@ -219,14 +231,37 @@ function getCompletions(line, column, triggerChar) {
         tableAliases[table] = alias;
     });
 
-    // Secondary pass: catch files in cache not found by regex
-    const searchTextLower = searchText.toLowerCase();
+    // Secondary pass: catch files in cache not found by extractFileReferences regex.
+    // IMPORTANT: Only add if the file appears in a FROM/JOIN context, not just anywhere.
     Object.keys(schemaCache.tables).forEach(cachedTable => {
-        if (cachedTable.includes('.') && !referencedTables.has(cachedTable)
-            && searchTextLower.includes(cachedTable)) {
-            referencedTables.add(cachedTable);
+        if (cachedTable.includes('.') && !referencedTables.has(cachedTable)) {
+            const escapedName = cachedTable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const contextPattern = new RegExp(
+                `(?:FROM|JOIN)\\s+(?:read_\\w+\\s*\\(\\s*)?['"]${escapedName}['"]`, 'i'
+            );
+            if (contextPattern.test(searchText)) {
+                referencedTables.add(cachedTable);
+            }
         }
     });
+
+    // --- PARTIAL FILE REFERENCE RESOLUTION ---
+    // When user is still typing a file path (e.g., FROM 'Da — no closing quote),
+    // match the partial input against cached files so columns appear immediately.
+    if (referencedTables.size === 0) {
+        // Capture partial file paths: FROM ' followed by text without a closing quote
+        const partialFilePattern = /(?:FROM|JOIN)\s+(?:read_\w+\s*\(\s*)?['"]([^'"]+)$/gim;
+        let partialMatch;
+        while ((partialMatch = partialFilePattern.exec(searchText)) !== null) {
+            const partialName = partialMatch[1].toLowerCase();
+            // Find cached files whose name starts with the partial input
+            Object.keys(schemaCache.tables).forEach(cachedTable => {
+                if (cachedTable.includes('.') && cachedTable.startsWith(partialName)) {
+                    referencedTables.add(cachedTable);
+                }
+            });
+        }
+    }
 
     // ====== FORMATTING UTILS ======
     function formatIdentifier(name) {
@@ -308,24 +343,9 @@ function getCompletions(line, column, triggerChar) {
                     });
                 }
             });
-        } else {
-            // Before dumping all columns, check if the query references file-like patterns
-            // that just haven't been cached yet — silence is better than noise
-            const hasUnresolvedFiles = /['"][^'"]+\.\w+['"]/.test(searchText);
-            if (!hasUnresolvedFiles) {
-                // True fallback: no tables, no files — show all columns
-                (schemaCache.allColumns || []).forEach(col => {
-                    suggestions.push({
-                        label: col,
-                        kind: 3,
-                        insertText: formatIdentifier(col),
-                        detail: 'Column',
-                        sortText: '1_z_' + col
-                    });
-                });
-            }
-            // If unresolved file refs exist, show nothing — schema arrives via 300ms debounce
         }
+        // If no tables referenced in FROM/JOIN → no columns to suggest. This is correct.
+        // The user needs to write a FROM clause first.
     }
 
     // ====== CONTEXTUAL KEYWORDS ======
