@@ -113,6 +113,50 @@ export function extractTablesAndAliases(statementNode) {
 }
 
 /**
+ * Regex-based fallback to extract file references and their aliases from raw SQL text.
+ * Tree-sitter treats 'file.csv' as a string literal, not a relation, so this function
+ * fills the gap for DuckDB's file-based queries (FROM 'file.csv', read_csv_auto, etc.).
+ */
+const FILE_ALIAS_STOP_WORDS = new Set([
+    'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'CROSS', 'FULL', 'ON',
+    'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'UNION', 'EXCEPT', 'INTERSECT',
+    'SET', 'VALUES', 'SELECT', 'AS', 'AND', 'OR', 'WINDOW', 'QUALIFY',
+    'NATURAL', 'USING', 'INTO', 'RETURNING', 'SEMI', 'ANTI', 'POSITIONAL',
+    'LATERAL', 'ASOF',
+]);
+
+export function extractFileReferences(sqlText) {
+    const fileAliasMap = {};      // alias -> filename
+    const fileTables = new Set(); // set of filenames
+    const fileTableAliases = {};  // filename -> alias
+
+    if (!sqlText) return { fileAliasMap, fileTables, fileTableAliases };
+
+    // Matches: FROM/JOIN [read_xxx(] 'file.ext' [)] [AS] [alias]
+    const filePattern = /(?:FROM|JOIN)\s+(?:read_\w+\s*\(\s*)?['"]([^'"]+\.[a-z0-9]+)['"]\)?(?:\s*,[^)]*\))?\s*(?:AS\s+)?([a-zA-Z_]\w*)?/gi;
+
+    let match;
+    while ((match = filePattern.exec(sqlText)) !== null) {
+        const fileName = match[1].toLowerCase();
+        const alias = match[2] ? match[2].toLowerCase() : null;
+
+        // Skip SQL keywords that could be captured as alias
+        if (alias && FILE_ALIAS_STOP_WORDS.has(alias.toUpperCase())) {
+            fileTables.add(fileName);
+            continue;
+        }
+
+        fileTables.add(fileName);
+        if (alias) {
+            fileAliasMap[alias] = fileName;
+            fileTableAliases[fileName] = alias;
+        }
+    }
+
+    return { fileAliasMap, fileTables, fileTableAliases };
+}
+
+/**
  * Checks if the cursor is at the right side of a DOT '.'
  * e.g. "alias." or "alias.partial_word"
  * Returns the target alias string or null.

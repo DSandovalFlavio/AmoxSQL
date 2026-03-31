@@ -2,6 +2,7 @@ import { Parser as TreeSitter, Language } from 'web-tree-sitter';
 import {
     determineClause,
     extractTablesAndAliases,
+    extractFileReferences,
     findEnclosingStatement,
     isDotAccess,
     isJinjaContext,
@@ -203,14 +204,26 @@ function getCompletions(line, column, triggerChar) {
         tableAliases = extracted.tableAliases || {};
     }
 
-    // --- DUCKDB FILE RESOLUTION OVERRIDE ---
-    // Tree-sitter SQL grammar often fails to classify string paths (e.g. 'data.csv') 
-    // as valid 'relation' nodes. We cross-verify raw text against known cached files.
-    // Use statementNode text if available, otherwise fall back to FULL document text
-    // (critical for when AST produces ERROR nodes during fast typing).
-    const searchText = (statementNode ? statementNode.text : currentText).toLowerCase();
+    // --- FILE REFERENCE RESOLUTION (regex fallback for tree-sitter) ---
+    // Tree-sitter SQL grammar treats 'file.csv' as a string literal, not a relation.
+    // Use regex to extract file references + aliases from raw text.
+    const searchText = (statementNode ? statementNode.text : currentText);
+    const fileRefs = extractFileReferences(searchText);
+
+    // Merge file references into scope maps
+    fileRefs.fileTables.forEach(f => referencedTables.add(f));
+    Object.entries(fileRefs.fileAliasMap).forEach(([alias, table]) => {
+        aliasMap[alias] = table;
+    });
+    Object.entries(fileRefs.fileTableAliases).forEach(([table, alias]) => {
+        tableAliases[table] = alias;
+    });
+
+    // Secondary pass: catch files in cache not found by regex
+    const searchTextLower = searchText.toLowerCase();
     Object.keys(schemaCache.tables).forEach(cachedTable => {
-        if (cachedTable.includes('.') && searchText.includes(cachedTable)) {
+        if (cachedTable.includes('.') && !referencedTables.has(cachedTable)
+            && searchTextLower.includes(cachedTable)) {
             referencedTables.add(cachedTable);
         }
     });
@@ -296,16 +309,22 @@ function getCompletions(line, column, triggerChar) {
                 }
             });
         } else {
-            // Fallback: all columns if no scope found
-            (schemaCache.allColumns || []).forEach(col => {
-                suggestions.push({
-                    label: col, 
-                    kind: 3, 
-                    insertText: formatIdentifier(col), 
-                    detail: 'Column', 
-                    sortText: '1_z_' + col
+            // Before dumping all columns, check if the query references file-like patterns
+            // that just haven't been cached yet — silence is better than noise
+            const hasUnresolvedFiles = /['"][^'"]+\.\w+['"]/.test(searchText);
+            if (!hasUnresolvedFiles) {
+                // True fallback: no tables, no files — show all columns
+                (schemaCache.allColumns || []).forEach(col => {
+                    suggestions.push({
+                        label: col,
+                        kind: 3,
+                        insertText: formatIdentifier(col),
+                        detail: 'Column',
+                        sortText: '1_z_' + col
+                    });
                 });
-            });
+            }
+            // If unresolved file refs exist, show nothing — schema arrives via 300ms debounce
         }
     }
 

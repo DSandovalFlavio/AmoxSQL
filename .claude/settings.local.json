@@ -21,7 +21,11 @@
       "Bash(git pull:*)",
       "Bash(grep -rn:*)",
       "Bash(node -c server/ai/persistence.js)",
-      "Bash(npx -y acorn --ecma2020 --module --allow-import-export-everywhere src/components/AiSidebar.jsx)"
+      "Bash(npx -y acorn --ecma2020 --module --allow-import-export-everywhere src/components/AiSidebar.jsx)",
+      "Bash(find C:UsersflaviDocumentsProyectosIDE.claudeworktreeshungry-kapitsa -type f \\\\\\(-name *.sql -o -name *.md -o -name *.txt \\\\\\))",
+      "Bash(npm run:*)",
+      "Bash(node -c \"C:/Users/flavi/Documents/Proyectos/IDE/.claude/worktrees/hungry-kapitsa/client/src/workers/treeSitterUtils.js\")",
+      "Bash(node --input-type=module -e \"import\\(''file:///C:/Users/flavi/Documents/Proyectos/IDE/.claude/worktrees/hungry-kapitsa/client/src/workers/treeSitterUtils.js''\\).catch\\(e => console.log\\(e.message\\)\\)\")"
     ]
   }
 }
