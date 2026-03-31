@@ -2,7 +2,7 @@
  * ChainCanvas — React Flow wrapper for the chain DAG builder.
  * Handles node/edge rendering, drag-and-drop from palette, connection validation.
  */
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
     ReactFlow,
     Controls,
@@ -51,14 +51,16 @@ const ChainCanvas = ({
     onDragOver,
     nodeStatuses = {},
 }) => {
-    // Enrich nodes with execution status data
-    const enrichedNodes = nodes.map(node => ({
-        ...node,
-        data: {
-            ...node.data,
-            ...(nodeStatuses[node.id] || {}),
-        },
-    }));
+    // Enrich nodes with execution status data (memoized)
+    const enrichedNodes = useMemo(() =>
+        nodes.map(node => ({
+            ...node,
+            data: {
+                ...node.data,
+                ...(nodeStatuses[node.id] || {}),
+            },
+        })),
+    [nodes, nodeStatuses]);
 
     return (
         <div className="chain-canvas-container">

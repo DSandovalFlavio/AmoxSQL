@@ -82,19 +82,19 @@ const ChainToolbar = ({
 
             <div className="chain-toolbar-right">
                 <button className="chain-toolbar-btn-icon" onClick={onAutoLayout} title="Auto-layout">
-                    <LuLayoutDashboard size={15} />
+                    <LuLayoutDashboard size={18} />
                 </button>
                 <button className="chain-toolbar-btn-icon" onClick={onExportYaml} title="Export as YAML">
-                    <LuFileDown size={15} />
+                    <LuFileDown size={18} />
                 </button>
                 <button className="chain-toolbar-btn-icon" onClick={onImportYaml} title="Import from YAML">
-                    <LuFileUp size={15} />
+                    <LuFileUp size={18} />
                 </button>
 
                 <div className="chain-toolbar-separator" />
 
                 <button className="chain-toolbar-btn-icon" onClick={onToggleHistory} title="Execution history">
-                    <LuHistory size={15} />
+                    <LuHistory size={18} />
                 </button>
             </div>
         </div>
