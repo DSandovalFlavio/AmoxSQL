@@ -34,6 +34,7 @@ import SortNode from './nodes/SortNode';
 import SampleNode from './nodes/SampleNode';
 import PivotNode from './nodes/PivotNode';
 import RenameTableNode from './nodes/RenameTableNode';
+import CreateTableNode from './nodes/CreateTableNode';
 import { NODE_TYPES } from './chainNodeTypes';
 import { hasCycle, generateNodeId, generateEdgeId } from './chainUtils';
 
@@ -57,6 +58,7 @@ const nodeTypes = {
     sample: SampleNode,
     pivot: PivotNode,
     rename_table: RenameTableNode,
+    create_table: CreateTableNode,
 };
 
 const defaultEdgeOptions = {

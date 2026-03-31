@@ -1,6 +1,6 @@
 /**
  * ChainToolbar — Top toolbar for the chain editor.
- * Run controls, export, history toggle, auto-layout.
+ * Organized in 3 sections: identity, run controls, actions.
  */
 import {
     LuPlay, LuSquare, LuHistory, LuFileDown, LuFileUp,
@@ -27,13 +27,22 @@ const ChainToolbar = ({
 }) => {
     return (
         <div className="chain-toolbar">
+            {/* Left: Chain identity + Save */}
             <div className="chain-toolbar-left">
                 <span className="chain-toolbar-title">{chainName || 'Execution Chain'}</span>
                 {isDirty && <span className="chain-toolbar-dirty">*</span>}
+                <button
+                    className={`chain-toolbar-btn chain-toolbar-btn-save ${isDirty ? 'chain-toolbar-btn-save-dirty' : ''}`}
+                    onClick={onSave}
+                    title="Save (Ctrl+S)"
+                >
+                    <LuSave size={14} />
+                    <span>Save</span>
+                </button>
             </div>
 
+            {/* Center: Run controls */}
             <div className="chain-toolbar-center">
-                {/* Run controls */}
                 {isRunning ? (
                     <button className="chain-toolbar-btn chain-toolbar-btn-danger" onClick={onCancel} title="Cancel execution">
                         <LuSquare size={14} />
@@ -81,31 +90,29 @@ const ChainToolbar = ({
                 )}
             </div>
 
+            {/* Right: Tools */}
             <div className="chain-toolbar-right">
-                <button
-                    className={`chain-toolbar-btn-icon ${isDirty ? 'chain-toolbar-btn-save-dirty' : ''}`}
-                    onClick={onSave}
-                    title="Save (Ctrl+S)"
-                >
-                    <LuSave size={18} />
+                <button className="chain-toolbar-btn-tool" onClick={onAutoLayout} title="Auto-layout: reorganize nodes">
+                    <LuLayoutDashboard size={16} />
+                    <span>Layout</span>
                 </button>
 
                 <div className="chain-toolbar-separator" />
 
-                <button className="chain-toolbar-btn-icon" onClick={onAutoLayout} title="Auto-layout">
-                    <LuLayoutDashboard size={18} />
+                <button className="chain-toolbar-btn-tool" onClick={onExportYaml} title="Export chain as YAML file">
+                    <LuFileDown size={16} />
+                    <span>Export</span>
                 </button>
-                <button className="chain-toolbar-btn-icon" onClick={onExportYaml} title="Export as YAML">
-                    <LuFileDown size={18} />
-                </button>
-                <button className="chain-toolbar-btn-icon" onClick={onImportYaml} title="Import from YAML">
-                    <LuFileUp size={18} />
+                <button className="chain-toolbar-btn-tool" onClick={onImportYaml} title="Import chain from YAML file">
+                    <LuFileUp size={16} />
+                    <span>Import</span>
                 </button>
 
                 <div className="chain-toolbar-separator" />
 
-                <button className="chain-toolbar-btn-icon" onClick={onToggleHistory} title="Execution history">
-                    <LuHistory size={18} />
+                <button className="chain-toolbar-btn-tool" onClick={onToggleHistory} title="View execution history">
+                    <LuHistory size={16} />
+                    <span>History</span>
                 </button>
             </div>
         </div>
