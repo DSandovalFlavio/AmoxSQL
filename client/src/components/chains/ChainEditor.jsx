@@ -121,12 +121,17 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile }) => {
         return chainDef;
     }, [nodes, edges, chainMeta]);
 
-    // Auto-save on changes
+    // Auto-save on changes (debounced to avoid lag during drag)
+    const saveTimerRef = useRef(null);
     useEffect(() => {
-        const chainDef = serialize();
-        const json = JSON.stringify(chainDef, null, 2);
-        onChange?.(json);
         setIsDirty(true);
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            const chainDef = serialize();
+            const json = JSON.stringify(chainDef, null, 2);
+            onChange?.(json);
+        }, 300);
+        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     }, [nodes, edges, chainMeta]);
 
     // --- Connection handling ---
