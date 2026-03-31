@@ -9937,6 +9937,16 @@ tr:hover td {
   color: var(--text-primary);
 }
 
+.chain-toolbar-btn-save-dirty {
+  color: var(--accent-primary);
+  animation: chain-save-pulse 2s ease-in-out infinite;
+}
+
+@keyframes chain-save-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .chain-toolbar-separator {
   width: 1px;
   height: 20px;
@@ -10196,6 +10206,19 @@ tr:hover td {
   text-overflow: ellipsis;
 }
 
+.chain-palette-category {
+  margin-bottom: 4px;
+}
+
+.chain-palette-category-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  padding: 6px 10px 2px;
+}
+
 /* ── Config Panel ── */
 .chain-config-panel {
   width: 280px;
@@ -10361,6 +10384,110 @@ tr:hover td {
   color: var(--text-tertiary);
   line-height: 1.4;
   margin: 0;
+}
+
+.chain-config-hint-info {
+  color: oklch(0.7 0.1 250);
+  background: oklch(0.25 0.04 250 / 0.3);
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 2px solid oklch(0.6 0.12 250);
+  margin-top: 4px;
+}
+
+.chain-config-optional {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+/* ── Dynamic List Rows (Filter conditions, Group columns, etc.) ── */
+
+.chain-config-condition-row,
+.chain-config-inline-row,
+.chain-config-agg-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.chain-config-column-def {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 6px;
+  background: var(--surface-overlay);
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.chain-config-column-def .chain-config-remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.chain-config-input-sm {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px !important;
+  font-size: 10px !important;
+}
+
+.chain-config-select-sm {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 60px;
+  padding: 4px 6px !important;
+  font-size: 10px !important;
+}
+
+.chain-config-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px dashed var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  margin-top: 4px;
+  width: 100%;
+  justify-content: center;
+}
+
+.chain-config-add-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--surface-overlay);
+}
+
+.chain-config-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.chain-config-remove-btn:hover {
+  background: oklch(0.3 0.06 25 / 0.3);
+  border-color: oklch(0.5 0.1 25);
+  color: oklch(0.7 0.12 25);
 }
 
 .chain-config-delete {

@@ -394,6 +394,7 @@ const EditorPane = ({
                                 onChange={(val) => onContentChange(activeTab.id, val)}
                                 filePath={activeTab.path || null}
                                 onOpenFile={onOpenFile}
+                                onSave={onSave}
                             />
                         </Suspense>
                     </div>
