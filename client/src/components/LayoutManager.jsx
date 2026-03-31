@@ -328,14 +328,22 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // Extracted createNew so it can be passed to EditorPanes + exposed via ref
     const createNew = (type, initialContent) => {
-        const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb' : type;
+        const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb'
+            : (type === 'chain' || type === 'sqlchain') ? 'sqlchain'
+            : type;
         const newTab = {
             id: Date.now().toString(),
             path: '',
-            name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb' : normalizedType === 'md' ? 'Untitled.md' : normalizedType === 'er-diagram' ? 'ER Diagram' : 'Untitled.sql',
+            name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb'
+                : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
+                : normalizedType === 'md' ? 'Untitled.md'
+                : normalizedType === 'er-diagram' ? 'ER Diagram'
+                : 'Untitled.sql',
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
                 ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
+                : normalizedType === 'sqlchain'
+                ? JSON.stringify({ version: '1.0', name: 'New Chain', description: '', nodes: [], edges: [], variables: {} }, null, 2)
                 : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' : normalizedType === 'er-diagram' ? '' : 'SELECT 1;'),
             results: null,
             dirty: normalizedType !== 'er-diagram'
@@ -377,7 +385,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     id: Date.now().toString(),
                     path: path,
                     name: path.split(/[/\\]/).pop(),
-                    type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.md') ? 'md' : 'sql'),
+                    type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : 'sql'),
                     content: content,
                     results: null,
                     dirty: false
@@ -492,12 +500,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const lowerName = fileName.toLowerCase();
 
         // SQL and Markdown files: open directly
-        if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.md')) {
+        if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md')) {
             try {
                 const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
                 if (!data.error) {
-                    const type = lowerName.endsWith('.sqlnb') ? 'sqlnb' : lowerName.endsWith('.md') ? 'md' : 'sql';
+                    const type = lowerName.endsWith('.sqlnb') ? 'sqlnb' : lowerName.endsWith('.sqlchain') ? 'sqlchain' : lowerName.endsWith('.md') ? 'md' : 'sql';
                     const existing = [...leftTabs, ...rightTabs].find(t => t.path === filePath);
                     if (existing) {
                         if (leftTabs.find(t => t.id === existing.id)) setLeftActiveId(existing.id);
@@ -714,6 +722,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onRequestSaveAs={() => onRequestSaveAs && onRequestSaveAs('', getActiveTab())}
                     showAiSidebar={showAiSidebar}
                     onToggleAi={onToggleAi}
+                    onOpenFile={handleQueryFile}
                 />
 
                 {splitEnabled && (
@@ -741,6 +750,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onRequestSaveAs={() => onRequestSaveAs && onRequestSaveAs('', getActiveTab())}
                         showAiSidebar={showAiSidebar}
                         onToggleAi={onToggleAi}
+                        onOpenFile={handleQueryFile}
                     />
                 )}
             </div>

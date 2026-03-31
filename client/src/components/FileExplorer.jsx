@@ -3,7 +3,7 @@ import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
-    LuPencil, LuTrash2, LuFileText
+    LuPencil, LuTrash2, LuFileText, LuGitBranch
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -79,7 +79,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         } else {
             const lowerName = file.name.toLowerCase();
             // SQL scripts & notebooks & markdown files → open in editor
-            if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.md')) {
+            if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md')) {
                 onFileOpen(file.path);
                 // Chart configs → open chart editor
             } else if (lowerName.endsWith('.amoxvis')) {
@@ -117,6 +117,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         if (file.isDirectory) return <LuFolder size={14} color="var(--icon-folder)" />;
         if (lowerName.endsWith('.sql')) return <LuFileCode size={14} color="var(--icon-sql)" />;
         if (lowerName.endsWith('.sqlnb')) return <LuBookOpen size={14} color="var(--icon-notebook)" />;
+        if (lowerName.endsWith('.sqlchain')) return <LuGitBranch size={14} color="var(--accent-primary)" />;
         if (lowerName.endsWith('.md')) return <LuFileText size={14} color="var(--icon-md)" />;
         if (lowerName.endsWith('.amoxvis')) return <LuChartBar size={14} color="var(--icon-parquet)" />;
         if (lowerName.match(/\.(xlsx|xls)$/i)) return <LuFileSpreadsheet size={14} color="var(--icon-excel)" />;
