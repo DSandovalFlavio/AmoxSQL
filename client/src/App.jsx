@@ -318,9 +318,9 @@ function App() {
         setUiZoomLevel,
         setEditorSettings,
       }),
-      { id: 'run-chain', label: 'Run Execution Chain...', category: 'Query', icon: LuLink, action: handleOpenChain },
+      { id: 'new-chain', label: 'New Execution Chain', category: 'File', icon: LuLink, action: () => layoutRef.current?.createNew('sqlchain') },
     ];
-  }, [appPhase, showAiSidebar, theme, handleOpenChain]);
+  }, [appPhase, showAiSidebar, theme]);
 
   const startIdeSession = useCallback(async (dbPath, readOnly) => {
     // 1. Configure DB
@@ -715,9 +715,9 @@ function App() {
 
               {/* Execution Chain */}
               <button
-                onClick={handleOpenChain}
+                onClick={() => layoutRef.current?.createNew('sqlchain')}
                 className="activity-bar-btn"
-                title="Run Execution Chain"
+                title="New Execution Chain"
               >
                 <LuLink size={20} />
               </button>
