@@ -29,7 +29,7 @@ import { useChainExecution } from './useChainExecution';
 
 const API_BASE = 'http://localhost:3001';
 
-const ChainEditorInner = ({ content, onChange, filePath, onOpenFile }) => {
+const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) => {
     const toast = useToast();
     const reactFlowWrapper = useRef(null);
 
@@ -133,6 +133,20 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile }) => {
         }, 300);
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     }, [nodes, edges, chainMeta]);
+
+    // --- Manual save (Ctrl+S / Save button) ---
+    const handleSave = useCallback(() => {
+        // Flush any pending debounced save
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        const chainDef = serialize();
+        const json = JSON.stringify(chainDef, null, 2);
+        onChange?.(json);
+        // Trigger actual file save via LayoutManager
+        setTimeout(() => {
+            onSave?.();
+            setIsDirty(false);
+        }, 50);
+    }, [serialize, onChange, onSave]);
 
     // --- Connection handling ---
     const onConnect = useCallback((params) => {
@@ -363,6 +377,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile }) => {
                 onRunFromNode={handleRunFromNode}
                 onRunToNode={handleRunToNode}
                 onCancel={execution.cancelRun}
+                onSave={handleSave}
                 onExportYaml={handleExportYaml}
                 onImportYaml={handleImportYaml}
                 onAutoLayout={handleAutoLayout}

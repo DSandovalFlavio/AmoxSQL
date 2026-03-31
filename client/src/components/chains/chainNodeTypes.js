@@ -4,7 +4,9 @@
  */
 import {
     LuFileCode2, LuCode, LuFileInput, LuFolderInput,
-    LuFileOutput, LuPause
+    LuFileOutput, LuPause, LuTable2, LuMerge, LuShieldCheck,
+    LuFilter, LuGroup, LuColumns3, LuCopyMinus, LuCalculator,
+    LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -80,9 +82,201 @@ export const NODE_TYPES = {
         },
         defaultConfig: { resumeLabel: '' },
     },
+    table_ref: {
+        id: 'table_ref',
+        label: 'Table Source',
+        description: 'Reference an existing table or view as a data source',
+        icon: LuTable2,
+        color: {
+            bg: 'oklch(0.22 0.04 200)',
+            border: 'oklch(0.35 0.08 200)',
+            accent: 'oklch(0.65 0.15 200)',
+        },
+        defaultConfig: { tableName: '' },
+    },
+    merge_tables: {
+        id: 'merge_tables',
+        label: 'Merge Tables',
+        description: 'Combine data from multiple upstream nodes into one table',
+        icon: LuMerge,
+        color: {
+            bg: 'oklch(0.22 0.04 310)',
+            border: 'oklch(0.35 0.08 310)',
+            accent: 'oklch(0.65 0.15 310)',
+        },
+        defaultConfig: { tableName: 'merged_data', mergeMode: 'union_all' },
+    },
+    assert: {
+        id: 'assert',
+        label: 'Assert',
+        description: 'Validate data quality — stops the chain if the check fails',
+        icon: LuShieldCheck,
+        color: {
+            bg: 'oklch(0.22 0.04 120)',
+            border: 'oklch(0.35 0.08 120)',
+            accent: 'oklch(0.65 0.15 120)',
+        },
+        defaultConfig: { assertType: 'not_empty', tableName: '', column: '', threshold: '0', query: '' },
+    },
+    join_tables: {
+        id: 'join_tables',
+        label: 'Join Tables',
+        description: 'Combine two tables using a key column (LEFT, INNER, etc.)',
+        icon: LuShuffle,
+        color: {
+            bg: 'oklch(0.22 0.04 330)',
+            border: 'oklch(0.35 0.08 330)',
+            accent: 'oklch(0.65 0.15 330)',
+        },
+        defaultConfig: { tableName: 'joined_data', joinType: 'LEFT', leftKey: '', rightKey: '' },
+    },
+    filter: {
+        id: 'filter',
+        label: 'Filter',
+        description: 'Keep only rows matching your conditions (no SQL needed)',
+        icon: LuFilter,
+        color: {
+            bg: 'oklch(0.22 0.04 35)',
+            border: 'oklch(0.35 0.08 35)',
+            accent: 'oklch(0.65 0.15 35)',
+        },
+        defaultConfig: { tableName: 'filtered_data', conditions: [], connector: 'AND' },
+    },
+    group_aggregate: {
+        id: 'group_aggregate',
+        label: 'Group & Aggregate',
+        description: 'Summarize data with SUM, COUNT, AVG grouped by columns',
+        icon: LuGroup,
+        color: {
+            bg: 'oklch(0.22 0.04 290)',
+            border: 'oklch(0.35 0.08 290)',
+            accent: 'oklch(0.65 0.15 290)',
+        },
+        defaultConfig: { tableName: 'aggregated_data', groupColumns: [], aggregations: [] },
+    },
+    select_columns: {
+        id: 'select_columns',
+        label: 'Select Columns',
+        description: 'Pick and rename columns to keep',
+        icon: LuColumns3,
+        color: {
+            bg: 'oklch(0.22 0.04 180)',
+            border: 'oklch(0.35 0.08 180)',
+            accent: 'oklch(0.65 0.15 180)',
+        },
+        defaultConfig: { tableName: 'selected_columns', columns: [] },
+    },
+    deduplicate: {
+        id: 'deduplicate',
+        label: 'Deduplicate',
+        description: 'Remove duplicate rows based on key columns',
+        icon: LuCopyMinus,
+        color: {
+            bg: 'oklch(0.22 0.04 60)',
+            border: 'oklch(0.35 0.08 60)',
+            accent: 'oklch(0.65 0.15 60)',
+        },
+        defaultConfig: { tableName: 'deduplicated', keyColumns: [], keep: 'first' },
+    },
+    add_column: {
+        id: 'add_column',
+        label: 'Add Column',
+        description: 'Create computed columns with expressions',
+        icon: LuCalculator,
+        color: {
+            bg: 'oklch(0.22 0.04 220)',
+            border: 'oklch(0.35 0.08 220)',
+            accent: 'oklch(0.65 0.15 220)',
+        },
+        defaultConfig: { tableName: 'with_column', newColumns: [] },
+    },
+    sort: {
+        id: 'sort',
+        label: 'Sort',
+        description: 'Order rows by one or more columns',
+        icon: LuArrowUpDown,
+        color: {
+            bg: 'oklch(0.22 0.04 170)',
+            border: 'oklch(0.35 0.08 170)',
+            accent: 'oklch(0.65 0.15 170)',
+        },
+        defaultConfig: { tableName: 'sorted_data', sortColumns: [] },
+    },
+    sample: {
+        id: 'sample',
+        label: 'Sample',
+        description: 'Take a subset of rows (first N or random %)',
+        icon: LuDices,
+        color: {
+            bg: 'oklch(0.22 0.04 100)',
+            border: 'oklch(0.35 0.08 100)',
+            accent: 'oklch(0.65 0.15 100)',
+        },
+        defaultConfig: { tableName: 'sample_data', sampleType: 'rows', sampleValue: '100' },
+    },
+    pivot: {
+        id: 'pivot',
+        label: 'Pivot',
+        description: 'Transform rows into columns (pivot table)',
+        icon: LuFlipHorizontal2,
+        color: {
+            bg: 'oklch(0.22 0.04 5)',
+            border: 'oklch(0.35 0.08 5)',
+            accent: 'oklch(0.65 0.15 5)',
+        },
+        defaultConfig: { tableName: 'pivoted_data', groupColumn: '', pivotColumn: '', valueColumn: '', aggFunc: 'SUM' },
+    },
+    rename_table: {
+        id: 'rename_table',
+        label: 'Rename Table',
+        description: 'Rename the upstream table to a new name',
+        icon: LuPencilLine,
+        color: {
+            bg: 'oklch(0.22 0.04 240)',
+            border: 'oklch(0.35 0.08 240)',
+            accent: 'oklch(0.65 0.15 240)',
+        },
+        defaultConfig: { newName: '' },
+    },
 };
 
 export const NODE_TYPE_LIST = Object.values(NODE_TYPES);
+
+/**
+ * Node categories for grouping in the palette
+ */
+export const NODE_CATEGORIES = [
+    {
+        id: 'sources',
+        label: 'Data Sources',
+        types: ['import_file', 'import_folder', 'table_ref'],
+    },
+    {
+        id: 'sql',
+        label: 'SQL',
+        types: ['sql_file', 'sql_inline'],
+    },
+    {
+        id: 'transform',
+        label: 'Transform',
+        types: ['filter', 'select_columns', 'add_column', 'group_aggregate', 'join_tables', 'sort', 'deduplicate', 'pivot', 'sample', 'rename_table'],
+    },
+    {
+        id: 'combine',
+        label: 'Combine',
+        types: ['merge_tables'],
+    },
+    {
+        id: 'output',
+        label: 'Output',
+        types: ['export_file'],
+    },
+    {
+        id: 'control',
+        label: 'Control Flow',
+        types: ['checkpoint', 'assert'],
+    },
+];
 
 /**
  * Status colors for node execution states
@@ -106,5 +300,7 @@ export const RESULT_TYPE_LABELS = {
     table_dropped: 'Table Dropped',
     view_dropped: 'View Dropped',
     checkpoint_reached: 'Checkpoint',
+    table_referenced: 'Table Referenced',
+    assertion_passed: 'Assertion Passed',
     unknown: 'Executed',
 };
