@@ -420,7 +420,7 @@ function App() {
       if (data.error) throw new Error(data.error);
 
       // determine type
-      const type = path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.md') ? 'md' : 'sql';
+      const type = path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : 'sql';
       layoutRef.current?.openFile(path, data.content, type);
 
     } catch (err) {
@@ -543,9 +543,11 @@ function App() {
         contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
       }
     }
-    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.md')) {
+    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md')) {
       if (pendingSaveTab && pendingSaveTab.type === 'sqlnb') {
         filename += '.sqlnb';
+      } else if (pendingSaveTab && pendingSaveTab.type === 'sqlchain') {
+        filename += '.sqlchain';
       } else if (pendingSaveTab && pendingSaveTab.type === 'md') {
         filename += '.md';
       } else {

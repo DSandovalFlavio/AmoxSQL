@@ -11,7 +11,6 @@ export function findEnclosingStatement(node) {
     const STATEMENT_TYPES = new Set([
         'statement',
         'select_statement',
-        'select',
         'subquery',
         'insert_statement',
         'update_statement',
@@ -56,8 +55,9 @@ export function determineClause(node, statementNode) {
 }
 
 /**
- * Walks the AST to extract tables and their aliases from the FROM and JOIN clauses
- * of the given statement node.
+ * Walks the AST to extract tables and their aliases **only** from the FROM and JOIN clauses
+ * of the given statement node. This prevents identifiers in SELECT, WHERE, GROUP BY, etc.
+ * from being misidentified as referenced tables.
  * Returns { aliasMap: { 'u': 'usuarios' }, referencedTables: Set('usuarios') }
  */
 export function extractTablesAndAliases(statementNode) {
@@ -69,23 +69,42 @@ export function extractTablesAndAliases(statementNode) {
         return { aliasMap, referencedTables, tableAliases };
     }
 
-    // A simple recursive walker to find aliases and relation names within this statement scope
-    function walk(node) {
-        // Stop walking into subqueries to avoid polluting the current scope
-        if (node !== statementNode && (node.type === 'subquery' || node.type === 'select' || node.type === 'select_statement')) {
+    // --- Phase 1: Collect only FROM/JOIN clause nodes from the statement ---
+    const FROM_JOIN_TYPES = new Set([
+        'from_clause', 'join_clause', 'join',
+        'from', 'cross_join', 'natural_join',
+    ]);
+    const fromJoinNodes = [];
+
+    function collectFromJoinNodes(node) {
+        // Don't descend into subqueries — they are a separate scope
+        if (node !== statementNode &&
+            (node.type === 'subquery' || node.type === 'select' || node.type === 'select_statement')) {
+            return;
+        }
+        if (FROM_JOIN_TYPES.has(node.type)) {
+            fromJoinNodes.push(node);
+            // Still recurse children because JOIN clauses can contain nested JOINs
+        }
+        for (let i = 0; i < node.namedChildCount; i++) {
+            collectFromJoinNodes(node.namedChild(i));
+        }
+    }
+    collectFromJoinNodes(statementNode);
+
+    // --- Phase 2: Extract tables/aliases only from FROM/JOIN nodes ---
+    function extractFromNode(node) {
+        // Don't descend into subqueries
+        if (node.type === 'subquery' || node.type === 'select' || node.type === 'select_statement') {
             return;
         }
 
-        // Tree-sitter SQL usually represents a table as `relation` or `object_reference`
-        // and an alias is often a sibling or wrapped in `aliased_relation`
         if (node.type === 'aliased_relation' || node.type === 'alias') {
-            // Simplified handling: typically child(0) is the table, child(2) is the alias identifier
             const tableNode = node.children.find(c => c.type === 'relation' || c.type === 'object_reference' || c.type === 'identifier');
             let aliasNode = node.children.find(c => c.type === 'identifier' && c !== tableNode);
             
             if (!aliasNode && node.isNamed) {
-                // sometimes the node itself might be the alias wrapper
-                 aliasNode = node.children[node.children.length - 1]; 
+                aliasNode = node.children[node.children.length - 1]; 
             }
 
             if (tableNode && aliasNode) {
@@ -98,17 +117,55 @@ export function extractTablesAndAliases(statementNode) {
                 }
             }
         } else if (node.type === 'relation' || node.type === 'object_reference') {
-             // Just a table, no alias
              const tableName = node.text.replace(/^['"]|['"]$/g, '').toLowerCase();
              referencedTables.add(tableName);
         }
 
         for (let i = 0; i < node.namedChildCount; i++) {
-            walk(node.namedChild(i));
+            extractFromNode(node.namedChild(i));
         }
     }
 
-    walk(statementNode);
+    fromJoinNodes.forEach(n => extractFromNode(n));
+
+    // --- Phase 3: Regex fallback for when tree-sitter can't find FROM clause nodes ---
+    // This happens when the user is still typing (e.g., `SELECT col FROM use|`)
+    // and tree-sitter marks the whole statement as ERROR.
+    if (referencedTables.size === 0 && statementNode.hasError) {
+        const text = statementNode.text;
+        const SKIP = new Set(['where','join','left','right','inner','cross','full','on','group','order','having','limit','union','set','natural','using','lateral']);
+
+        // Pattern A: Bare table names — FROM users [AS u]
+        const barePattern = /\b(?:FROM|JOIN)\s+(?!SELECT\b)([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?)(?:\s+(?:AS\s+)?([a-zA-Z_]\w*))?/gi;
+        let m;
+        while ((m = barePattern.exec(text)) !== null) {
+            const tableName = m[1].toLowerCase();
+            const alias = m[2] ? m[2].toLowerCase() : null;
+            if (SKIP.has(tableName)) continue;
+            referencedTables.add(tableName);
+            if (alias && !SKIP.has(alias)) {
+                aliasMap[alias] = tableName;
+                tableAliases[tableName] = alias;
+            }
+        }
+
+        // Pattern B: Quoted file paths (complete) — FROM 'data.csv' [AS d]
+        const quotedPattern = /\b(?:FROM|JOIN)\s+(?:read_\w+\s*\(\s*)?['"]([^'"]+\.[a-z0-9]+)['"]\)?(?:\s*,[^)]*\))?\s*(?:AS\s+)?([a-zA-Z_]\w*)?/gi;
+        while ((m = quotedPattern.exec(text)) !== null) {
+            const fileName = m[1].toLowerCase();
+            const alias = m[2] ? m[2].toLowerCase() : null;
+            if (alias && SKIP.has(alias)) {
+                referencedTables.add(fileName);
+                continue;
+            }
+            referencedTables.add(fileName);
+            if (alias) {
+                aliasMap[alias] = fileName;
+                tableAliases[fileName] = alias;
+            }
+        }
+    }
+
     return { aliasMap, referencedTables, tableAliases };
 }
 
