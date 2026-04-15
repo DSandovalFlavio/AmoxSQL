@@ -403,6 +403,25 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         handleTriggerRun: () => handleRunActive(),
         handleTriggerSave: () => handleSaveActive(),
         handleTriggerAnalyze: () => handleAnalyzeActive(),
+        handleTriggerSaveAs: () => {
+            const tab = getActiveTab();
+            if (tab && onRequestSaveAs) {
+                onRequestSaveAs(tab.content, tab);
+            }
+        },
+        closeActiveTab: () => {
+            const tabId = activePane === 'left' ? leftActiveId : rightActiveId;
+            if (tabId) handleTabClose(tabId);
+        },
+        navigateTab: (direction) => {
+            const tabs = activePane === 'left' ? leftTabs : rightTabs;
+            const currentId = activePane === 'left' ? leftActiveId : rightActiveId;
+            if (tabs.length < 2) return;
+            const idx = tabs.findIndex(t => t.id === currentId);
+            const nextIdx = (idx + direction + tabs.length) % tabs.length;
+            if (activePane === 'left') setLeftActiveId(tabs[nextIdx].id);
+            else setRightActiveId(tabs[nextIdx].id);
+        },
         finishSaveAs: (newPath) => {
             // Update the active tab's path
             const tab = getActiveTab();

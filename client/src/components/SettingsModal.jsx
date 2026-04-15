@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard } from 'react-icons/lu';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -43,8 +43,69 @@ const TAB_TITLES = {
     editor: 'Editor',
     ai: 'AI Settings',
     cloud: 'Cloud Storage',
+    shortcuts: 'Keyboard Shortcuts',
     about: 'About AmoxSQL',
 };
+
+const SHORTCUT_SECTIONS = [
+    {
+        category: 'General',
+        items: [
+            { keys: 'Ctrl + Shift + P', description: 'Command Palette' },
+            { keys: 'Ctrl + ,', description: 'Open Settings' },
+            { keys: 'Ctrl + S', description: 'Save File' },
+            { keys: 'Ctrl + Shift + S', description: 'Save As…' },
+            { keys: 'Ctrl + N', description: 'New SQL File' },
+            { keys: 'Ctrl + Shift + N', description: 'New Notebook' },
+            { keys: 'Ctrl + W', description: 'Close Current Tab' },
+            { keys: 'Ctrl + Shift + /', description: 'Keyboard Shortcuts' },
+        ]
+    },
+    {
+        category: 'Query Execution',
+        items: [
+            { keys: 'Ctrl + Enter', description: 'Run Query / Run Cell' },
+            { keys: 'F5', description: 'Run Query (alias)' },
+            { keys: 'Ctrl + Shift + A', description: 'Analyze Query Plan (EXPLAIN)' },
+            { keys: 'Ctrl + Shift + Enter', description: 'Run All Cells (Notebooks)' },
+        ]
+    },
+    {
+        category: 'Navigation',
+        items: [
+            { keys: 'Ctrl + Tab', description: 'Next Tab' },
+            { keys: 'Ctrl + Shift + Tab', description: 'Previous Tab' },
+            { keys: 'Ctrl + B', description: 'Toggle Sidebar' },
+            { keys: 'Ctrl + L', description: 'Toggle AI Assistant' },
+            { keys: 'Ctrl + Shift + E', description: 'Focus File Explorer' },
+            { keys: 'Ctrl + Shift + D', description: 'Focus Database Explorer' },
+        ]
+    },
+    {
+        category: 'Editor',
+        items: [
+            { keys: 'Ctrl + /', description: 'Toggle Line Comment' },
+            { keys: 'Ctrl + D', description: 'Duplicate Selection / Line' },
+            { keys: 'Ctrl + Shift + K', description: 'Delete Line' },
+            { keys: 'Ctrl + F', description: 'Find in Editor' },
+            { keys: 'Ctrl + H', description: 'Find and Replace' },
+            { keys: 'Ctrl + K', description: 'Format SQL (Prettify)' },
+            { keys: 'Ctrl + Shift + F', description: 'Format SQL (Alternative)' },
+            { keys: 'Ctrl + Z', description: 'Undo' },
+            { keys: 'Ctrl + Shift + Z', description: 'Redo' },
+            { keys: 'Ctrl + A', description: 'Select All' },
+        ]
+    },
+    {
+        category: 'View',
+        items: [
+            { keys: 'Ctrl + =', description: 'Zoom In' },
+            { keys: 'Ctrl + -', description: 'Zoom Out' },
+            { keys: 'Ctrl + 0', description: 'Reset Zoom' },
+            { keys: 'Escape', description: 'Close Modals / Exit Full View' },
+        ]
+    },
+];
 
 // ─── Reusable Toggle Component ───
 const Toggle = ({ on, onChange }) => (
@@ -53,7 +114,7 @@ const Toggle = ({ on, onChange }) => (
     </div>
 );
 
-const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange }) => {
+const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
     const contentRef = useRef(null);
 
@@ -109,6 +170,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     useEffect(() => {
         if (contentRef.current) contentRef.current.scrollTop = 0;
     }, [activeTab]);
+
+    // Respond to initialTab prop (e.g. from Ctrl+Shift+/)
+    useEffect(() => {
+        if (isOpen && initialTab) {
+            setActiveTab(initialTab);
+            onTabReset?.();
+        }
+    }, [isOpen, initialTab]);
 
     useEffect(() => {
         if (isOpen) {
@@ -279,6 +348,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'editor', icon: <LuCode size={16} />, label: 'Editor' },
                         { id: 'ai', icon: <LuCpu size={16} />, label: 'AI Assistant' },
                         { id: 'cloud', icon: <LuCloud size={16} />, label: 'Cloud Storage' },
+                        { id: 'shortcuts', icon: <LuKeyboard size={16} />, label: 'Shortcuts' },
                         { id: 'about', icon: <LuInfo size={16} />, label: 'About AmoxSQL' },
                     ].map(tab => (
                         <div
@@ -397,6 +467,37 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Interface Scale */}
+                                <hr className="stg-divider" />
+                                <div>
+                                    <h3 className="stg-section-heading stg-section-heading--mb4">Interface Scale</h3>
+                                    <p className="stg-row-desc stg-row-desc--mb14">
+                                        Adjust the size of all UI elements (menus, sidebar, tabs, panels). Similar to browser zoom.
+                                    </p>
+                                    <div className="stg-group">
+                                        <div className="stg-row">
+                                            <span className="stg-row-label">UI Zoom Level</span>
+                                            <div className="stg-flex">
+                                                <input type="range" className="stg-range" min="0.7" max="1.4" step="0.05"
+                                                    value={uiZoomLevel}
+                                                    onChange={(e) => {
+                                                        const val = parseFloat(e.target.value);
+                                                        onUiZoomChange?.(val);
+                                                        // Trigger Electron zoom if available
+                                                        if (window.electronAPI?.zoom?.set) {
+                                                            window.electronAPI.zoom.set(val);
+                                                        }
+                                                    }}
+                                                />
+                                                <span className="stg-range-value">{Math.round(uiZoomLevel * 100)}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="stg-row">
+                                            <span className="stg-row-desc">Use <kbd className="stg-kbd">Ctrl</kbd> + <kbd className="stg-kbd">=</kbd> / <kbd className="stg-kbd">-</kbd> for quick zoom. <kbd className="stg-kbd">Ctrl</kbd> + <kbd className="stg-kbd">0</kbd> to reset.</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
@@ -423,7 +524,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </select>
                                         </div>
                                         <div className="stg-row">
-                                            <span className="stg-row-label">Font Size</span>
+                                            <div>
+                                                <span className="stg-row-label">Code Font Size</span>
+                                                <p className="stg-row-desc">Controls text size inside the SQL editor only</p>
+                                            </div>
                                             <div className="stg-flex">
                                                 <input type="range" className="stg-range" min="10" max="24"
                                                     value={editorSettings.fontSize || 14}
@@ -825,6 +929,37 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         {cloudTestResult.text}
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* ═══ KEYBOARD SHORTCUTS ═══ */}
+                        {activeTab === 'shortcuts' && (
+                            <div className="stg-section">
+                                <p className="stg-row-desc stg-row-desc--mb14">
+                                    Complete reference of all keyboard shortcuts available in AmoxSQL. On macOS, use <kbd className="stg-kbd">⌘</kbd> instead of <kbd className="stg-kbd">Ctrl</kbd>.
+                                </p>
+
+                                {SHORTCUT_SECTIONS.map((group, gi) => (
+                                    <div key={group.category}>
+                                        {gi > 0 && <hr className="stg-divider" />}
+                                        <h3 className="stg-section-title">{group.category}</h3>
+                                        <div className="stg-group stg-group--mt14">
+                                            {group.items.map(item => (
+                                                <div key={item.keys} className="stg-row stg-row--shortcut">
+                                                    <span className="stg-row-label">{item.description}</span>
+                                                    <div className="stg-shortcut-keys">
+                                                        {item.keys.split(' + ').map((key, i) => (
+                                                            <span key={i}>
+                                                                {i > 0 && <span className="stg-shortcut-plus">+</span>}
+                                                                <kbd className="stg-kbd">{key}</kbd>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
 

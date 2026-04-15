@@ -1,14 +1,16 @@
-import { useEffect } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles } from 'react-icons/lu';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus } from 'react-icons/lu';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 
+const API = 'http://localhost:3001';
+
 /**
  * AiAssistantPanel — File-aware AI assistant sidebar panel.
- * Replaces the sidebar mode of AiSidebar.jsx, using the shared useAiChat hook.
+ * Two views: 'chat' (active conversation) and 'history' (list of all chats).
  */
 const AiAssistantPanel = ({
     activeFilePath,
@@ -22,6 +24,8 @@ const AiAssistantPanel = ({
     onClose,
     availableTables,
     onOpenSettings,
+    onResize,
+    panelWidth,
 }) => {
     const {
         GEMINI_MODELS,
@@ -72,17 +76,98 @@ const AiAssistantPanel = ({
         onUpdateChartConfig,
     });
 
-    // ─── When activeFilePath changes, reset conversation ───
+    // ─── View Mode: 'chat' or 'history' ───
+    const [viewMode, setViewMode] = useState('chat');
+
+    // ─── Cache: filePath → last conversationId per session ───
+    const fileConvCacheRef = useRef({});
+    const prevFilePathRef = useRef(null);
+
+    // ─── When activeFilePath changes, auto-load the latest conversation ───
     useEffect(() => {
-        if (activeFilePath) {
+        if (!activeFilePath) return;
+        if (activeFilePath === prevFilePathRef.current) return;
+        prevFilePathRef.current = activeFilePath;
+
+        // Always show chat view when switching files
+        setViewMode('chat');
+
+        const loadLastConversation = async () => {
+            // Check cache first
+            const cachedId = fileConvCacheRef.current[activeFilePath];
+            if (cachedId) {
+                handleSelectConversation(cachedId);
+                return;
+            }
+
+            // Fetch from API
+            try {
+                const params = new URLSearchParams({ path: activeFilePath });
+                const res = await fetch(`${API}/api/ai/conversations/by-file?${params}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        fileConvCacheRef.current[activeFilePath] = data[0].id;
+                        handleSelectConversation(data[0].id);
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load file conversations:', err);
+            }
+
+            // No conversations found — start fresh
             handleClearChat();
-        }
+        };
+
+        loadLastConversation();
     }, [activeFilePath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Keep cache updated when conversationId changes
+    useEffect(() => {
+        if (activeFilePath && conversationId) {
+            fileConvCacheRef.current[activeFilePath] = conversationId;
+        }
+    }, [conversationId, activeFilePath]);
+
+    // ─── Resize handle logic ───
+    const isResizing = useRef(false);
+
+    const handleResizeMouseDown = useCallback((e) => {
+        e.preventDefault();
+        isResizing.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const startX = e.clientX;
+        const startWidth = panelWidth;
+
+        const handleMouseMove = (moveEvent) => {
+            if (!isResizing.current) return;
+            const delta = startX - moveEvent.clientX;
+            const newWidth = Math.min(600, Math.max(300, startWidth + delta));
+            onResize?.(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            isResizing.current = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }, [panelWidth, onResize]);
 
     // ─── No file open placeholder ───
     if (!activeFilePath) {
         return (
             <div className="ai-panel">
+                <div className="ai-resize-handle" onMouseDown={handleResizeMouseDown}>
+                    <LuGripVertical size={10} />
+                </div>
                 <div className="ai-header">
                     <div className="ai-header-left">
                         <LuBot size={16} style={{ color: 'var(--accent-primary)' }} />
@@ -106,12 +191,37 @@ const AiAssistantPanel = ({
         );
     }
 
-    // ─── Alert state (simple local state mirroring original sidebar) ───
-    // Using a simple inline approach since AlertDialog needs isOpen/message
+    // ═══════════════════════════════════════
+    // VIEW: History (full-panel conversation list)
+    // ═══════════════════════════════════════
+    if (viewMode === 'history') {
+        return (
+            <div className="ai-panel">
+                <div className="ai-resize-handle" onMouseDown={handleResizeMouseDown}>
+                    <LuGripVertical size={10} />
+                </div>
+                <FileConversationList
+                    filePath={activeFilePath}
+                    activeConversationId={conversationId}
+                    onSelect={handleSelectConversation}
+                    onNew={handleNewConversation}
+                    onBack={() => setViewMode('chat')}
+                />
+            </div>
+        );
+    }
 
+    // ═══════════════════════════════════════
+    // VIEW: Chat (active conversation)
+    // ═══════════════════════════════════════
     return (
         <div className="ai-panel">
-            {/* ─── Header ─── */}
+            {/* ─── Resize Handle (left edge) ─── */}
+            <div className="ai-resize-handle" onMouseDown={handleResizeMouseDown}>
+                <LuGripVertical size={10} />
+            </div>
+
+            {/* ─── Header: Title + History toggle + Actions ─── */}
             <div className="ai-header">
                 <div className="ai-header-left">
                     <LuBot size={16} style={{ color: 'var(--accent-primary)' }} />
@@ -121,12 +231,20 @@ const AiAssistantPanel = ({
                     )}
                 </div>
                 <div className="ai-header-right">
-                    <FileConversationList
-                        filePath={activeFilePath}
-                        activeConversationId={conversationId}
-                        onSelect={handleSelectConversation}
-                        onNew={handleNewConversation}
-                    />
+                    <button
+                        className="ai-icon-btn"
+                        onClick={() => setViewMode('history')}
+                        title="Chat history"
+                    >
+                        <LuHistory size={14} />
+                    </button>
+                    <button
+                        className="ai-icon-btn"
+                        onClick={() => { handleNewConversation(); }}
+                        title="New chat"
+                    >
+                        <LuMessageSquarePlus size={14} />
+                    </button>
                     {messages.length > 0 && (
                         <button className="ai-icon-btn" onClick={handleClearChat} title="Clear chat">
                             <LuTrash2 size={14} />
@@ -283,7 +401,7 @@ const AiAssistantPanel = ({
                                 value={inputText}
                                 onChange={(e) => setInputText(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder={contextObjects.length > 0 ? 'Ask about the attached context...' : 'Ask about your data — drop tables here...'}
+                                placeholder={contextObjects.length > 0 ? 'Ask about the attached context...' : 'Ask about your data \u2014 drop tables here...'}
                                 rows={1}
                                 onInput={(e) => {
                                     e.target.style.height = 'auto';
@@ -336,7 +454,7 @@ const AiAssistantPanel = ({
                                 )}
                             </div>
                             <div className="ai-input-hint">
-                                Enter ↵
+                                Enter \u21B5
                             </div>
                         </div>
                     </div>

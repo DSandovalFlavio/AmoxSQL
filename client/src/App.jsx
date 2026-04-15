@@ -28,7 +28,7 @@ import TabBar from './components/TabBar';
 
 // Ultra-heavy lazy loaded Modals (Zero Cost Startup)
 const DatabaseSelectionModal = lazy(() => import('./components/DatabaseSelectionModal'));
-const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal'));
+// KeyboardShortcutsModal removed — shortcuts now integrated in SettingsModal
 const DataQualityModal = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal = lazy(() => import('./components/SchemaDiffModal'));
 const ExecutionChainModal = lazy(() => import('./components/ExecutionChainModal'));
@@ -107,8 +107,13 @@ function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
 
-  // Keyboard Shortcuts Modal
-  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  // AI Panel Width (resizable)
+  const [aiPanelWidth, setAiPanelWidth] = useState(() => {
+    return parseInt(localStorage.getItem('amoxsql-ai-panel-width')) || 380;
+  });
+  useEffect(() => {
+    localStorage.setItem('amoxsql-ai-panel-width', aiPanelWidth.toString());
+  }, [aiPanelWidth]);
 
   // Data Quality & Schema Diff Modals
   const [qualityCheckTable, setQualityCheckTable] = useState(null);
@@ -226,6 +231,13 @@ function App() {
       // Only handle shortcuts in IDE phase
       if (appPhase !== PHASE.IDE) return;
 
+      // Run Query: Ctrl+Enter (global fallback) or F5
+      if ((e.ctrlKey && !e.shiftKey && e.key === 'Enter') || e.key === 'F5') {
+        e.preventDefault();
+        layoutRef.current?.handleTriggerRun();
+        return;
+      }
+
       // Toggle Sidebar: Ctrl+B
       if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
         e.preventDefault();
@@ -237,6 +249,12 @@ function App() {
       if (e.ctrlKey && !e.shiftKey && e.key === 's') {
         e.preventDefault();
         layoutRef.current?.handleTriggerSave();
+        return;
+      }
+      // Save As: Ctrl+Shift+S
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        layoutRef.current?.handleTriggerSaveAs();
         return;
       }
       // Analyze: Ctrl+Shift+A
@@ -263,11 +281,47 @@ function App() {
         setIsSettingsOpen(true);
         return;
       }
-      // (Zoom is handled by Electron main process)
-      // Keyboard Shortcuts: Ctrl+Shift+/
+      // Keyboard Shortcuts: Ctrl+Shift+/ — open Settings on Shortcuts tab
       if (e.ctrlKey && e.shiftKey && e.key === '/') {
         e.preventDefault();
-        setIsShortcutsOpen(true);
+        setIsSettingsOpen(true);
+        setSettingsInitialTab('shortcuts');
+        return;
+      }
+      // Close Tab: Ctrl+W
+      if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
+        e.preventDefault();
+        layoutRef.current?.closeActiveTab();
+        return;
+      }
+      // New SQL File: Ctrl+N
+      if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
+        e.preventDefault();
+        layoutRef.current?.createNew('sql');
+        return;
+      }
+      // New Notebook: Ctrl+Shift+N
+      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        layoutRef.current?.createNew('notebook');
+        return;
+      }
+      // Next Tab: Ctrl+Tab
+      if (e.ctrlKey && !e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        layoutRef.current?.navigateTab(1);
+        return;
+      }
+      // Previous Tab: Ctrl+Shift+Tab
+      if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        layoutRef.current?.navigateTab(-1);
+        return;
+      }
+      // Toggle AI Assistant: Ctrl+L
+      if (e.ctrlKey && !e.shiftKey && e.key === 'l') {
+        e.preventDefault();
+        setShowAiSidebar(v => !v);
         return;
       }
     };
@@ -302,6 +356,9 @@ function App() {
     }
   }, []);
 
+  // settingsInitialTab controls which tab opens in SettingsModal
+  const [settingsInitialTab, setSettingsInitialTab] = useState(null);
+
   // Command Palette actions
   const commandPaletteActions = useMemo(() => {
     if (appPhase !== PHASE.IDE) return [];
@@ -312,13 +369,13 @@ function App() {
         setShowAiSidebar,
         showAiSidebar,
         setIsSettingsOpen,
+        setSettingsInitialTab,
         theme,
         setTheme,
-        setIsShortcutsOpen,
+
         setUiZoomLevel,
         setEditorSettings,
       }),
-      { id: 'new-chain', label: 'New Execution Chain', category: 'File', icon: LuLink, action: () => layoutRef.current?.createNew('sqlchain') },
     ];
   }, [appPhase, showAiSidebar, theme]);
 
@@ -615,6 +672,8 @@ function App() {
           onAccentChange={setAccentColor}
           currentLayout={editorLayout}
           onLayoutChange={setEditorLayout}
+          uiZoomLevel={uiZoomLevel}
+          onUiZoomChange={setUiZoomLevel}
         />
       </div>
     );
@@ -909,7 +968,7 @@ function App() {
 
               {/* Right Panel: AI Assistant (sidebar) or Data Diving (full screen) */}
               <div style={{
-                width: isDiving ? '100%' : (showAiSidebar ? '350px' : '0px'),
+                width: isDiving ? '100%' : (showAiSidebar ? `${aiPanelWidth}px` : '0px'),
                 flexGrow: isDiving ? 1 : 0,
                 flexShrink: 0,
                 flexBasis: isDiving ? '0%' : 'auto',
@@ -921,6 +980,7 @@ function App() {
                 borderRadius: 'var(--radius-lg)',
                 border: (showAiSidebar || isDiving) ? '1px solid var(--border-subtle)' : 'none',
                 boxShadow: isDiving ? 'var(--shadow-md)' : 'none',
+                position: 'relative',
               }}>
                 {isDiving ? (
                   <AiDivingPanel
@@ -949,6 +1009,8 @@ function App() {
                     onClose={() => setShowAiSidebar(false)}
                     availableTables={availableTables}
                     onOpenSettings={() => setIsSettingsOpen(true)}
+                    onResize={setAiPanelWidth}
+                    panelWidth={aiPanelWidth}
                   />
                 )}
               </div>
@@ -971,7 +1033,7 @@ function App() {
 
         <SettingsModal
           isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+          onClose={() => { setIsSettingsOpen(false); setSettingsInitialTab(null); }}
           currentTheme={theme}
           onThemeChange={setTheme}
           currentAccent={accentColor}
@@ -980,13 +1042,14 @@ function App() {
           onLayoutChange={setEditorLayout}
           editorSettings={mergedEditorSettings}
           onEditorSettingsChange={(updates) => setEditorSettings(prev => ({ ...prev, ...updates }))}
+          initialTab={settingsInitialTab}
+          onTabReset={() => setSettingsInitialTab(null)}
+          uiZoomLevel={uiZoomLevel}
+          onUiZoomChange={setUiZoomLevel}
         />
 
 
-        <KeyboardShortcutsModal
-          isOpen={isShortcutsOpen}
-          onClose={() => setIsShortcutsOpen(false)}
-        />
+
 
         <DataQualityModal
           isOpen={!!qualityCheckTable}
