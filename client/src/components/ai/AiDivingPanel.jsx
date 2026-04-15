@@ -15,8 +15,6 @@ const API = 'http://localhost:3001';
  */
 const AiDivingPanel = ({
     width,
-    onClose,
-    onExitDiving,
     onRunSql,
     onExportNotebook,
     onOpenFile,
@@ -296,11 +294,6 @@ const AiDivingPanel = ({
                 {/* Diving header */}
                 <div className="ai-diving-header">
                     <div className="ai-diving-header-left">
-                        {onExitDiving && (
-                            <button className="ai-icon-btn" onClick={onExitDiving} title="Back to Editor">
-                                <LuArrowLeft size={16} />
-                            </button>
-                        )}
                         <LuBot size={16} className="ai-diving-header-icon" />
                         <span className="ai-diving-header-title">Data Diving</span>
                         {provider === 'gemini' && (
@@ -313,9 +306,6 @@ const AiDivingPanel = ({
                                 <LuTrash2 size={14} />
                             </button>
                         )}
-                        <button className="ai-icon-btn" onClick={onClose}>
-                            <LuX size={16} />
-                        </button>
                     </div>
                 </div>
 

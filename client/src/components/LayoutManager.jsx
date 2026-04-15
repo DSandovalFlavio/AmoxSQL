@@ -8,7 +8,7 @@ import AlertDialog from './AlertDialog';
 
 const TAB_STORAGE_KEY = 'amoxsql-open-tabs';
 
-const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook }, ref) => {
     const toast = useToast();
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
@@ -236,9 +236,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     };
 
-    const handleSaveActive = async () => {
+    const handleSaveActive = async (isSilent = false) => {
         const tab = getActiveTab();
-        if (!tab) return;
+        if (!tab || !tab.dirty) return;
 
         if (!tab.path) {
             if (onRequestSaveAs) {
@@ -258,14 +258,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
             if (response.ok) {
                 updateTab(activePane, tab.id, { dirty: false });
-                toast.success("Saved!");
+                if (!isSilent) toast.success("Saved!");
             } else {
                 console.error("Save failed");
-                toast.error("Save failed!");
+                if (!isSilent) toast.error("Save failed!");
             }
         } catch (e) {
             console.error("Error saving: " + e.message);
-            toast.error("Error saving: " + e.message);
+            if (!isSilent) toast.error("Error saving: " + e.message);
         }
     };
 
@@ -338,15 +338,19 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
                 : normalizedType === 'md' ? 'Untitled.md'
                 : normalizedType === 'er-diagram' ? 'ER Diagram'
+                : normalizedType === 'datadiving' ? 'Data Diving'
                 : 'Untitled.sql',
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
                 ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
                 : normalizedType === 'sqlchain'
                 ? JSON.stringify({ version: '1.0', name: 'New Chain', description: '', nodes: [], edges: [], variables: {} }, null, 2)
-                : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' : normalizedType === 'er-diagram' ? '' : 'SELECT 1;'),
+                : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' 
+                : normalizedType === 'er-diagram' ? '' 
+                : normalizedType === 'datadiving' ? '' 
+                : 'SELECT 1;'),
             results: null,
-            dirty: normalizedType !== 'er-diagram'
+            dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving'
         };
         if (activePane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
@@ -401,7 +405,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         },
         createNew,
         handleTriggerRun: () => handleRunActive(),
-        handleTriggerSave: () => handleSaveActive(),
+        handleTriggerSave: (isSilent = false) => handleSaveActive(isSilent),
         handleTriggerAnalyze: () => handleAnalyzeActive(),
         handleTriggerSaveAs: () => {
             const tab = getActiveTab();
@@ -742,6 +746,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     showAiSidebar={showAiSidebar}
                     onToggleAi={onToggleAi}
                     onOpenFile={handleQueryFile}
+                    availableTables={availableTables}
+                    onExportNotebook={onExportNotebook}
                 />
 
                 {splitEnabled && (
@@ -770,6 +776,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         showAiSidebar={showAiSidebar}
                         onToggleAi={onToggleAi}
                         onOpenFile={handleQueryFile}
+                        availableTables={availableTables}
+                        onExportNotebook={onExportNotebook}
                     />
                 )}
             </div>

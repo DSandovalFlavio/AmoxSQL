@@ -89,7 +89,6 @@ function App() {
 
   // AI Integration State
   const [showAiSidebar, setShowAiSidebar] = useState(false);
-  const [isDiving, setIsDiving] = useState(false);
   const [activeTabInfo, setActiveTabInfo] = useState(null); // Info from active editor tab for AI assistant
   // showVault removed — vault is now a sidebar tab ('vault')
 
@@ -168,8 +167,32 @@ function App() {
     resultsFontSize: 13,
     defaultViewMode: 'table',
     mouseWheelZoom: true,
+    bracketPairColorization: true,
+    renderWhitespace: 'none',
+    smoothScrolling: false,
+    cursorStyle: 'line',
+    cursorBlinking: 'blink',
+    formatOnSave: false,
+    formatOnPaste: false,
+    showWelcomeOnStart: true,
+    confirmBeforeDrop: true,
+    queryResultLimit: 100,
+    autoSaveInterval: 0,
     ...editorSettings,
   };
+
+  // Implement Auto-Save
+  useEffect(() => {
+    if (!mergedEditorSettings.autoSaveInterval || mergedEditorSettings.autoSaveInterval <= 0) return;
+    const interval = setInterval(() => {
+      // Trigger save transparently without showing a success toast if possible.
+      // layoutRef.current.handleTriggerSave() will save the dirty active tab.
+      if (layoutRef.current) {
+        layoutRef.current.handleTriggerSave(true); // Assuming we can pass a boolean to make it silent, or just let it save.
+      }
+    }, mergedEditorSettings.autoSaveInterval);
+    return () => clearInterval(interval);
+  }, [mergedEditorSettings.autoSaveInterval]);
 
   // Apply Theme & Accent Classes
   useEffect(() => {
@@ -759,17 +782,9 @@ function App() {
 
               {/* Data Diving toggle */}
               <button
-                onClick={() => {
-                  if (isDiving) {
-                    setIsDiving(false);
-                    setShowAiSidebar(false);
-                  } else {
-                    setIsDiving(true);
-                    setShowAiSidebar(true);
-                  }
-                }}
-                className={`activity-bar-btn${isDiving ? ' activity-bar-btn--active' : ''}`}
-                title="Toggle Data Diving"
+                onClick={() => layoutRef.current?.createNew('datadiving')}
+                className="activity-bar-btn"
+                title="New Data Diving Session"
               >
                 <LuSparkles size={20} />
               </button>
@@ -941,7 +956,7 @@ function App() {
 
             {/* Content Area containing Editor AND AI Sidebar */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-              <div style={{ flex: 1, overflow: 'hidden', display: isDiving ? 'none' : 'block' }}>
+              <div style={{ flex: 1, overflow: 'hidden', display: 'block' }}>
                 <LayoutManager
                   ref={layoutRef}
                   projectPath={projectPath}
@@ -963,47 +978,34 @@ function App() {
                     const info = layoutRef.current?.getActiveTabInfo();
                     setActiveTabInfo(info || null);
                   }}
+                  availableTables={availableTables}
+                  onExportNotebook={handleExportNotebook}
                 />
               </div>
 
               {/* Right Panel: AI Assistant (sidebar) or Data Diving (full screen) */}
               <div style={{
-                width: isDiving ? '100%' : (showAiSidebar ? `${aiPanelWidth}px` : '0px'),
-                flexGrow: isDiving ? 1 : 0,
+                width: showAiSidebar ? `${aiPanelWidth}px` : '0px',
+                flexGrow: 0,
                 flexShrink: 0,
-                flexBasis: isDiving ? '0%' : 'auto',
-                opacity: (showAiSidebar || isDiving) ? 1 : 0,
+                flexBasis: 'auto',
+                opacity: showAiSidebar ? 1 : 0,
                 overflow: 'hidden',
-                transition: isDiving ? 'none' : 'width 0.2s ease, opacity 0.2s ease',
-                pointerEvents: (showAiSidebar || isDiving) ? 'auto' : 'none',
-                margin: (showAiSidebar || isDiving) ? (isDiving ? '6px 8px 6px 6px' : '6px 8px 6px 0') : '0',
+                transition: 'width 0.2s ease, opacity 0.2s ease',
+                pointerEvents: showAiSidebar ? 'auto' : 'none',
+                margin: showAiSidebar ? '6px 8px 6px 0' : '0',
                 borderRadius: 'var(--radius-lg)',
-                border: (showAiSidebar || isDiving) ? '1px solid var(--border-subtle)' : 'none',
-                boxShadow: isDiving ? 'var(--shadow-md)' : 'none',
+                border: showAiSidebar ? '1px solid var(--border-subtle)' : 'none',
+                boxShadow: 'none',
                 position: 'relative',
               }}>
-                {isDiving ? (
-                  <AiDivingPanel
-                    width="100%"
-                    onClose={() => { setShowAiSidebar(false); setIsDiving(false); }}
-                    onExitDiving={() => { setIsDiving(false); setShowAiSidebar(false); }}
-                    onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
-                    onExportNotebook={handleExportNotebook}
-                    onOpenFile={(filePath) => {
-                      setIsDiving(false);
-                      setShowAiSidebar(false);
-                      layoutRef.current?.handleQueryFile(filePath);
-                    }}
-                    availableTables={availableTables}
-                  />
-                ) : (
-                  <AiAssistantPanel
-                    activeFilePath={activeTabInfo?.path || null}
-                    activeFileType={activeTabInfo?.type || null}
-                    activeFileContent={activeTabInfo?.content || null}
-                    activeResult={activeTabInfo?.results || null}
-                    activeChartConfig={activeTabInfo?.chartConfig || null}
-                    onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
+                <AiAssistantPanel
+                  activeFilePath={activeTabInfo?.path || null}
+                  activeFileType={activeTabInfo?.type || null}
+                  activeFileContent={activeTabInfo?.content || null}
+                  activeResult={activeTabInfo?.results || null}
+                  activeChartConfig={activeTabInfo?.chartConfig || null}
+                  onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
                     onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
                     onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
                     onClose={() => setShowAiSidebar(false)}
@@ -1012,7 +1014,6 @@ function App() {
                     onResize={setAiPanelWidth}
                     panelWidth={aiPanelWidth}
                   />
-                )}
               </div>
             </div>
 
