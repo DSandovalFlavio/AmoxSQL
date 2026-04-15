@@ -150,33 +150,38 @@ export function buildDefaultActions({
     setShowAiSidebar,
     showAiSidebar,
     setIsSettingsOpen,
+    setSettingsInitialTab,
     theme,
     setTheme,
-    setIsShortcutsOpen,
     setUiZoomLevel,
     setEditorSettings,
 }) {
     return [
         // Query Actions
         { id: 'run', label: 'Run Query', category: 'Query', icon: LuPlay, shortcut: 'Ctrl+Enter', action: () => layoutRef.current?.handleTriggerRun() },
+        { id: 'run-f5', label: 'Run Query (F5)', category: 'Query', icon: LuPlay, shortcut: 'F5', action: () => layoutRef.current?.handleTriggerRun() },
         { id: 'analyze', label: 'Analyze Query Plan', category: 'Query', icon: LuActivity, shortcut: 'Ctrl+Shift+A', action: () => layoutRef.current?.handleTriggerAnalyze() },
-        { id: 'save', label: 'Save File', category: 'File', icon: LuSave, shortcut: 'Ctrl+S', action: () => layoutRef.current?.handleTriggerSave() },
 
         // File Actions
-        { id: 'new-sql', label: 'New SQL Query', category: 'File', icon: LuFilePlus, action: () => layoutRef.current?.createNew('sql') },
-        { id: 'new-notebook', label: 'New Notebook', category: 'File', icon: LuBookOpen, action: () => layoutRef.current?.createNew('notebook') },
+        { id: 'save', label: 'Save File', category: 'File', icon: LuSave, shortcut: 'Ctrl+S', action: () => layoutRef.current?.handleTriggerSave() },
+        { id: 'save-as', label: 'Save As…', category: 'File', icon: LuSave, shortcut: 'Ctrl+Shift+S', action: () => layoutRef.current?.handleTriggerSaveAs() },
+        { id: 'new-sql', label: 'New SQL Query', category: 'File', icon: LuFilePlus, shortcut: 'Ctrl+N', action: () => layoutRef.current?.createNew('sql') },
+        { id: 'new-notebook', label: 'New Notebook', category: 'File', icon: LuBookOpen, shortcut: 'Ctrl+Shift+N', action: () => layoutRef.current?.createNew('notebook') },
         { id: 'new-chain', label: 'New Execution Chain', category: 'File', icon: LuGitBranch, action: () => layoutRef.current?.createNew('sqlchain') },
+        { id: 'close-tab', label: 'Close Tab', category: 'File', icon: LuCommand, shortcut: 'Ctrl+W', action: () => layoutRef.current?.closeActiveTab() },
 
         // Navigation
         { id: 'nav-files', label: 'Show File Explorer', category: 'Navigation', icon: LuFolder, shortcut: 'Ctrl+Shift+E', action: () => setActiveSidebarTab('files') },
         { id: 'nav-schema', label: 'Show Database Schema', category: 'Navigation', icon: LuDatabase, shortcut: 'Ctrl+Shift+D', action: () => setActiveSidebarTab('schema') },
         { id: 'nav-extensions', label: 'Show Extensions', category: 'Navigation', icon: LuPuzzle, action: () => setActiveSidebarTab('extensions') },
-        { id: 'toggle-ai', label: showAiSidebar ? 'Close AI Assistant' : 'Open AI Assistant', category: 'Navigation', icon: LuBot, action: () => setShowAiSidebar(!showAiSidebar) },
+        { id: 'toggle-ai', label: showAiSidebar ? 'Close AI Assistant' : 'Open AI Assistant', category: 'Navigation', icon: LuBot, shortcut: 'Ctrl+L', action: () => setShowAiSidebar(!showAiSidebar) },
+        { id: 'next-tab', label: 'Next Tab', category: 'Navigation', icon: LuCommand, shortcut: 'Ctrl+Tab', action: () => layoutRef.current?.navigateTab(1) },
+        { id: 'prev-tab', label: 'Previous Tab', category: 'Navigation', icon: LuCommand, shortcut: 'Ctrl+Shift+Tab', action: () => layoutRef.current?.navigateTab(-1) },
 
         // Settings
         { id: 'settings', label: 'Open Settings', category: 'Settings', icon: LuSettings, shortcut: 'Ctrl+,', action: () => setIsSettingsOpen(true) },
         { id: 'toggle-theme', label: theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme', category: 'Settings', icon: theme === 'dark' ? LuSun : LuMoon, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
-        { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Settings', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => setIsShortcutsOpen?.(true) },
+        { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Settings', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => { setIsSettingsOpen(true); setSettingsInitialTab?.('shortcuts'); } },
 
         // View / Appearance
         { id: 'zoom-in', label: 'Zoom In UI', category: 'View', icon: LuSearch, shortcut: 'Ctrl++', action: () => setUiZoomLevel?.(prev => Math.min(prev + 0.1, 2.0)) },

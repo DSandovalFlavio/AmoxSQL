@@ -430,7 +430,7 @@ const EditorPane = ({
                                         <button
                                             className="ep-action-btn"
                                             onClick={() => onAnalyze && onAnalyze()}
-                                            title="Analyze Query Plan (Ctrl+Shift+E)"
+                                            title="Analyze Query Plan (Ctrl+Shift+A)"
                                         >
                                             <LuActivity size={13} />
                                         </button>
