@@ -6,31 +6,48 @@ import {
     LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
     LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye, LuShieldCheck,
-    LuWorkflow, LuArrowLeft
+    LuWorkflow, LuArrowLeft, LuDatabase, LuFolder
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 
+/**
+ * Builds a schema-qualified name: "schema"."table" for non-main schemas, just "table" for main.
+ */
+const qualifiedName = (schema, tableName) => {
+    if (!schema || schema === 'main') return `"${tableName}"`;
+    return `"${schema}"."${tableName}"`;
+};
+
+/**
+ * Returns a display name for drag/drop and copy operations.
+ */
+const displayName = (schema, tableName) => {
+    if (!schema || schema === 'main') return tableName;
+    return `${schema}.${tableName}`;
+};
+
 const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery, onQualityCheck, onOpenErDiagram }) => {
-    const [tables, setTables] = useState([]);
+    const [schemas, setSchemas] = useState([]); // Array of { schema, tables: [...] }
     const [loading, setLoading] = useState(false);
     const [previewTable, setPreviewTable] = useState(null); // Simple preview
     const [detailsTable, setDetailsTable] = useState(null); // Full Details Modal
 
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearchQuery = useDeferredValue(searchQuery);
-    const [expandedTables, setExpandedTables] = useState({}); // { tableName: true/false }
+    const [expandedTables, setExpandedTables] = useState({}); // { "schema.tableName": true/false }
+    const [expandedSchemas, setExpandedSchemas] = useState({}); // { "schemaName": true/false }
 
     // History Modal State
     const [showHistory, setShowHistory] = useState(false);
     const [showHeaderMenu, setShowHeaderMenu] = useState(false);
 
     // Context Menu State
-    const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName }
+    const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName, schema }
 
     // Drop Modal State
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [tableToDelete, setTableToDelete] = useState(null);
-
+    const [schemaToDelete, setSchemaToDelete] = useState(null);
 
     useEffect(() => {
         const handleClickOutside = () => {
@@ -42,31 +59,55 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     }, []);
 
     useEffect(() => {
-        fetchTables();
+        fetchSchemas();
     }, [currentDb]);
 
     useEffect(() => {
-        if (onRefresh) fetchTables();
+        if (onRefresh) fetchSchemas();
     }, [onRefresh]);
 
-    const fetchTables = async () => {
+    const fetchSchemas = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:3001/api/db/tables');
+            const response = await fetch('http://localhost:3001/api/db/schemas');
             if (response.ok) {
                 const data = await response.json();
-                setTables(data);
-                if (onTablesLoaded) onTablesLoaded(data);
+                setSchemas(data);
+
+                // Also flatten for onTablesLoaded (used by autocomplete, AI, etc.)
+                if (onTablesLoaded) {
+                    const flat = [];
+                    for (const s of data) {
+                        for (const t of s.tables) {
+                            flat.push({ name: t.name, schema: s.schema, type: t.type, columns: t.columns });
+                        }
+                    }
+                    onTablesLoaded(flat);
+                }
+
+                // Auto-expand schemas
+                const newExpanded = {};
+                for (const s of data) {
+                    // Auto-expand if only 1 schema, or if search active
+                    newExpanded[s.schema] = data.length <= 2;
+                }
+                setExpandedSchemas(prev => {
+                    // Preserve user's expanded state, only set defaults for new schemas
+                    const merged = { ...prev };
+                    for (const key of Object.keys(newExpanded)) {
+                        if (!(key in merged)) merged[key] = newExpanded[key];
+                    }
+                    return merged;
+                });
             }
         } catch (err) {
-            console.error("Failed to fetch tables", err);
+            console.error("Failed to fetch schemas", err);
         } finally {
             setLoading(false);
         }
     };
 
     // Helper: Map SQL Types to Icons/Colors
-    // 123 (Int), # (Float), T (Text), 📅 (Date), ☑ (Bool)
     const getTypeMeta = (type) => {
         const t = type.toUpperCase();
         if (t.includes('INT')) return { icon: <LuHash size={12} />, color: '#9cdcfe', label: 'Integer' };
@@ -82,24 +123,126 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
         navigator.clipboard.writeText(text);
     };
 
-    const toggleExpand = (tableName) => {
-        setExpandedTables(prev => ({ ...prev, [tableName]: !prev[tableName] }));
+    const toggleExpand = (schema, tableName) => {
+        const key = `${schema}.${tableName}`;
+        setExpandedTables(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const toggleSchema = (schemaName) => {
+        setExpandedSchemas(prev => ({ ...prev, [schemaName]: !prev[schemaName] }));
     };
 
     const confirmDrop = async () => {
         if (!tableToDelete) return;
+        const qName = qualifiedName(schemaToDelete, tableToDelete);
         const res = await fetch('http://localhost:3001/api/query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: `DROP TABLE IF EXISTS "${tableToDelete}"` })
+            body: JSON.stringify({ query: `DROP TABLE IF EXISTS ${qName}` })
         });
         if (res.ok) {
-            fetchTables();
+            fetchSchemas();
             setTableToDelete(null);
+            setSchemaToDelete(null);
         } else {
             const data = await res.json();
             throw new Error(data.error || 'Drop failed');
         }
+    };
+
+    // Determine if we need schema grouping (only if >1 schema)
+    const hasMultipleSchemas = schemas.length > 1;
+    const totalTables = schemas.reduce((sum, s) => sum + s.tables.length, 0);
+
+    // Filter tables by search query
+    const filterTables = (tables) => {
+        if (!deferredSearchQuery) return tables;
+        const q = deferredSearchQuery.toLowerCase();
+        return tables.filter(t => {
+            if (t.name.toLowerCase().includes(q)) return true;
+            if (t.columns && t.columns.some(col => col.column_name.toLowerCase().includes(q))) return true;
+            return false;
+        });
+    };
+
+    // Render a single table row with columns
+    const renderTable = (table, schema) => {
+        const key = `${schema}.${table.name}`;
+        const q = deferredSearchQuery.toLowerCase();
+        const matchesColumn = q && table.columns && table.columns.some(col => col.column_name.toLowerCase().includes(q)) && !table.name.toLowerCase().includes(q);
+        const isExpanded = !!expandedTables[key] || matchesColumn;
+        const TableIcon = table.type?.toLowerCase().includes('view') ? LuEye : LuTable;
+        const dName = displayName(schema, table.name);
+
+        return (
+            <div key={key} className="db-table-item">
+                <div
+                    draggable
+                    onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', dName);
+                        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'table', name: table.name, schema }));
+                    }}
+                    onClick={() => toggleExpand(schema, table.name)}
+                    className="db-table-row"
+                    title={`${dName} — Drag to editor or right click for operations`}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setContextMenu({ x: e.clientX, y: e.clientY, tableName: table.name, schema });
+                    }}
+                >
+                    <div className="db-chevron">
+                        {isExpanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
+                    </div>
+                    <TableIcon size={14} style={{ color: 'var(--accent-primary)' }} />
+                    <span className="db-table-name">{table.name}</span>
+                    <span
+                        className="db-copy-btn"
+                        onClick={(e) => handleCopy(e, dName)}
+                        title="Copy Table Name"
+                    >
+                        <LuClipboard size={12} />
+                    </span>
+                </div>
+
+                {/* Columns Node */}
+                {isExpanded && table.columns && (
+                    <div className="db-columns">
+                        {table.columns.map((col, idx) => {
+                            const meta = getTypeMeta(col.data_type);
+                            return (
+                                <div
+                                    key={`${col.column_name}-${idx}`}
+                                    draggable
+                                    onDragStart={(e) => {
+                                        e.dataTransfer.setData('text/plain', col.column_name);
+                                        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'column', name: col.column_name, tableName: table.name, schema }));
+                                        e.stopPropagation();
+                                    }}
+                                    className="db-column-row"
+                                    title="Drag column to editor"
+                                >
+                                    <div className="db-column-left">
+                                        <div className="db-column-icon" style={{ color: meta.color }}>{meta.icon}</div>
+                                        <span className="db-column-name">{col.column_name}</span>
+                                    </div>
+                                    <div className="db-column-right">
+                                        <span className="db-column-type">{col.data_type.toLowerCase()}</span>
+                                        <span
+                                            className="db-column-copy"
+                                            onClick={(e) => handleCopy(e, col.column_name)}
+                                            title="Copy Column Name"
+                                        >
+                                            <LuClipboard size={12} />
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -108,7 +251,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             <div className="db-header">
                 <span className="db-header-title">Database Schema</span>
                 <div className="db-header-actions">
-                    <button className="db-header-btn" onClick={fetchTables} title="Refresh">
+                    <button className="db-header-btn" onClick={fetchSchemas} title="Refresh">
                         <LuRefreshCw size={14} />
                     </button>
                     <button
@@ -156,7 +299,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
                 <div className="db-tree">
                     {loading && <div className="db-loading">Loading...</div>}
-                    {!loading && tables.length === 0 && (
+                    {!loading && totalTables === 0 && (
                         <div className="db-empty">
                             <LuTable size={32} className="db-empty-icon" />
                             <span className="db-empty-title">No tables found</span>
@@ -164,89 +307,41 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         </div>
                     )}
 
-                    {tables.filter(t => {
-                        if (!deferredSearchQuery) return true;
-                        const q = deferredSearchQuery.toLowerCase();
-                        if (t.name.toLowerCase().includes(q)) return true;
-                        if (t.columns && t.columns.some(col => col.column_name.toLowerCase().includes(q))) return true;
-                        return false;
-                    }).map(table => {
-                        const q = deferredSearchQuery.toLowerCase();
-                        const matchesColumn = q && table.columns && table.columns.some(col => col.column_name.toLowerCase().includes(q)) && !table.name.toLowerCase().includes(q);
-                        const isExpanded = !!expandedTables[table.name] || matchesColumn;
-                        const TableIcon = table.type?.toLowerCase().includes('view') ? LuEye : LuTable;
+                    {/* Multi-schema tree view */}
+                    {hasMultipleSchemas ? (
+                        schemas.map(schemaGroup => {
+                            const filtered = filterTables(schemaGroup.tables);
+                            if (filtered.length === 0 && deferredSearchQuery) return null;
+                            const isSchemaExpanded = !!expandedSchemas[schemaGroup.schema] || !!deferredSearchQuery;
+                            const tablesToShow = deferredSearchQuery ? filtered : schemaGroup.tables;
 
-                        return (
-                            <div key={table.name} className="db-table-item">
-                                {/* Table Item */}
-                                <div
-                                    draggable
-                                    onDragStart={(e) => {
-                                        e.dataTransfer.setData('text/plain', table.name);
-                                        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'table', name: table.name }));
-                                    }}
-                                    onClick={() => toggleExpand(table.name)}
-                                    className="db-table-row"
-                                    title="Drag to editor or right click for operations"
-                                    onContextMenu={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setContextMenu({ x: e.clientX, y: e.clientY, tableName: table.name });
-                                    }}
-                                >
-                                    <div className="db-chevron">
-                                        {isExpanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
-                                    </div>
-                                    <TableIcon size={14} style={{ color: 'var(--accent-primary)' }} />
-                                    <span className="db-table-name">{table.name}</span>
-                                    <span
-                                        className="db-copy-btn"
-                                        onClick={(e) => handleCopy(e, table.name)}
-                                        title="Copy Table Name"
+                            return (
+                                <div key={schemaGroup.schema} className="db-schema-group">
+                                    <div
+                                        className="db-schema-row"
+                                        onClick={() => toggleSchema(schemaGroup.schema)}
                                     >
-                                        <LuClipboard size={12} />
-                                    </span>
-                                </div>
-
-                                {/* Columns Node */}
-                                {isExpanded && table.columns && (
-                                    <div className="db-columns">
-                                        {table.columns.map((col, idx) => {
-                                            const meta = getTypeMeta(col.data_type);
-                                            return (
-                                                <div
-                                                    key={`${col.column_name}-${idx}`}
-                                                    draggable
-                                                    onDragStart={(e) => {
-                                                        e.dataTransfer.setData('text/plain', col.column_name);
-                                                        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'column', name: col.column_name, tableName: table.name }));
-                                                        e.stopPropagation();
-                                                    }}
-                                                    className="db-column-row"
-                                                    title="Drag column to editor"
-                                                >
-                                                    <div className="db-column-left">
-                                                        <div className="db-column-icon" style={{ color: meta.color }}>{meta.icon}</div>
-                                                        <span className="db-column-name">{col.column_name}</span>
-                                                    </div>
-                                                    <div className="db-column-right">
-                                                        <span className="db-column-type">{col.data_type.toLowerCase()}</span>
-                                                        <span
-                                                            className="db-column-copy"
-                                                            onClick={(e) => handleCopy(e, col.column_name)}
-                                                            title="Copy Column Name"
-                                                        >
-                                                            <LuClipboard size={12} />
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                        <div className="db-chevron">
+                                            {isSchemaExpanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
+                                        </div>
+                                        <LuDatabase size={13} className="db-schema-icon" />
+                                        <span className="db-schema-name">{schemaGroup.schema}</span>
+                                        <span className="db-schema-count">{schemaGroup.tables.length}</span>
                                     </div>
-                                )}
-                            </div>
-                        );
-                    })}
+                                    {isSchemaExpanded && (
+                                        <div className="db-schema-children">
+                                            {tablesToShow.map(table => renderTable(table, schemaGroup.schema))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    ) : (
+                        /* Single-schema: flat list (backwards compatible) */
+                        schemas.flatMap(schemaGroup =>
+                            filterTables(schemaGroup.tables).map(table => renderTable(table, schemaGroup.schema))
+                        )
+                    )}
                 </div>
             </div>
 
@@ -276,7 +371,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             {contextMenu && (
                 <div className="ctx-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
                     <div className="ctx-menu-item" onClick={() => {
-                        if (onSelectQuery) onSelectQuery(`SELECT * FROM "${contextMenu.tableName}" LIMIT 100; `);
+                        const qName = qualifiedName(contextMenu.schema, contextMenu.tableName);
+                        if (onSelectQuery) onSelectQuery(`SELECT * FROM ${qName} LIMIT 100; `);
                         setContextMenu(null);
                     }}>
                         <LuCode size={14} /> Select Top 100
@@ -288,7 +384,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         <LuEye size={14} /> Preview Table
                     </div>
                     <div className="ctx-menu-item" onClick={() => {
-                        navigator.clipboard.writeText(contextMenu.tableName);
+                        navigator.clipboard.writeText(displayName(contextMenu.schema, contextMenu.tableName));
                         setContextMenu(null);
                     }}>
                         <LuClipboard size={14} /> Copy Name
@@ -308,6 +404,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     <div className="ctx-menu-separator" />
                     <div className="ctx-menu-item danger" onClick={() => {
                         setTableToDelete(contextMenu.tableName);
+                        setSchemaToDelete(contextMenu.schema);
                         setContextMenu(null);
                         setDeleteModalOpen(true);
                     }}>

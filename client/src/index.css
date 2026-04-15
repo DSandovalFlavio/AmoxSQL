@@ -5819,6 +5819,62 @@ tr:hover .rt-td {
   color: var(--text-disabled);
 }
 
+/* ── Database Explorer Schema Groups ── */
+
+.db-schema-group {
+  margin-bottom: 2px;
+}
+
+.db-schema-row {
+  padding: 6px 10px 6px 4px;
+  cursor: pointer;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+  transition: background 0.1s ease;
+  user-select: none;
+}
+
+.db-schema-row:hover {
+  background: var(--sidebar-item-hover-bg);
+}
+
+.db-schema-icon {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.db-schema-name {
+  flex: 1;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-schema-count {
+  font-size: var(--text-mini);
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0px 6px;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.db-schema-children {
+  padding-left: 12px;
+  border-left: 1px solid var(--border-subtle);
+  margin-left: 14px;
+}
+
 /* ── Database Explorer Table Items ── */
 
 .db-table-item {
