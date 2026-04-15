@@ -8,6 +8,7 @@ import { VariablesToggle, VariablesPanel } from './VariablesBar';
 import ErDiagram from './ErDiagram';
 
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
+import AiDivingPanel from './ai/AiDivingPanel';
 
 const EditorPane = ({
     paneId,
@@ -34,6 +35,8 @@ const EditorPane = ({
     showAiSidebar,    // boolean — AI sidebar visible?
     onToggleAi,       // () -> toggle AI sidebar
     onOpenFile,       // (filePath) -> open a file in a new tab (used by ChainEditor)
+    availableTables,  // Data Diving only
+    onExportNotebook, // Data Diving only
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -277,6 +280,7 @@ const EditorPane = ({
     const isNotebook = activeTab.name.endsWith('.sqlnb') || activeTab.type === 'sqlnb';
     const isChain = activeTab.name.endsWith('.sqlchain') || activeTab.type === 'sqlchain';
     const isErDiagram = activeTab.type === 'er-diagram';
+    const isDataDiving = activeTab.type === 'datadiving';
 
     // Track last edit time on content change
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -381,7 +385,17 @@ const EditorPane = ({
             <div ref={containerRef} className="ep-inner">
 
                 {/* Content Area */}
-                {isErDiagram ? (
+                {isDataDiving ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
+                        <AiDivingPanel
+                            width="100%"
+                            onRunSql={(sql) => onCreateNew && onCreateNew('sql', sql)}
+                            onExportNotebook={onExportNotebook}
+                            onOpenFile={onOpenFile}
+                            availableTables={availableTables}
+                        />
+                    </div>
+                ) : isErDiagram ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
                         <ErDiagram onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
                     </div>

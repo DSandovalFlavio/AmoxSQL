@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2 } from 'react-icons/lu';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -41,6 +41,7 @@ const SOBER_ACCENTS = [
 const TAB_TITLES = {
     appearance: 'Appearance',
     editor: 'Editor',
+    behavior: 'Behavior',
     ai: 'AI Settings',
     cloud: 'Cloud Storage',
     shortcuts: 'Keyboard Shortcuts',
@@ -346,6 +347,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     {[
                         { id: 'appearance', icon: <LuPalette size={16} />, label: 'Appearance' },
                         { id: 'editor', icon: <LuCode size={16} />, label: 'Editor' },
+                        { id: 'behavior', icon: <LuSettings size={16} />, label: 'Behavior' },
                         { id: 'ai', icon: <LuCpu size={16} />, label: 'AI Assistant' },
                         { id: 'cloud', icon: <LuCloud size={16} />, label: 'Cloud Storage' },
                         { id: 'shortcuts', icon: <LuKeyboard size={16} />, label: 'Shortcuts' },
@@ -583,6 +585,74 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                                 <hr className="stg-divider" />
 
+                                {/* Advanced Editor Options */}
+                                <div>
+                                    <h3 className="stg-section-title">Advanced Code Intelligence</h3>
+                                    <div className="stg-group stg-group--mt14">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Bracket Pair Colorization</span>
+                                                <p className="stg-row-desc">Color matches brackets to make them easier to identify</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.bracketPairColorization ?? true)} onChange={() => onEditorSettingsChange?.({ bracketPairColorization: !(editorSettings.bracketPairColorization ?? true) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Render Whitespace</span>
+                                                <p className="stg-row-desc">Show dots for spaces and arrows for tabs</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w120"
+                                                value={editorSettings.renderWhitespace || 'none'}
+                                                onChange={(e) => onEditorSettingsChange?.({ renderWhitespace: e.target.value })}
+                                            >
+                                                <option value="none">None</option>
+                                                <option value="boundary">Boundary</option>
+                                                <option value="selection">Selection</option>
+                                                <option value="all">All</option>
+                                            </select>
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Smooth Scrolling</span>
+                                                <p className="stg-row-desc">Enable animated smooth scrolling in the editor</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.smoothScrolling ?? false)} onChange={() => onEditorSettingsChange?.({ smoothScrolling: !(editorSettings.smoothScrolling ?? false) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <span className="stg-row-label">Cursor Style</span>
+                                            <select
+                                                className="stg-select stg-select--w120"
+                                                value={editorSettings.cursorStyle || 'line'}
+                                                onChange={(e) => onEditorSettingsChange?.({ cursorStyle: e.target.value })}
+                                            >
+                                                <option value="line">Line</option>
+                                                <option value="block">Block</option>
+                                                <option value="underline">Underline</option>
+                                                <option value="line-thin">Line Thin</option>
+                                                <option value="block-outline">Block Outline</option>
+                                                <option value="underline-thin">Underline Thin</option>
+                                            </select>
+                                        </div>
+                                        <div className="stg-row">
+                                            <span className="stg-row-label">Cursor Blinking</span>
+                                            <select
+                                                className="stg-select stg-select--w120"
+                                                value={editorSettings.cursorBlinking || 'blink'}
+                                                onChange={(e) => onEditorSettingsChange?.({ cursorBlinking: e.target.value })}
+                                            >
+                                                <option value="blink">Blink</option>
+                                                <option value="smooth">Smooth</option>
+                                                <option value="phase">Phase</option>
+                                                <option value="expand">Expand</option>
+                                                <option value="solid">Solid (No blink)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr className="stg-divider" />
+
                                 {/* Results Panel */}
                                 <div>
                                     <h3 className="stg-section-title">Results Panel</h3>
@@ -660,6 +730,86 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 )}
                                             </div>
                                         )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ═══ BEHAVIOR ═══ */}
+                        {activeTab === 'behavior' && (
+                            <div className="stg-section">
+                                {/* Workflow */}
+                                <div>
+                                    <h3 className="stg-section-title">Workflow</h3>
+                                    <div className="stg-group stg-group--mt14">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Auto Save</span>
+                                                <p className="stg-row-desc">Automatically save dirty files after a delay</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w200"
+                                                value={editorSettings.autoSaveInterval || 0}
+                                                onChange={(e) => onEditorSettingsChange?.({ autoSaveInterval: parseInt(e.target.value) })}
+                                            >
+                                                <option value={0}>Off</option>
+                                                <option value={5000}>After 5 seconds</option>
+                                                <option value={15000}>After 15 seconds</option>
+                                                <option value={30000}>After 30 seconds</option>
+                                                <option value={60000}>After 1 minute</option>
+                                            </select>
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Format on Save</span>
+                                                <p className="stg-row-desc">Automatically format SQL when manually saving</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.formatOnSave ?? false)} onChange={() => onEditorSettingsChange?.({ formatOnSave: !(editorSettings.formatOnSave ?? false) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Format on Paste</span>
+                                                <p className="stg-row-desc">Format SQL automatically when pasting content</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.formatOnPaste ?? false)} onChange={() => onEditorSettingsChange?.({ formatOnPaste: !(editorSettings.formatOnPaste ?? false) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Show Welcome Screen</span>
+                                                <p className="stg-row-desc">Show the welcome screen when AmoxSQL starts</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.showWelcomeOnStart ?? true)} onChange={() => onEditorSettingsChange?.({ showWelcomeOnStart: !(editorSettings.showWelcomeOnStart ?? true) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Confirm Default Operations</span>
+                                                <p className="stg-row-desc">Ask for confirmation before dropping tables</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.confirmBeforeDrop ?? true)} onChange={() => onEditorSettingsChange?.({ confirmBeforeDrop: !(editorSettings.confirmBeforeDrop ?? true) })} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr className="stg-divider" />
+                                {/* Queries */}
+                                <div>
+                                    <h3 className="stg-section-title">Query Execution</h3>
+                                    <div className="stg-group stg-group--mt14">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Default Results Limit</span>
+                                                <p className="stg-row-desc">Maximum number of rows to return on quick SELECT operations</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w120"
+                                                value={editorSettings.queryResultLimit || 100}
+                                                onChange={(e) => onEditorSettingsChange?.({ queryResultLimit: parseInt(e.target.value) })}
+                                            >
+                                                <option value={100}>100 rows</option>
+                                                <option value={500}>500 rows</option>
+                                                <option value={1000}>1000 rows</option>
+                                                <option value={5000}>5000 rows</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -982,6 +1132,80 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         Designed for serious data analysts and engineers who need speed, privacy, and advanced tooling without the cloud overhead.
                                     </p>
                                 </div>
+
+                                {/* System Settings Actions */}
+                                <div>
+                                    <h3 className="stg-section-heading stg-section-heading--mb10">Configuration Management</h3>
+                                    <div className="stg-group">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Export Settings</span>
+                                                <p className="stg-row-desc">Save your current configuration to a JSON file</p>
+                                            </div>
+                                            <button className="stg-btn" onClick={() => {
+                                                const settings = { editor: editorSettings, theme: currentTheme, accent: currentAccent, layout: currentLayout, zoom: uiZoomLevel };
+                                                const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = 'amoxsql-settings.json';
+                                                a.click();
+                                            }}>
+                                                <LuDownload size={14} /> Export
+                                            </button>
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Import Settings</span>
+                                                <p className="stg-row-desc">Load a previously exported configuration file</p>
+                                            </div>
+                                            <button className="stg-btn" onClick={() => {
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = 'application/json';
+                                                input.onchange = (e) => {
+                                                    const file = e.target.files[0];
+                                                    const reader = new FileReader();
+                                                    reader.onload = (re) => {
+                                                        try {
+                                                            const data = JSON.parse(re.target.result);
+                                                            if (data.editor) onEditorSettingsChange?.(data.editor);
+                                                            if (data.theme) onThemeChange?.(data.theme);
+                                                            if (data.accent) onAccentChange?.(data.accent);
+                                                            if (data.layout) onLayoutChange?.(data.layout);
+                                                            if (data.zoom) onUiZoomChange?.(data.zoom);
+                                                            alert('Settings imported successfully!');
+                                                        } catch {
+                                                            alert('Invalid settings file.');
+                                                        }
+                                                    };
+                                                    reader.readAsText(file);
+                                                };
+                                                input.click();
+                                            }}>
+                                                <LuDownload size={14} style={{ transform: 'rotate(180deg)' }} /> Import
+                                            </button>
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label stg-text-danger">Reset to Defaults</span>
+                                                <p className="stg-row-desc">Restore all editor and appearance settings to factory defaults</p>
+                                            </div>
+                                            <button className="stg-btn stg-btn--danger-text" onClick={() => {
+                                                if (window.confirm('Are you sure you want to reset all UI and editor settings to their defaults? Your queries and databases will NOT be affected.')) {
+                                                    onEditorSettingsChange?.({});
+                                                    onThemeChange?.('dark');
+                                                    onAccentChange?.('cyan');
+                                                    onLayoutChange?.('horizontal');
+                                                    onUiZoomChange?.(1.0);
+                                                }
+                                            }}>
+                                                <LuTrash2 size={14} /> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr className="stg-divider" />
 
                                 <div>
                                     <h3 className="stg-section-heading stg-section-heading--mb10">Key Features</h3>
