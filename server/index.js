@@ -14,6 +14,17 @@ const dbManager = require('./DatabaseManager');
 const app = express();
 const PORT = 3001;
 
+// ─── Internal schemas & tables to ALWAYS hide from the user ───
+const INTERNAL_SCHEMAS = ['information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains'];
+const INTERNAL_TABLES_MAIN = ['amox_query_history']; // legacy tables in 'main' (pre-migration)
+
+/** Builds a SQL WHERE clause to exclude internal schemas and tables */
+function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name') {
+    const schemaList = INTERNAL_SCHEMAS.map(s => `'${s}'`).join(',');
+    const tableList = INTERNAL_TABLES_MAIN.map(t => `'${t}'`).join(',');
+    return `${schemaCol} NOT IN (${schemaList}) AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
+}
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
@@ -148,17 +159,16 @@ app.get('/api/db/location', (req, res) => {
 
 app.get('/api/db/tables', async (req, res) => {
     try {
-        const tables = await dbManager.systemQuery("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='main'");
+        const tables = await dbManager.systemQuery(
+            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+        );
 
         const result = [];
         for (const t of tables) {
-            const tableName = t.table_name;
-            const tableType = t.table_type;
-            // Hide internal history table and memory-specific tables if any
-            if (tableName === 'amox_query_history') continue;
-
-            const columns = await dbManager.systemQuery(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${tableName}' AND table_schema = 'main'`);
-            result.push({ name: tableName, type: tableType, columns: columns });
+            const columns = await dbManager.systemQuery(
+                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}'`
+            );
+            result.push({ name: t.table_name, schema: t.table_schema, type: t.table_type, columns });
         }
 
         res.json(result);
@@ -167,19 +177,48 @@ app.get('/api/db/tables', async (req, res) => {
     }
 });
 
+// Schema-aware endpoint: returns hierarchy { schema → tables → columns }
+app.get('/api/db/schemas', async (req, res) => {
+    try {
+        const tables = await dbManager.systemQuery(
+            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+        );
+
+        // Group by schema
+        const schemaMap = {};
+        for (const t of tables) {
+            if (!schemaMap[t.table_schema]) {
+                schemaMap[t.table_schema] = { schema: t.table_schema, tables: [] };
+            }
+            const columns = await dbManager.systemQuery(
+                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}' ORDER BY ordinal_position`
+            );
+            schemaMap[t.table_schema].tables.push({
+                name: t.table_name,
+                type: t.table_type,
+                columns,
+            });
+        }
+
+        res.json(Object.values(schemaMap));
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch schemas', details: err.message });
+    }
+});
+
 // ER Diagram schema — enriched with constraints
 app.get('/api/db/er-schema', async (req, res) => {
     try {
-        // 1. Get all tables
+        // 1. Get all user tables (all schemas, excluding internal)
         const tables = await dbManager.systemQuery(
-            "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='main' AND table_name != 'amox_query_history'"
+            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
         );
 
         const result = [];
         for (const t of tables) {
             // 2. Columns for each table
             const columns = await dbManager.systemQuery(
-                `SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = 'main' ORDER BY ordinal_position`
+                `SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}' ORDER BY ordinal_position`
             );
 
             // 3. Constraints (PK, FK, UNIQUE)
@@ -190,7 +229,7 @@ app.get('/api/db/er-schema', async (req, res) => {
                      FROM information_schema.table_constraints tc
                      JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
                      LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name AND ccu.table_name != tc.table_name
-                     WHERE tc.table_name = '${t.table_name}' AND tc.table_schema = 'main'`
+                     WHERE tc.table_name = '${t.table_name}' AND tc.table_schema = '${t.table_schema}'`
                 );
             } catch (e) { /* constraints not available */ }
 
@@ -202,6 +241,7 @@ app.get('/api/db/er-schema', async (req, res) => {
 
             result.push({
                 name: t.table_name,
+                schema: t.table_schema,
                 type: t.table_type,
                 columns: columns.map(c => ({
                     name: c.column_name,
@@ -237,12 +277,12 @@ app.get('/api/db/file-schema', async (req, res) => {
 app.get('/api/db/history', async (req, res) => {
     try {
         // Check if history table exists first to avoid error
-        const check = await dbManager.systemQuery("SELECT count(*) as cnt FROM information_schema.tables WHERE table_name = 'amox_query_history'");
+        const check = await dbManager.systemQuery("SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema = 'amoxsql_ai' AND table_name = 'query_history'");
         if (check[0].cnt == 0) {
             return res.json([]);
         }
 
-        const history = await dbManager.systemQuery("SELECT * FROM amox_query_history ORDER BY executed_at DESC LIMIT 1000");
+        const history = await dbManager.systemQuery("SELECT * FROM amoxsql_ai.query_history ORDER BY executed_at DESC LIMIT 1000");
         res.json(history);
     } catch (err) {
         console.error("Failed to fetch history:", err);
@@ -649,7 +689,7 @@ async function buildTableContext(contextTables = null) {
         let query = `
             SELECT table_schema, table_name
             FROM information_schema.tables
-            WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains')
+            WHERE ${userTablesWhereClause()}
             AND table_type = 'BASE TABLE'
         `;
 
@@ -2007,7 +2047,9 @@ app.post('/api/notebook-state', (req, res) => {
 
 app.get('/api/schema', async (req, res) => {
     try {
-        const tables = await dbManager.systemQuery("SELECT table_name as name FROM information_schema.tables WHERE table_schema='main' OR table_schema='public'");
+        const tables = await dbManager.systemQuery(
+            `SELECT table_schema as schema, table_name as name FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+        );
         res.json(tables);
     } catch (err) {
         res.json([]);

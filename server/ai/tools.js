@@ -107,6 +107,7 @@ function createTools(context) {
                              WHERE c.table_name = t.table_name AND c.table_schema = t.table_schema) as column_count
                         FROM information_schema.tables t
                         WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains')
+                        AND NOT (table_schema = 'main' AND table_name IN ('amox_query_history'))
                         AND table_type = 'BASE TABLE'
                         ORDER BY table_schema, table_name
                     `);

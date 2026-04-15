@@ -134,11 +134,29 @@ class DatabaseManager {
 
     async _initHistory() {
         try {
-            // Create hidden history table
-            await this.query(`CREATE TABLE IF NOT EXISTS amox_query_history (query TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+            // Ensure amoxsql_ai schema exists (may not exist yet if AI persistence hasn't run)
+            await this.query(`CREATE SCHEMA IF NOT EXISTS amoxsql_ai`);
+
+            // Create history table in the internal schema (not in main)
+            await this.query(`CREATE TABLE IF NOT EXISTS amoxsql_ai.query_history (query TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+
+            // ─── Migration: move data from old main.amox_query_history if it exists ───
+            try {
+                const oldExists = await this.query(
+                    "SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema='main' AND table_name='amox_query_history'"
+                );
+                if (oldExists[0]?.cnt > 0) {
+                    console.log('[DB Manager] Migrating amox_query_history → amoxsql_ai.query_history...');
+                    await this.query(`INSERT INTO amoxsql_ai.query_history SELECT * FROM main.amox_query_history`);
+                    await this.query(`DROP TABLE main.amox_query_history`);
+                    console.log('[DB Manager] Migration complete.');
+                }
+            } catch (migErr) {
+                console.warn('[DB Manager] History migration skipped:', migErr.message);
+            }
 
             // Prune old records (> 30 days)
-            await this.query(`DELETE FROM amox_query_history WHERE executed_at < CURRENT_DATE - INTERVAL '30 days'`);
+            await this.query(`DELETE FROM amoxsql_ai.query_history WHERE executed_at < CURRENT_DATE - INTERVAL '30 days'`);
             console.log("[DB Manager] Query History initialized and pruned.");
         } catch (e) {
             console.warn("[DB Manager] Failed to init history table:", e.message);
@@ -153,6 +171,7 @@ class DatabaseManager {
 
         // Filter out system queries and self-logging
         const trimmed = sql.trim().toUpperCase();
+        if (trimmed.includes('AMOXSQL_AI.QUERY_HISTORY')) return;
         if (trimmed.startsWith('SELECT * FROM "AMOX_QUERY_HISTORY"')) return;
         if (trimmed.startsWith('INSERT INTO AMOX_QUERY_HISTORY')) return;
         if (trimmed.startsWith('PRAGMA')) return;
@@ -166,11 +185,13 @@ class DatabaseManager {
         // Exclude system schema queries
         if (trimmed.includes('FROM INFORMATION_SCHEMA')) return;
         if (trimmed.includes('FROM "INFORMATION_SCHEMA"')) return;
-        // Exclude system utility queries (from Quality Check, Data Profiler, etc.)
+        // Exclude internal schemas
+        if (trimmed.includes('AMOXSQL_AI')) return;
+        if (trimmed.includes('AMOXSQL_CHAINS')) return;
         if (trimmed.includes('AMOX_QUERY_HISTORY')) return;
 
         const escapedSql = sql.replace(/'/g, "''");
-        this.query(`INSERT INTO amox_query_history (query) VALUES ('${escapedSql}')`).catch(e => {
+        this.query(`INSERT INTO amoxsql_ai.query_history (query) VALUES ('${escapedSql}')`).catch(e => {
         });
     }
 
