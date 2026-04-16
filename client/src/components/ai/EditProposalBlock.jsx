@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LuCheck, LuX, LuChevronDown, LuChevronRight, LuFileEdit } from 'react-icons/lu';
+import { LuCheck, LuX, LuChevronDown, LuChevronRight, LuFilePen } from 'react-icons/lu';
 
 /**
  * EditProposalBlock — Shows an AI-proposed file edit with Accept/Reject buttons.
@@ -24,7 +24,7 @@ const EditProposalBlock = ({ currentContent, proposedContent, description, onAcc
             <div className="ai-edit-proposal__header">
                 <div className="ai-edit-proposal__title" onClick={() => setShowDiff(v => !v)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                     {showDiff ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
-                    <LuFileEdit size={13} />
+                    <LuFilePen size={13} />
                     <span style={{ fontSize: 12, fontWeight: 600 }}>AI Edit Proposal</span>
                     {description && (
                         <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 400 }}>— {description}</span>
