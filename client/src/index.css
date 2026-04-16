@@ -3545,6 +3545,51 @@ tr:hover .rt-td {
   font-weight: bold;
 }
 
+/* ── Message — Inline data table toggle ── */
+
+.ai-msg-table-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: var(--text-mini);
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: inherit;
+}
+
+.ai-msg-table-toggle:hover {
+  opacity: 1;
+}
+
+.ai-msg-inline-table {
+  margin: 4px 0 6px;
+}
+
+.ai-msg-inline-table .ai-msg-table-wrap {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ai-null-value {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+.ai-msg-inline-table-hint {
+  font-size: var(--text-mini);
+  color: var(--text-tertiary);
+  padding: 3px 8px;
+  text-align: right;
+}
+
 /* ── Message — Streaming cursor ── */
 
 .ai-msg-cursor {

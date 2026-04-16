@@ -114,6 +114,17 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
+    // State for inline data table toggles (keyed by sqlCalls index)
+    const [expandedTables, setExpandedTables] = useState(new Set());
+    const toggleTable = (index) => {
+        setExpandedTables(prev => {
+            const next = new Set(prev);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
+    };
+
     // Parse follow-up suggestions from suggest_followups tool
     const followUps = toolCalls?.filter(tc => tc.toolName === 'suggest_followups')
         .flatMap(tc => tc.result?.suggestions || []) || [];
@@ -221,8 +232,53 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                     <div className="ai-msg-sql-result ai-msg-sql-result--success">
                                         <span className="ai-msg-sql-result__icon">&#10003;</span>
                                         {tc.result.rowCount} rows ({tc.result.executionTime}ms)
+                                        {tc.result.data && tc.result.data.length > 0 && (
+                                            <button
+                                                className="ai-msg-table-toggle"
+                                                onClick={() => toggleTable(i)}
+                                            >
+                                                {expandedTables.has(i)
+                                                    ? <LuChevronDown size={10} />
+                                                    : <LuChevronRight size={10} />}
+                                                {expandedTables.has(i) ? 'Hide table' : 'View data'}
+                                            </button>
+                                        )}
                                     </div>
                                 )}
+                                {expandedTables.has(i) && tc.result?.data?.length > 0 && (() => {
+                                    const cols = tc.result.columns?.length > 0
+                                        ? tc.result.columns
+                                        : Object.keys(tc.result.data[0] || {}).map(n => ({ name: n }));
+                                    return (
+                                        <div className="ai-msg-inline-table">
+                                            <div className="ai-msg-table-wrap">
+                                                <table>
+                                                    <thead>
+                                                        <tr>{cols.map((col, ci) => <th key={ci}>{col.name}</th>)}</tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {tc.result.data.slice(0, 50).map((row, ri) => (
+                                                            <tr key={ri}>
+                                                                {cols.map((col, ci) => (
+                                                                    <td key={ci}>
+                                                                        {row[col.name] === null || row[col.name] === undefined
+                                                                            ? <span className="ai-null-value">NULL</span>
+                                                                            : String(row[col.name])}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {tc.result.data.length > 50 && (
+                                                <div className="ai-msg-inline-table-hint">
+                                                    Showing 50 of {tc.result.rowCount || tc.result.data.length} rows — click Run above to see all
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                                 {tc.result?.error && (
                                     <div className="ai-msg-sql-result ai-msg-sql-result--error">
                                         <span className="ai-msg-sql-result__icon">&#10007;</span>
