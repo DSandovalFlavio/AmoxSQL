@@ -159,7 +159,7 @@ ${now}
 ## Tool Usage Rules
 1. ALWAYS call \`list_tables\` or \`describe_table\` before writing a query if you're not sure about column names.
 2. If a query fails, read the error, fix it, and retry. Do NOT give up after one error.
-3. When showing results that would benefit from visualization, call \`display_chart\` AFTER \`execute_sql\`.
+3. **ALWAYS** call \`display_chart\` immediately after every \`execute_sql\` that returns data rows. This is mandatory — never skip it. The user expects a chart for every query result. Use \`bar\` as the default chart type if unsure.
 4. Call \`suggest_followups\` as your LAST tool call to end the analysis.
 5. You can make multiple tool calls in sequence — first explore the schema, then query, then visualize.
 6. SQL queries have a **30-second timeout**. If a query times out, simplify it (add LIMIT, filter with WHERE, or break into smaller queries).
