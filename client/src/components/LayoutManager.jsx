@@ -446,6 +446,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const tab = getActiveTab();
             if (tab) {
                 updateTab(activePane, tab.id, { content, dirty: true });
+                toast.info('AI updated the file — review changes before saving');
+            }
+        },
+
+        // ─── AI Integration: append SQL to current file content ───
+        appendToActiveContent: (sql) => {
+            const tab = getActiveTab();
+            if (tab) {
+                const current = tab.content || '';
+                const separator = current.trim().length > 0 ? '\n\n' : '';
+                updateTab(activePane, tab.id, { content: current + separator + sql, dirty: true });
             }
         },
 
@@ -458,6 +469,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     chartConfig: { ...current, ...changes },
                     initialChartConfig: { ...current, ...changes },
                 });
+                // Dispatch event so any mounted DataVisualizer (sql or sqlnb) merges
+                // changes into its current state immediately via setFields — this
+                // preserves auto-detected axes and avoids the LOAD_CONFIG defaults reset.
+                window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { changes } }));
+                toast.info('AI updated the chart configuration');
             }
         },
 

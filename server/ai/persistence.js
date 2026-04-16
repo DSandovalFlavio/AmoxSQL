@@ -90,6 +90,7 @@ class AiPersistence {
                 { name: 'session_name', type: 'VARCHAR' },
                 { name: 'description', type: 'VARCHAR' },
                 { name: 'archived', type: 'BOOLEAN DEFAULT false' },
+                { name: 'context_objects', type: 'VARCHAR' },
             ];
             for (const col of migrationColumns) {
                 try {
@@ -166,19 +167,27 @@ class AiPersistence {
      * @param {object} options - { search, limit }
      */
     async getConversations(dbManager, { search, limit = 50, offset = 0, mode } = {}) {
-        const conditions = [];
+        const modeCondition = mode ? `AND c.mode = '${mode}'` : '';
+
         if (search) {
             const safeSearch = search.replace(/'/g, "''");
-            conditions.push(`title ILIKE '%${safeSearch}%'`);
+            // Full-text search across conversation title AND message content
+            let query = `
+                SELECT DISTINCT c.*
+                FROM amoxsql_ai.conversations c
+                LEFT JOIN amoxsql_ai.messages m ON m.conversation_id = c.id
+                WHERE (c.title ILIKE '%${safeSearch}%' OR m.content ILIKE '%${safeSearch}%')
+                ${modeCondition}
+                ORDER BY c.updated_at DESC
+                LIMIT ${limit}
+            `;
+            if (offset > 0) query += ` OFFSET ${offset}`;
+            return dbManager.systemQuery(query);
         }
-        if (mode) {
-            conditions.push(`mode = '${mode}'`);
-        }
-        let query = `SELECT * FROM amoxsql_ai.conversations`;
-        if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
-        query += ` ORDER BY updated_at DESC LIMIT ${limit}`;
-        if (offset > 0) query += ` OFFSET ${offset}`;
 
+        let query = `SELECT * FROM amoxsql_ai.conversations c WHERE 1=1 ${modeCondition}`;
+        query += ` ORDER BY c.updated_at DESC LIMIT ${limit}`;
+        if (offset > 0) query += ` OFFSET ${offset}`;
         return dbManager.systemQuery(query);
     }
 
@@ -247,6 +256,13 @@ class AiPersistence {
             conversation.chartConfigs = [];
         }
 
+        // Parse context_objects JSON
+        if (conversation.context_objects) {
+            try { conversation.context_objects = JSON.parse(conversation.context_objects); } catch { conversation.context_objects = []; }
+        } else {
+            conversation.context_objects = [];
+        }
+
         return conversation;
     }
 
@@ -289,6 +305,20 @@ class AiPersistence {
         await dbManager.systemQuery(`
             UPDATE amoxsql_ai.conversations
             SET session_name = '${safeName}', updated_at = current_timestamp
+            WHERE id = '${id}'
+        `);
+        return { success: true };
+    }
+
+    /**
+     * Persist context objects (dragged tables/files) for a conversation.
+     * @param {Array} contextObjects - Array of {type, name, path?} objects
+     */
+    async updateContextObjects(dbManager, id, contextObjects) {
+        const safeJson = JSON.stringify(contextObjects).replace(/'/g, "''");
+        await dbManager.systemQuery(`
+            UPDATE amoxsql_ai.conversations
+            SET context_objects = '${safeJson}', updated_at = current_timestamp
             WHERE id = '${id}'
         `);
         return { success: true };
@@ -403,6 +433,24 @@ class AiPersistence {
             VALUES ('${id}', '${category}', '${safeContent}')
         `);
         return { id };
+    }
+
+    async deleteMemory(dbManager, id) {
+        await dbManager.systemQuery(
+            `DELETE FROM amoxsql_ai.memories WHERE id = '${id}'`
+        );
+        return { success: true };
+    }
+
+    async updateMemory(dbManager, id, { content, category }) {
+        const safeContent = content.replace(/'/g, "''");
+        const safeCategory = (category || '').replace(/'/g, "''");
+        await dbManager.systemQuery(`
+            UPDATE amoxsql_ai.memories
+            SET content = '${safeContent}', category = '${safeCategory}'
+            WHERE id = '${id}'
+        `);
+        return { success: true };
     }
 
     // ─── Session Artifacts ───

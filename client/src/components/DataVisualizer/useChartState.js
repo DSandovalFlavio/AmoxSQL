@@ -86,6 +86,20 @@ export function useChartState(initialConfig = null) {
 
     const [state, dispatch] = useReducer(chartReducer, initialState);
 
+    // ── Sync with external initialConfig changes (e.g., AI assistant updates) ──
+    const isExternalUpdateRef = useRef(false);
+    const prevInitialConfigRef = useRef(initialConfig ? JSON.stringify(initialConfig) : null);
+
+    useEffect(() => {
+        if (!initialConfig) return;
+        const serialized = JSON.stringify(initialConfig);
+        if (serialized !== prevInitialConfigRef.current) {
+            prevInitialConfigRef.current = serialized;
+            isExternalUpdateRef.current = true;
+            dispatch({ type: ACTIONS.LOAD_CONFIG, config: initialConfig });
+        }
+    }, [initialConfig]);
+
     /** Set a single field */
     const setField = useCallback((field, value) => {
         dispatch({ type: ACTIONS.SET_FIELD, field, value });
@@ -147,6 +161,12 @@ export function useChartState(initialConfig = null) {
         useEffect(() => {
             if (isInitialMount.current) {
                 isInitialMount.current = false;
+                return;
+            }
+            // Skip notification when state change was triggered by external prop update
+            // to prevent feedback loop: prop → LOAD_CONFIG → state → onConfigChange → prop
+            if (isExternalUpdateRef.current) {
+                isExternalUpdateRef.current = false;
                 return;
             }
             if (!onConfigChange) return;

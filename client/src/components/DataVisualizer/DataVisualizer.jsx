@@ -15,7 +15,7 @@
  *   initialChartConfig - Loaded config object (from .amoxvis)
  *   onConfigChange - Callback when config changes
  */
-import { memo, useMemo, useRef, useState, useCallback } from 'react';
+import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
@@ -110,6 +110,17 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
     // ── Config change notification ──
     useConfigChangeNotifier(onConfigChange);
+
+    // ── External chart config updates from AI (update_chart_config tool) ──
+    // Merges AI changes into the current state via setFields, preserving
+    // user-selected axes and other fields not included in the AI's partial update.
+    useEffect(() => {
+        const handler = (event) => {
+            setFields(event.detail.changes);
+        };
+        window.addEventListener('amox_update_chart_config', handler);
+        return () => window.removeEventListener('amox_update_chart_config', handler);
+    }, [setFields]);
 
     // ── Font family resolution ──
     const fontFamily = useMemo(() => {

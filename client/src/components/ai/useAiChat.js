@@ -48,6 +48,8 @@ export default function useAiChat({
     // ─── Context State ───
     const [contextObjects, setContextObjects] = useState([]);
     const [isDragOver, setIsDragOver] = useState(false);
+    // Tracks if context objects were loaded from DB (to avoid saving on first load)
+    const contextLoadedForConvRef = useRef(null);
 
     // ─── Chat State ───
     const [messages, setMessages] = useState([]);
@@ -58,6 +60,8 @@ export default function useAiChat({
     const [activeToolCalls, setActiveToolCalls] = useState([]);
     const [errorMsg, setErrorMsg] = useState(null);
     const [conversationId, setConversationId] = useState(null);
+    // pending edits: Map of toolCallId → edit result (waiting for user accept/reject)
+    const [pendingEdits, setPendingEdits] = useState({});
 
     // ─── Refs ───
     const chatEndRef = useRef(null);
@@ -160,6 +164,22 @@ export default function useAiChat({
     const removeContextObj = useCallback((index) => {
         setContextObjects(prev => prev.filter((_, i) => i !== index));
     }, []);
+
+    // ─── Persist context objects to DB (diving mode only) ───
+    useEffect(() => {
+        if (mode !== 'diving') return;
+        if (!conversationId) return;
+        // Skip on initial load (when we just restored from DB)
+        if (contextLoadedForConvRef.current === conversationId) {
+            contextLoadedForConvRef.current = null;
+            return;
+        }
+        fetch(`${API}/api/ai/conversations/${conversationId}/context-objects`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contextObjects }),
+        }).catch(err => console.error('Failed to persist context objects:', err));
+    }, [contextObjects, conversationId, mode]);
 
     // ─── Persistence helpers ───
     const ensureConversation = useCallback(async (model, { mode: convMode, filePath: convFilePath } = {}) => {
@@ -391,10 +411,14 @@ export default function useAiChat({
                                     : tc)
                             );
 
-                            // Handle special tool result actions via callbacks
-                            if (event.result?.action === 'edit_file' && onEditFile) {
-                                onEditFile(event.result);
+                            // edit_file: store as pending — user must accept/reject from the chat UI
+                            if (event.result?.action === 'edit_file') {
+                                setPendingEdits(prev => ({
+                                    ...prev,
+                                    [event.toolCallId]: event.result,
+                                }));
                             }
+                            // update_chart_config: apply immediately (non-destructive)
                             if (event.result?.action === 'update_chart_config' && onUpdateChartConfig) {
                                 onUpdateChartConfig(event.result);
                             }
@@ -413,6 +437,7 @@ export default function useAiChat({
             const mergedToolCalls = activeToolCallsRef.current.map(tc => {
                 const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
                 return {
+                    toolCallId: tc.toolCallId,
                     toolName: tc.toolName,
                     args: tc.args,
                     result: resultMatch?.result || tc.result,
@@ -461,11 +486,13 @@ export default function useAiChat({
                 })();
             }
 
-            // Save model as default (background)
+            // Save model as default and notify other AI panels to sync
             fetch(`${API}/api/settings/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ defaultModel: currentModel }),
+            }).then(() => {
+                window.dispatchEvent(new Event('amox_settings_updated'));
             }).catch(() => {});
 
         } catch (e) {
@@ -502,7 +529,8 @@ export default function useAiChat({
         setActiveToolCalls([]);
         setConversationId(null);
         setErrorMsg(null);
-    }, []);
+        if (mode === 'diving') setContextObjects([]);
+    }, [mode]);
 
     // ─── Conversation management ───
     const handleNewConversation = useCallback(() => {
@@ -584,17 +612,46 @@ export default function useAiChat({
                 setStreamingText('');
                 setActiveToolCalls([]);
                 setErrorMsg(null);
+
+                // Restore persisted context objects (diving mode)
+                if (mode === 'diving' && Array.isArray(conv.context_objects) && conv.context_objects.length > 0) {
+                    contextLoadedForConvRef.current = conv.id;
+                    setContextObjects(conv.context_objects);
+                } else if (mode === 'diving') {
+                    setContextObjects([]);
+                }
             }
         } catch (err) {
             console.error('Failed to load conversation:', err);
         }
-    }, [handleClearChat]);
+    }, [handleClearChat, mode]);
 
     // ─── Cancel ───
     const handleCancel = useCallback(() => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
+    }, []);
+
+    // ─── Pending Edit: Accept / Reject ───
+    const acceptEdit = useCallback((toolCallId) => {
+        const editResult = pendingEdits[toolCallId];
+        if (editResult && onEditFile) {
+            onEditFile(editResult);
+        }
+        setPendingEdits(prev => {
+            const next = { ...prev };
+            delete next[toolCallId];
+            return next;
+        });
+    }, [pendingEdits, onEditFile]);
+
+    const rejectEdit = useCallback((toolCallId) => {
+        setPendingEdits(prev => {
+            const next = { ...prev };
+            delete next[toolCallId];
+            return next;
+        });
     }, []);
 
     // ─── Return ───
@@ -646,6 +703,11 @@ export default function useAiChat({
         handleNewConversation,
         handleSelectConversation,
         handleCancel,
+
+        // Pending edits (edit_file proposals waiting for user accept/reject)
+        pendingEdits,
+        acceptEdit,
+        rejectEdit,
 
         // Persistence helpers (exposed for advanced use)
         ensureConversation,

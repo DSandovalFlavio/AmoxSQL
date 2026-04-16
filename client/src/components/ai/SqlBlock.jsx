@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { LuCopy, LuPlay, LuChevronDown, LuChevronRight, LuFileInput } from 'react-icons/lu';
+import { useState, useRef, useEffect } from 'react';
+import { LuCopy, LuPlay, LuChevronDown, LuChevronRight, LuFileInput, LuFilePlus2 } from 'react-icons/lu';
 
 /**
  * SqlBlock — Collapsible SQL code block with copy, run, and syntax highlighting.
@@ -7,15 +7,29 @@ import { LuCopy, LuPlay, LuChevronDown, LuChevronRight, LuFileInput } from 'reac
  *
  * Linear UI redesign: all styles in index.css under ai-sql-* classes.
  */
-const SqlBlock = ({ sql, onRun, onApplyToFile, defaultExpanded = true }) => {
+const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded = true }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const [copied, setCopied] = useState(false);
+    const [showApplyMenu, setShowApplyMenu] = useState(false);
+    const menuRef = useRef(null);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(sql);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
     };
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!showApplyMenu) return;
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setShowApplyMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showApplyMenu]);
 
     const headerClasses = [
         'ai-sql-header',
@@ -26,6 +40,8 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, defaultExpanded = true }) => {
         'ai-sql-btn',
         copied ? 'ai-sql-btn--copied' : '',
     ].filter(Boolean).join(' ');
+
+    const hasApplyOptions = onApplyToFile || onAppendToFile;
 
     return (
         <div className="ai-sql">
@@ -46,15 +62,60 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, defaultExpanded = true }) => {
                     >
                         <LuCopy size={11} /> {copied ? 'Copied!' : 'Copy'}
                     </button>
-                    {onApplyToFile && (
-                        <button
-                            className="ai-sql-btn"
-                            onClick={() => onApplyToFile(sql)}
-                            title="Apply to current file"
-                        >
-                            <LuFileInput size={11} /> Apply
-                        </button>
+
+                    {/* Apply dropdown: Replace or Append */}
+                    {hasApplyOptions && (
+                        <div className="ai-sql-apply-wrap" ref={menuRef} style={{ position: 'relative', display: 'inline-flex' }}>
+                            <button
+                                className="ai-sql-btn"
+                                onClick={() => setShowApplyMenu(v => !v)}
+                                title="Apply to editor"
+                            >
+                                <LuFileInput size={11} />
+                                Apply
+                                <LuChevronDown size={9} style={{ marginLeft: 2 }} />
+                            </button>
+                            {showApplyMenu && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: 0,
+                                    marginTop: 2,
+                                    background: 'var(--surface-elevated, var(--surface-secondary))',
+                                    border: '1px solid var(--border-subtle)',
+                                    borderRadius: 6,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                    zIndex: 100,
+                                    minWidth: 160,
+                                    overflow: 'hidden',
+                                }}>
+                                    {onApplyToFile && (
+                                        <button
+                                            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', textAlign: 'left' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                            onClick={() => { onApplyToFile(sql); setShowApplyMenu(false); }}
+                                        >
+                                            <LuFileInput size={12} />
+                                            Replace file content
+                                        </button>
+                                    )}
+                                    {onAppendToFile && (
+                                        <button
+                                            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', textAlign: 'left' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                            onClick={() => { onAppendToFile(sql); setShowApplyMenu(false); }}
+                                        >
+                                            <LuFilePlus2 size={12} />
+                                            Append to file
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     )}
+
                     {onRun && (
                         <button
                             className="ai-sql-btn ai-sql-btn--accent"
