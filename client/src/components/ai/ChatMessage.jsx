@@ -124,41 +124,6 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Chart visualizations from display_chart tool calls
     const chartCalls = toolCalls?.filter(tc => tc.toolName === 'display_chart') || [];
 
-    // Auto-chart fallback: in diving mode, render a default chart for any execute_sql
-    // result that has no corresponding display_chart call (AI skipped it)
-    const autoChartCalls = (() => {
-        if (!isDiving) return [];
-        const chartedQueryIds = new Set(
-            chartCalls.map(tc => tc.args?.query_id || tc.result?.chartConfig?.queryId).filter(Boolean)
-        );
-        return sqlCalls
-            .filter(tc => {
-                const result = tc.result;
-                if (!result || result.error || !result.queryId) return false;
-                if (!result.data || result.data.length === 0) return false;
-                const cols = result.columns || [];
-                if (cols.length < 2) return false;
-                return !chartedQueryIds.has(result.queryId);
-            })
-            .map(tc => {
-                const result = tc.result;
-                const cols = result.columns || [];
-                const numericTypes = /int|float|double|decimal|numeric|bigint|real|hugeint/i;
-                const numericCols = cols.filter(c => numericTypes.test(c.type || '')).map(c => c.name);
-                const allCols = cols.map(c => c.name);
-                const xAxisKey = allCols[0] || '';
-                const yFromNumeric = numericCols.filter(n => n !== xAxisKey).slice(0, 3);
-                const yFallback = allCols.filter(n => n !== xAxisKey).slice(0, 1);
-                return {
-                    chartType: 'bar',
-                    title: 'Query Results',
-                    xAxisKey,
-                    yAxisKeys: yFromNumeric.length > 0 ? yFromNumeric : yFallback,
-                    queryId: result.queryId,
-                };
-            });
-    })();
-
     // edit_file tool calls — shown as accept/reject proposals (assistant mode only)
     const editFileCalls = !isDiving ? (toolCalls?.filter(tc => tc.toolName === 'edit_file') || []) : [];
 
@@ -402,21 +367,6 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                     />
                                 )}
                             </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Auto-chart blocks: fallback for execute_sql results without a display_chart call */}
-                {autoChartCalls.length > 0 && (
-                    <div className="ai-msg-tools ai-msg-tools--charts">
-                        {autoChartCalls.map((chartConfig, i) => (
-                            <ChatResultsBlock
-                                key={`auto-chart-${i}`}
-                                chartConfig={chartConfig}
-                                allMessages={allMessages}
-                                isDiving={isDiving}
-                                onExportNotebook={onExportNotebook}
-                            />
                         ))}
                     </div>
                 )}
