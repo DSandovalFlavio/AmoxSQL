@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2 } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain } from 'react-icons/lu';
+import MemoriesPanel from './ai/MemoriesPanel';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -43,6 +44,7 @@ const TAB_TITLES = {
     editor: 'Editor',
     behavior: 'Behavior',
     ai: 'AI Settings',
+    memories: 'AI Memories',
     cloud: 'Cloud Storage',
     shortcuts: 'Keyboard Shortcuts',
     about: 'About AmoxSQL',
@@ -349,6 +351,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'editor', icon: <LuCode size={16} />, label: 'Editor' },
                         { id: 'behavior', icon: <LuSettings size={16} />, label: 'Behavior' },
                         { id: 'ai', icon: <LuCpu size={16} />, label: 'AI Assistant' },
+                        { id: 'memories', icon: <LuBrain size={16} />, label: 'AI Memories' },
                         { id: 'cloud', icon: <LuCloud size={16} />, label: 'Cloud Storage' },
                         { id: 'shortcuts', icon: <LuKeyboard size={16} />, label: 'Shortcuts' },
                         { id: 'about', icon: <LuInfo size={16} />, label: 'About AmoxSQL' },
@@ -1079,6 +1082,16 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         {cloudTestResult.text}
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* ═══ MEMORIES ═══ */}
+                        {activeTab === 'memories' && (
+                            <div className="stg-section">
+                                <p className="stg-row-desc stg-row-desc--mb14">
+                                    Memories are facts and rules that AmoxSQL AI automatically extracts from your conversations to personalize future responses. You can edit or delete them here.
+                                </p>
+                                <MemoriesPanel />
                             </div>
                         )}
 

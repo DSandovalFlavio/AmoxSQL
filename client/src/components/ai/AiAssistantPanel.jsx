@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight } from 'react-icons/lu';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
+import { exportConversationToMarkdown } from './exportConversation';
 
 const API = 'http://localhost:3001';
 
@@ -20,12 +21,14 @@ const AiAssistantPanel = ({
     activeChartConfig,
     onEditFile,
     onUpdateChartConfig,
+    onAppendToFile,
     onRunSql,
     onClose,
     availableTables,
     onOpenSettings,
     onResize,
     panelWidth,
+    onOpenDataDiving,
 }) => {
     const {
         GEMINI_MODELS,
@@ -65,6 +68,11 @@ const AiAssistantPanel = ({
         handleNewConversation,
         handleSelectConversation,
         handleCancel,
+
+        // Pending edits
+        pendingEdits,
+        acceptEdit,
+        rejectEdit,
     } = useAiChat({
         mode: 'assistant',
         filePath: activeFilePath,
@@ -129,6 +137,38 @@ const AiAssistantPanel = ({
             fileConvCacheRef.current[activeFilePath] = conversationId;
         }
     }, [conversationId, activeFilePath]);
+
+    // ─── Escalate current chat to Data Diving ───
+    const handleEscalateToDataDiving = useCallback(async () => {
+        if (!messages.length || !onOpenDataDiving) return;
+        // Create a new diving conversation pre-seeded with the current messages
+        try {
+            const res = await fetch(`${API}/api/ai/conversations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mode: 'diving',
+                    provider,
+                    model: selectedModel,
+                    title: activeFilePath ? `From: ${activeFilePath.split(/[\\/]/).pop()}` : 'Escalated from Assistant',
+                }),
+            });
+            if (res.ok) {
+                const conv = await res.json();
+                // Copy all messages to the new conversation
+                for (const msg of messages) {
+                    await fetch(`${API}/api/ai/conversations/${conv.id}/messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: msg.role, content: msg.content }),
+                    });
+                }
+                onOpenDataDiving(conv.id);
+            }
+        } catch (err) {
+            console.error('Failed to escalate to Data Diving:', err);
+        }
+    }, [messages, onOpenDataDiving, provider, selectedModel, activeFilePath]);
 
     // ─── Resize handle logic ───
     const isResizing = useRef(false);
@@ -246,6 +286,24 @@ const AiAssistantPanel = ({
                         <LuMessageSquarePlus size={14} />
                     </button>
                     {messages.length > 0 && (
+                        <button
+                            className="ai-icon-btn"
+                            onClick={() => exportConversationToMarkdown(messages, activeFilePath ? activeFilePath.split(/[\\/]/).pop() : 'Assistant Chat')}
+                            title="Export conversation to Markdown"
+                        >
+                            <LuDownload size={14} />
+                        </button>
+                    )}
+                    {messages.length > 0 && onOpenDataDiving && (
+                        <button
+                            className="ai-icon-btn"
+                            onClick={handleEscalateToDataDiving}
+                            title="Continue in Data Diving"
+                        >
+                            <LuArrowUpRight size={14} />
+                        </button>
+                    )}
+                    {messages.length > 0 && (
                         <button className="ai-icon-btn" onClick={handleClearChat} title="Clear chat">
                             <LuTrash2 size={14} />
                         </button>
@@ -307,7 +365,12 @@ const AiAssistantPanel = ({
                                 isStreaming={false}
                                 onRunSql={onRunSql}
                                 onApplyToFile={onEditFile}
+                                onAppendToFile={onAppendToFile}
                                 onFollowUp={(text) => handleSend(text)}
+                                pendingEdits={pendingEdits}
+                                acceptEdit={acceptEdit}
+                                rejectEdit={rejectEdit}
+                                currentFileContent={activeFileContent}
                             />
                         ))}
 

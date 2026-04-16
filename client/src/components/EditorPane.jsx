@@ -393,6 +393,7 @@ const EditorPane = ({
                             onExportNotebook={onExportNotebook}
                             onOpenFile={onOpenFile}
                             availableTables={availableTables}
+                            startConversationId={activeTab?.content || null}
                         />
                     </div>
                 ) : isErDiagram ? (

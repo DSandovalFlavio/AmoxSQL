@@ -352,6 +352,13 @@ function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [appPhase]);
 
+  // Listen for file system changes from AI tools (e.g., build_notebook)
+  useEffect(() => {
+    const handleFilesChanged = () => setFileRefreshTrigger(t => t + 1);
+    window.addEventListener('amox_files_changed', handleFilesChanged);
+    return () => window.removeEventListener('amox_files_changed', handleFilesChanged);
+  }, []);
+
   /* --- Execution Chain Handler --- */
   const handleOpenChain = useCallback(async () => {
     try {
@@ -1007,12 +1014,14 @@ function App() {
                   activeChartConfig={activeTabInfo?.chartConfig || null}
                   onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
                     onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
+                    onAppendToFile={(sql) => layoutRef.current?.appendToActiveContent(sql)}
                     onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
                     onClose={() => setShowAiSidebar(false)}
                     availableTables={availableTables}
                     onOpenSettings={() => setIsSettingsOpen(true)}
                     onResize={setAiPanelWidth}
                     panelWidth={aiPanelWidth}
+                    onOpenDataDiving={(convId) => layoutRef.current?.createNew('datadiving', convId)}
                   />
               </div>
             </div>
