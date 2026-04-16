@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
@@ -251,6 +252,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 return (
                                     <ReactMarkdown
                                         key={idx}
+                                        remarkPlugins={[remarkGfm]}
                                         components={{
                                             p: ({ children }) => <p>{children}</p>,
                                             pre: ({ children, ...props }) => (
