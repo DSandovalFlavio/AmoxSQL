@@ -1197,6 +1197,22 @@ app.put('/api/ai/conversations/:id/session-name', async (req, res) => {
     }
 });
 
+/**
+ * PUT /api/ai/conversations/:id/context-objects — Persist drag-drop context objects
+ * Body: { contextObjects: [{type, name, path?}] }
+ */
+app.put('/api/ai/conversations/:id/context-objects', async (req, res) => {
+    try {
+        const { contextObjects } = req.body;
+        if (!Array.isArray(contextObjects)) return res.status(400).json({ error: 'contextObjects must be an array' });
+        const result = await aiPersistence.updateContextObjects(dbManager, req.params.id, contextObjects);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Update context objects error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 /* --- AI Diving Session APIs --- */
 
 /**
@@ -1257,6 +1273,50 @@ app.delete('/api/ai/sessions/:id/artifacts/:artifactId', async (req, res) => {
         res.json(result);
     } catch (err) {
         console.error('[API] Delete artifact error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- AI Memories CRUD APIs --- */
+
+/**
+ * GET /api/ai/memories — List all active memories (superseded_by IS NULL)
+ */
+app.get('/api/ai/memories', async (req, res) => {
+    try {
+        const memories = await aiPersistence.getMemories(dbManager);
+        res.json(memories);
+    } catch (err) {
+        console.error('[API] Get memories error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * DELETE /api/ai/memories/:id — Delete a memory
+ */
+app.delete('/api/ai/memories/:id', async (req, res) => {
+    try {
+        const result = await aiPersistence.deleteMemory(dbManager, req.params.id);
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Delete memory error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * PUT /api/ai/memories/:id — Update memory content/category
+ * Body: { content, category }
+ */
+app.put('/api/ai/memories/:id', async (req, res) => {
+    try {
+        const { content, category } = req.body;
+        if (!content) return res.status(400).json({ error: 'content is required' });
+        const result = await aiPersistence.updateMemory(dbManager, req.params.id, { content, category });
+        res.json(result);
+    } catch (err) {
+        console.error('[API] Update memory error:', err);
         res.status(500).json({ error: err.message });
     }
 });

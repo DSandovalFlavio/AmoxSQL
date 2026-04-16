@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles } from 'react-icons/lu';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload } from 'react-icons/lu';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import ConversationList from './ConversationList';
 import SessionInventory from './SessionInventory';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
+import { exportConversationToMarkdown } from './exportConversation';
 
 const API = 'http://localhost:3001';
 
@@ -19,6 +20,7 @@ const AiDivingPanel = ({
     onExportNotebook,
     onOpenFile,
     availableTables,
+    startConversationId,
 }) => {
     const {
         // Constants
@@ -72,6 +74,15 @@ const AiDivingPanel = ({
     const [sessionName, setSessionName] = useState('');
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
 
+    // ─── Auto-select escalated conversation on mount ───
+    const didSelectStartConvRef = useRef(false);
+    useEffect(() => {
+        if (startConversationId && !didSelectStartConvRef.current) {
+            didSelectStartConvRef.current = true;
+            handleSelectConversation(startConversationId);
+        }
+    }, [startConversationId, handleSelectConversation]);
+
     // Reset session name when conversation changes
     useEffect(() => {
         setSessionName('');
@@ -104,7 +115,7 @@ const AiDivingPanel = ({
         }
     }, [conversationId]);
 
-    // ─── Auto-create artifact on build_notebook tool result ───
+    // ─── Auto-create artifacts for build_notebook, display_chart, and save_to_vault ───
     useEffect(() => {
         if (!conversationId || messages.length === 0) return;
         const lastMsg = messages[messages.length - 1];
@@ -119,17 +130,58 @@ const AiDivingPanel = ({
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 type: 'notebook',
-                                name: tc.result.name || 'Analysis Notebook',
+                                name: tc.result.fileName || tc.result.name || 'Analysis Notebook',
                                 data: tc.result,
                             }),
                         });
                     } catch (err) {
-                        console.error('Failed to auto-create artifact:', err);
+                        console.error('Failed to auto-create notebook artifact:', err);
+                    }
+                })();
+                // Refresh FileExplorer and auto-open
+                window.dispatchEvent(new Event('amox_files_changed'));
+                if (onOpenFile && tc.result.path) {
+                    onOpenFile(tc.result.path);
+                }
+            }
+
+            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
+                (async () => {
+                    try {
+                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'chart',
+                                name: tc.result?.chartConfig?.title || tc.args?.title || 'Chart',
+                                data: tc.result,
+                            }),
+                        });
+                    } catch (err) {
+                        console.error('Failed to auto-create chart artifact:', err);
+                    }
+                })();
+            }
+
+            if (tc.toolName === 'save_to_vault' && tc.result && !tc.result.error) {
+                (async () => {
+                    try {
+                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'sql',
+                                name: tc.result?.title || 'Vault Entry',
+                                data: tc.result,
+                            }),
+                        });
+                    } catch (err) {
+                        console.error('Failed to auto-create vault artifact:', err);
                     }
                 })();
             }
         }
-    }, [messages, conversationId]);
+    }, [messages, conversationId, onOpenFile]);
 
     // ─── Chat messages area ───
     const chatMessages = (
@@ -301,6 +353,15 @@ const AiDivingPanel = ({
                         )}
                     </div>
                     <div className="ai-diving-header-right">
+                        {messages.length > 0 && (
+                            <button
+                                className="ai-icon-btn"
+                                onClick={() => exportConversationToMarkdown(messages, sessionName || 'Data Diving')}
+                                title="Export conversation to Markdown"
+                            >
+                                <LuDownload size={14} />
+                            </button>
+                        )}
                         {messages.length > 0 && (
                             <button className="ai-icon-btn" onClick={handleClearChat} title="Clear chat">
                                 <LuTrash2 size={14} />
