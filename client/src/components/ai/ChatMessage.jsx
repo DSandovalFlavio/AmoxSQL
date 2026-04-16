@@ -4,6 +4,7 @@ import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight } fro
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
+import EditProposalBlock from './EditProposalBlock';
 
 /**
  * Parses thinking tokens (<think>...</think>) from model output.
@@ -108,7 +109,7 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onFollowUp, onExportNotebook, onOpenFile }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onAppendToFile, onFollowUp, onExportNotebook, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -122,9 +123,12 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Chart visualizations from display_chart tool calls
     const chartCalls = toolCalls?.filter(tc => tc.toolName === 'display_chart') || [];
 
-    // Other tool calls (list_tables, describe_table, read_file)
+    // edit_file tool calls — shown as accept/reject proposals (assistant mode only)
+    const editFileCalls = !isDiving ? (toolCalls?.filter(tc => tc.toolName === 'edit_file') || []) : [];
+
+    // Other tool calls (list_tables, describe_table, read_file) — exclude edit_file (handled separately)
     const otherCalls = toolCalls?.filter(tc =>
-        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook'
+        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook' && tc.toolName !== 'edit_file'
     ) || [];
 
     // Notebook creation results
@@ -172,6 +176,34 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     </div>
                 )}
 
+                {/* edit_file proposals: Accept/Reject diff view */}
+                {editFileCalls.length > 0 && editFileCalls.map((tc, i) => {
+                    const isPending = pendingEdits && tc.result?.action === 'edit_file' && pendingEdits[tc.toolCallId || `edit_${i}`];
+                    if (isPending) {
+                        return (
+                            <EditProposalBlock
+                                key={i}
+                                currentContent={currentFileContent || ''}
+                                proposedContent={tc.result?.content || ''}
+                                description={tc.result?.description}
+                                onAccept={() => acceptEdit(tc.toolCallId || `edit_${i}`)}
+                                onReject={() => rejectEdit(tc.toolCallId || `edit_${i}`)}
+                            />
+                        );
+                    }
+                    // Already accepted or rejected — show compact status
+                    return (
+                        <div key={i} className="ai-msg-tools">
+                            <ToolCallBlock
+                                toolName="edit_file"
+                                args={tc.args}
+                                result={tc.result}
+                                isLoading={false}
+                            />
+                        </div>
+                    );
+                })}
+
                 {/* SQL blocks */}
                 {sqlCalls.length > 0 && (
                     <div className="ai-msg-tools">
@@ -181,6 +213,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                     sql={tc.args?.query || ''}
                                     onRun={onRunSql}
                                     onApplyToFile={!isDiving ? onApplyToFile : undefined}
+                                    onAppendToFile={!isDiving ? onAppendToFile : undefined}
                                     defaultExpanded={sqlCalls.length <= 2}
                                 />
                                 {tc.result && !tc.result.error && tc.result.rowCount !== undefined && (
