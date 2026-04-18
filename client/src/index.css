@@ -7630,6 +7630,23 @@ tr:hover td {
   color: var(--text-primary);
 }
 
+.stg-search-input {
+  width: calc(100% - 32px);
+  margin: 0 16px 8px;
+  padding: 6px 10px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+  box-sizing: border-box;
+  display: block;
+}
+.stg-search-input:focus {
+  border-color: var(--accent-primary, #00DDDD);
+}
+
 .stg-tab {
   padding: 9px 16px;
   cursor: pointer;

@@ -5,8 +5,9 @@ import QueryPlanModal from './QueryPlanModal';
 import { useToast } from './ToastProvider';
 import { resolveVariables } from './VariablesBar';
 import AlertDialog from './AlertDialog';
+import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 
-const TAB_STORAGE_KEY = 'amoxsql-open-tabs';
+const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 
 const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook }, ref) => {
     const toast = useToast();
@@ -31,6 +32,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
 
+    // Query Cancellation State
+    const [runningQueryId, setRunningQueryId] = useState(null);
+
     // --- Tab Persistence: Save to sessionStorage ---
     useEffect(() => {
         const tabMeta = {
@@ -41,7 +45,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             splitEnabled
         };
         try {
-            sessionStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabMeta));
+            localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabMeta));
         } catch { /* ignore */ }
 
         // Notify parent of tab changes for rendering in WindowTitleBar
@@ -56,7 +60,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     useEffect(() => {
         const restoreTabs = async () => {
             try {
-                const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
+                const saved = localStorage.getItem(TAB_STORAGE_KEY);
                 if (!saved) return;
                 const meta = JSON.parse(saved);
                 if (!meta.leftTabs?.length && !meta.rightTabs?.length) return;
@@ -118,10 +122,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Actions
     const handleContentChange = (tabId, newContent) => {
         // Need to find which pane has this tab
+        const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
         if (leftTabs.find(t => t.id === tabId)) {
             updateTab('left', tabId, { content: newContent, dirty: true });
         } else {
             updateTab('right', tabId, { content: newContent, dirty: true });
+        }
+        // Auto-save draft to localStorage for crash recovery
+        if (tab?.path) {
+            saveDraft(tab.path, newContent);
         }
     };
 
@@ -186,15 +195,25 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         return { line, column: column || 1, message };
     };
 
+    const cancelQuery = async () => {
+        if (!runningQueryId) return;
+        try {
+            await fetch(`http://localhost:3001/api/query/cancel/${runningQueryId}`, { method: 'POST' });
+        } catch {}
+        setRunningQueryId(null);
+    };
+
     const executeQuery = async (tabId, query) => {
         const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
+        const qid = crypto.randomUUID();
+        setRunningQueryId(qid);
         try {
             const response = await fetch('http://localhost:3001/api/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: resolvedQuery }),
+                body: JSON.stringify({ query: resolvedQuery, queryId: qid }),
             });
             const data = await response.json();
 
@@ -225,6 +244,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const marker = parseDuckDBError(err.message);
             updateTab(pane, tabId, { results: null, resultsError: err.message, errorMarker: marker });
             return { error: err.message };
+        } finally {
+            setRunningQueryId(null);
         }
     };
 
@@ -258,6 +279,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
             if (response.ok) {
                 updateTab(activePane, tab.id, { dirty: false });
+                if (tab.path) clearDraft(tab.path);
                 if (!isSilent) toast.success("Saved!");
             } else {
                 console.error("Save failed");
@@ -385,12 +407,36 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 if (activePane === 'left') setLeftActiveId(existing.id);
                 else setRightActiveId(existing.id);
             } else {
+                // Check for an unsaved draft and offer recovery
+                const draft = getDraft(path);
+                let finalContent = content;
+                if (draft && draft.content !== content) {
+                    const fileName = path.split(/[/\\]/).pop();
+                    toast.info(
+                        `Unsaved draft found for ${fileName}`,
+                        {
+                            action: {
+                                label: 'Recover',
+                                onClick: () => {
+                                    // Update content in the tab after it's created
+                                    const allTabs = [...leftTabs, ...rightTabs];
+                                    const t = allTabs.find(tb => tb.path === path);
+                                    if (t) {
+                                        const p = leftTabs.find(tb => tb.id === t.id) ? 'left' : 'right';
+                                        updateTab(p, t.id, { content: draft.content, dirty: true });
+                                    }
+                                    clearDraft(path);
+                                }
+                            }
+                        }
+                    );
+                }
                 const newTab = {
                     id: Date.now().toString(),
                     path: path,
                     name: path.split(/[/\\]/).pop(),
                     type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : 'sql'),
-                    content: content,
+                    content: finalContent,
                     results: null,
                     dirty: false
                 };
@@ -764,6 +810,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onOpenFile={handleQueryFile}
                     availableTables={availableTables}
                     onExportNotebook={onExportNotebook}
+                    isRunning={!!runningQueryId}
+                    onCancelQuery={cancelQuery}
                 />
 
                 {splitEnabled && (
@@ -794,6 +842,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onOpenFile={handleQueryFile}
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
+                        isRunning={!!runningQueryId}
+                        onCancelQuery={cancelQuery}
                     />
                 )}
             </div>

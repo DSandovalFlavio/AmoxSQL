@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LuHash, LuType, LuLoader, LuMaximize, LuMinimize, LuTriangleAlert, LuInfo, LuCircleCheck } from 'react-icons/lu';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 /**
@@ -14,6 +15,8 @@ const DataProfiler = ({ data, isActive, query }) => {
     const [isCalculating, setIsCalculating] = useState(false);
     const [processedQueryRef, setProcessedQueryRef] = useState(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const profilerRef = useRef(null);
+    const { dialogProps } = useModalA11y(isFullScreen ? profilerRef : { current: null }, () => setIsFullScreen(false));
 
     useEffect(() => {
         if (isActive && processedQueryRef !== query) {
@@ -176,7 +179,7 @@ const DataProfiler = ({ data, isActive, query }) => {
     };
 
     return (
-        <div style={containerStyle}>
+        <div ref={profilerRef} style={containerStyle} {...(isFullScreen ? dialogProps : {})}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
                     <h2 style={{ fontSize: '20px', margin: '0 0 4px 0', color: 'var(--text-active)' }}>Data Profiling Report</h2>

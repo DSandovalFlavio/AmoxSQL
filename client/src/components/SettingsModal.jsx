@@ -121,6 +121,7 @@ const Toggle = ({ on, onChange }) => (
 
 const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
+    const [settingsSearch, setSettingsSearch] = useState('');
     const contentRef = useRef(null);
     const toast = useToast();
     const dialog = useDialog();
@@ -350,6 +351,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 {/* ─── Sidebar ─── */}
                 <div className="stg-sidebar">
                     <div className="stg-sidebar-title">Settings</div>
+                    <input
+                        type="search"
+                        placeholder="Search settings..."
+                        value={settingsSearch}
+                        onChange={e => setSettingsSearch(e.target.value)}
+                        className="stg-search-input"
+                        aria-label="Search settings"
+                    />
                     {[
                         { id: 'appearance', icon: <LuPalette size={16} />, label: 'Appearance' },
                         { id: 'editor', icon: <LuCode size={16} />, label: 'Editor' },
@@ -359,7 +368,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'cloud', icon: <LuCloud size={16} />, label: 'Cloud Storage' },
                         { id: 'shortcuts', icon: <LuKeyboard size={16} />, label: 'Shortcuts' },
                         { id: 'about', icon: <LuInfo size={16} />, label: 'About AmoxSQL' },
-                    ].map(tab => (
+                    ].filter(tab => !settingsSearch || tab.label.toLowerCase().includes(settingsSearch.toLowerCase())).map(tab => (
                         <div
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}

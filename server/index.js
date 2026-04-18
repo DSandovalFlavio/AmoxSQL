@@ -35,6 +35,9 @@ BigInt.prototype.toJSON = function () {
 
 let ROOT_DIR = process.cwd();
 
+// Track in-flight user queries for cancellation support
+const activeQueries = new Map(); // queryId → { interrupt }
+
 /* --- Project Management APIs --- */
 app.get('/api/project/path', (req, res) => {
     res.json({ path: ROOT_DIR });
@@ -1558,10 +1561,13 @@ app.get('/api/folders', (req, res) => {
 });
 
 app.post('/api/query', async (req, res) => {
-    const { query } = req.body;
+    const { query, queryId } = req.body;
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
     }
+
+    const qid = queryId || require('crypto').randomUUID();
+    activeQueries.set(qid, { interrupt: () => dbManager.interruptQuery() });
 
     try {
         const start = performance.now();
@@ -1580,8 +1586,24 @@ app.post('/api/query', async (req, res) => {
             data: result.rows,
             types: result.types,
             executionTime: (end - start).toFixed(2),
-            rowCount: result.rows.length
+            rowCount: result.rows.length,
+            queryId: qid
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    } finally {
+        activeQueries.delete(qid);
+    }
+});
+
+app.post('/api/query/cancel/:queryId', (req, res) => {
+    const { queryId } = req.params;
+    const entry = activeQueries.get(queryId);
+    if (!entry) return res.status(404).json({ error: 'Query not found or already completed' });
+    try {
+        entry.interrupt();
+        activeQueries.delete(queryId);
+        res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
