@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage } from "react-icons/lu";
+import { useState, useEffect, useMemo, useDeferredValue, lazy, Suspense } from 'react';
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare } from "react-icons/lu";
+
+const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
@@ -40,6 +42,10 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
 
     // --- Column Context Menu State ---
     const [contextMenu, setContextMenu] = useState(null); // { x, y, column }
+
+    // --- Compare State ---
+    const [storedForCompare, setStoredForCompare] = useState(null); // { data, label }
+    const [compareOpen, setCompareOpen] = useState(false);
 
     // --- Column Resizing State ---
     const [columnWidths, setColumnWidths] = useState({}); // { [colName]: widthInPx }
@@ -415,6 +421,38 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 </div>
                             )}
 
+                            {/* Compare button */}
+                            {!storedForCompare ? (
+                                <button
+                                    className="rt-action-btn"
+                                    onClick={() => { setStoredForCompare({ data: sortedData, label: `Result A (${sortedData.length} rows)` }); toast.info('Snapshot stored. Run another query, then click Compare.'); }}
+                                    aria-label="Store results for comparison"
+                                    title="Store current results for comparison"
+                                >
+                                    <LuGitCompare size={12} /> Store A
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        className="rt-action-btn rt-action-btn--accent"
+                                        onClick={() => setCompareOpen(true)}
+                                        aria-label="Compare results"
+                                        title="Compare stored results with current"
+                                    >
+                                        <LuGitCompare size={12} /> Compare
+                                    </button>
+                                    <button
+                                        className="rt-action-btn"
+                                        onClick={() => { setStoredForCompare(null); setCompareOpen(false); }}
+                                        title="Clear stored comparison"
+                                        aria-label="Clear comparison"
+                                        style={{ fontSize: '10px' }}
+                                    >
+                                        ✕
+                                    </button>
+                                </>
+                            )}
+
                             {onPopout && (
                                 <button className="rt-action-btn" onClick={onPopout} aria-label="Pop out results to separate window">
                                     <LuExternalLink size={12} /> Pop-out
@@ -610,6 +648,19 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                 onClose={() => setIsExportDataOpen(false)}
                 query={currentEditorQuery || query}
             />
+
+            {/* Compare Results Modal */}
+            {compareOpen && storedForCompare && (
+                <Suspense fallback={null}>
+                    <CompareResults
+                        dataA={storedForCompare.data}
+                        labelA={storedForCompare.label}
+                        dataB={sortedData}
+                        labelB={`Result B (${sortedData.length} rows)`}
+                        onClose={() => setCompareOpen(false)}
+                    />
+                </Suspense>
+            )}
 
             {/* Column Context Menu */}
             {contextMenu && (

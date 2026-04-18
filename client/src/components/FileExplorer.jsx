@@ -3,12 +3,12 @@ import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
-    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType
+    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType, LuEye
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
 
-const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onEditChart, refreshTrigger }) => {
+const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -368,6 +368,17 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                             <LuDatabase size={14} /> Import to Database...
                         </div>
                     )}
+                    {/* Quick Preview for CSV/Parquet — auto-executes on open */}
+                    {contextMenu.file.name.match(/\.(csv|parquet)$/i) && (
+                        <div
+                            onClick={() => { (onPreviewFile || onQueryFile)(contextMenu.file.path); setContextMenu(null); }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            className="context-menu-item"
+                        >
+                            <LuEye size={14} /> Quick Preview (100 rows)
+                        </div>
+                    )}
+
                     {/* Direct Query Option for data files */}
                     {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
                         <div
