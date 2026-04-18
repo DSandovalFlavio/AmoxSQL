@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder } from 'react-icons/lu';
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import SqlNotebook from './SqlNotebook';
@@ -37,6 +37,8 @@ const EditorPane = ({
     onOpenFile,       // (filePath) -> open a file in a new tab (used by ChainEditor)
     availableTables,  // Data Diving only
     onExportNotebook, // Data Diving only
+    isRunning,        // boolean — a query is currently executing
+    onCancelQuery,    // () -> cancel the running query
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -435,17 +437,30 @@ const EditorPane = ({
                                 <div className="ep-action-left">
                                     {/* Run + Analyze group */}
                                     <div className="ep-action-group">
-                                        <button
-                                            className="ep-action-run"
-                                            onClick={() => handleRunWithTimestamp(activeTab.id, activeTab.content)}
-                                            title="Run (Ctrl+Enter)"
-                                        >
-                                            <LuPlay size={13} fill="currentColor" /> Run
-                                        </button>
+                                        {isRunning ? (
+                                            <button
+                                                className="ep-action-run sql-btn-stop"
+                                                onClick={onCancelQuery}
+                                                title="Cancel (Esc)"
+                                                aria-label="Cancel running query"
+                                            >
+                                                <LuSquare size={13} fill="currentColor" /> Stop
+                                            </button>
+                                        ) : (
+                                            <button
+                                                className="ep-action-run"
+                                                onClick={() => handleRunWithTimestamp(activeTab.id, activeTab.content)}
+                                                title="Run (Ctrl+Enter)"
+                                                aria-label="Run query"
+                                            >
+                                                <LuPlay size={13} fill="currentColor" /> Run
+                                            </button>
+                                        )}
                                         <button
                                             className="ep-action-btn"
                                             onClick={() => onAnalyze && onAnalyze()}
                                             title="Analyze Query Plan (Ctrl+Shift+A)"
+                                            aria-label="Analyze query plan"
                                         >
                                             <LuActivity size={13} />
                                         </button>
@@ -457,6 +472,7 @@ const EditorPane = ({
                                             className="ep-action-btn"
                                             onClick={() => onSave && onSave()}
                                             title="Save (Ctrl+S)"
+                                            aria-label="Save file"
                                         >
                                             <LuSave size={13} /> Save
                                         </button>
@@ -464,6 +480,7 @@ const EditorPane = ({
                                             className="ep-action-chevron"
                                             onClick={() => setShowSaveMenu(v => !v)}
                                             title="Save Options"
+                                            aria-label="Save options"
                                         >
                                             <LuChevronDown size={10} />
                                         </button>
