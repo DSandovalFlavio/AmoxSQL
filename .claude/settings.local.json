@@ -25,7 +25,13 @@
       "Bash(find C:UsersflaviDocumentsProyectosIDE.claudeworktreeshungry-kapitsa -type f \\\\\\(-name *.sql -o -name *.md -o -name *.txt \\\\\\))",
       "Bash(npm run:*)",
       "Bash(node -c \"C:/Users/flavi/Documents/Proyectos/IDE/.claude/worktrees/hungry-kapitsa/client/src/workers/treeSitterUtils.js\")",
-      "Bash(node --input-type=module -e \"import\\(''file:///C:/Users/flavi/Documents/Proyectos/IDE/.claude/worktrees/hungry-kapitsa/client/src/workers/treeSitterUtils.js''\\).catch\\(e => console.log\\(e.message\\)\\)\")"
+      "Bash(node --input-type=module -e \"import\\(''file:///C:/Users/flavi/Documents/Proyectos/IDE/.claude/worktrees/hungry-kapitsa/client/src/workers/treeSitterUtils.js''\\).catch\\(e => console.log\\(e.message\\)\\)\")",
+      "Bash(gh pr create --title 'fix: robustness, SQL safety, React modals and graceful shutdown \\(Fase 0\\)' --body ' *)",
+      "Bash(gh pr create --title 'feat: UX polish — shortcuts, a11y, query cancel, autosave, layout \\(Fase 1\\)' --body ' *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}; [print\\(f'{k}: {v}'\\) for k in ['recharts','react','electron','@duckdb/node-api','sql-formatter','react-icons'] if k in deps]\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); const all={...p.dependencies,...p.devDependencies}; ['recharts','react','sql-formatter','react-icons','@duckdb/node-api'].forEach\\(k=>console.log\\(k+': '+\\(all[k]||'NOT FOUND'\\)\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./client/package.json'\\); const all={...p.dependencies,...p.devDependencies}; ['recharts','react','sql-formatter','react-icons','@monaco-editor/react'].forEach\\(k=>console.log\\(k+': '+\\(all[k]||'NOT FOUND'\\)\\)\\)\")",
+      "Bash(gh pr create --title 'fix\\(fase2\\): UI feedback — icons, modal size, history sidebar, file preview, file grouping' --body ' *)"
     ]
   }
 }
