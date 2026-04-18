@@ -692,6 +692,22 @@ function App() {
     }
   }, []);
 
+// Removed duplicated handleCloseProject
+
+  const handleSidebarTabClick = (tabId) => {
+    // Si la configuración no existe, por defecto es true
+    const shouldToggle = editorSettings.toggleSidebarOnActiveTabClick ?? true;
+    
+    if (activeSidebarTab === tabId && !sidebarCollapsed) {
+      if (shouldToggle) {
+        setSidebarCollapsed(true);
+      }
+    } else {
+      if (sidebarCollapsed) setSidebarCollapsed(false);
+      setActiveSidebarTab(tabId);
+    }
+  };
+
   // --- Main Render Logic ---
 
   if (appPhase === PHASE.WELCOME) {
@@ -753,42 +769,42 @@ function App() {
           <div className="left-panel-card">
             <div className="activity-bar">
               <button
-                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('files'); }}
+                onClick={() => handleSidebarTabClick('files')}
                 className={`activity-bar-btn ${activeSidebarTab === 'files' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="Explorer (Ctrl+Shift+E)"
               >
                 <LuFolder size={20} />
               </button>
               <button
-                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('schema'); }}
+                onClick={() => handleSidebarTabClick('schema')}
                 className={`activity-bar-btn ${activeSidebarTab === 'schema' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="Database Schema (Ctrl+Shift+D)"
               >
                 <LuDatabase size={20} />
               </button>
               <button
-                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('extensions'); }}
+                onClick={() => handleSidebarTabClick('extensions')}
                 className={`activity-bar-btn ${activeSidebarTab === 'extensions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="Extensions"
               >
                 <LuPuzzle size={20} />
               </button>
               <button
-                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('dbt'); }}
+                onClick={() => handleSidebarTabClick('dbt')}
                 className={`activity-bar-btn ${activeSidebarTab === 'dbt' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="DBT Studio"
               >
                 <LuContainer size={20} />
               </button>
               <button
-                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('snippets'); }}
+                onClick={() => handleSidebarTabClick('snippets')}
                 className={`activity-bar-btn ${activeSidebarTab === 'snippets' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="SQL Snippets"
               >
                 <LuCode size={20} />
               </button>
               <button
-                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('history'); }}
+                onClick={() => handleSidebarTabClick('history')}
                 className={`activity-bar-btn ${activeSidebarTab === 'history' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="Query History"
               >
@@ -796,7 +812,7 @@ function App() {
               </button>
               {/* Analysis Vault */}
               <button
-                onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false); setActiveSidebarTab('vault'); }}
+                onClick={() => handleSidebarTabClick('vault')}
                 className={`activity-bar-btn ${activeSidebarTab === 'vault' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="Analysis Vault"
               >
@@ -847,6 +863,7 @@ function App() {
             {activeSidebarTab === 'files' && (
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <FileExplorer
+                  editorSettings={editorSettings}
                   onFileClick={handleFileClick}
                   onFileOpen={handleFileOpen}
                   onNewFile={handleNewFile}

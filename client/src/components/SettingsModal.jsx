@@ -920,6 +920,27 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                         <div className="stg-row">
                                             <div>
+                                                <span className="stg-row-label">Toggle Sidebar on Active Tab Click</span>
+                                                <p className="stg-row-desc">Collapse the sidebar when clicking the currently active tab icon</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.toggleSidebarOnActiveTabClick ?? true)} onChange={() => onEditorSettingsChange?.({ toggleSidebarOnActiveTabClick: !(editorSettings.toggleSidebarOnActiveTabClick ?? true) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Default Data File Action</span>
+                                                <p className="stg-row-desc">What happens when clicking data files (.csv, .json, .parquet)</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w200"
+                                                value={editorSettings.defaultDataFileAction || 'preview'}
+                                                onChange={(e) => onEditorSettingsChange?.({ defaultDataFileAction: e.target.value })}
+                                            >
+                                                <option value="preview">Open Quick Preview Modal</option>
+                                                <option value="query">Open Direct Query</option>
+                                            </select>
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
                                                 <span className="stg-row-label">Confirm Default Operations</span>
                                                 <p className="stg-row-desc">Ask for confirmation before dropping tables</p>
                                             </div>
