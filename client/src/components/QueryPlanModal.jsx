@@ -58,8 +58,9 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
         }}>
             <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)',
-                width: '95%',
-                height: '95%',
+                width: '90%',
+                height: '82%',
+                maxHeight: 'calc(100vh - 80px)',
                 borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',

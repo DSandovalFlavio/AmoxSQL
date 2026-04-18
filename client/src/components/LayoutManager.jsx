@@ -9,7 +9,7 @@ import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 
-const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onShowHistorySidebar }, ref) => {
     const toast = useToast();
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
@@ -820,6 +820,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onExportNotebook={onExportNotebook}
                     isRunning={!!runningQueryId}
                     onCancelQuery={cancelQuery}
+                    onShowHistory={onShowHistorySidebar}
                 />
 
                 {splitEnabled && (

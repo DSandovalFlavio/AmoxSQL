@@ -995,6 +995,10 @@ function App() {
                   }}
                   availableTables={availableTables}
                   onExportNotebook={handleExportNotebook}
+                  onShowHistorySidebar={() => {
+                    setSidebarCollapsed(false);
+                    setActiveSidebarTab('history');
+                  }}
                 />
               </div>
 
