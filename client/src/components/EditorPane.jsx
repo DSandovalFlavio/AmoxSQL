@@ -8,7 +8,6 @@ import { VariablesToggle, VariablesPanel } from './VariablesBar';
 import ErDiagram from './ErDiagram';
 
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
-const QueryHistoryPanel = lazy(() => import('./QueryHistoryPanel'));
 import AiDivingPanel from './ai/AiDivingPanel';
 
 const EditorPane = ({
@@ -40,6 +39,7 @@ const EditorPane = ({
     onExportNotebook, // Data Diving only
     isRunning,        // boolean — a query is currently executing
     onCancelQuery,    // () -> cancel the running query
+    onShowHistory,    // () -> navigate left sidebar to 'history' tab
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -60,7 +60,6 @@ const EditorPane = ({
     const dropCounterRef = useRef(0);
 
     const [isPoppedOut, setIsPoppedOut] = useState(false);
-    const [showHistory, setShowHistory] = useState(false);
 
     // Listen for popout window being closed by the user
     useEffect(() => {
@@ -498,11 +497,11 @@ const EditorPane = ({
                                         )}
                                     </div>
 
-                                    {/* History button */}
+                                    {/* History button — opens the History tab in the left sidebar */}
                                     <div className="ep-action-group">
                                         <button
-                                            className={`ep-action-btn${showHistory ? ' active' : ''}`}
-                                            onClick={() => setShowHistory(v => !v)}
+                                            className="ep-action-btn"
+                                            onClick={() => onShowHistory && onShowHistory()}
                                             title="Query History (Ctrl+Shift+H)"
                                             aria-label="Query History"
                                         >
@@ -559,7 +558,7 @@ const EditorPane = ({
                                         onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}
                                         onSave={() => onSave && onSave()}
                                         onAnalyze={() => onAnalyze && onAnalyze()}
-                                        onShowHistory={() => setShowHistory(v => !v)}
+                                        onShowHistory={() => onShowHistory && onShowHistory()}
                                         theme={theme}
                                         errorMarker={activeTab.errorMarker}
                                         editorSettings={editorSettings}
@@ -588,20 +587,7 @@ const EditorPane = ({
                 <div ref={ghostRef} className="ep-ghost" />
             </div>
 
-            {/* Query History Panel — slide-over */}
-            {showHistory && (
-                <div className="ep-history-overlay">
-                    <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-tertiary)' }}>Loading...</div>}>
-                        <QueryHistoryPanel
-                            onInsertQuery={(query) => {
-                                onContentChange && onContentChange(activeTabId, query);
-                                setShowHistory(false);
-                            }}
-                            onClose={() => setShowHistory(false)}
-                        />
-                    </Suspense>
-                </div>
-            )}
+            {/* Query History is in the left sidebar — use the History button to navigate there */}
 
             <DebugResultModal
                 isOpen={debugModalOpen}

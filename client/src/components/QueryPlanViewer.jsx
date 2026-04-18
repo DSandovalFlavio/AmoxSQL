@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Treemap, ResponsiveContainer, Tooltip } from 'recharts';
+import { LuTreePine, LuMap } from 'react-icons/lu';
 
 // ─── Tree View ───────────────────────────────────────────────────────────────
 
@@ -149,9 +150,10 @@ const QueryPlanViewer = ({ plan }) => {
                             border: '1px solid var(--border-color)',
                             background: viewMode === 'tree' ? 'var(--accent-primary, #00DDDD)' : 'var(--surface-overlay)',
                             color: viewMode === 'tree' ? '#000' : 'var(--text-primary)',
+                            display: 'flex', alignItems: 'center', gap: '4px',
                         }}
                     >
-                        🌳 Tree
+                        <LuTreePine size={13} /> Tree
                     </button>
                     <button
                         onClick={() => setViewMode('map')}
@@ -160,9 +162,10 @@ const QueryPlanViewer = ({ plan }) => {
                             border: '1px solid var(--border-color)',
                             background: viewMode === 'map' ? 'var(--accent-primary, #00DDDD)' : 'var(--surface-overlay)',
                             color: viewMode === 'map' ? '#000' : 'var(--text-primary)',
+                            display: 'flex', alignItems: 'center', gap: '4px',
                         }}
                     >
-                        📊 Map
+                        <LuMap size={13} /> Map
                     </button>
                 </div>
             </div>
