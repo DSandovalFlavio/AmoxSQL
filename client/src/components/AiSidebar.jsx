@@ -47,6 +47,14 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const inputRef = useRef(null);
     const abortControllerRef = useRef(null);
     const activeToolCallsRef = useRef([]);
+    // isMountedRef prevents setState calls after the sidebar unmounts mid-stream,
+    // which would produce React "Can't perform state update on unmounted component" warnings.
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
     // ─── Alert ───
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
@@ -309,6 +317,8 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     try {
                         const event = JSON.parse(raw);
 
+                        if (!isMountedRef.current) break;
+
                         if (event.type === 'text-delta') {
                             fullText += event.text;
                             setStreamingText(fullText);
@@ -359,6 +369,8 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                 };
             });
 
+            if (!isMountedRef.current) return;
+
             setActiveToolCalls([]);
             activeToolCallsRef.current = [];
 
@@ -369,8 +381,10 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                 content: fullText,
                 toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
             };
-            setMessages(prev => [...prev, assistantMsg]);
-            setStreamingText('');
+            if (isMountedRef.current) {
+                setMessages(prev => [...prev, assistantMsg]);
+                setStreamingText('');
+            }
 
             // Persistence: save assistant message and tool results (diving only)
             if (isDiving && activeConvId) {
@@ -407,6 +421,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             }).catch(() => { });
 
         } catch (e) {
+            if (!isMountedRef.current) return;
             if (e.name === 'AbortError') {
                 setErrorMsg("Generation cancelled.");
             } else {
@@ -415,7 +430,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             setStreamingText('');
             setActiveToolCalls([]);
         } finally {
-            setIsGenerating(false);
+            if (isMountedRef.current) {
+                setIsGenerating(false);
+            }
             abortControllerRef.current = null;
         }
     }, [inputText, isGenerating, messages, selectedModel, customModel, provider, contextObjects, isDiving, activeSkillId, ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle]);

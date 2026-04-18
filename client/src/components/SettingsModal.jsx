@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
+import { useToast } from './ToastProvider';
+import { useDialog } from './dialogs/DialogProvider';
 
 const RECOMMENDED_MODELS = [
     { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
@@ -120,6 +122,8 @@ const Toggle = ({ on, onChange }) => (
 const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
     const contentRef = useRef(null);
+    const toast = useToast();
+    const dialog = useDialog();
 
     // AI Settings State
     const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -1187,9 +1191,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                             if (data.accent) onAccentChange?.(data.accent);
                                                             if (data.layout) onLayoutChange?.(data.layout);
                                                             if (data.zoom) onUiZoomChange?.(data.zoom);
-                                                            alert('Settings imported successfully!');
+                                                            toast.success('Settings imported successfully');
                                                         } catch {
-                                                            alert('Invalid settings file.');
+                                                            toast.error('Invalid settings file');
                                                         }
                                                     };
                                                     reader.readAsText(file);
@@ -1204,13 +1208,20 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <span className="stg-row-label stg-text-danger">Reset to Defaults</span>
                                                 <p className="stg-row-desc">Restore all editor and appearance settings to factory defaults</p>
                                             </div>
-                                            <button className="stg-btn stg-btn--danger-text" onClick={() => {
-                                                if (window.confirm('Are you sure you want to reset all UI and editor settings to their defaults? Your queries and databases will NOT be affected.')) {
+                                            <button className="stg-btn stg-btn--danger-text" onClick={async () => {
+                                                const ok = await dialog.confirmAsync({
+                                                    title: 'Reset to defaults?',
+                                                    message: 'All UI and editor settings will be restored to factory defaults. Your queries and databases will NOT be affected.',
+                                                    confirmLabel: 'Reset',
+                                                    destructive: true,
+                                                });
+                                                if (ok) {
                                                     onEditorSettingsChange?.({});
                                                     onThemeChange?.('dark');
                                                     onAccentChange?.('cyan');
                                                     onLayoutChange?.('horizontal');
                                                     onUiZoomChange?.(1.0);
+                                                    toast.success('Settings restored to defaults');
                                                 }
                                             }}>
                                                 <LuTrash2 size={14} /> Reset
