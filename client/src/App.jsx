@@ -27,7 +27,6 @@ import WindowTitleBar from './components/WindowTitleBar';
 import TabBar from './components/TabBar';
 
 // Ultra-heavy lazy loaded Modals (Zero Cost Startup)
-const DatabaseSelectionModal = lazy(() => import('./components/DatabaseSelectionModal'));
 // KeyboardShortcutsModal removed — shortcuts now integrated in SettingsModal
 const DataQualityModal = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal = lazy(() => import('./components/SchemaDiffModal'));
@@ -44,7 +43,6 @@ import PopoutResultsPage from './components/PopoutResultsPage';
 // App Phases
 const PHASE = {
   WELCOME: 'WELCOME',
-  SELECTING_DB: 'SELECTING_DB',
   IDE: 'IDE'
 };
 
@@ -448,7 +446,7 @@ function App() {
     setRefreshDbTrigger(prev => prev + 1);
   }, [toast]);
 
-  const handleOpenProject = useCallback(async (path) => {
+  const handleWorkspaceSelect = useCallback(async (path) => {
     try {
       const response = await fetch('http://localhost:3001/api/project/open', {
         method: 'POST',
@@ -474,24 +472,20 @@ function App() {
         try {
           const scanRes = await fetch('http://localhost:3001/api/project/scan-dbs');
           const dbs = await scanRes.json();
-
-          setFoundDbs(dbs || []);
-          setAppPhase(PHASE.SELECTING_DB);
+          return { success: true, path: data.path, dbs: dbs || [] };
         } catch (scanErr) {
-          console.warn("DB Scan failed, defaulting to memory", scanErr);
-          await startIdeSession(':memory:', false);
+          console.warn("DB Scan failed", scanErr);
+          return { success: true, path: data.path, dbs: [] };
         }
       } else {
         toast.error("Failed to open folder: " + data.error);
+        return { success: false };
       }
     } catch (err) {
       toast.error("Error opening folder: " + err.message);
+      return { success: false };
     }
-  }, [startIdeSession, toast]);
-
-  const handleDbSelection = useCallback((selection) => {
-    startIdeSession(selection.path, selection.readOnly);
-  }, [startIdeSession]);
+  }, [toast]);
 
   const handleCloseProject = useCallback(() => {
     // Reset everything to Welcome State
@@ -718,9 +712,14 @@ function App() {
           currentDb=""
           readOnly={false}
           onCloseProject={handleCloseProject}
-          onSwitchProject={handleOpenProject}
+          onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
-        <WelcomeScreen onOpenProject={handleOpenProject} onOpenSettings={() => setIsSettingsOpen(true)} />
+        <WelcomeScreen 
+          initialPath={projectPath}
+          onSelectWorkspace={handleWorkspaceSelect} 
+          onStartSession={startIdeSession} 
+          onOpenSettings={() => setIsSettingsOpen(true)} 
+        />
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
@@ -744,7 +743,7 @@ function App() {
         currentDb={currentDb}
         readOnly={dbReadOnly}
         onCloseProject={handleCloseProject}
-        onSwitchProject={handleOpenProject}
+        onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
       />
 
       {/* Command Palette — Global */}
@@ -754,13 +753,7 @@ function App() {
         actions={commandPaletteActions}
       />
 
-      {/* Modal Overlay for DB Selection Phase */}
-      <DatabaseSelectionModal
-        isOpen={appPhase === PHASE.SELECTING_DB}
-        dbFiles={foundDbs}
-        onSelect={handleDbSelection}
-        onCancel={() => startIdeSession(':memory:', false)}
-      />
+      {/* Command Palette — Global */}
 
       {appPhase === PHASE.IDE && (
         <div className="app-container" style={{ height: '100%', display: 'flex' }}>
@@ -1063,13 +1056,6 @@ function App() {
 
       {/* Ultra-Heavy Modals: Lazy Loaded to prevent V8 main-thread locking on boot */}
       <Suspense fallback={null}>
-        <DatabaseSelectionModal
-          isOpen={appPhase === PHASE.SELECTING_DB}
-          projectPath={projectPath}
-          dbFiles={foundDbs}
-          onSelect={handleDbSelection}
-          onClose={handleCloseProject}
-        />
 
         <SettingsModal
           isOpen={isSettingsOpen}
