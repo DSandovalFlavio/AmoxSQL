@@ -3,10 +3,12 @@ import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
-    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType
+    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
+    LuLayoutList, LuLayers
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
+import FilePreviewModal from './FilePreviewModal';
 
 const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onEditChart, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
@@ -30,6 +32,12 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
 
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
+
+    // File Preview State
+    const [previewFilePath, setPreviewFilePath] = useState(null);
+
+    // Sort/Group State
+    const [sortMode, setSortMode] = useState(() => localStorage.getItem('amoxsql-fe-sort') || 'default'); // 'default' | 'type' | 'name'
 
     useEffect(() => {
         fetchFiles(currentPath);
@@ -84,8 +92,11 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                 // Chart configs → open chart editor
             } else if (lowerName.endsWith('.amoxvis')) {
                 onEditChart && onEditChart(file.path);
-                // Data files → open as direct query (SELECT * FROM ... LIMIT 100)
-            } else if (lowerName.match(/\.(csv|parquet|json|xlsx|xls)$/)) {
+                // CSV / Parquet → show quick preview modal (100 rows via DuckDB)
+            } else if (lowerName.match(/\.(csv|parquet)$/)) {
+                setPreviewFilePath(file.path);
+                // Other data files → open as direct query (SELECT * FROM ... LIMIT 100)
+            } else if (lowerName.match(/\.(json|xlsx|xls)$/)) {
                 onQueryFile && onQueryFile(file.path);
                 // Everything else → open as text
             } else {
@@ -126,6 +137,58 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         if (lowerName.match(/\.json$/i)) return <LuTable size={14} color="var(--icon-json)" />;
         if (lowerName.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="var(--icon-default)" />;
         return <LuFile size={14} color="var(--icon-default)" />;
+    };
+
+    // --- Sort / Group helpers ---
+    const getFileTypeGroup = (file) => {
+        if (file.isDirectory) return '0_Folders';
+        const n = file.name.toLowerCase();
+        if (n.endsWith('.sql')) return '1_SQL Scripts';
+        if (n.endsWith('.sqlnb')) return '2_Notebooks';
+        if (n.endsWith('.sqlchain')) return '3_Chains';
+        if (n.match(/\.(csv|parquet)$/)) return '4_Data Files';
+        if (n.match(/\.(xlsx|xls|json)$/)) return '4_Data Files';
+        if (n.endsWith('.amoxvis')) return '5_Charts';
+        if (n.endsWith('.md')) return '6_Markdown';
+        return '7_Other';
+    };
+
+    const sortedFiles = (() => {
+        const filtered = files.filter(f => f.name.toLowerCase().includes(deferredSearchQuery.toLowerCase()));
+        if (sortMode === 'name') {
+            return [...filtered].sort((a, b) => {
+                if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+                return a.name.localeCompare(b.name);
+            });
+        }
+        if (sortMode === 'type') {
+            return [...filtered].sort((a, b) => {
+                const ga = getFileTypeGroup(a), gb = getFileTypeGroup(b);
+                if (ga !== gb) return ga.localeCompare(gb);
+                return a.name.localeCompare(b.name);
+            });
+        }
+        // default: dirs first, then alpha
+        return filtered;
+    })();
+
+    // Group by type when sortMode === 'type'
+    const groupedFiles = (() => {
+        if (sortMode !== 'type') return null;
+        const groups = {};
+        sortedFiles.forEach(f => {
+            const g = getFileTypeGroup(f);
+            const label = g.replace(/^\d+_/, ''); // strip sort prefix
+            if (!groups[label]) groups[label] = [];
+            groups[label].push(f);
+        });
+        return groups;
+    })();
+
+    const cycleSortMode = () => {
+        const next = sortMode === 'default' ? 'name' : sortMode === 'name' ? 'type' : 'default';
+        setSortMode(next);
+        localStorage.setItem('amoxsql-fe-sort', next);
     };
 
     // --- Rename Logic ---
@@ -211,6 +274,14 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     <button onClick={() => onNewFolder(currentPath)} title="New Folder" className="fe-header-btn">
                         <LuFolderPlus size={13} />
                     </button>
+                    <button
+                        onClick={cycleSortMode}
+                        title={sortMode === 'default' ? 'Sort: Default (dirs first)' : sortMode === 'name' ? 'Sort: By Name' : 'Sort: By Type (grouped)'}
+                        className="fe-header-btn"
+                        style={{ color: sortMode !== 'default' ? 'var(--accent-primary)' : undefined }}
+                    >
+                        {sortMode === 'type' ? <LuLayers size={13} /> : <LuLayoutList size={13} />}
+                    </button>
                     <button onClick={() => fetchFiles(currentPath)} title="Refresh" className="fe-header-btn">
                         <LuRefreshCw size={13} />
                     </button>
@@ -286,61 +357,83 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                         </div>
                     </div>
                 )}
-                {!loading && !error && files.filter(f => f.name.toLowerCase().includes(deferredSearchQuery.toLowerCase())).map((file) => (
-                    <li
-                        key={file.name}
-                        className={`file-item`}
-                        draggable={!file.isDirectory}
-                        onDragStart={(e) => {
-                            if (!file.isDirectory) {
-                                e.dataTransfer.setData('text/plain', file.name);
-                                e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', path: file.path, name: file.name }));
-                            }
-                        }}
-                        onClick={() => handleNavigate(file)}
-                        onContextMenu={(e) => handleContextMenu(e, file)}
-                        title={file.name}
-                    >
-                        <span className="icon">
-                            {getIcon(file)}
-                        </span>
-                        {renamingFile && renamingFile.name === file.name ? (
-                            <input
-                                autoFocus
-                                type="text"
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onBlur={commitRename}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') commitRename();
-                                    if (e.key === 'Escape') setRenamingFile(null);
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                style={{
-                                    flex: 1,
-                                    background: 'var(--input-bg)',
-                                    color: 'var(--text-active)',
-                                    border: '1px solid var(--accent-color-user)',
-                                    borderRadius: '2px',
-                                    padding: '1px 4px',
-                                    fontSize: '13px',
-                                    outline: 'none',
-                                    minWidth: 0
-                                }}
-                            />
-                        ) : (
-                            <>
-                                {file.name}
-                                <span
-                                    style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', cursor: 'context-menu', padding: '0 5px', display: 'flex', alignItems: 'center' }}
-                                    onClick={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
-                                >
-                                    <LuEllipsisVertical size={14} />
-                                </span>
-                            </>
-                        )}
-                    </li>
-                ))}
+                {!loading && !error && (() => {
+                    const renderFileItem = (file) => (
+                        <li
+                            key={file.path}
+                            className="file-item"
+                            draggable={!file.isDirectory}
+                            onDragStart={(e) => {
+                                if (!file.isDirectory) {
+                                    e.dataTransfer.setData('text/plain', file.name);
+                                    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', path: file.path, name: file.name }));
+                                }
+                            }}
+                            onClick={() => handleNavigate(file)}
+                            onContextMenu={(e) => handleContextMenu(e, file)}
+                            title={file.name}
+                        >
+                            <span className="icon">{getIcon(file)}</span>
+                            {renamingFile && renamingFile.name === file.name ? (
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onBlur={commitRename}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') commitRename();
+                                        if (e.key === 'Escape') setRenamingFile(null);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{
+                                        flex: 1,
+                                        background: 'var(--input-bg)',
+                                        color: 'var(--text-active)',
+                                        border: '1px solid var(--accent-color-user)',
+                                        borderRadius: '2px',
+                                        padding: '1px 4px',
+                                        fontSize: '13px',
+                                        outline: 'none',
+                                        minWidth: 0
+                                    }}
+                                />
+                            ) : (
+                                <>
+                                    {file.name}
+                                    <span
+                                        style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', cursor: 'context-menu', padding: '0 5px', display: 'flex', alignItems: 'center' }}
+                                        onClick={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
+                                    >
+                                        <LuEllipsisVertical size={14} />
+                                    </span>
+                                </>
+                            )}
+                        </li>
+                    );
+
+                    if (groupedFiles) {
+                        // Grouped by type view
+                        return Object.entries(groupedFiles).map(([groupLabel, groupItems]) => (
+                            <div key={groupLabel}>
+                                <div style={{
+                                    padding: '4px 10px 2px',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    color: 'var(--text-muted)',
+                                    userSelect: 'none',
+                                    marginTop: '4px',
+                                }}>
+                                    {groupLabel}
+                                </div>
+                                {groupItems.map(renderFileItem)}
+                            </div>
+                        ));
+                    }
+                    return sortedFiles.map(renderFileItem);
+                })()}
             </ul>
 
             {/* Context Menu Overlay */}
@@ -368,10 +461,20 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                             <LuDatabase size={14} /> Import to Database...
                         </div>
                     )}
+                    {/* Quick Preview — CSV/Parquet only: shows modal with first 100 rows */}
+                    {contextMenu.file.name.match(/\.(csv|parquet)$/i) && (
+                        <div
+                            onClick={() => { setPreviewFilePath(contextMenu.file.path); setContextMenu(null); }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            className="context-menu-item"
+                        >
+                            <LuFileSpreadsheet size={14} /> Quick Preview
+                        </div>
+                    )}
                     {/* Direct Query Option for data files */}
                     {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
                         <div
-                            onClick={() => onQueryFile(contextMenu.file.path)}
+                            onClick={() => { onQueryFile(contextMenu.file.path); setContextMenu(null); }}
                             style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
                             className="context-menu-item"
                         >
@@ -462,6 +565,13 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                 message={alertData.message}
                 type={alertData.type}
             />
+
+            {previewFilePath && (
+                <FilePreviewModal
+                    filePath={previewFilePath}
+                    onClose={() => setPreviewFilePath(null)}
+                />
+            )}
         </div>
     );
 };
