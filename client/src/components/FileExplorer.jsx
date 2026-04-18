@@ -3,7 +3,7 @@ import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
-    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType, LuEye,
+    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
     LuLayoutList, LuLayers
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -33,11 +33,11 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
 
-    // Quick Preview State
+    // File Preview State
     const [previewFilePath, setPreviewFilePath] = useState(null);
 
-    // Sort/Group State — 'default' | 'name' | 'type'
-    const [sortMode, setSortMode] = useState(() => localStorage.getItem('amoxsql-fe-sort') || 'default');
+    // Sort/Group State
+    const [sortMode, setSortMode] = useState(() => localStorage.getItem('amoxsql-fe-sort') || 'default'); // 'default' | 'type' | 'name'
 
     useEffect(() => {
         fetchFiles(currentPath);
@@ -92,9 +92,10 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                 // Chart configs → open chart editor
             } else if (lowerName.endsWith('.amoxvis')) {
                 onEditChart && onEditChart(file.path);
-                // CSV/Parquet → quick preview modal; other data files → editor tab
+                // CSV / Parquet → show quick preview modal (100 rows via DuckDB)
             } else if (lowerName.match(/\.(csv|parquet)$/)) {
                 setPreviewFilePath(file.path);
+                // Other data files → open as direct query (SELECT * FROM ... LIMIT 100)
             } else if (lowerName.match(/\.(json|xlsx|xls)$/)) {
                 onQueryFile && onQueryFile(file.path);
                 // Everything else → open as text
@@ -145,7 +146,8 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
         if (n.endsWith('.sql')) return '1_SQL Scripts';
         if (n.endsWith('.sqlnb')) return '2_Notebooks';
         if (n.endsWith('.sqlchain')) return '3_Chains';
-        if (n.match(/\.(csv|parquet|json|xlsx|xls)$/)) return '4_Data Files';
+        if (n.match(/\.(csv|parquet)$/)) return '4_Data Files';
+        if (n.match(/\.(xlsx|xls|json)$/)) return '4_Data Files';
         if (n.endsWith('.amoxvis')) return '5_Charts';
         if (n.endsWith('.md')) return '6_Markdown';
         return '7_Other';
@@ -166,15 +168,17 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                 return a.name.localeCompare(b.name);
             });
         }
-        return filtered; // default: server order (dirs first, alpha)
+        // default: dirs first, then alpha
+        return filtered;
     })();
 
+    // Group by type when sortMode === 'type'
     const groupedFiles = (() => {
         if (sortMode !== 'type') return null;
         const groups = {};
         sortedFiles.forEach(f => {
             const g = getFileTypeGroup(f);
-            const label = g.replace(/^\d+_/, '');
+            const label = g.replace(/^\d+_/, ''); // strip sort prefix
             if (!groups[label]) groups[label] = [];
             groups[label].push(f);
         });
@@ -272,7 +276,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     </button>
                     <button
                         onClick={cycleSortMode}
-                        title={sortMode === 'default' ? 'Sort: Default — click to sort by name' : sortMode === 'name' ? 'Sort: Name — click to group by type' : 'Sort: Grouped by type — click to reset'}
+                        title={sortMode === 'default' ? 'Sort: Default (dirs first)' : sortMode === 'name' ? 'Sort: By Name' : 'Sort: By Type (grouped)'}
                         className="fe-header-btn"
                         style={{ color: sortMode !== 'default' ? 'var(--accent-primary)' : undefined }}
                     >
@@ -409,6 +413,7 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                     );
 
                     if (groupedFiles) {
+                        // Grouped by type view
                         return Object.entries(groupedFiles).map(([groupLabel, groupItems]) => (
                             <div key={groupLabel}>
                                 <div style={{
@@ -456,21 +461,20 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                             <LuDatabase size={14} /> Import to Database...
                         </div>
                     )}
-                    {/* Quick Preview for CSV/Parquet — opens inline modal with first 100 rows */}
+                    {/* Quick Preview — CSV/Parquet only: shows modal with first 100 rows */}
                     {contextMenu.file.name.match(/\.(csv|parquet)$/i) && (
                         <div
                             onClick={() => { setPreviewFilePath(contextMenu.file.path); setContextMenu(null); }}
                             style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
                             className="context-menu-item"
                         >
-                            <LuEye size={14} /> Quick Preview (100 rows)
+                            <LuFileSpreadsheet size={14} /> Quick Preview
                         </div>
                     )}
-
                     {/* Direct Query Option for data files */}
                     {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
                         <div
-                            onClick={() => onQueryFile(contextMenu.file.path)}
+                            onClick={() => { onQueryFile(contextMenu.file.path); setContextMenu(null); }}
                             style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
                             className="context-menu-item"
                         >
