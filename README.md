@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v2.0.0)
+# AmoxSQL (v2.0.1)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
