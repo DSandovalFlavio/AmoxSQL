@@ -624,6 +624,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const newTab = { id: Date.now().toString(), path: '', name: `${fileName}.sql`, type: 'sql', content, results: null, dirty: true };
         if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
         else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
+
+        // Auto-execute preview for CSV/Parquet files
+        if (!lowerName.endsWith('.xlsx') && !lowerName.endsWith('.xls')) {
+            const previewQuery = `SELECT * FROM '${normalizedPath}' LIMIT 100`;
+            setTimeout(() => {
+                executeQuery(newTab.id, previewQuery);
+            }, 100);
+        }
     };
 
     // Drag & Drop State

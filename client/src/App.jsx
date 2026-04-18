@@ -852,6 +852,7 @@ function App() {
                   onNewFolder={handleNewFolder}
                   onImportFile={handleImportRequest}
                   onQueryFile={(path) => layoutRef.current?.handleQueryFile(path)}
+                  onPreviewFile={(path) => layoutRef.current?.handleQueryFile(path)}
                   onEditChart={(path) => layoutRef.current?.handleEditChart(path)}
                   refreshTrigger={fileRefreshTrigger}
                 />
