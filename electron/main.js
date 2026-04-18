@@ -6,6 +6,15 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 
+// ─── Single instance lock ─────────────────────────────────────────────────────
+// Prevents opening the same .duckdb file from two instances simultaneously,
+// which would cause race conditions and potential data corruption.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    // Another instance is already running — hand focus to it and exit.
+    app.quit();
+}
+
 // IPC Handler: Open native folder picker dialog
 ipcMain.handle('dialog:selectFolder', async () => {
     const result = await dialog.showOpenDialog({
@@ -58,6 +67,21 @@ const SERVER_PORT = 3001;
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
     app.quit();
+}
+
+// ─── Graceful shutdown helper ─────────────────────────────────────────────────
+// Asks the Express server to cleanly close all DuckDB connections before exit.
+// Tolerates failures silently (e.g. server already dead) so quit always proceeds.
+async function shutdownServer() {
+    try {
+        await fetch(`http://localhost:${SERVER_PORT}/api/shutdown`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(4000),
+        });
+    } catch {
+        // Best-effort — server may already be shutting down
+    }
 }
 
 const createWindow = () => {
@@ -190,6 +214,26 @@ const initApp = async () => {
         app.quit();
     }
 };
+
+// ─── Second-instance handler ──────────────────────────────────────────────────
+// If the user tries to open a second instance, focus the existing main window.
+app.on('second-instance', () => {
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+    }
+});
+
+// ─── Graceful quit ────────────────────────────────────────────────────────────
+// Give DuckDB time to flush any in-flight writes before the process dies.
+app.on('before-quit', async (event) => {
+    // Prevent the default quit so we can run async cleanup first.
+    event.preventDefault();
+    await shutdownServer();
+    // Remove the listener before re-quitting to avoid infinite loop.
+    app.removeAllListeners('before-quit');
+    app.quit();
+});
 
 app.whenReady().then(initApp);
 

@@ -1753,7 +1753,13 @@ app.post('/api/export-data', async (req, res) => {
         return res.status(400).json({ error: `Unsupported format: ${format}. Use: ${allowedFormats.join(', ')}` });
     }
 
-    const fullPath = path.join(ROOT_DIR, filename).replace(/\\/g, '/');
+    // Security: ensure the resolved export path stays within the project root.
+    // path.join + resolve prevents path traversal (e.g. "../../../etc/passwd").
+    const resolvedRoot = path.resolve(ROOT_DIR);
+    const fullPath = path.resolve(path.join(ROOT_DIR, filename)).replace(/\\/g, '/');
+    if (!fullPath.startsWith(resolvedRoot.replace(/\\/g, '/'))) {
+        return res.status(400).json({ error: 'Export path must be within the project directory.' });
+    }
     const cleanQuery = query.trim().replace(/;+$/, '');
 
     try {
@@ -1791,15 +1797,25 @@ app.post('/api/export-data', async (req, res) => {
 /* --- dbt Integration API --- */
 
 // GET /api/dbt/manifest — Read target/manifest.json from project root
+// Returns both the "panel" shape (available/models/sources) consumed by SqlEditor
+// and the "lineage" shape (exists/nodes/edges) consumed by DbtLineageGraph.
 app.get('/api/dbt/manifest', (req, res) => {
     try {
         const manifestPath = path.join(ROOT_DIR, 'target', 'manifest.json');
         if (!fs.existsSync(manifestPath)) {
-            return res.json({ available: false, models: [], sources: [] });
+            return res.json({
+                available: false,
+                exists: false,
+                hint: 'Run "dbt compile" or "dbt run" first to generate the manifest.',
+                models: [],
+                sources: [],
+                nodes: [],
+                edges: [],
+            });
         }
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        
-        // Extract Models
+
+        // Panel shape: simplified models/sources for SqlEditor autocomplete
         const models = Object.values(manifest.nodes || {})
             .filter(n => n.resource_type === 'model')
             .map(n => ({
@@ -1807,8 +1823,7 @@ app.get('/api/dbt/manifest', (req, res) => {
                 schema: n.schema || '',
                 description: n.description || ''
             }));
-            
-        // Extract Sources
+
         const sourcesMap = {};
         Object.values(manifest.sources || {}).forEach(s => {
             const srcName = s.source_name;
@@ -1822,10 +1837,59 @@ app.get('/api/dbt/manifest', (req, res) => {
         });
         const sources = Object.values(sourcesMap);
 
-        res.json({ available: true, models, sources });
+        // Lineage shape: full DAG for DbtLineageGraph
+        const nodes = [];
+        const edges = [];
+
+        for (const [key, node] of Object.entries(manifest.nodes || {})) {
+            nodes.push({
+                id: key,
+                name: node.name,
+                resourceType: node.resource_type,
+                schema: node.schema,
+                materialized: node.config?.materialized || null,
+                path: node.original_file_path || node.path || null,
+                description: node.description || '',
+                tags: node.tags || [],
+            });
+            for (const dep of (node.depends_on?.nodes || [])) {
+                edges.push({ from: dep, to: key });
+            }
+        }
+
+        for (const [key, source] of Object.entries(manifest.sources || {})) {
+            nodes.push({
+                id: key,
+                name: `${source.source_name}.${source.name}`,
+                resourceType: 'source',
+                schema: source.schema,
+                materialized: null,
+                path: source.original_file_path || null,
+                description: source.description || '',
+                tags: source.tags || [],
+            });
+        }
+
+        for (const [key, exposure] of Object.entries(manifest.exposures || {})) {
+            nodes.push({
+                id: key,
+                name: exposure.name,
+                resourceType: 'exposure',
+                schema: null,
+                materialized: null,
+                path: exposure.original_file_path || null,
+                description: exposure.description || '',
+                tags: exposure.tags || [],
+            });
+            for (const dep of (exposure.depends_on?.nodes || [])) {
+                edges.push({ from: dep, to: key });
+            }
+        }
+
+        res.json({ available: true, exists: true, models, sources, nodes, edges });
     } catch (err) {
         console.error('[dbt] Error reading manifest:', err);
-        res.status(500).json({ error: err.message, available: false });
+        res.status(500).json({ available: false, exists: true, error: err.message });
     }
 });
 /* --- DuckDB Function Catalog API --- */
@@ -2221,74 +2285,6 @@ app.get('/api/dbt/validate-env', async (req, res) => {
     }
 
     res.json(result);
-});
-// Parse dbt manifest.json for DAG lineage
-app.get('/api/dbt/manifest', (req, res) => {
-    const manifestPath = path.join(ROOT_DIR, 'target', 'manifest.json');
-    if (!fs.existsSync(manifestPath)) {
-        return res.json({ exists: false, hint: 'Run "dbt compile" or "dbt run" first to generate the manifest.' });
-    }
-
-    try {
-        const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        const nodes = [];
-        const edges = [];
-
-        // Process nodes (models, seeds, snapshots, tests)
-        for (const [key, node] of Object.entries(raw.nodes || {})) {
-            const resourceType = node.resource_type; // model, test, seed, snapshot, analysis
-            nodes.push({
-                id: key,
-                name: node.name,
-                resourceType,
-                schema: node.schema,
-                materialized: node.config?.materialized || null,
-                path: node.original_file_path || node.path || null,
-                description: node.description || '',
-                tags: node.tags || [],
-            });
-
-            // Build edges from depends_on
-            for (const dep of (node.depends_on?.nodes || [])) {
-                edges.push({ from: dep, to: key });
-            }
-        }
-
-        // Process sources
-        for (const [key, source] of Object.entries(raw.sources || {})) {
-            nodes.push({
-                id: key,
-                name: `${source.source_name}.${source.name}`,
-                resourceType: 'source',
-                schema: source.schema,
-                materialized: null,
-                path: source.original_file_path || null,
-                description: source.description || '',
-                tags: source.tags || [],
-            });
-        }
-
-        // Process exposures
-        for (const [key, exposure] of Object.entries(raw.exposures || {})) {
-            nodes.push({
-                id: key,
-                name: exposure.name,
-                resourceType: 'exposure',
-                schema: null,
-                materialized: null,
-                path: exposure.original_file_path || null,
-                description: exposure.description || '',
-                tags: exposure.tags || [],
-            });
-            for (const dep of (exposure.depends_on?.nodes || [])) {
-                edges.push({ from: dep, to: key });
-            }
-        }
-
-        res.json({ exists: true, nodes, edges });
-    } catch (err) {
-        res.status(500).json({ exists: true, error: `Failed to parse manifest: ${err.message}` });
-    }
 });
 
 // List conda environments and check for dbt in each
@@ -2809,7 +2805,7 @@ app.post('/api/dbt/command', (req, res) => {
 
 // Execute a DBT command (Option A+: simple exec with output streaming)
 app.post('/api/dbt/execute', (req, res) => {
-    const { command, condaEnv } = req.body;
+    const { command, condaEnv, condaPath } = req.body;
     if (!command) return res.status(400).json({ error: 'Command is required' });
 
     // Security: only allow dbt commands
@@ -2817,11 +2813,21 @@ app.post('/api/dbt/execute', (req, res) => {
         return res.status(403).json({ error: 'Only dbt commands are allowed' });
     }
 
+    // Security: validate condaEnv and condaPath to prevent shell injection.
+    // condaEnv must be a simple alphanumeric identifier (no special chars).
+    const SAFE_ID_RE = /^[a-zA-Z0-9_\-.]+$/;
+    if (condaEnv && condaEnv !== 'none' && !SAFE_ID_RE.test(condaEnv)) {
+        return res.status(400).json({ error: 'Invalid condaEnv value. Only alphanumeric characters, hyphens, underscores, and dots are allowed.' });
+    }
+    if (condaPath && !SAFE_ID_RE.test(path.basename(condaPath))) {
+        return res.status(400).json({ error: 'Invalid condaPath value.' });
+    }
+
     // Wrap with conda run if a conda env is specified
-    const { condaPath } = req.body;
     let finalCmd = command;
     if (condaEnv && condaEnv !== 'none') {
         const condaCmd = condaPath || 'conda';
+        // Use execFile-style argument passing via the args array in exec options
         finalCmd = `"${condaCmd}" run --no-capture-output -n ${condaEnv} ${command}`;
     }
 
@@ -3091,6 +3097,21 @@ if (process.env.NODE_ENV === 'production') {
         res.sendFile(path.join(clientDistPath, 'index.html'));
     });
 }
+
+// ─── Graceful shutdown endpoint ───────────────────────────────────────────────
+// Called by Electron's before-quit handler to close DuckDB connections cleanly
+// before the process exits, preventing write corruption on abrupt termination.
+app.post('/api/shutdown', async (_req, res) => {
+    res.json({ ok: true });
+    try {
+        await dbManager.close();
+        console.log('[Server] DuckDB connections closed — shutting down.');
+    } catch (err) {
+        console.error('[Server] Error closing DB on shutdown:', err.message);
+    }
+    // Give the response time to flush, then exit.
+    setTimeout(() => process.exit(0), 200);
+});
 
 const startServer = (port = 3001) => {
     return new Promise((resolve, reject) => {

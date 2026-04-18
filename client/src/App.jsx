@@ -23,6 +23,7 @@ import AiDivingPanel from './components/ai/AiDivingPanel';
 // StatusBar removed — info redundant with ResultsTable + ProjectInfo
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
 import { useToast } from './components/ToastProvider';
+import { useDialog } from './components/dialogs/DialogProvider';
 import WindowTitleBar from './components/WindowTitleBar';
 import TabBar from './components/TabBar';
 
@@ -59,6 +60,7 @@ function App() {
 
   const [appPhase, setAppPhase] = useState(PHASE.WELCOME);
   const toast = useToast();
+  const dialog = useDialog();
 
   const layoutRef = useRef(null);
 
@@ -586,7 +588,12 @@ function App() {
   }, []);
 
   const handleNewFolder = useCallback(async (currentPath) => {
-    const folderName = prompt("Enter folder name:");
+    const folderName = await dialog.promptAsync({
+      title: 'New Folder',
+      message: currentPath ? `Create inside /${currentPath}` : 'Create in project root',
+      placeholder: 'folder name',
+      confirmLabel: 'Create',
+    });
     if (!folderName) return;
     const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
 
@@ -605,7 +612,7 @@ function App() {
     } catch (err) {
       toast.error(`Failed to create folder: ${err.message}`);
     }
-  }, []);
+  }, [dialog, toast]);
 
   const performSave = useCallback(async (filePath, content) => {
     try {
