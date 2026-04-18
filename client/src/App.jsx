@@ -17,10 +17,9 @@ import LayoutManager from './components/LayoutManager';
 
 // New Components
 import WelcomeScreen from './components/WelcomeScreen';
-import ProjectInfo from './components/ProjectInfo';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
 import AiDivingPanel from './components/ai/AiDivingPanel';
-// StatusBar removed — info redundant with ResultsTable + ProjectInfo
+// StatusBar removed — info redundant with ResultsTable + WindowTitleBar
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
 import { useToast } from './components/ToastProvider';
 import { useDialog } from './components/dialogs/DialogProvider';
@@ -698,7 +697,13 @@ function App() {
   if (appPhase === PHASE.WELCOME) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
-        <WindowTitleBar />
+        <WindowTitleBar
+          projectPath=""
+          currentDb=""
+          readOnly={false}
+          onCloseProject={handleCloseProject}
+          onSwitchProject={handleOpenProject}
+        />
         <WelcomeScreen onOpenProject={handleOpenProject} onOpenSettings={() => setIsSettingsOpen(true)} />
         <SettingsModal
           isOpen={isSettingsOpen}
@@ -718,7 +723,13 @@ function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
-      <WindowTitleBar />
+      <WindowTitleBar
+        projectPath={projectPath}
+        currentDb={currentDb}
+        readOnly={dbReadOnly}
+        onCloseProject={handleCloseProject}
+        onSwitchProject={handleOpenProject}
+      />
 
       {/* Command Palette — Global */}
       <CommandPalette
@@ -831,16 +842,6 @@ function App() {
             </div>
 
             <div className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
-
-            {/* Top Section: Project Info */}
-            <ProjectInfo
-              projectPath={projectPath}
-              currentDb={currentDb}
-              readOnly={dbReadOnly}
-              onCloseProject={handleCloseProject}
-            />
-
-            <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 16px 8px 16px' }}></div>
 
             {/* Content Switcher */}
             {activeSidebarTab === 'files' && (
