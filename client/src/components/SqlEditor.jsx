@@ -400,13 +400,15 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 range = selection;
             }
 
+            const getFormatterConfig = () => {
+                try {
+                    const saved = localStorage.getItem('amoxsql-formatter-config');
+                    return saved ? { language: 'postgresql', ...JSON.parse(saved) } : { language: 'postgresql', tabWidth: 4, keywordCase: 'upper', linesBetweenQueries: 2 };
+                } catch { return { language: 'postgresql', tabWidth: 4, keywordCase: 'upper', linesBetweenQueries: 2 }; }
+            };
+
             try {
-                const formatted = format(textToFormat, {
-                    language: 'postgresql', // DuckDB is close to Postgres
-                    tabWidth: 4,
-                    keywordCase: 'upper',
-                    linesBetweenQueries: 2
-                });
+                const formatted = format(textToFormat, getFormatterConfig());
 
                 if (range) {
                     editor.executeEdits('format-sql', [{
@@ -430,6 +432,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // 4b. Format Code (Ctrl+Shift+F) — secondary keybinding
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, formatSql);
+
+        // 4c. Format Code (Shift+Alt+F) — VS Code style shortcut
+        editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, formatSql);
+
+        // Query History (Ctrl+Shift+H)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
+            if (props.onShowHistory) props.onShowHistory();
+        });
 
         // 5. Find & Replace (Ctrl+H) — expose Monaco's built-in panel
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare } from 'react-icons/lu';
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import SqlNotebook from './SqlNotebook';
@@ -8,6 +8,7 @@ import { VariablesToggle, VariablesPanel } from './VariablesBar';
 import ErDiagram from './ErDiagram';
 
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
+const QueryHistoryPanel = lazy(() => import('./QueryHistoryPanel'));
 import AiDivingPanel from './ai/AiDivingPanel';
 
 const EditorPane = ({
@@ -59,6 +60,7 @@ const EditorPane = ({
     const dropCounterRef = useRef(0);
 
     const [isPoppedOut, setIsPoppedOut] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
 
     // Listen for popout window being closed by the user
     useEffect(() => {
@@ -496,6 +498,18 @@ const EditorPane = ({
                                         )}
                                     </div>
 
+                                    {/* History button */}
+                                    <div className="ep-action-group">
+                                        <button
+                                            className={`ep-action-btn${showHistory ? ' active' : ''}`}
+                                            onClick={() => setShowHistory(v => !v)}
+                                            title="Query History (Ctrl+Shift+H)"
+                                            aria-label="Query History"
+                                        >
+                                            <LuHistory size={13} />
+                                        </button>
+                                    </div>
+
                                     {/* Variables toggle */}
                                     <VariablesToggle
                                         count={(variables || []).length}
@@ -545,6 +559,7 @@ const EditorPane = ({
                                         onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}
                                         onSave={() => onSave && onSave()}
                                         onAnalyze={() => onAnalyze && onAnalyze()}
+                                        onShowHistory={() => setShowHistory(v => !v)}
                                         theme={theme}
                                         errorMarker={activeTab.errorMarker}
                                         editorSettings={editorSettings}
@@ -572,6 +587,21 @@ const EditorPane = ({
                 {/* Ghost Splitter Line */}
                 <div ref={ghostRef} className="ep-ghost" />
             </div>
+
+            {/* Query History Panel — slide-over */}
+            {showHistory && (
+                <div className="ep-history-overlay">
+                    <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-tertiary)' }}>Loading...</div>}>
+                        <QueryHistoryPanel
+                            onInsertQuery={(query) => {
+                                onContentChange && onContentChange(activeTabId, query);
+                                setShowHistory(false);
+                            }}
+                            onClose={() => setShowHistory(false)}
+                        />
+                    </Suspense>
+                </div>
+            )}
 
             <DebugResultModal
                 isOpen={debugModalOpen}

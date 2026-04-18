@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
@@ -44,6 +44,7 @@ const SOBER_ACCENTS = [
 const TAB_TITLES = {
     appearance: 'Appearance',
     editor: 'Editor',
+    formatter: 'SQL Formatter',
     behavior: 'Behavior',
     ai: 'AI Settings',
     memories: 'AI Memories',
@@ -150,6 +151,21 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [catalogStats, setCatalogStats] = useState({ total: 0, documented: 0, cacheExists: false, undocumented: [] });
     const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
     const [showUndocumented, setShowUndocumented] = useState(false);
+
+    // Formatter Config State
+    const [formatterConfig, setFormatterConfig] = useState(() => {
+        try {
+            const saved = localStorage.getItem('amoxsql-formatter-config');
+            return saved ? JSON.parse(saved) : { keywordCase: 'upper', tabWidth: 4, linesBetweenQueries: 2, indentStyle: 'standard' };
+        } catch { return { keywordCase: 'upper', tabWidth: 4, linesBetweenQueries: 2, indentStyle: 'standard' }; }
+    });
+    const [formatterSaved, setFormatterSaved] = useState(false);
+
+    const saveFormatterConfig = () => {
+        localStorage.setItem('amoxsql-formatter-config', JSON.stringify(formatterConfig));
+        setFormatterSaved(true);
+        setTimeout(() => setFormatterSaved(false), 2000);
+    };
 
     // Cloud Storage State
     const [s3Config, setS3Config] = useState({ accessKeyId: '', secretKey: '', region: '', endpoint: '', defaultBucket: '' });
@@ -362,6 +378,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     {[
                         { id: 'appearance', icon: <LuPalette size={16} />, label: 'Appearance' },
                         { id: 'editor', icon: <LuCode size={16} />, label: 'Editor' },
+                        { id: 'formatter', icon: <LuWrapText size={16} />, label: 'Formatter' },
                         { id: 'behavior', icon: <LuSettings size={16} />, label: 'Behavior' },
                         { id: 'ai', icon: <LuCpu size={16} />, label: 'AI Assistant' },
                         { id: 'memories', icon: <LuBrain size={16} />, label: 'AI Memories' },
@@ -746,6 +763,111 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 )}
                                             </div>
                                         )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ═══ FORMATTER ═══ */}
+                        {activeTab === 'formatter' && (
+                            <div className="stg-section">
+                                <div>
+                                    <h3 className="stg-section-title">SQL Formatter</h3>
+                                    <p className="stg-row-desc stg-row-desc--mb14">
+                                        Configure how SQL is formatted when using Ctrl+K / Shift+Alt+F.
+                                        Changes apply immediately to future format operations.
+                                    </p>
+                                    <div className="stg-group stg-group--mt14">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Keyword Case</span>
+                                                <p className="stg-row-desc">Controls capitalization of SQL keywords (SELECT, FROM, WHERE…)</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w200"
+                                                value={formatterConfig.keywordCase || 'upper'}
+                                                onChange={e => setFormatterConfig(c => ({ ...c, keywordCase: e.target.value }))}
+                                            >
+                                                <option value="upper">UPPER (SELECT, FROM)</option>
+                                                <option value="lower">lower (select, from)</option>
+                                                <option value="preserve">Preserve (as-is)</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Tab Width</span>
+                                                <p className="stg-row-desc">Number of spaces per indentation level</p>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                className="stg-select stg-select--w200"
+                                                min={1} max={8}
+                                                value={formatterConfig.tabWidth ?? 4}
+                                                onChange={e => setFormatterConfig(c => ({ ...c, tabWidth: Math.max(1, Math.min(8, parseInt(e.target.value) || 4)) }))}
+                                            />
+                                        </div>
+
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Lines Between Queries</span>
+                                                <p className="stg-row-desc">Blank lines inserted between separate SQL statements</p>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                className="stg-select stg-select--w200"
+                                                min={0} max={3}
+                                                value={formatterConfig.linesBetweenQueries ?? 2}
+                                                onChange={e => setFormatterConfig(c => ({ ...c, linesBetweenQueries: Math.max(0, Math.min(3, parseInt(e.target.value) || 2)) }))}
+                                            />
+                                        </div>
+
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Indent Style</span>
+                                                <p className="stg-row-desc">Controls how indentation is applied to clauses</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w200"
+                                                value={formatterConfig.indentStyle || 'standard'}
+                                                onChange={e => setFormatterConfig(c => ({ ...c, indentStyle: e.target.value }))}
+                                            >
+                                                <option value="standard">Standard</option>
+                                                <option value="tabsLeftAlign">Tabs Left Align</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr className="stg-divider" />
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <button
+                                        className="stg-save-btn"
+                                        onClick={saveFormatterConfig}
+                                    >
+                                        {formatterSaved ? <><LuCheck size={14} /> Saved!</> : 'Apply & Save'}
+                                    </button>
+                                    {formatterSaved && (
+                                        <span style={{ fontSize: '12px', color: 'var(--feedback-success, #4CAF50)' }}>
+                                            Formatter config saved to localStorage.
+                                        </span>
+                                    )}
+                                </div>
+
+                                <hr className="stg-divider" />
+
+                                <div>
+                                    <h3 className="stg-section-title">Keyboard Shortcuts</h3>
+                                    <div className="stg-group stg-group--mt14">
+                                        <div className="stg-row">
+                                            <span className="stg-row-label">Format SQL</span>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <kbd className="stg-kbd">Ctrl+K</kbd>
+                                                <kbd className="stg-kbd">Ctrl+Shift+F</kbd>
+                                                <kbd className="stg-kbd">Shift+Alt+F</kbd>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

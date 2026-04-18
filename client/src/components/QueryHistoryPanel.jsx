@@ -1,10 +1,15 @@
-import { useState, useEffect, memo, useDeferredValue } from 'react';
-import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuTrash2 } from 'react-icons/lu';
+import { useState, useEffect, useDeferredValue } from 'react';
+import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuX } from 'react-icons/lu';
 
 /**
  * QueryHistoryPanel — Sidebar panel for browsing query history and bookmarks.
  */
-const QueryHistoryPanel = ({ onSelect }) => {
+const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
+    // Support both onSelect (legacy) and onInsertQuery (new spec) callbacks
+    const handleSelect = (query) => {
+        if (onInsertQuery) onInsertQuery(query);
+        if (onSelect) onSelect(query);
+    };
     const [history, setHistory] = useState([]);
     const [bookmarks, setBookmarks] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -85,9 +90,6 @@ const QueryHistoryPanel = ({ onSelect }) => {
         ? history.filter(h => h.query.toLowerCase().includes(q))
         : bookmarks.filter(b => b.query.toLowerCase().includes(q));
 
-    const handleSelect = (query) => {
-        if (onSelect) onSelect(query);
-    };
 
     const handleCopy = (text, e) => {
         e.stopPropagation();
@@ -181,13 +183,25 @@ const QueryHistoryPanel = ({ onSelect }) => {
                 <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                     Query History
                 </span>
-                <button
-                    onClick={() => { fetchHistory(); fetchBookmarks(); }}
-                    title="Refresh"
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
-                >
-                    <LuRefreshCw size={12} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <button
+                        onClick={() => { fetchHistory(); fetchBookmarks(); }}
+                        title="Refresh"
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                    >
+                        <LuRefreshCw size={12} />
+                    </button>
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            title="Close"
+                            aria-label="Close history panel"
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                        >
+                            <LuX size={12} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Tab Switcher */}
