@@ -4,8 +4,10 @@ import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import ExportDataModal from './ExportDataModal';
+import { useToast } from './ToastProvider';
 
 const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null }) => {
+    const toast = useToast();
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
@@ -243,7 +245,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         } catch (error) {
             console.error('Worker Export failed, falling back to main thread...', error);
             // Fallback (rarely needed)
-            alert("Export worker failed. " + error.message);
+            toast.error(`Export failed: ${error.message}`);
         } finally {
             if (btn) btn.innerText = originalText;
             setShowExportMenu(false);

@@ -10,6 +10,7 @@ import {
     addEdge,
 } from '@xyflow/react';
 import { useToast } from '../ToastProvider';
+import { useDialog } from '../dialogs/DialogProvider';
 import ChainCanvas from './ChainCanvas';
 import ChainToolbar from './ChainToolbar';
 import ChainNodePalette from './ChainNodePalette';
@@ -31,6 +32,7 @@ const API_BASE = 'http://localhost:3001';
 
 const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) => {
     const toast = useToast();
+    const dialog = useDialog();
     const reactFlowWrapper = useRef(null);
 
     // Parse initial chain definition from file content
@@ -334,7 +336,12 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
 
     // --- Create SQL file from canvas ---
     const handleCreateSqlFile = useCallback(async () => {
-        const name = prompt('SQL file name (e.g., transform.sql):');
+        const name = await dialog.promptAsync({
+            title: 'New SQL file',
+            message: 'File will be created at the project root',
+            placeholder: 'transform.sql',
+            confirmLabel: 'Create',
+        });
         if (!name) return;
         const fileName = name.endsWith('.sql') ? name : `${name}.sql`;
 
@@ -360,7 +367,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         } catch (err) {
             toast.error(`Failed: ${err.message}`);
         }
-    }, [selectedNode, updateNode, onOpenFile, toast]);
+    }, [selectedNode, updateNode, onOpenFile, toast, dialog]);
 
     // Open SQL file in editor
     const handleOpenFile = useCallback((filePath) => {

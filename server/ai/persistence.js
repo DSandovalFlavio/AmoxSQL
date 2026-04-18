@@ -1,14 +1,19 @@
 /**
  * AmoxSQL AI — DuckDB Persistence Layer
- * 
+ *
  * Manages the `amoxsql_ai` schema within each project's DuckDB database.
  * Provides CRUD operations for conversations, messages, query results,
  * and chart configs.
- * 
+ *
  * The schema is created per-project when the database is connected (non-read-only).
  * Each project has its own conversation history, stored locally.
+ *
+ * All user-supplied values are sanitised through the helpers in _sqlHelpers.js
+ * before being interpolated into SQL strings (DuckDB Neo's systemQuery does not
+ * accept bind parameters).
  */
 const crypto = require('crypto');
+const { s, j, n } = require('./_sqlHelpers');
 
 function generateId() {
     return crypto.randomUUID();
@@ -18,7 +23,7 @@ class AiPersistence {
     /**
      * Initialize the amoxsql_ai schema and tables.
      * Called once per database connection (idempotent via IF NOT EXISTS).
-     * 
+     *
      * @param {object} dbManager - DatabaseManager instance
      */
     async initSchema(dbManager) {
@@ -85,19 +90,31 @@ class AiPersistence {
             `);
 
             // ─── Schema Migration: new columns for conversations ───
+            // Each ALTER is attempted individually; if the column already exists
+            // DuckDB raises an error that we silence intentionally.
+            // Wrapped in a transaction so a partial failure doesn't leave the
+            // schema in an inconsistent state.
             const migrationColumns = [
-                { name: 'file_path', type: 'VARCHAR' },
-                { name: 'session_name', type: 'VARCHAR' },
-                { name: 'description', type: 'VARCHAR' },
-                { name: 'archived', type: 'BOOLEAN DEFAULT false' },
-                { name: 'context_objects', type: 'VARCHAR' },
+                { name: 'file_path',        type: 'VARCHAR' },
+                { name: 'session_name',     type: 'VARCHAR' },
+                { name: 'description',      type: 'VARCHAR' },
+                { name: 'archived',         type: 'BOOLEAN DEFAULT false' },
+                { name: 'context_objects',  type: 'VARCHAR' },
             ];
             for (const col of migrationColumns) {
                 try {
+                    await dbManager.systemQuery(`BEGIN`);
                     await dbManager.systemQuery(
                         `ALTER TABLE amoxsql_ai.conversations ADD COLUMN ${col.name} ${col.type}`
                     );
-                } catch { /* column already exists — safe to ignore */ }
+                    await dbManager.systemQuery(`COMMIT`);
+                } catch (err) {
+                    try { await dbManager.systemQuery(`ROLLBACK`); } catch {}
+                    // Column already exists — safe to ignore
+                    if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
+                        console.error(`[AI Persistence] Migration warning for column ${col.name}:`, err.message);
+                    }
+                }
             }
 
             // ─── Session Artifacts (Data Diving) ───
@@ -139,7 +156,7 @@ class AiPersistence {
         }
     }
 
-    // ─── Conversations ───
+    // ─── Conversations ───────────────────────────────────────────────────────
 
     /**
      * Create a new conversation.
@@ -147,47 +164,55 @@ class AiPersistence {
      */
     async createConversation(dbManager, { mode = 'diving', provider, model, title, file_path, session_name, description } = {}) {
         const id = generateId();
-        const safeTitle = (title || 'New Conversation').replace(/'/g, "''");
-        const safeProvider = (provider || '').replace(/'/g, "''");
-        const safeModel = (model || '').replace(/'/g, "''");
-        const safeFilePath = file_path ? file_path.replace(/'/g, "''") : null;
-        const safeSessionName = session_name ? session_name.replace(/'/g, "''") : null;
-        const safeDescription = description ? description.replace(/'/g, "''") : null;
+        const resolvedTitle = title || 'New Conversation';
 
         await dbManager.systemQuery(`
-            INSERT INTO amoxsql_ai.conversations (id, title, mode, provider, model, file_path, session_name, description)
-            VALUES ('${id}', '${safeTitle}', '${mode}', '${safeProvider}', '${safeModel}', ${safeFilePath ? `'${safeFilePath}'` : 'NULL'}, ${safeSessionName ? `'${safeSessionName}'` : 'NULL'}, ${safeDescription ? `'${safeDescription}'` : 'NULL'})
+            INSERT INTO amoxsql_ai.conversations
+                (id, title, mode, provider, model, file_path, session_name, description)
+            VALUES
+                (${s(id)}, ${s(resolvedTitle)}, ${s(mode)}, ${s(provider)}, ${s(model)},
+                 ${s(file_path)}, ${s(session_name)}, ${s(description)})
         `);
 
-        return { id, title: title || 'New Conversation', mode, provider, model, is_starred: false, file_path: file_path || null, session_name: session_name || null, description: description || null, created_at: new Date().toISOString() };
+        return {
+            id,
+            title: resolvedTitle,
+            mode,
+            provider,
+            model,
+            is_starred: false,
+            file_path: file_path || null,
+            session_name: session_name || null,
+            description: description || null,
+            created_at: new Date().toISOString(),
+        };
     }
 
     /**
      * Get all conversations, newest first.
-     * @param {object} options - { search, limit }
+     * @param {object} options - { search, limit, offset, mode }
      */
     async getConversations(dbManager, { search, limit = 50, offset = 0, mode } = {}) {
-        const modeCondition = mode ? `AND c.mode = '${mode}'` : '';
+        const modeClause = mode ? `AND c.mode = ${s(mode)}` : '';
 
         if (search) {
-            const safeSearch = search.replace(/'/g, "''");
-            // Full-text search across conversation title AND message content
+            const likeVal = `%${search}%`;
             let query = `
                 SELECT DISTINCT c.*
                 FROM amoxsql_ai.conversations c
                 LEFT JOIN amoxsql_ai.messages m ON m.conversation_id = c.id
-                WHERE (c.title ILIKE '%${safeSearch}%' OR m.content ILIKE '%${safeSearch}%')
-                ${modeCondition}
+                WHERE (c.title ILIKE ${s(likeVal)} OR m.content ILIKE ${s(likeVal)})
+                ${modeClause}
                 ORDER BY c.updated_at DESC
-                LIMIT ${limit}
+                LIMIT ${n(limit)}
             `;
-            if (offset > 0) query += ` OFFSET ${offset}`;
+            if (offset > 0) query += ` OFFSET ${n(offset)}`;
             return dbManager.systemQuery(query);
         }
 
-        let query = `SELECT * FROM amoxsql_ai.conversations c WHERE 1=1 ${modeCondition}`;
-        query += ` ORDER BY c.updated_at DESC LIMIT ${limit}`;
-        if (offset > 0) query += ` OFFSET ${offset}`;
+        let query = `SELECT * FROM amoxsql_ai.conversations c WHERE 1=1 ${modeClause}`;
+        query += ` ORDER BY c.updated_at DESC LIMIT ${n(limit)}`;
+        if (offset > 0) query += ` OFFSET ${n(offset)}`;
         return dbManager.systemQuery(query);
     }
 
@@ -195,10 +220,9 @@ class AiPersistence {
      * Get conversations associated with a specific file (assistant mode).
      */
     async getConversationsByFile(dbManager, filePath) {
-        const safePath = filePath.replace(/'/g, "''");
         return dbManager.systemQuery(`
             SELECT * FROM amoxsql_ai.conversations
-            WHERE file_path = '${safePath}' AND mode = 'assistant'
+            WHERE file_path = ${s(filePath)} AND mode = 'assistant'
             ORDER BY updated_at DESC
         `);
     }
@@ -208,7 +232,7 @@ class AiPersistence {
      */
     async getConversation(dbManager, id) {
         const conversations = await dbManager.systemQuery(
-            `SELECT * FROM amoxsql_ai.conversations WHERE id = '${id}'`
+            `SELECT * FROM amoxsql_ai.conversations WHERE id = ${s(id)}`
         );
         if (conversations.length === 0) return null;
 
@@ -216,7 +240,7 @@ class AiPersistence {
 
         // Get messages
         conversation.messages = await dbManager.systemQuery(
-            `SELECT * FROM amoxsql_ai.messages WHERE conversation_id = '${id}' ORDER BY created_at ASC`
+            `SELECT * FROM amoxsql_ai.messages WHERE conversation_id = ${s(id)} ORDER BY created_at ASC`
         );
 
         // Parse tool_calls JSON for each message
@@ -227,19 +251,19 @@ class AiPersistence {
         }
 
         // Get query results for all messages
-        const messageIds = conversation.messages.map(m => `'${m.id}'`).join(',');
+        const messageIds = conversation.messages.map(m => s(m.id)).join(',');
         if (messageIds) {
             const queryResults = await dbManager.systemQuery(
                 `SELECT * FROM amoxsql_ai.query_results WHERE message_id IN (${messageIds}) ORDER BY created_at ASC`
             );
             for (const qr of queryResults) {
                 if (qr.columns_info) { try { qr.columns_info = JSON.parse(qr.columns_info); } catch {} }
-                if (qr.data) { try { qr.data = JSON.parse(qr.data); } catch {} }
+                if (qr.data)         { try { qr.data         = JSON.parse(qr.data);         } catch {} }
             }
             conversation.queryResults = queryResults;
 
             // Get chart configs
-            const qrIds = queryResults.map(q => `'${q.id}'`).join(',');
+            const qrIds = queryResults.map(q => s(q.id)).join(',');
             if (qrIds) {
                 const chartConfigs = await dbManager.systemQuery(
                     `SELECT * FROM amoxsql_ai.chart_configs WHERE query_result_id IN (${qrIds}) ORDER BY created_at ASC`
@@ -258,7 +282,8 @@ class AiPersistence {
 
         // Parse context_objects JSON
         if (conversation.context_objects) {
-            try { conversation.context_objects = JSON.parse(conversation.context_objects); } catch { conversation.context_objects = []; }
+            try { conversation.context_objects = JSON.parse(conversation.context_objects); }
+            catch { conversation.context_objects = []; }
         } else {
             conversation.context_objects = [];
         }
@@ -270,30 +295,27 @@ class AiPersistence {
      * Delete a conversation and all its messages/results.
      */
     async deleteConversation(dbManager, id) {
-        // Get message IDs for cascading
+        // Get message IDs for cascading deletes
         const messages = await dbManager.systemQuery(
-            `SELECT id FROM amoxsql_ai.messages WHERE conversation_id = '${id}'`
+            `SELECT id FROM amoxsql_ai.messages WHERE conversation_id = ${s(id)}`
         );
-        const messageIds = messages.map(m => `'${m.id}'`).join(',');
+        const messageIds = messages.map(m => s(m.id)).join(',');
 
         if (messageIds) {
-            // Get query result IDs for chart config cascade
             const queryResults = await dbManager.systemQuery(
                 `SELECT id FROM amoxsql_ai.query_results WHERE message_id IN (${messageIds})`
             );
-            const qrIds = queryResults.map(q => `'${q.id}'`).join(',');
+            const qrIds = queryResults.map(q => s(q.id)).join(',');
 
             if (qrIds) {
                 await dbManager.systemQuery(`DELETE FROM amoxsql_ai.chart_configs WHERE query_result_id IN (${qrIds})`);
             }
             await dbManager.systemQuery(`DELETE FROM amoxsql_ai.query_results WHERE message_id IN (${messageIds})`);
-            await dbManager.systemQuery(`DELETE FROM amoxsql_ai.messages WHERE conversation_id = '${id}'`);
+            await dbManager.systemQuery(`DELETE FROM amoxsql_ai.messages WHERE conversation_id = ${s(id)}`);
         }
 
-        // Delete session artifacts
-        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.session_artifacts WHERE conversation_id = '${id}'`);
-
-        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.conversations WHERE id = '${id}'`);
+        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.session_artifacts WHERE conversation_id = ${s(id)}`);
+        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.conversations WHERE id = ${s(id)}`);
         return { success: true };
     }
 
@@ -301,11 +323,10 @@ class AiPersistence {
      * Update session name for a diving conversation.
      */
     async updateSessionName(dbManager, id, sessionName) {
-        const safeName = sessionName.replace(/'/g, "''");
         await dbManager.systemQuery(`
             UPDATE amoxsql_ai.conversations
-            SET session_name = '${safeName}', updated_at = current_timestamp
-            WHERE id = '${id}'
+            SET session_name = ${s(sessionName)}, updated_at = current_timestamp
+            WHERE id = ${s(id)}
         `);
         return { success: true };
     }
@@ -315,11 +336,10 @@ class AiPersistence {
      * @param {Array} contextObjects - Array of {type, name, path?} objects
      */
     async updateContextObjects(dbManager, id, contextObjects) {
-        const safeJson = JSON.stringify(contextObjects).replace(/'/g, "''");
         await dbManager.systemQuery(`
             UPDATE amoxsql_ai.conversations
-            SET context_objects = '${safeJson}', updated_at = current_timestamp
-            WHERE id = '${id}'
+            SET context_objects = ${j(contextObjects)}, updated_at = current_timestamp
+            WHERE id = ${s(id)}
         `);
         return { success: true };
     }
@@ -329,11 +349,13 @@ class AiPersistence {
      */
     async toggleStar(dbManager, id) {
         await dbManager.systemQuery(`
-            UPDATE amoxsql_ai.conversations 
+            UPDATE amoxsql_ai.conversations
             SET is_starred = NOT is_starred, updated_at = current_timestamp
-            WHERE id = '${id}'
+            WHERE id = ${s(id)}
         `);
-        const result = await dbManager.systemQuery(`SELECT is_starred FROM amoxsql_ai.conversations WHERE id = '${id}'`);
+        const result = await dbManager.systemQuery(
+            `SELECT is_starred FROM amoxsql_ai.conversations WHERE id = ${s(id)}`
+        );
         return { is_starred: result[0]?.is_starred };
     }
 
@@ -341,16 +363,15 @@ class AiPersistence {
      * Update conversation title.
      */
     async updateTitle(dbManager, id, title) {
-        const safeTitle = title.replace(/'/g, "''");
         await dbManager.systemQuery(`
-            UPDATE amoxsql_ai.conversations 
-            SET title = '${safeTitle}', updated_at = current_timestamp
-            WHERE id = '${id}'
+            UPDATE amoxsql_ai.conversations
+            SET title = ${s(title)}, updated_at = current_timestamp
+            WHERE id = ${s(id)}
         `);
         return { success: true };
     }
 
-    // ─── Messages ───
+    // ─── Messages ────────────────────────────────────────────────────────────
 
     /**
      * Add a message to a conversation.
@@ -358,62 +379,64 @@ class AiPersistence {
      */
     async addMessage(dbManager, { conversationId, role, content, toolCalls, tokenCount }) {
         const id = generateId();
-        const safeContent = content ? content.replace(/'/g, "''") : '';
-        const safeToolCalls = toolCalls ? JSON.stringify(toolCalls).replace(/'/g, "''") : null;
 
         await dbManager.systemQuery(`
-            INSERT INTO amoxsql_ai.messages (id, conversation_id, role, content, tool_calls, token_count)
-            VALUES ('${id}', '${conversationId}', '${role}', '${safeContent}', ${safeToolCalls ? `'${safeToolCalls}'` : 'NULL'}, ${tokenCount || 'NULL'})
+            INSERT INTO amoxsql_ai.messages
+                (id, conversation_id, role, content, tool_calls, token_count)
+            VALUES
+                (${s(id)}, ${s(conversationId)}, ${s(role)}, ${s(content || '')},
+                 ${j(toolCalls)}, ${n(tokenCount)})
         `);
 
-        // Update conversation's updated_at
+        // Keep conversation's updated_at current
         await dbManager.systemQuery(`
-            UPDATE amoxsql_ai.conversations SET updated_at = current_timestamp WHERE id = '${conversationId}'
+            UPDATE amoxsql_ai.conversations
+            SET updated_at = current_timestamp
+            WHERE id = ${s(conversationId)}
         `);
 
         return { id, conversationId, role, content, toolCalls, tokenCount, created_at: new Date().toISOString() };
     }
 
-    // ─── Query Results ───
+    // ─── Query Results ────────────────────────────────────────────────────────
 
     /**
      * Save a query result from a tool call.
      */
     async saveQueryResult(dbManager, { messageId, sqlQuery, columns, data, rowCount, executionTime, error }) {
         const id = generateId();
-        const safeSql = sqlQuery.replace(/'/g, "''");
-        const safeColumns = columns ? JSON.stringify(columns).replace(/'/g, "''") : null;
-        // Limit stored data to 500 rows
+        // Limit stored data to 500 rows to cap blob size
         const limitedData = data ? data.slice(0, 500) : null;
-        const safeData = limitedData ? JSON.stringify(limitedData).replace(/'/g, "''") : null;
-        const safeError = error ? error.replace(/'/g, "''") : null;
 
         await dbManager.systemQuery(`
-            INSERT INTO amoxsql_ai.query_results (id, message_id, sql_query, columns_info, data, row_count, execution_time, error)
-            VALUES ('${id}', '${messageId}', '${safeSql}', ${safeColumns ? `'${safeColumns}'` : 'NULL'}, ${safeData ? `'${safeData}'` : 'NULL'}, ${rowCount || 'NULL'}, ${executionTime || 'NULL'}, ${safeError ? `'${safeError}'` : 'NULL'})
+            INSERT INTO amoxsql_ai.query_results
+                (id, message_id, sql_query, columns_info, data, row_count, execution_time, error)
+            VALUES
+                (${s(id)}, ${s(messageId)}, ${s(sqlQuery)},
+                 ${j(columns)}, ${j(limitedData)},
+                 ${n(rowCount)}, ${n(executionTime)}, ${s(error)})
         `);
 
         return { id };
     }
 
-    // ─── Chart Configs ───
+    // ─── Chart Configs ────────────────────────────────────────────────────────
 
     /**
      * Save a chart configuration.
      */
     async saveChartConfig(dbManager, { queryResultId, chartType, config }) {
         const id = generateId();
-        const safeConfig = config ? JSON.stringify(config).replace(/'/g, "''") : null;
 
         await dbManager.systemQuery(`
             INSERT INTO amoxsql_ai.chart_configs (id, query_result_id, chart_type, config)
-            VALUES ('${id}', '${queryResultId}', '${chartType || ''}', ${safeConfig ? `'${safeConfig}'` : 'NULL'})
+            VALUES (${s(id)}, ${s(queryResultId)}, ${s(chartType || '')}, ${j(config)})
         `);
 
         return { id };
     }
 
-    // ─── Memories ───
+    // ─── Memories ─────────────────────────────────────────────────────────────
 
     async getMemories(dbManager) {
         try {
@@ -427,47 +450,45 @@ class AiPersistence {
 
     async addMemory(dbManager, { category, content }) {
         const id = generateId();
-        const safeContent = content.replace(/'/g, "''");
         await dbManager.systemQuery(`
             INSERT INTO amoxsql_ai.memories (id, category, content)
-            VALUES ('${id}', '${category}', '${safeContent}')
+            VALUES (${s(id)}, ${s(category)}, ${s(content)})
         `);
         return { id };
     }
 
     async deleteMemory(dbManager, id) {
         await dbManager.systemQuery(
-            `DELETE FROM amoxsql_ai.memories WHERE id = '${id}'`
+            `DELETE FROM amoxsql_ai.memories WHERE id = ${s(id)}`
         );
         return { success: true };
     }
 
     async updateMemory(dbManager, id, { content, category }) {
-        const safeContent = content.replace(/'/g, "''");
-        const safeCategory = (category || '').replace(/'/g, "''");
         await dbManager.systemQuery(`
             UPDATE amoxsql_ai.memories
-            SET content = '${safeContent}', category = '${safeCategory}'
-            WHERE id = '${id}'
+            SET content = ${s(content)}, category = ${s(category || '')}
+            WHERE id = ${s(id)}
         `);
         return { success: true };
     }
 
-    // ─── Session Artifacts ───
+    // ─── Session Artifacts ────────────────────────────────────────────────────
 
     /**
      * Create an artifact linked to a diving session.
      */
     async createArtifact(dbManager, { conversationId, artifactType, filePath, fileName, createdBy = 'ai', sqlSnapshot, metadata, saveLocation = 'session' }) {
         const id = generateId();
-        const safePath = filePath ? filePath.replace(/'/g, "''") : null;
-        const safeName = fileName ? fileName.replace(/'/g, "''") : null;
-        const safeSql = sqlSnapshot ? sqlSnapshot.replace(/'/g, "''") : null;
-        const safeMeta = metadata ? JSON.stringify(metadata).replace(/'/g, "''") : null;
 
         await dbManager.systemQuery(`
-            INSERT INTO amoxsql_ai.session_artifacts (id, conversation_id, artifact_type, file_path, file_name, created_by, sql_snapshot, metadata, save_location)
-            VALUES ('${id}', '${conversationId}', '${artifactType}', ${safePath ? `'${safePath}'` : 'NULL'}, ${safeName ? `'${safeName}'` : 'NULL'}, '${createdBy}', ${safeSql ? `'${safeSql}'` : 'NULL'}, ${safeMeta ? `'${safeMeta}'` : 'NULL'}, '${saveLocation}')
+            INSERT INTO amoxsql_ai.session_artifacts
+                (id, conversation_id, artifact_type, file_path, file_name,
+                 created_by, sql_snapshot, metadata, save_location)
+            VALUES
+                (${s(id)}, ${s(conversationId)}, ${s(artifactType)},
+                 ${s(filePath)}, ${s(fileName)}, ${s(createdBy)},
+                 ${s(sqlSnapshot)}, ${j(metadata)}, ${s(saveLocation)})
         `);
 
         return { id, conversationId, artifactType, filePath, fileName, createdBy, saveLocation, created_at: new Date().toISOString() };
@@ -479,7 +500,7 @@ class AiPersistence {
     async getArtifacts(dbManager, conversationId) {
         const artifacts = await dbManager.systemQuery(`
             SELECT * FROM amoxsql_ai.session_artifacts
-            WHERE conversation_id = '${conversationId}'
+            WHERE conversation_id = ${s(conversationId)}
             ORDER BY created_at ASC
         `);
         for (const a of artifacts) {
@@ -492,7 +513,9 @@ class AiPersistence {
      * Delete an artifact.
      */
     async deleteArtifact(dbManager, id) {
-        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.session_artifacts WHERE id = '${id}'`);
+        await dbManager.systemQuery(
+            `DELETE FROM amoxsql_ai.session_artifacts WHERE id = ${s(id)}`
+        );
         return { success: true };
     }
 
@@ -502,8 +525,8 @@ class AiPersistence {
     async getDivingSessions(dbManager, { search, limit = 50, offset = 0 } = {}) {
         const conditions = [`c.mode = 'diving'`];
         if (search) {
-            const safeSearch = search.replace(/'/g, "''");
-            conditions.push(`(c.title ILIKE '%${safeSearch}%' OR c.session_name ILIKE '%${safeSearch}%')`);
+            const likeVal = `%${search}%`;
+            conditions.push(`(c.title ILIKE ${s(likeVal)} OR c.session_name ILIKE ${s(likeVal)})`);
         }
 
         const query = `
@@ -515,29 +538,27 @@ class AiPersistence {
                      c.created_at, c.updated_at, c.file_path, c.session_name,
                      c.description, c.archived
             ORDER BY c.updated_at DESC
-            LIMIT ${limit}${offset > 0 ? ` OFFSET ${offset}` : ''}
+            LIMIT ${n(limit)}${offset > 0 ? ` OFFSET ${n(offset)}` : ''}
         `;
         return dbManager.systemQuery(query);
     }
 
-    // ─── Analysis Vault ───
+    // ─── Analysis Vault ───────────────────────────────────────────────────────
 
     /**
      * Save an analysis to the vault.
      */
     async saveToVault(dbManager, { conversationId, title, description, sqlContent, resultSnapshot, chartConfig, tags, sourceFile }) {
         const id = generateId();
-        const safeTitle = title.replace(/'/g, "''");
-        const safeDesc = description ? description.replace(/'/g, "''") : null;
-        const safeSql = sqlContent ? sqlContent.replace(/'/g, "''") : null;
-        const safeResult = resultSnapshot ? JSON.stringify(resultSnapshot).replace(/'/g, "''") : null;
-        const safeChart = chartConfig ? JSON.stringify(chartConfig).replace(/'/g, "''") : null;
-        const safeTags = tags ? tags.replace(/'/g, "''") : null;
-        const safeSource = sourceFile ? sourceFile.replace(/'/g, "''") : null;
 
         await dbManager.systemQuery(`
-            INSERT INTO amoxsql_ai.analysis_vault (id, conversation_id, title, description, sql_content, result_snapshot, chart_config, tags, source_file)
-            VALUES ('${id}', ${conversationId ? `'${conversationId}'` : 'NULL'}, '${safeTitle}', ${safeDesc ? `'${safeDesc}'` : 'NULL'}, ${safeSql ? `'${safeSql}'` : 'NULL'}, ${safeResult ? `'${safeResult}'` : 'NULL'}, ${safeChart ? `'${safeChart}'` : 'NULL'}, ${safeTags ? `'${safeTags}'` : 'NULL'}, ${safeSource ? `'${safeSource}'` : 'NULL'})
+            INSERT INTO amoxsql_ai.analysis_vault
+                (id, conversation_id, title, description, sql_content,
+                 result_snapshot, chart_config, tags, source_file)
+            VALUES
+                (${s(id)}, ${s(conversationId)}, ${s(title)}, ${s(description)},
+                 ${s(sqlContent)}, ${j(resultSnapshot)}, ${j(chartConfig)},
+                 ${s(tags)}, ${s(sourceFile)})
         `);
 
         return { id, title, description, tags, sourceFile, created_at: new Date().toISOString() };
@@ -549,23 +570,22 @@ class AiPersistence {
     async getVaultEntries(dbManager, { search, tags, limit = 50, offset = 0 } = {}) {
         const conditions = [];
         if (search) {
-            const safeSearch = search.replace(/'/g, "''");
-            conditions.push(`(title ILIKE '%${safeSearch}%' OR description ILIKE '%${safeSearch}%')`);
+            const likeVal = `%${search}%`;
+            conditions.push(`(title ILIKE ${s(likeVal)} OR description ILIKE ${s(likeVal)})`);
         }
         if (tags) {
-            const safeTags = tags.replace(/'/g, "''");
-            conditions.push(`tags ILIKE '%${safeTags}%'`);
+            conditions.push(`tags ILIKE ${s(`%${tags}%`)}`);
         }
 
         let query = `SELECT * FROM amoxsql_ai.analysis_vault`;
         if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
-        query += ` ORDER BY updated_at DESC LIMIT ${limit}`;
-        if (offset > 0) query += ` OFFSET ${offset}`;
+        query += ` ORDER BY updated_at DESC LIMIT ${n(limit)}`;
+        if (offset > 0) query += ` OFFSET ${n(offset)}`;
 
         const entries = await dbManager.systemQuery(query);
         for (const e of entries) {
             if (e.result_snapshot) { try { e.result_snapshot = JSON.parse(e.result_snapshot); } catch {} }
-            if (e.chart_config) { try { e.chart_config = JSON.parse(e.chart_config); } catch {} }
+            if (e.chart_config)    { try { e.chart_config    = JSON.parse(e.chart_config);    } catch {} }
         }
         return entries;
     }
@@ -575,13 +595,15 @@ class AiPersistence {
      */
     async updateVaultEntry(dbManager, id, changes) {
         const sets = [];
-        if (changes.title !== undefined) sets.push(`title = '${changes.title.replace(/'/g, "''")}'`);
-        if (changes.description !== undefined) sets.push(`description = '${changes.description.replace(/'/g, "''")}'`);
-        if (changes.tags !== undefined) sets.push(`tags = '${changes.tags.replace(/'/g, "''")}'`);
+        if (changes.title       !== undefined) sets.push(`title       = ${s(changes.title)}`);
+        if (changes.description !== undefined) sets.push(`description = ${s(changes.description)}`);
+        if (changes.tags        !== undefined) sets.push(`tags        = ${s(changes.tags)}`);
         if (sets.length === 0) return { success: true };
 
         sets.push(`updated_at = current_timestamp`);
-        await dbManager.systemQuery(`UPDATE amoxsql_ai.analysis_vault SET ${sets.join(', ')} WHERE id = '${id}'`);
+        await dbManager.systemQuery(
+            `UPDATE amoxsql_ai.analysis_vault SET ${sets.join(', ')} WHERE id = ${s(id)}`
+        );
         return { success: true };
     }
 
@@ -589,7 +611,9 @@ class AiPersistence {
      * Delete a vault entry.
      */
     async deleteVaultEntry(dbManager, id) {
-        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.analysis_vault WHERE id = '${id}'`);
+        await dbManager.systemQuery(
+            `DELETE FROM amoxsql_ai.analysis_vault WHERE id = ${s(id)}`
+        );
         return { success: true };
     }
 }

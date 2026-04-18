@@ -60,7 +60,12 @@ function createTools(context) {
                     // Generate a unique queryId for chart references
                     const queryId = `qr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-                    // Store full result for chart tool to reference
+                    // Store full result for chart tool to reference.
+                    // LRU cap: evict the oldest entry when the Map exceeds 50 results
+                    // to prevent unbounded memory growth in long AI sessions.
+                    if (queryResults.size >= 50) {
+                        queryResults.delete(queryResults.keys().next().value);
+                    }
                     queryResults.set(queryId, {
                         query,
                         columns: result.types ? Object.entries(result.types).map(([name, type]) => ({ name, type })) : [],
