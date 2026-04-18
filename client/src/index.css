@@ -11332,3 +11332,266 @@ tr:hover td {
   display: flex;
   gap: 6px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — EditorPane History Panel Overlay
+═══════════════════════════════════════════════════════════════════ */
+
+.ep-history-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100%;
+  z-index: 200;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ep-slide-in 0.18s ease-out;
+}
+
+@keyframes ep-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);   opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — ResultsTable Compare button accent
+═══════════════════════════════════════════════════════════════════ */
+
+.rt-action-btn--accent {
+  color: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.rt-action-btn--accent:hover {
+  background: var(--accent-primary) !important;
+  color: #000 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — CompareResults Modal (.cr-)
+═══════════════════════════════════════════════════════════════════ */
+
+.cr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.cr-modal {
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.cr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.cr-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cr-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.cr-labels {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.cr-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.cr-close-btn:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.cr-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.cr-key-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cr-key-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cr-key-input {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  min-width: 140px;
+}
+
+.cr-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cr-stat-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--cr-section-color, var(--border-color));
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--cr-section-color, var(--text-secondary));
+  transition: background 0.15s;
+}
+
+.cr-stat-btn.active,
+.cr-stat-btn:hover {
+  background: var(--cr-section-color, var(--border-color));
+  color: #fff;
+}
+
+.cr-stat-count {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.cr-stat-label {
+  font-size: 11px;
+}
+
+.cr-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.cr-mini-table-wrap {
+  overflow: auto;
+  height: 100%;
+}
+
+.cr-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cr-mini-th {
+  padding: 7px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.cr-mini-td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border-subtle, var(--border-color));
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cr-mini-row.cr-added td {
+  background: rgba(76, 175, 80, 0.08);
+}
+
+.cr-mini-row.cr-removed td {
+  background: rgba(224, 108, 117, 0.08);
+}
+
+.cr-mini-row.cr-unchanged td {
+  background: transparent;
+}
+
+.cr-null {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.cr-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — SettingsModal stg-save-btn (used in Formatter section)
+═══════════════════════════════════════════════════════════════════ */
+
+.stg-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: var(--accent-primary);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.stg-save-btn:hover {
+  opacity: 0.85;
+}
