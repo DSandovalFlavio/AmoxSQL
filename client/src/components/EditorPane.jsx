@@ -6,6 +6,7 @@ import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
 import { VariablesToggle, VariablesPanel } from './VariablesBar';
 import ErDiagram from './ErDiagram';
+import AmoxvisPane from './AmoxvisPane';
 
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
@@ -40,6 +41,7 @@ const EditorPane = ({
     isRunning,        // boolean — a query is currently executing
     onCancelQuery,    // () -> cancel the running query
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
+    onOpenAmoxvisAsSql, // (tab) -> switch amoxvis tab to SQL editor mode
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -284,6 +286,7 @@ const EditorPane = ({
     const isChain = activeTab.name.endsWith('.sqlchain') || activeTab.type === 'sqlchain';
     const isErDiagram = activeTab.type === 'er-diagram';
     const isDataDiving = activeTab.type === 'datadiving';
+    const isAmoxvis = activeTab.type === 'amoxvis';
 
     // Track last edit time on content change
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -388,7 +391,17 @@ const EditorPane = ({
             <div ref={containerRef} className="ep-inner">
 
                 {/* Content Area */}
-                {isDataDiving ? (
+                {isAmoxvis ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
+                        <AmoxvisPane
+                            tab={activeTab}
+                            onRunQuery={onRunQuery}
+                            onSave={onSave}
+                            onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
+                            onConfigChange={(config) => onContentChange(activeTab.id, JSON.stringify(config, null, 2))}
+                        />
+                    </div>
+                ) : isDataDiving ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
                         <AiDivingPanel
                             width="100%"

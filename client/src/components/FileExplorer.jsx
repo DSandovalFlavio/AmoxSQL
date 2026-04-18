@@ -4,13 +4,13 @@ import {
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
     LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
-    LuLayoutList, LuLayers
+    LuLayoutList, LuLayers, LuCode
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
 import FilePreviewModal from './FilePreviewModal';
 
-const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -489,13 +489,22 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
                     {/* Amoxvis Edit Charts Option */}
                     {contextMenu.file.name.endsWith('.amoxvis') && (
-                        <div
-                            onClick={() => onEditChart && onEditChart(contextMenu.file.path)}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            className="context-menu-item"
-                        >
-                            <LuChartBar size={14} /> Edit Chart
-                        </div>
+                        <>
+                            <div
+                                onClick={() => onEditChart && onEditChart(contextMenu.file.path)}
+                                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                className="context-menu-item"
+                            >
+                                <LuChartBar size={14} /> Open Chart
+                            </div>
+                            <div
+                                onClick={() => onEditChartWithSql && onEditChartWithSql(contextMenu.file.path)}
+                                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                className="context-menu-item"
+                            >
+                                <LuCode size={14} /> Edit with SQL
+                            </div>
+                        </>
                     )}
 
                     {/* Folder Options */}
