@@ -10,7 +10,7 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
 import FilePreviewModal from './FilePreviewModal';
 
-const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -92,12 +92,17 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                 // Chart configs → open chart editor
             } else if (lowerName.endsWith('.amoxvis')) {
                 onEditChart && onEditChart(file.path);
-                // CSV / Parquet → show quick preview modal (100 rows via DuckDB)
-            } else if (lowerName.match(/\.(csv|parquet)$/)) {
-                setPreviewFilePath(file.path);
-                // Other data files → open as direct query (SELECT * FROM ... LIMIT 100)
-            } else if (lowerName.match(/\.(json|xlsx|xls)$/)) {
+                // Excel -> always open as direct query (SELECT * FROM ... LIMIT 100)
+            } else if (lowerName.match(/\.(xlsx|xls)$/)) {
                 onQueryFile && onQueryFile(file.path);
+                // Structured Data Files → check user settings for preview vs query
+            } else if (lowerName.match(/\.(csv|parquet|json)$/)) {
+                const action = editorSettings?.defaultDataFileAction || 'preview';
+                if (action === 'preview') {
+                    setPreviewFilePath(file.path);
+                } else {
+                    onQueryFile && onQueryFile(file.path);
+                }
                 // Everything else → open as text
             } else {
                 onFileOpen(file.path);
@@ -461,8 +466,8 @@ const FileExplorer = ({ onFileClick, onFileOpen, onNewFile, onNewFolder, onImpor
                             <LuDatabase size={14} /> Import to Database...
                         </div>
                     )}
-                    {/* Quick Preview — CSV/Parquet only: shows modal with first 100 rows */}
-                    {contextMenu.file.name.match(/\.(csv|parquet)$/i) && (
+                    {/* Quick Preview — CSV/Parquet/JSON: shows modal with first 100 rows */}
+                    {contextMenu.file.name.match(/\.(csv|parquet|json)$/i) && (
                         <div
                             onClick={() => { setPreviewFilePath(contextMenu.file.path); setContextMenu(null); }}
                             style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
