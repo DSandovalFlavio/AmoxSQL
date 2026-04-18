@@ -431,6 +431,11 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // 4b. Format Code (Ctrl+Shift+F) — secondary keybinding
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, formatSql);
 
+        // 5. Find & Replace (Ctrl+H) — expose Monaco's built-in panel
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
+            editor.getAction('editor.action.startFindReplaceAction').run();
+        });
+
         // 4c. Context menu action for Format SQL
         const formatAction = editor.addAction({
             id: 'format-sql-action',

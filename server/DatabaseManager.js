@@ -299,6 +299,12 @@ class DatabaseManager {
     getCurrentPath() {
         return this.attachedPath || ':memory:';
     }
+
+    interruptQuery() {
+        if (this.connection && typeof this.connection.interrupt === 'function') {
+            this.connection.interrupt();
+        }
+    }
 }
 
 module.exports = new DatabaseManager();

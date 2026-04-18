@@ -17,6 +17,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const [vaultTags, setVaultTags] = useState('');
     const [vaultSaving, setVaultSaving] = useState(false);
     const [isExportDataOpen, setIsExportDataOpen] = useState(false);
+    const [exportingAction, setExportingAction] = useState(null);
 
     // View State
     const [viewMode, setViewMode] = useState(initialViewMode || (initialChartConfig ? 'chart' : (editorSettings.defaultViewMode || 'table')));
@@ -210,11 +211,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const runExportWorker = async (action, exportData, columns = [], filenameSuffix = '') => {
         if (!exportData || exportData.length === 0) return;
 
-        // Use toast if available via parent, or fallback to visual indicator
-        const btnId = `btn-${action}`;
-        const btn = document.getElementById(btnId);
-        const originalText = btn ? btn.innerText : '';
-        if (btn) btn.innerText = '⏳ Exporting...';
+        setExportingAction(action);
 
         try {
             const worker = new Worker('/exportWorker.js');
@@ -247,7 +244,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
             // Fallback (rarely needed)
             toast.error(`Export failed: ${error.message}`);
         } finally {
-            if (btn) btn.innerText = originalText;
+            setExportingAction(null);
             setShowExportMenu(false);
         }
     };
@@ -378,17 +375,17 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                         <div className="rt-toolbar-left">
                             {/* View Switcher */}
                             <div className="rt-view-switcher">
-                                <button className={`rt-view-btn${viewMode === 'table' ? ' active' : ''}`} onClick={() => handleViewModeChange('table')}>
+                                <button className={`rt-view-btn${viewMode === 'table' ? ' active' : ''}`} onClick={() => handleViewModeChange('table')} aria-label="Table view">
                                     <LuTable size={13} /> Table
                                 </button>
-                                <button className={`rt-view-btn${viewMode === 'chart' ? ' active' : ''}`} onClick={() => handleViewModeChange('chart')}>
+                                <button className={`rt-view-btn${viewMode === 'chart' ? ' active' : ''}`} onClick={() => handleViewModeChange('chart')} aria-label="Chart view">
                                     <LuChartBar size={13} /> Chart
                                 </button>
-                                <button className={`rt-view-btn${viewMode === 'profile' ? ' active' : ''}`} onClick={() => handleViewModeChange('profile')}>
+                                <button className={`rt-view-btn${viewMode === 'profile' ? ' active' : ''}`} onClick={() => handleViewModeChange('profile')} aria-label="Profile view">
                                     <LuGauge size={13} /> Profile
                                 </button>
                                 {viewMode === 'table' && (
-                                    <button className={`rt-view-btn rt-filter-btn${showFilters ? ' active' : ''}`} onClick={() => setShowFilters(f => !f)}>
+                                    <button className={`rt-view-btn rt-filter-btn${showFilters ? ' active' : ''}`} onClick={() => setShowFilters(f => !f)} aria-label="Toggle column filters">
                                         <LuFilter size={13} /> Filters
                                     </button>
                                 )}
@@ -419,11 +416,11 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             )}
 
                             {onPopout && (
-                                <button className="rt-action-btn" onClick={onPopout}>
+                                <button className="rt-action-btn" onClick={onPopout} aria-label="Pop out results to separate window">
                                     <LuExternalLink size={12} /> Pop-out
                                 </button>
                             )}
-                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)}>
+                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save results to database">
                                 <LuSave size={12} /> Save to DB
                             </button>
                             <div className="toolbar-dropdown">
@@ -470,12 +467,17 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 {showExportMenu && (
                                     <div className="toolbar-dropdown-menu" style={{ right: 0, left: 'auto' }}>
                                         <div className="rt-dropdown-section">Quick Export</div>
-                                        {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv },
-                                        { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson },
-                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard },
+                                        {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv, action: 'exportCSV' },
+                                        { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson, action: 'exportJSON' },
+                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: null },
                                         ].map(item => (
-                                            <div key={item.label} className="toolbar-dropdown-item" onClick={() => { item.fn(); setShowExportMenu(false); }}>
-                                                {item.icon} {item.label}
+                                            <div
+                                                key={item.label}
+                                                className={`toolbar-dropdown-item${exportingAction === item.action ? ' rt-exporting' : ''}`}
+                                                onClick={() => { if (!exportingAction) item.fn(); }}
+                                                aria-disabled={exportingAction === item.action}
+                                            >
+                                                {exportingAction === item.action ? '⏳' : item.icon} {exportingAction === item.action ? 'Exporting...' : item.label}
                                             </div>
                                         ))}
                                         <div className="rt-dropdown-separator" />
