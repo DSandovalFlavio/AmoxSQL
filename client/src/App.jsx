@@ -865,6 +865,7 @@ function App() {
                   onQueryFile={(path) => layoutRef.current?.handleQueryFile(path)}
                   onPreviewFile={(path) => layoutRef.current?.handleQueryFile(path)}
                   onEditChart={(path) => layoutRef.current?.handleEditChart(path)}
+                  onEditChartWithSql={(path) => layoutRef.current?.handleEditChartWithSql(path)}
                   refreshTrigger={fileRefreshTrigger}
                 />
               </div>
@@ -1091,7 +1092,7 @@ function App() {
 
         <SaveQueryModal
           isOpen={isSaveModalOpen}
-          initialName={pendingSaveTab?.name || ''}
+          initialName={pendingSaveTab?.name?.replace(/^Edit: /, '') || ''}
           onClose={() => setIsSaveModalOpen(false)}
           onSave={handleSaveAs}
         />

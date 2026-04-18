@@ -271,10 +271,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
 
         try {
+            let saveContent = tab.content;
+            if (tab.path && tab.path.endsWith('.amoxvis') && tab.type === 'sql') {
+                const config = tab.chartConfig || tab.initialChartConfig || {};
+                const newConfig = { ...config, query: tab.content };
+                saveContent = JSON.stringify(newConfig, null, 2);
+            }
+
             const response = await fetch('http://localhost:3001/api/file', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: tab.path, content: tab.content })
+                body: JSON.stringify({ path: tab.path, content: saveContent })
             });
 
             if (response.ok) {
@@ -541,7 +548,49 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         handleEditChart: async (filePath) => {
             try {
+                // Check if already open
+                const existing = [...leftTabs, ...rightTabs].find(t => t.path === filePath && t.type === 'amoxvis');
+                if (existing) {
+                    if (leftTabs.find(t => t.id === existing.id)) setLeftActiveId(existing.id);
+                    else setRightActiveId(existing.id);
+                    return;
+                }
+
                 // Fetch the config
+                const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                const config = JSON.parse(data.content);
+
+                const newTab = {
+                    id: Date.now().toString(),
+                    path: filePath,
+                    name: filePath.split(/[/\\]/).pop(),
+                    type: 'amoxvis',
+                    content: data.content,
+                    results: null,
+                    dirty: false,
+                    initialChartConfig: config
+                };
+
+                const pane = activePane;
+                if (pane === 'left') {
+                    setLeftTabs(prev => [...prev, newTab]);
+                    setLeftActiveId(newTab.id);
+                } else {
+                    setRightTabs(prev => [...prev, newTab]);
+                    setRightActiveId(newTab.id);
+                }
+
+            } catch (err) {
+                setAlertData({ isOpen: true, message: `Failed to open chart configuration: ${err.message}`, title: 'Chart Error', type: 'error' });
+            }
+        },
+
+        // Open .amoxvis in legacy SQL editor mode (Edit with SQL)
+        handleEditChartWithSql: async (filePath) => {
+            try {
                 const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
@@ -551,13 +600,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
                 const newTab = {
                     id: Date.now().toString(),
-                    path: '',
+                    path: filePath,
                     name: `Edit: ${filePath.split(/[/\\]/).pop()}`,
                     type: 'sql',
                     content: query,
                     results: null,
-                    dirty: true,
-                    initialChartConfig: config // Bundle the chart preset
+                    dirty: false,
+                    initialChartConfig: config
                 };
 
                 const pane = activePane;
@@ -575,8 +624,39 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             } catch (err) {
                 setAlertData({ isOpen: true, message: `Failed to open chart configuration: ${err.message}`, title: 'Chart Error', type: 'error' });
             }
-        }
+        },
+
+        // Switch an amoxvis tab to SQL editor mode
+        handleOpenAmoxvisAsSql: (tab) => openAmoxvisAsSql(tab)
     }));
+
+    // Standalone helper: open an amoxvis tab in SQL editor mode
+    const openAmoxvisAsSql = (tab) => {
+        const config = tab.chartConfig || tab.initialChartConfig || {};
+        const query = config.query || 'SELECT * FROM ... LIMIT 100;';
+
+        const newTab = {
+            id: Date.now().toString(),
+            path: tab.path,
+            name: tab.name.startsWith('Edit: ') ? tab.name : `Edit: ${tab.name}`,
+            type: 'sql',
+            content: query,
+            results: null,
+            dirty: false,
+            initialChartConfig: config
+        };
+
+        const pane = activePane;
+        if (pane === 'left') {
+            setLeftTabs(prev => [...prev, newTab]);
+            setLeftActiveId(newTab.id);
+        } else {
+            setRightTabs(prev => [...prev, newTab]);
+            setRightActiveId(newTab.id);
+        }
+
+        executeQuery(newTab.id, query);
+    };
 
     // --- handleQueryFile: Standalone function for DnD + imperative handle ---
     const handleQueryFile = async (filePath) => {
@@ -821,6 +901,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     isRunning={!!runningQueryId}
                     onCancelQuery={cancelQuery}
                     onShowHistory={onShowHistorySidebar}
+                    onOpenAmoxvisAsSql={openAmoxvisAsSql}
                 />
 
                 {splitEnabled && (
@@ -853,6 +934,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onExportNotebook={onExportNotebook}
                         isRunning={!!runningQueryId}
                         onCancelQuery={cancelQuery}
+                        onOpenAmoxvisAsSql={openAmoxvisAsSql}
                     />
                 )}
             </div>
