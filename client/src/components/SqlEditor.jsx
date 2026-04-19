@@ -976,4 +976,4 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     );
 };
 
-export default SqlEditor;
+export default React.memo(SqlEditor);

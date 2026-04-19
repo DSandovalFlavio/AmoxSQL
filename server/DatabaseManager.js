@@ -179,6 +179,8 @@ class DatabaseManager {
         if (trimmed.startsWith('SUMMARIZE')) return;
         if (trimmed.startsWith('DESCRIBE')) return;
         if (trimmed.startsWith('SHOW')) return;
+        if (trimmed.startsWith('USE ')) return;
+        if (trimmed.startsWith('SELECT VERSION()')) return;
         if (trimmed.startsWith('CREATE TABLE IF NOT EXISTS AMOX_')) return;
         if (trimmed.startsWith('DELETE FROM AMOX_QUERY_HISTORY')) return;
 
@@ -262,10 +264,10 @@ class DatabaseManager {
             // PASO CRÍTICO: "Bajarse de la escalera".
             // Cambiamos a la memoria interna antes de intentar soltar la base de datos externa.
             try {
-                await this.query("USE memory");
+                await this.systemQuery("USE memory");
             } catch (e) {
                 // Si 'memory' falla, intentamos 'main' (depende de la versión de DuckDB)
-                try { await this.query("USE main"); } catch (e2) { }
+                try { await this.systemQuery("USE main"); } catch (e2) { }
             }
 
             // Ahora que ya no estamos 'usando' user_db, podemos listarlas y desconectarlas

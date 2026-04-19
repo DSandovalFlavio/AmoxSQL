@@ -6,6 +6,7 @@ import { useToast } from './ToastProvider';
 import { resolveVariables } from './VariablesBar';
 import AlertDialog from './AlertDialog';
 import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
+import { invalidateSchema } from '../state/sidebarCache';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 
@@ -34,6 +35,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // Query Cancellation State
     const [runningQueryId, setRunningQueryId] = useState(null);
+    const queryAbortControllerRef = useRef(null);
 
     // --- Tab Persistence: Save to sessionStorage ---
     useEffect(() => {
@@ -197,6 +199,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     const cancelQuery = async () => {
         if (!runningQueryId) return;
+        // Abort the in-flight fetch immediately so the UI unblocks
+        queryAbortControllerRef.current?.abort();
+        // Also tell the server to interrupt the DuckDB query
         try {
             await fetch(`http://localhost:3001/api/query/cancel/${runningQueryId}`, { method: 'POST' });
         } catch {}
@@ -208,12 +213,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
         const qid = crypto.randomUUID();
+        const controller = new AbortController();
+        queryAbortControllerRef.current = controller;
         setRunningQueryId(qid);
         try {
             const response = await fetch('http://localhost:3001/api/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: resolvedQuery, queryId: qid }),
+                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: editorSettings?.queryResultLimit ?? 10000 }),
+                signal: controller.signal,
             });
             const data = await response.json();
 
@@ -231,6 +239,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 // Only refresh DB schema if query might have changed it
                 const upperQuery = resolvedQuery.trim().toUpperCase();
                 if (upperQuery.match(/^(CREATE|DROP|ALTER|UPDATE|INSERT|DELETE|ATTACH|DETACH|COPY)/) || upperQuery.includes('INTO')) {
+                    // Invalidate schema cache so DatabaseExplorer refetches fresh data
+                    invalidateSchema();
                     if (onDbChange) onDbChange();
                 }
 
@@ -241,11 +251,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 return { error: data.error };
             }
         } catch (err) {
+            if (err.name === 'AbortError') {
+                // User cancelled — clear state silently, no error shown
+                updateTab(pane, tabId, { results: null, resultsError: null, errorMarker: null });
+                return { cancelled: true };
+            }
             const marker = parseDuckDBError(err.message);
             updateTab(pane, tabId, { results: null, resultsError: err.message, errorMarker: marker });
             return { error: err.message };
         } finally {
             setRunningQueryId(null);
+            queryAbortControllerRef.current = null;
         }
     };
 
