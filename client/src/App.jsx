@@ -95,6 +95,12 @@ function App() {
 
   // Sidebar Architecture State
   const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', or 'extensions'
+  // Keep-alive: panels se montan la primera vez que se visitan y permanecen montados
+  // controlando visibilidad con display. Evita remount/refetch al cambiar de pestaña.
+  const [visitedSidebarTabs, setVisitedSidebarTabs] = useState(() => new Set(['files']));
+  useEffect(() => {
+    setVisitedSidebarTabs(prev => prev.has(activeSidebarTab) ? prev : new Set(prev).add(activeSidebarTab));
+  }, [activeSidebarTab]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(
     () => parseInt(localStorage.getItem('amoxsql-sidebar-width')) || 280
@@ -110,7 +116,8 @@ function App() {
     return parseInt(localStorage.getItem('amoxsql-ai-panel-width')) || 380;
   });
   useEffect(() => {
-    localStorage.setItem('amoxsql-ai-panel-width', aiPanelWidth.toString());
+    const t = setTimeout(() => localStorage.setItem('amoxsql-ai-panel-width', aiPanelWidth.toString()), 150);
+    return () => clearTimeout(t);
   }, [aiPanelWidth]);
 
   // Data Quality & Schema Diff Modals
@@ -136,7 +143,8 @@ function App() {
 
   // Persist zoom to localStorage (main process handles the actual zoom)
   useEffect(() => {
-    localStorage.setItem('amoxsql-ui-zoom', uiZoomLevel.toString());
+    const t = setTimeout(() => localStorage.setItem('amoxsql-ui-zoom', uiZoomLevel.toString()), 150);
+    return () => clearTimeout(t);
   }, [uiZoomLevel]);
 
   // Listen for zoom changes from main process (Ctrl+Plus/Minus/0)
@@ -175,7 +183,7 @@ function App() {
     formatOnPaste: false,
     showWelcomeOnStart: true,
     confirmBeforeDrop: true,
-    queryResultLimit: 100,
+    queryResultLimit: 10000,
     autoSaveInterval: 0,
     ...editorSettings,
   };
@@ -226,11 +234,13 @@ function App() {
   }, [editorLayout]);
 
   useEffect(() => {
-    localStorage.setItem('amoxsql-editor-settings', JSON.stringify(editorSettings));
+    const t = setTimeout(() => localStorage.setItem('amoxsql-editor-settings', JSON.stringify(editorSettings)), 300);
+    return () => clearTimeout(t);
   }, [editorSettings]);
 
   useEffect(() => {
-    localStorage.setItem('amoxsql-sidebar-width', String(sidebarWidth));
+    const t = setTimeout(() => localStorage.setItem('amoxsql-sidebar-width', String(sidebarWidth)), 150);
+    return () => clearTimeout(t);
   }, [sidebarWidth]);
 
   // Initialize Data
@@ -852,9 +862,10 @@ function App() {
 
             <div className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
 
-            {/* Content Switcher */}
-            {activeSidebarTab === 'files' && (
-              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {/* Content Switcher — keep-alive: cada panel se monta en la primera visita
+                y permanece montado. display:none/flex controla visibilidad. */}
+            {visitedSidebarTabs.has('files') && (
+              <div style={{ flex: 1, overflow: 'hidden', display: activeSidebarTab === 'files' ? 'flex' : 'none', flexDirection: 'column' }}>
                 <FileExplorer
                   editorSettings={editorSettings}
                   onFileClick={handleFileClick}
@@ -871,8 +882,8 @@ function App() {
               </div>
             )}
 
-            {activeSidebarTab === 'schema' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {visitedSidebarTabs.has('schema') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'schema' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <DatabaseExplorer
                   currentDb={currentDb}
                   onRefresh={refreshDbTrigger}
@@ -884,32 +895,32 @@ function App() {
               </div>
             )}
 
-            {activeSidebarTab === 'extensions' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {visitedSidebarTabs.has('extensions') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'extensions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <ExtensionExplorer />
               </div>
             )}
 
-            {activeSidebarTab === 'dbt' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {visitedSidebarTabs.has('dbt') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} />
               </div>
             )}
 
-            {activeSidebarTab === 'snippets' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {visitedSidebarTabs.has('snippets') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'snippets' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <SnippetsPanel onInsert={(sql) => layoutRef.current?.createNew('sql', sql)} />
               </div>
             )}
 
-            {activeSidebarTab === 'history' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {visitedSidebarTabs.has('history') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'history' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <QueryHistoryPanel onSelect={(sql) => layoutRef.current?.createNew('sql', sql)} />
               </div>
             )}
 
-            {activeSidebarTab === 'vault' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {visitedSidebarTabs.has('vault') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'vault' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>}>
                   <AnalysisVault
                     onOpenInEditor={(sql) => {

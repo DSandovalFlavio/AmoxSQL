@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import {
     LuContainer, LuCheck, LuX, LuCopy, LuPlay, LuRefreshCw,
     LuChevronDown, LuChevronRight, LuPlus, LuTrash2,
@@ -57,8 +57,14 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
     });
     const [envLoading, setEnvLoading] = useState(false);
 
-    // Project state
-    const [projectInfo, setProjectInfo] = useState(null);
+    // Project state — persisted in localStorage so it survives panel hide/show
+    const [projectInfo, setProjectInfo] = useState(() => {
+        try {
+            const cached = localStorage.getItem('amox-dbt-project-cache');
+            if (cached) return JSON.parse(cached) || null;
+        } catch (e) { /* no cache */ }
+        return null;
+    });
     const [projectLoading, setProjectLoading] = useState(false);
 
     // Init form
@@ -180,28 +186,15 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
             const res = await fetch(`${API}/dbt/detect`);
             const data = await res.json();
             setProjectInfo(data);
+            try { localStorage.setItem('amox-dbt-project-cache', JSON.stringify(data)); } catch (e) { /* quota */ }
         } catch (err) {
             setProjectInfo({ exists: false });
         }
         setProjectLoading(false);
     }, []);
 
-    // Initial load — use cache if available and fresh, only fetch if stale
-    useEffect(() => {
-        // Environment: only re-check if cache is missing OR older than 1 hour
-        const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-        const isStale = !envCacheTime || (Date.now() - new Date(envCacheTime).getTime()) > CACHE_TTL_MS;
-
-        if (!envStatus || isStale) {
-            checkEnv();
-        }
-
-        // Project: only detect once per mount
-        if (!projectInfo) {
-            detectProject();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    // No auto-fetch on mount — state loads from localStorage cache above.
+    // User triggers refresh via the Refresh buttons in the UI.
 
     // Check exact DBT version when conda env changes
     useEffect(() => {
@@ -1068,4 +1061,4 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
     );
 };
 
-export default DbtPanel;
+export default memo(DbtPanel);

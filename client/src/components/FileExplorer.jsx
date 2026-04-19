@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useDeferredValue } from 'react';
+import { useState, useEffect, useRef, memo, useDeferredValue } from 'react';
 import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
@@ -590,4 +590,4 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     );
 };
 
-export default FileExplorer;
+export default memo(FileExplorer);

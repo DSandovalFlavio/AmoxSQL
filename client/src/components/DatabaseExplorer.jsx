@@ -1,4 +1,5 @@
 import { useState, useEffect, memo, useDeferredValue } from 'react';
+import { getCached, setCached } from '../state/sidebarCache';
 import TablePreviewModal from './TablePreviewModal';
 import TableDetailsModal from './TableDetailsModal';
 import QueryHistoryModal from './QueryHistoryModal';
@@ -67,11 +68,22 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     }, [onRefresh]);
 
     const fetchSchemas = async () => {
-        setLoading(true);
+        // Show cached schema instantly — no spinner flash on tab switch or DB return
+        const cacheKey = `schema:${currentDb}`;
+        const cached = getCached(cacheKey);
+        if (cached) {
+            setSchemas(cached);
+            if (onTablesLoaded) {
+                const flat = cached.flatMap(s => s.tables.map(t => ({ name: t.name, schema: s.schema, type: t.type, columns: t.columns })));
+                onTablesLoaded(flat);
+            }
+        }
+        setLoading(!cached);
         try {
             const response = await fetch('http://localhost:3001/api/db/schemas');
             if (response.ok) {
                 const data = await response.json();
+                setCached(cacheKey, data);
                 setSchemas(data);
 
                 // Also flatten for onTablesLoaded (used by autocomplete, AI, etc.)

@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } = require('electron');
 const path = require('path');
 
 // ─── Single instance lock ─────────────────────────────────────────────────────
@@ -51,17 +51,10 @@ ipcMain.on('window-control:close', () => {
     if (mainWindow) mainWindow.close();
 });
 
-// FORCE PROD IF PACKAGED - MUST BE BEFORE REQUIRE SERVER
-// This ensures server/index.js sees the environment variable at module load time.
-if (app.isPackaged) {
-    process.env.NODE_ENV = 'production';
-}
-
-const { startServer } = require('../server/index.js');
-
 let mainWindow;
 let popoutWindow = null;
 let pendingPopoutData = null;
+let serverProcess = null;
 const SERVER_PORT = 3001;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -94,6 +87,8 @@ const createWindow = () => {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false, // queries en background no se ralentizan
+            spellcheck: false,
         },
         autoHideMenuBar: true,
         backgroundColor: '#0F1012'
@@ -166,7 +161,9 @@ ipcMain.handle('popout:open', async (_event, data) => {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false,
+            spellcheck: false,
         }
     });
 
@@ -203,16 +200,38 @@ ipcMain.handle('popout:isPopout', (event) => {
 });
 
 // Start Server & App
-const initApp = async () => {
-    try {
-        console.log("Starting Local Server...");
-        await startServer(SERVER_PORT);
-        console.log("Server Started. Creating Window...");
-        createWindow();
-    } catch (err) {
-        console.error("Failed to start server:", err);
-        app.quit();
-    }
+const initApp = () => {
+    console.log("Starting Local Server in utility process...");
+
+    serverProcess = utilityProcess.fork(
+        path.join(__dirname, 'server-worker.js'),
+        [],
+        {
+            serviceName: 'AmoxSQL Server',
+            env: {
+                ...process.env,
+                NODE_ENV: app.isPackaged ? 'production' : (process.env.NODE_ENV || 'development'),
+            },
+        }
+    );
+
+    serverProcess.on('message', (msg) => {
+        if (msg.type === 'ready') {
+            console.log("Server ready. Creating window...");
+            createWindow();
+        } else if (msg.type === 'error') {
+            console.error("Server failed to start:", msg.message);
+            app.quit();
+        }
+    });
+
+    serverProcess.on('exit', (code) => {
+        if (code !== 0) {
+            console.error(`Server process exited unexpectedly (code ${code})`);
+        }
+    });
+
+    serverProcess.postMessage({ type: 'start', port: SERVER_PORT });
 };
 
 // ─── Second-instance handler ──────────────────────────────────────────────────
@@ -227,10 +246,12 @@ app.on('second-instance', () => {
 // ─── Graceful quit ────────────────────────────────────────────────────────────
 // Give DuckDB time to flush any in-flight writes before the process dies.
 app.on('before-quit', async (event) => {
-    // Prevent the default quit so we can run async cleanup first.
     event.preventDefault();
     await shutdownServer();
-    // Remove the listener before re-quitting to avoid infinite loop.
+    if (serverProcess) {
+        serverProcess.kill();
+        serverProcess = null;
+    }
     app.removeAllListeners('before-quit');
     app.quit();
 });
