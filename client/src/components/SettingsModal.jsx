@@ -218,14 +218,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 })
                 .catch(err => console.error("Failed to load config", err));
 
-            fetch('http://localhost:3001/api/query', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: 'SELECT version() as version' })
-            })
+            fetch('http://localhost:3001/api/db/version')
                 .then(res => res.json())
                 .then(data => {
-                    if (data?.data?.[0]?.version) setDuckdbVersion(data.data[0].version);
+                    if (data?.version) setDuckdbVersion(data.version);
                 })
                 .catch(() => setDuckdbVersion('N/A'));
 
@@ -960,13 +956,15 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </div>
                                             <select
                                                 className="stg-select stg-select--w120"
-                                                value={editorSettings.queryResultLimit || 100}
+                                                value={editorSettings.queryResultLimit || 10000}
                                                 onChange={(e) => onEditorSettingsChange?.({ queryResultLimit: parseInt(e.target.value) })}
                                             >
                                                 <option value={100}>100 rows</option>
                                                 <option value={500}>500 rows</option>
-                                                <option value={1000}>1000 rows</option>
-                                                <option value={5000}>5000 rows</option>
+                                                <option value={1000}>1,000 rows</option>
+                                                <option value={5000}>5,000 rows</option>
+                                                <option value={10000}>10,000 rows</option>
+                                                <option value={50000}>50,000 rows</option>
                                             </select>
                                         </div>
                                     </div>

@@ -328,6 +328,8 @@ const EditorPane = ({
                             initialChartConfig={activeTab.initialChartConfig}
                             editorSettings={editorSettings}
                             onPopout={handlePopout}
+                            truncated={activeTab.results.truncated}
+                            rowLimit={activeTab.results.rowLimit}
                         />
                     )}
 

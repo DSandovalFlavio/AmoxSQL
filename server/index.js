@@ -160,6 +160,15 @@ app.get('/api/db/location', (req, res) => {
     res.json({ path: dbManager.getCurrentPath() });
 });
 
+app.get('/api/db/version', async (req, res) => {
+    try {
+        const rows = await dbManager.systemQuery('SELECT version() as version');
+        res.json({ version: rows[0]?.version || 'N/A' });
+    } catch (e) {
+        res.json({ version: 'N/A' });
+    }
+});
+
 app.get('/api/db/tables', async (req, res) => {
     try {
         const tables = await dbManager.systemQuery(
@@ -183,27 +192,37 @@ app.get('/api/db/tables', async (req, res) => {
 // Schema-aware endpoint: returns hierarchy { schema → tables → columns }
 app.get('/api/db/schemas', async (req, res) => {
     try {
-        const tables = await dbManager.systemQuery(
-            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+        // Single JOIN query instead of N+1 per-table queries
+        const rows = await dbManager.systemQuery(
+            `SELECT t.table_schema, t.table_name, t.table_type,
+                    c.column_name, c.data_type
+             FROM information_schema.tables t
+             LEFT JOIN information_schema.columns c
+                    ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+             WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}
+             ORDER BY t.table_schema, t.table_name, c.ordinal_position`
         );
 
-        // Group by schema
         const schemaMap = {};
-        for (const t of tables) {
-            if (!schemaMap[t.table_schema]) {
-                schemaMap[t.table_schema] = { schema: t.table_schema, tables: [] };
+        for (const row of rows) {
+            if (!schemaMap[row.table_schema]) {
+                schemaMap[row.table_schema] = { schema: row.table_schema, tables: {} };
             }
-            const columns = await dbManager.systemQuery(
-                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}' ORDER BY ordinal_position`
-            );
-            schemaMap[t.table_schema].tables.push({
-                name: t.table_name,
-                type: t.table_type,
-                columns,
-            });
+            const tables = schemaMap[row.table_schema].tables;
+            if (!tables[row.table_name]) {
+                tables[row.table_name] = { name: row.table_name, type: row.table_type, columns: [] };
+            }
+            if (row.column_name) {
+                tables[row.table_name].columns.push({ column_name: row.column_name, data_type: row.data_type });
+            }
         }
 
-        res.json(Object.values(schemaMap));
+        const result = Object.values(schemaMap).map(s => ({
+            schema: s.schema,
+            tables: Object.values(s.tables),
+        }));
+
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch schemas', details: err.message });
     }
@@ -212,19 +231,42 @@ app.get('/api/db/schemas', async (req, res) => {
 // ER Diagram schema — enriched with constraints
 app.get('/api/db/er-schema', async (req, res) => {
     try {
-        // 1. Get all user tables (all schemas, excluding internal)
-        const tables = await dbManager.systemQuery(
-            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+        // 1. Get tables + columns in a single JOIN query
+        const rows = await dbManager.systemQuery(
+            `SELECT t.table_schema, t.table_name, t.table_type,
+                    c.column_name, c.data_type, c.is_nullable, c.column_default
+             FROM information_schema.tables t
+             LEFT JOIN information_schema.columns c
+                    ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+             WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}
+             ORDER BY t.table_schema, t.table_name, c.ordinal_position`
         );
 
-        const result = [];
-        for (const t of tables) {
-            // 2. Columns for each table
-            const columns = await dbManager.systemQuery(
-                `SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}' ORDER BY ordinal_position`
-            );
+        // Build table map from flat rows
+        const tableMap = {};
+        for (const row of rows) {
+            const key = `${row.table_schema}.${row.table_name}`;
+            if (!tableMap[key]) {
+                tableMap[key] = {
+                    name: row.table_name,
+                    schema: row.table_schema,
+                    type: row.table_type,
+                    columns: [],
+                };
+            }
+            if (row.column_name) {
+                tableMap[key].columns.push({
+                    column_name: row.column_name,
+                    data_type: row.data_type,
+                    is_nullable: row.is_nullable,
+                    column_default: row.column_default,
+                });
+            }
+        }
 
-            // 3. Constraints (PK, FK, UNIQUE)
+        // 2. Constraints per table (PK/FK — optional, DuckDB support varies)
+        const result = [];
+        for (const entry of Object.values(tableMap)) {
             let constraints = [];
             try {
                 constraints = await dbManager.systemQuery(
@@ -232,9 +274,9 @@ app.get('/api/db/er-schema', async (req, res) => {
                      FROM information_schema.table_constraints tc
                      JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
                      LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name AND ccu.table_name != tc.table_name
-                     WHERE tc.table_name = '${t.table_name}' AND tc.table_schema = '${t.table_schema}'`
+                     WHERE tc.table_name = '${entry.name}' AND tc.table_schema = '${entry.schema}'`
                 );
-            } catch (e) { /* constraints not available */ }
+            } catch (e) { /* constraints not available in this DuckDB version */ }
 
             const pkColumns = new Set(constraints.filter(c => c.constraint_type === 'PRIMARY KEY').map(c => c.column_name));
             const fkMap = {};
@@ -243,10 +285,10 @@ app.get('/api/db/er-schema', async (req, res) => {
             }
 
             result.push({
-                name: t.table_name,
-                schema: t.table_schema,
-                type: t.table_type,
-                columns: columns.map(c => ({
+                name: entry.name,
+                schema: entry.schema,
+                type: entry.type,
+                columns: entry.columns.map(c => ({
                     name: c.column_name,
                     type: c.data_type,
                     nullable: c.is_nullable === 'YES',
@@ -1560,19 +1602,51 @@ app.get('/api/folders', (req, res) => {
     }
 });
 
+/** Wraps a SELECT/WITH query with LIMIT N to cap result rows.
+ *  DDL, DML, and queries already containing a top-level LIMIT pass through unchanged. */
+function applyRowLimit(sql, limit) {
+    if (!limit || limit <= 0) return { sql, limited: false };
+    const stripped = sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+    const upper = stripped.toUpperCase();
+    if (!upper.startsWith('SELECT') && !upper.startsWith('WITH')) return { sql, limited: false };
+    return {
+        sql: `SELECT * FROM (\n${sql}\n) __amox_rows LIMIT ${limit + 1}`,
+        limited: true,
+        limit,
+    };
+}
+
 app.post('/api/query', async (req, res) => {
-    const { query, queryId } = req.body;
+    const { query, queryId, limit } = req.body;
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
     }
 
+    const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, limit);
+
     const qid = queryId || require('crypto').randomUUID();
     activeQueries.set(qid, { interrupt: () => dbManager.interruptQuery() });
 
+    // If the client disconnects (AbortController / network drop), interrupt DuckDB
+    req.on('close', () => {
+        if (activeQueries.has(qid)) {
+            dbManager.interruptQuery();
+            activeQueries.delete(qid);
+        }
+    });
+
     try {
         const start = performance.now();
-        const result = await dbManager.queryWithMetadata(query);
+        const result = await dbManager.queryWithMetadata(limitedSql);
         const end = performance.now();
+
+        // Detect truncation: we fetched limit+1 rows, if we got them all it means there are more
+        let rows = result.rows;
+        let truncated = false;
+        if (limited && rows.length > rowLimit) {
+            rows = rows.slice(0, rowLimit);
+            truncated = true;
+        }
 
         // Invalidate table context cache if query may have changed schema
         const upperQuery = query.toUpperCase().trim();
@@ -1583,10 +1657,12 @@ app.post('/api/query', async (req, res) => {
         }
 
         res.json({
-            data: result.rows,
+            data: rows,
             types: result.types,
             executionTime: (end - start).toFixed(2),
-            rowCount: result.rows.length,
+            rowCount: rows.length,
+            truncated,
+            rowLimit: limited ? rowLimit : null,
             queryId: qid
         });
     } catch (err) {

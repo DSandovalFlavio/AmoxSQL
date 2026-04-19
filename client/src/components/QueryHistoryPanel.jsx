@@ -1,4 +1,4 @@
-import { useState, useEffect, useDeferredValue } from 'react';
+import { useState, useEffect, memo, useDeferredValue } from 'react';
 import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuX } from 'react-icons/lu';
 
 /**
@@ -85,10 +85,14 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
         return d.toLocaleDateString();
     };
 
+    const VISIBLE_LIMIT = 150;
     const q = deferredSearch.toLowerCase();
-    const activeList = viewTab === 'history'
+    const filteredList = viewTab === 'history'
         ? history.filter(h => h.query.toLowerCase().includes(q))
         : bookmarks.filter(b => b.query.toLowerCase().includes(q));
+    // Limit rendered DOM nodes when not searching — prevents layout/paint spike on show
+    const activeList = q ? filteredList : filteredList.slice(0, VISIBLE_LIMIT);
+    const hiddenCount = q ? 0 : Math.max(0, filteredList.length - VISIBLE_LIMIT);
 
 
     const handleCopy = (text, e) => {
@@ -264,6 +268,13 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
 
                 {/* Flat bookmarks view */}
                 {viewTab === 'bookmarks' && activeList.map((item, idx) => renderQueryItem(item, idx))}
+
+                {/* Hidden items note */}
+                {hiddenCount > 0 && (
+                    <div style={{ padding: '8px 14px', textAlign: 'center', fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                        +{hiddenCount} more — use search to find older queries
+                    </div>
+                )}
             </div>
 
             {/* Footer */}
@@ -277,4 +288,4 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
     );
 };
 
-export default QueryHistoryPanel;
+export default memo(QueryHistoryPanel);

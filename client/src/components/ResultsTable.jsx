@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useDeferredValue, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
 import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
@@ -8,7 +8,7 @@ import DataProfiler from './DataProfiler';
 import ExportDataModal from './ExportDataModal';
 import { useToast } from './ToastProvider';
 
-const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null }) => {
+const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null }) => {
     const toast = useToast();
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
@@ -50,6 +50,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     // --- Column Resizing State ---
     const [columnWidths, setColumnWidths] = useState({}); // { [colName]: widthInPx }
     const [resizeState, setResizeState] = useState({ isResizing: false, column: null, startX: 0, startWidth: 0 });
+    const resizeRafRef = useRef(null);
 
     // --- Column Resizing Logic ---
     const handleResizeMouseDown = (e, col) => {
@@ -68,14 +69,15 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
             if (!resizeState.isResizing) return;
             const deltaX = e.clientX - resizeState.startX;
             const newWidth = Math.max(50, resizeState.startWidth + deltaX);
-            setColumnWidths(prev => ({
-                ...prev,
-                [resizeState.column]: newWidth
-            }));
+            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current);
+            resizeRafRef.current = requestAnimationFrame(() => {
+                setColumnWidths(prev => ({ ...prev, [resizeState.column]: newWidth }));
+            });
         };
 
         const handleMouseUp = () => {
             if (resizeState.isResizing) {
+                if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current);
                 setResizeState({ isResizing: false, column: null, startX: 0, startWidth: 0 });
             }
         };
@@ -95,6 +97,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
+            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current);
             document.body.style.userSelect = '';
             document.body.style.cursor = '';
         };
@@ -400,6 +403,12 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             <span className="rt-stats">
                                 {totalRows} result{totalRows !== 1 ? 's' : ''} ({executionTime}ms)
                                 {data.length !== totalRows && ` [Filtered from ${data.length}]`}
+                                {truncated && (
+                                    <span style={{ marginLeft: 8, color: 'var(--feedback-warning)', fontWeight: 500 }}
+                                          title={`Result capped at ${rowLimit?.toLocaleString()} rows. Adjust "Max Rows" in Settings → Editor, or use LIMIT in your query, or Export for full data.`}>
+                                        ⚠ first {rowLimit?.toLocaleString()} rows shown
+                                    </span>
+                                )}
                             </span>
                         </div>
 
@@ -688,4 +697,4 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     );
 }
 
-export default ResultsTable;
+export default memo(ResultsTable);
