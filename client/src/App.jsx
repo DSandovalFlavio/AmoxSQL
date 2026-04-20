@@ -181,6 +181,8 @@ function App() {
     cursorBlinking: 'blink',
     formatOnSave: false,
     formatOnPaste: false,
+    markdownDefaultView: 'edit',
+    markdownToolbarVisible: true,
     showWelcomeOnStart: true,
     confirmBeforeDrop: true,
     queryResultLimit: 10000,

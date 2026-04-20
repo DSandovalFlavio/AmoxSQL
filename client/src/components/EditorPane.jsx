@@ -7,6 +7,7 @@ import ResultsTable from './ResultsTable';
 import { VariablesToggle, VariablesPanel } from './VariablesBar';
 import ErDiagram from './ErDiagram';
 import AmoxvisPane from './AmoxvisPane';
+import MarkdownEditor from './MarkdownEditor';
 
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
@@ -287,6 +288,7 @@ const EditorPane = ({
     const isErDiagram = activeTab.type === 'er-diagram';
     const isDataDiving = activeTab.type === 'datadiving';
     const isAmoxvis = activeTab.type === 'amoxvis';
+    const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
 
     // Track last edit time on content change
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -430,6 +432,21 @@ const EditorPane = ({
                                 onSave={onSave}
                             />
                         </Suspense>
+                    </div>
+                ) : isMarkdown ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <MarkdownEditor
+                            key={activeTab.id}
+                            content={activeTab.content}
+                            onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                            onSave={onSave}
+                            onRequestSaveAs={onRequestSaveAs}
+                            theme={theme}
+                            editorSettings={editorSettings}
+                            onToggleAi={onToggleAi}
+                            showAiSidebar={showAiSidebar}
+                            isActive={isActive}
+                        />
                     </div>
                 ) : isNotebook ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>

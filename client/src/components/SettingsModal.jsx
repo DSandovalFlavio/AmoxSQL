@@ -761,6 +761,38 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         )}
                                     </div>
                                 </div>
+                                <hr className="stg-divider" />
+                                {/* Markdown Editor */}
+                                <div>
+                                    <h3 className="stg-section-title">Markdown Editor</h3>
+                                    <div className="stg-group stg-group--mt14">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Default View Mode</span>
+                                                <p className="stg-row-desc">Starting view when opening a .md file</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w200"
+                                                value={editorSettings.markdownDefaultView || 'edit'}
+                                                onChange={(e) => onEditorSettingsChange?.({ markdownDefaultView: e.target.value })}
+                                            >
+                                                <option value="edit">Edit only</option>
+                                                <option value="split">Split (Edit + Preview)</option>
+                                                <option value="preview">Preview only</option>
+                                            </select>
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Show Formatting Toolbar</span>
+                                                <p className="stg-row-desc">Display the markdown formatting toolbar in .md files</p>
+                                            </div>
+                                            <Toggle
+                                                on={editorSettings.markdownToolbarVisible ?? true}
+                                                onChange={() => onEditorSettingsChange?.({ markdownToolbarVisible: !(editorSettings.markdownToolbarVisible ?? true) })}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
