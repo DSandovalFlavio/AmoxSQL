@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import {
     LuBold, LuItalic, LuStrikethrough, LuCode, LuQuote, LuList,
     LuListOrdered, LuListTodo, LuLink, LuTable, LuMinus, LuSave,
-    LuChevronDown, LuBot, LuX, LuEdit2, LuEye, LuColumns2, LuType,
+    LuChevronDown, LuBot, LuX, LuPencilLine, LuEye, LuColumns2, LuType,
     LuFileCode2,
 } from 'react-icons/lu';
 import './MarkdownEditor.css';
@@ -61,7 +61,7 @@ function removeHeadings(editor) {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const VIEW_MODES = [
-    { id: 'edit', Icon: LuEdit2, title: 'Edit only' },
+    { id: 'edit', Icon: LuPencilLine, title: 'Edit only' },
     { id: 'split', Icon: LuColumns2, title: 'Split view' },
     { id: 'preview', Icon: LuEye, title: 'Preview only' },
 ];
