@@ -4,6 +4,7 @@ import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import ConversationList from './ConversationList';
 import SessionInventory from './SessionInventory';
+import AgentPlanPanel from './AgentPlanPanel';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
@@ -68,6 +69,12 @@ const AiDivingPanel = ({
         handleNewConversation,
         handleSelectConversation,
         handleCancel,
+
+        // Agentic plan state
+        planState,
+        planIteration,
+        planMaxIterations,
+        pendingAskUser, setPendingAskUser,
     } = useAiChat({ mode: 'diving' });
 
     // ─── Session Name ───
@@ -116,6 +123,9 @@ const AiDivingPanel = ({
     }, [conversationId]);
 
     // ─── Auto-create artifacts for build_notebook, display_chart, and save_to_vault ───
+    // Track processed tool calls so we don't re-open files on every messages update
+    const processedArtifactsRef = useRef(new Set());
+
     useEffect(() => {
         if (!conversationId || messages.length === 0) return;
         const lastMsg = messages[messages.length - 1];
@@ -123,25 +133,31 @@ const AiDivingPanel = ({
 
         for (const tc of lastMsg.toolCalls) {
             if (tc.toolName === 'build_notebook' && tc.result && !tc.result.error) {
-                (async () => {
-                    try {
-                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                type: 'notebook',
-                                name: tc.result.fileName || tc.result.name || 'Analysis Notebook',
-                                data: tc.result,
-                            }),
-                        });
-                    } catch (err) {
-                        console.error('Failed to auto-create notebook artifact:', err);
+                const artifactKey = `notebook:${tc.result.path || tc.result.fileName}`;
+                const isNew = !processedArtifactsRef.current.has(artifactKey);
+                processedArtifactsRef.current.add(artifactKey);
+
+                if (isNew) {
+                    (async () => {
+                        try {
+                            await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    type: 'notebook',
+                                    name: tc.result.fileName || tc.result.name || 'Analysis Notebook',
+                                    data: tc.result,
+                                }),
+                            });
+                        } catch (err) {
+                            console.error('Failed to auto-create notebook artifact:', err);
+                        }
+                    })();
+                    // Refresh FileExplorer and auto-open only on first detection
+                    window.dispatchEvent(new Event('amox_files_changed'));
+                    if (onOpenFile && tc.result.path) {
+                        onOpenFile(tc.result.path);
                     }
-                })();
-                // Refresh FileExplorer and auto-open
-                window.dispatchEvent(new Event('amox_files_changed'));
-                if (onOpenFile && tc.result.path) {
-                    onOpenFile(tc.result.path);
                 }
             }
 
@@ -211,7 +227,7 @@ const AiDivingPanel = ({
 
             {messages.map((msg, i) => (
                 <ChatMessage
-                    key={i}
+                    key={msg.id || i}
                     role={msg.role}
                     content={msg.content}
                     toolCalls={msg.toolCalls}
@@ -219,7 +235,7 @@ const AiDivingPanel = ({
                     isDiving={true}
                     isStreaming={false}
                     onRunSql={onRunSql}
-                    onFollowUp={(text) => handleSend(text)}
+                    onFollowUp={handleSend}
                     onExportNotebook={onExportNotebook}
                     onOpenFile={onOpenFile}
                 />
@@ -413,7 +429,7 @@ const AiDivingPanel = ({
                 )}
             </div>
 
-            {/* ─── Right column: Session Inventory ─── */}
+            {/* ─── Right column: Session Inventory (contains Agent Plan when active) ─── */}
             {status === 'READY' && (
                 <SessionInventory
                     contextObjects={contextObjects}
@@ -428,7 +444,40 @@ const AiDivingPanel = ({
                     onOpenFile={onOpenFile}
                     sessionName={sessionName}
                     onUpdateSessionName={handleUpdateSessionName}
-                />
+                >
+                    {/* Agent Plan panel — visible only when a plan is active */}
+                    <AgentPlanPanel
+                        planState={planState}
+                        isGenerating={isGenerating}
+                        iteration={planIteration}
+                        maxIterations={planMaxIterations}
+                    />
+
+                    {/* Ask-user banner — shown when agent pauses for input */}
+                    {pendingAskUser && (
+                        <div className="ai-ask-user-banner">
+                            <p className="ai-ask-user-question">{pendingAskUser.question}</p>
+                            {pendingAskUser.options.length > 0 ? (
+                                <div className="ai-ask-user-options">
+                                    {pendingAskUser.options.map((opt, i) => (
+                                        <button
+                                            key={i}
+                                            className="ai-ask-user-option"
+                                            onClick={() => {
+                                                setPendingAskUser(null);
+                                                handleSend(opt);
+                                            }}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="ai-ask-user-hint">Type your answer in the chat input.</p>
+                            )}
+                        </div>
+                    )}
+                </SessionInventory>
             )}
 
             <AlertDialog

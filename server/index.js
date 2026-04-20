@@ -555,14 +555,17 @@ app.get('/api/settings/config', (req, res) => {
 });
 
 app.post('/api/settings/config', (req, res) => {
-    const { geminiApiKey, provider, defaultModel, s3Config, gcsConfig } = req.body;
+    const { geminiApiKey, provider, defaultModel, s3Config, gcsConfig, experimental } = req.body;
     try {
         const config = aiManager.getConfig();
-        if (geminiApiKey !== undefined) config.geminiApiKey = geminiApiKey;
-        if (provider !== undefined) config.provider = provider;
-        if (defaultModel !== undefined) config.defaultModel = defaultModel;
-        if (s3Config !== undefined) config.s3Config = s3Config;
-        if (gcsConfig !== undefined) config.gcsConfig = gcsConfig;
+        if (geminiApiKey  !== undefined) config.geminiApiKey  = geminiApiKey;
+        if (provider      !== undefined) config.provider      = provider;
+        if (defaultModel  !== undefined) config.defaultModel  = defaultModel;
+        if (s3Config      !== undefined) config.s3Config      = s3Config;
+        if (gcsConfig     !== undefined) config.gcsConfig     = gcsConfig;
+        if (experimental  !== undefined) {
+            config.experimental = { ...config.experimental, ...experimental };
+        }
 
         fs.writeFileSync(aiManager.configPath, JSON.stringify(config, null, 2));
         res.json({ success: true, config });
@@ -885,7 +888,7 @@ app.post('/api/ai/chat', async (req, res) => {
 const { getModelProfile: getModelProfileForRoute } = require('./ai/modelProfiles');
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -925,20 +928,39 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
+            conversationId: conversationId || null,
         };
 
         // Detect model tier to choose between tool-loop and prompt-only
-        const resolvedModel = model || aiManager.modelName;
+        const resolvedModel    = model    || aiManager.modelName;
         const resolvedProvider = provider || aiManager.provider;
         const profile = getModelProfileForRoute(resolvedModel, resolvedProvider);
+
+        // Check experimental planner flag
+        const appConfig     = aiManager.getConfig();
+        const plannerActive = !!(appConfig.experimental?.planner) &&
+                              (mode || 'diving') === 'diving' &&
+                              profile.tier !== 'low';
 
         if (profile.tier === 'low') {
             // ── Prompt-Only Mode for low-tier models ──
             console.log(`[API] Using prompt-only mode for ${resolvedModel} (tier: low)`);
 
             for await (const event of aiManager.promptOnlyStreamChat(chatOptions)) {
+                if (res.closed) break;
+                res.write(`data: ${JSON.stringify(event)}\n\n`);
+            }
+
+            res.write(`data: [DONE]\n\n`);
+            res.end();
+
+        } else if (plannerActive) {
+            // ── Agentic Loop (experimental.planner=true, diving mode) ──
+            console.log(`[API] Using agentic loop for ${resolvedModel} (tier: ${profile.tier})`);
+
+            for await (const event of aiManager.streamChatAgentic(chatOptions)) {
                 if (res.closed) {
-                    console.log('[AI PromptOnly] Client disconnected, stopping.');
+                    console.log('[AI AgenticLoop] Client disconnected, stopping.');
                     break;
                 }
                 res.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -946,6 +968,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
 
             res.write(`data: [DONE]\n\n`);
             res.end();
+
         } else {
             // ── Standard Tool-Loop Mode for medium+ tiers ──
             const result = await aiManager.streamChat(chatOptions);
@@ -959,19 +982,16 @@ app.post('/api/ai/chat/stream', async (req, res) => {
                 if (part.type === 'text-delta') {
                     res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.textDelta || part.text })}\n\n`);
                 } else if (part.type === 'tool-call') {
-                    // AI SDK v6 uses `input` instead of `args` for tool-call parts
                     const toolArgs = part.input ?? part.args ?? {};
                     res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: toolArgs, toolCallId: part.toolCallId })}\n\n`);
                 } else if (part.type === 'tool-result') {
-                    // AI SDK v6 uses `output` instead of `result`, and `input` instead of `args`
                     const toolResult = part.output ?? part.result ?? { error: 'Tool returned no result' };
-                    const toolArgs = part.input ?? part.args ?? {};
+                    const toolArgs   = part.input  ?? part.args  ?? {};
                     if (toolResult.error) {
                         console.error(`[AI Tool Error] ${part.toolName}:`, toolResult.error);
                     }
                     res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: toolResult, args: toolArgs })}\n\n`);
                 } else if (part.type === 'tool-error') {
-                    // AI SDK v6 emits tool-error when a tool throws an unhandled exception
                     const errorMsg = part.error?.message || String(part.error || 'Unknown tool error');
                     const toolArgs = part.input ?? part.args ?? {};
                     console.error(`[AI Tool Error] ${part.toolName}: ${errorMsg}`);
@@ -1298,9 +1318,15 @@ app.get('/api/ai/sessions/:id/artifacts', async (req, res) => {
  */
 app.post('/api/ai/sessions/:id/artifacts', async (req, res) => {
     try {
+        // Accept both legacy field names and the client's shorthand (type/name/data)
+        const { type, name, data, artifactType, filePath, fileName, ...rest } = req.body;
         const artifact = await aiPersistence.createArtifact(dbManager, {
             conversationId: req.params.id,
-            ...req.body,
+            artifactType:   artifactType || type,
+            fileName:       fileName     || name,
+            filePath:       filePath     || data?.path  || null,
+            metadata:       rest.metadata || data || null,
+            ...rest,
         });
         res.json(artifact);
     } catch (err) {
