@@ -1,11 +1,23 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # AmoxSQL — Project Guide
 
 ## Overview
 **AmoxSQL** is a desktop SQL IDE for local data analysis, built with Electron + React + Express + DuckDB.
-- **Version**: 1.9.5
+- **Version**: 2.0.1
 - **Author**: Flavio Sandoval (@dsandovalflavio)
 - **License**: AmoxSQL Community License (Source Available)
 - **Tagline**: "The Modern Codex for Local Data Analysis"
+
+## Runtime Topology (big picture)
+Three processes cooperate at runtime:
+1. **Electron main** ([electron/main.js](electron/main.js)) — owns the BrowserWindow, holds the single-instance lock, handles native dialogs / window controls via `ipcMain`, and **spawns the Express server as a `utilityProcess`** on port 3001.
+2. **Express server** ([server/index.js](server/index.js)) — all REST endpoints + DuckDB connection. The renderer talks to it over HTTP, not IPC.
+3. **Renderer (React)** — in dev, loaded from Vite on `http://localhost:5173`; in prod, from `client/dist/`. The preload bridge ([electron/preload.js](electron/preload.js)) exposes only a narrow `window.electronAPI` for dialogs, shell-open, and window controls. Data calls go directly to `http://localhost:3001`.
+
+When debugging "it works in dev but not in the built app," check (a) Vite dev server vs `client/dist` loading in `main.js`, and (b) whether the utility process spawned the server — server stdout is piped through main.
 
 ## Architecture
 
@@ -38,11 +50,15 @@ Electron Shell
 
 ## Key Commands
 ```bash
-npm start              # Dev: Vite + Electron concurrently
-npm run client:dev     # Frontend only (port 5173)
-npm run client:build   # Production build
-npm run dist           # Build executable (electron-builder)
+npm start              # Dev: concurrently runs Vite, waits on :5173, then launches Electron
+npm run client:dev     # Frontend only (Vite on port 5173)
+npm run client:build   # Production build → client/dist/
+npm run dist           # client:build + electron-builder (NSIS installer, Windows)
 ```
+
+**No test, lint, or typecheck scripts exist** in `package.json` — don't claim to have run them. If you change code, verify by running the app and exercising the affected UI path.
+
+The `postinstall` hook runs `electron-builder install-app-deps` to rebuild native modules (notably `@duckdb/node-api`) against Electron's Node ABI. If DuckDB fails to load after `npm install`, re-run `npm run postinstall`.
 
 ## Project Structure — Key Files
 
@@ -68,12 +84,19 @@ npm run dist           # Build executable (electron-builder)
 - `index.js` (88KB) — All REST endpoints
 - `DatabaseManager.js` (10KB) — DuckDB connection lifecycle
 - `AiManager.js` (14KB) — Ollama/Gemini provider management
+- `ai/agenticLoop.js` — Main tool-calling loop (drives multi-step AI turns)
 - `ai/tools.js` — AI tool definitions (execute_sql, list_tables, describe_table, display_chart, suggest_followups)
 - `ai/systemPrompt.js` — Dynamic prompt builder with schema context
-- `ai/persistence.js` — Conversation storage in DuckDB
-- `ai/memory.js` — Cross-conversation memory extraction
+- `ai/skills.js` — Skill definitions invoked by the agent
+- `ai/modelProfiles.js` — Per-model capability / parameter profiles (Ollama + Gemini)
+- `ai/promptOnlyMode.js` — Fallback path when the active model can't do tool-calling
+- `ai/profiling.js` — Table/column profiling used as AI context
 - `ai/compaction.js` — Context window token management
-- `ai/userRules.js` — RULES.md loader for custom AI behavior
+- `ai/persistence.js` — Conversation storage in DuckDB (`amoxsql_ai` schema)
+- `ai/memory.js` — Cross-conversation memory extraction
+- `ai/userRules.js` — `RULES.md` loader for custom per-project AI behavior
+- `ai/testRunner.js` — Local test harness for AI flows
+- `ai/_sqlHelpers.js` — Shared SQL utilities for tools
 
 ### Utilities
 - `client/src/utils/notebookParser.js` — Parse/serialize .sqlnb files (JSON v2.0 + legacy marker format)
@@ -111,3 +134,5 @@ npm run dist           # Build executable (electron-builder)
 - DuckDB query history auto-tracked in `amox_query_history` table
 - AI conversations persisted in `amoxsql_ai` schema within DuckDB
 - Config stored at `~/.amoxsql/config.json`
+- **Desktop-native mindset**: DuckDB is local and fast — do not reason about network latency, loading spinners, or caching like a web app. Call queries directly.
+- **Do NOT introduce list/table virtualization** (e.g. `@tanstack/react-virtual`). Prior attempts hurt performance in this app; `ResultsTable` paginates instead.
