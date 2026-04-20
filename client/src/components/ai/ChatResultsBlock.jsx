@@ -1,8 +1,35 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, Component } from 'react';
 import { LuMaximize2, LuDownload, LuFileJson } from 'react-icons/lu';
 import ChartRenderer from '../DataVisualizer/renderers/ChartRenderer';
 import { processChartData, isDateColumn } from '../DataVisualizer/utils/dataProcessing';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';
+
+/**
+ * Catches Recharts' internal infinite-update crash (LegendSizeDispatcher bug in v3.x)
+ * so a single broken chart doesn't take down the whole chat UI.
+ */
+class ChartErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { crashed: false };
+    }
+    static getDerivedStateFromError() {
+        return { crashed: true };
+    }
+    componentDidCatch(err) {
+        console.warn('[ChartErrorBoundary] Recharts error caught:', err?.message || err);
+    }
+    render() {
+        if (this.state.crashed) {
+            return (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                    Chart unavailable — try expanding the view.
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 /**
  * ChatResultsBlock — Renders an inline chart visualization for the AI chat.
@@ -139,15 +166,17 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
 
             {/* Chart Area */}
             <div className={`ai-chart-area${isExpandedMode ? ' ai-chart-area--expanded' : ''}`}>
-                <ChartRenderer
-                    config={fullConfig}
-                    processedData={processedData}
-                    finalSeriesKeys={finalSeriesKeys}
-                    activeColors={activeColors}
-                    columns={columns}
-                    isDateColumn={isDateCol}
-                    textScale={isExpandedMode ? 1 : 0.8}
-                />
+                <ChartErrorBoundary>
+                    <ChartRenderer
+                        config={fullConfig}
+                        processedData={processedData}
+                        finalSeriesKeys={finalSeriesKeys}
+                        activeColors={activeColors}
+                        columns={columns}
+                        isDateColumn={isDateCol}
+                        textScale={isExpandedMode ? 1 : 0.8}
+                    />
+                </ChartErrorBoundary>
             </div>
 
             {/* Footer / Actions */}

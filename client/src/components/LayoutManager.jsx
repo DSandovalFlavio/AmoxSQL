@@ -377,7 +377,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             : (type === 'chain' || type === 'sqlchain') ? 'sqlchain'
             : type;
         const newTab = {
-            id: Date.now().toString(),
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
             path: '',
             name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb'
                 : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
@@ -455,7 +455,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     );
                 }
                 const newTab = {
-                    id: Date.now().toString(),
+                    id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
                     path: path,
                     name: path.split(/[/\\]/).pop(),
                     type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : 'sql'),
@@ -676,6 +676,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // --- handleQueryFile: Standalone function for DnD + imperative handle ---
     const handleQueryFile = async (filePath) => {
+        if (!filePath || typeof filePath !== 'string') {
+            console.warn('[handleQueryFile] Called with invalid path:', filePath);
+            return;
+        }
         const fileName = filePath.split(/[/\\]/).pop();
         const normalizedPath = filePath.replace(/\\/g, '/');
         const lowerName = fileName.toLowerCase();
