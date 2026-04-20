@@ -2,7 +2,7 @@
  * ChartRenderer — Renders the appropriate chart based on chartType.
  * Consolidates all Recharts rendering in one place with shared axis/grid/tooltip helpers.
  */
-import { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import {
     LineChart, Line, AreaChart, Area, BarChart, Bar, ComposedChart,
     PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis,
@@ -356,10 +356,38 @@ const ChartRenderer = memo(({
     const gridH = gridMode === 'both' || gridMode === 'horizontal';
     const gridV = gridMode === 'both' || gridMode === 'vertical';
 
+    // ── Dimension guard — prevent Recharts from entering broken -1 state ──
+    const containerRef = useRef(null);
+    const [hasSize, setHasSize] = useState(false);
+
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        if (el.offsetWidth > 0 && el.offsetHeight > 0) {
+            setHasSize(true);
+            return;
+        }
+        const ro = new ResizeObserver((entries) => {
+            const { width, height } = entries[0]?.contentRect ?? {};
+            if (width > 0 && height > 0) {
+                setHasSize(true);
+                ro.disconnect();
+            }
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
     // ── No data ──
     if (!processedData || processedData.length === 0) {
         return <div style={{ color: 'var(--text-muted)', padding: '20px', textAlign: 'center' }}>No data to display</div>;
     }
+
+    const wrapChart = (content) => (
+        <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', minWidth: 0 }}>
+            {hasSize ? content : null}
+        </div>
+    );
 
     try {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ LINE / AREA ━━━
@@ -368,7 +396,7 @@ const ChartRenderer = memo(({
             const SeriesComp = (chartType === 'area' || lineAreaFill) ? Area : Line;
             const isStacked = chartType === 'area';
 
-            return (
+            return wrapChart(
                 <ResponsiveContainer width="100%" height="100%">
                     <ChartComp data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={isHorizontal ? gridH : gridV} horizontal={isHorizontal ? gridV : gridH} />
@@ -445,7 +473,7 @@ const ChartRenderer = memo(({
             if (highlightConfig.type === 'max') hlVal = Math.max(...processedData.map(d => Number(d[pk]) || -Infinity));
             else if (highlightConfig.type === 'min') hlVal = Math.min(...processedData.map(d => Number(d[pk]) || Infinity));
 
-            return (
+            return wrapChart(
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                         layout={isHorizontal ? 'vertical' : 'horizontal'}
@@ -545,7 +573,7 @@ const ChartRenderer = memo(({
                 finalSeriesKeys.slice(1).forEach(k => lineKeys.add(k));
             }
 
-            return (
+            return wrapChart(
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridV} horizontal={gridH} />
@@ -592,7 +620,7 @@ const ChartRenderer = memo(({
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ SCATTER / BUBBLE ━━━
         if (chartType === 'scatter' || chartType === 'bubble') {
-            return (
+            return wrapChart(
                 <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridV} horizontal={gridH} />
@@ -658,7 +686,7 @@ const ChartRenderer = memo(({
                 else if (donutCenterKpi === 'average') { centerText = fmt(sum / donutData.length); centerSubtext = 'Average'; }
             }
 
-            return (
+            return wrapChart(
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         {donutCenterKpi !== 'none' && donutThickness > 30 && (
@@ -700,7 +728,7 @@ const ChartRenderer = memo(({
                 fill: seriesConfig[d[xAxisKey]]?.color || activeColors[i % activeColors.length],
             })).sort((a, b) => b.value - a.value);
 
-            return (
+            return wrapChart(
                 <ResponsiveContainer width="100%" height="100%">
                     <FunnelChart>
                         <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
@@ -756,7 +784,7 @@ const ChartRenderer = memo(({
 
             const cellSize = Math.max(24, Math.min(60, Math.floor(600 / Math.max(processedData.length, finalSeriesKeys.length))));
 
-            return (
+            return wrapChart(
                 <div style={{ width: '100%', height: '100%', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <table style={{ borderCollapse: 'collapse', fontSize: `${fontSize}px` }}>
                         <thead>
@@ -840,7 +868,7 @@ const ChartRenderer = memo(({
                 );
             };
 
-            return (
+            return wrapChart(
                 <ResponsiveContainer width="100%" height="100%">
                     <Treemap
                         data={treemapData}

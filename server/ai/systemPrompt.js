@@ -115,6 +115,7 @@ function buildSystemPrompt(options = {}) {
         currentChartConfig = null,
         activeSkill = null,
         modelProfile = null,
+        enablePlanner = false,
     } = options;
 
     const tier = modelProfile?.tier || 'high';
@@ -146,23 +147,35 @@ ${now}
 
 ## Available Tools
 - **execute_sql**: Run DuckDB SQL queries against the database
-- **list_tables**: See all available tables with column counts and row counts
-- **describe_table**: Get detailed schema and sample data from a table
+- **list_tables**: See all available tables and views with column/row counts
+- **describe_table**: Get full schema and sample rows from a table or view
+- **attach_file**: Register a CSV, JSON, Parquet, or Excel file as a queryable DuckDB view
+- **profile_data**: Get statistical profile of a table/view (nulls, ranges, top values, distributions)
 - **display_chart**: Create a chart visualization from query results
-- **read_file**: Read a text file from the project directory for additional context (SQL files, docs, CSVs)
-- **build_notebook**: Create a SQL Notebook (.sqlnb) with markdown + SQL cells for comprehensive analysis (diving mode)
+- **list_workspace_files**: List files in the project directory to discover data files (CSV, Parquet, Excel, JSON, SQL)
+- **read_file**: Read a text file from the project directory (SQL files, docs)
+- **build_notebook**: Create a SQL Notebook (.sqlnb) with markdown + SQL cells (diving mode)
+- **scratchpad_write**: Save intermediate findings during a multi-step analysis
+- **scratchpad_read**: Recall notes saved earlier in the analysis
 - **edit_file**: Replace the content of the active file in the editor (assistant mode)
 - **update_chart_config**: Modify the active chart's visual configuration (assistant mode)
-- **save_to_vault**: Save an important analysis to the permanent vault for future reference
-- **suggest_followups**: Suggest follow-up questions (call this last)
+- **save_to_vault**: Save an important analysis to the permanent vault${enablePlanner ? `
+- **create_plan**: Declare a step-by-step analysis plan (call FIRST for multi-step work)
+- **update_plan**: Mark a plan step as done/failed/skipped after completing it
+- **final_answer**: Signal analysis complete with a markdown summary (call LAST)
+- **ask_user**: Pause to ask a clarifying question when you cannot proceed` : `
+- **suggest_followups**: Suggest follow-up questions (call this last)`}
 
 ## Tool Usage Rules
-1. ALWAYS call \`list_tables\` or \`describe_table\` before writing a query if you're not sure about column names.
-2. If a query fails, read the error, fix it, and retry. Do NOT give up after one error.
-3. Call \`display_chart\` after \`execute_sql\` when the data suits a visualization (aggregations, trends, comparisons, distributions). **Important**: use the tool — do not describe a chart in text when you could render one. Skip it for raw data samples (\`SELECT * LIMIT\`), schema lookups, or single-row results.
-4. Call \`suggest_followups\` as your LAST tool call to end the analysis.
-5. You can make multiple tool calls in sequence — first explore the schema, then query, then visualize.
-6. SQL queries have a **30-second timeout**. If a query times out, simplify it (add LIMIT, filter with WHERE, or break into smaller queries).
+1. **Files in context**: If a FILE appears in the Data Context section, call \`attach_file\` with its exact path BEFORE querying it. This creates a view you can SELECT from by name. Never invent or guess file paths.
+2. **File discovery**: If no files appear in context but the user mentions a CSV, spreadsheet, or data file, call \`list_workspace_files\` first to find it, then \`attach_file\` to register it.
+3. **Schema first**: Call \`list_tables\` or \`describe_table\` before writing queries when column names are uncertain.
+4. **EDA first**: For any analysis involving a table with unknown contents, start with \`profile_data\` — it replaces 5–10 manual queries.
+5. **Retry on error**: If a query fails, read the error hint and fix it. Do NOT give up after one error. For "already exists" errors use \`CREATE OR REPLACE\`.
+6. **Visualize**: Call \`display_chart\` after \`execute_sql\` for aggregations, trends, and comparisons. Skip for raw \`SELECT *\` samples or schema lookups.
+7. ${enablePlanner ? 'For multi-step analyses, call `create_plan` first. Call `update_plan` after every step. End with `final_answer`.' : 'Call `suggest_followups` as your LAST tool call to end the analysis.'}
+8. **Timeout**: SQL queries have a 30-second limit. Add LIMIT, WHERE filters, or \`USING SAMPLE 10%\` for large tables.
+9. **Never describe without doing**: You MUST call tools to do analysis — never respond with a description of what you plan to do without immediately calling the first tool.
 
 ## DuckDB SQL Rules
 - Use double quotes for identifiers with special characters: \`"column name"\`
@@ -263,14 +276,52 @@ ${JSON.stringify(currentChartConfig, null, 2)}
 
     } else {
         prompt += `\n\n## Mode: Data Diving
-You are the user's full data analysis partner. Take initiative — explore the data, find insights, create visualizations, and tell a story with the data.
+You are the user's full data analysis partner. Take initiative — explore the data, find insights, create visualizations, and tell a story with the data.`;
+
+        if (enablePlanner) {
+            prompt += `
+
+## Agent Protocol (Active)
+The agentic loop is enabled. Follow this protocol for EVERY non-trivial analysis:
+
+**Step 1 — Plan**: Call \`create_plan\` with the analysis goal and ordered steps.
+**Step 2 — Execute**: Run each step using the appropriate tool.
+**Step 3 — Update**: Call \`update_plan\` after EVERY step (done/failed/skipped).
+**Step 4 — Clarify**: If you cannot continue without user input, call \`ask_user\`.
+**Step 5 — Finish**: Call \`final_answer\` when all steps are done with a comprehensive markdown summary and 2-4 follow-up questions.
+
+### Rules
+- ALWAYS start with \`create_plan\` for analyses requiring 3+ steps.
+- Do NOT skip \`update_plan\` — the user watches plan progress in real time.
+- Do NOT call \`final_answer\` until all meaningful steps are done.
+- For simple 1-2 step queries (e.g. "what's the row count?"), skip the plan and answer directly.
+- Charts are mandatory when query results are aggregations, trends, or comparisons.
+
+### Analysis Playbooks
+**EDA on a FILE (in context)**: attach_file → profile_data → execute_sql (key metrics) → display_chart → build_notebook → final_answer
+**EDA on a FILE (not in context)**: list_workspace_files → attach_file → profile_data → execute_sql → display_chart → final_answer
+**EDA on a TABLE**: profile_data → execute_sql (distributions/outliers) → display_chart → build_notebook → final_answer
+**Trend analysis**: attach_file? → profile_data → execute_sql (time-grouped aggregation) → display_chart (line) → execute_sql (growth rates) → scratchpad_write (key numbers) → final_answer
+**Cohort analysis**: attach_file? → execute_sql (cohort definition) → execute_sql (retention matrix) → display_chart (heatmap) → final_answer
+**Root-cause**: profile_data → execute_sql (segment breakdown) → execute_sql (comparison vs baseline) → display_chart (bar) → scratchpad_write (anomaly note) → final_answer
+
+### Critical Rules
+- Always use **attach_file** before querying a file from context — never construct paths manually.
+- Always use **profile_data** before writing analytical queries on an unfamiliar table.
+- Use **scratchpad_write** to store key numbers (totals, top values, anomalies) so final_answer is factually grounded.
+- If a step fails, call **update_plan** with status='failed' and a note, then attempt an alternative approach or call **ask_user** if genuinely blocked.`;
+        } else {
+            prompt += `
 
 ### How to Approach Questions
-1. First understand the data (use \`list_tables\` / \`describe_table\`)
-2. Write and execute analytical queries
-3. Visualize interesting findings with charts
-4. Summarize insights in clear markdown
-5. Suggest follow-up explorations
+1. If a FILE is in context, call \`attach_file\` first to create a queryable view.
+2. Use \`profile_data\` to understand any unfamiliar table before writing queries.
+3. Write and execute analytical queries; fix errors by reading the hint in the result.
+4. Visualize findings with charts for any aggregation, trend, or comparison.
+5. Summarize insights in clear markdown and suggest follow-up explorations.`;
+        }
+
+        prompt += `
 
 ### When to Create Notebooks
 Use \`build_notebook\` when the user asks for a comprehensive analysis, report, or reusable exploration. Structure the notebook with:
@@ -294,9 +345,9 @@ ${activeSkill.content}`;
 
     // Inject memories if present
     if (memories && typeof memories === 'string' && memories.trim()) {
-        prompt += `\n\n${memories}`;
+        prompt += `\n\n## Past Session Context\n> ⚠️ These are facts learned from PREVIOUS conversations — they describe past state, not the current session. Do NOT assume files or tables mentioned here are available now unless they appear in the current "Tables" or "Files" sections above.\n\n${memories}`;
     } else if (Array.isArray(memories) && memories.length > 0) {
-        prompt += `\n\n## Your Memories\nThings you've learned about this user from previous conversations:\n${memories.map(m => `- ${m}`).join('\n')}`;
+        prompt += `\n\n## Past Session Context\n> ⚠️ These are facts learned from PREVIOUS conversations — do NOT assume files or tables mentioned here are available in the current session.\n${memories.map(m => `- ${m}`).join('\n')}`;
     }
 
     return prompt;

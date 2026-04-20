@@ -150,6 +150,62 @@ class AiPersistence {
                 )
             `);
 
+            // ─── Query Cache (replaces in-memory LRU Map) ───
+            // Survives restarts and long sessions; queryId references remain valid
+            // across turns and after context compaction.
+            await dbManager.systemQuery(`
+                CREATE TABLE IF NOT EXISTS amoxsql_ai.query_cache (
+                    id              VARCHAR PRIMARY KEY,
+                    conversation_id VARCHAR,
+                    sql_query       VARCHAR NOT NULL,
+                    columns_info    VARCHAR,
+                    data            VARCHAR,
+                    row_count       INTEGER DEFAULT 0,
+                    exec_ms         INTEGER DEFAULT 0,
+                    created_at      TIMESTAMP DEFAULT current_timestamp
+                )
+            `);
+
+            // ─── Agent Plans (Fase 1: Planner-Executor) ───
+            await dbManager.systemQuery(`
+                CREATE TABLE IF NOT EXISTS amoxsql_ai.plans (
+                    id              VARCHAR PRIMARY KEY,
+                    conversation_id VARCHAR NOT NULL,
+                    status          VARCHAR DEFAULT 'pending',
+                    steps_json      VARCHAR,
+                    goal            VARCHAR,
+                    created_at      TIMESTAMP DEFAULT current_timestamp,
+                    updated_at      TIMESTAMP DEFAULT current_timestamp
+                )
+            `);
+
+            // ─── Conversation Metrics (observability) ───
+            await dbManager.systemQuery(`
+                CREATE TABLE IF NOT EXISTS amoxsql_ai.conversation_metrics (
+                    id              VARCHAR PRIMARY KEY,
+                    conversation_id VARCHAR NOT NULL,
+                    turn_idx        INTEGER DEFAULT 0,
+                    prompt_tokens   INTEGER DEFAULT 0,
+                    completion_tokens INTEGER DEFAULT 0,
+                    tool_calls_json VARCHAR,
+                    latency_ms      INTEGER DEFAULT 0,
+                    error           VARCHAR,
+                    created_at      TIMESTAMP DEFAULT current_timestamp
+                )
+            `);
+
+            // ─── Agent Scratchpad (Fase 2) ───
+            // Per-conversation key/value store for intermediate agent notes.
+            await dbManager.systemQuery(`
+                CREATE TABLE IF NOT EXISTS amoxsql_ai.scratchpad (
+                    id              VARCHAR PRIMARY KEY,
+                    conversation_id VARCHAR NOT NULL,
+                    key             VARCHAR NOT NULL,
+                    value           VARCHAR,
+                    updated_at      TIMESTAMP DEFAULT current_timestamp
+                )
+            `);
+
             console.log('[AI Persistence] Schema amoxsql_ai initialized.');
         } catch (err) {
             console.warn('[AI Persistence] Schema init warning:', err.message);
@@ -543,6 +599,114 @@ class AiPersistence {
         return dbManager.systemQuery(query);
     }
 
+    // ─── Query Cache ──────────────────────────────────────────────────────────
+
+    /**
+     * Save an execute_sql result to the persistent query cache.
+     * Replaces the in-memory LRU Map so queryIds survive restarts and long sessions.
+     * @returns {string} The queryId stored
+     */
+    async saveQueryCache(dbManager, { queryId, conversationId, sqlQuery, columns, data, rowCount, execMs }) {
+        const limitedData = data ? data.slice(0, 500) : null;
+        await dbManager.systemQuery(`
+            INSERT INTO amoxsql_ai.query_cache
+                (id, conversation_id, sql_query, columns_info, data, row_count, exec_ms)
+            VALUES
+                (${s(queryId)}, ${s(conversationId || null)}, ${s(sqlQuery)},
+                 ${j(columns)}, ${j(limitedData)}, ${n(rowCount)}, ${n(execMs)})
+        `);
+        return queryId;
+    }
+
+    /**
+     * Retrieve a cached query result by queryId.
+     * Returns null if not found.
+     */
+    async getQueryCache(dbManager, queryId) {
+        try {
+            const rows = await dbManager.systemQuery(
+                `SELECT * FROM amoxsql_ai.query_cache WHERE id = ${s(queryId)}`
+            );
+            if (rows.length === 0) return null;
+            const row = rows[0];
+            if (row.columns_info) { try { row.columns_info = JSON.parse(row.columns_info); } catch {} }
+            if (row.data)         { try { row.data         = JSON.parse(row.data);         } catch {} }
+            return row;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Prune old query cache entries (keep latest N per conversation).
+     * Called opportunistically after each save to avoid unbounded growth.
+     */
+    async pruneQueryCache(dbManager, conversationId, keepLatest = 100) {
+        if (!conversationId) return;
+        try {
+            await dbManager.systemQuery(`
+                DELETE FROM amoxsql_ai.query_cache
+                WHERE conversation_id = ${s(conversationId)}
+                AND id NOT IN (
+                    SELECT id FROM amoxsql_ai.query_cache
+                    WHERE conversation_id = ${s(conversationId)}
+                    ORDER BY created_at DESC
+                    LIMIT ${n(keepLatest)}
+                )
+            `);
+        } catch { /* non-critical */ }
+    }
+
+    // ─── Plans ────────────────────────────────────────────────────────────────
+
+    async savePlan(dbManager, { id, conversationId, goal, steps }) {
+        await dbManager.systemQuery(`
+            INSERT INTO amoxsql_ai.plans (id, conversation_id, goal, steps_json, status)
+            VALUES (${s(id)}, ${s(conversationId)}, ${s(goal)}, ${j(steps)}, 'pending')
+        `);
+        return { id, conversationId, goal, steps, status: 'pending' };
+    }
+
+    async updatePlan(dbManager, id, { status, steps }) {
+        const sets = [`updated_at = current_timestamp`];
+        if (status !== undefined) sets.push(`status = ${s(status)}`);
+        if (steps  !== undefined) sets.push(`steps_json = ${j(steps)}`);
+        await dbManager.systemQuery(
+            `UPDATE amoxsql_ai.plans SET ${sets.join(', ')} WHERE id = ${s(id)}`
+        );
+        return { success: true };
+    }
+
+    async getActivePlan(dbManager, conversationId) {
+        try {
+            const rows = await dbManager.systemQuery(`
+                SELECT * FROM amoxsql_ai.plans
+                WHERE conversation_id = ${s(conversationId)}
+                AND status NOT IN ('completed', 'cancelled')
+                ORDER BY created_at DESC LIMIT 1
+            `);
+            if (rows.length === 0) return null;
+            const plan = rows[0];
+            if (plan.steps_json) { try { plan.steps = JSON.parse(plan.steps_json); } catch { plan.steps = []; } }
+            return plan;
+        } catch { return null; }
+    }
+
+    // ─── Conversation Metrics ─────────────────────────────────────────────────
+
+    async saveMetrics(dbManager, { conversationId, turnIdx, promptTokens, completionTokens, toolCalls, latencyMs, error }) {
+        const id = generateId();
+        await dbManager.systemQuery(`
+            INSERT INTO amoxsql_ai.conversation_metrics
+                (id, conversation_id, turn_idx, prompt_tokens, completion_tokens, tool_calls_json, latency_ms, error)
+            VALUES
+                (${s(id)}, ${s(conversationId)}, ${n(turnIdx || 0)},
+                 ${n(promptTokens || 0)}, ${n(completionTokens || 0)},
+                 ${j(toolCalls)}, ${n(latencyMs || 0)}, ${s(error || null)})
+        `).catch(() => { /* non-critical */ });
+        return { id };
+    }
+
     // ─── Analysis Vault ───────────────────────────────────────────────────────
 
     /**
@@ -615,6 +779,41 @@ class AiPersistence {
             `DELETE FROM amoxsql_ai.analysis_vault WHERE id = ${s(id)}`
         );
         return { success: true };
+    }
+
+    // ─── Agent Scratchpad (Fase 2) ────────────────────────────────────────────
+
+    /**
+     * Write (upsert) a scratchpad note for a conversation.
+     * If a note with the same key already exists it is replaced.
+     */
+    async saveScratchpad(dbManager, conversationId, key, value) {
+        // DELETE + INSERT (DuckDB doesn't support ON CONFLICT UPDATE yet on all versions)
+        await dbManager.systemQuery(
+            `DELETE FROM amoxsql_ai.scratchpad
+             WHERE conversation_id = ${s(conversationId)} AND key = ${s(key)}`
+        );
+        const id = generateId();
+        await dbManager.systemQuery(`
+            INSERT INTO amoxsql_ai.scratchpad (id, conversation_id, key, value, updated_at)
+            VALUES (${s(id)}, ${s(conversationId)}, ${s(key)}, ${s(value)}, current_timestamp)
+        `);
+        return { id, key, value };
+    }
+
+    /**
+     * Read scratchpad notes for a conversation.
+     * @param {string|null} key - If provided, returns only that entry; otherwise returns all.
+     */
+    async getScratchpad(dbManager, conversationId, key = null) {
+        const keyFilter = key ? `AND key = ${s(key)}` : '';
+        const rows = await dbManager.systemQuery(`
+            SELECT key, value, updated_at
+            FROM amoxsql_ai.scratchpad
+            WHERE conversation_id = ${s(conversationId)} ${keyFilter}
+            ORDER BY updated_at ASC
+        `);
+        return rows.map(r => ({ key: r.key, value: r.value, updated_at: r.updated_at }));
     }
 }
 

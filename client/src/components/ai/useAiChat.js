@@ -63,6 +63,14 @@ export default function useAiChat({
     // pending edits: Map of toolCallId → edit result (waiting for user accept/reject)
     const [pendingEdits, setPendingEdits] = useState({});
 
+    // ─── Agentic Plan State (Fase 1) ───
+    // planState: { planId, goal, steps[], status } | null
+    const [planState, setPlanState] = useState(null);
+    const [planIteration, setPlanIteration] = useState(0);
+    const [planMaxIterations, setPlanMaxIterations] = useState(0);
+    // ask_user: { question, options[], context } | null
+    const [pendingAskUser, setPendingAskUser] = useState(null);
+
     // ─── Refs ───
     const chatEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -296,6 +304,9 @@ export default function useAiChat({
         setStreamingText('');
         setActiveToolCalls([]);
         activeToolCallsRef.current = [];
+        setPlanState(null);
+        setPlanIteration(0);
+        setPendingAskUser(null);
 
         // Build context arrays for the API
         const contextFiles = contextObjects
@@ -331,6 +342,7 @@ export default function useAiChat({
                 contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
                 contextTables: contextTables.length > 0 ? contextTables : undefined,
                 activeSkillId: mode === 'diving' && activeSkillId ? activeSkillId : undefined,
+                conversationId: activeConvId || undefined,
             };
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
@@ -425,6 +437,37 @@ export default function useAiChat({
 
                         } else if (event.type === 'step-finish') {
                             // Step finished — no-op
+                        } else if (event.type === 'finish') {
+                            // finish event carries usage and queryResults — handled after stream ends
+                        } else if (event.type === 'plan-created') {
+                            const p = event.plan || {};
+                            setPlanState({
+                                planId: p.planId,
+                                goal:   p.goal,
+                                steps:  p.steps || [],
+                                status: 'pending',
+                            });
+                        } else if (event.type === 'plan-progress') {
+                            // event.steps is a full snapshot of activePlan.steps with updated statuses
+                            setPlanState(prev => prev
+                                ? { ...prev, steps: event.steps || prev.steps }
+                                : prev
+                            );
+                        } else if (event.type === 'plan-completed') {
+                            setPlanState(prev => prev ? { ...prev, status: 'completed' } : prev);
+                        } else if (event.type === 'plan-paused') {
+                            setPlanState(prev => prev ? { ...prev, status: 'paused' } : prev);
+                        } else if (event.type === 'ask-user') {
+                            setPendingAskUser({
+                                question: event.question,
+                                options:  event.options || [],
+                                context:  event.context || '',
+                            });
+                        } else if (event.type === 'step-start') {
+                            setPlanIteration(event.iteration || 0);
+                            if (event.maxIterations) setPlanMaxIterations(event.maxIterations);
+                        } else if (event.type === 'step-end') {
+                            // no-op
                         } else if (event.type === 'error') {
                             throw new Error(event.error);
                         }
@@ -529,6 +572,9 @@ export default function useAiChat({
         setActiveToolCalls([]);
         setConversationId(null);
         setErrorMsg(null);
+        setPlanState(null);
+        setPlanIteration(0);
+        setPendingAskUser(null);
         if (mode === 'diving') setContextObjects([]);
     }, [mode]);
 
@@ -708,6 +754,12 @@ export default function useAiChat({
         pendingEdits,
         acceptEdit,
         rejectEdit,
+
+        // Agentic plan state (Fase 1 — populated only in diving mode with planner active)
+        planState,
+        planIteration,
+        planMaxIterations,
+        pendingAskUser, setPendingAskUser,
 
         // Persistence helpers (exposed for advanced use)
         ensureConversation,

@@ -21,6 +21,7 @@ const { loadMemoriesText, extractMemories } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
 const { getModelProfile } = require('./ai/modelProfiles');
 const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
+const { agenticLoop } = require('./ai/agenticLoop');
 
 class AiManager {
     constructor() {
@@ -46,7 +47,8 @@ class AiManager {
                 provider: "ollama",
                 defaultModel: "qwen3:1.7b",
                 usageDate: new Date().toISOString().split('T')[0],
-                usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 }
+                usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 },
+                experimental: { planner: false },
             };
             fs.writeFileSync(this.configPath, JSON.stringify(initialConfig, null, 2));
         }
@@ -68,6 +70,12 @@ class AiManager {
             if (!config.usage) {
                 config.usageDate = today;
                 config.usage = { flashLite: 0, flash: 0, pro: 0, tokens: 0 };
+                fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+            }
+
+            // Migrate: ensure experimental flags exist for older config files
+            if (!config.experimental) {
+                config.experimental = { planner: false };
                 fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
             }
 
@@ -176,6 +184,7 @@ class AiManager {
             activeSkillId = null,
             filePath = null,
             fileType = null,
+            conversationId = null,
         } = options;
 
         const provider = providerOverride || this.provider;
@@ -201,7 +210,8 @@ class AiManager {
 
         // Create tool context (mode-aware for tool filtering)
         const queryResults = new Map();
-        const tools = createTools({ dbManager, queryResults, projectPath, mode });
+        const aiPersistenceMod = require('./ai/persistence');
+        const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence: aiPersistenceMod });
 
         console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
@@ -295,6 +305,7 @@ class AiManager {
             activeSkillId = null,
             filePath = null,
             fileType = null,
+            conversationId = null,
         } = options;
 
         const provider = providerOverride || this.provider;
@@ -318,7 +329,8 @@ class AiManager {
         });
 
         const queryResults = new Map();
-        const tools = createTools({ dbManager, queryResults, projectPath, mode });
+        const aiPersistence = require('./ai/persistence');
+        const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence });
 
         console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
@@ -350,6 +362,19 @@ class AiManager {
         result._queryResults = queryResults;
 
         return result;
+    }
+
+    // ─── Agentic Loop Stream (experimental.planner=true, diving mode) ───
+
+    /**
+     * Returns an async generator that runs the Planner-Executor loop.
+     * Each yielded value is an SSE-compatible event object.
+     *
+     * @param {object} options - Same shape as streamChat options
+     * @returns {AsyncGenerator}
+     */
+    streamChatAgentic(options) {
+        return agenticLoop(options, this.getModel.bind(this));
     }
 
     // ─── Prompt-Only Stream Chat (Low-Tier Models) ───
