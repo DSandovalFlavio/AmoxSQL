@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight } from 'react-icons/lu';
@@ -449,4 +449,16 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     );
 };
 
-export default ChatMessage;
+// Memoize: re-render only when actual message content or pendingEdits change.
+// Callbacks from parent may be recreated on every render (input keystrokes etc),
+// but they are functionally identical so we intentionally ignore them in the compare.
+export default memo(ChatMessage, (prev, next) => (
+    prev.role === next.role &&
+    prev.content === next.content &&
+    prev.toolCalls === next.toolCalls &&
+    prev.isStreaming === next.isStreaming &&
+    prev.isDiving === next.isDiving &&
+    prev.allMessages === next.allMessages &&
+    prev.pendingEdits === next.pendingEdits &&
+    prev.currentFileContent === next.currentFileContent
+));

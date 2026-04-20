@@ -32,6 +32,8 @@ const SessionInventory = ({
     // Session naming
     sessionName,
     onUpdateSessionName,
+    // Optional slot for agent plan / banners rendered at top of panel
+    children,
 }) => {
     const [artifacts, setArtifacts] = useState([]);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -139,6 +141,9 @@ const SessionInventory = ({
                 )}
             </div>
 
+            {/* Agent Plan + banners slot (Fase 1) */}
+            {children}
+
             {/* Context Objects */}
             <div className="ai-ctx-section">
                 <div className="ai-ctx-section-label">
@@ -220,8 +225,9 @@ const SessionInventory = ({
                             <div
                                 key={artifact.id}
                                 className="ai-ctx-artifact"
-                                onClick={() => onOpenFile?.(artifact.file_path)}
-                                title={artifact.file_path}
+                                onClick={() => artifact.file_path && onOpenFile?.(artifact.file_path)}
+                                title={artifact.file_path || 'No file path (inline artifact)'}
+                                style={artifact.file_path ? undefined : { opacity: 0.6, cursor: 'default' }}
                             >
                                 <span className="ai-ctx-artifact-icon">
                                     {getArtifactIcon(artifact)}
