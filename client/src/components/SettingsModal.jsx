@@ -977,6 +977,35 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                 </div>
                                 <hr className="stg-divider" />
+                                {/* File Explorer */}
+                                <div>
+                                    <h3 className="stg-section-title">File Explorer</h3>
+                                    <div className="stg-group stg-group--mt14">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Show File Sizes in Explorer</span>
+                                                <p className="stg-row-desc">Display the size of files in the left sidebar</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.showFileSizes ?? true)} onChange={() => onEditorSettingsChange?.({ showFileSizes: !(editorSettings.showFileSizes ?? true) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Default Explorer Sort View</span>
+                                                <p className="stg-row-desc">Starting view mode for the file explorer</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w200"
+                                                value={editorSettings.defaultExplorerSort || 'default'}
+                                                onChange={(e) => onEditorSettingsChange?.({ defaultExplorerSort: e.target.value })}
+                                            >
+                                                <option value="default">Default</option>
+                                                <option value="name">By Name</option>
+                                                <option value="type">By Type Grouped</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr className="stg-divider" />
                                 {/* Queries */}
                                 <div>
                                     <h3 className="stg-section-title">Query Execution</h3>

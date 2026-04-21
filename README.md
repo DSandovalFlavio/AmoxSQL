@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v2.0.1)
+# AmoxSQL (v2.1.0)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -59,7 +59,7 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 <img src="./images/07_ai_sidebar.png" alt="AI Sidebar" width="100%" />
 
 *   **Sistema Agéntico con Tool-Calling**: El asistente de IA ejecuta herramientas autónomamente (SQL, listar tablas, describir esquemas, generar gráficos, sugerir pasos siguientes).
-*   **Nueva Arquitectura de Paneles**: Separación clara entre *AI Assistant* (contexto de archivo activo) y *Data Diving* (exploración a pantalla completa de toda la BD).
+*   **Nueva Arquitectura de Paneles**: Separación clara entre *AI Assistant* (contexto de archivo activo) y *Data Diving* (exploración a pantalla completa de toda la BD). En la **v2.1.0** el agente de Data Diving fue ultra-optimizado previniendo cualquier congelación de interfaz (*UI Lag* / *Crashes*) durante el volcado de diccionarios masivos de respuesta.
 *   **Gestión de Contexto Avanzada**: Compactación automática de mensajes, recorte astuto de resultados de herramientas para prevenir sobrecarga de tokens (AI SDK v6 support).
 *   **100% Offline y Privado (Local)**: Potenciado por **Ollama** (Qwen 2.5, Llama 3.2, Gemma 2). Tus datos nunca salen de tu máquina.
 *   **Cloud Power (Gemini Mode)**: Cambia sin fricciones a la API de Google Gemini con tracking de uso diario.
@@ -102,11 +102,12 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 
 <img src="./images/05_sql_notebook.png" alt="SQL Notebook" width="100%" />
 
-*   **Modo Presentación**: Oculta código y muestra solo Markdown, gráficos y tablas.
-*   **Exportación PDF**: Exporta notebooks como reportes PDF profesionales.
-* **Snippets y Variables**: Fragmentos DuckDB integrados y interpolación de parámetros (`${variable_name}`).
+* **🚀 NUEVO: Editor de Markdown Independiente (`.md`)**: Potente herramienta dedicada a escritores y analistas que desean generar documentación enriquecida, contando con soporte *Split View* (código e interfaz de lectura lado a lado), grid creadora de tablas automática, y soporte robusto para Github Flavored Markdown.
+* **Modo Presentación**: Oculta código y muestra solo Markdown, gráficos y tablas.
+* **Exportación PDF**: Exporta notebooks como reportes PDF profesionales.
+* **Snippets y Variables**: Fragmentos DuckDB integrados e interpolación de parámetros (`${variable_name}`).
 * **Historial de Consultas**: Timeline persistente de queries ejecutadas con bookmarks.
-* **Manejo Integral de Context Menu**: Copia y manipulación fluida de rutas absolutas y relativas directamente desde el Árbol de Proyecto (File Explorer).
+* **File Explorer Nutado (v2.1.0)**: El panel de archivos incorpora renderizado de tamaño en bytes (e.g. `24 KB`), agrupación ordenada flexible, y trucaje con CSS flexbox anti-desborde para mantener visibles las utilidades en nombres kilométricos.
 * **Personalización Premium**: 6 familias tipográficas, minimapa, word wrap, números de línea, tamaño de fuente ajustable.
 
 ### 📊 Visualización de Datos e IO
@@ -145,12 +146,12 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v2.0.0 — The "Visual Chains & AI Flow" Release
+### 🎉 v2.1.0 — The "Quality & Creator" Update
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v2.0.0](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v2.1.0](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).

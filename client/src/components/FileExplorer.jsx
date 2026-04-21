@@ -37,7 +37,13 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     const [previewFilePath, setPreviewFilePath] = useState(null);
 
     // Sort/Group State
-    const [sortMode, setSortMode] = useState(() => localStorage.getItem('amoxsql-fe-sort') || 'default'); // 'default' | 'type' | 'name'
+    const [sortMode, setSortMode] = useState(() => localStorage.getItem('amoxsql-fe-sort') || editorSettings?.defaultExplorerSort || 'default'); // 'default' | 'type' | 'name'
+
+    useEffect(() => {
+        if (editorSettings?.defaultExplorerSort && !localStorage.getItem('amoxsql-fe-sort')) {
+            setSortMode(editorSettings.defaultExplorerSort);
+        }
+    }, [editorSettings?.defaultExplorerSort]);
 
     useEffect(() => {
         fetchFiles(currentPath);
@@ -142,6 +148,13 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         if (lowerName.match(/\.json$/i)) return <LuTable size={14} color="var(--icon-json)" />;
         if (lowerName.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="var(--icon-default)" />;
         return <LuFile size={14} color="var(--icon-default)" />;
+    };
+
+    const formatBytes = (bytes) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024, sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
 
     // --- Sort / Group helpers ---
@@ -403,17 +416,31 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                         minWidth: 0
                                     }}
                                 />
-                            ) : (
+                            ) : (() => {
+                                const lastDot = file.name.lastIndexOf('.');
+                                const hasExt = !file.isDirectory && lastDot > 0;
+                                const baseName = hasExt ? file.name.substring(0, lastDot) : file.name;
+                                const extName = hasExt ? file.name.substring(lastDot) : '';
+                                return (
                                 <>
-                                    {file.name}
+                                    <span style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{baseName}</span>
+                                        <span style={{ flexShrink: 0 }}>{extName}</span>
+                                    </span>
+                                    {(editorSettings?.showFileSizes ?? true) && file.sizeBytes != null && (
+                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
+                                            {formatBytes(file.sizeBytes)}
+                                        </span>
+                                    )}
                                     <span
-                                        style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', cursor: 'context-menu', padding: '0 5px', display: 'flex', alignItems: 'center' }}
+                                        style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '12px', color: 'var(--text-muted)', cursor: 'context-menu', padding: '0 0 0 5px', display: 'flex', alignItems: 'center' }}
                                         onClick={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
                                     >
                                         <LuEllipsisVertical size={14} />
                                     </span>
                                 </>
-                            )}
+                                );
+                            })()}
                         </li>
                     );
 
