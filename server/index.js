@@ -1506,12 +1506,23 @@ app.get('/api/files', (req, res) => {
             return res.status(500).json({ error: 'Failed to read directory', details: err.message });
         }
 
-        const fileList = files.map(file => ({
-            name: file.name,
-            isDirectory: file.isDirectory(),
-            path: path.relative(ROOT_DIR, path.join(fullPath, file.name)),
-            fullPath: path.join(fullPath, file.name)
-        }));
+        const fileList = files.map(file => {
+            let sizeBytes = null;
+            const itemFullPath = path.join(fullPath, file.name);
+            if (!file.isDirectory()) {
+                try {
+                    const stats = fs.statSync(itemFullPath);
+                    sizeBytes = stats.size;
+                } catch (e) { /* ignore */ }
+            }
+            return {
+                name: file.name,
+                isDirectory: file.isDirectory(),
+                path: path.relative(ROOT_DIR, itemFullPath).replace(/\\/g, '/'),
+                fullPath: itemFullPath,
+                sizeBytes
+            };
+        });
 
         res.json(fileList);
     });
