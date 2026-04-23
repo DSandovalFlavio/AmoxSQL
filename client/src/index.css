@@ -8070,8 +8070,8 @@ tr:hover td {
 .stg-modal {
   background-color: var(--surface-overlay);
   color: var(--text-secondary);
-  width: 960px;
-  height: 680px;
+  width: 1100px;
+  height: 720px;
   border-radius: var(--radius-lg);
   display: flex;
   overflow: hidden;
