@@ -19,7 +19,7 @@ const { loadUserRules } = require('./ai/userRules');
 const { compactContext } = require('./ai/compaction');
 const { loadMemoriesText, extractMemories } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
-const { getModelProfile } = require('./ai/modelProfiles');
+const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo } = require('./ai/modelProfiles');
 const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
 const { agenticLoop } = require('./ai/agenticLoop');
 
@@ -27,7 +27,7 @@ class AiManager {
     constructor() {
         this.status = "READY";
         this.provider = "ollama";
-        this.modelName = "qwen3:1.7b";
+        this.modelName = "gemma4:e2b";
 
         // Ensure config exists in home directory for secure storage
         this.configPath = path.join(os.homedir(), '.amoxsql', 'config.json');
@@ -45,10 +45,16 @@ class AiManager {
             const initialConfig = {
                 geminiApiKey: "",
                 provider: "ollama",
-                defaultModel: "qwen3:1.7b",
+                defaultModel: "gemma4:e2b",
                 usageDate: new Date().toISOString().split('T')[0],
                 usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 },
-                experimental: { planner: false },
+                experimental: { planner: true },
+                modelTierOverrides: {},
+                geminiModels: [
+                    { id: 'gemini-2.5-flash-lite', category: 'flash-lite', dailyLimit: 1000, contextWindow: 100000, costPerMInput: 0.10 },
+                    { id: 'gemini-2.5-flash', category: 'flash', dailyLimit: 250, contextWindow: 500000, costPerMInput: 0.30 },
+                    { id: 'gemini-2.5-pro', category: 'pro', dailyLimit: 0, contextWindow: 1000000, costPerMInput: 1.25 },
+                ],
             };
             fs.writeFileSync(this.configPath, JSON.stringify(initialConfig, null, 2));
         }
@@ -75,16 +81,38 @@ class AiManager {
 
             // Migrate: ensure experimental flags exist for older config files
             if (!config.experimental) {
-                config.experimental = { planner: false };
+                config.experimental = { planner: true };
                 fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
             }
+
+            // Migrate: ensure modelTierOverrides exists
+            if (!config.modelTierOverrides) {
+                config.modelTierOverrides = {};
+                fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+            }
+
+            // Migrate: ensure geminiModels exists
+            if (!config.geminiModels) {
+                config.geminiModels = [
+                    { id: 'gemini-2.5-flash-lite', category: 'flash-lite', dailyLimit: 1000, contextWindow: 100000, costPerMInput: 0.10 },
+                    { id: 'gemini-2.5-flash', category: 'flash', dailyLimit: 250, contextWindow: 500000, costPerMInput: 0.30 },
+                    { id: 'gemini-2.5-pro', category: 'pro', dailyLimit: 0, contextWindow: 1000000, costPerMInput: 1.25 },
+                ];
+                fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+            }
+
+            // Sync tier overrides with modelProfiles module
+            setUserTierOverrides(config.modelTierOverrides || {});
 
             return config;
         } catch (e) {
             return {
-                geminiApiKey: "", provider: "ollama", defaultModel: "qwen3:1.7b",
+                geminiApiKey: "", provider: "ollama", defaultModel: "gemma4:e2b",
                 usageDate: new Date().toISOString().split('T')[0],
-                usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 }
+                usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 },
+                experimental: { planner: true },
+                modelTierOverrides: {},
+                geminiModels: [],
             };
         }
     }
@@ -96,8 +124,11 @@ class AiManager {
     async initialize() {
         const config = this.getConfig();
         this.provider = config.provider || "ollama";
-        this.modelName = config.defaultModel || "qwen3:1.7b";
+        this.modelName = config.defaultModel || "gemma4:e2b";
         this.status = "READY";
+
+        // Sync user tier overrides on initialization
+        setUserTierOverrides(config.modelTierOverrides || {});
         console.log(`[AI] Initialized with Provider: ${this.provider}, Model: ${this.modelName}`);
     }
 

@@ -555,7 +555,7 @@ app.get('/api/settings/config', (req, res) => {
 });
 
 app.post('/api/settings/config', (req, res) => {
-    const { geminiApiKey, provider, defaultModel, s3Config, gcsConfig, experimental } = req.body;
+    const { geminiApiKey, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
     try {
         const config = aiManager.getConfig();
         if (geminiApiKey  !== undefined) config.geminiApiKey  = geminiApiKey;
@@ -565,6 +565,15 @@ app.post('/api/settings/config', (req, res) => {
         if (gcsConfig     !== undefined) config.gcsConfig     = gcsConfig;
         if (experimental  !== undefined) {
             config.experimental = { ...config.experimental, ...experimental };
+        }
+        if (modelTierOverrides !== undefined) {
+            config.modelTierOverrides = modelTierOverrides;
+            // Sync with modelProfiles module immediately
+            const { setUserTierOverrides } = require('./ai/modelProfiles');
+            setUserTierOverrides(modelTierOverrides);
+        }
+        if (geminiModels !== undefined) {
+            config.geminiModels = geminiModels;
         }
 
         fs.writeFileSync(aiManager.configPath, JSON.stringify(config, null, 2));
@@ -657,6 +666,60 @@ app.get('/api/settings/ollama/models', async (req, res) => {
     } catch (err) {
         console.error("Failed to list Ollama models", err);
         // Do not throw full 500 if Ollama isn't running, return empty so UI doesn't break
+        res.json({ models: [] });
+    }
+});
+
+/**
+ * GET /api/settings/ollama/models-enriched
+ * Returns installed models with capabilities, tier classification, and metadata.
+ * Uses Ollama /api/show for capability detection.
+ */
+app.get('/api/settings/ollama/models-enriched', async (req, res) => {
+    try {
+        const ollamaClient = require('ollama').default || require('ollama');
+        const { getModelProfile: getProfileFn, classifyModelFromCapabilities, fetchOllamaModelInfo } = require('./ai/modelProfiles');
+        const listResult = await ollamaClient.list();
+        const models = listResult.models || [];
+        const config = aiManager.getConfig();
+        const overrides = config.modelTierOverrides || {};
+
+        const enriched = [];
+        for (const m of models) {
+            try {
+                const info = await fetchOllamaModelInfo(m.name);
+                const profile = getProfileFn(m.name, 'ollama', info);
+                enriched.push({
+                    name: m.name,
+                    size: m.size,
+                    parameterSize: info?.parameterSize || m.details?.parameter_size || '',
+                    family: info?.family || m.details?.family || '',
+                    quantization: info?.quantization || m.details?.quantization_level || '',
+                    capabilities: info?.capabilities || [],
+                    tier: profile.tier,
+                    isUserOverride: !!overrides[m.name.toLowerCase()],
+                    autoDetected: !!profile.autoDetected,
+                });
+            } catch {
+                // Fallback without enrichment
+                const profile = getProfileFn(m.name, 'ollama');
+                enriched.push({
+                    name: m.name,
+                    size: m.size,
+                    parameterSize: m.details?.parameter_size || '',
+                    family: m.details?.family || '',
+                    quantization: m.details?.quantization_level || '',
+                    capabilities: [],
+                    tier: profile.tier,
+                    isUserOverride: false,
+                    autoDetected: false,
+                });
+            }
+        }
+
+        res.json({ models: enriched });
+    } catch (err) {
+        console.error("Failed to list enriched Ollama models", err);
         res.json({ models: [] });
     }
 });
@@ -885,7 +948,7 @@ app.post('/api/ai/chat', async (req, res) => {
  * 
  * Automatically selects prompt-only mode for low-tier models.
  */
-const { getModelProfile: getModelProfileForRoute } = require('./ai/modelProfiles');
+const { getModelProfile: getModelProfileForRoute, fetchOllamaModelInfo: fetchOllamaInfoForRoute } = require('./ai/modelProfiles');
 
 app.post('/api/ai/chat/stream', async (req, res) => {
     const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId } = req.body;
@@ -934,7 +997,13 @@ app.post('/api/ai/chat/stream', async (req, res) => {
         // Detect model tier to choose between tool-loop and prompt-only
         const resolvedModel    = model    || aiManager.modelName;
         const resolvedProvider = provider || aiManager.provider;
-        const profile = getModelProfileForRoute(resolvedModel, resolvedProvider);
+        
+        // Fetch Ollama model info for capability-based classification (cached)
+        let ollamaInfo = null;
+        if (resolvedProvider !== 'gemini') {
+            ollamaInfo = await fetchOllamaInfoForRoute(resolvedModel).catch(() => null);
+        }
+        const profile = getModelProfileForRoute(resolvedModel, resolvedProvider, ollamaInfo);
 
         // Check experimental planner flag
         const appConfig     = aiManager.getConfig();
