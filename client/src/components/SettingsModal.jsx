@@ -1,14 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 
 const RECOMMENDED_MODELS = [
-    { id: 'qwen2.5:1.5b', label: 'Qwen 2.5 (1.5B)', size: '1.4GB RAM', desc: 'Ideal for ultralight machines.' },
-    { id: 'llama3.2:3b', label: 'Llama 3.2 (3B)', size: '2.0GB RAM', desc: 'Very balanced and fast.' },
-    { id: 'llama3.1:8b', label: 'Llama 3.1 (8B)', size: '4.9GB RAM', desc: 'Powerful SQL & Code model.' },
-    { id: 'gemma2:2b', label: 'Gemma 2 (2B)', size: '1.6GB RAM', desc: 'Great reasoning for small memory.' }
+    // ── Edge / Lightweight ──
+    { id: 'gemma4:e2b', label: 'Gemma 4 E2B', size: '~1.6GB', desc: 'Tool calling nativo en 2B. Ideal para empezar.', tier: 'medium', isNew: true },
+    { id: 'qwen3.5:2b', label: 'Qwen 3.5 (2B)', size: '~1.5GB', desc: 'Ultra ligero con contexto de 32K.', tier: 'low' },
+    
+    // ── Balanced ──
+    { id: 'gemma4:e4b', label: 'Gemma 4 E4B', size: '~2.8GB', desc: 'Balance perfecto: tool calling + audio + vision.', tier: 'medium', isNew: true },
+    { id: 'qwen3.5:4b', label: 'Qwen 3.5 (4B)', size: '~2.5GB', desc: 'Líder en tool calling para su tamaño.', tier: 'medium' },
+    
+    // ── Powerful ──
+    { id: 'gemma4:26b', label: 'Gemma 4 26B', size: '~16GB', desc: 'MoE: Solo 4B activo pero potencia de 26B.', tier: 'high', isNew: true },
+    { id: 'qwen3.5:9b', label: 'Qwen 3.5 (9B)', size: '~5.5GB', desc: 'Excelente para análisis complejos.', tier: 'medium' },
+    
+    // ── Maximum ──
+    { id: 'gemma4:31b', label: 'Gemma 4 31B', size: '~20GB', desc: 'Calidad máxima local. #3 en Arena.', tier: 'high', isNew: true },
+    { id: 'qwen3.5:27b', label: 'Qwen 3.5 (27B)', size: '~16GB', desc: 'Contexto de 256K. Potencia bruta.', tier: 'high' }
 ];
 
 const THEMES = [
@@ -134,6 +145,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState(null);
     const [geminiUsage, setGeminiUsage] = useState({ flashLite: 0, flash: 0, pro: 0, tokens: 0 });
+    const [plannerMode, setPlannerMode] = useState(true);
+    const [geminiModels, setGeminiModels] = useState([]);
+    const [modelTierOverrides, setModelTierOverrides] = useState({});
 
     // Ollama Specific State
     const [installedModels, setInstalledModels] = useState([]);
@@ -210,10 +224,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 .then(data => {
                     setGeminiApiKey(data.geminiApiKey || '');
                     setProvider(data.provider || 'ollama');
-                    setDefaultModel(data.defaultModel || 'qwen3:1.7b');
+                    setDefaultModel(data.defaultModel || 'gemma4:e2b');
                     if (data.usage) setGeminiUsage(data.usage);
                     if (data.s3Config) setS3Config(data.s3Config);
                     if (data.gcsConfig) setGcsConfig(data.gcsConfig);
+                    if (data.experimental) setPlannerMode(!!data.experimental.planner);
+                    if (data.geminiModels) setGeminiModels(data.geminiModels);
+                    if (data.modelTierOverrides) setModelTierOverrides(data.modelTierOverrides);
+                    
                     if (data.provider !== 'gemini') fetchInstalledModels();
                 })
                 .catch(err => console.error("Failed to load config", err));
@@ -253,7 +271,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const fetchInstalledModels = async () => {
         setIsLoadingModels(true);
         try {
-            const res = await fetch('http://localhost:3001/api/settings/ollama/models');
+            const res = await fetch('http://localhost:3001/api/settings/ollama/models-enriched');
             const data = await res.json();
             if (data.models) setInstalledModels(data.models);
         } catch (err) { console.error(err); }
@@ -267,7 +285,12 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
             await fetch('http://localhost:3001/api/settings/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ geminiApiKey, provider, defaultModel, s3Config, gcsConfig })
+                body: JSON.stringify({ 
+                    geminiApiKey, provider, defaultModel, s3Config, gcsConfig,
+                    experimental: { planner: plannerMode },
+                    geminiModels,
+                    modelTierOverrides
+                })
             });
             window.dispatchEvent(new Event('amox_settings_updated'));
             setSaveMessage({ type: 'success', text: 'Settings saved successfully' });
@@ -1064,6 +1087,20 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                 </div>
 
+                                {/* Planner Toggle */}
+                                <div className="stg-row stg-row--separator">
+                                    <div className="stg-flex-1">
+                                        <div className="stg-flex">
+                                            <h4 className="stg-section-heading stg-section-heading--mb4">Planner Agent (Auto-Loop)</h4>
+                                            <div className="stg-badge stg-badge--medium">Beta</div>
+                                        </div>
+                                        <p className="stg-row-desc">
+                                            Allow the AI to enter a thinking loop, automatically executing queries and fixing errors until the objective is met. Requires Medium/High tier model.
+                                        </p>
+                                    </div>
+                                    <Toggle on={plannerMode} onChange={() => setPlannerMode(!plannerMode)} />
+                                </div>
+
                                 <hr className="stg-divider" />
 
                                 {/* Gemini */}
@@ -1090,28 +1127,68 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </p>
                                         </div>
 
-                                        <div className="stg-card">
-                                            <h4 className="stg-card-title stg-card-title--mb12">Daily Free Tier Usage (2026 Limits)</h4>
-                                            <div className="stg-flex-col">
-                                                {[
-                                                    { label: '2.5 Flash-Lite', value: geminiUsage.flashLite, max: 1000, variant: '--warning' },
-                                                    { label: '2.5 Flash', value: geminiUsage.flash, max: 250, variant: '--success' },
-                                                    { label: '2.5 Pro', value: geminiUsage.pro, max: 100, variant: '' },
-                                                ].map(bar => (
-                                                    <div key={bar.label}>
-                                                        <div className="stg-row stg-row--mb4">
-                                                            <span className="stg-stat-label--bold">{bar.label}</span>
-                                                            <span className="stg-stat-label--bold">{bar.value} / {bar.max}</span>
+                                        <div className="stg-card stg-card--mb14">
+                                            <div className="stg-flex stg-card-title--mb12" style={{justifyContent:'space-between'}}>
+                                                <h4 className="stg-card-title" style={{marginBottom: 0}}>Gemini Models Registry</h4>
+                                                <button onClick={() => {
+                                                    setGeminiModels([...geminiModels, { id: 'new-model', category: 'flash', dailyLimit: 0, contextWindow: 128000, costPerMInput: 0 }]);
+                                                }} className="stg-btn">Add Model</button>
+                                            </div>
+                                            <div className="stg-gemini-grid">
+                                                {geminiModels.map((m, idx) => (
+                                                    <div key={idx} className="stg-gemini-row">
+                                                        <div className="stg-flex-1">
+                                                            <div className="stg-field-label">Model ID</div>
+                                                            <input type="text" className="stg-input stg-input--mono" value={m.id} onChange={(e) => {
+                                                                const newModels = [...geminiModels];
+                                                                newModels[idx].id = e.target.value;
+                                                                setGeminiModels(newModels);
+                                                            }} />
                                                         </div>
-                                                        <div className="stg-progress">
-                                                            <div className={`stg-progress-fill${bar.variant ? ` stg-progress-fill${bar.variant}` : ''}`} style={{ width: `${Math.min((bar.value / bar.max) * 100, 100)}%` }} />
+                                                        <div>
+                                                            <div className="stg-field-label">Category</div>
+                                                            <select className="stg-select" value={m.category} onChange={(e) => {
+                                                                const newModels = [...geminiModels];
+                                                                newModels[idx].category = e.target.value;
+                                                                setGeminiModels(newModels);
+                                                            }}>
+                                                                <option value="flash-lite">Flash Lite (Low)</option>
+                                                                <option value="flash">Flash (Medium)</option>
+                                                                <option value="pro">Pro (High)</option>
+                                                            </select>
                                                         </div>
+                                                        <button onClick={() => {
+                                                            const newModels = [...geminiModels];
+                                                            newModels.splice(idx, 1);
+                                                            setGeminiModels(newModels);
+                                                        }} className="stg-btn stg-btn--danger-text"><LuTrash2 size={14}/></button>
                                                     </div>
                                                 ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="stg-card">
+                                            <h4 className="stg-card-title stg-card-title--mb12">Usage Dashboard</h4>
+                                            <div className="stg-flex-col">
+                                                <div className="stg-row stg-row--mb4">
+                                                    <span className="stg-stat-label--bold">Flash Lite</span>
+                                                    <span className="stg-stat-label--bold">{geminiUsage.flashLite} requests</span>
+                                                </div>
+                                                <div className="stg-row stg-row--mb4">
+                                                    <span className="stg-stat-label--bold">Flash</span>
+                                                    <span className="stg-stat-label--bold">{geminiUsage.flash} requests</span>
+                                                </div>
+                                                <div className="stg-row stg-row--mb4">
+                                                    <span className="stg-stat-label--bold">Pro</span>
+                                                    <span className="stg-stat-label--bold">{geminiUsage.pro} requests</span>
+                                                </div>
+                                                <div className="stg-alert stg-alert--success stg-mt8" style={{marginTop:'8px'}}>
+                                                    <LuInfo size={14}/> Models configured as 'Pro' will use your billing quota immediately. AmoxSQL only tracks local usage.
+                                                </div>
                                                 <div className="stg-row stg-row--separator">
                                                     <span className="stg-stat-label--muted">Total Tokens Consumed</span>
                                                     <span className="stg-stat-label--bold">
-                                                        {geminiUsage.tokens.toLocaleString()} <span className="stg-stat-token">/ 4,000,000</span>
+                                                        {geminiUsage.tokens.toLocaleString()} <span className="stg-stat-token">tokens</span>
                                                     </span>
                                                 </div>
                                             </div>
@@ -1124,25 +1201,87 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     <>
                                         <div>
                                             <div className="stg-row stg-row--mb8">
-                                                <h3 className="stg-section-heading">Installed Local Models</h3>
-                                                {isLoadingModels && <LuLoader size={14} className="stg-spin--muted" />}
+                                                <div className="stg-flex">
+                                                    <h3 className="stg-section-heading" style={{marginBottom: 0}}>Model Tiers</h3>
+                                                    {isLoadingModels && <LuLoader size={14} className="stg-spin--muted" />}
+                                                </div>
+                                                <span className="stg-stat-label--muted">Drag models to override tier</span>
                                             </div>
-                                            <div className="stg-card stg-card--scroll">
-                                                {installedModels.length === 0 && !isLoadingModels ? (
-                                                    <div className="stg-empty-text">
-                                                        No models installed. Install at least one model below.
-                                                    </div>
-                                                ) : (
-                                                    <div className="stg-model-chips">
-                                                        {installedModels.map((m, i) => (
-                                                            <div key={i} className="stg-model-chip">
-                                                                <LuCpu size={12} className="stg-icon-accent" />
-                                                                {m.name}
+                                            <div className="stg-cloud-grid" style={{gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px'}}>
+                                                {['low', 'medium', 'high'].map(tierLevel => {
+                                                    const tierModels = installedModels.filter(m => {
+                                                        const userTier = modelTierOverrides[m.name.toLowerCase()];
+                                                        return userTier ? userTier === tierLevel : m.tier === tierLevel;
+                                                    });
+                                                    
+                                                    return (
+                                                        <div 
+                                                            key={tierLevel} 
+                                                            className="stg-tier-zone"
+                                                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                                            onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
+                                                            onDrop={(e) => {
+                                                                e.preventDefault();
+                                                                e.currentTarget.classList.remove('drag-over');
+                                                                const modelName = e.dataTransfer.getData('text/plain');
+                                                                if (modelName) {
+                                                                    setModelTierOverrides(prev => ({
+                                                                        ...prev,
+                                                                        [modelName.toLowerCase()]: tierLevel
+                                                                    }));
+                                                                }
+                                                            }}
+                                                        >
+                                                            <div className="stg-tier-header">
+                                                                <div className={`stg-tier-title stg-tier-title--${tierLevel}`}>
+                                                                    {tierLevel.charAt(0).toUpperCase() + tierLevel.slice(1)} Tier
+                                                                </div>
+                                                                <div className="stg-tier-desc">{tierModels.length} models</div>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                            <div className="stg-tier-content">
+                                                                {tierModels.length === 0 ? (
+                                                                    <div className="stg-tier-empty">Drop models here</div>
+                                                                ) : (
+                                                                    tierModels.map(m => (
+                                                                        <div 
+                                                                            key={m.name} 
+                                                                            className="stg-model-chip"
+                                                                            draggable
+                                                                            onDragStart={(e) => {
+                                                                                e.dataTransfer.setData('text/plain', m.name);
+                                                                                e.currentTarget.classList.add('is-dragging');
+                                                                            }}
+                                                                            onDragEnd={(e) => {
+                                                                                e.currentTarget.classList.remove('is-dragging');
+                                                                            }}
+                                                                        >
+                                                                            <div className="stg-model-info">
+                                                                                <div className="stg-model-name">
+                                                                                    <LuCpu size={12} className="stg-icon-accent" />
+                                                                                    {m.name}
+                                                                                </div>
+                                                                                <div className="stg-model-meta">
+                                                                                    <span>{m.parameterSize || m.size}</span>
+                                                                                    {modelTierOverrides[m.name.toLowerCase()] && <span style={{color: 'var(--accent-primary)'}}>(User Override)</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="stg-model-caps">
+                                                                                {m.capabilities?.includes('tools') && <div className="stg-cap-badge" title="Tool Calling"><LuWrench size={10} /></div>}
+                                                                                {m.capabilities?.includes('vision') && <div className="stg-cap-badge" title="Vision"><LuEye size={10} /></div>}
+                                                                                {m.capabilities?.includes('thinking') && <div className="stg-cap-badge" title="Thinking"><LuBrain size={10} /></div>}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
                                             </div>
+                                            <p className="stg-card-desc stg-card-desc--mt10">
+                                                Tiers dictate capabilities: Low (Prompts only), Medium (Tools + SQL), High (Tools + Charts + Advanced Planner). 
+                                                Default tiers are auto-detected using Ollama's API based on tool and thinking support.
+                                            </p>
                                         </div>
 
                                         <div className="stg-card stg-card--transparent">
@@ -1165,8 +1304,12 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     const isInstalled = installedModels.some(im => im.name.startsWith(m.id));
                                                     return (
                                                         <div key={m.id} className="stg-model-card">
-                                                            <div className="stg-model-card-name">{m.label}</div>
-                                                            <div className="stg-model-card-desc">{m.desc}</div>
+                                                            <div className="stg-model-card-header">
+                                                                <div className="stg-model-card-name">{m.label}</div>
+                                                                {m.isNew && <div className="stg-badge stg-badge--new" style={{display: 'flex', alignItems: 'center', gap: '4px'}}><LuSparkles size={10} /> New</div>}
+                                                                {!m.isNew && m.tier && <div className={`stg-badge stg-badge--${m.tier}`}>{m.tier.toUpperCase()}</div>}
+                                                            </div>
+                                                            <div className="stg-model-card-desc">{m.desc} ({m.size})</div>
                                                             <button
                                                                 onClick={() => handleDownloadModel(m.id)}
                                                                 disabled={isDownloading || isInstalled}

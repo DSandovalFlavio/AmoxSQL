@@ -8660,48 +8660,197 @@ tr:hover td {
   border-right: 2px solid var(--accent-primary);
 }
 
-/* ── Model chips ── */
+/* ── Model chips (now draggable cards) ── */
 
 .stg-model-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background-color: var(--surface-inset);
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
+  justify-content: space-between;
+  background-color: var(--surface-base);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
   font-size: var(--text-xs);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.stg-model-chip:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+
+.stg-model-chip:active {
+  cursor: grabbing;
+}
+
+.stg-model-chip.is-dragging {
+  opacity: 0.5;
+  border: 1px dashed var(--accent-primary);
+}
+
+.stg-model-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stg-model-name {
+  font-weight: var(--weight-medium);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stg-model-meta {
+  font-size: var(--text-mini);
+  color: var(--text-tertiary);
+  display: flex;
+  gap: 8px;
+}
+
+.stg-model-caps {
+  display: flex;
+  gap: 4px;
+}
+
+.stg-cap-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  font-size: 11px;
+}
+
+/* ── Tier Dropzones ── */
+
+.stg-tier-zone {
+  background-color: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  min-height: 80px;
+  transition: all 0.2s;
+}
+
+.stg-tier-zone.drag-over {
+  background-color: var(--hover-bg);
+  border: 1px dashed var(--accent-primary);
+}
+
+.stg-tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 6px;
+}
+
+.stg-tier-title {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stg-tier-title--low { color: var(--color-warning, #f59e0b); }
+.stg-tier-title--medium { color: var(--color-info, #3b82f6); }
+.stg-tier-title--high { color: var(--color-danger, #ef4444); }
+
+.stg-tier-desc {
+  font-size: var(--text-mini);
+  color: var(--text-tertiary);
+}
+
+.stg-tier-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stg-tier-empty {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 12px 0;
+  font-style: italic;
 }
 
 /* ── Recommended model cards ── */
 
 .stg-model-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .stg-model-card {
   background-color: var(--surface-inset);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
 }
 
-.stg-model-card-name {
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-xs);
-  color: var(--text-primary);
-  margin-bottom: 4px;
+.stg-model-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
 }
 
+.stg-model-card-name {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.stg-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: var(--weight-medium);
+}
+.stg-badge--new { background: #fee2e2; color: #ef4444; }
+.stg-badge--medium { background: #dbeafe; color: #3b82f6; }
+.stg-badge--high { background: #f3e8ff; color: #a855f7; }
+
 .stg-model-card-desc {
-  font-size: var(--text-mini);
+  font-size: var(--text-xs);
   color: var(--text-tertiary);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  flex: 1;
+}
+
+/* ── Gemini Models Grid ── */
+.stg-gemini-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stg-gemini-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: var(--surface-inset);
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.stg-gemini-row input {
   flex: 1;
 }
 
