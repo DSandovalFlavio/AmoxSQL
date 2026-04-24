@@ -7717,6 +7717,31 @@ tr:hover td {
   animation: ext-spin 1s linear infinite;
 }
 
+/* Featured card highlight */
+.ext-card-featured {
+  border-left: 2px solid oklch(0.78 0.18 80);
+}
+
+/* Load action button (green) */
+.ext-load-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  background-color: var(--feedback-success-text);
+  color: var(--surface-base);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+.ext-load-btn:hover { opacity: 0.85; }
+.ext-load-btn:disabled { opacity: 0.5; cursor: wait; }
+
 /* ═══════════════════════════════════════════════
    TOAST NOTIFICATION ANIMATIONS
    ═══════════════════════════════════════════════ */

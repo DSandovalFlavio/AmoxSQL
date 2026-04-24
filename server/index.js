@@ -438,20 +438,207 @@ app.get('/api/db/extensions', async (req, res) => {
 });
 
 app.post('/api/db/extensions/install', async (req, res) => {
-    const { name } = req.body;
+    const { name, fromCommunity = false } = req.body;
     if (!name) return res.status(400).json({ error: 'Extension name is required' });
 
-    // Sanitize: only allow alphanumeric and underscores
-    const safeName = name.replace(/[^a-zA-Z0-9_]/g, '');
+    // Allow alphanumeric, underscores, and hyphens (some community exts use hyphens)
+    const safeName = String(name).trim().replace(/[^a-zA-Z0-9_-]/g, '');
     if (!safeName) return res.status(400).json({ error: 'Invalid extension name' });
 
+    const fromClause = fromCommunity ? ' FROM community' : '';
     try {
-        await dbManager.systemQuery(`INSTALL ${safeName}`);
+        await dbManager.systemQuery(`INSTALL ${safeName}${fromClause}`);
         await dbManager.systemQuery(`LOAD ${safeName}`);
         res.json({ success: true, message: `Extension '${safeName}' installed and loaded.` });
     } catch (err) {
         console.error(`Failed to install extension '${safeName}':`, err);
-        res.status(500).json({ error: `Failed to install extension '${safeName}'`, details: err.message });
+        // HTTP 404 from community CDN = extension not compiled for this DuckDB version/platform
+        const isPlatformUnavailable = /HTTP 404/.test(err.message);
+        const isNotFound = !isPlatformUnavailable && /not found|does not exist|no extension/i.test(err.message);
+        const hint = !fromCommunity && isNotFound
+            ? ' This extension may be in the community repository — try installing with the community option.'
+            : '';
+        // Extract version/platform from the CDN URL for a helpful client message
+        const urlMatch = err.message.match(/community-extensions\.duckdb\.org\/([^/]+)\/([^/]+)\//);
+        res.status(500).json({
+            error: `Failed to install extension '${safeName}'`,
+            details: err.message + hint,
+            canRetryFromCommunity: !fromCommunity && isNotFound,
+            platformUnavailable: isPlatformUnavailable,
+            duckdbVersion: urlMatch?.[1] ?? null,
+            platform: urlMatch?.[2] ?? null,
+        });
+    }
+});
+
+app.post('/api/db/extensions/load', async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Extension name is required' });
+
+    const safeName = String(name).trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeName) return res.status(400).json({ error: 'Invalid extension name' });
+
+    try {
+        await dbManager.systemQuery(`LOAD ${safeName}`);
+        const rows = await dbManager.systemQuery(
+            `SELECT * FROM duckdb_extensions() WHERE extension_name = '${safeName}'`
+        );
+        res.json({ success: true, extension: rows[0] || null });
+    } catch (err) {
+        console.error(`Failed to load extension '${safeName}':`, err);
+        res.status(500).json({ error: `Failed to load extension '${safeName}'`, details: err.message });
+    }
+});
+
+/* --- Flock AI-SQL Extension APIs --- */
+const flockManager = require('./flockManager');
+
+app.get('/api/flock/status', async (req, res) => {
+    try {
+        const status = await flockManager.getFlockStatus(dbManager);
+        const versionCheck = await flockManager.checkDuckDBVersion(dbManager, '1.1.1');
+        res.json({ ...status, duckdbVersion: versionCheck });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/flock/functions', (req, res) => {
+    res.json(flockManager.getFlockFunctions());
+});
+
+app.get('/api/flock/models', async (req, res) => {
+    try {
+        res.json(await flockManager.getModels(dbManager));
+    } catch (err) {
+        res.status(500).json({ error: err.message, details: err.message });
+    }
+});
+
+app.post('/api/flock/models', async (req, res) => {
+    const { name, modelId, provider, tupleFormat, batchSize, temperature, secretName } = req.body;
+    if (!name || !modelId || !provider) return res.status(400).json({ error: 'name, modelId, provider required' });
+    try {
+        await flockManager.createModel(dbManager, { name, modelId, provider, tupleFormat, batchSize, temperature, secretName });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/flock/models/:name', async (req, res) => {
+    const { name } = req.params;
+    const { modelId, provider, tupleFormat, batchSize, temperature, secretName } = req.body;
+    try {
+        await flockManager.updateModel(dbManager, { name, modelId, provider, tupleFormat, batchSize, temperature, secretName });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/flock/models/:name', async (req, res) => {
+    try {
+        await flockManager.deleteModel(dbManager, req.params.name);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/flock/models/:name/test', async (req, res) => {
+    try {
+        const result = await flockManager.testModel(dbManager, req.params.name);
+        res.json({ success: true, result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/flock/prompts', async (req, res) => {
+    try {
+        res.json(await flockManager.getPrompts(dbManager));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/flock/prompts', async (req, res) => {
+    const { name, text, global } = req.body;
+    if (!name || !text) return res.status(400).json({ error: 'name and text required' });
+    try {
+        await flockManager.createPrompt(dbManager, { name, text, global });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/flock/prompts/:name', async (req, res) => {
+    const { text } = req.body;
+    try {
+        await flockManager.updatePrompt(dbManager, { name: req.params.name, text });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/flock/prompts/:name', async (req, res) => {
+    try {
+        await flockManager.deletePrompt(dbManager, req.params.name);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/flock/secrets', async (req, res) => {
+    try {
+        res.json(await flockManager.getSecrets(dbManager));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/flock/secrets/ollama', async (req, res) => {
+    const { apiUrl, name, persistent } = req.body;
+    try {
+        await flockManager.createOllamaSecret(dbManager, { apiUrl, name, persistent });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/flock/secrets/openai', async (req, res) => {
+    const { apiKey, name, persistent } = req.body;
+    try {
+        await flockManager.createOpenAISecret(dbManager, { apiKey, name, persistent });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/flock/secrets/anthropic', async (req, res) => {
+    const { apiKey, name, persistent } = req.body;
+    try {
+        await flockManager.createAnthropicSecret(dbManager, { apiKey, name, persistent });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/flock/bootstrap', async (req, res) => {
+    const { ollamaUrl, models } = req.body;
+    if (!ollamaUrl) return res.status(400).json({ error: 'ollamaUrl required' });
+    try {
+        const result = await flockManager.bootstrapFromOllamaConfig(dbManager, { ollamaUrl, models: models || [] });
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -1723,9 +1910,22 @@ function applyRowLimit(sql, limit) {
 }
 
 app.post('/api/query', async (req, res) => {
-    const { query, queryId, limit } = req.body;
+    const { query, queryId, limit, flockConfirmed } = req.body;
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
+    }
+
+    // Flock cost guardrail: warn before running llm_* on unlimited result sets
+    if (!flockConfirmed && flockManager.FLOCK_CALL_RE.test(query)) {
+        const hasLimit = /\bLIMIT\s+\d+/i.test(query);
+        const hasWhere = /\bWHERE\b/i.test(query);
+        if (!hasLimit && !hasWhere) {
+            return res.json({
+                flockWarning: true,
+                message: 'This query calls an LLM function (llm_complete, llm_filter, etc.) on an unlimited result set. Each row makes an API call to your LLM provider — this can be slow and costly on large tables.',
+                suggestion: 'Add a LIMIT or a WHERE clause to constrain the rows, then re-run.',
+            });
+        }
     }
 
     const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, limit);
