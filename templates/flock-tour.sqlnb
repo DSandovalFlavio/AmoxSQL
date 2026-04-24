@@ -1,0 +1,86 @@
+{
+  "version": "2.0",
+  "environment": {},
+  "cells": [
+    {
+      "id": "flock-tour-md-1",
+      "type": "markdown",
+      "content": "# 🦆 Flock Tour — SQL-native LLM functions for DuckDB\n\nFlock brings LLM capabilities directly into your SQL queries. No Python, no pipelines — just SQL.\n\n> **Official docs:** [dais-polymtl.github.io/flock](https://dais-polymtl.github.io/flock/docs/what-is-flock)\n\n## Prerequisites\n- `INSTALL flock FROM community; LOAD flock;` (Extensions panel)\n- A Flock model registered (AI Functions panel → Setup Wizard)\n- Replace `'MyModel'` in every cell with your actual model alias"
+    },
+    {
+      "id": "flock-tour-md-2",
+      "type": "markdown",
+      "content": "## 1. Setup — Verify Flock is ready\n\nRun this cell to confirm Flock is loaded and your model is registered."
+    },
+    {
+      "id": "flock-tour-code-1",
+      "type": "code",
+      "content": "-- Check Flock extension status\nSELECT extension_name, installed, loaded\nFROM duckdb_extensions()\nWHERE extension_name = 'flock';\n\n-- List registered models\nGET MODELS;"
+    },
+    {
+      "id": "flock-tour-md-3",
+      "type": "markdown",
+      "content": "## 2. `llm_complete` — Text generation per row\n\nGenerates text for each row. Returns JSON.\n\n**Use cases:** summarize descriptions, translate, classify, extract fields."
+    },
+    {
+      "id": "flock-tour-code-2",
+      "type": "code",
+      "content": "-- llm_complete: generate a short tagline for each DuckDB extension\n-- Replace 'MyModel' with your model alias.\nSELECT\n    extension_name,\n    description,\n    llm_complete(\n        {'model_name': 'MyModel'},\n        {'prompt': 'Write a 10-word marketing tagline for this DuckDB extension:',\n         'context_columns': [{'data': description}]}\n    ) AS tagline\nFROM duckdb_extensions()\nWHERE installed = true\n  AND description IS NOT NULL\nLIMIT 5;"
+    },
+    {
+      "id": "flock-tour-md-4",
+      "type": "markdown",
+      "content": "## 3. `llm_filter` — Semantic WHERE predicate\n\nReturns `TRUE` or `FALSE` per row based on an LLM evaluation.\n\n**Use cases:** filter rows by semantic meaning (complaints, sentiment, topic)."
+    },
+    {
+      "id": "flock-tour-code-3",
+      "type": "code",
+      "content": "-- llm_filter: find extensions whose description mentions file I/O or networking\n-- This is a demo — on your real data, replace the table and column.\nSELECT extension_name, description\nFROM duckdb_extensions()\nWHERE description IS NOT NULL\n  AND llm_filter(\n        {'model_name': 'MyModel'},\n        {'prompt': 'Does this description mention file access, networking, or remote storage?',\n         'context_columns': [{'data': description}]}\n      )\nLIMIT 10;"
+    },
+    {
+      "id": "flock-tour-md-5",
+      "type": "markdown",
+      "content": "## 4. `llm_reduce` — Aggregate summaries\n\nCollapses a group of rows into one LLM-generated summary per group.\n\n**Use cases:** summarize all reviews per product category, executive summary per department."
+    },
+    {
+      "id": "flock-tour-code-4",
+      "type": "code",
+      "content": "-- llm_reduce: summarize DuckDB extensions by category\n-- Groups by install_mode and summarizes all descriptions together.\nSELECT\n    install_mode,\n    llm_reduce(\n        {'model_name': 'MyModel'},\n        {'prompt': 'Summarize what these DuckDB extensions have in common in 2 sentences.',\n         'context_columns': [{'data': description}]}\n    ) AS group_summary\nFROM duckdb_extensions()\nWHERE description IS NOT NULL\n  AND install_mode IS NOT NULL\nGROUP BY install_mode;"
+    },
+    {
+      "id": "flock-tour-md-6",
+      "type": "markdown",
+      "content": "## 5. `llm_embedding` + similarity search\n\nGenerates semantic embedding vectors (FLOAT[]) for each row.\n\n**Use cases:** semantic search, deduplication, clustering, nearest-neighbor lookup."
+    },
+    {
+      "id": "flock-tour-code-5",
+      "type": "code",
+      "content": "-- llm_embedding: build embeddings and find similar rows\n-- Requires an embedding model (e.g. nomic-embed-text registered as 'embed_default').\n\n-- Step 1: Create a scratch table with extensions data\nCREATE OR REPLACE TABLE _flock_demo AS\nSELECT\n    extension_name AS id,\n    description    AS text\nFROM duckdb_extensions()\nWHERE description IS NOT NULL\nLIMIT 20;\n\n-- Step 2: Add embedding column and fill it\nALTER TABLE _flock_demo ADD COLUMN IF NOT EXISTS emb FLOAT[];\nUPDATE _flock_demo\nSET emb = llm_embedding(\n    {'model_name': 'embed_default'},\n    {'context_columns': [{'data': text}]}\n)\nWHERE emb IS NULL;\n\n-- Step 3: Find the 5 entries most similar to 'spatial data and geometry'\n-- (llm_embedding of the query string used inline)\nSELECT\n    d.id,\n    d.text,\n    array_cosine_similarity(\n        d.emb,\n        llm_embedding(\n            {'model_name': 'embed_default'},\n            {'context_columns': [{'data': 'spatial data and geometry'}]}\n        )\n    ) AS similarity\nFROM _flock_demo d\nWHERE d.emb IS NOT NULL\nORDER BY similarity DESC\nLIMIT 5;"
+    },
+    {
+      "id": "flock-tour-md-7",
+      "type": "markdown",
+      "content": "## 6. Hybrid search — BM25 + embeddings + `fusion_rrf`\n\nCombine full-text search (BM25 via `fts` extension) with semantic embeddings for best-of-both-worlds retrieval.\n\n**Prerequisites:** `fts` extension loaded, embedding column populated (see cell above)."
+    },
+    {
+      "id": "flock-tour-code-6",
+      "type": "code",
+      "content": "-- Hybrid search: BM25 + semantic similarity → Reciprocal Rank Fusion\n-- Prerequisites: fts extension + _flock_demo table with emb column from cell above.\n\n-- Build FTS index (run once per table)\nPRAGMA create_fts_index('_flock_demo', 'id', 'text', overwrite=1);\n\n-- The search query\nSET VARIABLE query_text = 'file reading and writing';\n\nWITH\n-- BM25 scores\nbm25 AS (\n    SELECT id,\n        fts_main__flock_demo.match_bm25(id, getvariable('query_text')) AS bm25_score\n    FROM _flock_demo\n),\n-- Semantic similarity scores\nsem AS (\n    SELECT d.id,\n        array_cosine_similarity(\n            d.emb,\n            llm_embedding(\n                {'model_name': 'embed_default'},\n                {'context_columns': [{'data': getvariable('query_text')}]}\n            )\n        ) AS sem_score\n    FROM _flock_demo d\n    WHERE d.emb IS NOT NULL\n),\n-- Combined\ncombined AS (\n    SELECT\n        b.id,\n        b.bm25_score,\n        s.sem_score,\n        row_number() OVER (ORDER BY b.bm25_score DESC NULLS LAST) AS bm25_rank,\n        row_number() OVER (ORDER BY s.sem_score DESC NULLS LAST)  AS sem_rank\n    FROM bm25 b JOIN sem s USING (id)\n)\nSELECT\n    c.id,\n    d.text,\n    fusion_rrf(c.bm25_rank, c.sem_rank) AS rrf_score\nFROM combined c\nJOIN _flock_demo d USING (id)\nORDER BY rrf_score DESC\nLIMIT 10;"
+    },
+    {
+      "id": "flock-tour-md-8",
+      "type": "markdown",
+      "content": "## 7. Manage resources — Models & Prompts\n\nFlock stores models and prompts inside the current database."
+    },
+    {
+      "id": "flock-tour-code-7",
+      "type": "code",
+      "content": "-- List everything registered\nGET MODELS;\nGET PROMPTS;\n\n-- Create a reusable prompt\nCREATE PROMPT('sentiment', 'Is the following text positive, negative, or neutral? Reply with one word only.');\n\n-- Use the named prompt\nSELECT\n    extension_name,\n    llm_complete(\n        {'model_name': 'MyModel'},\n        {'prompt_name': 'sentiment',\n         'context_columns': [{'data': description}]}\n    ) AS sentiment\nFROM duckdb_extensions()\nWHERE description IS NOT NULL\nLIMIT 5;\n\n-- Clean up demo table\nDROP TABLE IF EXISTS _flock_demo;"
+    },
+    {
+      "id": "flock-tour-md-9",
+      "type": "markdown",
+      "content": "---\n\n## Next steps\n\n- Open the **AI Functions** panel (⚡ icon in the sidebar) to manage Models, Prompts, and Secrets visually\n- Use **Ctrl+Shift+P** → search \"Flock:\" for quick-insert SQL templates\n- Read the full function reference in the AI Functions → Reference tab\n- [Official Flock documentation](https://dais-polymtl.github.io/flock/docs/what-is-flock)\n- [llm_complete](https://dais-polymtl.github.io/flock/docs/scalar-functions/llm-complete) · [llm_filter](https://dais-polymtl.github.io/flock/docs/scalar-functions/llm-filter) · [llm_embedding](https://dais-polymtl.github.io/flock/docs/scalar-functions/llm-embedding) · [Hybrid search](https://dais-polymtl.github.io/flock/docs/hybrid-search)"
+    }
+  ]
+}
