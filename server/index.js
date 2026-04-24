@@ -1902,8 +1902,10 @@ function applyRowLimit(sql, limit) {
     const stripped = sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
     const upper = stripped.toUpperCase();
     if (!upper.startsWith('SELECT') && !upper.startsWith('WITH')) return { sql, limited: false };
+    // Strip trailing semicolons so the subquery wrapping stays valid
+    const cleanSql = sql.trimEnd().replace(/;+$/, '');
     return {
-        sql: `SELECT * FROM (\n${sql}\n) __amox_rows LIMIT ${limit + 1}`,
+        sql: `SELECT * FROM (\n${cleanSql}\n) __amox_rows LIMIT ${limit + 1}`,
         limited: true,
         limit,
     };
