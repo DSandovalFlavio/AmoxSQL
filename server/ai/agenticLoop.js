@@ -22,6 +22,7 @@ const { compactContext } = require('./compaction');
 const { loadMemoriesText, extractMemories } = require('./memory');
 const { getSkill } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
+const { getFlockStatus, getModels, getPrompts } = require('../flockManager');
 
 const MAX_LOOP_ITERATIONS = 12;
 // Per-iteration maxSteps: high enough that most plans finish in 1-2 outer iterations.
@@ -103,11 +104,22 @@ async function* agenticLoop(options, getModelFn) {
     const aiPersistence = require('./persistence');
 
     // ── Load shared context once ──
-    const [userRules, memories, activeSkill] = await Promise.all([
+    const [userRules, memories, activeSkill, flockStatus] = await Promise.all([
         loadUserRules(projectPath),
         loadMemoriesText(dbManager),
         activeSkillId ? getSkill(projectPath, activeSkillId) : Promise.resolve(null),
+        getFlockStatus(dbManager).catch(() => ({ loaded: false })),
     ]);
+
+    // Build Flock context for the system prompt (only if loaded)
+    let flockContext = null;
+    if (flockStatus.loaded) {
+        const [flockModels, flockPrompts] = await Promise.all([
+            getModels(dbManager).catch(() => []),
+            getPrompts(dbManager).catch(() => []),
+        ]);
+        flockContext = { loaded: true, models: flockModels, prompts: flockPrompts };
+    }
 
     const profile = getModelProfile(model, provider);
 
@@ -118,6 +130,7 @@ async function* agenticLoop(options, getModelFn) {
         activeSkill, modelProfile: profile,
         filePath, fileType,
         enablePlanner: true,
+        flockContext,
     });
 
     const llmModel = getModelFn(provider, model);

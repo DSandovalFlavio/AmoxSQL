@@ -116,6 +116,7 @@ function buildSystemPrompt(options = {}) {
         activeSkill = null,
         modelProfile = null,
         enablePlanner = false,
+        flockContext = null, // { loaded: bool, models: [], prompts: [] }
     } = options;
 
     const tier = modelProfile?.tier || 'high';
@@ -329,6 +330,39 @@ Use \`build_notebook\` when the user asks for a comprehensive analysis, report, 
 - Alternating markdown (explanation) and code (SQL) cells
 - SQL cells should be standalone and executable
 - The user can then open the notebook, execute cells, and add charts`;
+    }
+
+    // Inject Flock context if extension is loaded
+    if (flockContext && flockContext.loaded) {
+        const modelList = (flockContext.models || []).map(m => `\`${m.model_name || m.name}\``).join(', ') || '_none registered yet_';
+        const promptList = (flockContext.prompts || []).map(p => `\`${p.prompt_name || p.name}\``).join(', ') || '_none_';
+        prompt += `
+
+## Flock — SQL-native LLM Functions (ACTIVE)
+The **Flock** DuckDB extension is loaded on this connection. You can call LLM functions directly inside SQL queries:
+
+### Available Functions
+| Function | Returns | Best used for |
+|---|---|---|
+| \`llm_complete(model_cfg, prompt_cfg)\` | JSON | Text generation per row |
+| \`llm_filter(model_cfg, prompt_cfg)\` | BOOLEAN | Semantic WHERE predicates |
+| \`llm_embedding(model_cfg, ctx_cfg)\` | FLOAT[] | Embeddings + similarity search |
+| \`llm_reduce(model_cfg, prompt_cfg)\` | JSON | Aggregate: summarize groups |
+| \`llm_rerank(model_cfg, prompt_cfg)\` | JSON[] | Aggregate: rerank by relevance |
+| \`fusion_rrf(rank1, rank2, ...)\` | DOUBLE | Hybrid search (BM25 + embeddings) |
+
+### Registered Models
+${modelList}
+
+### Registered Prompts
+${promptList}
+
+### Flock Usage Rules
+1. **Prefer \`llm_filter\` in WHERE** over reading every row yourself when the user asks to find/classify rows semantically (e.g. "find negative reviews", "filter complaints").
+2. **Always add a LIMIT** when using \`llm_complete\`, \`llm_filter\`, or \`llm_embedding\` on large tables — each row calls the LLM.
+3. **Use registered model aliases** from the list above. Never invent a model name.
+4. **For semantic search**, combine \`llm_embedding\` + \`array_cosine_similarity\` + \`fusion_rrf\` with BM25 from the \`fts\` extension.
+5. **Warn before running on large tables**: if the table has > 10 000 rows and no WHERE filter, note the cost/latency implications.`;
     }
 
     // Inject active skill if present

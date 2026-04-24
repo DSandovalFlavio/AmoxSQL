@@ -7,6 +7,8 @@ import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } fro
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import ExtensionExplorer from './components/ExtensionExplorer';
+import AiFunctionsPanel from './components/AiFunctionsPanel';
+import FlockSetupWizard from './components/FlockSetupWizard';
 import SnippetsPanel from './components/SnippetsPanel';
 import DbtPanel from './components/DbtPanel';
 import QueryHistoryPanel from './components/QueryHistoryPanel';
@@ -32,7 +34,7 @@ const DataQualityModal = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal = lazy(() => import('./components/SchemaDiffModal'));
 const ExecutionChainModal = lazy(() => import('./components/ExecutionChainModal'));
 const SettingsModal = lazy(() => import('./components/SettingsModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 
 import './index.css';
@@ -93,8 +95,10 @@ function App() {
 
   const [availableTables, setAvailableTables] = useState([]);
 
+  const [showFlockWizard, setShowFlockWizard] = useState(false);
+
   // Sidebar Architecture State
-  const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', or 'extensions'
+  const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', 'extensions', 'aifunctions', etc.
   // Keep-alive: panels se montan la primera vez que se visitan y permanecen montados
   // controlando visibilidad con display. Evita remount/refetch al cambiar de pestaña.
   const [visitedSidebarTabs, setVisitedSidebarTabs] = useState(() => new Set(['files']));
@@ -765,7 +769,13 @@ function App() {
         actions={commandPaletteActions}
       />
 
-      {/* Command Palette — Global */}
+      {/* Flock Setup Wizard */}
+      {showFlockWizard && (
+        <FlockSetupWizard
+          onClose={() => setShowFlockWizard(false)}
+          onComplete={() => setActiveSidebarTab('aifunctions')}
+        />
+      )}
 
       {appPhase === PHASE.IDE && (
         <div className="app-container" style={{ height: '100%', display: 'flex' }}>
@@ -793,6 +803,14 @@ function App() {
                 title="Extensions"
               >
                 <LuPuzzle size={20} />
+              </button>
+              <button
+                onClick={() => handleSidebarTabClick('aifunctions')}
+                className={`activity-bar-btn ${activeSidebarTab === 'aifunctions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="AI Functions (Flock)"
+                style={{ color: activeSidebarTab === 'aifunctions' && !sidebarCollapsed ? undefined : undefined }}
+              >
+                <LuZap size={20} />
               </button>
               <button
                 onClick={() => handleSidebarTabClick('dbt')}
@@ -899,7 +917,16 @@ function App() {
 
             {visitedSidebarTabs.has('extensions') && (
               <div style={{ flex: 1, display: activeSidebarTab === 'extensions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <ExtensionExplorer />
+                <ExtensionExplorer onFlockWizard={() => setShowFlockWizard(true)} />
+              </div>
+            )}
+
+            {visitedSidebarTabs.has('aifunctions') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'aifunctions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+                <AiFunctionsPanel
+                  onInsertSql={(sql) => layoutRef.current?.createNew('sql', sql)}
+                  onOpenWizard={() => setShowFlockWizard(true)}
+                />
               </div>
             )}
 
