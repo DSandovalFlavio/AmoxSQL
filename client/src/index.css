@@ -582,6 +582,16 @@
   margin: 4px 0;
 }
 
+/* ── Generic Spin Animation (for LuLoader icons) ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 /* ═══════════════════════════════════════════════
    ACCENT PRESETS (oklch — perceptually uniform)
    Each preset sets --accent-primary in oklch;

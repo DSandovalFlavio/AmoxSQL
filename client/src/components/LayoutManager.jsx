@@ -52,9 +52,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         // Notify parent of tab changes for rendering in WindowTitleBar
         if (onTabsChange) {
-            const tabs = activePane === 'left' ? leftTabs : rightTabs;
-            const activeTabId = activePane === 'left' ? leftActiveId : rightActiveId;
-            onTabsChange({ tabs, activeTabId, paneId: activePane });
+            onTabsChange({
+                // Active pane data (backward compat)
+                tabs: activePane === 'left' ? leftTabs : rightTabs,
+                activeTabId: activePane === 'left' ? leftActiveId : rightActiveId,
+                paneId: activePane,
+                // Split-view data
+                splitEnabled,
+                left: { tabs: leftTabs, activeTabId: leftActiveId },
+                right: { tabs: rightTabs, activeTabId: rightActiveId },
+            });
         }
     }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane]);
 
@@ -422,19 +429,23 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
         // Expose tab state for rendering TabBar in WindowTitleBar
-        getTabBarProps: () => ({
-            tabs: activePane === 'left' ? leftTabs : rightTabs,
-            activeTabId: activePane === 'left' ? leftActiveId : rightActiveId,
-            onTabClick: (id) => {
-                if (activePane === 'left') setLeftActiveId(id);
-                else setRightActiveId(id);
-            },
-            onTabClose: handleTabClose,
-            onDragStart: handleDragStart,
-            onReorder: handleReorder,
-            onCreateNew: createNew,
-            paneId: activePane,
-        }),
+        getTabBarProps: (pane) => {
+            // If a specific pane is requested, return that pane's props
+            const targetPane = pane || activePane;
+            return {
+                tabs: targetPane === 'left' ? leftTabs : rightTabs,
+                activeTabId: targetPane === 'left' ? leftActiveId : rightActiveId,
+                onTabClick: (id) => {
+                    if (targetPane === 'left') { setLeftActiveId(id); setActivePane('left'); }
+                    else { setRightActiveId(id); setActivePane('right'); }
+                },
+                onTabClose: handleTabClose,
+                onDragStart: handleDragStart,
+                onReorder: handleReorder,
+                onCreateNew: createNew,
+                paneId: targetPane,
+            };
+        },
         openFile: async (path, content, type) => {
             const pane = activePane === 'left' ? leftTabs : rightTabs;
             const existing = pane.find(t => t.path === path);
@@ -722,16 +733,39 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
             try {
-                const res = await fetch(`http://localhost:3001/api/files/inspect-excel?path=${encodeURIComponent(filePath)}`);
+                const res = await fetch(`http://localhost:3001/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
                 const sheets = data.sheets || ['Sheet1'];
+                const sheetsWithColumns = data.sheetsWithColumns || {};
+
+                // Build column comments per sheet
+                const sheetDetails = sheets.map(s => {
+                    const cols = sheetsWithColumns[s] || [];
+                    const colList = cols.length > 0
+                        ? cols.map(c => `${c.name} (${c.type})`).join(', ')
+                        : 'Unable to read columns';
+                    return `-- Sheet: "${s}"\n--   Columns: ${colList}`;
+                }).join('\n');
+
                 const sheetComments = sheets.map(s => `-- SELECT * FROM read_xlsx('${normalizedPath}', sheet='${s}') LIMIT 100;`).join('\n');
-                content = `/* \n * Direct Query on ${fileName}\n * Available sheets: ${sheets.join(', ')}\n */\n\n${sheetComments}\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='${sheets[0]}') LIMIT 100;`;
+                content = `/* \n * Direct Query on ${fileName}\n * Available sheets: ${sheets.join(', ')}\n */\n\n${sheetDetails}\n\n${sheetComments}\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='${sheets[0]}') LIMIT 100;`;
             } catch (err) {
-                content = `/* \n * Direct Query on ${fileName}\n * Error fetching sheets: ${err.message}\n */\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='Sheet1') LIMIT 100;`;
+                content = `/* \n * Direct Query on ${fileName}\n * Error fetching metadata: ${err.message}\n */\n\nSELECT * FROM read_xlsx('${normalizedPath}', sheet='Sheet1') LIMIT 100;`;
             }
         } else {
-            content = `/* \n * Direct Query on ${fileName} \n */\n\nSELECT * FROM '${normalizedPath}' LIMIT 100;`;
+            // CSV, Parquet, JSON — fetch columns via inspect-columns API
+            let columnComment = '';
+            try {
+                const res = await fetch(`http://localhost:3001/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
+                const data = await res.json();
+                if (data.columns && data.columns.length > 0) {
+                    const colList = data.columns.map(c => `${c.name} (${c.type})`).join(', ');
+                    columnComment = `\n * Columns: ${colList}`;
+                }
+            } catch {
+                // Silently ignore column fetch errors
+            }
+            content = `/* \n * Direct Query on ${fileName}${columnComment} \n */\n\nSELECT * FROM '${normalizedPath}' LIMIT 100;`;
         }
 
         const newTab = { id: Date.now().toString(), path: '', name: `${fileName}.sql`, type: 'sql', content, results: null, dirty: true };

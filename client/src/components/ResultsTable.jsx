@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
@@ -524,7 +524,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                                 onClick={() => { if (!exportingAction) item.fn(); }}
                                                 aria-disabled={exportingAction === item.action}
                                             >
-                                                {exportingAction === item.action ? '⏳' : item.icon} {exportingAction === item.action ? 'Exporting...' : item.label}
+                                                {exportingAction === item.action ? <LuLoader size={13} className="spin" /> : item.icon} {exportingAction === item.action ? 'Exporting...' : item.label}
                                             </div>
                                         ))}
                                         <div className="rt-dropdown-separator" />
