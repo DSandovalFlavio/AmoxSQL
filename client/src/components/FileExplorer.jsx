@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, memo, useDeferredValue } from 'react';
+import { useState, useEffect, useRef, memo, useDeferredValue, useLayoutEffect, useCallback } from 'react';
 import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
     LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
-    LuLayoutList, LuLayers, LuCode
+    LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -20,7 +20,34 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState(null); // { x, y, file }
+    const contextMenuRef = useRef(null);
     const wrapperRef = useRef(null);
+
+    // Auto-reposition context menu if it overflows the viewport
+    useLayoutEffect(() => {
+        if (!contextMenu || !contextMenuRef.current) return;
+        const el = contextMenuRef.current;
+        const rect = el.getBoundingClientRect();
+        const viewH = window.innerHeight;
+        const viewW = window.innerWidth;
+        const pad = 8; // safety padding from viewport edges
+        let newY = contextMenu.y;
+        let newX = contextMenu.x;
+
+        // Flip vertically if overflowing bottom
+        if (rect.bottom > viewH - pad) {
+            newY = Math.max(pad, contextMenu.y - rect.height);
+        }
+        // Nudge left if overflowing right
+        if (rect.right > viewW - pad) {
+            newX = Math.max(pad, viewW - rect.width - pad);
+        }
+
+        if (newY !== contextMenu.y || newX !== contextMenu.x) {
+            el.style.top = `${newY}px`;
+            el.style.left = `${newX}px`;
+        }
+    }, [contextMenu]);
 
     // Rename State
     const [renamingFile, setRenamingFile] = useState(null); // file object being renamed
@@ -35,6 +62,9 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
     // File Preview State
     const [previewFilePath, setPreviewFilePath] = useState(null);
+
+    // Column Copy Loading State
+    const [copyingColumns, setCopyingColumns] = useState(false);
 
     // Sort/Group State
     const [sortMode, setSortMode] = useState(() => localStorage.getItem('amoxsql-fe-sort') || editorSettings?.defaultExplorerSort || 'default'); // 'default' | 'type' | 'name'
@@ -470,7 +500,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
             {/* Context Menu Overlay */}
             {contextMenu && (
-                <div style={{
+                <div ref={contextMenuRef} style={{
                     position: 'fixed',
                     top: contextMenu.y,
                     left: contextMenu.x,
@@ -511,6 +541,47 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             className="context-menu-item"
                         >
                             <LuSearch size={14} /> Direct Query
+                        </div>
+                    )}
+                    {/* Copy Column Names for data files */}
+                    {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
+                        <div
+                            onClick={async () => {
+                                if (copyingColumns) return;
+                                setCopyingColumns(true);
+                                try {
+                                    const res = await fetch(`http://localhost:3001/api/files/inspect-columns?path=${encodeURIComponent(contextMenu.file.path)}`);
+                                    const data = await res.json();
+                                    const fName = contextMenu.file.name;
+                                    let comment = '';
+
+                                    if (data.sheetsWithColumns) {
+                                        // Excel: show columns per sheet
+                                        const sheetLines = Object.entries(data.sheetsWithColumns).map(([sheet, cols]) => {
+                                            const colNames = cols.map(c => c.name).join(', ');
+                                            return `-- Sheet "${sheet}": ${colNames}`;
+                                        }).join('\n');
+                                        comment = `-- Columns from: ${fName}\n${sheetLines}`;
+                                    } else if (data.columns && data.columns.length > 0) {
+                                        const colNames = data.columns.map(c => c.name).join(', ');
+                                        comment = `-- Columns from: ${fName}\n-- ${colNames}`;
+                                    } else {
+                                        comment = `-- No columns found for: ${fName}`;
+                                    }
+
+                                    await navigator.clipboard.writeText(comment);
+                                } catch (err) {
+                                    console.error('Failed to copy column names:', err);
+                                    await navigator.clipboard.writeText(`-- Error reading columns: ${err.message}`);
+                                } finally {
+                                    setCopyingColumns(false);
+                                    setContextMenu(null);
+                                }
+                            }}
+                            style={{ padding: '8px 12px', cursor: copyingColumns ? 'wait' : 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            className="context-menu-item"
+                        >
+                            {copyingColumns ? <LuLoader size={14} className="spin" /> : <LuColumns3 size={14} />} {copyingColumns ? 'Reading...' : 'Copy Column Names'}
                         </div>
                     )}
 

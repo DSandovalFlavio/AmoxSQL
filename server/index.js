@@ -661,6 +661,68 @@ app.get('/api/files/inspect-excel', (req, res) => {
     }
 });
 
+/**
+ * GET /api/files/inspect-columns
+ * Returns column names and types for any data file (CSV, Parquet, JSON, Excel).
+ * For Excel files, also returns sheet names and columns per sheet.
+ * Query params: path (required), sheet (optional, for Excel)
+ */
+app.get('/api/files/inspect-columns', async (req, res) => {
+    const filePath = req.query.path;
+    const sheet = req.query.sheet; // optional, for Excel
+    if (!filePath) return res.status(400).json({ error: 'Path is required' });
+
+    let fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
+    fullPath = fullPath.replace(/\\/g, '/');
+
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
+
+    const ext = (fullPath.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+
+    try {
+        if (ext === '.xlsx' || ext === '.xls') {
+            // Get sheet names first
+            const workbook = xlsx.read(fs.readFileSync(fullPath), { type: 'buffer', bookSheets: true });
+            const sheets = workbook.SheetNames;
+
+            // Get columns for the requested sheet (or first sheet)
+            const targetSheet = sheet || sheets[0];
+            let columns = [];
+            try {
+                const describe = await dbManager.systemQuery(
+                    `DESCRIBE SELECT * FROM read_xlsx('${fullPath}', sheet='${targetSheet}')`
+                );
+                columns = describe.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
+            } catch (e) {
+                console.warn(`[inspect-columns] Failed to describe Excel sheet '${targetSheet}':`, e.message);
+            }
+
+            // Optionally get columns for ALL sheets
+            const sheetsWithColumns = {};
+            for (const s of sheets) {
+                try {
+                    const desc = await dbManager.systemQuery(
+                        `DESCRIBE SELECT * FROM read_xlsx('${fullPath}', sheet='${s}')`
+                    );
+                    sheetsWithColumns[s] = desc.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
+                } catch {
+                    sheetsWithColumns[s] = [];
+                }
+            }
+
+            res.json({ sheets, columns, sheetsWithColumns });
+        } else {
+            // CSV, Parquet, JSON — use DuckDB DESCRIBE directly
+            const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullPath}'`);
+            const columns = describe.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
+            res.json({ columns });
+        }
+    } catch (err) {
+        console.error('[inspect-columns] Error:', err);
+        res.status(500).json({ error: 'Failed to inspect columns', details: err.message });
+    }
+});
+
 app.post('/api/db/import-excel', async (req, res) => {
     const { filePath, mode, sheets, tableName, cleanColumns, tableMapping } = req.body;
     // mode: 'MERGE' | 'INDIVIDUAL'

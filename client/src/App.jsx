@@ -988,38 +988,100 @@ function App() {
             )}
           </div>
 
-          {/* Main Content with LayoutManager */}
+           {/* Main Content with LayoutManager */}
           <div className="main-content">
-            {/* Tab Bar Card — floating, only above editor + AI area, hidden when no tabs */}
-            {titleBarTabs && titleBarTabs.tabs.length > 0 && (
-              <div className="tab-bar-card">
-                <TabBar
-                  tabs={titleBarTabs.tabs}
-                  activeTabId={titleBarTabs.activeTabId}
-                  onTabClick={(id) => {
-                    const props = layoutRef.current?.getTabBarProps();
-                    if (props) props.onTabClick(id);
-                  }}
-                  onTabClose={(id) => {
-                    const props = layoutRef.current?.getTabBarProps();
-                    if (props) props.onTabClose(id);
-                  }}
-                  paneId={titleBarTabs.paneId}
-                  onDragStart={(e, tabId, paneId) => {
-                    const props = layoutRef.current?.getTabBarProps();
-                    if (props?.onDragStart) props.onDragStart(e, tabId, paneId);
-                  }}
-                  onReorder={(src, target, paneId) => {
-                    const props = layoutRef.current?.getTabBarProps();
-                    if (props?.onReorder) props.onReorder(src, target, paneId);
-                  }}
-                  onCreateNew={(type) => {
-                    const props = layoutRef.current?.getTabBarProps();
-                    if (props?.onCreateNew) props.onCreateNew(type);
-                  }}
-                />
+            {/* Tab Bar Area — floating, only above editor + AI area, hidden when no tabs */}
+            {titleBarTabs && (titleBarTabs.tabs.length > 0 || (titleBarTabs.splitEnabled && (titleBarTabs.left?.tabs.length > 0 || titleBarTabs.right?.tabs.length > 0))) && (
+              <div style={{ display: 'flex', gap: titleBarTabs.splitEnabled ? '16px' : '0', padding: '6px 8px 4px 8px', flexShrink: 0 }}>
+                {titleBarTabs.splitEnabled ? (
+                  <>
+                    <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+                      <TabBar
+                        tabs={titleBarTabs.left?.tabs || []}
+                        activeTabId={titleBarTabs.left?.activeTabId}
+                        onTabClick={(id) => {
+                          const props = layoutRef.current?.getTabBarProps('left');
+                          if (props) props.onTabClick(id);
+                        }}
+                        onTabClose={(id) => {
+                          const props = layoutRef.current?.getTabBarProps('left');
+                          if (props) props.onTabClose(id);
+                        }}
+                        paneId="left"
+                        onDragStart={(e, tabId) => {
+                          const props = layoutRef.current?.getTabBarProps('left');
+                          if (props?.onDragStart) props.onDragStart(e, tabId, 'left');
+                        }}
+                        onReorder={(src, target) => {
+                          const props = layoutRef.current?.getTabBarProps('left');
+                          if (props?.onReorder) props.onReorder(src, target, 'left');
+                        }}
+                        onCreateNew={(type) => {
+                          const props = layoutRef.current?.getTabBarProps('left');
+                          if (props?.onCreateNew) props.onCreateNew(type);
+                        }}
+                      />
+                    </div>
+                    <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+                      <TabBar
+                        tabs={titleBarTabs.right?.tabs || []}
+                        activeTabId={titleBarTabs.right?.activeTabId}
+                        onTabClick={(id) => {
+                          const props = layoutRef.current?.getTabBarProps('right');
+                          if (props) props.onTabClick(id);
+                        }}
+                        onTabClose={(id) => {
+                          const props = layoutRef.current?.getTabBarProps('right');
+                          if (props) props.onTabClose(id);
+                        }}
+                        paneId="right"
+                        onDragStart={(e, tabId) => {
+                          const props = layoutRef.current?.getTabBarProps('right');
+                          if (props?.onDragStart) props.onDragStart(e, tabId, 'right');
+                        }}
+                        onReorder={(src, target) => {
+                          const props = layoutRef.current?.getTabBarProps('right');
+                          if (props?.onReorder) props.onReorder(src, target, 'right');
+                        }}
+                        onCreateNew={(type) => {
+                          const props = layoutRef.current?.getTabBarProps('right');
+                          if (props?.onCreateNew) props.onCreateNew(type);
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+                    <TabBar
+                      tabs={titleBarTabs.tabs}
+                      activeTabId={titleBarTabs.activeTabId}
+                      onTabClick={(id) => {
+                        const props = layoutRef.current?.getTabBarProps();
+                        if (props) props.onTabClick(id);
+                      }}
+                      onTabClose={(id) => {
+                        const props = layoutRef.current?.getTabBarProps();
+                        if (props) props.onTabClose(id);
+                      }}
+                      paneId={titleBarTabs.paneId}
+                      onDragStart={(e, tabId, paneId) => {
+                        const props = layoutRef.current?.getTabBarProps();
+                        if (props?.onDragStart) props.onDragStart(e, tabId, paneId);
+                      }}
+                      onReorder={(src, target, paneId) => {
+                        const props = layoutRef.current?.getTabBarProps();
+                        if (props?.onReorder) props.onReorder(src, target, paneId);
+                      }}
+                      onCreateNew={(type) => {
+                        const props = layoutRef.current?.getTabBarProps();
+                        if (props?.onCreateNew) props.onCreateNew(type);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             )}
+
 
             {/* Content Area containing Editor AND AI Sidebar */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
