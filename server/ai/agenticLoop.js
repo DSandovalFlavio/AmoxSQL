@@ -24,7 +24,7 @@ const { getSkill } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
 const { getFlockStatus, getModels, getPrompts } = require('../flockManager');
 
-const MAX_LOOP_ITERATIONS = 12;
+const MAX_LOOP_ITERATIONS = 15;
 // Per-iteration maxSteps: high enough that most plans finish in 1-2 outer iterations.
 const ITER_MAX_STEPS = 15;
 // Max times we retry an iteration that produced no tool calls (idle recovery)

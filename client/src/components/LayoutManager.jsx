@@ -10,7 +10,7 @@ import { invalidateSchema } from '../state/sidebarCache';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 
-const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onShowHistorySidebar }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar }, ref) => {
     const toast = useToast();
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
@@ -965,6 +965,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onOpenFile={handleQueryFile}
                     availableTables={availableTables}
                     onExportNotebook={onExportNotebook}
+                    onExportAmoxvis={onExportAmoxvis}
                     isRunning={!!runningQueryId}
                     onCancelQuery={cancelQuery}
                     onShowHistory={onShowHistorySidebar}
@@ -999,6 +1000,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onOpenFile={handleQueryFile}
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
+                        onExportAmoxvis={onExportAmoxvis}
                         isRunning={!!runningQueryId}
                         onCancelQuery={cancelQuery}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}

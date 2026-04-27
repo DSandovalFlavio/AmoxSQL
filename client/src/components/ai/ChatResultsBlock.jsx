@@ -1,5 +1,6 @@
 import { useMemo, useState, Component } from 'react';
-import { LuMaximize2, LuDownload, LuFileJson } from 'react-icons/lu';
+import { LuMaximize2, LuDownload, LuFileJson, LuImage } from 'react-icons/lu';
+import html2canvas from 'html2canvas';
 import ChartRenderer from '../DataVisualizer/renderers/ChartRenderer';
 import { processChartData, isDateColumn } from '../DataVisualizer/utils/dataProcessing';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';
@@ -35,8 +36,9 @@ class ChartErrorBoundary extends Component {
  * ChatResultsBlock — Renders an inline chart visualization for the AI chat.
  * Finds the data from previous messages using queryId and renders ChartRenderer.
  */
-const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook }) => {
+const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const chartDOMId = useMemo(() => `ai-chart-${Math.random().toString(36).substr(2, 9)}`, []);
 
     // Find the data in previous messages
     const { data, sourceQuery, executionTime } = useMemo(() => {
@@ -140,32 +142,64 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
     const activeColors = COLOR_PALETTES.default;
     const isExpandedMode = isExpanded || isDiving;
 
+    const handleDownloadImage = async () => {
+        const chartEl = document.getElementById(`${chartDOMId}-area`);
+        if (!chartEl) return;
+        try {
+            const canvas = await html2canvas(chartEl, { backgroundColor: '#1e1e1e' });
+            const link = document.createElement('a');
+            link.download = `chart_${chartConfig.queryId || 'export'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (err) {
+            console.error('Error downloading chart image:', err);
+        }
+    };
+
+    const handleToggleFullscreen = () => {
+        const el = document.getElementById(chartDOMId);
+        if (!el) return;
+        if (!document.fullscreenElement) {
+            el.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    const handleDownloadConfig = () => {
+        if (onExportAmoxvis) {
+            onExportAmoxvis(chartConfig.title, sourceQuery, fullConfig);
+        } else {
+            const blob = new Blob([JSON.stringify(fullConfig, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chart_config_${chartConfig.queryId || 'export'}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    };
+
     return (
-        <div className="ai-chart">
+        <div id={chartDOMId} className="ai-chart">
             {/* Header */}
             <div className="ai-chart-header">
                 <span className="ai-chart-title">
                     {chartConfig.title || 'Data Visualization'}
                 </span>
-                {!isDiving && (
-                    <button
-                        className="ai-chart-btn"
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        title={isExpanded ? 'Collapse' : 'Expand'}
-                    >
-                        <LuMaximize2
-                            size={13}
-                            style={{
-                                transform: isExpanded ? 'rotate(180deg)' : 'none',
-                                transition: 'transform 0.2s',
-                            }}
-                        />
-                    </button>
-                )}
+                <button
+                    className="ai-chart-btn"
+                    onClick={handleToggleFullscreen}
+                    title="Toggle Fullscreen"
+                >
+                    <LuMaximize2 size={13} />
+                </button>
             </div>
 
             {/* Chart Area */}
-            <div className={`ai-chart-area${isExpandedMode ? ' ai-chart-area--expanded' : ''}`}>
+            <div id={`${chartDOMId}-area`} className={`ai-chart-area${isExpandedMode ? ' ai-chart-area--expanded' : ''}`} style={{ padding: '10px 0' }}>
                 <ChartErrorBoundary>
                     <ChartRenderer
                         config={fullConfig}
@@ -186,23 +220,18 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                 </span>
                 <div className="ai-chart-footer-actions">
                     <button
-                        className="ai-chart-btn ai-chart-btn--primary"
-                        onClick={() => {
-                            if (onExportNotebook) {
-                                // Extract surrounding markdown if available, or just generic message
-                                const contextMarkdown = `Automatic AI Export for: **${chartConfig.title || 'Data Analysis'}**`;
-                                onExportNotebook(chartConfig.title, sourceQuery, contextMarkdown);
-                            }
-                        }}
-                        title="Export to new SQL Notebook"
+                        className="ai-chart-btn"
+                        onClick={handleDownloadImage}
+                        title="Download Chart as PNG"
                     >
-                        <LuFileJson size={11} /> To Notebook
+                        <LuImage size={12} /> PNG
                     </button>
                     <button
                         className="ai-chart-btn"
-                        title="Export Config JSON"
+                        onClick={handleDownloadConfig}
+                        title="Edit in Amoxvis"
                     >
-                        <LuFileJson size={11} /> Config
+                        <LuFileJson size={12} /> Edit Config
                     </button>
                 </div>
             </div>

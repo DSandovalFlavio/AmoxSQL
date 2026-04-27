@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight } from 'react-icons/lu';
@@ -15,7 +15,7 @@ function parseThinkingBlocks(text) {
     if (!text) return [{ type: 'text', content: '' }];
 
     const parts = [];
-    const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+    const thinkRegex = /<think>([\s\S]*?)(?:<\/think>|$)/g;
     let lastIndex = 0;
     let match;
 
@@ -27,8 +27,15 @@ function parseThinkingBlocks(text) {
         }
         // The thinking block itself
         const thinking = match[1].trim();
-        if (thinking) parts.push({ type: 'thinking', content: thinking });
+        const isStreaming = !match[0].endsWith('</think>');
+        if (thinking || isStreaming) {
+            parts.push({ type: 'thinking', content: thinking, isStreaming });
+        }
         lastIndex = match.index + match[0].length;
+
+        if (match.index === thinkRegex.lastIndex) {
+            thinkRegex.lastIndex++;
+        }
     }
 
     // Remaining text after last thinking block
@@ -48,8 +55,15 @@ function parseThinkingBlocks(text) {
 /**
  * ThinkingBlock — Collapsible block showing model reasoning.
  */
-const ThinkingBlock = ({ content }) => {
+const ThinkingBlock = ({ content, isStreaming }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    // Auto-expand if it's currently streaming
+    useEffect(() => {
+        if (isStreaming) {
+            setIsExpanded(true);
+        }
+    }, [isStreaming]);
 
     return (
         <div className="ai-msg-thinking">
@@ -57,8 +71,8 @@ const ThinkingBlock = ({ content }) => {
                 className="ai-msg-thinking__toggle"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <LuBrain size={12} className="ai-msg-thinking__icon" />
-                <span>Reasoning</span>
+                <LuBrain size={12} className={`ai-msg-thinking__icon ${isStreaming ? 'ai-pulsing' : ''}`} />
+                <span>{isStreaming ? 'Reasoning...' : 'Reasoning'}</span>
                 {isExpanded
                     ? <LuChevronDown size={12} />
                     : <LuChevronRight size={12} />
@@ -66,7 +80,18 @@ const ThinkingBlock = ({ content }) => {
             </button>
             {isExpanded && (
                 <div className="ai-msg-thinking__content">
-                    {content}
+                    {content ? (
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                p: ({ children }) => <p style={{ margin: '4px 0', fontSize: '12px', color: 'var(--text-tertiary)' }}>{children}</p>,
+                            }}
+                        >
+                            {content}
+                        </ReactMarkdown>
+                    ) : (
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Thinking...</span>
+                    )}
                 </div>
             )}
         </div>
@@ -110,7 +135,7 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onAppendToFile, onFollowUp, onExportNotebook, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onAppendToFile, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -303,7 +328,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         <div className="ai-msg-text">
                             {parts.map((part, idx) => {
                                 if (part.type === 'thinking') {
-                                    return <ThinkingBlock key={idx} content={part.content} />;
+                                    return <ThinkingBlock key={idx} content={part.content} isStreaming={part.isStreaming} />;
                                 }
                                 return (
                                     <ReactMarkdown
@@ -420,6 +445,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                         allMessages={allMessages}
                                         isDiving={isDiving}
                                         onExportNotebook={onExportNotebook}
+                                        onExportAmoxvis={onExportAmoxvis}
                                     />
                                 )}
                             </div>

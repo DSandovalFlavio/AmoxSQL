@@ -618,7 +618,7 @@ export default function useAiChat({
                                     ...tc,
                                     result: {
                                         ...tc.result,
-                                        queryId: qr.id,
+                                        queryId: tc.result?.queryId || qr.id,
                                         query: qr.sql_query,
                                         columns: qr.columns_info || tc.result?.columns,
                                         data: qr.data || tc.result?.data,
@@ -637,7 +637,7 @@ export default function useAiChat({
                                             result: {
                                                 ...tc.result,
                                                 ...(cc.config || {}),
-                                                queryId: qr.id,
+                                                queryId: tc.result?.queryId || tc.args?.query_id || qr.id,
                                             },
                                         };
                                     }
@@ -658,6 +658,34 @@ export default function useAiChat({
                 setStreamingText('');
                 setActiveToolCalls([]);
                 setErrorMsg(null);
+
+                // Reconstruct plan state from tool calls
+                let reconstructedPlan = null;
+                for (const m of loadedMessages) {
+                    if (m.toolCalls) {
+                        for (const tc of m.toolCalls) {
+                            if (tc.toolName === 'create_plan' && tc.result && !tc.result.error) {
+                                reconstructedPlan = {
+                                    planId: tc.result.planId || tc.result.plan_id,
+                                    goal: tc.result.goal,
+                                    steps: tc.result.steps || [],
+                                    status: 'pending',
+                                };
+                            } else if (tc.toolName === 'update_plan' && tc.result && !tc.result.error && reconstructedPlan) {
+                                const stepId = tc.args?.step_id;
+                                const status = tc.args?.status;
+                                if (stepId && status) {
+                                    reconstructedPlan.steps = reconstructedPlan.steps.map(s => 
+                                        s.id === stepId ? { ...s, status, note: tc.args.note || s.note } : s
+                                    );
+                                }
+                            } else if (tc.toolName === 'final_answer' && reconstructedPlan) {
+                                reconstructedPlan.status = 'completed';
+                            }
+                        }
+                    }
+                }
+                setPlanState(reconstructedPlan);
 
                 // Restore persisted context objects (diving mode)
                 if (mode === 'diving' && Array.isArray(conv.context_objects) && conv.context_objects.length > 0) {

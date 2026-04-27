@@ -39,6 +39,7 @@ const EditorPane = ({
     onOpenFile,       // (filePath) -> open a file in a new tab (used by ChainEditor)
     availableTables,  // Data Diving only
     onExportNotebook, // Data Diving only
+    onExportAmoxvis, // Data Diving chart export
     isRunning,        // boolean — a query is currently executing
     onCancelQuery,    // () -> cancel the running query
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
@@ -411,6 +412,7 @@ const EditorPane = ({
                             width="100%"
                             onRunSql={(sql) => onCreateNew && onCreateNew('sql', sql)}
                             onExportNotebook={onExportNotebook}
+                            onExportAmoxvis={onExportAmoxvis}
                             onOpenFile={onOpenFile}
                             availableTables={availableTables}
                             startConversationId={activeTab?.content || null}

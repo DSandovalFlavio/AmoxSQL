@@ -694,13 +694,40 @@ function App() {
       if (data.error) throw new Error(data.error);
 
       // Tell LayoutManager to open the new notebook
-      layoutRef.current?.loadFile(filename);
+      layoutRef.current?.handleQueryFile(filename);
       setFileRefreshTrigger(t => t + 1);
       toast.success(`Exported to ${filename}`);
     } catch (err) {
       toast.error(`Failed to export notebook: ${err.message}`);
     }
   }, []);
+
+  const handleExportAmoxvis = useCallback(async (title, query, config) => {
+    const safeTitle = (title || 'chart').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const filename = `AI_${safeTitle}_${Date.now()}.amoxvis`;
+    const amoxvisContent = {
+      version: 1,
+      query: query || '',
+      config: config || {}
+    };
+
+    try {
+      const response = await fetch('http://localhost:3001/api/file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filename, content: JSON.stringify(amoxvisContent, null, 2) })
+      });
+      
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      layoutRef.current?.openFile(filename, JSON.stringify(amoxvisContent, null, 2), 'amoxvis');
+      setFileRefreshTrigger(t => t + 1);
+      toast.success(`Exported chart to ${filename}`);
+    } catch (err) {
+      toast.error(`Failed to export chart: ${err.message}`);
+    }
+  }, [toast]);
 
 // Removed duplicated handleCloseProject
 
@@ -1109,6 +1136,7 @@ function App() {
                   }}
                   availableTables={availableTables}
                   onExportNotebook={handleExportNotebook}
+                  onExportAmoxvis={handleExportAmoxvis}
                   onShowHistorySidebar={() => {
                     setSidebarCollapsed(false);
                     setActiveSidebarTab('history');
