@@ -4001,6 +4001,10 @@ tr:hover .rt-td {
   color: color-mix(in srgb, var(--accent-primary) 60%, #a855f7);
 }
 
+.ai-pulsing {
+  animation: ai-tool-pulse 1.5s ease-in-out infinite;
+}
+
 .ai-msg-thinking__content {
   padding: 8px 12px;
   border-top: 1px solid var(--border-subtle);
@@ -5095,41 +5099,47 @@ tr:hover .rt-td {
 /* ── AI Chart Results Block — Linear: card-based visualization ── */
 
 .ai-chart {
-  margin: var(--spacing-2) 0;
-  border: 1px solid var(--border-default);
+  margin: var(--space-3) 0;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  background-color: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
+  background-color: var(--surface-inset);
+  box-shadow: none;
   overflow: hidden;
-  transition: box-shadow var(--transition-normal);
 }
 
-.ai-chart:hover {
-  box-shadow: var(--shadow-md);
+.ai-chart:fullscreen {
+  background-color: var(--surface-base);
+  padding: var(--space-6);
+  border: none;
+  border-radius: 0;
+}
+
+.ai-chart:fullscreen .ai-chart-area {
+  height: calc(100vh - 120px) !important;
 }
 
 .ai-chart--empty {
-  padding: var(--spacing-3);
+  padding: var(--space-4);
   background-color: var(--surface-inset);
   border-radius: var(--radius-md);
-  font-size: var(--font-xs);
+  font-size: var(--text-xs);
   color: var(--text-tertiary);
-  margin: var(--spacing-2) 0;
-  border: 1px solid var(--border-default);
+  margin: var(--space-3) 0;
+  border: 1px solid var(--border-subtle);
 }
 
 .ai-chart-header {
-  padding: var(--spacing-2) var(--spacing-3);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-default);
-  background-color: var(--surface-base);
-  gap: var(--spacing-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: transparent;
+  gap: var(--space-3);
 }
 
 .ai-chart-title {
-  font-size: var(--font-xs);
+  font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   white-space: nowrap;
@@ -5140,8 +5150,8 @@ tr:hover .rt-td {
 }
 
 .ai-chart-area {
-  height: 220px;
-  padding: var(--spacing-4) var(--spacing-4) var(--spacing-3) 0;
+  height: 240px;
+  padding: var(--space-4) var(--space-4) var(--space-3) 0;
   transition: height 0.2s ease;
   overflow: hidden;
   min-width: 0;
@@ -5149,26 +5159,26 @@ tr:hover .rt-td {
 }
 
 .ai-chart-area--expanded {
-  height: 350px;
+  height: 380px;
 }
 
 .ai-chart-footer {
-  padding: var(--spacing-2) var(--spacing-3);
-  border-top: 1px solid var(--border-default);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--surface-inset);
-  gap: var(--spacing-2);
+  background-color: transparent;
+  gap: var(--space-3);
 }
 
 .ai-chart-footer-actions {
   display: flex;
-  gap: var(--spacing-1-5);
+  gap: var(--space-2);
 }
 
 .ai-chart-meta {
-  font-size: var(--font-2xs);
+  font-size: var(--text-xs);
   color: var(--text-tertiary);
   letter-spacing: var(--tracking-normal);
 }
@@ -5176,34 +5186,35 @@ tr:hover .rt-td {
 .ai-chart-btn {
   display: flex;
   align-items: center;
-  gap: var(--spacing-1);
-  padding: var(--spacing-1) var(--spacing-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
+  gap: 5px;
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
-  font-size: var(--font-2xs);
+  font-size: var(--text-xs);
+  font-family: inherit;
   cursor: pointer;
   transition: all var(--transition-fast);
   line-height: 1;
 }
 
 .ai-chart-btn:hover {
-  background: var(--state-hover);
+  background: var(--surface-overlay);
   color: var(--text-primary);
-  border-color: var(--border-strong);
+  border-color: var(--border-default);
 }
 
 .ai-chart-btn--primary {
-  background: var(--accent-solid);
-  border-color: var(--accent-solid);
-  color: var(--button-text-color, #fff);
+  background: var(--accent-subtle);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .ai-chart-btn--primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-  color: var(--button-text-color, #fff);
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--surface-base);
 }
 
 /* ── AI Diving — 3-Column Layout ── */
@@ -5328,25 +5339,6 @@ tr:hover .rt-td {
   max-width: 768px;
   width: 100%;
   pointer-events: auto;
-}
-
-.ai-diving-composer .ai-input-area--diving {
-  background-color: var(--surface-overlay);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  padding: 12px 16px;
-}
-
-.ai-diving-composer .ai-textarea {
-  background-color: transparent;
-  border: none;
-  padding: 4px 0;
-}
-
-.ai-diving-composer .ai-textarea:focus {
-  border: none;
-  box-shadow: none;
 }
 
 /* Empty state — diving variant */

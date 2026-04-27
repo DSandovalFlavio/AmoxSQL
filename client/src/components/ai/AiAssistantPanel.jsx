@@ -376,38 +376,15 @@ const AiAssistantPanel = ({
 
                         {/* Streaming assistant message */}
                         {isGenerating && (streamingText || activeToolCalls.length > 0) && (
-                            <div className="ai-streaming-msg">
-                                <div className="ai-avatar">
-                                    <LuBot size={13} />
-                                </div>
-                                <div className="ai-streaming-body">
-                                    <div className="ai-streaming-label">AmoxSQL AI</div>
-                                    {activeToolCalls.map((tc, i) => (
-                                        <ToolCallBlock
-                                            key={tc.toolCallId || i}
-                                            toolName={tc.toolName}
-                                            args={tc.args}
-                                            result={tc.result}
-                                            isLoading={tc.isLoading}
-                                        />
-                                    ))}
-
-                                    {isThinking && (
-                                        <div className="ai-msg-thinking" style={{ marginTop: 8, marginBottom: 8, borderColor: 'transparent', backgroundColor: 'transparent' }}>
-                                            <div className="ai-msg-thinking__toggle" style={{ cursor: 'default' }}>
-                                                <LuBrain size={12} className="ai-msg-thinking__icon fa-spin" style={{ animation: 'blink 1.5s infinite' }} />
-                                                <span>Reasoning...</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {streamingText && (
-                                        <div className="ai-streaming-text">
-                                            {streamingText}
-                                            <span className="ai-cursor" />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <ChatMessage
+                                role="assistant"
+                                content={streamingText}
+                                toolCalls={activeToolCalls}
+                                isStreaming={true}
+                                onRunSql={onRunSql}
+                                onApplyToFile={onApplyToFile}
+                                onAppendToFile={onAppendToFile}
+                            />
                         )}
 
                         {/* Generating indicator */}

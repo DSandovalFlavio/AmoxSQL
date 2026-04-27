@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp } from 'react-icons/lu';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import ConversationList from './ConversationList';
@@ -19,6 +19,7 @@ const AiDivingPanel = ({
     width,
     onRunSql,
     onExportNotebook,
+    onExportAmoxvis,
     onOpenFile,
     availableTables,
     startConversationId,
@@ -237,44 +238,23 @@ const AiDivingPanel = ({
                     onRunSql={onRunSql}
                     onFollowUp={handleSend}
                     onExportNotebook={onExportNotebook}
+                    onExportAmoxvis={onExportAmoxvis}
                     onOpenFile={onOpenFile}
                 />
             ))}
 
             {/* Streaming assistant message */}
             {isGenerating && (streamingText || activeToolCalls.length > 0) && (
-                <div className="ai-streaming-msg">
-                    <div className="ai-avatar">
-                        <LuBot size={13} />
-                    </div>
-                    <div className="ai-streaming-body">
-                        <div className="ai-streaming-label">AmoxSQL AI</div>
-                        {activeToolCalls.map((tc, i) => (
-                            <ToolCallBlock
-                                key={tc.toolCallId || i}
-                                toolName={tc.toolName}
-                                args={tc.args}
-                                result={tc.result}
-                                isLoading={tc.isLoading}
-                            />
-                        ))}
-
-                        {isThinking && (
-                            <div className="ai-msg-thinking" style={{ marginTop: 8, marginBottom: 8, borderColor: 'transparent', backgroundColor: 'transparent' }}>
-                                <div className="ai-msg-thinking__toggle" style={{ cursor: 'default' }}>
-                                    <LuLoader size={12} className="ai-msg-thinking__icon" style={{ animation: 'blink 1.5s infinite' }} />
-                                    <span>Reasoning...</span>
-                                </div>
-                            </div>
-                        )}
-                        {streamingText && (
-                            <div className="ai-streaming-text">
-                                {streamingText}
-                                <span className="ai-cursor" />
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <ChatMessage
+                    role="assistant"
+                    content={streamingText}
+                    toolCalls={activeToolCalls}
+                    isStreaming={true}
+                    isDiving={true}
+                    onRunSql={onRunSql}
+                    onFollowUp={handleSend}
+                    onExportNotebook={onExportNotebook}
+                />
             )}
 
             {/* Generating indicator */}
@@ -291,54 +271,62 @@ const AiDivingPanel = ({
 
     // ─── Input composer ───
     const inputComposer = (
-        <div className="ai-input-area ai-input-area--diving">
-            <div className="ai-input-row">
-                <textarea
-                    className="ai-textarea"
-                    ref={inputRef}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask about your data..."
-                    rows={1}
-                    onInput={(e) => {
-                        e.target.style.height = 'auto';
-                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                    }}
-                />
-                <button
-                    className={`ai-send-btn${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
-                    onClick={isGenerating ? handleCancel : () => handleSend()}
-                    disabled={!isGenerating && !inputText.trim()}
-                >
-                    {isGenerating ? <LuX size={16} /> : <LuSend size={15} />}
-                </button>
-            </div>
-            <div className="ai-input-footer">
-                <div className="ai-diving-model">
-                    {provider === 'ollama' ? <LuCpu size={11} /> : <LuCloud size={11} />}
-                    {provider === 'ollama' && isModelsLoading ? (
-                        <span className="ai-diving-model-text">Loading...</span>
-                    ) : (
-                        <select
-                            className="ai-diving-model-select"
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
-                        >
-                            {provider === 'ollama' ? (
-                                installedModels.map(m => (
-                                    <option key={m.name} value={m.name}>{m.name}</option>
-                                ))
-                            ) : (
-                                GEMINI_MODELS.map(m => (
-                                    <option key={m.id} value={m.id}>{m.label}</option>
-                                ))
-                            )}
-                        </select>
-                    )}
+        <div className="ai-composer">
+            <textarea
+                className="ai-textarea"
+                ref={inputRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about your data..."
+                rows={1}
+                onInput={(e) => {
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                }}
+            />
+            <div className="ai-composer-toolbar">
+                <div className="ai-composer-toolbar-left">
+                    <div className="ai-composer-model">
+                        {provider === 'ollama' ? <LuCpu size={12} /> : <LuCloud size={12} />}
+                        {provider === 'ollama' && isModelsLoading ? (
+                            <span className="ai-composer-model-text">Loading...</span>
+                        ) : (
+                            <select
+                                className="ai-composer-model-select"
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                            >
+                                {provider === 'ollama' ? (
+                                    installedModels.map(m => (
+                                        <option key={m.name} value={m.name}>{m.name}</option>
+                                    ))
+                                ) : (
+                                    GEMINI_MODELS.map(m => (
+                                        <option key={m.id} value={m.id}>{m.label}</option>
+                                    ))
+                                )}
+                            </select>
+                        )}
+                        {selectedModel === 'custom' && provider === 'gemini' && (
+                            <input
+                                className="ai-composer-model-custom"
+                                type="text" value={customModel}
+                                onChange={(e) => setCustomModel(e.target.value)}
+                                placeholder="model id..."
+                            />
+                        )}
+                    </div>
                 </div>
-                <div className="ai-input-hint">
-                    Enter to send · Shift+Enter for newline
+                <div className="ai-composer-toolbar-right">
+                    <span className="ai-composer-hint">{'Enter \u21B5'}</span>
+                    <button
+                        className={`ai-composer-send${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
+                        onClick={isGenerating ? handleCancel : () => handleSend()}
+                        disabled={!isGenerating && !inputText.trim()}
+                    >
+                        {isGenerating ? <LuX size={16} strokeWidth={2.5} /> : <LuArrowUp size={18} strokeWidth={2.5} />}
+                    </button>
                 </div>
             </div>
         </div>
