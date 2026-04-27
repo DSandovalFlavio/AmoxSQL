@@ -3728,10 +3728,11 @@ tr:hover .rt-td {
 
 .ai-msg-bubble {
   max-width: 85%;
-  background-color: var(--accent-primary);
-  color: var(--surface-base);
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
-  padding: 8px 14px;
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 16px 16px 4px 16px;
+  padding: 10px 14px;
   word-break: break-word;
 }
 
@@ -3752,16 +3753,17 @@ tr:hover .rt-td {
 }
 
 .ai-msg-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--surface-overlay);
+  background-color: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   color: var(--accent-primary);
   margin-top: 2px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
 }
 
 .ai-msg-body {
@@ -3771,20 +3773,14 @@ tr:hover .rt-td {
 }
 
 .ai-msg--assistant .ai-msg-role {
-  font-size: var(--text-mini);
-  font-weight: var(--weight-semibold);
-  color: var(--accent-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  display: block;
-  margin-bottom: 4px;
+  display: none;
 }
 
 /* ── Message Text Content ── */
 
 .ai-msg-text {
   font-size: var(--text-base);
-  line-height: var(--leading-normal);
+  line-height: 1.6;
   color: var(--text-primary);
   word-break: break-word;
 }
@@ -3886,15 +3882,24 @@ tr:hover .rt-td {
 }
 
 .ai-msg-sql-result--success {
+  color: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--feedback-success, #22c55e) 30%, transparent);
+  background-color: transparent;
+}
+.ai-msg-sql-result--success .ai-msg-sql-result__icon {
   color: var(--feedback-success, #22c55e);
-  background-color: color-mix(in srgb, var(--feedback-success, #22c55e) 10%, transparent);
 }
 
 .ai-msg-sql-result--error {
-  color: var(--feedback-error, #ef4444);
-  background-color: color-mix(in srgb, var(--feedback-error, #ef4444) 10%, transparent);
+  color: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--feedback-error, #ef4444) 30%, transparent);
+  background-color: transparent;
   word-break: break-word;
   max-width: 100%;
+}
+.ai-msg-sql-result--error .ai-msg-sql-result__icon,
+.ai-msg-sql-result--error .ai-msg-sql-error-text {
+  color: var(--feedback-error, #ef4444);
 }
 
 .ai-msg-sql-result__icon {
@@ -4055,14 +4060,11 @@ tr:hover .rt-td {
 /* ── AI SQL Block — Linear: accent-bordered code card ── */
 
 .ai-sql {
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--radius-sm, 6px);
   overflow: hidden;
   margin: 8px 0;
-  background-color: var(--surface-raised);
-  border-left: 3px solid var(--accent-primary);
-  border-top: 1px solid var(--border-subtle);
-  border-right: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--surface-overlay);
+  border: 1px solid var(--border-default);
   transition: box-shadow 0.15s ease;
 }
 
@@ -4930,25 +4932,24 @@ tr:hover .rt-td {
 
 .ai-tool {
   margin: 6px 0;
-  border-radius: var(--radius-md, 6px);
-  border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--border-subtle);
-  background-color: var(--surface-raised);
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-overlay);
   overflow: hidden;
   transition: border-color 0.2s ease, opacity 0.2s ease;
 }
 
 .ai-tool--loading {
-  border-left-color: var(--accent-primary);
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent);
   animation: ai-tool-pulse 2s ease-in-out infinite;
 }
 
 .ai-tool--success {
-  border-left-color: var(--feedback-success, #22c55e);
+  border-color: color-mix(in srgb, var(--feedback-success, #22c55e) 50%, transparent);
 }
 
 .ai-tool--error {
-  border-left-color: var(--feedback-error, #ef4444);
+  border-color: color-mix(in srgb, var(--feedback-error, #ef4444) 50%, transparent);
 }
 
 @keyframes ai-tool-pulse {
