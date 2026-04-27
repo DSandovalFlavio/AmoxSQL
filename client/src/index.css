@@ -4578,6 +4578,7 @@ tr:hover .rt-td {
 
 .ai-textarea:focus {
   border-color: var(--accent-primary);
+  outline: none;
 }
 
 .ai-send-btn {
@@ -4623,39 +4624,52 @@ tr:hover .rt-td {
   margin-top: 6px;
 }
 
-/* ── AI Composer (unified input + context + model) ── */
+/* ── AI Composer — Unified Floating Input (Assistant) ── */
 
 .ai-composer {
-  border-top: 1px solid var(--border-subtle);
-  background-color: var(--surface-base);
   flex-shrink: 0;
-  padding: 8px 12px;
-  transition: border-color 0.15s ease;
+  margin: 0 10px 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  transition: border-color 0.2s ease;
+  overflow: hidden;
+}
+
+.ai-composer:focus-within {
+  border-color: color-mix(in oklch, var(--accent-primary) 50%, transparent);
 }
 
 .ai-composer--dragover {
-  border-top-color: var(--accent-primary);
-  background-color: color-mix(in srgb, var(--accent-primary), transparent 95%);
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary), transparent 94%);
 }
 
+/* Context chips inside the composer */
 .ai-composer-ctx {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 6px;
+  gap: 5px;
+  padding: 10px 12px 0;
 }
 
 .ai-composer-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  font-size: 10px;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10.5px;
   color: var(--text-secondary);
-  background: var(--surface-raised);
+  background: var(--surface-overlay);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  max-width: 140px;
+  border-radius: var(--radius-full);
+  max-width: 150px;
+  animation: ai-chip-in 0.15s ease-out;
+}
+
+@keyframes ai-chip-in {
+  from { opacity: 0; transform: scale(0.9) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .ai-composer-chip svg {
@@ -4677,68 +4691,173 @@ tr:hover .rt-td {
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 0;
-  margin-left: 1px;
+  margin-left: 2px;
   flex-shrink: 0;
+  border-radius: 50%;
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .ai-composer-chip-x:hover {
   color: var(--text-primary);
+  background: var(--hover-bg);
 }
 
-.ai-input-model {
+/* Textarea — borderless inside composer */
+.ai-composer .ai-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 10px 12px;
+  min-height: 36px;
+  max-height: 120px;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  line-height: var(--leading-normal);
+}
+
+.ai-composer .ai-textarea:focus {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.ai-composer .ai-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Bottom toolbar */
+.ai-composer-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  color: var(--text-tertiary);
-  font-size: var(--text-mini);
+  justify-content: space-between;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border-subtle);
+  gap: 8px;
+}
+
+.ai-composer-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
   flex: 1;
 }
 
-.ai-input-model svg {
+.ai-composer-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.ai-input-model-text {
-  font-size: var(--text-mini);
-  color: var(--text-tertiary);
-}
-
-.ai-input-model-select {
-  background: transparent;
-  border: none;
-  color: var(--text-tertiary);
-  font-size: var(--text-mini);
-  cursor: pointer;
-  padding: 0;
-  outline: none;
-  max-width: 160px;
-  text-overflow: ellipsis;
-}
-
-.ai-input-model-select:hover {
-  color: var(--text-secondary);
-}
-
-.ai-input-model-select option {
+/* + Button for adding context */
+.ai-composer-add-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.ai-composer-add-btn:hover {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background: var(--accent-subtle);
+}
+
+.ai-composer-add-btn svg {
+  display: block;
+  color: inherit;
+}
+
+/* Model selector pill */
+.ai-composer-model {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.ai-composer-model:hover {
+  background: var(--surface-overlay);
+  border-color: var(--border-subtle);
   color: var(--text-primary);
 }
 
-.ai-input-model-link {
+.ai-composer-model svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.ai-composer-model-text {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.ai-composer-model-select {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  max-width: 180px;
+  text-overflow: ellipsis;
+  font-family: inherit;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.ai-composer-model-select:hover,
+.ai-composer-model-select:focus {
+  color: var(--text-primary);
+}
+
+.ai-composer-model-select option {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+}
+
+.ai-composer-model-link {
   background: none;
   border: none;
   color: var(--accent-primary);
   font-size: var(--text-mini);
   cursor: pointer;
   padding: 0;
+  font-family: inherit;
 }
 
-.ai-input-model-link:hover {
+.ai-composer-model-link:hover {
   text-decoration: underline;
 }
 
-.ai-input-model-custom {
+.ai-composer-model-custom {
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--border-subtle);
@@ -4746,11 +4865,65 @@ tr:hover .rt-td {
   font-size: var(--text-mini);
   padding: 0 2px;
   outline: none;
-  max-width: 100px;
+  max-width: 80px;
 }
 
-.ai-input-model-custom:focus {
+.ai-composer-model-custom:focus {
   border-bottom-color: var(--accent-primary);
+}
+
+/* Hint text */
+.ai-composer-hint {
+  font-size: var(--text-mini);
+  color: var(--text-tertiary);
+  opacity: 0.6;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Circular send button */
+.ai-composer-send {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-composer-send svg {
+  display: block;
+  color: inherit;
+}
+
+.ai-composer-send.ready {
+  background: var(--accent-primary);
+  color: var(--surface-base);
+}
+
+.ai-composer-send.ready:hover {
+  transform: scale(1.05);
+}
+
+.ai-composer-send.idle {
+  background: var(--surface-overlay);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ai-composer-send.cancel {
+  background: var(--feedback-error-bg);
+  color: var(--feedback-error);
+  border: 1px solid var(--feedback-error-border);
+}
+
+.ai-composer-send.cancel:hover {
+  background: color-mix(in oklch, var(--feedback-error) 20%, transparent);
 }
 
 /* ── AI Tool Call Block ── */
