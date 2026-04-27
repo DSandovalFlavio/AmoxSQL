@@ -1262,13 +1262,105 @@
   --table-row-hover: rgba(70, 85, 110, 0.04);
 }
 
+
+/* ═══════════════════════════════════════════════
+   LIGHT THEME: SNOW
+   Clean, crisp, high-contrast light theme.
+   ═══════════════════════════════════════════════ */
+.theme-snow {
+  --surface-base:    #ffffff;
+  --surface-raised:  #e5e7eb;   /* Darker gray for sidebar */
+  --surface-overlay: #ffffff;
+  --surface-inset:   #d1d5db;   /* Even darker for inset/inputs */
+
+  --border-subtle:  #d1d5db;
+  --border-default: #9ca3af;
+  --border-strong:  #6b7280;
+
+  --text-primary:   #111827;
+  --text-secondary: #374151;
+  --text-tertiary:  #4b5563;
+  --text-disabled:  #9ca3af;
+
+  --accent-primary: #2563eb;
+  --accent-muted:   rgba(37, 99, 235, 0.15);
+  --accent-subtle:  rgba(37, 99, 235, 0.06);
+  --focus-ring:     rgba(37, 99, 235, 0.3);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+
+  --hover-bg:   #d1d5db;
+  --active-bg:  #9ca3af;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  --titlebar-bg: #f9fafb;
+  --titlebar-text: #4b5563;
+
+  --feedback-success:        #059669;
+  --feedback-success-bg:     #d1fae5;
+  --feedback-success-border: #a7f3d0;
+  --feedback-success-text:   #047857;
+  --feedback-error:          #dc2626;
+  --feedback-error-bg:       #fee2e2;
+  --feedback-error-border:   #fecaca;
+  --feedback-error-text:     #b91c1c;
+  --feedback-warning:        #d97706;
+  --feedback-warning-bg:     #fef3c7;
+  --feedback-warning-border: #fde68a;
+  --feedback-warning-text:   #b45309;
+  --color-destructive:       #dc2626;
+  --color-destructive-bg:    #fee2e2;
+  --color-destructive-text:  #b91c1c;
+
+  --syntax-keyword:   #2563eb;
+  --syntax-string:    #059669;
+  --syntax-number:    #d97706;
+  --syntax-function:  #7c3aed;
+  --syntax-comment:   #9ca3af;
+  --syntax-type:      #0891b2;
+  --syntax-operator:  #4b5563;
+  --syntax-variable:  #111827;
+  --syntax-constant:  #059669;
+
+  --type-integer:  #2563eb;
+  --type-float:    #0891b2;
+  --type-text:     #d97706;
+  --type-datetime: #7c3aed;
+  --type-boolean:  #059669;
+  --type-default:  #4b5563;
+
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #ffffff;
+  --sidebar-item-active-text: var(--accent-primary);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: rgba(0, 0, 0, 0.05);
+  --tooltip-bg: var(--surface-overlay);
+  --table-header-bg: #f3f4f6;
+  --table-row-hover: #f9fafb;
+}
+
 /* ═══════════════════════════════════════════════
    LIGHT THEME ACCENT PRESETS
    (darker oklch values for contrast on light bg)
    ═══════════════════════════════════════════════ */
 .light-theme.accent-linear,
 .theme-ivory.accent-linear,
-.theme-mist.accent-linear {
+.theme-mist.accent-linear,
+.theme-snow.accent-linear {
   --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1280,7 +1372,8 @@
 
 .light-theme.accent-amox-2,
 .theme-ivory.accent-amox-2,
-.theme-mist.accent-amox-2 {
+.theme-mist.accent-amox-2,
+.theme-snow.accent-amox-2 {
   --accent-primary: oklch(0.62 0.13 195);      /* ≈ #00CFDA */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1292,7 +1385,8 @@
 
 .light-theme.accent-amox-3,
 .theme-ivory.accent-amox-3,
-.theme-mist.accent-amox-3 {
+.theme-mist.accent-amox-3,
+.theme-snow.accent-amox-3 {
   --accent-primary: oklch(0.61 0.125 197);     /* ≈ #00C4D9 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1304,7 +1398,8 @@
 
 .light-theme.accent-amox-4,
 .theme-ivory.accent-amox-4,
-.theme-mist.accent-amox-4 {
+.theme-mist.accent-amox-4,
+.theme-snow.accent-amox-4 {
   --accent-primary: oklch(0.59 0.12 202);      /* ≈ #00B5D6 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1316,7 +1411,8 @@
 
 .light-theme.accent-amox-5,
 .theme-ivory.accent-amox-5,
-.theme-mist.accent-amox-5 {
+.theme-mist.accent-amox-5,
+.theme-snow.accent-amox-5 {
   --accent-primary: oklch(0.57 0.12 212);      /* ≈ #00A5D4 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1328,7 +1424,8 @@
 
 .light-theme.accent-amox-6,
 .theme-ivory.accent-amox-6,
-.theme-mist.accent-amox-6 {
+.theme-mist.accent-amox-6,
+.theme-snow.accent-amox-6 {
   --accent-primary: oklch(0.55 0.13 228);      /* ≈ #0097D1 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1340,7 +1437,8 @@
 
 .light-theme.accent-amox-7,
 .theme-ivory.accent-amox-7,
-.theme-mist.accent-amox-7 {
+.theme-mist.accent-amox-7,
+.theme-snow.accent-amox-7 {
   --accent-primary: oklch(0.53 0.14 245);      /* ≈ #0088CC */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1352,7 +1450,8 @@
 
 .light-theme.accent-amox-8,
 .theme-ivory.accent-amox-8,
-.theme-mist.accent-amox-8 {
+.theme-mist.accent-amox-8,
+.theme-snow.accent-amox-8 {
   --accent-primary: oklch(0.51 0.16 255);      /* ≈ #0078C8 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1364,7 +1463,8 @@
 
 .light-theme.accent-amox-9,
 .theme-ivory.accent-amox-9,
-.theme-mist.accent-amox-9 {
+.theme-mist.accent-amox-9,
+.theme-snow.accent-amox-9 {
   --accent-primary: oklch(0.49 0.18 262);      /* ≈ #006AC2 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1376,7 +1476,8 @@
 
 .light-theme.accent-amox-10,
 .theme-ivory.accent-amox-10,
-.theme-mist.accent-amox-10 {
+.theme-mist.accent-amox-10,
+.theme-snow.accent-amox-10 {
   --accent-primary: oklch(0.47 0.20 268);      /* ≈ #005ABB */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);

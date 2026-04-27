@@ -30,6 +30,7 @@ const THEMES = [
     { id: 'nord',     label: 'Nord Dark', icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
     { id: 'ivory',    label: 'Ivory',     icon: <LuSun size={14} />,  sidebar: '#f3ede4', editor: '#faf6ef', text: '#3b3228', desc: 'Warm paper' },
     { id: 'mist',     label: 'Mist',      icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
+    { id: 'snow',     label: 'Snow',      icon: <LuSun size={14} />,  sidebar: '#e5e7eb', editor: '#ffffff', text: '#111827', desc: 'Clean & crisp' },
     { id: 'light',    label: 'Light',     icon: <LuSun size={14} />,  sidebar: '#f2f3f5', editor: '#ffffff', text: '#333',    desc: 'Clean & bright' },
 ];
 

@@ -66,7 +66,7 @@ const VIEW_MODES = [
     { id: 'preview', Icon: LuEye, title: 'Preview only' },
 ];
 
-const LIGHT_THEMES = ['ivory', 'mist', 'light'];
+const LIGHT_THEMES = ['ivory', 'mist', 'light', 'snow'];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
