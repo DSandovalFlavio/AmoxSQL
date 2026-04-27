@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp } from 'react-icons/lu';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
@@ -431,14 +431,14 @@ const AiAssistantPanel = ({
                         </div>
                     )}
 
-                    {/* ─── Composer: context chips + textarea + model ─── */}
+                    {/* ─── Composer: unified floating input ─── */}
                     <div
                         className={`ai-composer${isDragOver ? ' ai-composer--dragover' : ''}`}
                         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                         onDragLeave={() => setIsDragOver(false)}
                         onDrop={handleDrop}
                     >
-                        {/* Context chips above textarea */}
+                        {/* Context chips inside the box */}
                         {contextObjects.length > 0 && (
                             <div className="ai-composer-ctx">
                                 {contextObjects.map((obj, i) => (
@@ -456,68 +456,68 @@ const AiAssistantPanel = ({
                             </div>
                         )}
 
-                        {/* Textarea + send */}
-                        <div className="ai-input-row">
-                            <textarea
-                                className="ai-textarea"
-                                ref={inputRef}
-                                value={inputText}
-                                onChange={(e) => setInputText(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder={contextObjects.length > 0 ? 'Ask about the attached context...' : 'Ask about your data \u2014 drop tables here...'}
-                                rows={1}
-                                onInput={(e) => {
-                                    e.target.style.height = 'auto';
-                                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                                }}
-                            />
-                            <button
-                                className={`ai-send-btn${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
-                                onClick={isGenerating ? handleCancel : () => handleSend()}
-                                disabled={!isGenerating && !inputText.trim()}
-                            >
-                                {isGenerating ? <LuX size={16} /> : <LuSend size={15} />}
-                            </button>
-                        </div>
+                        {/* Borderless textarea */}
+                        <textarea
+                            className="ai-textarea"
+                            ref={inputRef}
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder={contextObjects.length > 0 ? 'Ask about the attached context...' : 'Ask about your data \u2014 drop tables here...'}
+                            rows={1}
+                            onInput={(e) => {
+                                e.target.style.height = 'auto';
+                                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                            }}
+                        />
 
-                        {/* Footer: model + hint */}
-                        <div className="ai-input-footer">
-                            <div className="ai-input-model">
-                                {provider === 'ollama' ? <LuCpu size={11} /> : <LuCloud size={11} />}
-                                {provider === 'ollama' && isModelsLoading ? (
-                                    <span className="ai-input-model-text">Loading...</span>
-                                ) : provider === 'ollama' && installedModels.length === 0 ? (
-                                    <button className="ai-input-model-link" onClick={() => onOpenSettings?.('ai')}>
-                                        Install models
-                                    </button>
-                                ) : (
-                                    <select
-                                        className="ai-input-model-select"
-                                        value={selectedModel}
-                                        onChange={(e) => setSelectedModel(e.target.value)}
-                                    >
-                                        {provider === 'ollama' ? (
-                                            installedModels.map(m => (
-                                                <option key={m.name} value={m.name}>{m.name}</option>
-                                            ))
-                                        ) : (
-                                            GEMINI_MODELS.map(m => (
-                                                <option key={m.id} value={m.id}>{m.label}</option>
-                                            ))
-                                        )}
-                                    </select>
-                                )}
-                                {selectedModel === 'custom' && provider === 'gemini' && (
-                                    <input
-                                        className="ai-input-model-custom"
-                                        type="text" value={customModel}
-                                        onChange={(e) => setCustomModel(e.target.value)}
-                                        placeholder="model id..."
-                                    />
-                                )}
+                        {/* Bottom toolbar */}
+                        <div className="ai-composer-toolbar">
+                            <div className="ai-composer-toolbar-left">
+                                <div className="ai-composer-model">
+                                    {provider === 'ollama' ? <LuCpu size={12} /> : <LuCloud size={12} />}
+                                    {provider === 'ollama' && isModelsLoading ? (
+                                        <span className="ai-composer-model-text">Loading...</span>
+                                    ) : provider === 'ollama' && installedModels.length === 0 ? (
+                                        <button className="ai-composer-model-link" onClick={() => onOpenSettings?.('ai')}>
+                                            Install models
+                                        </button>
+                                    ) : (
+                                        <select
+                                            className="ai-composer-model-select"
+                                            value={selectedModel}
+                                            onChange={(e) => setSelectedModel(e.target.value)}
+                                        >
+                                            {provider === 'ollama' ? (
+                                                installedModels.map(m => (
+                                                    <option key={m.name} value={m.name}>{m.name}</option>
+                                                ))
+                                            ) : (
+                                                GEMINI_MODELS.map(m => (
+                                                    <option key={m.id} value={m.id}>{m.label}</option>
+                                                ))
+                                            )}
+                                        </select>
+                                    )}
+                                    {selectedModel === 'custom' && provider === 'gemini' && (
+                                        <input
+                                            className="ai-composer-model-custom"
+                                            type="text" value={customModel}
+                                            onChange={(e) => setCustomModel(e.target.value)}
+                                            placeholder="model id..."
+                                        />
+                                    )}
+                                </div>
                             </div>
-                            <div className="ai-input-hint">
-                                Enter \u21B5
+                            <div className="ai-composer-toolbar-right">
+                                <span className="ai-composer-hint">{'Enter \u21B5'}</span>
+                                <button
+                                    className={`ai-composer-send${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
+                                    onClick={isGenerating ? handleCancel : () => handleSend()}
+                                    disabled={!isGenerating && !inputText.trim()}
+                                >
+                                    {isGenerating ? <LuX size={16} strokeWidth={2.5} /> : <LuArrowUp size={18} strokeWidth={2.5} />}
+                                </button>
                             </div>
                         </div>
                     </div>
