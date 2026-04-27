@@ -964,11 +964,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     // ── Re-sync Monaco theme when app theme or accent changes ──
     useEffect(() => {
         if (!monacoRef.current) return;
-        const isDark = props.theme !== 'light';
+        const isDark = !['light', 'ivory', 'mist', 'snow'].includes(props.theme);
         const themeName = isDark ? 'duckdb-dark' : 'duckdb-light';
-        // Re-read CSS variables (which may have changed) and redefine the theme
-        monacoRef.current.editor.defineTheme(themeName, buildMonacoTheme(isDark));
-        monacoRef.current.editor.setTheme(themeName);
+        // Defer reading CSS variables to ensure App.jsx has updated document.body classes
+        requestAnimationFrame(() => {
+            if (!monacoRef.current) return;
+            monacoRef.current.editor.defineTheme(themeName, buildMonacoTheme(isDark));
+            monacoRef.current.editor.setTheme(themeName);
+        });
     }, [props.theme]);
 
     const es = props.editorSettings || {};
@@ -979,7 +982,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             language={props.language || 'sql'}
             defaultValue={value}
             onChange={handleEditorChange}
-            theme={props.theme === 'light' ? 'duckdb-light' : 'duckdb-dark'}
+            theme={['light', 'ivory', 'mist', 'snow'].includes(props.theme) ? 'duckdb-light' : 'duckdb-dark'}
             beforeMount={handleEditorWillMount}
             options={{
                 minimap: { enabled: es.minimap ?? false },
