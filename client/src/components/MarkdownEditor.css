@@ -25,6 +25,14 @@
     scrollbar-width: none;
     flex-shrink: 0;
     gap: 4px;
+    height: auto !important; /* override ep-action-bar fixed height */
+    min-height: 40px;
+    padding: 4px 12px !important;
+}
+
+.mde-toolbar .ep-action-left,
+.mde-toolbar .ep-action-right {
+    flex-wrap: wrap;
 }
 
 .mde-toolbar::-webkit-scrollbar { display: none; }
@@ -133,6 +141,13 @@
     overflow: hidden;
     min-width: 0;
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* Force Monaco to inherit the correct background */
+.mde-editor-pane .monaco-editor,
+.mde-editor-pane .monaco-editor-background,
+.mde-editor-pane .margin {
+    background-color: transparent !important;
 }
 
 /* Preview mode: single preview pane */

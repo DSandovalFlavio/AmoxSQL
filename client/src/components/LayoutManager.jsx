@@ -519,6 +519,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             if (activePane === 'left') setLeftActiveId(tabs[nextIdx].id);
             else setRightActiveId(tabs[nextIdx].id);
         },
+        toggleSplit: () => setSplitEnabled(v => !v),
         finishSaveAs: (newPath) => {
             // Update the active tab's path
             const tab = getActiveTab();

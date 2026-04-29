@@ -382,7 +382,7 @@ const AiAssistantPanel = ({
                                 toolCalls={activeToolCalls}
                                 isStreaming={true}
                                 onRunSql={onRunSql}
-                                onApplyToFile={onApplyToFile}
+                                onApplyToFile={onEditFile}
                                 onAppendToFile={onAppendToFile}
                             />
                         )}
