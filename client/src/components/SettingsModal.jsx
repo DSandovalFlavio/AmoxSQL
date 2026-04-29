@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
+import ChartGallery from './ChartGallery';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 
@@ -62,6 +63,7 @@ const TAB_TITLES = {
     memories: 'AI Memories',
     cloud: 'Cloud Storage',
     shortcuts: 'Keyboard Shortcuts',
+    gallery: 'Chart Gallery',
     about: 'About AmoxSQL',
 };
 
@@ -404,6 +406,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'memories', icon: <LuBrain size={16} />, label: 'AI Memories' },
                         { id: 'cloud', icon: <LuCloud size={16} />, label: 'Cloud Storage' },
                         { id: 'shortcuts', icon: <LuKeyboard size={16} />, label: 'Shortcuts' },
+                        { id: 'gallery', icon: <LuLayoutGrid size={16} />, label: 'Chart Gallery' },
                         { id: 'about', icon: <LuInfo size={16} />, label: 'About AmoxSQL' },
                     ].filter(tab => !settingsSearch || tab.label.toLowerCase().includes(settingsSearch.toLowerCase())).map(tab => (
                         <div
@@ -1441,6 +1444,20 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         {cloudTestResult.text}
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* ═══ CHART GALLERY ═══ */}
+                        {activeTab === 'gallery' && (
+                            <div className="stg-section">
+                                <ChartGallery
+                                    onOpenChart={(chartPath) => {
+                                        onClose();
+                                        window.dispatchEvent(new CustomEvent('amox_open_gallery_chart', {
+                                            detail: { path: chartPath, readOnly: true }
+                                        }));
+                                    }}
+                                />
                             </div>
                         )}
 

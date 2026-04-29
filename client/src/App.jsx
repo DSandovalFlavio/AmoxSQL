@@ -386,6 +386,23 @@ function App() {
     return () => window.removeEventListener('amox_files_changed', handleFilesChanged);
   }, []);
 
+  // Listen for gallery chart open requests (from Settings > Chart Gallery)
+  useEffect(() => {
+    const handler = async (e) => {
+      const { path: chartPath, readOnly } = e.detail;
+      try {
+        const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(chartPath)}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        layoutRef.current?.openFile(chartPath, data.content, 'amoxvis', { readOnly });
+      } catch (err) {
+        console.error('[Gallery] Failed to open chart:', err);
+      }
+    };
+    window.addEventListener('amox_open_gallery_chart', handler);
+    return () => window.removeEventListener('amox_open_gallery_chart', handler);
+  }, []);
+
   /* --- Execution Chain Handler --- */
   const handleOpenChain = useCallback(async () => {
     try {

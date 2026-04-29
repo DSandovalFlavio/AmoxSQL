@@ -1,7 +1,7 @@
 {
   "name": "client",
   "private": true,
-  "version": "2.1.1",
+  "version": "2.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
     "@derekstride/tree-sitter-sql": "^0.3.11",
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.2",
-    "html2canvas": "^1.4.1",
+    "html-to-image": "^1.11.13",
+    "html2canvas-pro": "^2.0.2",
     "js-yaml": "^4.1.1",
     "jspdf": "^4.1.0",
     "react": "^19.2.0",

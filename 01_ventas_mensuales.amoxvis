@@ -1,0 +1,107 @@
+{
+  "chartType": "bar",
+  "xAxisKey": "mes",
+  "yAxisKeys": [
+    "ventas"
+  ],
+  "rightYAxisKey": "",
+  "splitByKey": "",
+  "bubbleSizeKey": "",
+  "dateAggregation": "none",
+  "sortMode": "none",
+  "limit": 0,
+  "showLabels": true,
+  "dataLabelPosition": "top",
+  "dataLabelSize": 11,
+  "dataLabelMinSpace": 30,
+  "tooltipShowPercent": false,
+  "showPercentages": false,
+  "colorTheme": "ocean",
+  "backgroundTone": "darker",
+  "customBgColor": "",
+  "borderStyle": "subtle",
+  "borderColor": "",
+  "fontFamily": "inter",
+  "textScale": 1,
+  "numberFormat": "compact",
+  "decimalPlaces": -1,
+  "gridMode": "horizontal",
+  "showAxisLines": true,
+  "yLogScale": false,
+  "yAxisDomain": [
+    "auto",
+    "auto"
+  ],
+  "yAxisPosition": "left",
+  "showXAxisTitle": true,
+  "showYAxisTitle": true,
+  "customAxisTitles": {
+    "x": "",
+    "y": ""
+  },
+  "xAxisLabelAngle": 0,
+  "lineType": "monotone",
+  "lineAreaFill": false,
+  "showDots": true,
+  "isCumulative": false,
+  "barStackMode": "none",
+  "barRadius": 6,
+  "barColorMode": "series",
+  "donutThickness": 60,
+  "donutLabelContent": "name_percent",
+  "donutLabelPosition": "outside",
+  "donutGroupingThreshold": 0,
+  "donutCenterKpi": "none",
+  "scatterQuadrants": false,
+  "comboLineKeys": [],
+  "highlightConfig": {
+    "type": "max",
+    "value": "",
+    "color": "#22c55e"
+  },
+  "seriesConfig": {},
+  "legendPosition": "bottom",
+  "chartTitle": "Ventas Mensuales 2024",
+  "chartSubtitle": "Crecimiento sostenido del Q3",
+  "chartFootnote": "Fuente: Sistema de ventas · Datos en USD",
+  "textAlign": "left",
+  "refLine": {
+    "value": "",
+    "label": "",
+    "color": "#ff4444",
+    "style": "dashed"
+  },
+  "refArea": {
+    "x1": "",
+    "x2": "",
+    "y1": "",
+    "y2": "",
+    "color": "#ffffff",
+    "opacity": 0.1
+  },
+  "goalLine": {
+    "enabled": true,
+    "value": 28000,
+    "label": "Meta",
+    "color": "#22c55e",
+    "style": "dashed"
+  },
+  "trendLine": {
+    "type": "linear",
+    "color": "#fbbf24",
+    "windowSize": 3
+  },
+  "headline": {
+    "visible": false,
+    "metric": "total",
+    "compareWith": "none",
+    "size": "auto",
+    "customSize": 28
+  },
+  "marginTop": 20,
+  "marginBottom": 10,
+  "marginLeft": 20,
+  "marginRight": 30,
+  "titleSpacing": 10,
+  "query": "-- Ventas Mensuales 2024\nSELECT * FROM (VALUES ('Ene',12400),('Feb',15800),('Mar',18200),('Abr',16900),('May',21300),('Jun',19700),('Jul',24500),('Ago',27800),('Sep',31200),('Oct',28400),('Nov',25600),('Dic',33100)) AS t(mes, ventas)"
+}

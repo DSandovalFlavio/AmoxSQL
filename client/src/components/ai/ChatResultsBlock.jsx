@@ -1,6 +1,6 @@
 import { useMemo, useState, Component } from 'react';
 import { LuMaximize2, LuDownload, LuFileJson, LuImage } from 'react-icons/lu';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import ChartRenderer from '../DataVisualizer/renderers/ChartRenderer';
 import { processChartData, isDateColumn } from '../DataVisualizer/utils/dataProcessing';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';

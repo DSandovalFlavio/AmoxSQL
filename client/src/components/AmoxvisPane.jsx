@@ -8,8 +8,9 @@
  * - Switching to "Edit with SQL" mode (opens the same file as a SQL tab)
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { LuCode, LuLoader, LuChevronDown, LuChevronRight, LuSquare, LuRefreshCw } from 'react-icons/lu';
+import { LuCode, LuLoader, LuChevronDown, LuChevronRight, LuSquare, LuRefreshCw, LuBookOpen, LuSave } from 'react-icons/lu';
 import DataVisualizer from './DataVisualizer';
+import { useToast } from './ToastProvider';
 
 
 const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) => {
@@ -17,6 +18,8 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [queryExpanded, setQueryExpanded] = useState(false);
+    const isReadOnly = tab.readOnly || false;
+    const toast = useToast();
 
 
     const config = tab.chartConfig || tab.initialChartConfig || {};
@@ -99,7 +102,53 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
             }}>
                 {/* Left: Query Info + Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
-                    {/* Edit SQL */}
+                    {/* Read-Only Gallery Banner */}
+                    {isReadOnly && (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            padding: '3px 10px', borderRadius: '4px',
+                            background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15))',
+                            border: '1px solid rgba(139,92,246,0.3)',
+                            color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600,
+                            letterSpacing: '0.3px',
+                        }}>
+                            <LuBookOpen size={12} /> Gallery Preview — Read Only
+                        </div>
+                    )}
+
+                    {/* Save to Workspace (read-only mode) */}
+                    {isReadOnly && (
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const chartId = tab.path.split(/[/\\]/).pop().replace('.amoxvis', '');
+                                    const res = await fetch('http://localhost:3001/api/gallery/copy-to-workspace', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ chartId }),
+                                    });
+                                    const result = await res.json();
+                                    if (result.success) toast.success(`Saved to workspace: ${chartId}.amoxvis`);
+                                    else toast.error(result.error || 'Failed to save');
+                                } catch (err) {
+                                    toast.error('Failed to save to workspace');
+                                }
+                            }}
+                            title="Copy this chart to your current workspace"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '5px',
+                                padding: '4px 10px', borderRadius: '4px', border: 'none',
+                                backgroundColor: 'var(--accent-primary)',
+                                color: 'var(--surface-base)',
+                                fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                            }}
+                        >
+                            <LuSave size={12} /> Save to Workspace
+                        </button>
+                    )}
+
+                    {/* Edit SQL (hidden in read-only) */}
+                    {!isReadOnly && (
                     <button
                         onClick={() => onOpenAsSql && onOpenAsSql(tab)}
                         title="Edit data query in SQL Editor"
@@ -115,8 +164,10 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
                     >
                         <LuCode size={13} /> Edit SQL
                     </button>
+                    )}
 
-                    {/* Refresh SQL */}
+                    {/* Refresh SQL (hidden in read-only) */}
+                    {!isReadOnly && (
                     <button
                         onClick={handleRefreshSql}
                         disabled={isLoading}
@@ -133,6 +184,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
                     >
                         <LuRefreshCw size={12} className={isLoading ? "spin" : ""} /> Reload
                     </button>
+                    )}
 
                     {/* Collapsible Query Preview */}
                     <button
