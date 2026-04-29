@@ -100,7 +100,7 @@ const cssVarToHex = (varName, fallback) => {
  * Build Monaco theme by reading live CSS variables from the active theme.
  * Falls back to MONACO_PALETTE when CSS variables aren't available (SSR, initial mount).
  */
-const buildMonacoTheme = (isDark) => {
+export const buildMonacoTheme = (isDark) => {
     const fallback = isDark ? MONACO_PALETTE.dark : MONACO_PALETTE.light;
 
     // Read surface/text/accent from live CSS variables
@@ -200,19 +200,49 @@ const buildMonacoTheme = (isDark) => {
     };
 };
 
+const globalViewStateCache = new Map();
+
 const SqlEditor = ({ value, onChange, ...props }) => {
     const disposablesRef = useRef([]);
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
     const completionProviderRef = useRef(null);
     const workerBridgeRef = useRef(null);
+    const activeTabIdRef = useRef(props.tabId);
 
     const broadcastHistoryRef = useRef([]);
 
-    // Intelligently sync external value changes (e.g., loading a new file or formatting)
+    // Save view state on unmount
+    useEffect(() => {
+        return () => {
+            if (editorRef.current && activeTabIdRef.current) {
+                globalViewStateCache.set(activeTabIdRef.current, editorRef.current.saveViewState());
+            }
+        };
+    }, []);
+
+    // Intelligently sync external value changes (e.g., loading a new file, formatting, tab switch)
     // without suffering from "React Controlled Component Cursor Jump" during fast typing.
     useEffect(() => {
         if (!editorRef.current) return;
+        
+        // If the active tab changed, swap the view state
+        if (props.tabId && props.tabId !== activeTabIdRef.current) {
+            if (activeTabIdRef.current) {
+                globalViewStateCache.set(activeTabIdRef.current, editorRef.current.saveViewState());
+            }
+            activeTabIdRef.current = props.tabId;
+            editorRef.current.setValue(value || '');
+            broadcastHistoryRef.current = [];
+            
+            const savedState = globalViewStateCache.get(props.tabId);
+            if (savedState) {
+                // Use a tiny timeout to ensure the model has updated before restoring state
+                setTimeout(() => editorRef.current?.restoreViewState(savedState), 0);
+            }
+            return;
+        }
+
         const currentModelValue = editorRef.current.getValue();
         
         // Exact match -> do nothing
@@ -226,10 +256,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             return;
         }
 
-        // If we reach here, it's a completely new/external value (e.g. tab switched, formatted)
+        // If we reach here, it's a completely new/external value on the same tab (e.g. formatted)
         editorRef.current.setValue(value || '');
         broadcastHistoryRef.current = []; // reset history array
-    }, [value]);
+    }, [value, props.tabId]);
 
     const handleEditorChange = (newValue, event) => {
         broadcastHistoryRef.current.push(newValue);
@@ -352,6 +382,13 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // Clear any previous disposables (safety for re-mount scenarios)
         disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
         disposablesRef.current = [];
+
+        // Restore view state if we have it cached (on mount)
+        if (props.tabId && globalViewStateCache.has(props.tabId)) {
+            setTimeout(() => {
+                if (editorRef.current) editorRef.current.restoreViewState(globalViewStateCache.get(props.tabId));
+            }, 0);
+        }
 
         // --- KEYBOARD SHORTCUTS ---
 

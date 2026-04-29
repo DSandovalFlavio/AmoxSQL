@@ -362,6 +362,18 @@ function App() {
         setShowAiSidebar(v => !v);
         return;
       }
+      // Toggle Left Sidebar: Ctrl+B
+      if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
+        e.preventDefault();
+        setShowSidebar(v => !v);
+        return;
+      }
+      // Toggle Split View: Ctrl+\
+      if (e.ctrlKey && !e.shiftKey && e.key === '\\') {
+        e.preventDefault();
+        layoutRef.current?.toggleSplit();
+        return;
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);

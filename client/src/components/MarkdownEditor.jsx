@@ -9,6 +9,7 @@ import {
     LuFileCode2,
 } from 'react-icons/lu';
 import './MarkdownEditor.css';
+import { buildMonacoTheme } from './SqlEditor';
 
 // ── Editor manipulation helpers ───────────────────────────────────────────────
 
@@ -118,6 +119,11 @@ const MarkdownEditor = ({
 
     // ── Monaco mount ─────────────────────────────────────────────────────────
 
+    const handleEditorWillMount = useCallback((monaco) => {
+        monaco.editor.defineTheme('duckdb-dark', buildMonacoTheme(true));
+        monaco.editor.defineTheme('duckdb-light', buildMonacoTheme(false));
+    }, []);
+
     const handleEditorMount = useCallback((editor, monaco) => {
         editorRef.current = editor;
         const { CtrlCmd, Shift } = monaco.KeyMod;
@@ -204,7 +210,7 @@ const MarkdownEditor = ({
         hideCursorInOverviewRuler: true,
     };
 
-    const monacoTheme = LIGHT_THEMES.includes(theme) ? 'vs' : 'vs-dark';
+    const monacoTheme = LIGHT_THEMES.includes(theme) ? 'duckdb-light' : 'duckdb-dark';
 
     // ── Render ────────────────────────────────────────────────────────────────
 
@@ -215,6 +221,7 @@ const MarkdownEditor = ({
                 language="markdown"
                 theme={monacoTheme}
                 onChange={onChange}
+                beforeMount={handleEditorWillMount}
                 onMount={handleEditorMount}
                 options={monacoOptions}
             />
@@ -400,6 +407,7 @@ const MarkdownEditor = ({
                                 language="markdown"
                                 theme={monacoTheme}
                                 onChange={onChange}
+                                beforeMount={handleEditorWillMount}
                                 onMount={handleEditorMount}
                                 options={monacoOptions}
                             />

@@ -585,6 +585,7 @@ const EditorPane = ({
                             <div className="ep-editor-section">
                                 <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
                                     <SqlEditor
+                                        tabId={activeTab.id}
                                         value={activeTab.content}
                                         language={activeTab.type === 'md' ? 'markdown' : 'sql'}
                                         onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
