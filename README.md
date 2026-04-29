@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v2.1.1)
+# AmoxSQL (v2.1.2)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -146,12 +146,12 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v2.1.1 — The "Quality & Creator" Update
+### 🎉 v2.1.2 — Gallery Stabilization & Workflow Polish
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v2.1.1](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v2.1.2](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).

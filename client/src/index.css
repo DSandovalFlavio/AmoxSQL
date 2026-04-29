@@ -12515,3 +12515,326 @@ tr:hover td {
 .stg-save-btn:hover {
   opacity: 0.85;
 }
+
+/* ==========================================================================
+   CHART GALLERY — Settings modal gallery grid
+   ========================================================================== */
+
+.chart-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.chart-gallery-header__text { flex: 1; }
+
+.chart-gallery-header__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.chart-gallery-header__desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.chart-gallery-regen-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chart-gallery-regen-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* ── Filters ── */
+.chart-gallery-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chart-gallery-filter-pill {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chart-gallery-filter-pill:hover {
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.chart-gallery-filter-pill.active {
+  background: var(--accent-primary);
+  color: var(--surface-base);
+  border-color: var(--accent-primary);
+}
+
+/* ── Grid ── */
+.chart-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+/* ── Card ── */
+.chart-gallery-card {
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.chart-gallery-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+/* Image wrapper */
+.chart-gallery-card__image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--surface-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-gallery-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.chart-gallery-card__placeholder {
+  color: var(--text-tertiary);
+  opacity: 0.3;
+}
+
+/* Hover overlay */
+.chart-gallery-card__overlay {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.chart-gallery-card:hover .chart-gallery-card__overlay {
+  opacity: 1;
+}
+
+.chart-gallery-card__action {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease;
+}
+
+.chart-gallery-card__action:hover {
+  background: rgba(0,0,0,0.85);
+}
+
+/* Card info */
+.chart-gallery-card__info {
+  padding: 10px 12px 8px;
+}
+
+.chart-gallery-card__type {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent-primary);
+  margin-bottom: 3px;
+}
+
+.chart-gallery-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-gallery-card__badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chart-gallery-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* Open hint arrow */
+.chart-gallery-card__open-hint {
+  position: absolute;
+  bottom: 12px;
+  right: 10px;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.chart-gallery-card:hover .chart-gallery-card__open-hint {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* ── Empty & Progress ── */
+.chart-gallery-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--text-tertiary);
+  gap: 12px;
+  text-align: center;
+}
+
+.chart-gallery-generate-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px;
+  border: 2px dashed var(--border-subtle);
+  border-radius: 12px;
+  text-align: center;
+  gap: 10px;
+  color: var(--text-secondary);
+}
+
+.chart-gallery-generate-prompt h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.chart-gallery-generate-prompt p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.chart-gallery-generate-btn {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-primary);
+  color: var(--surface-base);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.chart-gallery-generate-btn:hover {
+  opacity: 0.9;
+}
+
+.chart-gallery-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.chart-gallery-progress__bar {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.chart-gallery-progress__fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+.chart-gallery-progress__text {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* Spinning animation for refresh icon */
+.spinning {
+  animation: spin-gallery 1s linear infinite;
+}
+
+@keyframes spin-gallery {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

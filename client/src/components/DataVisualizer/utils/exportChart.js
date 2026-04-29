@@ -1,7 +1,7 @@
 /**
  * Chart export utilities — PNG export with resolution scaling.
  */
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 
 /**
  * Export a DOM element as PNG at a specific resolution.

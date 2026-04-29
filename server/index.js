@@ -1998,8 +1998,9 @@ app.post('/api/query', async (req, res) => {
     activeQueries.set(qid, { interrupt: () => dbManager.interruptQuery() });
 
     // If the client disconnects (AbortController / network drop), interrupt DuckDB
+    // Only interrupt if we haven't already sent the response (avoid killing subsequent queries)
     req.on('close', () => {
-        if (activeQueries.has(qid)) {
+        if (activeQueries.has(qid) && !res.headersSent) {
             dbManager.interruptQuery();
             activeQueries.delete(qid);
         }
@@ -3545,6 +3546,11 @@ app.post('/api/chains/detect-result-type', (req, res) => {
     const result = chainExecutor.detectResultType(sql);
     res.json(result);
 });
+
+// ─── Chart Gallery ─────────────────────────────────────────────────────────
+const { seedGallery, registerGalleryRoutes } = require('./galleryManager');
+seedGallery();
+registerGalleryRoutes(app);
 
 // Serve Static Assets in Production (Electron App)
 if (process.env.NODE_ENV === 'production') {

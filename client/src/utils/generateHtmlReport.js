@@ -3,7 +3,7 @@
  * Generates a self-contained HTML file from the notebook's report view.
  * Supports dark/light themes. Uses html2canvas for chart capture (same as PNG export).
  */
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 
 // Lightweight Markdown → HTML converter (no dependencies)
 function markdownToHtml(md) {

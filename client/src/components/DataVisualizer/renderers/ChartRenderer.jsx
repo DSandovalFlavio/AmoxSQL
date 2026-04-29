@@ -42,6 +42,7 @@ const ChartRenderer = memo(({
     columns,
     isDateColumn: isDateCol,
     textScale = 1,
+    forceDimensions,
 }) => {
     const {
         chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey, bubbleSizeKey,
@@ -358,9 +359,10 @@ const ChartRenderer = memo(({
 
     // ── Dimension guard — prevent Recharts from entering broken -1 state ──
     const containerRef = useRef(null);
-    const [hasSize, setHasSize] = useState(false);
+    const [hasSize, setHasSize] = useState(!!forceDimensions);
 
     useEffect(() => {
+        if (forceDimensions) return; // Skip measurement when dimensions are forced
         const el = containerRef.current;
         if (!el) return;
         if (el.offsetWidth > 0 && el.offsetHeight > 0) {
@@ -376,7 +378,11 @@ const ChartRenderer = memo(({
         });
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
+    }, [forceDimensions]);
+
+    // ── ResponsiveContainer dimension props ──
+    const rcWidth = forceDimensions ? forceDimensions.width : '100%';
+    const rcHeight = forceDimensions ? forceDimensions.height : '100%';
 
     // ── No data ──
     if (!processedData || processedData.length === 0) {
@@ -397,7 +403,7 @@ const ChartRenderer = memo(({
             const isStacked = chartType === 'area';
 
             return wrapChart(
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <ChartComp data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={isHorizontal ? gridH : gridV} horizontal={isHorizontal ? gridV : gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
@@ -474,7 +480,7 @@ const ChartRenderer = memo(({
             else if (highlightConfig.type === 'min') hlVal = Math.min(...processedData.map(d => Number(d[pk]) || Infinity));
 
             return wrapChart(
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <BarChart
                         layout={isHorizontal ? 'vertical' : 'horizontal'}
                         stackOffset={effectiveStack === 'expand' ? 'expand' : 'none'}
@@ -574,7 +580,7 @@ const ChartRenderer = memo(({
             }
 
             return wrapChart(
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <ComposedChart data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridV} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
@@ -621,7 +627,7 @@ const ChartRenderer = memo(({
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ SCATTER / BUBBLE ━━━
         if (chartType === 'scatter' || chartType === 'bubble') {
             return wrapChart(
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <ScatterChart data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridV} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey}
@@ -687,7 +693,7 @@ const ChartRenderer = memo(({
             }
 
             return wrapChart(
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <PieChart>
                         {donutCenterKpi !== 'none' && donutThickness > 30 && (
                             <>
@@ -729,7 +735,7 @@ const ChartRenderer = memo(({
             })).sort((a, b) => b.value - a.value);
 
             return wrapChart(
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <FunnelChart>
                         <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                         <Funnel dataKey="value" data={funnelData} isAnimationActive={false}>
@@ -869,7 +875,7 @@ const ChartRenderer = memo(({
             };
 
             return wrapChart(
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <Treemap
                         data={treemapData}
                         dataKey="size"

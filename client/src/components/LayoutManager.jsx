@@ -446,7 +446,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 paneId: targetPane,
             };
         },
-        openFile: async (path, content, type) => {
+        openFile: async (path, content, type, options = {}) => {
             const pane = activePane === 'left' ? leftTabs : rightTabs;
             const existing = pane.find(t => t.path === path);
 
@@ -478,14 +478,25 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         }
                     );
                 }
+                let initialChartConfig = null;
+                if (type === 'amoxvis' || path.endsWith('.amoxvis')) {
+                    try {
+                        initialChartConfig = JSON.parse(finalContent);
+                    } catch (e) {
+                        console.warn('Failed to parse amoxvis content:', e);
+                    }
+                }
+
                 const newTab = {
                     id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
                     path: path,
                     name: path.split(/[/\\]/).pop(),
-                    type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : 'sql'),
+                    type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : path.endsWith('.amoxvis') ? 'amoxvis' : 'sql'),
                     content: finalContent,
                     results: null,
-                    dirty: false
+                    dirty: false,
+                    readOnly: options.readOnly || false,
+                    initialChartConfig: initialChartConfig,
                 };
                 if (activePane === 'left') {
                     setLeftTabs(prev => [...prev, newTab]);
