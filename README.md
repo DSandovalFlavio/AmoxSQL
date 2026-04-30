@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v2.1.2)
+# AmoxSQL (v2.1.3)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -102,7 +102,11 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 
 <img src="./images/05_sql_notebook.png" alt="SQL Notebook" width="100%" />
 
-* **🚀 NUEVO: Editor de Markdown Independiente (`.md`)**: Potente herramienta dedicada a escritores y analistas que desean generar documentación enriquecida, contando con soporte *Split View* (código e interfaz de lectura lado a lado), grid creadora de tablas automática, y soporte robusto para Github Flavored Markdown.
+* **🚀 NUEVO: Editor de Markdown Data-Aware (`.md`)**: Potente herramienta dedicada a escritores y analistas que desean generar documentación enriquecida.
+    * **Soporte Mermaid:** Crea diagramas ER y flujos de datos iterativos que se renderizan automáticamente y se adaptan a tu tema claro u oscuro.
+    * **Autocompletado Estilo Notion (`@`)**: Al teclear `@`, el editor te sugerirá instantáneamente tablas/columnas de tu BD o enlaces a archivos de tu proyecto (`.sql`, `.amoxvis`).
+    * **Smart Hover Cards:** Pasa el mouse sobre enlaces a scripts o gráficos para previsualizar el código SQL o la configuración del gráfico en miniaturas flotantes.
+    * **Exportación PDF One-Click**: Exporta todo el documento enriquecido como un reporte PDF con un solo clic.
 * **Modo Presentación**: Oculta código y muestra solo Markdown, gráficos y tablas.
 * **Exportación PDF**: Exporta notebooks como reportes PDF profesionales.
 * **Snippets y Variables**: Fragmentos DuckDB integrados e interpolación de parámetros (`${variable_name}`).
@@ -146,12 +150,12 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v2.1.2 — Gallery Stabilization & Workflow Polish
+### 🎉 v2.1.3 — Data-Aware Markdown & Mermaid Engine
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v2.1.2](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v2.1.3](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).

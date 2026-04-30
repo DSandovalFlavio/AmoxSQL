@@ -6,10 +6,81 @@ import {
     LuBold, LuItalic, LuStrikethrough, LuCode, LuQuote, LuList,
     LuListOrdered, LuListTodo, LuLink, LuTable, LuMinus, LuSave,
     LuChevronDown, LuBot, LuX, LuPencilLine, LuEye, LuColumns2, LuType,
-    LuFileCode2,
+    LuFileCode2, LuDownload,
 } from 'react-icons/lu';
+import mermaid from 'mermaid';
+import html2canvas from 'html2canvas-pro';
+import { jsPDF } from 'jspdf';
 import './MarkdownEditor.css';
 import { buildMonacoTheme } from './SqlEditor';
+
+// ── Link Hover Preview Component ──────────────────────────────────────────────
+const FileLinkHover = ({ href, children }) => {
+    const [showPopover, setShowPopover] = useState(false);
+    const [previewContent, setPreviewContent] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const isSql = href?.endsWith('.sql');
+    const isAmoxvis = href?.endsWith('.amoxvis');
+
+    const handleMouseEnter = async () => {
+        if (!isSql && !isAmoxvis) return;
+        setShowPopover(true);
+        if (previewContent || loading) return;
+        setLoading(true);
+        try {
+            const cleanPath = href.replace(/^(\.\/|\/)/, '');
+            const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(cleanPath)}`);
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            if (isSql) {
+                const lines = data.content.split('\n');
+                setPreviewContent(lines.slice(0, 20).join('\n') + (lines.length > 20 ? '\n...' : ''));
+            } else if (isAmoxvis) {
+                setPreviewContent(JSON.parse(data.content));
+            }
+        } catch (e) {
+            setPreviewContent({ error: 'Failed to load preview' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <span className="mde-link-wrapper" onMouseEnter={handleMouseEnter} onMouseLeave={() => setShowPopover(false)} style={{ position: 'relative', display: 'inline-block' }}>
+            <a href={href} style={{ textDecoration: 'underline', color: 'var(--accent-primary)', cursor: 'pointer' }}>{children}</a>
+            {showPopover && (isSql || isAmoxvis) && (
+                <span className="mde-link-popover" style={{
+                    position: 'absolute', bottom: '100%', left: '0',
+                    marginBottom: '8px', padding: '12px', background: 'var(--surface-overlay)',
+                    border: '1px solid var(--border-default)', borderRadius: '8px', zIndex: 1000,
+                    width: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                    fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-color)',
+                    textAlign: 'left', display: 'block'
+                }}>
+                    <span style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {isSql ? <LuFileCode2 size={14} /> : <LuEye size={14} />} Preview: {href.split('/').pop()}
+                    </span>
+                    {loading ? <span style={{ opacity: 0.7, display: 'block' }}>Loading preview...</span> : isSql ? (
+                        <span style={{ margin: 0, padding: '8px', background: 'var(--surface-base)', borderRadius: '4px', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '11px', fontFamily: 'var(--font-mono)', border: '1px solid var(--border-default)', display: 'block', whiteSpace: 'pre-wrap' }}>
+                            {previewContent}
+                        </span>
+                    ) : isAmoxvis && previewContent && !previewContent.error ? (
+                        <span style={{ background: 'var(--surface-base)', borderRadius: '4px', padding: '12px', border: '1px solid var(--border-default)', display: 'block' }}>
+                            <span style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '4px', display: 'block' }}>Chart Configuration</span>
+                            <span style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', opacity: 0.8 }}>
+                                <span><strong>Type:</strong> {previewContent.config?.chartType || 'Auto'}</span>
+                                <span><strong>X-Axis:</strong> {previewContent.config?.xAxisKey || '-'}</span>
+                                <span style={{ gridColumn: 'span 2' }}><strong>Y-Axis:</strong> {(previewContent.config?.yAxisKeys || []).join(', ') || '-'}</span>
+                            </span>
+                        </span>
+                    ) : (
+                        <span style={{ color: '#ef4444', display: 'block' }}>{previewContent?.error || 'Error loading preview'}</span>
+                    )}
+                </span>
+            )}
+        </span>
+    );
+};
 
 // ── Editor manipulation helpers ───────────────────────────────────────────────
 
@@ -94,6 +165,7 @@ const MarkdownEditor = ({
     const [tableHover, setTableHover] = useState({ rows: 0, cols: 0 });
     const [showHeadingMenu, setShowHeadingMenu] = useState(false);
     const [splitPos, setSplitPos] = useState(null); // null = 50/50
+    const [isExporting, setIsExporting] = useState(false);
 
     const [viewMode, setViewMode] = useState(() => {
         const saved = localStorage.getItem('amoxsql-md-view-mode');
@@ -102,6 +174,65 @@ const MarkdownEditor = ({
     });
 
     const toolbarVisible = editorSettings?.markdownToolbarVisible ?? true;
+
+    const monacoTheme = LIGHT_THEMES.includes(theme) ? 'duckdb-light' : 'duckdb-dark';
+
+    // ── Mermaid Component ─────────────────────────────────────────────────────
+    const MermaidRenderer = useCallback(({ code }) => {
+        const ref = useRef(null);
+        const [svg, setSvg] = useState('');
+
+        useEffect(() => {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: LIGHT_THEMES.includes(theme) ? 'default' : 'dark',
+                securityLevel: 'loose',
+            });
+            const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+            mermaid.render(id, code).then((result) => {
+                setSvg(result.svg);
+            }).catch((e) => {
+                console.error('Mermaid render error', e);
+                setSvg(`<div style="color:red; font-family:var(--font-mono); font-size:12px; padding:10px; border:1px solid red; border-radius:4px;">Mermaid Syntax Error</div>`);
+            });
+        }, [code, theme]);
+
+        return <div ref={ref} dangerouslySetInnerHTML={{ __html: svg }} className="mermaid-diagram" style={{ display: 'flex', justifyContent: 'center', margin: '1em 0' }} />;
+    }, [theme]);
+
+    const CodeRenderer = useCallback(({ node, inline, className, children, ...props }) => {
+        const match = /language-(\w+)/.exec(className || '');
+        const lang = match ? match[1] : null;
+        if (!inline && lang === 'mermaid') {
+            return <MermaidRenderer code={String(children).replace(/\n$/, '')} />;
+        }
+        return (
+            <code className={className} {...props}>
+                {children}
+            </code>
+        );
+    }, [MermaidRenderer]);
+
+    const handleExportPdf = async () => {
+        if (!containerRef.current || isExporting) return;
+        setIsExporting(true);
+        try {
+            const previewBody = containerRef.current.querySelector('.mde-preview-body');
+            if (!previewBody) return;
+            const canvas = await html2canvas(previewBody, { scale: 2, useCORS: true, backgroundColor: LIGHT_THEMES.includes(theme) ? '#ffffff' : '#1e1e1e' });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save('Document.pdf');
+        } catch (e) {
+            console.error('Failed to export PDF', e);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
 
     const cycleView = useCallback(() => {
         setViewMode(prev => {
@@ -122,6 +253,98 @@ const MarkdownEditor = ({
     const handleEditorWillMount = useCallback((monaco) => {
         monaco.editor.defineTheme('duckdb-dark', buildMonacoTheme(true));
         monaco.editor.defineTheme('duckdb-light', buildMonacoTheme(false));
+
+        if (!monaco.languages._mdAutocompleteRegistered) {
+            monaco.languages._mdAutocompleteRegistered = true;
+            monaco.languages.registerCompletionItemProvider('markdown', {
+                triggerCharacters: ['@'],
+                provideCompletionItems: async (model, position) => {
+                    const textUntilPosition = model.getValueInRange({
+                        startLineNumber: position.lineNumber,
+                        startColumn: 1,
+                        endLineNumber: position.lineNumber,
+                        endColumn: position.column
+                    });
+                    const match = textUntilPosition.match(/@([\w.-]*)$/);
+                    if (!match) return { suggestions: [] };
+
+                    const word = model.getWordUntilPosition(position);
+                    const range = {
+                        startLineNumber: position.lineNumber,
+                        endLineNumber: position.lineNumber,
+                        startColumn: word.startColumn - 1,
+                        endColumn: word.endColumn
+                    };
+
+                    try {
+                        const suggestions = [];
+
+                        // 1. Fetch tables from Schema
+                        const schemaRes = await fetch('http://localhost:3001/api/db/schemas');
+                        if (schemaRes.ok) {
+                            const schemas = await schemaRes.json();
+                            if (schemas && schemas.length) {
+                                schemas.forEach(schemaObj => {
+                                    schemaObj.tables.forEach(table => {
+                                        suggestions.push({
+                                            label: `@${table.name}`,
+                                            kind: monaco.languages.CompletionItemKind.Class,
+                                            detail: 'Table',
+                                            insertText: `**${table.name}**`,
+                                            range: range
+                                        });
+                                        if (table.columns) {
+                                            table.columns.forEach(col => {
+                                                suggestions.push({
+                                                    label: `@${table.name}.${col.column_name}`,
+                                                    kind: monaco.languages.CompletionItemKind.Field,
+                                                    detail: `Column (${col.data_type})`,
+                                                    insertText: `\`${table.name}.${col.column_name}\``,
+                                                    range: range
+                                                });
+                                            });
+                                        }
+                                    });
+                                });
+                            }
+                        }
+
+                        // 2. Fetch Files (recursive)
+                        const collectSqlFiles = async (dir = '') => {
+                            const res = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dir)}`);
+                            if (!res.ok) return [];
+                            const files = await res.json();
+                            let sqlFiles = [];
+                            for (const f of files) {
+                                if (f.isDirectory) {
+                                    const sub = await collectSqlFiles(dir ? `${dir}/${f.name}` : f.name);
+                                    sqlFiles = sqlFiles.concat(sub);
+                                } else if (f.name.endsWith('.sql') || f.name.endsWith('.amoxvis')) {
+                                    sqlFiles.push(dir ? `${dir}/${f.name}` : f.name);
+                                }
+                            }
+                            return sqlFiles;
+                        };
+                        const files = await collectSqlFiles('');
+                        files.forEach(fullPath => {
+                            const isSql = fullPath.endsWith('.sql');
+                            suggestions.push({
+                                label: `@${fullPath}`,
+                                kind: monaco.languages.CompletionItemKind.File,
+                                detail: isSql ? 'SQL File' : 'Amoxvis Chart',
+                                insertText: `[${fullPath.split('/').pop()}](./${fullPath})`,
+                                range: range
+                            });
+                        });
+
+                        return { suggestions };
+                    } catch (e) {
+                        console.error('Autocomplete error', e);
+                        return { suggestions: [] };
+                    }
+                }
+            });
+        }
     }, []);
 
     const handleEditorMount = useCallback((editor, monaco) => {
@@ -210,8 +433,6 @@ const MarkdownEditor = ({
         hideCursorInOverviewRuler: true,
     };
 
-    const monacoTheme = LIGHT_THEMES.includes(theme) ? 'duckdb-light' : 'duckdb-dark';
-
     // ── Render ────────────────────────────────────────────────────────────────
 
     const editorPane = (
@@ -232,7 +453,7 @@ const MarkdownEditor = ({
         <div className="mde-preview-pane">
             <div className="mde-preview-body">
                 {content?.trim() ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeRenderer, a: FileLinkHover }}>{content}</ReactMarkdown>
                 ) : (
                     <span className="mde-preview-empty">Empty document — switch to Edit to start writing.</span>
                 )}
@@ -353,6 +574,20 @@ const MarkdownEditor = ({
                         </div>
 
                         <div className="ep-action-right">
+                            <div className="ep-action-group">
+                                <button
+                                    className="ep-action-btn"
+                                    title="Export as PDF"
+                                    onClick={handleExportPdf}
+                                    disabled={isExporting}
+                                    style={{ opacity: isExporting ? 0.5 : 1 }}
+                                >
+                                    <LuDownload size={13} />
+                                </button>
+                            </div>
+
+                            <span className="mde-sep" />
+
                             {/* View toggle */}
                             <div className="ep-action-group">
                                 {VIEW_MODES.map(({ id, Icon, title }) => (
@@ -422,7 +657,7 @@ const MarkdownEditor = ({
                         <div className="mde-preview-pane" style={previewStyle}>
                             <div className="mde-preview-body">
                                 {content?.trim() ? (
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeRenderer, a: FileLinkHover }}>{content}</ReactMarkdown>
                                 ) : (
                                     <span className="mde-preview-empty">Empty document — switch to Edit to start writing.</span>
                                 )}
