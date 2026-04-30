@@ -1044,7 +1044,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </div>
                                             <select
                                                 className="stg-select stg-select--w120"
-                                                value={editorSettings.queryResultLimit || 10000}
+                                                value={editorSettings.queryResultLimit ?? 10000}
                                                 onChange={(e) => onEditorSettingsChange?.({ queryResultLimit: parseInt(e.target.value) })}
                                             >
                                                 <option value={100}>100 rows</option>
@@ -1053,8 +1053,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <option value={5000}>5,000 rows</option>
                                                 <option value={10000}>10,000 rows</option>
                                                 <option value={50000}>50,000 rows</option>
+                                                <option value={0}>Sin límite</option>
                                             </select>
                                         </div>
+                                        {editorSettings.queryResultLimit === 0 && (
+                                            <div className="stg-alert stg-alert--warning stg-mt8">
+                                                <strong>Advertencia:</strong> Quitar el límite de resultados puede causar un consumo excesivo de memoria o congelar la interfaz si la tabla tiene demasiados registros. Recomendamos usar SQL Notebooks con consultas agregadas para explorar datos masivos.
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

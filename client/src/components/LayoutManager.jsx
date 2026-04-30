@@ -5,6 +5,7 @@ import QueryPlanModal from './QueryPlanModal';
 import { useToast } from './ToastProvider';
 import { resolveVariables } from './VariablesBar';
 import AlertDialog from './AlertDialog';
+import { useDialog } from './dialogs/DialogProvider';
 import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 import { invalidateSchema } from '../state/sidebarCache';
 
@@ -12,6 +13,7 @@ const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 
 const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar }, ref) => {
     const toast = useToast();
+    const dialog = useDialog();
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
     const [activePane, setActivePane] = useState('left'); // 'left' or 'right'
@@ -219,6 +221,25 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
+
+        const stripped = resolvedQuery.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+        const statements = stripped.split(';').map(s => s.trim()).filter(s => s.length > 0);
+        
+        if (statements.length > 1) {
+            const createNotebook = await dialog.confirmAsync({
+                title: 'Múltiples consultas detectadas',
+                message: 'AmoxSQL ejecuta una sola consulta por archivo o bloque. Se detectaron múltiples consultas en este script separadas por ";".\n\nDado que el resultado se tabula, visualizar y procesar múltiples consultas simultáneamente no está soportado en este modo y puede generar errores.\n\nTe recomendamos convertir este script en un "SQL Notebook", donde cada consulta se ejecutará en su propia celda de forma aislada.',
+                confirmLabel: 'Convertir a SQL Notebook',
+                cancelLabel: 'Cancelar',
+            });
+            
+            if (createNotebook) {
+                const notebookContent = statements.map((s) => `-- !CELL:CODE!\n${s};`).join('\n\n');
+                createNew('notebook', notebookContent);
+            }
+            return { cancelled: true };
+        }
+
         const qid = crypto.randomUUID();
         const controller = new AbortController();
         queryAbortControllerRef.current = controller;
