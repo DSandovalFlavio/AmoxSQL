@@ -76,6 +76,8 @@ const AiDivingPanel = ({
         planIteration,
         planMaxIterations,
         pendingAskUser, setPendingAskUser,
+        userSkippedSteps,
+        handleSkipPlanStep,
     } = useAiChat({ mode: 'diving' });
 
     // ─── Session Name ───
@@ -439,6 +441,8 @@ const AiDivingPanel = ({
                         isGenerating={isGenerating}
                         iteration={planIteration}
                         maxIterations={planMaxIterations}
+                        onSkipStep={handleSkipPlanStep}
+                        userSkippedSteps={userSkippedSteps}
                     />
 
                     {/* Ask-user banner — shown when agent pauses for input */}

@@ -11,6 +11,7 @@ import AiFunctionsPanel from './components/AiFunctionsPanel';
 import FlockSetupWizard from './components/FlockSetupWizard';
 import SnippetsPanel from './components/SnippetsPanel';
 import DbtPanel from './components/DbtPanel';
+import GitPanel from './components/GitPanel';
 import QueryHistoryPanel from './components/QueryHistoryPanel';
 import SaveQueryModal from './components/SaveQueryModal';
 import ImportModal from './components/ImportModal';
@@ -19,6 +20,7 @@ import LayoutManager from './components/LayoutManager';
 
 // New Components
 import WelcomeScreen from './components/WelcomeScreen';
+import WorkspaceWizard from './components/WorkspaceWizard';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
 import AiDivingPanel from './components/ai/AiDivingPanel';
 // StatusBar removed — info redundant with ResultsTable + WindowTitleBar
@@ -30,11 +32,12 @@ import TabBar from './components/TabBar';
 
 // Ultra-heavy lazy loaded Modals (Zero Cost Startup)
 // KeyboardShortcutsModal removed — shortcuts now integrated in SettingsModal
-const DataQualityModal = lazy(() => import('./components/DataQualityModal'));
-const SchemaDiffModal = lazy(() => import('./components/SchemaDiffModal'));
+const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
+const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const ExecutionChainModal = lazy(() => import('./components/ExecutionChainModal'));
-const SettingsModal = lazy(() => import('./components/SettingsModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap } from "react-icons/lu";
+const SettingsModal       = lazy(() => import('./components/SettingsModal'));
+const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 
 import './index.css';
@@ -96,6 +99,12 @@ function App() {
   const [availableTables, setAvailableTables] = useState([]);
 
   const [showFlockWizard, setShowFlockWizard] = useState(false);
+
+  // Workspace Wizard — shown after first open of a new project
+  const [showWorkspaceWizard, setShowWorkspaceWizard] = useState(false);
+
+  // Chart Gallery Modal
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
   // Sidebar Architecture State
   const [activeSidebarTab, setActiveSidebarTab] = useState('files'); // 'files', 'schema', 'extensions', 'aifunctions', etc.
@@ -403,6 +412,13 @@ function App() {
     return () => window.removeEventListener('amox_open_gallery_chart', handler);
   }, []);
 
+  // Listen for "Open Workspace Wizard" event from SettingsModal
+  useEffect(() => {
+    const handler = () => setShowWorkspaceWizard(true);
+    window.addEventListener('amox_open_workspace_wizard', handler);
+    return () => window.removeEventListener('amox_open_workspace_wizard', handler);
+  }, []);
+
   /* --- Execution Chain Handler --- */
   const handleOpenChain = useCallback(async () => {
     try {
@@ -489,6 +505,17 @@ function App() {
     // 2. Enter IDE Phase
     setAppPhase(PHASE.IDE);
     setRefreshDbTrigger(prev => prev + 1);
+
+    // 3. Check if workspace wizard should be shown (new/empty project)
+    try {
+      const statusRes = await fetch('http://localhost:3001/api/project/scaffold-status');
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        if (statusData.isNewProject && !statusData.wizardCompleted) {
+          setShowWorkspaceWizard(true);
+        }
+      }
+    } catch { /* non-critical, ignore */ }
   }, [toast]);
 
   const handleWorkspaceSelect = useCallback(async (path) => {
@@ -833,6 +860,21 @@ function App() {
         />
       )}
 
+      {/* Workspace Scaffolding Wizard — shown on first open of new projects */}
+      {showWorkspaceWizard && (
+        <WorkspaceWizard
+          projectPath={projectPath}
+          onComplete={(created) => {
+            setShowWorkspaceWizard(false);
+            if (created && created.length > 0) {
+              setFileRefreshTrigger(prev => prev + 1);
+              toast.success(`Workspace created with ${created.length} folder${created.length !== 1 ? 's' : ''}`);
+            }
+          }}
+          onSkip={() => setShowWorkspaceWizard(false)}
+        />
+      )}
+
       {appPhase === PHASE.IDE && (
         <div className="app-container" style={{ height: '100%', display: 'flex' }}>
 
@@ -897,8 +939,25 @@ function App() {
               >
                 <LuPackage size={20} />
               </button>
+              {/* Source Control */}
+              <button
+                onClick={() => handleSidebarTabClick('git')}
+                className={`activity-bar-btn ${activeSidebarTab === 'git' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Source Control"
+              >
+                <LuGitBranch size={20} />
+              </button>
 
               <div className="activity-bar-spacer" />
+
+              {/* Chart Gallery */}
+              <button
+                onClick={() => setIsGalleryOpen(true)}
+                className="activity-bar-btn"
+                title="Chart Gallery"
+              >
+                <LuLayoutGrid size={20} />
+              </button>
 
               {/* Data Diving toggle */}
               <button
@@ -1014,6 +1073,12 @@ function App() {
                     onClose={() => setActiveSidebarTab('files')}
                   />
                 </Suspense>
+              </div>
+            )}
+
+            {visitedSidebarTabs.has('git') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'git' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+                <GitPanel projectPath={projectPath} />
               </div>
             )}
             </div>{/* end .sidebar */}
@@ -1248,6 +1313,13 @@ function App() {
           onClose={() => setIsSchemaDiffOpen(false)}
           tables={availableTables}
         />
+
+        <Suspense fallback={null}>
+          <ChartGalleryModal
+            isOpen={isGalleryOpen}
+            onClose={() => setIsGalleryOpen(false)}
+          />
+        </Suspense>
 
         <SaveQueryModal
           isOpen={isSaveModalOpen}
