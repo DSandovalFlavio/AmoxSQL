@@ -23,14 +23,40 @@ const { loadMemoriesText, extractMemories } = require('./memory');
 const { getSkill } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
 const { getFlockStatus, getModels, getPrompts } = require('../flockManager');
+const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
 
 const MAX_LOOP_ITERATIONS = 15;
 // Per-iteration maxSteps: high enough that most plans finish in 1-2 outer iterations.
 const ITER_MAX_STEPS = 15;
 // Max times we retry an iteration that produced no tool calls (idle recovery)
 const MAX_IDLE_RETRIES = 2;
+// Max times we inject a SQL correction directive before giving up
+const MAX_SQL_CORRECTION_RETRIES = 3;
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Builds a SQL correction directive when execute_sql returned an error.
+ * Injected as a forced-retry user message so the LLM fixes the query immediately.
+ */
+function buildSqlCorrectionPrompt(sqlErrors) {
+    const lastError = sqlErrors[sqlErrors.length - 1];
+    const errorBlock = sqlErrors.map((e, i) =>
+        `Error ${i + 1}:\n  SQL: ${e.query.substring(0, 300)}\n  Error: ${e.error}\n  Hint: ${e.hint || 'Check table and column names.'}`
+    ).join('\n\n');
+
+    return `[SQL CORRECTION REQUIRED]
+
+Your previous execute_sql call(s) failed. You MUST fix and retry the query before doing anything else.
+
+${errorBlock}
+
+Steps to fix:
+1. Call \`list_tables\` or \`describe_table\` to verify exact table/column names if unsure.
+2. Fix the SQL — correct identifiers, syntax, or join conditions.
+3. Call \`execute_sql\` with the corrected query.
+4. Do NOT call final_answer or give up — fix the query now.`;
+}
 
 /**
  * Builds a concise plan-continuation message injected as the "user" turn
@@ -96,6 +122,7 @@ async function* agenticLoop(options, getModelFn) {
         fileType = null,
         conversationId = null,
         maxIterations = MAX_LOOP_ITERATIONS,
+        planStepOverrides = [],
     } = options;
 
     const provider = providerOverride;
@@ -104,11 +131,12 @@ async function* agenticLoop(options, getModelFn) {
     const aiPersistence = require('./persistence');
 
     // ── Load shared context once ──
-    const [userRules, memories, activeSkill, flockStatus] = await Promise.all([
+    const [userRules, memories, activeSkill, flockStatus, projectCtx] = await Promise.all([
         loadUserRules(projectPath),
         loadMemoriesText(dbManager),
         activeSkillId ? getSkill(projectPath, activeSkillId) : Promise.resolve(null),
         getFlockStatus(dbManager).catch(() => ({ loaded: false })),
+        loadProjectContext(projectPath).catch(() => null),
     ]);
 
     // Build Flock context for the system prompt (only if loaded)
@@ -131,6 +159,7 @@ async function* agenticLoop(options, getModelFn) {
         filePath, fileType,
         enablePlanner: true,
         flockContext,
+        projectCtx,
     });
 
     const llmModel = getModelFn(provider, model);
@@ -143,6 +172,7 @@ async function* agenticLoop(options, getModelFn) {
     let iteration            = 0;
     let loopDone             = false;
     let idleRetries          = 0;   // consecutive iterations with zero tool calls
+    let sqlCorrectionRetries = 0;   // consecutive iterations that ended with unresolved SQL errors
     let anyIterationHadText  = false; // tracks if any prior iter produced text (for fallback message)
     let totalUsage           = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
@@ -169,6 +199,8 @@ async function* agenticLoop(options, getModelFn) {
         let iterHasAskUser     = false;
         let iterText           = '';
         let iterToolResults    = [];
+        let iterSqlErrors      = [];  // execute_sql errors this iteration (for correction loop)
+        let iterSqlSuccesses   = 0;   // successful execute_sql calls this iteration
         let iterResult         = null;   // holds the streamText handle for response.messages
 
         try {
@@ -197,8 +229,36 @@ async function* agenticLoop(options, getModelFn) {
                     const toolArgs   = part.input  ?? part.args  ?? {};
                     iterToolResults.push({ toolName: part.toolName, toolCallId: part.toolCallId, result: toolResult });
 
+                    // ── Track execute_sql errors for self-correction loop ──
+                    if (part.toolName === 'execute_sql') {
+                        if (toolResult.error) {
+                            iterSqlErrors.push({
+                                query: toolArgs.query || '',
+                                error: toolResult.error,
+                                hint:  toolResult.hint || null,
+                            });
+                        } else {
+                            // Successful query after errors resets the error window
+                            iterSqlSuccesses++;
+                            iterSqlErrors = [];
+                        }
+                    }
+
                     // ── Detect planner signal tools ──
                     if (part.toolName === 'create_plan') {
+                        // Apply any user step overrides (steps the user marked to skip before this turn)
+                        if (planStepOverrides.length > 0) {
+                            // Normalize: overrides can be strings or { stepId } objects
+                            const overrideSet = new Set(
+                                planStepOverrides.map(o => (typeof o === 'string' ? o : o?.stepId)).filter(Boolean)
+                            );
+                            for (const step of activePlan.steps) {
+                                if (overrideSet.has(step.id) && step.status === 'pending') {
+                                    step.status = 'skipped';
+                                    step.note   = 'Skipped by user before execution';
+                                }
+                            }
+                        }
                         yield {
                             type:  'plan-created',
                             plan:  toolResult,            // { planId, goal, steps[] }
@@ -215,11 +275,12 @@ async function* agenticLoop(options, getModelFn) {
                     } else if (part.toolName === 'final_answer') {
                         iterHasFinalAnswer = true;
                         loopDone = true;
-                        // Only emit the tool's summary as text if the model did NOT already stream
-                        // a meaningful text response this iteration. Otherwise we double-render
-                        // (model's natural text + tool summary = duplicated answer).
+                        // Structured output (tldr + findings) is rendered by NarrativeCard in the UI.
+                        // When structured fields are present, suppress text streaming to avoid duplication.
+                        const hasStructuredOutput = !!(toolResult.tldr || toolResult.findings?.length);
                         const modelAlreadyWroteSummary = iterText.trim().length > 80;
-                        if (toolResult.summary && !modelAlreadyWroteSummary) {
+                        if (!hasStructuredOutput && toolResult.summary && !modelAlreadyWroteSummary) {
+                            // Legacy: stream summary as text when no structured fields
                             const summaryText = toolResult.summary +
                                 (toolResult.followup_questions?.length
                                     ? '\n\n**Preguntas de seguimiento:**\n' +
@@ -227,8 +288,8 @@ async function* agenticLoop(options, getModelFn) {
                                     : '');
                             yield { type: 'text-delta', text: summaryText };
                             iterText += summaryText;
-                        } else if (modelAlreadyWroteSummary && toolResult.followup_questions?.length) {
-                            // Model already wrote the summary — only append follow-ups if not already present
+                        } else if (!hasStructuredOutput && modelAlreadyWroteSummary && toolResult.followup_questions?.length) {
+                            // Legacy: model wrote text, only append follow-ups if not already present
                             const followupsBlock = '\n\n**Preguntas de seguimiento:**\n' +
                                 toolResult.followup_questions.map(q => `- ${q}`).join('\n');
                             if (!iterText.includes('Preguntas de seguimiento')) {
@@ -236,6 +297,7 @@ async function* agenticLoop(options, getModelFn) {
                                 iterText += followupsBlock;
                             }
                         }
+                        // Structured: NarrativeCard in ChatMessage handles tldr/findings/followups visually
                         yield {
                             type:     'plan-completed',
                             summary:  toolResult.summary,
@@ -318,6 +380,39 @@ async function* agenticLoop(options, getModelFn) {
             const hadToolProgress = iterToolResults.length > 0;
             const hadText         = iterText.trim().length > 0;
             if (hadText) anyIterationHadText = true;
+
+            // ── SQL Self-Correction Loop ──
+            // If this iteration ended with unresolved SQL errors (errors with no successful retry after),
+            // inject a mandatory correction directive instead of the normal continuation.
+            const hasUnresolvedSqlErrors = iterSqlErrors.length > 0 && iterSqlSuccesses === 0;
+            if (hasUnresolvedSqlErrors && sqlCorrectionRetries < MAX_SQL_CORRECTION_RETRIES) {
+                sqlCorrectionRetries++;
+                console.log(`[AgenticLoop] SQL correction ${sqlCorrectionRetries}/${MAX_SQL_CORRECTION_RETRIES} — ${iterSqlErrors.length} unresolved error(s)`);
+                yield {
+                    type: 'sql-correction',
+                    attempt: sqlCorrectionRetries,
+                    errors: iterSqlErrors.map(e => ({ query: e.query.substring(0, 100), error: e.error })),
+                };
+
+                let iterResponseMessages = [];
+                try {
+                    const response = await iterResult.response;
+                    if (Array.isArray(response?.messages) && response.messages.length > 0) {
+                        iterResponseMessages = response.messages;
+                    }
+                } catch (_) {
+                    iterResponseMessages = hadText ? [{ role: 'assistant', content: iterText }] : [];
+                }
+
+                iterMessages = [
+                    ...compactedMessages,
+                    ...iterResponseMessages,
+                    { role: 'user', content: buildSqlCorrectionPrompt(iterSqlErrors) },
+                ];
+                continue; // Skip the rest of the decision tree — go straight to next iteration
+            }
+            // Reset correction counter once we have a clean iteration
+            if (!hasUnresolvedSqlErrors) sqlCorrectionRetries = 0;
 
             if (hadToolProgress) {
                 // ── Normal progress: tools were called ──

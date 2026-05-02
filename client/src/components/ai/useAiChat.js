@@ -70,6 +70,8 @@ export default function useAiChat({
     const [planMaxIterations, setPlanMaxIterations] = useState(0);
     // ask_user: { question, options[], context } | null
     const [pendingAskUser, setPendingAskUser] = useState(null);
+    // userSkippedSteps: Set<stepId> — steps the user marked to skip before the agent continues
+    const [userSkippedSteps, setUserSkippedSteps] = useState(new Set());
 
     // ─── Refs ───
     const chatEndRef = useRef(null);
@@ -307,6 +309,8 @@ export default function useAiChat({
         setPlanState(null);
         setPlanIteration(0);
         setPendingAskUser(null);
+        const currentSkippedSteps = userSkippedSteps;
+        setUserSkippedSteps(new Set());
 
         // Build context arrays for the API
         const contextFiles = contextObjects
@@ -347,6 +351,9 @@ export default function useAiChat({
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
             if (fileContent) requestBody.currentQuery = fileContent;
+            if (currentSkippedSteps.size > 0) {
+                requestBody.planStepOverrides = Array.from(currentSkippedSteps).map(id => ({ stepId: id, status: 'skipped', note: 'skipped by user' }));
+            }
             // Send a lightweight summary of the result (not the full data)
             if (fileResult) {
                 requestBody.currentResult = {
@@ -468,6 +475,9 @@ export default function useAiChat({
                             if (event.maxIterations) setPlanMaxIterations(event.maxIterations);
                         } else if (event.type === 'step-end') {
                             // no-op
+                        } else if (event.type === 'sql-correction') {
+                            // SQL self-correction loop — agent is retrying a failed query
+                            console.log(`[AI] SQL correction attempt ${event.attempt}`, event.errors);
                         } else if (event.type === 'error') {
                             throw new Error(event.error);
                         }
@@ -557,6 +567,19 @@ export default function useAiChat({
         onEditFile, onUpdateChartConfig,
     ]);
 
+    // ─── Skip plan step (user-initiated) ───
+    const handleSkipPlanStep = useCallback((stepId) => {
+        setUserSkippedSteps(prev => new Set([...prev, stepId]));
+        // Also update planState locally so the UI reflects the skip immediately
+        setPlanState(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                steps: prev.steps.map(s => s.id === stepId ? { ...s, status: 'skipped', note: 'skipped by user' } : s),
+            };
+        });
+    }, []);
+
     // ─── Keyboard shortcut ───
     const handleKeyDown = useCallback((e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -575,6 +598,7 @@ export default function useAiChat({
         setPlanState(null);
         setPlanIteration(0);
         setPendingAskUser(null);
+        setUserSkippedSteps(new Set());
         if (mode === 'diving') setContextObjects([]);
     }, [mode]);
 
@@ -788,6 +812,8 @@ export default function useAiChat({
         planIteration,
         planMaxIterations,
         pendingAskUser, setPendingAskUser,
+        userSkippedSteps,
+        handleSkipPlanStep,
 
         // Persistence helpers (exposed for advanced use)
         ensureConversation,

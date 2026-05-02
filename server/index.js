@@ -9,7 +9,8 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const { exec, execSync } = require('child_process');
-const dbManager = require('./DatabaseManager');
+const dbManager        = require('./DatabaseManager');
+const scaffolder       = require('./projectScaffolder');
 
 const app = express();
 const PORT = 3001;
@@ -61,6 +62,308 @@ app.post('/api/project/open', async (req, res) => {
     } catch (err) {
         console.error("Failed to change directory", err);
         res.status(500).json({ error: 'Failed to change directory', details: err.message });
+    }
+});
+
+/* ─── Project Scaffolding ─── */
+
+app.get('/api/project/scaffold-status', (req, res) => {
+    try {
+        const status = scaffolder.getScaffoldStatus(ROOT_DIR);
+        res.json(status);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/project/scaffold', (req, res) => {
+    const { folders = [] } = req.body;
+    try {
+        const created = scaffolder.createFolders(ROOT_DIR, folders);
+        res.json({ success: true, created });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/project/config', (req, res) => {
+    try {
+        const config = scaffolder.getProjectConfig(ROOT_DIR);
+        res.json({ config });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/project/config', (req, res) => {
+    const { updates } = req.body;
+    if (!updates || typeof updates !== 'object') {
+        return res.status(400).json({ error: 'updates object required' });
+    }
+    try {
+        const config = scaffolder.saveProjectConfig(ROOT_DIR, updates);
+        res.json({ success: true, config });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/project/folder-defs', (req, res) => {
+    res.json({ folders: scaffolder.getFolderDefs() });
+});
+
+/* ─── Git ─── */
+const gitManager = require('./git/gitManager');
+
+app.get('/api/git/available', async (req, res) => {
+    try {
+        const available = await gitManager.isGitAvailable();
+        res.json({ available });
+    } catch (err) {
+        res.json({ available: false });
+    }
+});
+
+app.get('/api/git/status', async (req, res) => {
+    try {
+        const isRepo = await gitManager.isRepo(ROOT_DIR);
+        if (!isRepo) return res.json({ isRepo: false });
+        const status = await gitManager.getStatus(ROOT_DIR);
+        res.json({ isRepo: true, ...status });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/init', async (req, res) => {
+    try {
+        const result = await gitManager.initRepo(ROOT_DIR);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/stage', async (req, res) => {
+    const { files } = req.body;
+    if (!Array.isArray(files) || files.length === 0)
+        return res.status(400).json({ error: 'files array required' });
+    try {
+        const result = await gitManager.stageFiles(ROOT_DIR, files);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/unstage', async (req, res) => {
+    const { files } = req.body;
+    if (!Array.isArray(files) || files.length === 0)
+        return res.status(400).json({ error: 'files array required' });
+    try {
+        const result = await gitManager.unstageFiles(ROOT_DIR, files);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/commit', async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: 'message required' });
+    try {
+        const result = await gitManager.commit(ROOT_DIR, message);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/git/diff', async (req, res) => {
+    const { file, staged } = req.query;
+    if (!file) return res.status(400).json({ error: 'file param required' });
+    try {
+        const result = await gitManager.getDiff(ROOT_DIR, file, staged === 'true');
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/git/log', async (req, res) => {
+    const limit = parseInt(req.query.limit, 10) || 50;
+    try {
+        const isRepo = await gitManager.isRepo(ROOT_DIR);
+        if (!isRepo) return res.json({ commits: [] });
+        const result = await gitManager.getLog(ROOT_DIR, limit);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/git/branches', async (req, res) => {
+    try {
+        const isRepo = await gitManager.isRepo(ROOT_DIR);
+        if (!isRepo) return res.json({ current: null, branches: [] });
+        const result = await gitManager.getBranches(ROOT_DIR);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/branch', async (req, res) => {
+    const { name, checkout = true } = req.body;
+    if (!name) return res.status(400).json({ error: 'name required' });
+    try {
+        const result = await gitManager.createBranch(ROOT_DIR, name, checkout);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/checkout', async (req, res) => {
+    const { branch } = req.body;
+    if (!branch) return res.status(400).json({ error: 'branch required' });
+    try {
+        const result = await gitManager.checkoutBranch(ROOT_DIR, branch);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* ─── AI Context folder status & setup ─── */
+app.get('/api/ai/context-status', async (req, res) => {
+    const contextDir = path.join(ROOT_DIR, 'context');
+    const exists = fs.existsSync(contextDir);
+    if (!exists) return res.json({ exists: false });
+
+    const files = {
+        metrics:   fs.existsSync(path.join(contextDir, 'metrics.yml')),
+        joins:     fs.existsSync(path.join(contextDir, 'joins.yml')),
+        glossary:  fs.existsSync(path.join(contextDir, 'glossary.md')),
+        examples:  [],
+    };
+
+    const examplesDir = path.join(contextDir, 'examples');
+    if (fs.existsSync(examplesDir)) {
+        files.examples = fs.readdirSync(examplesDir).filter(f => f.endsWith('.sql'));
+    }
+
+    res.json({ exists: true, path: contextDir, files });
+});
+
+app.post('/api/ai/context-setup', async (req, res) => {
+    const { files = ['metrics', 'joins', 'glossary', 'examples'] } = req.body;
+    const contextDir  = path.join(ROOT_DIR, 'context');
+    const examplesDir = path.join(contextDir, 'examples');
+
+    try {
+        if (!fs.existsSync(contextDir))  fs.mkdirSync(contextDir,  { recursive: true });
+        if (!fs.existsSync(examplesDir)) fs.mkdirSync(examplesDir, { recursive: true });
+
+        const created = [];
+
+        if (files.includes('metrics') && !fs.existsSync(path.join(contextDir, 'metrics.yml'))) {
+            fs.writeFileSync(path.join(contextDir, 'metrics.yml'), `# Business Metric Definitions
+# The AI uses these when you mention terms like "revenue" or "churn".
+# Format: name, sql (DuckDB expression), description, grain, table
+
+metrics:
+  - name: revenue
+    sql: "SUM(amount) FILTER (WHERE status = 'paid')"
+    description: Total paid revenue, excludes pending and refunded orders
+    grain: order
+    table: orders
+
+  - name: monthly_active_users
+    sql: "COUNT(DISTINCT user_id)"
+    description: Unique users with at least one event in the period
+    grain: day
+    table: events
+`, 'utf8');
+            created.push('metrics.yml');
+        }
+
+        if (files.includes('joins') && !fs.existsSync(path.join(contextDir, 'joins.yml'))) {
+            fs.writeFileSync(path.join(contextDir, 'joins.yml'), `# Canonical Join Relationships
+# The AI uses these to write correct JOIN clauses without guessing column names.
+
+joins:
+  - from: orders
+    to: customers
+    on: "orders.customer_id = customers.id"
+    type: LEFT
+
+  - from: orders
+    to: products
+    on: "orders.product_id = products.id"
+    type: LEFT
+`, 'utf8');
+            created.push('joins.yml');
+        }
+
+        if (files.includes('glossary') && !fs.existsSync(path.join(contextDir, 'glossary.md'))) {
+            fs.writeFileSync(path.join(contextDir, 'glossary.md'), `# Domain Glossary
+
+**Revenue**: Paid order amounts only (\`status = 'paid'\`). Never include pending or refunded orders.
+
+**Active User**: Any user who triggered at least one event in the analysis period.
+
+**Churn**: A user who has not returned in the last 30 days.
+
+**Conversion**: A trial user who upgraded to a paid plan within 14 days.
+`, 'utf8');
+            created.push('glossary.md');
+        }
+
+        if (files.includes('examples')) {
+            const ex1 = path.join(examplesDir, 'monthly_revenue_trend.sql');
+            if (!fs.existsSync(ex1)) {
+                fs.writeFileSync(ex1, `-- What is the monthly revenue trend for the last 12 months?
+SELECT
+    DATE_TRUNC('month', created_at)                         AS month,
+    SUM(amount) FILTER (WHERE status = 'paid')              AS revenue,
+    COUNT(*) FILTER (WHERE status = 'paid')                 AS orders
+FROM orders
+WHERE created_at >= CURRENT_DATE - INTERVAL 12 MONTHS
+GROUP BY 1
+ORDER BY 1;
+`, 'utf8');
+                created.push('examples/monthly_revenue_trend.sql');
+            }
+            const ex2 = path.join(examplesDir, 'cohort_retention.sql');
+            if (!fs.existsSync(ex2)) {
+                fs.writeFileSync(ex2, `-- How do I calculate cohort retention by signup month?
+WITH cohorts AS (
+    SELECT user_id,
+           DATE_TRUNC('month', created_at) AS cohort_month
+    FROM users
+),
+activity AS (
+    SELECT DISTINCT user_id,
+           DATE_TRUNC('month', event_date) AS active_month
+    FROM events
+)
+SELECT
+    c.cohort_month,
+    DATEDIFF('month', c.cohort_month, a.active_month) AS months_since_signup,
+    COUNT(DISTINCT c.user_id)                          AS retained_users
+FROM cohorts c
+JOIN activity a USING (user_id)
+GROUP BY 1, 2
+ORDER BY 1, 2;
+`, 'utf8');
+                created.push('examples/cohort_retention.sql');
+            }
+        }
+
+        res.json({ success: true, created, path: contextDir });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -1200,7 +1503,7 @@ app.post('/api/ai/chat', async (req, res) => {
 const { getModelProfile: getModelProfileForRoute, fetchOllamaModelInfo: fetchOllamaInfoForRoute } = require('./ai/modelProfiles');
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -1241,6 +1544,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             filePath,
             fileType,
             conversationId: conversationId || null,
+            planStepOverrides: Array.isArray(planStepOverrides) ? planStepOverrides : [],
         };
 
         // Detect model tier to choose between tool-loop and prompt-only
