@@ -121,6 +121,10 @@ class AiManager {
         }
     }
 
+    saveConfig(config) {
+        fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+    }
+
     getStatus() {
         return { status: "READY", progress: 100 };
     }

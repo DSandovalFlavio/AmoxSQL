@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
@@ -59,6 +59,7 @@ const TAB_TITLES = {
     editor:      'Editor',
     behavior:    'Behavior',
     ai:          'AI Assistant',
+    integrations:'Store Integrations',
     workspace:   'Workspace',
     shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
@@ -66,7 +67,7 @@ const TAB_TITLES = {
     formatter:   'Editor',
     memories:    'AI Assistant',
     aicontext:   'AI Assistant',
-    cloud:       'AI Assistant',
+    cloud:       'Store Integrations',
     gallery:     'Chart Gallery',
 };
 
@@ -487,7 +488,7 @@ const LEGACY_TAB_MAP = {
     formatter:    { tab: 'editor',     sub: 'formatting' },
     memories:     { tab: 'ai',         sub: 'knowledge' },
     aicontext:    { tab: 'ai',         sub: 'knowledge' },
-    cloud:        { tab: 'ai',         sub: 'cloud' },
+    cloud:        { tab: 'integrations', sub: null },
     gallery:      { tab: 'appearance', sub: null },
 };
 
@@ -551,6 +552,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [isTestingCloud, setIsTestingCloud] = useState(false);
     const [cloudTestResult, setCloudTestResult] = useState(null);
 
+    // Google Sheets State
+    const [gsheetsKeyPath, setGsheetsKeyPath] = useState('');
+    const [gsheetsEmail, setGsheetsEmail] = useState('');
+    const [gsheetsStatus, setGsheetsStatus] = useState({ isConfigured: false, extensionLoaded: false });
+    const [isTestingGSheets, setIsTestingGSheets] = useState(false);
+    const [gsheetsTestResult, setGsheetsTestResult] = useState(null);
+    const [emailCopied, setEmailCopied] = useState(false);
+
     // ADC Test State
     const [isTestingAdc, setIsTestingAdc] = useState(false);
     const [adcTestResult, setAdcTestResult] = useState(null);
@@ -610,6 +619,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     if (data.experimental) setPlannerMode(!!data.experimental.planner);
                     if (data.geminiModels) setGeminiModels(data.geminiModels);
                     if (data.modelTierOverrides) setModelTierOverrides(data.modelTierOverrides);
+                    if (data.gsheets) {
+                        setGsheetsKeyPath(data.gsheets.serviceAccountKeyPath || '');
+                        setGsheetsEmail(data.gsheets.serviceAccountEmail || '');
+                    }
                     
                     if (data.provider !== 'gemini') fetchInstalledModels();
                 })
@@ -621,6 +634,11 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     if (data?.version) setDuckdbVersion(data.version);
                 })
                 .catch(() => setDuckdbVersion('N/A'));
+
+            fetch('http://localhost:3001/api/gsheets/status')
+                .then(res => res.json())
+                .then(data => setGsheetsStatus(data))
+                .catch(() => {});
 
             fetchCatalogStats();
         }
@@ -798,6 +816,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
+                        { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
                         { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
@@ -1460,7 +1479,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     tabs={[
                                         { id: 'models',    label: 'Models' },
                                         { id: 'knowledge', label: 'Knowledge' },
-                                        { id: 'cloud',     label: 'Cloud Storage' },
                                     ]}
                                     activeTab={aiSubTab}
                                     onChange={setAiSubTab}
@@ -1835,11 +1853,16 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     <AiContextTab />
                                 </div>
                                 </div>}
-                                {/* ── Cloud sub-tab ── */}
-                                {aiSubTab === 'cloud' && <div className="stg-subtab-content">
+                            </div>
+                        )}
+
+                        {/* ═══ STORE INTEGRATIONS ═══ */}
+                        {activeTab === 'integrations' && (
+                            <div className="stg-section">
+                                {/* ── Cloud Storage (S3 / GCS) ── */}
                                 <div className="stg-row stg-row--top">
                                     <div>
-                                        <h3 className="stg-section-heading stg-section-heading--mb8">S3 & GCS Export Configuration</h3>
+                                        <h3 className="stg-section-heading stg-section-heading--mb8"><LuCloud size={14} /> Cloud Storage Export</h3>
                                         <p className="stg-row-desc stg-row-desc--maxw480">
                                             Connect your cloud storage buckets to export query results directly to S3 or Google Cloud Storage using DuckDB's native httpfs extension.
                                         </p>
@@ -1924,7 +1947,116 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         {cloudTestResult.text}
                                     </div>
                                 )}
-                                </div>}
+
+                                {/* ── Separator ── */}
+                                <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '24px 0' }} />
+
+                                {/* ── Google Sheets ── */}
+                                <div className="stg-row stg-row--top">
+                                    <div>
+                                        <h3 className="stg-section-heading stg-section-heading--mb8">
+                                            <LuFileSpreadsheet size={14} style={{ color: '#34a853' }} /> Google Sheets
+                                        </h3>
+                                        <p className="stg-row-desc stg-row-desc--maxw480">
+                                            Connect Google Sheets as queryable data sources via DuckDB. Each spreadsheet appears as a virtual database in the File Explorer — every sheet tab is a table you can query with SQL.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (!gsheetsKeyPath.trim()) return;
+                                            setIsTestingGSheets(true);
+                                            setGsheetsTestResult(null);
+                                            try {
+                                                const res = await fetch('http://localhost:3001/api/gsheets/setup', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ serviceAccountKeyPath: gsheetsKeyPath.trim() })
+                                                });
+                                                const data = await res.json();
+                                                if (res.ok) {
+                                                    setGsheetsEmail(data.email);
+                                                    setGsheetsStatus({ isConfigured: true, extensionLoaded: true });
+                                                    setGsheetsTestResult({ type: 'success', text: 'Google Sheets connected successfully!' });
+                                                } else {
+                                                    setGsheetsTestResult({ type: 'error', text: data.error || 'Setup failed' });
+                                                }
+                                            } catch (err) {
+                                                setGsheetsTestResult({ type: 'error', text: err.message });
+                                            } finally {
+                                                setIsTestingGSheets(false);
+                                                setTimeout(() => setGsheetsTestResult(null), 5000);
+                                            }
+                                        }}
+                                        disabled={isTestingGSheets || !gsheetsKeyPath.trim()}
+                                        className="stg-btn stg-btn--primary"
+                                    >
+                                        {isTestingGSheets ? 'Connecting...' : 'Save & Connect'}
+                                    </button>
+                                </div>
+
+                                <div className="stg-card" style={{ marginTop: 12 }}>
+                                    <div className="stg-card-header">
+                                        <h4 className="stg-card-title"><LuFileSpreadsheet size={14} style={{ color: '#34a853' }} /> Service Account Configuration</h4>
+                                        <span style={{ fontSize: '11px', color: gsheetsStatus.isConfigured ? '#34a853' : 'var(--text-tertiary)' }}>
+                                            {gsheetsStatus.isConfigured ? '● Connected' : '○ Not configured'}
+                                        </span>
+                                    </div>
+
+                                    <div className="stg-flex-col--gap10" style={{ marginTop: 8 }}>
+                                        <div>
+                                            <div className="stg-field-label">Service Account Key (JSON file path)</div>
+                                            <input
+                                                type="text"
+                                                className="stg-input stg-input--mono"
+                                                value={gsheetsKeyPath}
+                                                onChange={(e) => setGsheetsKeyPath(e.target.value)}
+                                                placeholder="C:\Users\you\.gcp\service-account.json"
+                                            />
+                                        </div>
+
+                                        {gsheetsEmail && (
+                                            <div>
+                                                <div className="stg-field-label">Service Account Email</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <code className="stg-input stg-input--mono" style={{ flex: 1, padding: '8px 10px', background: 'var(--surface-inset)', border: '1px solid var(--border-default)', borderRadius: 6, fontSize: '11px' }}>
+                                                        {gsheetsEmail}
+                                                    </code>
+                                                    <button
+                                                        className="stg-btn"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(gsheetsEmail);
+                                                            setEmailCopied(true);
+                                                            setTimeout(() => setEmailCopied(false), 2000);
+                                                        }}
+                                                        title="Copy email"
+                                                    >
+                                                        {emailCopied ? <LuCheck size={12} /> : <LuCopy size={12} />}
+                                                    </button>
+                                                </div>
+                                                <p className="stg-row-desc" style={{ marginTop: 6, fontSize: '11px' }}>
+                                                    👆 Share your Google Sheets with this email (Viewer or Editor) to allow AmoxSQL to read/write them.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ marginTop: 16, padding: '12px', background: 'var(--surface-inset)', borderRadius: 8, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                                        <strong>Minimum Permissions Required:</strong>
+                                        <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                                            <li><strong>Google Sheets API</strong> — Must be enabled in your GCP project.</li>
+                                            <li><strong>Role:</strong> <code>roles/viewer</code> (read-only) or <code>roles/editor</code> (read + write).</li>
+                                            <li><strong>Scope:</strong> <code>https://www.googleapis.com/auth/spreadsheets</code> (for read & write).</li>
+                                            <li>Each Google Sheet must be <strong>shared with the Service Account email</strong> (like sharing with a collaborator).</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                {gsheetsTestResult && (
+                                    <div className={`stg-alert stg-alert--${gsheetsTestResult.type}`} style={{ marginTop: 10 }}>
+                                        {gsheetsTestResult.type === 'success' ? <LuCheck size={14} /> : <LuX size={14} />}
+                                        {gsheetsTestResult.text}
+                                    </div>
+                                )}
                             </div>
                         )}
 

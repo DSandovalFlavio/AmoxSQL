@@ -1337,6 +1337,272 @@ app.post('/api/export/cloud/test', async (req, res) => {
     }
 });
 
+// ── Google Sheets Integration (DuckDB gsheets extension) ──
+
+// Helper: ensure gsheets extension installed and loaded, and secret created
+async function ensureGSheetsReady() {
+    try {
+        // Check if extension is already loaded
+        const exts = await dbManager.systemQuery(
+            "SELECT installed, loaded FROM duckdb_extensions() WHERE extension_name = 'gsheets'"
+        );
+        const ext = exts[0];
+        if (!ext || !ext.installed) {
+            await dbManager.systemQuery("INSTALL gsheets FROM community");
+        }
+        if (!ext || !ext.loaded) {
+            await dbManager.systemQuery("LOAD gsheets");
+        }
+    } catch (e) {
+        // If extension is already loaded, DuckDB may throw — ignore
+        if (!e.message.includes('already loaded')) throw e;
+    }
+
+    // Create secret from config if not already done
+    const config = aiManager.getConfig();
+    const gsheets = config.gsheets || {};
+    if (gsheets.serviceAccountKeyPath) {
+        try {
+            // Drop existing secret first to avoid conflicts
+            try { await dbManager.systemQuery("DROP SECRET IF EXISTS __amox_gsheet"); } catch {}
+            const saPath = gsheets.serviceAccountKeyPath.replace(/\\/g, '/');
+            await dbManager.systemQuery(
+                `CREATE SECRET __amox_gsheet (TYPE gsheet, PROVIDER key_file, FILEPATH '${saPath}')`
+            );
+        } catch (e) {
+            if (!e.message.includes('already exists')) throw e;
+        }
+    }
+}
+
+// POST /api/gsheets/setup — Upload/set SA key path and initialize extension
+app.post('/api/gsheets/setup', async (req, res) => {
+    const { serviceAccountKeyPath } = req.body;
+    if (!serviceAccountKeyPath) return res.status(400).json({ error: 'serviceAccountKeyPath is required' });
+
+    try {
+        // Validate the file exists
+        if (!fs.existsSync(serviceAccountKeyPath)) {
+            return res.status(400).json({ error: 'Service Account key file not found at the specified path.' });
+        }
+
+        // Read the SA email from the JSON
+        const saData = JSON.parse(fs.readFileSync(serviceAccountKeyPath, 'utf8'));
+        const email = saData.client_email || '';
+
+        // Save to config
+        const config = aiManager.getConfig();
+        if (!config.gsheets) config.gsheets = {};
+        config.gsheets.serviceAccountKeyPath = serviceAccountKeyPath;
+        config.gsheets.serviceAccountEmail = email;
+        if (!config.gsheets.sheets) config.gsheets.sheets = [];
+        aiManager.saveConfig(config);
+
+        // Initialize extension and secret
+        await ensureGSheetsReady();
+
+        res.json({ success: true, email, message: 'Google Sheets configured successfully.' });
+    } catch (err) {
+        console.error('[GSheets] Setup failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/gsheets/status — Check extension + secret status
+app.get('/api/gsheets/status', async (req, res) => {
+    try {
+        const config = aiManager.getConfig();
+        const gsheets = config.gsheets || {};
+        const isConfigured = !!gsheets.serviceAccountKeyPath;
+
+        let extensionLoaded = false;
+        try {
+            const exts = await dbManager.systemQuery(
+                "SELECT loaded FROM duckdb_extensions() WHERE extension_name = 'gsheets'"
+            );
+            extensionLoaded = exts[0]?.loaded === true || exts[0]?.loaded === 'true';
+        } catch {}
+
+        res.json({
+            isConfigured,
+            extensionLoaded,
+            serviceAccountEmail: gsheets.serviceAccountEmail || '',
+            sheetsCount: (gsheets.sheets || []).length,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/gsheets/sheets — List registered sheets
+app.get('/api/gsheets/sheets', (req, res) => {
+    const config = aiManager.getConfig();
+    res.json(config.gsheets?.sheets || []);
+});
+
+// POST /api/gsheets/sheets — Register a new sheet
+app.post('/api/gsheets/sheets', async (req, res) => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'Sheet URL is required' });
+
+    // Extract spreadsheet ID from URL
+    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (!idMatch) return res.status(400).json({ error: 'Invalid Google Sheets URL. Expected format: https://docs.google.com/spreadsheets/d/{id}/...' });
+    const spreadsheetId = idMatch[1];
+
+    try {
+        await ensureGSheetsReady();
+
+        // Fetch spreadsheet metadata (title) by reading the first row
+        let spreadsheetName = `Sheet ${spreadsheetId.substring(0, 8)}`;
+        try {
+            // Try to get the title from the Google Sheets API via the SA credentials
+            const config = aiManager.getConfig();
+            const saPath = config.gsheets?.serviceAccountKeyPath;
+            if (saPath) {
+                const saData = JSON.parse(fs.readFileSync(saPath, 'utf8'));
+                // Generate JWT for Google API
+                const jwt = require('jsonwebtoken');
+                const now = Math.floor(Date.now() / 1000);
+                const token = jwt.sign({
+                    iss: saData.client_email,
+                    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+                    aud: 'https://oauth2.googleapis.com/token',
+                    iat: now,
+                    exp: now + 3600,
+                }, saData.private_key, { algorithm: 'RS256' });
+
+                const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`
+                });
+                const tokenData = await tokenRes.json();
+
+                if (tokenData.access_token) {
+                    const metaRes = await fetch(
+                        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=properties.title,sheets.properties`,
+                        { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
+                    );
+                    if (metaRes.ok) {
+                        const meta = await metaRes.json();
+                        spreadsheetName = meta.properties?.title || spreadsheetName;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[GSheets] Could not fetch spreadsheet title:', e.message);
+        }
+
+        // Validate we can actually read it
+        await dbManager.systemQuery(`SELECT * FROM read_gsheet('${spreadsheetId}') LIMIT 1`);
+
+        // Fetch sheet tabs
+        let tabs = [];
+        try {
+            const config = aiManager.getConfig();
+            const saPath = config.gsheets?.serviceAccountKeyPath;
+            if (saPath) {
+                const saData = JSON.parse(fs.readFileSync(saPath, 'utf8'));
+                const jwt = require('jsonwebtoken');
+                const now = Math.floor(Date.now() / 1000);
+                const jwtToken = jwt.sign({
+                    iss: saData.client_email,
+                    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+                    aud: 'https://oauth2.googleapis.com/token',
+                    iat: now,
+                    exp: now + 3600,
+                }, saData.private_key, { algorithm: 'RS256' });
+                const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwtToken}`
+                });
+                const tokenData = await tokenRes.json();
+                if (tokenData.access_token) {
+                    const metaRes = await fetch(
+                        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+                        { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
+                    );
+                    if (metaRes.ok) {
+                        const meta = await metaRes.json();
+                        tabs = (meta.sheets || []).map(s => ({
+                            title: s.properties.title,
+                            sheetId: s.properties.sheetId,
+                            index: s.properties.index,
+                        }));
+                    }
+                }
+            }
+        } catch {}
+
+        const newSheet = {
+            id: `gs_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+            url,
+            spreadsheetId,
+            name: spreadsheetName,
+            tabs,
+            addedAt: new Date().toISOString(),
+        };
+
+        const config = aiManager.getConfig();
+        if (!config.gsheets) config.gsheets = {};
+        if (!config.gsheets.sheets) config.gsheets.sheets = [];
+
+        // Check duplicate
+        if (config.gsheets.sheets.some(s => s.spreadsheetId === spreadsheetId)) {
+            return res.status(409).json({ error: 'This spreadsheet is already registered.' });
+        }
+
+        config.gsheets.sheets.push(newSheet);
+        aiManager.saveConfig(config);
+
+        res.json(newSheet);
+    } catch (err) {
+        console.error('[GSheets] Register failed:', err);
+        res.status(500).json({ error: `Failed to connect to Google Sheet: ${err.message}` });
+    }
+});
+
+// DELETE /api/gsheets/sheets/:id — Remove a registered sheet
+app.delete('/api/gsheets/sheets/:id', (req, res) => {
+    const config = aiManager.getConfig();
+    if (!config.gsheets?.sheets) return res.json({ success: true });
+    config.gsheets.sheets = config.gsheets.sheets.filter(s => s.id !== req.params.id);
+    aiManager.saveConfig(config);
+    res.json({ success: true });
+});
+
+// GET /api/gsheets/preview/:id — Preview first 100 rows of a sheet (specific tab)
+app.get('/api/gsheets/preview/:id', async (req, res) => {
+    const { tab } = req.query;
+    try {
+        await ensureGSheetsReady();
+        const config = aiManager.getConfig();
+        const sheet = (config.gsheets?.sheets || []).find(s => s.id === req.params.id);
+        if (!sheet) return res.status(404).json({ error: 'Sheet not found' });
+
+        const sheetClause = tab ? `, sheet='${tab.replace(/'/g, "''")}'` : '';
+        const rows = await dbManager.query(
+            `SELECT * FROM read_gsheet('${sheet.spreadsheetId}'${sheetClause}) LIMIT 100`
+        );
+        res.json({ rows, sheetName: sheet.name, tab: tab || 'Sheet1' });
+    } catch (err) {
+        console.error('[GSheets] Preview failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/gsheets/test — Test connection with SA key
+app.post('/api/gsheets/test', async (req, res) => {
+    try {
+        await ensureGSheetsReady();
+        res.json({ success: true, message: 'Google Sheets extension loaded and secret configured.' });
+    } catch (err) {
+        res.json({ success: false, message: err.message });
+    }
+});
+
 app.get('/api/settings/ollama/models', async (req, res) => {
     try {
         const ollamaClient = require('ollama').default || require('ollama');
