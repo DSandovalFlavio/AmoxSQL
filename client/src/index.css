@@ -14442,7 +14442,7 @@ tr:hover td {
 .fe-git-badge--M { color: var(--git-modified, #e8a838); }
 .fe-git-badge--A { color: var(--git-added,    #4caf7d); }
 .fe-git-badge--D { color: var(--git-deleted,  #e06c75); }
-.fe-git-badge--? { color: var(--text-muted); }
+.fe-git-badge--\? { color: var(--text-muted); }
 
 /* ── Git Panel — New Features ── */
 
