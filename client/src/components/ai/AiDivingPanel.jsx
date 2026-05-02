@@ -3,6 +3,7 @@ import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, Lu
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import ConversationList from './ConversationList';
+import ModelDropdown from './ModelDropdown';
 import SessionInventory from './SessionInventory';
 import AgentPlanPanel from './AgentPlanPanel';
 import AlertDialog from '../AlertDialog';
@@ -27,6 +28,8 @@ const AiDivingPanel = ({
     const {
         // Constants
         GEMINI_MODELS,
+        ANTHROPIC_MODELS,
+        MINIMAX_MODELS,
 
         // Config state
         status, setStatus: _setStatus,
@@ -289,36 +292,18 @@ const AiDivingPanel = ({
             />
             <div className="ai-composer-toolbar">
                 <div className="ai-composer-toolbar-left">
-                    <div className="ai-composer-model">
-                        {provider === 'ollama' ? <LuCpu size={12} /> : <LuCloud size={12} />}
-                        {provider === 'ollama' && isModelsLoading ? (
-                            <span className="ai-composer-model-text">Loading...</span>
-                        ) : (
-                            <select
-                                className="ai-composer-model-select"
-                                value={selectedModel}
-                                onChange={(e) => setSelectedModel(e.target.value)}
-                            >
-                                {provider === 'ollama' ? (
-                                    installedModels.map(m => (
-                                        <option key={m.name} value={m.name}>{m.name}</option>
-                                    ))
-                                ) : (
-                                    GEMINI_MODELS.map(m => (
-                                        <option key={m.id} value={m.id}>{m.label}</option>
-                                    ))
-                                )}
-                            </select>
-                        )}
-                        {selectedModel === 'custom' && provider === 'gemini' && (
-                            <input
-                                className="ai-composer-model-custom"
-                                type="text" value={customModel}
-                                onChange={(e) => setCustomModel(e.target.value)}
-                                placeholder="model id..."
-                            />
-                        )}
-                    </div>
+                    <ModelDropdown 
+                        provider={provider}
+                        selectedModel={selectedModel}
+                        setSelectedModel={setSelectedModel}
+                        installedModels={installedModels}
+                        geminiModelsList={GEMINI_MODELS}
+                        ANTHROPIC_MODELS={ANTHROPIC_MODELS}
+                        MINIMAX_MODELS={MINIMAX_MODELS}
+                        customModel={customModel}
+                        setCustomModel={setCustomModel}
+                        isModelsLoading={isModelsLoading}
+                    />
                 </div>
                 <div className="ai-composer-toolbar-right">
                     <span className="ai-composer-hint">{'Enter \u21B5'}</span>

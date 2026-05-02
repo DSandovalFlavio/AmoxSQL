@@ -8,12 +8,7 @@ import AlertDialog from './AlertDialog';
 
 const API = 'http://localhost:3001';
 
-const GEMINI_MODELS = [
-    { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', size: 'Cloud' },
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', size: 'Cloud' },
-    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', size: 'Cloud' },
-    { id: 'custom', label: 'Custom Model...', size: 'Cloud' }
-];
+import { DEFAULT_GEMINI_MODELS, fetchGeminiModels, ANTHROPIC_MODELS, MINIMAX_MODELS } from './ai/useAiChat';
 
 const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, isDiving = false, onExitDiving, onExportNotebook, onOpenFile }) => {
     // ─── Config State ───
@@ -22,6 +17,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const [selectedModel, setSelectedModel] = useState('qwen3:1.7b');
     const [customModel, setCustomModel] = useState('');
     const [installedModels, setInstalledModels] = useState([]);
+    const [geminiModelsList, setGeminiModelsList] = useState(DEFAULT_GEMINI_MODELS);
     const [isModelsLoading, setIsModelsLoading] = useState(false);
 
     // ─── Skills State (Data Diving only) ───
@@ -89,7 +85,17 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                         setIsModelsLoading(false);
                     }
                 } else {
-                    const modelFound = GEMINI_MODELS.find(m => m.id === configData.defaultModel);
+                    let availableModels = DEFAULT_GEMINI_MODELS;
+                    if (prov === 'gemini') {
+                        setIsModelsLoading(true);
+                        availableModels = await fetchGeminiModels();
+                        setGeminiModelsList(availableModels);
+                        setIsModelsLoading(false);
+                    }
+                    if (prov === 'anthropic') availableModels = ANTHROPIC_MODELS;
+                    if (prov === 'minimax') availableModels = MINIMAX_MODELS;
+
+                    const modelFound = availableModels.find(m => m.id === configData.defaultModel);
                     if (modelFound && modelFound.id !== 'custom') {
                         setSelectedModel(configData.defaultModel);
                     } else {
@@ -680,8 +686,16 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                                     installedModels.map(m => (
                                         <option key={m.name} value={m.name}>{m.name}</option>
                                     ))
+                                ) : provider === 'anthropic' ? (
+                                    ANTHROPIC_MODELS.map(m => (
+                                        <option key={m.id} value={m.id}>{m.label}</option>
+                                    ))
+                                ) : provider === 'minimax' ? (
+                                    MINIMAX_MODELS.map(m => (
+                                        <option key={m.id} value={m.id}>{m.label}</option>
+                                    ))
                                 ) : (
-                                    GEMINI_MODELS.map(m => (
+                                    geminiModelsList.map(m => (
                                         <option key={m.id} value={m.id}>{m.label}</option>
                                     ))
                                 )}
@@ -877,8 +891,16 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                                     installedModels.map(m => (
                                         <option key={m.name} value={m.name}>{m.name} ({(m.size / 1024 / 1024 / 1024).toFixed(1)}GB)</option>
                                     ))
+                                ) : provider === 'anthropic' ? (
+                                    ANTHROPIC_MODELS.map(m => (
+                                        <option key={m.id} value={m.id}>{m.label}</option>
+                                    ))
+                                ) : provider === 'minimax' ? (
+                                    MINIMAX_MODELS.map(m => (
+                                        <option key={m.id} value={m.id}>{m.label}</option>
+                                    ))
                                 ) : (
-                                    GEMINI_MODELS.map(m => (
+                                    geminiModelsList.map(m => (
                                         <option key={m.id} value={m.id}>{m.label}</option>
                                     ))
                                 )}

@@ -3,6 +3,7 @@ import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuData
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
+import ModelDropdown from './ModelDropdown';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
@@ -32,6 +33,8 @@ const AiAssistantPanel = ({
 }) => {
     const {
         GEMINI_MODELS,
+        ANTHROPIC_MODELS,
+        MINIMAX_MODELS,
 
         // Config
         status, setStatus,
@@ -451,40 +454,27 @@ const AiAssistantPanel = ({
                         {/* Bottom toolbar */}
                         <div className="ai-composer-toolbar">
                             <div className="ai-composer-toolbar-left">
-                                <div className="ai-composer-model">
-                                    {provider === 'ollama' ? <LuCpu size={12} /> : <LuCloud size={12} />}
-                                    {provider === 'ollama' && isModelsLoading ? (
-                                        <span className="ai-composer-model-text">Loading...</span>
-                                    ) : provider === 'ollama' && installedModels.length === 0 ? (
+                                {provider === 'ollama' && installedModels.length === 0 ? (
+                                    <div className="ai-composer-model">
+                                        <LuCpu size={12} />
                                         <button className="ai-composer-model-link" onClick={() => onOpenSettings?.('ai')}>
                                             Install models
                                         </button>
-                                    ) : (
-                                        <select
-                                            className="ai-composer-model-select"
-                                            value={selectedModel}
-                                            onChange={(e) => setSelectedModel(e.target.value)}
-                                        >
-                                            {provider === 'ollama' ? (
-                                                installedModels.map(m => (
-                                                    <option key={m.name} value={m.name}>{m.name}</option>
-                                                ))
-                                            ) : (
-                                                GEMINI_MODELS.map(m => (
-                                                    <option key={m.id} value={m.id}>{m.label}</option>
-                                                ))
-                                            )}
-                                        </select>
-                                    )}
-                                    {selectedModel === 'custom' && provider === 'gemini' && (
-                                        <input
-                                            className="ai-composer-model-custom"
-                                            type="text" value={customModel}
-                                            onChange={(e) => setCustomModel(e.target.value)}
-                                            placeholder="model id..."
-                                        />
-                                    )}
-                                </div>
+                                    </div>
+                                ) : (
+                                    <ModelDropdown 
+                                        provider={provider}
+                                        selectedModel={selectedModel}
+                                        setSelectedModel={setSelectedModel}
+                                        installedModels={installedModels}
+                                        geminiModelsList={GEMINI_MODELS}
+                                        ANTHROPIC_MODELS={ANTHROPIC_MODELS}
+                                        MINIMAX_MODELS={MINIMAX_MODELS}
+                                        customModel={customModel}
+                                        setCustomModel={setCustomModel}
+                                        isModelsLoading={isModelsLoading}
+                                    />
+                                )}
                             </div>
                             <div className="ai-composer-toolbar-right">
                                 <span className="ai-composer-hint">{'Enter \u21B5'}</span>

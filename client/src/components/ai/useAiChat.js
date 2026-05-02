@@ -2,10 +2,36 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const API = 'http://localhost:3001';
 
-const GEMINI_MODELS = [
+export const DEFAULT_GEMINI_MODELS = [
     { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', size: 'Cloud' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', size: 'Cloud' },
     { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', size: 'Cloud' },
+    { id: 'custom', label: 'Custom Model...', size: 'Cloud' }
+];
+
+export const fetchGeminiModels = async () => {
+    try {
+        const res = await fetch(`${API}/api/settings/gemini/models`);
+        if (!res.ok) return DEFAULT_GEMINI_MODELS;
+        const data = await res.json();
+        return data.models || DEFAULT_GEMINI_MODELS;
+    } catch (e) {
+        return DEFAULT_GEMINI_MODELS;
+    }
+};
+
+export const ANTHROPIC_MODELS = [
+    { id: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet', size: 'Cloud' },
+    { id: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet', size: 'Cloud' },
+    { id: 'claude-3-opus', label: 'Claude 3 Opus', size: 'Cloud' },
+    { id: 'claude-3-5-haiku', label: 'Claude 3.5 Haiku', size: 'Cloud' },
+    { id: 'custom', label: 'Custom Model...', size: 'Cloud' }
+];
+
+export const MINIMAX_MODELS = [
+    { id: 'MiniMax-M2.7', label: 'MiniMax M2.7', size: 'Cloud' },
+    { id: 'MiniMax-M2.5', label: 'MiniMax M2.5', size: 'Cloud' },
+    { id: 'MiniMax-M2-Her', label: 'MiniMax M2 Her', size: 'Cloud' },
     { id: 'custom', label: 'Custom Model...', size: 'Cloud' }
 ];
 
@@ -39,6 +65,7 @@ export default function useAiChat({
     const [selectedModel, setSelectedModel] = useState('qwen3:1.7b');
     const [customModel, setCustomModel] = useState('');
     const [installedModels, setInstalledModels] = useState([]);
+    const [geminiModelsList, setGeminiModelsList] = useState(DEFAULT_GEMINI_MODELS);
     const [isModelsLoading, setIsModelsLoading] = useState(false);
 
     // ─── Skills State ───
@@ -112,7 +139,17 @@ export default function useAiChat({
                         setIsModelsLoading(false);
                     }
                 } else {
-                    const modelFound = GEMINI_MODELS.find(m => m.id === configData.defaultModel);
+                    let availableModels = DEFAULT_GEMINI_MODELS;
+                    if (prov === 'gemini') {
+                        setIsModelsLoading(true);
+                        availableModels = await fetchGeminiModels();
+                        setGeminiModelsList(availableModels);
+                        setIsModelsLoading(false);
+                    }
+                    if (prov === 'anthropic') availableModels = ANTHROPIC_MODELS;
+                    if (prov === 'minimax') availableModels = MINIMAX_MODELS;
+
+                    const modelFound = availableModels.find(m => m.id === configData.defaultModel);
                     if (modelFound && modelFound.id !== 'custom') {
                         setSelectedModel(configData.defaultModel);
                     } else {
@@ -755,7 +792,9 @@ export default function useAiChat({
     // ─── Return ───
     return {
         // Constants
-        GEMINI_MODELS,
+        GEMINI_MODELS: geminiModelsList,
+        ANTHROPIC_MODELS,
+        MINIMAX_MODELS,
 
         // Config state
         status,

@@ -4725,7 +4725,6 @@ tr:hover .rt-td {
   border: 1px solid var(--border-default);
   border-radius: 12px;
   transition: border-color 0.2s ease;
-  overflow: hidden;
 }
 
 .ai-composer:focus-within {

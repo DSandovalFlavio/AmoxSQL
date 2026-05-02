@@ -10,7 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.74",
     "@ai-sdk/google": "^3.0.52",
+    "@ai-sdk/openai": "^3.0.58",
     "@google/generative-ai": "^0.24.1",
     "ai": "^6.0.134",
     "ai-sdk-ollama": "^3.8.1",
