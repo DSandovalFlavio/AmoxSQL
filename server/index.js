@@ -169,10 +169,10 @@ app.post('/api/git/unstage', async (req, res) => {
 });
 
 app.post('/api/git/commit', async (req, res) => {
-    const { message } = req.body;
-    if (!message) return res.status(400).json({ error: 'message required' });
+    const { message, amend } = req.body;
+    if (!amend && !message) return res.status(400).json({ error: 'message required' });
     try {
-        const result = await gitManager.commit(ROOT_DIR, message);
+        const result = await gitManager.commit(ROOT_DIR, message, { amend: !!amend });
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -229,6 +229,56 @@ app.post('/api/git/checkout', async (req, res) => {
     if (!branch) return res.status(400).json({ error: 'branch required' });
     try {
         const result = await gitManager.checkoutBranch(ROOT_DIR, branch);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/discard', async (req, res) => {
+    const { files } = req.body;
+    if (!Array.isArray(files) || files.length === 0)
+        return res.status(400).json({ error: 'files array required' });
+    try {
+        const result = await gitManager.discardChanges(ROOT_DIR, files);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/branch/delete', async (req, res) => {
+    const { name, force = false } = req.body;
+    if (!name) return res.status(400).json({ error: 'name required' });
+    try {
+        const result = await gitManager.deleteBranch(ROOT_DIR, name, force);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/stash', async (req, res) => {
+    try {
+        const result = await gitManager.stash(ROOT_DIR, req.body.message);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/git/stash/pop', async (req, res) => {
+    try {
+        const result = await gitManager.stashPop(ROOT_DIR);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/git/stash/list', async (req, res) => {
+    try {
+        const result = await gitManager.getStashList(ROOT_DIR);
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -2232,6 +2282,128 @@ app.post('/api/file/delete', (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Delete failed', details: err.message });
     }
+});
+
+/* --- File Move (also used for drag-and-drop reorder) --- */
+app.post('/api/file/move', (req, res) => {
+    const { sourcePath, destinationDir } = req.body;
+    if (!sourcePath || destinationDir === undefined) {
+        return res.status(400).json({ error: 'sourcePath and destinationDir are required' });
+    }
+
+    const fullSource = path.isAbsolute(sourcePath) ? sourcePath : path.join(ROOT_DIR, sourcePath);
+    const fileName = path.basename(fullSource);
+    const destDir = path.isAbsolute(destinationDir) ? destinationDir : path.join(ROOT_DIR, destinationDir);
+    const fullDest = path.join(destDir, fileName);
+
+    if (!fs.existsSync(fullSource)) return res.status(404).json({ error: 'Source not found' });
+    if (fullSource === fullDest) return res.json({ success: true, noOp: true });
+    if (fs.existsSync(fullDest)) return res.status(409).json({ error: `"${fileName}" already exists in the destination folder` });
+
+    try {
+        // Ensure destination directory exists
+        fs.mkdirSync(destDir, { recursive: true });
+        fs.renameSync(fullSource, fullDest);
+        res.json({ success: true, newPath: path.relative(ROOT_DIR, fullDest).replace(/\\/g, '/') });
+    } catch (err) {
+        res.status(500).json({ error: 'Move failed', details: err.message });
+    }
+});
+
+/* --- File Copy / Duplicate --- */
+app.post('/api/file/copy', (req, res) => {
+    const { sourcePath, destinationDir } = req.body;
+    if (!sourcePath) return res.status(400).json({ error: 'sourcePath is required' });
+
+    const fullSource = path.isAbsolute(sourcePath) ? sourcePath : path.join(ROOT_DIR, sourcePath);
+    if (!fs.existsSync(fullSource)) return res.status(404).json({ error: 'Source not found' });
+
+    const isDir = fs.statSync(fullSource).isDirectory();
+    const baseName = path.basename(fullSource);
+    const ext = path.extname(baseName);
+    const nameNoExt = ext ? baseName.slice(0, -ext.length) : baseName;
+
+    // Determine destination directory
+    const destDirFull = destinationDir
+        ? (path.isAbsolute(destinationDir) ? destinationDir : path.join(ROOT_DIR, destinationDir))
+        : path.dirname(fullSource);
+
+    // Auto-generate unique name: "file (copy).ext", "file (copy 2).ext", etc.
+    let copyName;
+    let counter = 0;
+    do {
+        const suffix = counter === 0 ? ' (copy)' : ` (copy ${counter + 1})`;
+        copyName = isDir ? `${baseName}${suffix}` : `${nameNoExt}${suffix}${ext}`;
+        counter++;
+    } while (fs.existsSync(path.join(destDirFull, copyName)));
+
+    const fullDest = path.join(destDirFull, copyName);
+
+    try {
+        if (isDir) {
+            fs.cpSync(fullSource, fullDest, { recursive: true });
+        } else {
+            fs.copyFileSync(fullSource, fullDest);
+        }
+        res.json({ success: true, newPath: path.relative(ROOT_DIR, fullDest).replace(/\\/g, '/'), newName: copyName });
+    } catch (err) {
+        res.status(500).json({ error: 'Copy failed', details: err.message });
+    }
+});
+
+/* --- Add to .gitignore --- */
+app.post('/api/git/ignore', (req, res) => {
+    const { pattern } = req.body;
+    if (!pattern) return res.status(400).json({ error: 'pattern is required' });
+
+    const gitignorePath = path.join(ROOT_DIR, '.gitignore');
+
+    try {
+        let content = '';
+        if (fs.existsSync(gitignorePath)) {
+            content = fs.readFileSync(gitignorePath, 'utf8');
+        }
+        // Check if pattern already present
+        const lines = content.split(/\r?\n/);
+        if (lines.some(line => line.trim() === pattern.trim())) {
+            return res.json({ success: true, alreadyExists: true });
+        }
+        // Append with newline safety
+        const separator = content.length > 0 && !content.endsWith('\n') ? '\n' : '';
+        fs.writeFileSync(gitignorePath, content + separator + pattern.trim() + '\n', 'utf8');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update .gitignore', details: err.message });
+    }
+});
+
+/* --- Reveal in OS File Explorer --- */
+app.post('/api/file/reveal', (req, res) => {
+    const { filePath: reqPath } = req.body;
+    if (!reqPath) return res.status(400).json({ error: 'filePath is required' });
+
+    const fullPath = path.isAbsolute(reqPath) ? reqPath : path.join(ROOT_DIR, reqPath);
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Path not found' });
+
+    const { exec } = require('child_process');
+    const isDir = fs.statSync(fullPath).isDirectory();
+
+    let cmd;
+    if (process.platform === 'win32') {
+        cmd = isDir ? `explorer "${fullPath}"` : `explorer /select,"${fullPath}"`;
+    } else if (process.platform === 'darwin') {
+        cmd = isDir ? `open "${fullPath}"` : `open -R "${fullPath}"`;
+    } else {
+        cmd = `xdg-open "${path.dirname(fullPath)}"`;
+    }
+
+    exec(cmd, (err) => {
+        if (err) {
+            console.error('[API] Reveal in explorer failed:', err);
+            return res.status(500).json({ error: 'Failed to open file explorer' });
+        }
+        res.json({ success: true });
+    });
 });
 
 const getDirectories = (srcPath) => {

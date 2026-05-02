@@ -5,7 +5,8 @@ import {
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
     LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
     LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader, LuBrain,
-    LuFileCode2, LuPackage, LuBot
+    LuFileCode2, LuPackage, LuBot,
+    LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -67,6 +68,22 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // Column Copy Loading State
     const [copyingColumns, setCopyingColumns] = useState(false);
 
+    // Drag & Drop State
+    const [dragOverFolder, setDragOverFolder] = useState(null); // path of folder being hovered
+
+    // Multi-select State
+    const [selectedFiles, setSelectedFiles] = useState(new Set());
+    const [multiSelectMode, setMultiSelectMode] = useState(false);
+    const lastClickedRef = useRef(null);
+
+    // Clipboard State (Cut / Copy)
+    const [clipboardFiles, setClipboardFiles] = useState([]); // [{path, name, isDirectory}]
+    const [clipboardMode, setClipboardMode] = useState(null); // 'cut' | 'copy' | null
+
+    // Move-to modal
+    const [moveToModal, setMoveToModal] = useState(null); // { files: [...] }
+    const [folderList, setFolderList] = useState([]);
+
     // Git status badges: Map<relativePath → statusLetter>
     const [gitStatusMap, setGitStatusMap] = useState({});
 
@@ -111,8 +128,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         } catch { /* git unavailable or no repo — silent */ }
     };
 
-    const fetchFiles = async (path) => {
-        setLoading(true);
+    const fetchFiles = async (path, { silent = false } = {}) => {
+        if (!silent) setLoading(true);
         setError(null);
         try {
             const response = await fetch(`http://localhost:3001/api/files?path=${encodeURIComponent(path)}`);
@@ -132,7 +149,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         } catch (err) {
             setError(err.message);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -223,17 +240,34 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     };
 
     // --- Sort / Group helpers ---
+    const SORT_MODES = ['default', 'name', 'type', 'extension', 'size'];
+    const SORT_LABELS = {
+        default: 'Default (dirs first)',
+        name: 'By Name (A→Z)',
+        type: 'By Category',
+        extension: 'By Extension',
+        size: 'By Size (largest first)'
+    };
+
     const getFileTypeGroup = (file) => {
         if (file.isDirectory) return '0_Folders';
         const n = file.name.toLowerCase();
         if (n.endsWith('.sql')) return '1_SQL Scripts';
         if (n.endsWith('.sqlnb')) return '2_Notebooks';
         if (n.endsWith('.sqlchain')) return '3_Chains';
-        if (n.match(/\.(csv|parquet)$/)) return '4_Data Files';
-        if (n.match(/\.(xlsx|xls|json)$/)) return '4_Data Files';
-        if (n.endsWith('.amoxvis')) return '5_Charts';
-        if (n.endsWith('.md')) return '6_Markdown';
-        return '7_Other';
+        if (n.match(/\.(csv|tsv|parquet)$/)) return '4_Tabular Data';
+        if (n.match(/\.(json|jsonl|ndjson)$/)) return '5_JSON Data';
+        if (n.match(/\.(xlsx|xls)$/)) return '6_Excel';
+        if (n.endsWith('.amoxvis')) return '7_Charts';
+        if (n.match(/\.(md|mdx|txt|rst)$/)) return '8_Documentation';
+        if (n.match(/\.(yml|yaml|toml|ini|env|cfg|conf)$/)) return '9_Config';
+        return 'A_Other';
+    };
+
+    const getExtGroup = (file) => {
+        if (file.isDirectory) return '0_Folders';
+        const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+        return ext ? `1_.${ext}` : '2_No extension';
     };
 
     const sortedFiles = (() => {
@@ -251,17 +285,31 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                 return a.name.localeCompare(b.name);
             });
         }
+        if (sortMode === 'extension') {
+            return [...filtered].sort((a, b) => {
+                const ea = getExtGroup(a), eb = getExtGroup(b);
+                if (ea !== eb) return ea.localeCompare(eb);
+                return a.name.localeCompare(b.name);
+            });
+        }
+        if (sortMode === 'size') {
+            return [...filtered].sort((a, b) => {
+                if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+                return (b.sizeBytes || 0) - (a.sizeBytes || 0);
+            });
+        }
         // default: dirs first, then alpha
         return filtered;
     })();
 
-    // Group by type when sortMode === 'type'
+    // Group files when in 'type' or 'extension' mode
     const groupedFiles = (() => {
-        if (sortMode !== 'type') return null;
+        if (sortMode !== 'type' && sortMode !== 'extension') return null;
+        const groupFn = sortMode === 'type' ? getFileTypeGroup : getExtGroup;
         const groups = {};
         sortedFiles.forEach(f => {
-            const g = getFileTypeGroup(f);
-            const label = g.replace(/^\d+_/, ''); // strip sort prefix
+            const g = groupFn(f);
+            const label = g.replace(/^\w+_/, ''); // strip sort prefix
             if (!groups[label]) groups[label] = [];
             groups[label].push(f);
         });
@@ -269,7 +317,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     })();
 
     const cycleSortMode = () => {
-        const next = sortMode === 'default' ? 'name' : sortMode === 'name' ? 'type' : 'default';
+        const idx = SORT_MODES.indexOf(sortMode);
+        const next = SORT_MODES[(idx + 1) % SORT_MODES.length];
         setSortMode(next);
         localStorage.setItem('amoxsql-fe-sort', next);
     };
@@ -306,7 +355,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
             }
 
             setRenamingFile(null);
-            fetchFiles(currentPath);
+            fetchFiles(currentPath, { silent: true });
         } catch (err) {
             setAlertData({ isOpen: true, message: `Rename failed: ${err.message}`, title: 'Rename Error', type: 'error' });
             setRenamingFile(null);
@@ -337,6 +386,225 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         setFileToDelete(null);
     };
 
+    // --- Duplicate ---
+    const duplicateFile = async (file) => {
+        setContextMenu(null);
+        try {
+            const res = await fetch('http://localhost:3001/api/file/copy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sourcePath: file.path })
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            fetchFiles(currentPath, { silent: true });
+        } catch (err) {
+            setAlertData({ isOpen: true, message: `Duplicate failed: ${err.message}`, title: 'Error', type: 'error' });
+        }
+    };
+
+    // --- Add to .gitignore ---
+    const addToGitignore = async (file) => {
+        setContextMenu(null);
+        const pattern = file.isDirectory ? `${file.path.replace(/\\/g, '/')}/` : file.path.replace(/\\/g, '/');
+        try {
+            const res = await fetch('http://localhost:3001/api/git/ignore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pattern })
+            });
+            const data = await res.json();
+            if (data.alreadyExists) {
+                setAlertData({ isOpen: true, message: `"${pattern}" is already in .gitignore`, title: 'Info', type: 'info' });
+            }
+        } catch (err) {
+            setAlertData({ isOpen: true, message: `Failed: ${err.message}`, title: 'Error', type: 'error' });
+        }
+    };
+
+    // --- Reveal in OS Explorer ---
+    const revealInExplorer = async (file) => {
+        setContextMenu(null);
+        try {
+            await fetch('http://localhost:3001/api/file/reveal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filePath: file.path })
+            });
+        } catch { /* silent */ }
+    };
+
+    // --- Move To... (opens folder picker) ---
+    const openMoveTo = async (filesToMove) => {
+        setContextMenu(null);
+        try {
+            const res = await fetch('http://localhost:3001/api/folders');
+            const folders = await res.json();
+            setFolderList(folders);
+            setMoveToModal({ files: filesToMove });
+        } catch { /* silent */ }
+    };
+
+    const executeMoveToFolder = async (destPath) => {
+        if (!moveToModal) return;
+        try {
+            for (const f of moveToModal.files) {
+                await fetch('http://localhost:3001/api/file/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourcePath: f.path, destinationDir: destPath })
+                });
+            }
+            fetchFiles(currentPath, { silent: true });
+            setSelectedFiles(new Set());
+        } catch (err) {
+            setAlertData({ isOpen: true, message: `Move failed: ${err.message}`, title: 'Error', type: 'error' });
+        } finally {
+            setMoveToModal(null);
+        }
+    };
+
+    // --- Drag & Drop to move ---
+    const handleFolderDrop = async (e, targetFolder) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverFolder(null);
+        try {
+            const jsonData = e.dataTransfer.getData('application/json');
+            if (!jsonData) return;
+            const { path: sourcePath } = JSON.parse(jsonData);
+            if (!sourcePath) return;
+            const destDir = targetFolder.path;
+            // Prevent dropping on self
+            if (sourcePath === destDir || sourcePath.startsWith(destDir + '/')) return;
+
+            // Optimistic removal — file disappears instantly
+            setFiles(prev => prev.filter(f => f.path !== sourcePath));
+
+            const res = await fetch('http://localhost:3001/api/file/move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sourcePath, destinationDir: destDir })
+            });
+            if (!res.ok) {
+                const d = await res.json();
+                setAlertData({ isOpen: true, message: d.error, title: 'Move Error', type: 'error' });
+            }
+            fetchFiles(currentPath, { silent: true });
+        } catch { /* silent */ }
+    };
+
+    // --- Multi-select helpers ---
+    const handleFileClick = (e, file) => {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            setMultiSelectMode(true);
+            setSelectedFiles(prev => {
+                const next = new Set(prev);
+                if (next.has(file.path)) next.delete(file.path);
+                else next.add(file.path);
+                return next;
+            });
+            lastClickedRef.current = file.path;
+            return true; // signal: don't navigate
+        }
+        if (e.shiftKey && lastClickedRef.current) {
+            e.preventDefault();
+            e.stopPropagation();
+            setMultiSelectMode(true);
+            const allPaths = sortedFiles.map(f => f.path);
+            const fromIdx = allPaths.indexOf(lastClickedRef.current);
+            const toIdx = allPaths.indexOf(file.path);
+            if (fromIdx >= 0 && toIdx >= 0) {
+                const [start, end] = fromIdx < toIdx ? [fromIdx, toIdx] : [toIdx, fromIdx];
+                setSelectedFiles(prev => {
+                    const next = new Set(prev);
+                    for (let i = start; i <= end; i++) next.add(allPaths[i]);
+                    return next;
+                });
+            }
+            return true;
+        }
+        // Normal click: clear selection
+        if (selectedFiles.size > 0) {
+            setSelectedFiles(new Set());
+            setMultiSelectMode(false);
+        }
+        lastClickedRef.current = file.path;
+        return false;
+    };
+
+    const getSelectedFileObjects = () => sortedFiles.filter(f => selectedFiles.has(f.path));
+
+    // --- Clipboard Cut/Copy/Paste ---
+    const cutFiles = (filesToCut) => {
+        setClipboardFiles(filesToCut.map(f => ({ path: f.path, name: f.name, isDirectory: f.isDirectory })));
+        setClipboardMode('cut');
+        setContextMenu(null);
+    };
+    const copyFiles = (filesToCopy) => {
+        setClipboardFiles(filesToCopy.map(f => ({ path: f.path, name: f.name, isDirectory: f.isDirectory })));
+        setClipboardMode('copy');
+        setContextMenu(null);
+    };
+    const pasteFiles = async () => {
+        setContextMenu(null);
+        if (clipboardFiles.length === 0) return;
+        try {
+            for (const f of clipboardFiles) {
+                const endpoint = clipboardMode === 'cut' ? '/api/file/move' : '/api/file/copy';
+                await fetch(`http://localhost:3001${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourcePath: f.path, destinationDir: currentPath })
+                });
+            }
+            if (clipboardMode === 'cut') { setClipboardFiles([]); setClipboardMode(null); }
+            fetchFiles(currentPath, { silent: true });
+            setSelectedFiles(new Set());
+        } catch (err) {
+            setAlertData({ isOpen: true, message: `Paste failed: ${err.message}`, title: 'Error', type: 'error' });
+        }
+    };
+
+    // --- Keyboard shortcuts ---
+    useEffect(() => {
+        const el = wrapperRef.current;
+        if (!el) return;
+        const handler = (e) => {
+            // Only handle when this panel is focused
+            if (!el.contains(document.activeElement) && document.activeElement !== el) return;
+            if (e.key === 'F2' && selectedFiles.size === 1) {
+                const f = sortedFiles.find(f => selectedFiles.has(f.path));
+                if (f) { e.preventDefault(); startRename(f); }
+            }
+            if (e.key === 'Delete' && selectedFiles.size > 0) {
+                e.preventDefault();
+                const items = getSelectedFileObjects();
+                if (items.length === 1) { handleDeleteClick(items[0]); }
+                // Bulk delete: delete first, we can enhance later
+                else if (items.length > 1) { handleDeleteClick(items[0]); }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedFiles.size > 0) {
+                e.preventDefault(); copyFiles(getSelectedFileObjects());
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'x' && selectedFiles.size > 0) {
+                e.preventDefault(); cutFiles(getSelectedFileObjects());
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboardFiles.length > 0) {
+                e.preventDefault(); pasteFiles();
+            }
+        };
+        el.addEventListener('keydown', handler);
+        return () => el.removeEventListener('keydown', handler);
+    }, [selectedFiles, clipboardFiles, clipboardMode, sortedFiles]);
+
+    // Clear selection when navigating
+    useEffect(() => {
+        setSelectedFiles(new Set());
+        setMultiSelectMode(false);
+    }, [currentPath]);
+
     return (
         <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
@@ -359,11 +627,11 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     </button>
                     <button
                         onClick={cycleSortMode}
-                        title={sortMode === 'default' ? 'Sort: Default (dirs first)' : sortMode === 'name' ? 'Sort: By Name' : 'Sort: By Type (grouped)'}
+                        title={`Sort: ${SORT_LABELS[sortMode]}`}
                         className="fe-header-btn"
                         style={{ color: sortMode !== 'default' ? 'var(--accent-primary)' : undefined }}
                     >
-                        {sortMode === 'type' ? <LuLayers size={13} /> : <LuLayoutList size={13} />}
+                        {sortMode === 'type' || sortMode === 'extension' ? <LuLayers size={13} /> : <LuLayoutList size={13} />}
                     </button>
                     <button onClick={() => fetchFiles(currentPath)} title="Refresh" className="fe-header-btn">
                         <LuRefreshCw size={13} />
@@ -444,19 +712,28 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     const renderFileItem = (file) => (
                         <li
                             key={file.path}
-                            className="file-item"
-                            draggable={!file.isDirectory}
+                            className={`file-item${selectedFiles.has(file.path) ? ' file-item--selected' : ''}${clipboardMode === 'cut' && clipboardFiles.some(c => c.path === file.path) ? ' file-item--cut' : ''}${dragOverFolder === file.path ? ' file-item--drop-target' : ''}`}
+                            draggable
                             onDragStart={(e) => {
-                                if (!file.isDirectory) {
-                                    e.dataTransfer.setData('text/plain', file.name);
-                                    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', path: file.path, name: file.name }));
-                                }
+                                e.dataTransfer.setData('text/plain', file.name);
+                                e.dataTransfer.setData('application/json', JSON.stringify({ type: file.isDirectory ? 'folder' : 'file', path: file.path, name: file.name }));
+                                e.dataTransfer.effectAllowed = 'move';
                             }}
-                            onClick={() => handleNavigate(file)}
+                            onDragOver={file.isDirectory ? (e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOverFolder(file.path); } : undefined}
+                            onDragLeave={file.isDirectory ? () => setDragOverFolder(null) : undefined}
+                            onDrop={file.isDirectory ? (e) => handleFolderDrop(e, file) : undefined}
+                            onClick={(e) => { if (!handleFileClick(e, file)) handleNavigate(file); }}
                             onContextMenu={(e) => handleContextMenu(e, file)}
                             title={file.name}
                         >
-                            <span className="icon">{getIcon(file)}</span>
+                            <span className="icon">
+                                {multiSelectMode
+                                    ? (selectedFiles.has(file.path)
+                                        ? <LuSquareCheck size={14} color="var(--accent-primary)" />
+                                        : <LuSquare size={14} color="var(--text-muted)" />)
+                                    : getIcon(file)
+                                }
+                            </span>
                             {renamingFile && renamingFile.name === file.name ? (
                                 <input
                                     autoFocus
@@ -526,20 +803,24 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     );
 
                     if (groupedFiles) {
-                        // Grouped by type view
+                        // Grouped view (type or extension)
                         return Object.entries(groupedFiles).map(([groupLabel, groupItems]) => (
                             <div key={groupLabel}>
                                 <div style={{
-                                    padding: '4px 10px 2px',
+                                    padding: '6px 10px 2px',
                                     fontSize: '10px',
                                     fontWeight: 700,
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.06em',
                                     color: 'var(--text-muted)',
                                     userSelect: 'none',
-                                    marginTop: '4px',
+                                    marginTop: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
                                 }}>
-                                    {groupLabel}
+                                    <span>{groupLabel}</span>
+                                    <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>{groupItems.length}</span>
                                 </div>
                                 {groupItems.map(renderFileItem)}
                             </div>
@@ -564,37 +845,22 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     padding: '4px',
                     backdropFilter: 'blur(12px)'
                 }}>
-                    {/* Menu Items */}
+                    {/* ── Type-specific actions ── */}
                     {contextMenu.file.name.match(/\.(csv|parquet|json|xlsx|xls)$/i) && (
-                        <div
-                            onClick={() => onImportFile(contextMenu.file.path, false)}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            className="context-menu-item"
-                        >
+                        <div onClick={() => onImportFile(contextMenu.file.path, false)} className="context-menu-item">
                             <LuDatabase size={14} /> Import to Database...
                         </div>
                     )}
-                    {/* Quick Preview — CSV/Parquet/JSON: shows modal with first 100 rows */}
                     {contextMenu.file.name.match(/\.(csv|parquet|json)$/i) && (
-                        <div
-                            onClick={() => { setPreviewFilePath(contextMenu.file.path); setContextMenu(null); }}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            className="context-menu-item"
-                        >
+                        <div onClick={() => { setPreviewFilePath(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
                             <LuFileSpreadsheet size={14} /> Quick Preview
                         </div>
                     )}
-                    {/* Direct Query Option for data files */}
                     {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
-                        <div
-                            onClick={() => { onQueryFile(contextMenu.file.path); setContextMenu(null); }}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            className="context-menu-item"
-                        >
+                        <div onClick={() => { onQueryFile(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
                             <LuSearch size={14} /> Direct Query
                         </div>
                     )}
-                    {/* Copy Column Names for data files */}
                     {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
                         <div
                             onClick={async () => {
@@ -605,9 +871,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                     const data = await res.json();
                                     const fName = contextMenu.file.name;
                                     let comment = '';
-
                                     if (data.sheetsWithColumns) {
-                                        // Excel: show columns per sheet
                                         const sheetLines = Object.entries(data.sheetsWithColumns).map(([sheet, cols]) => {
                                             const colNames = cols.map(c => c.name).join(', ');
                                             return `-- Sheet "${sheet}": ${colNames}`;
@@ -619,95 +883,97 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                     } else {
                                         comment = `-- No columns found for: ${fName}`;
                                     }
-
                                     await navigator.clipboard.writeText(comment);
                                 } catch (err) {
                                     console.error('Failed to copy column names:', err);
                                     await navigator.clipboard.writeText(`-- Error reading columns: ${err.message}`);
-                                } finally {
-                                    setCopyingColumns(false);
-                                    setContextMenu(null);
-                                }
+                                } finally { setCopyingColumns(false); setContextMenu(null); }
                             }}
-                            style={{ padding: '8px 12px', cursor: copyingColumns ? 'wait' : 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
                             className="context-menu-item"
+                            style={copyingColumns ? { cursor: 'wait' } : undefined}
                         >
                             {copyingColumns ? <LuLoader size={14} className="spin" /> : <LuColumns3 size={14} />} {copyingColumns ? 'Reading...' : 'Copy Column Names'}
                         </div>
                     )}
-
-                    {/* Amoxvis Edit Charts Option */}
                     {contextMenu.file.name.endsWith('.amoxvis') && (
                         <>
-                            <div
-                                onClick={() => onEditChart && onEditChart(contextMenu.file.path)}
-                                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                                className="context-menu-item"
-                            >
+                            <div onClick={() => onEditChart && onEditChart(contextMenu.file.path)} className="context-menu-item">
                                 <LuChartBar size={14} /> Open Chart
                             </div>
-                            <div
-                                onClick={() => onEditChartWithSql && onEditChartWithSql(contextMenu.file.path)}
-                                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                                className="context-menu-item"
-                            >
+                            <div onClick={() => onEditChartWithSql && onEditChartWithSql(contextMenu.file.path)} className="context-menu-item">
                                 <LuCode size={14} /> Edit with SQL
                             </div>
                         </>
                     )}
-
-                    {/* Folder Options */}
                     {contextMenu.file.isDirectory && (
-                        <div
-                            onClick={() => onImportFile(contextMenu.file.path, true)}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            className="context-menu-item"
-                        >
+                        <div onClick={() => onImportFile(contextMenu.file.path, true)} className="context-menu-item">
                             <LuDatabase size={14} /> Import Folder to Database...
                         </div>
                     )}
-                    {/* Rename */}
-                    <div
-                        onClick={() => startRename(contextMenu.file)}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        className="context-menu-item"
-                    >
+
+                    {/* ── Folder: New File / New Folder Here ── */}
+                    {contextMenu.file.isDirectory && (
+                        <>
+                            <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
+                            <div onClick={() => { setContextMenu(null); onNewFile(contextMenu.file.path, 'sql'); }} className="context-menu-item">
+                                <LuFilePlus size={14} /> New File Here...
+                            </div>
+                            <div onClick={() => { setContextMenu(null); onNewFolder(contextMenu.file.path); }} className="context-menu-item">
+                                <LuFolderPlus size={14} /> New Folder Here
+                            </div>
+                        </>
+                    )}
+
+                    {/* ── File operations separator ── */}
+                    <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
+
+                    {/* Cut / Copy / Paste */}
+                    <div onClick={() => cutFiles([contextMenu.file])} className="context-menu-item">
+                        <LuScissors size={14} /> Cut
+                    </div>
+                    <div onClick={() => copyFiles([contextMenu.file])} className="context-menu-item">
+                        <LuFiles size={14} /> Copy
+                    </div>
+                    {clipboardFiles.length > 0 && (
+                        <div onClick={pasteFiles} className="context-menu-item">
+                            <LuClipboard size={14} /> Paste {clipboardMode === 'cut' ? '(Move)' : '(Copy)'}
+                        </div>
+                    )}
+
+                    {/* Duplicate / Move To / Rename */}
+                    <div onClick={() => duplicateFile(contextMenu.file)} className="context-menu-item">
+                        <LuCopy size={14} /> Duplicate
+                    </div>
+                    <div onClick={() => openMoveTo([contextMenu.file])} className="context-menu-item">
+                        <LuFolderInput size={14} /> Move To...
+                    </div>
+                    <div onClick={() => startRename(contextMenu.file)} className="context-menu-item">
                         <LuPencil size={14} /> Rename
                     </div>
-                    {/* Delete */}
-                    <div
-                        onClick={() => handleDeleteClick(contextMenu.file)}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--color-destructive)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        className="context-menu-item"
-                    >
+
+                    {/* ── Destructive separator ── */}
+                    <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
+
+                    <div onClick={() => addToGitignore(contextMenu.file)} className="context-menu-item">
+                        <LuEyeOff size={14} /> Add to .gitignore
+                    </div>
+                    <div onClick={() => handleDeleteClick(contextMenu.file)} className="context-menu-item context-menu-item--danger">
                         <LuTrash2 size={14} /> Delete
                     </div>
 
-                    {/* Separator */}
+                    {/* ── Utility separator ── */}
                     <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
 
-                    {/* Copy Path */}
-                    <div
-                        onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\//g, '/')); setContextMenu(null); }}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        className="context-menu-item"
-                    >
+                    <div onClick={() => revealInExplorer(contextMenu.file)} className="context-menu-item">
+                        <LuExternalLink size={14} /> Reveal in Explorer
+                    </div>
+                    <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\//g, '/')); setContextMenu(null); }} className="context-menu-item">
                         <LuCopy size={14} /> Copy Path
                     </div>
-                    {/* Copy Relative Path */}
-                    <div
-                        onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\\/g, '/')); setContextMenu(null); }}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        className="context-menu-item"
-                    >
+                    <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\\/g, '/')); setContextMenu(null); }} className="context-menu-item">
                         <LuClipboard size={14} /> Copy Relative Path
                     </div>
-                    {/* Copy Name */}
-                    <div
-                        onClick={() => { navigator.clipboard.writeText(contextMenu.file.name); setContextMenu(null); }}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-color)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        className="context-menu-item"
-                    >
+                    <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.name); setContextMenu(null); }} className="context-menu-item">
                         <LuType size={14} /> Copy Name
                     </div>
                 </div>
@@ -734,6 +1000,35 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     filePath={previewFilePath}
                     onClose={() => setPreviewFilePath(null)}
                 />
+            )}
+
+            {/* Move To... Modal */}
+            {moveToModal && (
+                <div className="fe-move-modal-overlay" onClick={() => setMoveToModal(null)}>
+                    <div className="fe-move-modal" onClick={e => e.stopPropagation()}>
+                        <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Move {moveToModal.files.length === 1 ? `"${moveToModal.files[0].name}"` : `${moveToModal.files.length} items`} to...
+                        </h4>
+                        <div className="fe-move-folder-list">
+                            {folderList.map(f => (
+                                <div
+                                    key={f.path}
+                                    className="fe-move-folder-item"
+                                    onClick={() => executeMoveToFolder(f.path)}
+                                >
+                                    <LuFolder size={14} color="var(--icon-folder)" />
+                                    <span>{f.path || '/ (Root)'}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setMoveToModal(null)}
+                            style={{ marginTop: 10, padding: '6px 16px', fontSize: 12, background: 'var(--surface-inset)', border: '1px solid var(--border-default)', borderRadius: 6, color: 'var(--text-primary)', cursor: 'pointer' }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

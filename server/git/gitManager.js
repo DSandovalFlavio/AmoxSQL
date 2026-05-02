@@ -146,10 +146,12 @@ async function unstageFiles(dir, files) {
 /**
  * Commit staged changes. Returns the short commit hash.
  */
-async function commit(dir, message) {
-    if (!message || !message.trim()) throw new Error('Commit message is required');
+async function commit(dir, message, { amend = false } = {}) {
+    if (!amend && (!message || !message.trim())) throw new Error('Commit message is required');
     const g = git(dir);
-    const result = await g.commit(message.trim());
+    const opts = amend ? ['--amend'] : [];
+    if (message && message.trim()) opts.push('-m', message.trim());
+    const result = await g.commit(message?.trim() || '', opts);
     return { success: true, hash: result.commit, summary: result.summary };
 }
 
@@ -172,15 +174,20 @@ async function getDiff(dir, filePath, staged = false) {
  */
 async function getLog(dir, limit = 50) {
     const g = git(dir);
-    const log = await g.log({ maxCount: limit });
-    return {
-        commits: (log.all || []).map(c => ({
-            hash:    c.hash,
-            message: c.message,
-            author:  c.author_name,
-            date:    c.date,
-        })),
-    };
+    try {
+        const log = await g.log({ maxCount: limit });
+        return {
+            commits: (log.all || []).map(c => ({
+                hash:    c.hash,
+                message: c.message,
+                author:  c.author_name,
+                date:    c.date,
+            })),
+        };
+    } catch (err) {
+        // Log fails if there are no commits yet (empty repo)
+        return { commits: [] };
+    }
 }
 
 /**
@@ -188,16 +195,21 @@ async function getLog(dir, limit = 50) {
  */
 async function getBranches(dir) {
     const g = git(dir);
-    const br = await g.branch(['-v']);
-    return {
-        current:  br.current,
-        branches: Object.values(br.branches).map(b => ({
-            name:    b.name,
-            current: b.current,
-            commit:  b.commit,
-            label:   b.label,
-        })),
-    };
+    try {
+        const br = await g.branch(['-v']);
+        return {
+            current:  br.current,
+            branches: Object.values(br.branches).map(b => ({
+                name:    b.name,
+                current: b.current,
+                commit:  b.commit,
+                label:   b.label,
+            })),
+        };
+    } catch (err) {
+        // Fails if there are no commits
+        return { current: null, branches: [] };
+    }
 }
 
 /**
@@ -222,6 +234,90 @@ async function checkoutBranch(dir, branchName) {
     return { success: true, branch: branchName };
 }
 
+/**
+ * Discard working-tree changes for one or more files.
+ * For untracked files, deletes them. For modified files, restores from HEAD.
+ */
+async function discardChanges(dir, files) {
+    const g = git(dir);
+    const status = await g.status();
+    const untracked = [];
+    const tracked = [];
+
+    for (const filePath of files) {
+        const entry = status.files.find(f => f.path === filePath);
+        if (entry && entry.index === '?' && entry.working_dir === '?') {
+            untracked.push(filePath);
+        } else {
+            tracked.push(filePath);
+        }
+    }
+
+    // Restore tracked files
+    if (tracked.length > 0) {
+        await g.checkout(['--', ...tracked]);
+    }
+
+    // Delete untracked files
+    for (const f of untracked) {
+        const fullPath = path.join(dir, f);
+        if (fs.existsSync(fullPath)) {
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory()) {
+                fs.rmSync(fullPath, { recursive: true, force: true });
+            } else {
+                fs.unlinkSync(fullPath);
+            }
+        }
+    }
+
+    return { success: true, discarded: files.length };
+}
+
+/**
+ * Delete a local branch. Cannot delete current branch.
+ */
+async function deleteBranch(dir, branchName, force = false) {
+    const g = git(dir);
+    const flag = force ? '-D' : '-d';
+    await g.branch([flag, branchName]);
+    return { success: true };
+}
+
+/**
+ * Stash current changes.
+ */
+async function stash(dir, message) {
+    const g = git(dir);
+    const args = message ? ['push', '-m', message] : ['push'];
+    await g.stash(args);
+    return { success: true };
+}
+
+/**
+ * Pop the latest stash.
+ */
+async function stashPop(dir) {
+    const g = git(dir);
+    await g.stash(['pop']);
+    return { success: true };
+}
+
+/**
+ * List stashes.
+ */
+async function getStashList(dir) {
+    const g = git(dir);
+    const result = await g.stashList();
+    return {
+        stashes: (result.all || []).map(s => ({
+            index: s.hash,
+            message: s.message,
+            date: s.date,
+        })),
+    };
+}
+
 module.exports = {
     isGitAvailable,
     isRepo,
@@ -235,5 +331,10 @@ module.exports = {
     getBranches,
     createBranch,
     checkoutBranch,
+    discardChanges,
+    deleteBranch,
+    stash,
+    stashPop,
+    getStashList,
     GITIGNORE_TEMPLATE,
 };
