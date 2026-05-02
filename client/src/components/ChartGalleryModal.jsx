@@ -8,7 +8,7 @@
  *   3. DataVisualizer chart-type picker "View Gallery" button
  */
 import { useEffect } from 'react';
-import { LuX } from 'react-icons/lu';
+import { LuX, LuChartBarBig } from 'react-icons/lu';
 import ChartGallery from './ChartGallery';
 
 export default function ChartGalleryModal({ isOpen, onClose }) {
@@ -31,7 +31,7 @@ export default function ChartGalleryModal({ isOpen, onClose }) {
                 {/* Header */}
                 <div className="cgm-header">
                     <div className="cgm-header-title">
-                        <span className="cgm-header-emoji">📊</span>
+                        <LuChartBarBig size={18} style={{ color: 'var(--accent-primary)' }} />
                         Chart Gallery
                     </div>
                     <button className="cgm-close-btn" onClick={onClose} title="Close (Esc)">

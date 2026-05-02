@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuGitBranch, LuCircleCheck, LuCircle } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
@@ -60,7 +60,6 @@ const TAB_TITLES = {
     behavior:    'Behavior',
     ai:          'AI Assistant',
     workspace:   'Workspace',
-    sourcecontrol: 'Source Control',
     shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
     // Legacy aliases so existing initialTab values keep working
@@ -330,7 +329,7 @@ function AiContextTab() {
                         <div className="stg-ctx-how-num">2</div>
                         <div>
                             <strong>Edit the files</strong>
-                            <p>Open them from the file explorer (look for the 🧠 icon) and fill in your real table names, column names, and business definitions.</p>
+                            <p>Open them from the file explorer (look for the brain icon in the sidebar) and fill in your real table names, column names, and business definitions.</p>
                         </div>
                     </div>
                     <div className="stg-ctx-how-step">
@@ -371,14 +370,41 @@ const Toggle = ({ on, onChange }) => (
 // ─── Workspace Settings Panel ────────────────────────────────────────────────
 function WorkspaceSettingsPanel() {
     const [status, setStatus] = React.useState(null);
-    React.useEffect(() => {
+    const [creating, setCreating] = React.useState(false);
+    const toast = useToast();
+
+    const reload = React.useCallback(() => {
         fetch(`${API}/api/project/scaffold-status`)
             .then(r => r.json())
             .then(setStatus)
             .catch(() => {});
     }, []);
 
+    React.useEffect(() => { reload(); }, [reload]);
+
+    const handleCreateFolders = async () => {
+        setCreating(true);
+        try {
+            const missing = (status?.folders || []).filter(f => !f.exists).map(f => f.id);
+            await fetch(`${API}/api/project/scaffold`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folders: missing }),
+            });
+            await reload();
+            window.dispatchEvent(new Event('amox_files_changed'));
+            toast.success('Missing folders created successfully');
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to create folders');
+        } finally {
+            setCreating(false);
+        }
+    };
+
     if (!status) return <div className="stg-section" style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>;
+
+    const hasMissing = (status.folders || []).some(f => !f.exists);
 
     return (
         <div className="stg-section">
@@ -405,10 +431,24 @@ function WorkspaceSettingsPanel() {
                     </div>
                 ))}
             </div>
-            {status.isNewProject && !status.wizardCompleted && (
+            {hasMissing && (
                 <div style={{ marginTop: 16 }}>
                     <button
                         className="stg-btn stg-btn--primary"
+                        onClick={handleCreateFolders}
+                        disabled={creating}
+                    >
+                        {creating
+                            ? <><LuLoader size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> Creating…</>
+                            : <><LuFolderOpen size={14} /> Create Missing Folders</>
+                        }
+                    </button>
+                </div>
+            )}
+            {status.isNewProject && !status.wizardCompleted && (
+                <div style={{ marginTop: 8 }}>
+                    <button
+                        className="stg-btn"
                         onClick={() => window.dispatchEvent(new CustomEvent('amox_open_workspace_wizard'))}
                     >
                         Open Workspace Wizard
@@ -727,18 +767,16 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     />
                     {[
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
-                        { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor', subtitle: 'General · Formatting' },
+                        { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
-                        { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant', subtitle: 'Models · Knowledge · Cloud' },
+                        { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
-                        { id: 'sourcecontrol', icon: <LuGitBranch size={16} />, label: 'Source Control' },
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
                         { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
                     ].filter(tab => {
                         if (!settingsSearch) return true;
                         const q = settingsSearch.toLowerCase();
-                        return tab.label.toLowerCase().includes(q) ||
-                               (tab.subtitle || '').toLowerCase().includes(q);
+                        return tab.label.toLowerCase().includes(q);
                     }).map(tab => (
                         <div
                             key={tab.id}
@@ -748,11 +786,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 {tab.icon} {tab.label}
                             </span>
-                            {tab.subtitle && (
-                                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 24, display: 'block', lineHeight: 1.3 }}>
-                                    {tab.subtitle}
-                                </span>
-                            )}
                         </div>
                     ))}
                 </div>
@@ -908,7 +941,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     activeTab={editorSubTab}
                                     onChange={setEditorSubTab}
                                 />
-                                {editorSubTab === 'general' && <div>
+                                {editorSubTab === 'general' && <div className="stg-subtab-content">
                                 {/* Typography */}
                                 <div>
                                     <h3 className="stg-section-title">Typography</h3>
@@ -983,15 +1016,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </div>
                                             <Toggle on={(editorSettings.lineNumbers ?? 'on') === 'on'} onChange={() => onEditorSettingsChange?.({ lineNumbers: (editorSettings.lineNumbers ?? 'on') === 'on' ? 'off' : 'on' })} />
                                         </div>
-                                    </div>
-                                </div>
-
-                                <hr className="stg-divider" />
-
-                                {/* Advanced Editor Options */}
-                                <div>
-                                    <h3 className="stg-section-title">Advanced Code Intelligence</h3>
-                                    <div className="stg-group stg-group--mt14">
                                         <div className="stg-row">
                                             <div>
                                                 <span className="stg-row-label">Bracket Pair Colorization</span>
@@ -1022,6 +1046,15 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </div>
                                             <Toggle on={(editorSettings.smoothScrolling ?? false)} onChange={() => onEditorSettingsChange?.({ smoothScrolling: !(editorSettings.smoothScrolling ?? false) })} />
                                         </div>
+                                    </div>
+                                </div>
+
+                                <hr className="stg-divider" />
+
+                                {/* Cursor */}
+                                <div>
+                                    <h3 className="stg-section-title">Cursor</h3>
+                                    <div className="stg-group stg-group--mt14">
                                         <div className="stg-row">
                                             <span className="stg-row-label">Cursor Style</span>
                                             <select
@@ -1169,7 +1202,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 </div>
                                 </div>}
                                 {/* ── Formatting sub-tab (formerly Formatter) ── */}
-                                {editorSubTab === 'formatting' && <div>
+                                {editorSubTab === 'formatting' && <div className="stg-subtab-content">
                                 <div>
                                     <h3 className="stg-section-title">SQL Formatter</h3>
                                     <p className="stg-row-desc stg-row-desc--mb14">
@@ -1238,36 +1271,17 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                 </div>
 
-                                <hr className="stg-divider" />
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div className="stg-row" style={{ marginTop: 8 }}>
+                                    <div>
+                                        <span className="stg-row-label">Save Formatter Settings</span>
+                                        <p className="stg-row-desc">Persist your current formatting preferences</p>
+                                    </div>
                                     <button
-                                        className="stg-save-btn"
+                                        className="stg-btn stg-btn--primary"
                                         onClick={saveFormatterConfig}
                                     >
                                         {formatterSaved ? <><LuCheck size={14} /> Saved!</> : 'Apply & Save'}
                                     </button>
-                                    {formatterSaved && (
-                                        <span style={{ fontSize: '12px', color: 'var(--feedback-success, #4CAF50)' }}>
-                                            Formatter config saved to localStorage.
-                                        </span>
-                                    )}
-                                </div>
-
-                                <hr className="stg-divider" />
-
-                                <div>
-                                    <h3 className="stg-section-title">Keyboard Shortcuts</h3>
-                                    <div className="stg-group stg-group--mt14">
-                                        <div className="stg-row">
-                                            <span className="stg-row-label">Format SQL</span>
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                <kbd className="stg-kbd">Ctrl+K</kbd>
-                                                <kbd className="stg-kbd">Ctrl+Shift+F</kbd>
-                                                <kbd className="stg-kbd">Shift+Alt+F</kbd>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                                 </div>}
                             </div>
@@ -1423,7 +1437,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     activeTab={aiSubTab}
                                     onChange={setAiSubTab}
                                 />
-                                {aiSubTab === 'models' && <div>
+                                {aiSubTab === 'models' && <div className="stg-subtab-content">
                                 {/* Provider */}
                                 <div className="stg-row stg-row--top">
                                     <div className="stg-flex-1">
@@ -1714,7 +1728,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 )}
                                 </div>}
                                 {/* ── Knowledge sub-tab: Memories + AI Context ── */}
-                                {aiSubTab === 'knowledge' && <div>
+                                {aiSubTab === 'knowledge' && <div className="stg-subtab-content">
                                 <div>
                                     <h3 className="stg-section-title">AI Memories</h3>
                                     <p className="stg-row-desc stg-row-desc--mb14">
@@ -1732,7 +1746,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 </div>
                                 </div>}
                                 {/* ── Cloud sub-tab ── */}
-                                {aiSubTab === 'cloud' && <div>
+                                {aiSubTab === 'cloud' && <div className="stg-subtab-content">
                                 <div className="stg-row stg-row--top">
                                     <div>
                                         <h3 className="stg-section-heading stg-section-heading--mb8">S3 & GCS Export Configuration</h3>
@@ -1843,10 +1857,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                             <WorkspaceSettingsPanel />
                         )}
 
-                        {/* ═══ SOURCE CONTROL ═══ */}
-                        {activeTab === 'sourcecontrol' && (
-                            <SourceControlPanel />
-                        )}
+
 
                         {/* ═══ KEYBOARD SHORTCUTS ═══ */}
                         {activeTab === 'shortcuts' && (
