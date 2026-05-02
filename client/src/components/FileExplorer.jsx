@@ -4,7 +4,8 @@ import {
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
     LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
-    LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader
+    LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader, LuBrain,
+    LuFileCode2, LuPackage, LuBot
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -66,6 +67,9 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // Column Copy Loading State
     const [copyingColumns, setCopyingColumns] = useState(false);
 
+    // Git status badges: Map<relativePath → statusLetter>
+    const [gitStatusMap, setGitStatusMap] = useState({});
+
     // Sort/Group State
     const [sortMode, setSortMode] = useState(() => localStorage.getItem('amoxsql-fe-sort') || editorSettings?.defaultExplorerSort || 'default'); // 'default' | 'type' | 'name'
 
@@ -92,6 +96,21 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     }, []);
 
 
+    const fetchGitStatus = async () => {
+        try {
+            const res = await fetch('http://localhost:3001/api/git/status');
+            const data = await res.json();
+            if (!data.isRepo || !Array.isArray(data.files)) { setGitStatusMap({}); return; }
+            const map = {};
+            for (const f of data.files) {
+                // Normalize separators, use last segment + relative path as key
+                const norm = f.path.replace(/\\/g, '/');
+                map[norm] = f.status;
+            }
+            setGitStatusMap(map);
+        } catch { /* git unavailable or no repo — silent */ }
+    };
+
     const fetchFiles = async (path) => {
         setLoading(true);
         setError(null);
@@ -109,6 +128,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                 return a.isDirectory ? -1 : 1;
             });
             setFiles(data);
+            fetchGitStatus(); // non-blocking — update badges independently
         } catch (err) {
             setError(err.message);
         } finally {
@@ -164,9 +184,24 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         });
     };
 
+    // Special folder icons for canonical workspace folders
+    const SPECIAL_FOLDER_ICONS = {
+        queries:   <LuFileCode2 size={14} color="var(--icon-sql)" />,
+        notebooks: <LuBookOpen  size={14} color="var(--icon-notebook)" />,
+        charts:    <LuChartBar  size={14} color="var(--icon-parquet)" />,
+        chains:    <LuGitBranch size={14} color="var(--accent-primary)" />,
+        data:      <LuDatabase  size={14} color="var(--icon-db, var(--icon-default))" />,
+        exports:   <LuPackage   size={14} color="var(--text-muted)" />,
+        context:   <LuBrain     size={14} color="var(--accent-primary)" />,
+        agent:     <LuBot       size={14} color="var(--accent-primary)" />,
+    };
+
     const getIcon = (file) => {
         const lowerName = file.name.toLowerCase();
-        if (file.isDirectory) return <LuFolder size={14} color="var(--icon-folder)" />;
+        if (file.isDirectory) {
+            if (SPECIAL_FOLDER_ICONS[lowerName]) return SPECIAL_FOLDER_ICONS[lowerName];
+            return <LuFolder size={14} color="var(--icon-folder)" />;
+        }
         if (lowerName.endsWith('.sql')) return <LuFileCode size={14} color="var(--icon-sql)" />;
         if (lowerName.endsWith('.sqlnb')) return <LuBookOpen size={14} color="var(--icon-notebook)" />;
         if (lowerName.endsWith('.sqlchain')) return <LuGitBranch size={14} color="var(--accent-primary)" />;
@@ -451,12 +486,28 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                 const hasExt = !file.isDirectory && lastDot > 0;
                                 const baseName = hasExt ? file.name.substring(0, lastDot) : file.name;
                                 const extName = hasExt ? file.name.substring(lastDot) : '';
+                                // Compute git status badge for this file
+                                const fileNorm = file.path.replace(/\\/g, '/');
+                                // Match by exact path or by filename only (for root-level files)
+                                const gitStatus = gitStatusMap[fileNorm]
+                                    || gitStatusMap[file.name]
+                                    || (Object.keys(gitStatusMap).find(k => k.endsWith('/' + file.name)) ? gitStatusMap[Object.keys(gitStatusMap).find(k => k.endsWith('/' + file.name))] : undefined);
+                                const GIT_BADGE_COLORS = { M: '#e8a838', A: '#4caf7d', D: '#e06c75', '?': undefined };
                                 return (
                                 <>
                                     <span style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{baseName}</span>
                                         <span style={{ flexShrink: 0 }}>{extName}</span>
                                     </span>
+                                    {gitStatus && (
+                                        <span
+                                            className={`fe-git-badge fe-git-badge--${gitStatus}`}
+                                            style={{ color: GIT_BADGE_COLORS[gitStatus] || 'var(--text-muted)', flexShrink: 0 }}
+                                            title={gitStatus === 'M' ? 'Modified' : gitStatus === 'A' ? 'Added' : gitStatus === 'D' ? 'Deleted' : 'Untracked'}
+                                        >
+                                            {gitStatus}
+                                        </span>
+                                    )}
                                     {(editorSettings?.showFileSizes ?? true) && file.sizeBytes != null && (
                                         <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
                                             {formatBytes(file.sizeBytes)}

@@ -1,0 +1,383 @@
+# AmoxSQL — Guía de Estilos CSS
+
+> Esta guía describe el sistema de diseño de AmoxSQL. Seguirla garantiza que cualquier nuevo componente sea visualmente consistente con el resto de la app.  
+> Archivo de referencia: `client/src/index.css`
+
+---
+
+## 1. Sistema de Tokens CSS (oklch)
+
+Todos los colores se definen con **oklch** (perceptualmente uniforme). Las variables CSS son la única fuente de verdad de color — nunca hardcodear hex/rgb en componentes.
+
+### 1.1 Superficies (elevación)
+
+```css
+/* De menor a mayor elevación (dark default) */
+--surface-base:    oklch(0.145 0.006 270);   /* ≈ #111214 — fondo de app */
+--surface-raised:  oklch(0.175 0.008 270);   /* ≈ #191B1F — cards, sidebar */
+--surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 — tooltips, dropdowns */
+--surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C — inputs, wells */
+```
+
+Usar la superficie correcta según la capa visual:
+- **`--surface-base`**: fondo general de la ventana
+- **`--surface-raised`**: componentes que "flotan" sobre el fondo (paneles, cards)
+- **`--surface-overlay`**: elementos que aparecen sobre otros elementos (dropdowns, tooltips, modales)
+- **`--surface-inset`**: áreas que visualmente "se hunden" (inputs, code blocks, wells)
+
+### 1.2 Bordes
+
+```css
+--border-subtle:  rgba(255, 255, 255, 0.06);  /* divisores muy sutiles */
+--border-default: rgba(255, 255, 255, 0.10);  /* bordes de inputs, cards */
+--border-strong:  rgba(255, 255, 255, 0.16);  /* bordes enfatizados */
+```
+
+Los bordes son rgba para que funcionen sobre cualquier superficie.
+
+### 1.3 Texto
+
+```css
+--text-primary:   rgba(255, 255, 255, 0.92);  /* texto principal */
+--text-secondary: rgba(255, 255, 255, 0.56);  /* texto secundario, labels */
+--text-muted:     rgba(255, 255, 255, 0.36);  /* texto desactivado, placeholders */
+--text-disabled:  rgba(255, 255, 255, 0.20);  /* texto completamente inactivo */
+```
+
+En temas light, los valores cambian a rgba(0,0,0,...). **Siempre usar las variables**, nunca asumir dark/light.
+
+### 1.4 Accent Colors
+
+El color de acento se controla con `--accent-primary`. Las variantes se derivan automáticamente:
+
+```css
+--accent-primary: oklch(0.905 0.155 195);  /* cyan — valor cambia según acento */
+--accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+--accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+```
+
+Para usar el acento en un componente:
+```css
+/* Fondo activo */
+background: var(--accent-muted);
+
+/* Borde activo */
+border-color: color-mix(in oklch, var(--accent-primary) 40%, transparent);
+
+/* Texto de acento */
+color: var(--accent-primary);
+```
+
+---
+
+## 2. Sistema de Theming
+
+### 2.1 Temas Disponibles (9)
+
+| ID | Nombre UI | Tipo |
+|----|-----------|------|
+| `dark` (default) | Obsidian | Dark |
+| `onyx` | Onyx | Dark |
+| `carbon` | Carbon | Dark |
+| `graphite` | Graphite | Dark |
+| `nord` | Nord Dark | Dark |
+| `ivory` | Ivory | Light |
+| `mist` | Mist | Light |
+| `snow` | Snow | Light |
+| `light` | Light | Light |
+
+### 2.2 Cómo se Aplican
+
+Los temas se aplican como clases en `<body>` desde `App.jsx`:
+
+```javascript
+// App.jsx
+if (theme === 'light') {
+  document.body.classList.add('light-theme');
+} else if (theme !== 'dark') {
+  document.body.classList.add(`theme-${theme}`);
+}
+// 'dark' es el default (sin clase extra)
+```
+
+En `index.css`, cada tema sobrescribe las variables CSS:
+
+```css
+.theme-carbon {
+  --surface-base:   oklch(0.148 0.008 260);
+  --surface-raised: oklch(0.178 0.009 260);
+  --text-primary:   rgba(255, 255, 255, 0.94);
+  /* ... solo las variables que difieren del dark default */
+}
+
+.light-theme {
+  --surface-base:   oklch(0.985 0.003 265);
+  --surface-raised: oklch(0.965 0.004 265);
+  --text-primary:   rgba(0, 0, 0, 0.92);
+  --border-subtle:  rgba(0, 0, 0, 0.07);
+  /* ... */
+}
+```
+
+**Al agregar un tema nuevo:** crear una clase `.theme-{nombre}` en `index.css` que sobrescriba solo las variables que cambian. El resto hereda del `:root`.
+
+### 2.3 Acentos (13)
+
+Los acentos son independientes del tema y se aplican también en `<body>`:
+
+```javascript
+// App.jsx
+if (accentColor !== 'cyan') {
+  document.body.classList.add(`accent-${accentColor}`);
+}
+```
+
+Acentos disponibles:
+
+| ID | Color visual |
+|----|-------------|
+| `cyan` (default) | Cyan/turquoise |
+| `amox-2` ... `amox-10` | Gradiente cyan → cobalt |
+| `linear` | Linear Blue |
+| `sage` | Verde salvia |
+| `amber` | Ámbar |
+| `rose` | Rosa |
+| `lavender` | Lavanda |
+| `steel` | Azul acero |
+| `copper` | Cobre |
+
+Cada acento solo sobrescribe `--accent-primary`:
+
+```css
+.accent-linear { --accent-primary: oklch(0.53 0.14 277); }
+.accent-sage   { --accent-primary: oklch(0.72 0.10 155); }
+.accent-amber  { --accent-primary: oklch(0.78 0.12 75);  }
+```
+
+Las derivadas (`--accent-muted`, `--accent-subtle`) se recalculan automáticamente.
+
+---
+
+## 3. Convenciones de Clases CSS
+
+### 3.1 Prefijos Establecidos
+
+| Prefijo | Scope | Ejemplos |
+|---------|-------|---------|
+| `stg-` | Settings Modal y sus tabs | `stg-row`, `stg-card`, `stg-btn`, `stg-label` |
+| `stg-ctx-` | Settings > AI Context tab | `stg-ctx-hero`, `stg-ctx-status-card` |
+| `ai-` | Componentes del chat AI | `ai-narrative`, `ai-plan-step`, `ai-message` |
+| `wtb-` | Window Title Bar | `wtb-dropdown`, `wtb-btn` |
+
+### 3.2 Regla para Features Nuevas
+
+Antes de empezar a escribir CSS para una feature nueva, definir un prefijo corto y único:
+- **Corto:** 2-4 caracteres + guión (`nb-` para notebook cell UI, `pr-` para profiler)
+- **Único:** que no colisione con prefijos existentes
+- **Consistente:** todos los elementos del feature comparten el mismo prefijo
+
+```css
+/* ✅ Bien: prefijado, consistente */
+.nb-cell { ... }
+.nb-cell-header { ... }
+.nb-cell-body { ... }
+.nb-cell--active { ... }
+
+/* ❌ Mal: sin prefijo, colisiones posibles */
+.cell { ... }
+.cell-header { ... }
+.active { ... }
+```
+
+### 3.3 Modificadores BEM-Lite
+
+Para estados y variantes, usar doble guión:
+
+```css
+.stg-btn           { /* base */ }
+.stg-btn--primary  { /* variante de color */ }
+.stg-btn--sm       { /* variante de tamaño */ }
+.stg-btn--disabled { /* estado */ }
+```
+
+---
+
+## 4. DO's y DON'Ts
+
+### ✅ DO — Siempre hacer esto
+
+**Usar variables CSS para todos los colores:**
+```css
+/* ✅ */
+color: var(--text-primary);
+background: var(--surface-raised);
+border: 1px solid var(--border-default);
+```
+
+**Derivar variantes con `color-mix(in oklch, ...)`:**
+```css
+/* ✅ Hover state del accent */
+background: color-mix(in oklch, var(--accent-primary) 15%, transparent);
+
+/* ✅ Borde sutil del accent */
+border-color: color-mix(in oklch, var(--accent-primary) 35%, transparent);
+```
+
+**Usar oklch para nuevos colores semánticos (status, alertas):**
+```css
+/* ✅ Color de éxito */
+--color-success: oklch(0.72 0.18 145);  /* verde */
+--color-warning: oklch(0.80 0.15 75);   /* ámbar */
+--color-error:   oklch(0.60 0.22 25);   /* rojo */
+```
+
+**Prefixar clases con el nombre del componente/feature:**
+```css
+/* ✅ */
+.ctx-file-dot { ... }
+.ctx-file-name { ... }
+```
+
+**Usar `transition` solo en propiedades que lo necesitan:**
+```css
+/* ✅ */
+transition: background 0.12s, border-color 0.12s;
+```
+
+---
+
+### ❌ DON'T — Nunca hacer esto
+
+**Hardcodear colores hex/rgb en componentes UI:**
+```css
+/* ❌ */
+color: #ffffff;
+background: #1a1b1e;
+border: 1px solid rgba(255, 255, 255, 0.1);
+
+/* ✅ En su lugar */
+color: var(--text-primary);
+background: var(--surface-raised);
+border: 1px solid var(--border-default);
+```
+
+**Excepción:** La paleta de Monaco Editor en `SqlEditor.jsx` usa hex porque Monaco no acepta variables CSS. Ese es el único lugar permitido.
+
+---
+
+**Usar `@media` breakpoints:**
+```css
+/* ❌ AmoxSQL es desktop-only */
+@media (max-width: 768px) { ... }
+
+/* ✅ Usar flexbox con min-width/max-width en px absolutos si necesitas límites */
+.sidebar { min-width: 200px; max-width: 480px; }
+```
+
+---
+
+**Introducir virtualización de listas o tablas:**
+```javascript
+// ❌ NUNCA
+import { useVirtualizer } from '@tanstack/react-virtual';
+
+// ✅ Usar paginación (ver ResultsTable.jsx)
+const [currentPage, setCurrentPage] = useState(1);
+const [pageSize] = useState(50);
+```
+
+---
+
+**Asumir que un ícono Lu\* existe sin verificar:**
+```javascript
+// ❌ Puede no existir en esta versión de react-icons
+import { LuHelpCircle } from 'react-icons/lu';  // ← no existe
+
+// ✅ Verificar primero con el script de validación (ver docs/dev/README.md)
+import { LuCircleHelp } from 'react-icons/lu';  // ← correcto
+```
+
+---
+
+**Usar `transition: all`:**
+```css
+/* ❌ Anima propiedades que no lo necesitan, causa repaints innecesarios */
+transition: all 0.2s;
+
+/* ✅ Solo las propiedades específicas */
+transition: background 0.15s, opacity 0.15s;
+```
+
+---
+
+## 5. Monaco Editor Theming
+
+Monaco Editor tiene su propio sistema de temas que no acepta variables CSS. La solución es resolverlas en runtime.
+
+### 5.1 Paleta y Resolución
+
+En `client/src/components/SqlEditor.jsx`:
+
+```javascript
+const MONACO_PALETTE = {
+  dark:  { bg: '141517', accent: '00DDDD', keyword: '9B8FF2', ... },
+  light: { bg: 'FFFFFF', accent: '0066CC', keyword: '7B4FD0', ... }
+};
+
+// Resuelve variables CSS a hex en runtime
+function cssVarToHex(varName, fallback) {
+  const el = document.createElement('div');
+  el.style.color = `var(${varName})`;
+  document.body.appendChild(el);
+  const resolved = getComputedStyle(el).color; // oklch → rgb()
+  document.body.removeChild(el);
+  const match = resolved.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
+  if (!match) return fallback;
+  const [, r, g, b] = match;
+  return [r, g, b].map(c => parseInt(c).toString(16).padStart(2, '0')).join('');
+}
+
+export const buildMonacoTheme = (isDark) => {
+  const p = {
+    bg:      cssVarToHex('--surface-base', isDark ? '141517' : 'FFFFFF'),
+    accent:  cssVarToHex('--accent-primary', isDark ? '00DDDD' : '0066CC'),
+    // ...
+  };
+  return { base: isDark ? 'vs-dark' : 'vs', rules: [...] };
+};
+```
+
+### 5.2 Cuándo Actualizar
+
+Si se agrega un tema nuevo y el editor se ve mal, agregar la paleta correspondiente en `MONACO_PALETTE` o verificar que `cssVarToHex` resuelva correctamente las variables del nuevo tema.
+
+---
+
+## 6. Variables de Espaciado y Radio
+
+```css
+--radius-sm:  6px;
+--radius-md:  8px;
+--radius-lg:  12px;
+--radius-xl:  16px;
+```
+
+Usar estas variables para border-radius. No inventar nuevos valores de radio.
+
+Para espaciado no hay variables fijas — usar múltiplos de 4px (4, 8, 12, 16, 20, 24...).
+
+---
+
+## 7. Scrollbars Personalizadas
+
+AmoxSQL tiene scrollbars personalizadas en toda la app:
+
+```css
+/* index.css — aplicado globalmente */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+```
+
+Los contenedores con scroll deben tener `overflow: auto` o `overflow-y: auto` — las scrollbars se aplican automáticamente.

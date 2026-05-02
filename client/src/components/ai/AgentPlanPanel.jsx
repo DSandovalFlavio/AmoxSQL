@@ -1,12 +1,15 @@
 /**
- * AgentPlanPanel — shows the active agent plan in real-time.
+ * AgentPlanPanel — shows the active agent plan in real-time with editable steps.
  * Mounts inside the right column of AiDivingPanel when the planner is active.
+ *
+ * Users can click "Skip" on any pending step to mark it as skipped in local state.
+ * Skipped steps are communicated back to the agent via planStepOverrides on next send.
  */
 
 import React, { useState } from 'react';
 import {
     LuCircleCheck, LuCircleX, LuCircleMinus, LuCircle,
-    LuLoader, LuChevronDown, LuChevronRight, LuBrain,
+    LuLoader, LuChevronDown, LuChevronRight, LuBrain, LuSkipForward,
 } from 'react-icons/lu';
 
 const STATUS_ICON = {
@@ -17,20 +20,39 @@ const STATUS_ICON = {
     running: { Icon: LuLoader,       cls: 'ai-plan-step--running ai-plan-step-icon--spin' },
 };
 
-export default function AgentPlanPanel({ planState, isGenerating, iteration, maxIterations }) {
+/**
+ * @param {object}   planState         - { goal, steps[], status }
+ * @param {boolean}  isGenerating      - Whether the agent is currently running
+ * @param {number}   iteration         - Current loop iteration
+ * @param {number}   maxIterations     - Max loop iterations
+ * @param {Function} onSkipStep        - Callback(stepId) when user clicks Skip
+ * @param {Set}      userSkippedSteps  - Set of stepIds the user has locally marked as skip
+ */
+export default function AgentPlanPanel({
+    planState,
+    isGenerating,
+    iteration,
+    maxIterations,
+    onSkipStep,
+    userSkippedSteps = new Set(),
+}) {
     const [collapsed, setCollapsed] = useState(false);
 
     if (!planState) return null;
 
     const { goal, steps = [], status } = planState;
-    const doneCount = steps.filter(s => s.status === 'done' || s.status === 'skipped').length;
-    const total     = steps.length;
-    const pct       = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+    const doneCount = steps.filter(s =>
+        s.status === 'done' || s.status === 'skipped' || userSkippedSteps.has(s.id)
+    ).length;
+    const total = steps.length;
+    const pct   = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
-    // Determine which step is "running" — the first pending one while generating
+    // Determine which step is "running" — the first pending (non-user-skipped) one while generating
     const runningIdx = isGenerating
-        ? steps.findIndex(s => s.status === 'pending')
+        ? steps.findIndex(s => s.status === 'pending' && !userSkippedSteps.has(s.id))
         : -1;
+
+    const isEditable = !isGenerating && status !== 'completed';
 
     return (
         <div className="ai-plan-panel">
@@ -41,7 +63,11 @@ export default function AgentPlanPanel({ planState, isGenerating, iteration, max
             >
                 <LuBrain size={13} className="ai-plan-header-icon" />
                 <span className="ai-plan-header-title">Agent Plan</span>
-
+                {isEditable && (
+                    <span className="ai-plan-editable-badge" title="Click Skip on pending steps to remove them from the plan">
+                        editable
+                    </span>
+                )}
                 <span className="ai-plan-badge">
                     {status === 'completed' ? '✓ Done' : `${doneCount}/${total}`}
                 </span>
@@ -67,11 +93,22 @@ export default function AgentPlanPanel({ planState, isGenerating, iteration, max
                         <p className="ai-plan-goal">{goal}</p>
                     )}
 
+                    {/* Edit hint when paused */}
+                    {isEditable && onSkipStep && (
+                        <p className="ai-plan-edit-hint">
+                            You can skip pending steps before the agent continues.
+                        </p>
+                    )}
+
                     {/* Steps */}
                     <ul className="ai-plan-steps">
                         {steps.map((step, idx) => {
-                            const effectiveStatus = (idx === runningIdx) ? 'running' : (step.status || 'pending');
+                            const isUserSkipped = userSkippedSteps.has(step.id);
+                            const effectiveStatus = isUserSkipped
+                                ? 'skipped'
+                                : (idx === runningIdx) ? 'running' : (step.status || 'pending');
                             const { Icon, cls } = STATUS_ICON[effectiveStatus] || STATUS_ICON.pending;
+                            const canSkip = isEditable && onSkipStep && step.status === 'pending' && !isUserSkipped;
 
                             return (
                                 <li key={step.id} className={`ai-plan-step ${cls}`}>
@@ -81,10 +118,21 @@ export default function AgentPlanPanel({ planState, isGenerating, iteration, max
                                     <span className="ai-plan-step-body">
                                         <span className="ai-plan-step-id">{step.id}</span>
                                         <span className="ai-plan-step-desc">{step.description}</span>
-                                        {step.note && (
-                                            <span className="ai-plan-step-note">{step.note}</span>
+                                        {(step.note || isUserSkipped) && (
+                                            <span className="ai-plan-step-note">
+                                                {isUserSkipped ? 'skipped by user' : step.note}
+                                            </span>
                                         )}
                                     </span>
+                                    {canSkip && (
+                                        <button
+                                            className="ai-plan-step-skip"
+                                            title="Skip this step"
+                                            onClick={() => onSkipStep(step.id)}
+                                        >
+                                            <LuSkipForward size={11} />
+                                        </button>
+                                    )}
                                 </li>
                             );
                         })}

@@ -1,0 +1,19 @@
+# Canonical Join Relationships
+# Place this file at .amoxsql/context/joins.yml in your project.
+# The AI agent will use these to write correct JOIN clauses automatically.
+
+joins:
+  - from: orders
+    to: customers
+    on: "orders.customer_id = customers.id"
+    type: LEFT
+
+  - from: orders
+    to: products
+    on: "orders.product_id = products.id"
+    type: LEFT
+
+  - from: events
+    to: users
+    on: "events.user_id = users.id"
+    type: INNER
