@@ -11,6 +11,7 @@ import {
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
 import FilePreviewModal from './FilePreviewModal';
+import GSheetsSection from './GSheetsSection';
 
 const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
@@ -1030,6 +1031,14 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     </div>
                 </div>
             )}
+
+            {/* Google Sheets section */}
+            <GSheetsSection
+                onQuerySheet={(sql, sheetName, tabName) => {
+                    // Open a new query tab with the read_gsheet SQL
+                    onQueryFile?.(null, sql, `${sheetName}${tabName ? ' → ' + tabName : ''}`);
+                }}
+            />
         </div>
     );
 };
