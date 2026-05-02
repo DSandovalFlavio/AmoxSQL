@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuGitBranch, LuCircleCheck, LuCircle } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
-import ChartGallery from './ChartGallery';
+import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 
@@ -55,16 +55,20 @@ const SOBER_ACCENTS = [
 ];
 
 const TAB_TITLES = {
-    appearance: 'Appearance',
-    editor: 'Editor',
-    formatter: 'SQL Formatter',
-    behavior: 'Behavior',
-    ai: 'AI Settings',
-    memories: 'AI Memories',
-    cloud: 'Cloud Storage',
-    shortcuts: 'Keyboard Shortcuts',
-    gallery: 'Chart Gallery',
-    about: 'About AmoxSQL',
+    appearance:  'Appearance',
+    editor:      'Editor',
+    behavior:    'Behavior',
+    ai:          'AI Assistant',
+    workspace:   'Workspace',
+    sourcecontrol: 'Source Control',
+    shortcuts:   'Keyboard Shortcuts',
+    about:       'About AmoxSQL',
+    // Legacy aliases so existing initialTab values keep working
+    formatter:   'Editor',
+    memories:    'AI Assistant',
+    aicontext:   'AI Assistant',
+    cloud:       'AI Assistant',
+    gallery:     'Chart Gallery',
 };
 
 const SHORTCUT_SECTIONS = [
@@ -127,6 +131,236 @@ const SHORTCUT_SECTIONS = [
     },
 ];
 
+// ─── AI Context Tab ───
+const API = 'http://localhost:3001';
+
+const FILE_DEFS = [
+    {
+        key: 'metrics',
+        file: 'metrics.yml',
+        label: 'metrics.yml',
+        desc: 'Business metric definitions — tell the AI what "revenue", "churn", or "MAU" means in SQL.',
+        color: '#22c55e',
+    },
+    {
+        key: 'joins',
+        file: 'joins.yml',
+        label: 'joins.yml',
+        desc: 'Canonical JOIN relationships — the AI uses these to write correct table joins without guessing.',
+        color: '#3b82f6',
+    },
+    {
+        key: 'glossary',
+        file: 'glossary.md',
+        label: 'glossary.md',
+        desc: 'Domain glossary — definitions of business terms in plain language.',
+        color: '#a78bfa',
+    },
+    {
+        key: 'examples',
+        file: 'examples/',
+        label: 'examples/',
+        desc: 'Example SQL queries — the AI finds and reuses these for recurring analysis patterns.',
+        color: '#f59e0b',
+    },
+];
+
+function AiContextTab() {
+    const [status, setStatus] = React.useState(null);
+    const [loading, setLoading] = React.useState(false);
+    const [creating, setCreating] = React.useState(false);
+    const [selectedFiles, setSelectedFiles] = React.useState(['metrics', 'joins', 'glossary', 'examples']);
+
+    const reload = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API}/api/ai/context-status`);
+            const data = await res.json();
+            setStatus(data);
+        } catch {
+            setStatus(null);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    React.useEffect(() => { reload(); }, [reload]);
+
+    const handleCreate = async () => {
+        setCreating(true);
+        try {
+            await fetch(`${API}/api/ai/context-setup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: selectedFiles }),
+            });
+            await reload();
+            window.dispatchEvent(new Event('amox_files_changed'));
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const toggleFile = (key) => {
+        setSelectedFiles(prev =>
+            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+        );
+    };
+
+    const fileExists = (key) => {
+        if (!status?.files) return false;
+        if (key === 'examples') return status.files.examples?.length > 0;
+        return status.files[key] === true;
+    };
+
+    return (
+        <div className="stg-section">
+            {/* Hero */}
+            <div className="stg-ctx-hero">
+                <LuBrain size={28} className="stg-ctx-hero-icon" />
+                <div>
+                    <h3 className="stg-ctx-hero-title">AI Context Folder</h3>
+                    <p className="stg-ctx-hero-desc">
+                        A <code>context/</code> folder in your project teaches the AI about your data domain —
+                        metric definitions, table relationships, domain terms, and example queries.
+                        The AI reads it automatically at the start of every conversation.
+                    </p>
+                </div>
+            </div>
+
+            {/* Status card */}
+            <div className="stg-card stg-ctx-status-card">
+                {loading ? (
+                    <div className="stg-ctx-loading">
+                        <LuLoader size={16} style={{ animation: 'spin 1.5s linear infinite' }} />
+                        <span>Checking project…</span>
+                    </div>
+                ) : status?.exists ? (
+                    <>
+                        <div className="stg-ctx-status-header">
+                            <LuCheck size={15} className="stg-ctx-status-ok" />
+                            <span className="stg-ctx-status-label">Context folder active</span>
+                            <code className="stg-ctx-path">{status.path}</code>
+                        </div>
+                        <div className="stg-ctx-files">
+                            {FILE_DEFS.map(f => {
+                                const exists = fileExists(f.key);
+                                return (
+                                    <div key={f.key} className={`stg-ctx-file ${exists ? 'stg-ctx-file--exists' : 'stg-ctx-file--missing'}`}>
+                                        <span className="stg-ctx-file-dot" style={{ background: exists ? f.color : 'var(--border-subtle)' }} />
+                                        <span className="stg-ctx-file-name">{f.label}</span>
+                                        <span className="stg-ctx-file-status">
+                                            {exists
+                                                ? f.key === 'examples'
+                                                    ? `${status.files.examples.length} example${status.files.examples.length !== 1 ? 's' : ''}`
+                                                    : 'configured'
+                                                : 'missing'}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {FILE_DEFS.some(f => !fileExists(f.key)) && (
+                            <button className="stg-btn stg-btn--sm" style={{ marginTop: '8px' }} onClick={handleCreate} disabled={creating}>
+                                {creating ? <LuLoader size={12} style={{ animation: 'spin 1.5s linear infinite' }} /> : <LuCheck size={12} />}
+                                Add missing files
+                            </button>
+                        )}
+                    </>
+                ) : (
+                    <div className="stg-ctx-empty">
+                        <p className="stg-ctx-empty-msg">
+                            No <code>context/</code> folder found in this project. Create it with the templates below to get started.
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Create wizard */}
+            {(!status?.exists || FILE_DEFS.some(f => !fileExists(f.key))) && (
+                <div>
+                    <h3 className="stg-section-heading stg-section-heading--mb10">
+                        {status?.exists ? 'Add Missing Files' : 'Create Context Folder'}
+                    </h3>
+                    <p className="stg-row-desc stg-row-desc--mb14">
+                        Select which template files to generate. You can edit them afterwards in the file explorer.
+                    </p>
+                    <div className="stg-group stg-ctx-checklist">
+                        {FILE_DEFS.filter(f => !fileExists(f.key)).map(f => (
+                            <div
+                                key={f.key}
+                                className={`stg-ctx-check-row ${selectedFiles.includes(f.key) ? 'stg-ctx-check-row--on' : ''}`}
+                                onClick={() => toggleFile(f.key)}
+                            >
+                                <div className="stg-ctx-check-box">
+                                    {selectedFiles.includes(f.key) && <LuCheck size={10} />}
+                                </div>
+                                <div className="stg-ctx-check-body">
+                                    <span className="stg-ctx-check-label" style={{ color: f.color }}>{f.label}</span>
+                                    <span className="stg-ctx-check-desc">{f.desc}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button
+                        className="stg-btn stg-btn--primary stg-ctx-create-btn"
+                        onClick={handleCreate}
+                        disabled={creating || selectedFiles.length === 0}
+                    >
+                        {creating
+                            ? <><LuLoader size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> Creating…</>
+                            : <><LuSparkles size={14} /> {status?.exists ? 'Add selected files' : 'Create context folder'}</>
+                        }
+                    </button>
+                </div>
+            )}
+
+            {/* How it works */}
+            <div>
+                <h3 className="stg-section-heading stg-section-heading--mb10">How it works</h3>
+                <div className="stg-ctx-how">
+                    <div className="stg-ctx-how-step">
+                        <div className="stg-ctx-how-num">1</div>
+                        <div>
+                            <strong>Create the folder</strong>
+                            <p>A <code>context/</code> folder is created at the root of your open project.</p>
+                        </div>
+                    </div>
+                    <div className="stg-ctx-how-step">
+                        <div className="stg-ctx-how-num">2</div>
+                        <div>
+                            <strong>Edit the files</strong>
+                            <p>Open them from the file explorer (look for the 🧠 icon) and fill in your real table names, column names, and business definitions.</p>
+                        </div>
+                    </div>
+                    <div className="stg-ctx-how-step">
+                        <div className="stg-ctx-how-num">3</div>
+                        <div>
+                            <strong>AI reads it automatically</strong>
+                            <p>Every new Data Diving conversation loads the context. No need to re-explain "revenue" or table relationships session after session.</p>
+                        </div>
+                    </div>
+                    <div className="stg-ctx-how-step">
+                        <div className="stg-ctx-how-num">4</div>
+                        <div>
+                            <strong>Version it with git</strong>
+                            <p>Commit the <code>context/</code> folder to your repo. Your team shares the same AI definitions automatically.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick tip */}
+            <div className="stg-ctx-tip">
+                <LuSparkles size={12} />
+                <span>
+                    <strong>Tip:</strong> Ask the AI <em>"What metrics do you know about?"</em> or <em>"Do you have an example for cohort retention?"</em> to verify the context was loaded correctly.
+                </span>
+            </div>
+        </div>
+    );
+}
+
 // ─── Reusable Toggle Component ───
 const Toggle = ({ on, onChange }) => (
     <div className={`stg-toggle${on ? ' stg-toggle--on' : ''}`} onClick={onChange}>
@@ -134,8 +368,93 @@ const Toggle = ({ on, onChange }) => (
     </div>
 );
 
+// ─── Workspace Settings Panel ────────────────────────────────────────────────
+function WorkspaceSettingsPanel() {
+    const [status, setStatus] = React.useState(null);
+    React.useEffect(() => {
+        fetch(`${API}/api/project/scaffold-status`)
+            .then(r => r.json())
+            .then(setStatus)
+            .catch(() => {});
+    }, []);
+
+    if (!status) return <div className="stg-section" style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>;
+
+    return (
+        <div className="stg-section">
+            <h3 className="stg-section-title">Folder Structure</h3>
+            <p className="stg-row-desc stg-row-desc--mb14">
+                Canonical workspace folders help keep your project organized.
+                Missing folders can be created at any time.
+            </p>
+            <div className="stg-group stg-group--mt14">
+                {(status.folders || []).map(f => (
+                    <div key={f.id} className="stg-row">
+                        <div>
+                            <span className="stg-row-label">{f.label}/</span>
+                            <p className="stg-row-desc">{f.description}</p>
+                        </div>
+                        {f.exists
+                            ? <span style={{ color: 'var(--feedback-success, #4caf50)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <LuCircleCheck size={13} /> Present
+                              </span>
+                            : <span style={{ color: 'var(--text-muted)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <LuCircle size={13} /> Not created
+                              </span>
+                        }
+                    </div>
+                ))}
+            </div>
+            {status.isNewProject && !status.wizardCompleted && (
+                <div style={{ marginTop: 16 }}>
+                    <button
+                        className="stg-btn stg-btn--primary"
+                        onClick={() => window.dispatchEvent(new CustomEvent('amox_open_workspace_wizard'))}
+                    >
+                        Open Workspace Wizard
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Source Control Panel (Sprint 3 stub) ─────────────────────────────────────
+function SourceControlPanel() {
+    return (
+        <div className="stg-section">
+            <h3 className="stg-section-title">Git Integration</h3>
+            <p className="stg-row-desc stg-row-desc--mb14">
+                Local Git support (commit, stage, branch) is available from the Source Control sidebar panel.
+                No remote push/pull — designed for local version control of your SQL projects.
+            </p>
+            <div className="stg-group stg-group--mt14">
+                <div className="stg-row">
+                    <span className="stg-row-label">Git Panel</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Available in the left sidebar (Ctrl+Shift+G)</span>
+                </div>
+                <div className="stg-row">
+                    <span className="stg-row-label">Auto .gitignore</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Generated when initializing a repo — excludes .duckdb files</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Map legacy tab IDs to new IDs + sub-tab to pre-select
+const LEGACY_TAB_MAP = {
+    formatter:    { tab: 'editor',     sub: 'formatting' },
+    memories:     { tab: 'ai',         sub: 'knowledge' },
+    aicontext:    { tab: 'ai',         sub: 'knowledge' },
+    cloud:        { tab: 'ai',         sub: 'cloud' },
+    gallery:      { tab: 'appearance', sub: null },
+};
+
 const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
+    const [editorSubTab, setEditorSubTab]   = useState('general');
+    const [aiSubTab,     setAiSubTab]       = useState('models');
     const [settingsSearch, setSettingsSearch] = useState('');
     const contentRef = useRef(null);
     const toast = useToast();
@@ -212,10 +531,19 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         if (contentRef.current) contentRef.current.scrollTop = 0;
     }, [activeTab]);
 
-    // Respond to initialTab prop (e.g. from Ctrl+Shift+/)
+    // Respond to initialTab prop (e.g. from Ctrl+Shift+/, legacy deep-links)
     useEffect(() => {
         if (isOpen && initialTab) {
-            setActiveTab(initialTab);
+            const legacy = LEGACY_TAB_MAP[initialTab];
+            if (legacy) {
+                setActiveTab(legacy.tab);
+                if (legacy.sub) {
+                    if (legacy.tab === 'editor') setEditorSubTab(legacy.sub);
+                    if (legacy.tab === 'ai')     setAiSubTab(legacy.sub);
+                }
+            } else {
+                setActiveTab(initialTab);
+            }
             onTabReset?.();
         }
     }, [isOpen, initialTab]);
@@ -398,23 +726,33 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         aria-label="Search settings"
                     />
                     {[
-                        { id: 'appearance', icon: <LuPalette size={16} />, label: 'Appearance' },
-                        { id: 'editor', icon: <LuCode size={16} />, label: 'Editor' },
-                        { id: 'formatter', icon: <LuWrapText size={16} />, label: 'Formatter' },
-                        { id: 'behavior', icon: <LuSettings size={16} />, label: 'Behavior' },
-                        { id: 'ai', icon: <LuCpu size={16} />, label: 'AI Assistant' },
-                        { id: 'memories', icon: <LuBrain size={16} />, label: 'AI Memories' },
-                        { id: 'cloud', icon: <LuCloud size={16} />, label: 'Cloud Storage' },
-                        { id: 'shortcuts', icon: <LuKeyboard size={16} />, label: 'Shortcuts' },
-                        { id: 'gallery', icon: <LuLayoutGrid size={16} />, label: 'Chart Gallery' },
-                        { id: 'about', icon: <LuInfo size={16} />, label: 'About AmoxSQL' },
-                    ].filter(tab => !settingsSearch || tab.label.toLowerCase().includes(settingsSearch.toLowerCase())).map(tab => (
+                        { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
+                        { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor', subtitle: 'General · Formatting' },
+                        { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
+                        { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant', subtitle: 'Models · Knowledge · Cloud' },
+                        { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
+                        { id: 'sourcecontrol', icon: <LuGitBranch size={16} />, label: 'Source Control' },
+                        { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
+                        { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
+                    ].filter(tab => {
+                        if (!settingsSearch) return true;
+                        const q = settingsSearch.toLowerCase();
+                        return tab.label.toLowerCase().includes(q) ||
+                               (tab.subtitle || '').toLowerCase().includes(q);
+                    }).map(tab => (
                         <div
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`stg-tab${activeTab === tab.id ? ' stg-tab--active' : ''}`}
                         >
-                            {tab.icon} {tab.label}
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {tab.icon} {tab.label}
+                            </span>
+                            {tab.subtitle && (
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 24, display: 'block', lineHeight: 1.3 }}>
+                                    {tab.subtitle}
+                                </span>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -562,6 +900,15 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         {/* ═══ EDITOR ═══ */}
                         {activeTab === 'editor' && (
                             <div className="stg-section">
+                                <TabWithSubTabs
+                                    tabs={[
+                                        { id: 'general',    label: 'General' },
+                                        { id: 'formatting', label: 'Formatting' },
+                                    ]}
+                                    activeTab={editorSubTab}
+                                    onChange={setEditorSubTab}
+                                />
+                                {editorSubTab === 'general' && <div>
                                 {/* Typography */}
                                 <div>
                                     <h3 className="stg-section-title">Typography</h3>
@@ -820,12 +1167,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* ═══ FORMATTER ═══ */}
-                        {activeTab === 'formatter' && (
-                            <div className="stg-section">
+                                </div>}
+                                {/* ── Formatting sub-tab (formerly Formatter) ── */}
+                                {editorSubTab === 'formatting' && <div>
                                 <div>
                                     <h3 className="stg-section-title">SQL Formatter</h3>
                                     <p className="stg-row-desc stg-row-desc--mb14">
@@ -925,6 +1269,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                     </div>
                                 </div>
+                                </div>}
                             </div>
                         )}
 
@@ -1069,6 +1414,16 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         {/* ═══ AI ═══ */}
                         {activeTab === 'ai' && (
                             <div className="stg-section">
+                                <TabWithSubTabs
+                                    tabs={[
+                                        { id: 'models',    label: 'Models' },
+                                        { id: 'knowledge', label: 'Knowledge' },
+                                        { id: 'cloud',     label: 'Cloud Storage' },
+                                    ]}
+                                    activeTab={aiSubTab}
+                                    onChange={setAiSubTab}
+                                />
+                                {aiSubTab === 'models' && <div>
                                 {/* Provider */}
                                 <div className="stg-row stg-row--top">
                                     <div className="stg-flex-1">
@@ -1357,12 +1712,27 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                     </>
                                 )}
-                            </div>
-                        )}
-
-                        {/* ═══ CLOUD ═══ */}
-                        {activeTab === 'cloud' && (
-                            <div className="stg-section">
+                                </div>}
+                                {/* ── Knowledge sub-tab: Memories + AI Context ── */}
+                                {aiSubTab === 'knowledge' && <div>
+                                <div>
+                                    <h3 className="stg-section-title">AI Memories</h3>
+                                    <p className="stg-row-desc stg-row-desc--mb14">
+                                        Memories are facts and rules that AmoxSQL AI automatically extracts from your conversations to personalize future responses.
+                                    </p>
+                                    <MemoriesPanel />
+                                </div>
+                                <hr className="stg-divider" />
+                                <div>
+                                    <h3 className="stg-section-title">AI Context (Semantic Layer)</h3>
+                                    <p className="stg-row-desc stg-row-desc--mb14">
+                                        Define business metrics, joins and a domain glossary so the AI understands your data.
+                                    </p>
+                                    <AiContextTab />
+                                </div>
+                                </div>}
+                                {/* ── Cloud sub-tab ── */}
+                                {aiSubTab === 'cloud' && <div>
                                 <div className="stg-row stg-row--top">
                                     <div>
                                         <h3 className="stg-section-heading stg-section-heading--mb8">S3 & GCS Export Configuration</h3>
@@ -1450,6 +1820,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         {cloudTestResult.text}
                                     </div>
                                 )}
+                                </div>}
                             </div>
                         )}
 
@@ -1467,14 +1838,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                             </div>
                         )}
 
-                        {/* ═══ MEMORIES ═══ */}
-                        {activeTab === 'memories' && (
-                            <div className="stg-section">
-                                <p className="stg-row-desc stg-row-desc--mb14">
-                                    Memories are facts and rules that AmoxSQL AI automatically extracts from your conversations to personalize future responses. You can edit or delete them here.
-                                </p>
-                                <MemoriesPanel />
-                            </div>
+                        {/* ═══ WORKSPACE ═══ */}
+                        {activeTab === 'workspace' && (
+                            <WorkspaceSettingsPanel />
+                        )}
+
+                        {/* ═══ SOURCE CONTROL ═══ */}
+                        {activeTab === 'sourcecontrol' && (
+                            <SourceControlPanel />
                         )}
 
                         {/* ═══ KEYBOARD SHORTCUTS ═══ */}

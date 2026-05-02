@@ -1,11 +1,92 @@
 import { useState, useEffect, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
 import EditProposalBlock from './EditProposalBlock';
+
+/**
+ * NarrativeCard — renders a structured final_answer with tldr/findings/cause/actions/caveats.
+ */
+function NarrativeCard({ result, onFollowUp }) {
+    const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
+    const [causeOpen, setCauseOpen] = useState(false);
+
+    return (
+        <div className="ai-narrative">
+            {tldr && (
+                <div className="ai-narrative-tldr">
+                    <LuZap size={12} className="ai-narrative-tldr-icon" />
+                    <span>{tldr}</span>
+                </div>
+            )}
+
+            {findings?.length > 0 && (
+                <div className="ai-narrative-section">
+                    <div className="ai-narrative-section-label">
+                        <LuTrendingUp size={11} />
+                        Findings
+                    </div>
+                    <ul className="ai-narrative-findings">
+                        {findings.map((f, i) => (
+                            <li key={i} className="ai-narrative-finding">
+                                <span className="ai-narrative-finding-point">{f.point}</span>
+                                {f.value && <span className="ai-narrative-finding-value">{f.value}</span>}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {likely_cause && (
+                <div className="ai-narrative-section">
+                    <button className="ai-narrative-cause-toggle" onClick={() => setCauseOpen(o => !o)}>
+                        <LuCircleHelp size={11} />
+                        <span>Why?</span>
+                        {causeOpen ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
+                    </button>
+                    {causeOpen && <p className="ai-narrative-cause">{likely_cause}</p>}
+                </div>
+            )}
+
+            {suggested_actions?.length > 0 && (
+                <div className="ai-narrative-section">
+                    <div className="ai-narrative-section-label">
+                        <LuArrowRight size={11} />
+                        Next steps
+                    </div>
+                    <ol className="ai-narrative-actions">
+                        {suggested_actions.map((a, i) => (
+                            <li key={i}>{a}</li>
+                        ))}
+                    </ol>
+                </div>
+            )}
+
+            {caveats?.length > 0 && (
+                <div className="ai-narrative-caveats">
+                    <LuTriangleAlert size={10} className="ai-narrative-caveats-icon" />
+                    <span>{caveats.join(' ')}</span>
+                </div>
+            )}
+
+            {followup_questions?.length > 0 && (
+                <div className="ai-msg-followups">
+                    <span className="ai-msg-followups__label">Explore</span>
+                    <div className="ai-msg-followups__list">
+                        {followup_questions.map((q, i) => (
+                            <button key={i} className="ai-msg-followup" onClick={() => onFollowUp?.(q)}>
+                                {q}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 /**
  * Parses thinking tokens (<think>...</think>) from model output.
@@ -163,9 +244,14 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // edit_file tool calls — shown as accept/reject proposals (assistant mode only)
     const editFileCalls = !isDiving ? (toolCalls?.filter(tc => tc.toolName === 'edit_file') || []) : [];
 
-    // Other tool calls (list_tables, describe_table, read_file) — exclude edit_file (handled separately)
+    // final_answer structured results — rendered as NarrativeCard when structured fields are present
+    const narrativeCalls = toolCalls?.filter(tc =>
+        tc.toolName === 'final_answer' && tc.result && (tc.result.tldr || tc.result.findings?.length)
+    ) || [];
+
+    // Other tool calls (list_tables, describe_table, read_file) — exclude edit_file and final_answer (handled separately)
     const otherCalls = toolCalls?.filter(tc =>
-        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook' && tc.toolName !== 'edit_file'
+        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook' && tc.toolName !== 'edit_file' && tc.toolName !== 'final_answer'
     ) || [];
 
     // Notebook creation results
@@ -453,7 +539,12 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     </div>
                 )}
 
-                {/* Follow-up suggestions as pills */}
+                {/* Structured narrative summary from final_answer tool */}
+                {narrativeCalls.length > 0 && narrativeCalls.map((tc, i) => (
+                    <NarrativeCard key={i} result={tc.result} onFollowUp={onFollowUp} />
+                ))}
+
+                {/* Follow-up suggestions as pills (from suggest_followups tool) */}
                 {followUps.length > 0 && (
                     <div className="ai-msg-followups">
                         <span className="ai-msg-followups__label">Suggestions</span>

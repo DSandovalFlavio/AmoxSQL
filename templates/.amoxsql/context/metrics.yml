@@ -1,0 +1,22 @@
+# Business Metric Definitions
+# Place this file at .amoxsql/context/metrics.yml in your project.
+# The AI agent will use these definitions when you mention metric names.
+
+metrics:
+  - name: revenue
+    sql: "SUM(amount) FILTER (WHERE status = 'paid')"
+    description: Total paid revenue (excludes refunds and pending orders)
+    grain: order
+    table: orders
+
+  - name: monthly_active_users
+    sql: "COUNT(DISTINCT user_id)"
+    description: Unique users who performed at least one action in the period
+    grain: day
+    table: events
+
+  - name: churn_rate
+    sql: "COUNT(DISTINCT user_id) FILTER (WHERE churned_at IS NOT NULL) / COUNT(DISTINCT user_id)::FLOAT"
+    description: Fraction of users who cancelled in the period
+    grain: month
+    table: subscriptions

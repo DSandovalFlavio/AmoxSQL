@@ -1,8 +1,10 @@
 # Sistema de IA (Chat, Tools, Persistencia, Memoria)
 
+> **Versión documentada:** AmoxSQL v2.1.3 · Fases 1 y 2 del roadmap implementadas.
+
 ## Arquitectura General
 
-El sistema AI tiene dos modos: **Assistant** (sidebar contextual del editor) y **Diving** (analisis profundo con persistencia). Soporta Ollama (local) y Gemini (cloud) con un sistema de tiers que adapta funcionalidades segun la capacidad del modelo.
+El sistema AI tiene dos modos: **Assistant** (sidebar contextual del editor) y **Diving** (análisis profundo con persistencia). Soporta Ollama (local) y Gemini (cloud) con un sistema de tiers que adapta funcionalidades según la capacidad del modelo.
 
 ```
 AiSidebar (React) ──SSE──> /api/ai/chat/stream (Express)
@@ -283,3 +285,272 @@ Pasada 2: Extrae SQL del texto, corrige nombres de tablas,
 - Muestra input args y output como JSON (truncado a 800 chars)
 - Metadata: execute_sql muestra "X rows - Yms", describe_table muestra nombre
 - ChatMessage renderiza thinking blocks ocultos y markdown
+
+---
+
+## System Prompt Modular (v2 — server/ai/prompt/)
+
+El system prompt se construye desde builders independientes. Refactorizado en la Fase 1 del roadmap.
+
+```
+server/ai/prompt/
+├── index.js     ← buildSystemPrompt(options) — composer principal
+├── schema.js    ← formatTableSchemas(), formatFileSchemas()
+├── tools.js     ← buildToolsSection(enablePlanner, tier, mode)
+├── modes.js     ← buildAssistantModeSection(), buildDivingModeSection()
+└── context.js   ← buildChartTypesSection(), buildUserRulesSection(),
+                    buildMemoriesSection(), buildSkillSection(), buildFlockSection()
+```
+
+`server/ai/systemPrompt.js` es ahora un thin re-export: `module.exports = require('./prompt/index')`.
+
+Para extender el prompt (agregar nueva sección):
+1. Crear builder en el archivo apropiado de `server/ai/prompt/`
+2. Importarlo en `index.js`
+3. Añadirlo en el orden deseado dentro de `buildSystemPrompt()`
+
+---
+
+## SQL Self-Correction Loop (Fase 1)
+
+Cuando `execute_sql` retorna un error, el loop intenta corregir automáticamente antes de rendirse.
+
+```javascript
+// server/ai/agenticLoop.js
+const MAX_SQL_CORRECTION_RETRIES = 3;
+
+// Dentro del loop agentic:
+if (toolName === 'execute_sql' && toolResult.error) {
+  iterSqlErrors.push({ query: toolArgs.query, error: toolResult.error });
+}
+if (toolName === 'execute_sql' && !toolResult.error) {
+  iterSqlSuccesses++;
+}
+
+// Después de cada iteración con errores y sin éxitos:
+if (iterSqlErrors.length > 0 && iterSqlSuccesses === 0 && sqlCorrectionRetries < MAX_SQL_CORRECTION_RETRIES) {
+  sqlCorrectionRetries++;
+  // Inyectar turno de "usuario" con la directiva de corrección
+  messages.push({
+    role: 'user',
+    content: buildSqlCorrectionPrompt(iterSqlErrors)
+  });
+  // continuar el loop con el mensaje inyectado
+}
+```
+
+`buildSqlCorrectionPrompt()` genera un mensaje como:
+```
+Your previous SQL failed with:
+  Query: SELECT * FROM ordrrs LIMIT 5
+  Error: Table "ordrrs" not found
+
+Use list_tables to verify exact table names, then fix and retry.
+```
+
+---
+
+## Plan Visible y Editable (Fase 1)
+
+Los planes del AI se pueden editar en la UI antes de ejecutarse.
+
+### Flujo
+
+```
+Cliente (AiDivingPanel):
+  userSkippedSteps = new Set()    ← IDs de steps que el usuario skippeó
+  
+  Al hacer submit:
+    planStepOverrides = Array.from(userSkippedSteps).map(id => ({
+      stepId: id, status: 'skipped', note: 'Skipped by user'
+    }))
+    POST /api/ai/chat/stream con { ..., planStepOverrides }
+
+Servidor (agenticLoop.js):
+  En el handler de create_plan:
+    Para cada step en activePlan.steps:
+      Si step.id está en planStepOverrides → step.status = 'skipped'
+```
+
+### UI (AgentPlanPanel.jsx)
+
+- Badge "editable" visible cuando el plan está activo y no está generando
+- Botón skip (LuSkipForward) aparece en hover sobre cada step
+- Steps skipped por el usuario se muestran con nota "skipped by user"
+- El conteo de steps completados incluye los skipped
+
+---
+
+## Nuevas Tools (Fase 1 y 2)
+
+Tools agregadas en v2.1.x además de las 17 originales:
+
+### `validate_sql`
+```javascript
+Input:  { query: string }
+Output: { valid: true, plan: "PROJECTION..." }
+     | { valid: false, error: "...", hint: "..." }
+```
+Corre `EXPLAIN {query}` sin ejecutar. Detecta errores de sintaxis, columnas inválidas, tablas no existentes.
+
+### `explain_query`
+```javascript
+Input:  { query: string, format?: "text" | "json" }
+Output: { plan: "...", estimated_rows: N }
+```
+Corre `EXPLAIN ANALYZE`. Útil para entender el plan de ejecución antes de correr una query costosa.
+
+### `lint_query`
+```javascript
+Input:  { query: string }
+Output: { issues: [{ severity: "warn"|"error", message: "...", suggestion: "..." }] }
+```
+Detecta 7 antipatrones DuckDB-specific:
+1. `SELECT *` sin `LIMIT` en tablas grandes
+2. `LIKE '%x%'` (leading wildcard — no puede usar índice)
+3. `DISTINCT` redundante cuando hay `GROUP BY`
+4. `ORDER BY` sin `LIMIT` en queries grandes
+5. Producto cartesiano (JOIN sin ON)
+6. Funciones no deterministas en GROUP BY
+7. Conversiones de tipo implícitas que pueden fallar
+
+### `compare_tables`
+```javascript
+Input:  { set_a: string, set_b: string }  // queryId o nombre de tabla
+Output: {
+  schema_diff: { only_in_a: [...], only_in_b: [...], type_changes: [...] },
+  row_counts: { a: N, b: M, diff: N-M },
+  numeric_stats: [{ column, mean_a, mean_b, diff_pct, ... }],  // ordenado por |diff_pct|
+  summary: "A tiene 150 filas más. La columna 'amount' difiere en un 23.5%."
+}
+```
+Compara dos resultados (por queryId del cache) o dos tablas. Útil para comparar períodos o versiones de datos.
+
+### `correlate_metrics`
+```javascript
+Input:  { table_name: string, target_column: string, candidate_columns?: string[] }
+Output: {
+  correlations: [{ column, pearson_r, abs_r, strength: "strong"|"moderate"|"weak" }],
+  insights: {
+    strong_correlations: [...],   // |r| > 0.7
+    moderate_correlations: [...], // 0.4 < |r| ≤ 0.7
+    top_driver: { column, pearson_r }
+  },
+  sql_used: "SELECT CORR(TRY_CAST(...)) ..."
+}
+```
+Calcula correlación de Pearson entre la columna target y todas las columnas numéricas candidatas. Auto-descubre numéricas via `DESCRIBE`.
+
+### `lookup_metric`
+```javascript
+Input:  { name: string }
+Output: { name, sql, description, grain, table }
+     | { error: "Metric 'xyz' not found in context/metrics.yml" }
+```
+Lee `context/metrics.yml` del proyecto actual. El AI debe llamar este tool antes de calcular cualquier métrica de negocio.
+
+### `find_example`
+```javascript
+Input:  { query: string }  // pregunta en lenguaje natural
+Output: [{ question, sql, file, score }]  // top 3 por similitud de keywords
+```
+Busca ejemplos relevantes en `context/examples/*.sql`. Ayuda al AI a seguir patrones establecidos para queries similares.
+
+---
+
+## NarrativeCard — final_answer Estructurado (Fase 2)
+
+`final_answer` ahora acepta campos estructurados además del `summary` legacy. Cuando hay campos estructurados, el cliente renderiza una `NarrativeCard` en lugar de texto plano.
+
+### Schema Zod (server/ai/tools.js)
+
+```javascript
+final_answer: tool({
+  parameters: z.object({
+    tldr:              z.string().optional(),       // 1-2 oraciones: el takeaway principal
+    findings:          z.array(z.object({
+      point: z.string(),                            // observación
+      value: z.string().optional()                  // métrica de soporte ("+ 41%", "$50k")
+    })).optional(),
+    likely_cause:      z.string().optional(),       // el "por qué" del hallazgo principal
+    suggested_actions: z.array(z.string()).optional(), // 2-3 acciones concretas
+    caveats:           z.array(z.string()).optional(), // limitaciones de datos, supuestos
+    followup_questions: z.array(z.string()).optional(),
+    summary:           z.string().optional()        // legacy — se auto-construye si hay campos estructurados
+  })
+})
+```
+
+### Renderizado (ChatMessage.jsx — NarrativeCard)
+
+```
+┌─────────────────────────────────────┐
+│ ⚡ Revenue creció 23% YoY en Q3      │  ← tldr
+├─────────────────────────────────────┤
+│ Hallazgos                           │
+│  📈 Región West lidera crecimiento  │
+│     +41%                            │
+│  📈 Q3 fue el mes récord            │
+│     $50k                            │
+├─────────────────────────────────────┤
+│ ❓ ¿Por qué? (toggle collapsible)   │  ← likely_cause
+│   La campaña de agosto impulsó...   │
+├─────────────────────────────────────┤
+│ Acciones sugeridas                  │  ← suggested_actions
+│   1. Replicar campaña en Q4         │
+│   2. Investigar caída de East...    │
+└─────────────────────────────────────┘
+```
+
+**Lógica de detección:** Si `toolResult.tldr || toolResult.findings?.length`, se suprime el streaming del summary y se renderiza NarrativeCard. Los mensajes con solo `summary` siguen renderizando como markdown.
+
+---
+
+## Context-as-Code Integration
+
+El AI carga el contexto del proyecto (`context/`) al inicio de cada conversación.
+
+```javascript
+// agenticLoop.js — se carga en paralelo con otras inicializaciones
+const [userRules, memories, activeSkill, flockStatus, projectCtx] = await Promise.all([
+  loadUserRules(projectPath),
+  loadMemoriesText(dbManager),
+  loadActiveSkill(activeSkillId),
+  getFlockStatus(),
+  loadProjectContext(projectPath)   // ← contextLoader.js
+]);
+
+// Se inyecta al system prompt
+buildSystemPrompt({ ..., projectCtx })
+  // → buildProjectContextSection(projectCtx)
+  // → Sección "## Project Semantic Context" con métricas, joins, glosario, ejemplos
+```
+
+Ver documentación completa en [`contexto_codigo_ai.md`](contexto_codigo_ai.md).
+
+---
+
+## Query Cache — Flujo Completo
+
+```
+execute_sql exitoso:
+  1. Guarda en Map: queryResults.set(queryId, result)
+  2. Fire-and-forget: aiPersistence.saveQueryCache(dbManager, {
+       queryId, conversationId, sqlQuery, columns, data, rowCount, execMs
+     })
+
+display_chart(queryId):
+  1. Busca: queryResults.get(queryId)          ← in-memory (fast)
+  2. Si no: aiPersistence.getQueryCache(dbManager, queryId)  ← DB (slow, pero disponible)
+  3. Actualiza in-memory Map con el resultado recuperado
+
+compare_tables(queryId):
+  Usa el mismo mecanismo de recovery del cache
+
+Pruning (automático):
+  Después de saveQueryCache: si hay >100 entries para la conversación,
+  elimina los más viejos (FIFO por created_at)
+```
+
+**Formato de queryId:** `qr_{timestamp}_{6chars_random}`  
+Ejemplo: `qr_1715084620123_a1b2c3`

@@ -650,6 +650,184 @@ function createTools(context) {
                 return { suggestions };
             },
         }),
+
+        /**
+         * validate_sql — Validates a SQL query without executing it.
+         * Uses DuckDB EXPLAIN to parse and plan the query.
+         */
+        validate_sql: tool({
+            description: 'Validate a SQL query for syntax and schema correctness WITHOUT executing it. Use before running expensive queries, or when unsure if column/table names are correct. Returns the query plan if valid, or a detailed error if invalid.',
+            inputSchema: z.object({
+                query: z.string().describe('The DuckDB SQL query to validate.'),
+            }),
+            execute: async ({ query }) => {
+                if (!query || typeof query !== 'string') {
+                    return { valid: false, error: 'Query must be a non-empty string.' };
+                }
+                try {
+                    const plan = await dbManager.systemQuery(`EXPLAIN ${query}`);
+                    const planText = plan.map(r => Object.values(r).join('\t')).join('\n');
+                    return {
+                        valid: true,
+                        message: 'SQL is valid. Query plan generated without errors.',
+                        plan: planText.substring(0, 2000),
+                    };
+                } catch (err) {
+                    const errMsg = err?.message || String(err);
+                    const msg = errMsg.toLowerCase();
+                    let hint;
+                    if (msg.includes('column') && (msg.includes('not found') || msg.includes('does not exist'))) {
+                        hint = 'Column not found. Call describe_table to verify exact column names.';
+                    } else if (msg.includes('does not exist') || msg.includes('not found')) {
+                        hint = 'Table/view not found. Call list_tables to see available objects.';
+                    } else if (msg.includes('syntax') || msg.includes('parser') || msg.includes('binder')) {
+                        hint = 'SQL syntax error. Use double quotes for identifiers and single quotes for strings.';
+                    } else {
+                        hint = 'Fix the query and retry. Use list_tables and describe_table to verify names.';
+                    }
+                    return { valid: false, error: errMsg, hint };
+                }
+            },
+        }),
+
+        /**
+         * explain_query — Returns a detailed query execution plan.
+         * Useful for understanding performance and query logic before running heavy queries.
+         */
+        explain_query: tool({
+            description: 'Get a detailed query execution plan showing how DuckDB will process a query — operators, estimated row counts, join strategies, and scan types. Use this to understand performance characteristics or verify query logic on large tables. Does NOT execute the query.',
+            inputSchema: z.object({
+                query: z.string().describe('The DuckDB SQL query to explain.'),
+                detailed: z.boolean().optional().describe('If true, returns EXPLAIN with VERBOSE for more detail. Default: false.'),
+            }),
+            execute: async ({ query, detailed = false }) => {
+                if (!query || typeof query !== 'string') {
+                    return { error: 'Query must be a non-empty string.' };
+                }
+                try {
+                    const explainSql = detailed ? `EXPLAIN (FORMAT JSON) ${query}` : `EXPLAIN ${query}`;
+                    const plan = await dbManager.systemQuery(explainSql);
+                    const planText = plan.map(r => Object.values(r).join('\t')).join('\n');
+                    return {
+                        plan: planText.substring(0, 4000),
+                        query_preview: query.substring(0, 200),
+                        note: 'This is an estimated plan — no data was read or modified.',
+                    };
+                } catch (err) {
+                    return { error: err?.message || String(err) };
+                }
+            },
+        }),
+
+        /**
+         * lint_query — Detects SQL antipatterns and style issues.
+         * DuckDB-specific rules for performance and correctness.
+         */
+        lint_query: tool({
+            description: 'Analyze a SQL query for common antipatterns, performance issues, and DuckDB-specific improvements. Returns a list of warnings and suggestions. Use before running queries on large tables, or when optimizing slow queries.',
+            inputSchema: z.object({
+                query: z.string().describe('The SQL query to lint and analyze.'),
+                table_row_counts: z.record(z.number()).optional().describe('Optional map of {tableName: rowCount} to enable size-aware warnings.'),
+            }),
+            execute: async ({ query, table_row_counts = {} }) => {
+                const warnings = [];
+                const suggestions = [];
+                const q = query.trim();
+                const qUpper = q.toUpperCase();
+
+                // 1. SELECT * without LIMIT on potentially large tables
+                if (/SELECT\s+\*/i.test(q) && !/LIMIT\s+\d+/i.test(q)) {
+                    const tableMatch = q.match(/FROM\s+"?(\w+)"?/i);
+                    const tbl = tableMatch?.[1];
+                    const rows = tbl ? (table_row_counts[tbl] || 0) : 0;
+                    if (rows > 100000 || !tbl) {
+                        warnings.push({
+                            rule: 'no-select-star-without-limit',
+                            severity: rows > 1000000 ? 'error' : 'warning',
+                            message: `SELECT * without LIMIT${tbl && rows > 0 ? ` on "${tbl}" (${rows.toLocaleString()} rows)` : ''}. Add LIMIT or select only needed columns.`,
+                        });
+                    }
+                }
+
+                // 2. Leading wildcard LIKE — cannot use any index
+                const likeMatches = q.match(/LIKE\s+'%[^%]/gi) || [];
+                if (likeMatches.length > 0) {
+                    warnings.push({
+                        rule: 'leading-wildcard-like',
+                        severity: 'info',
+                        message: `LIKE '%...' with a leading wildcard cannot use indexes. Consider full-text search or a suffix index if performance matters.`,
+                    });
+                }
+
+                // 3. DISTINCT combined with GROUP BY (redundant)
+                if (/SELECT\s+DISTINCT/i.test(q) && /GROUP\s+BY/i.test(q)) {
+                    warnings.push({
+                        rule: 'distinct-with-group-by',
+                        severity: 'warning',
+                        message: 'DISTINCT combined with GROUP BY is redundant — GROUP BY already deduplicates. Remove DISTINCT.',
+                    });
+                    suggestions.push('Remove DISTINCT: SELECT ... (without DISTINCT) ... GROUP BY ...');
+                }
+
+                // 4. COUNT(DISTINCT ...) — DuckDB has HyperLogLog approx_count_distinct for large tables
+                if (/COUNT\s*\(\s*DISTINCT/i.test(q)) {
+                    suggestions.push('For very large tables, consider approx_count_distinct() instead of COUNT(DISTINCT ...) — much faster with ~1% error.');
+                }
+
+                // 5. ORDER BY without LIMIT on large result sets
+                if (/ORDER\s+BY/i.test(q) && !/LIMIT\s+\d+/i.test(q)) {
+                    warnings.push({
+                        rule: 'order-by-without-limit',
+                        severity: 'info',
+                        message: 'ORDER BY without LIMIT sorts the entire result set. Add LIMIT N if you only need the top/bottom rows.',
+                    });
+                }
+
+                // 6. Cartesian product risk (multiple FROM tables without JOIN condition)
+                const fromCount = (q.match(/\bFROM\b/gi) || []).length;
+                const joinCount = (q.match(/\bJOIN\b/gi) || []).length;
+                if (fromCount > 1 && joinCount === 0 && !/CROSS\s+JOIN/i.test(q)) {
+                    warnings.push({
+                        rule: 'implicit-cross-join',
+                        severity: 'error',
+                        message: 'Multiple tables in FROM without explicit JOIN condition may produce a cartesian product. Use explicit JOIN ... ON syntax.',
+                    });
+                }
+
+                // 7. DuckDB-specific positive suggestions
+                if (/ROW_NUMBER\s*\(\)/i.test(q) && !/QUALIFY/i.test(q)) {
+                    suggestions.push('DuckDB supports QUALIFY clause to filter window function results without a subquery. E.g.: SELECT ... FROM t QUALIFY ROW_NUMBER() OVER (...) <= 5');
+                }
+
+                if (/\bLIMIT\s+\d+.*\bOFFSET\s+\d+/i.test(q)) {
+                    suggestions.push('For large offsets, consider keyset pagination (WHERE id > last_seen_id) instead of LIMIT/OFFSET — much faster on large tables.');
+                }
+
+                // 8. Also validate the query
+                let validationResult = null;
+                try {
+                    await dbManager.systemQuery(`EXPLAIN ${q}`);
+                    validationResult = { valid: true };
+                } catch (err) {
+                    validationResult = { valid: false, error: err?.message || String(err) };
+                    warnings.unshift({
+                        rule: 'invalid-sql',
+                        severity: 'error',
+                        message: `SQL is invalid: ${validationResult.error}`,
+                    });
+                }
+
+                return {
+                    warnings,
+                    suggestions,
+                    warningCount: warnings.length,
+                    is_valid: validationResult?.valid ?? true,
+                    summary: warnings.length === 0 && suggestions.length === 0
+                        ? 'No issues found. Query looks good.'
+                        : `Found ${warnings.length} warning(s) and ${suggestions.length} suggestion(s).`,
+                };
+            },
+        }),
     };
 
     // ─── Mode-specific tools ───
@@ -701,6 +879,263 @@ function createTools(context) {
                     tags: tags ? tags.join(',') : null,
                 });
                 return { success: true, id: entry.id, title };
+            } catch (err) {
+                return { error: err?.message || String(err) };
+            }
+        },
+    });
+
+    // ─── Analytical comparison tools ───
+
+    /**
+     * compare_tables — Structural and statistical diff between two query results.
+     * Accepts two queryIds (from previous execute_sql calls) or two table/view names.
+     */
+    allTools.compare_tables = tool({
+        description: 'Compare two query results or tables — schema diff (added/removed/changed columns) and statistical diff (row count, numeric summary changes). Use after running two queries you want to contrast: "compare this month vs last month", "compare two segments", or "what changed between these datasets".',
+        inputSchema: z.object({
+            query_id_a: z.string().optional().describe('queryId from a previous execute_sql call (result set A).'),
+            query_id_b: z.string().optional().describe('queryId from a previous execute_sql call (result set B).'),
+            table_a: z.string().optional().describe('Table or view name for dataset A (alternative to query_id_a).'),
+            table_b: z.string().optional().describe('Table or view name for dataset B (alternative to query_id_b).'),
+            label_a: z.string().optional().describe('Human-readable label for dataset A (e.g. "This month", "Group A").'),
+            label_b: z.string().optional().describe('Human-readable label for dataset B (e.g. "Last month", "Group B").'),
+        }),
+        execute: async ({ query_id_a, query_id_b, table_a, table_b, label_a = 'A', label_b = 'B' }) => {
+            try {
+                // ── Resolve both result sets ──
+                async function resolveSet(queryId, tableName) {
+                    if (queryId) {
+                        const mem = queryResults.get(queryId);
+                        if (mem) return mem;
+                        if (aiPersistence) {
+                            const cached = await aiPersistence.getQueryCache(dbManager, queryId);
+                            if (cached) return {
+                                columns: cached.columns_info || [],
+                                data:    cached.data         || [],
+                                rowCount: cached.row_count,
+                            };
+                        }
+                        return null;
+                    }
+                    if (tableName) {
+                        const rows = await dbManager.systemQuery(
+                            `SELECT * FROM ${tableName} LIMIT 500`
+                        );
+                        const types = rows.length > 0
+                            ? Object.keys(rows[0]).map(n => ({ name: n, type: 'VARCHAR' }))
+                            : [];
+                        return { columns: types, data: rows, rowCount: rows.length };
+                    }
+                    return null;
+                }
+
+                const [setA, setB] = await Promise.all([
+                    resolveSet(query_id_a, table_a),
+                    resolveSet(query_id_b, table_b),
+                ]);
+
+                if (!setA) return { error: `Could not resolve dataset ${label_a}. Provide a valid query_id_a or table_a.` };
+                if (!setB) return { error: `Could not resolve dataset ${label_b}. Provide a valid query_id_b or table_b.` };
+
+                const colsA = new Map(setA.columns.map(c => [c.name, c.type || '']));
+                const colsB = new Map(setB.columns.map(c => [c.name, c.type || '']));
+
+                // ── Schema diff ──
+                const onlyInA   = [...colsA.keys()].filter(n => !colsB.has(n));
+                const onlyInB   = [...colsB.keys()].filter(n => !colsA.has(n));
+                const shared    = [...colsA.keys()].filter(n => colsB.has(n));
+                const typeDiffs = shared.filter(n => colsA.get(n) !== colsB.get(n))
+                    .map(n => ({ column: n, typeA: colsA.get(n), typeB: colsB.get(n) }));
+
+                // ── Row count diff ──
+                const rowDiff = setB.rowCount - setA.rowCount;
+                const rowPct  = setA.rowCount > 0
+                    ? `${rowDiff >= 0 ? '+' : ''}${((rowDiff / setA.rowCount) * 100).toFixed(1)}%`
+                    : 'N/A';
+
+                // ── Numeric stats diff for shared columns ──
+                const numericStats = [];
+                for (const col of shared.slice(0, 20)) {
+                    const valsA = setA.data.map(r => r[col]).filter(v => v !== null && v !== undefined && !isNaN(Number(v))).map(Number);
+                    const valsB = setB.data.map(r => r[col]).filter(v => v !== null && v !== undefined && !isNaN(Number(v))).map(Number);
+                    if (valsA.length < 2 || valsB.length < 2) continue;
+
+                    const sumA  = valsA.reduce((s, v) => s + v, 0);
+                    const sumB  = valsB.reduce((s, v) => s + v, 0);
+                    const meanA = sumA / valsA.length;
+                    const meanB = sumB / valsB.length;
+                    const diff  = meanB - meanA;
+
+                    numericStats.push({
+                        column:  col,
+                        [`mean_${label_a}`]: +meanA.toFixed(4),
+                        [`mean_${label_b}`]: +meanB.toFixed(4),
+                        mean_diff:  +(diff).toFixed(4),
+                        mean_pct:   meanA !== 0 ? `${diff >= 0 ? '+' : ''}${((diff / Math.abs(meanA)) * 100).toFixed(1)}%` : 'N/A',
+                    });
+                }
+
+                return {
+                    schema_diff: {
+                        columns_only_in_a:  onlyInA,
+                        columns_only_in_b:  onlyInB,
+                        type_mismatches:    typeDiffs,
+                        shared_column_count: shared.length,
+                    },
+                    row_counts: {
+                        [label_a]: setA.rowCount,
+                        [label_b]: setB.rowCount,
+                        diff: rowDiff,
+                        pct_change: rowPct,
+                    },
+                    numeric_stats: numericStats.sort((a, b) =>
+                        Math.abs(b.mean_diff) - Math.abs(a.mean_diff)
+                    ),
+                    summary: [
+                        `Rows: ${label_a}=${setA.rowCount}, ${label_b}=${setB.rowCount} (${rowPct})`,
+                        onlyInA.length   ? `Columns only in ${label_a}: ${onlyInA.join(', ')}` : '',
+                        onlyInB.length   ? `Columns only in ${label_b}: ${onlyInB.join(', ')}` : '',
+                        typeDiffs.length ? `Type mismatches: ${typeDiffs.map(t => t.column).join(', ')}` : '',
+                    ].filter(Boolean).join(' | '),
+                };
+            } catch (err) {
+                return { error: err?.message || String(err) };
+            }
+        },
+    });
+
+    /**
+     * correlate_metrics — Computes Pearson correlations between a target column
+     * and candidate columns, using DuckDB's native CORR() aggregate.
+     */
+    allTools.correlate_metrics = tool({
+        description: 'Compute Pearson correlations between a target metric column and all other numeric columns in a table or query result. Use to find which variables drive or explain a target metric — e.g. "what correlates with revenue?", "what predicts churn?".',
+        inputSchema: z.object({
+            table_or_query: z.string().describe('Table name or a SELECT query wrapped in parentheses, e.g. "orders" or "(SELECT amount, region, age FROM orders WHERE ...)"'),
+            target_column:  z.string().describe('The metric you want to explain — correlations are computed against this column.'),
+            candidate_columns: z.array(z.string()).optional().describe('Specific columns to correlate against. If omitted, all numeric columns in the source are used (up to 30).'),
+        }),
+        execute: async ({ table_or_query, target_column, candidate_columns }) => {
+            try {
+                const src = table_or_query.trim().toUpperCase().startsWith('SELECT')
+                    ? `(${table_or_query})`
+                    : table_or_query;
+
+                // If no candidates provided, discover numeric columns via DESCRIBE
+                let candidates = candidate_columns;
+                if (!candidates || candidates.length === 0) {
+                    const descRows = await dbManager.systemQuery(`DESCRIBE ${src}`);
+                    const numericTypes = /INTEGER|BIGINT|DOUBLE|FLOAT|DECIMAL|NUMERIC|HUGEINT|INT|REAL/i;
+                    candidates = descRows
+                        .filter(r => {
+                            const colName = r.column_name || r.name || '';
+                            const colType = r.column_type || r.type || '';
+                            return numericTypes.test(colType) && colName !== target_column;
+                        })
+                        .map(r => r.column_name || r.name)
+                        .slice(0, 30);
+                }
+
+                if (candidates.length === 0) {
+                    return { error: 'No numeric candidate columns found. Specify candidate_columns explicitly.' };
+                }
+
+                // Build a single CORR query for all candidates
+                const corrExprs = candidates
+                    .map(c => `CORR(TRY_CAST("${c}" AS DOUBLE), TRY_CAST("${target_column}" AS DOUBLE)) AS "${c}"`)
+                    .join(',\n    ');
+
+                const corrSql = `SELECT\n    ${corrExprs}\nFROM ${src}`;
+                const rows = await dbManager.systemQuery(corrSql);
+
+                if (!rows || rows.length === 0) {
+                    return { error: 'Correlation query returned no results.' };
+                }
+
+                const row = rows[0];
+                const correlations = candidates
+                    .map(c => ({ column: c, correlation: row[c] !== null ? +Number(row[c]).toFixed(4) : null }))
+                    .filter(r => r.correlation !== null)
+                    .sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
+
+                const strong   = correlations.filter(r => Math.abs(r.correlation) >= 0.7);
+                const moderate = correlations.filter(r => Math.abs(r.correlation) >= 0.4 && Math.abs(r.correlation) < 0.7);
+
+                return {
+                    target_column,
+                    correlations,
+                    insights: {
+                        strong_correlations:   strong.map(r => `${r.column} (${r.correlation > 0 ? '+' : ''}${r.correlation})`),
+                        moderate_correlations: moderate.map(r => `${r.column} (${r.correlation > 0 ? '+' : ''}${r.correlation})`),
+                        top_driver: correlations[0] || null,
+                    },
+                    sql_used: corrSql,
+                };
+            } catch (err) {
+                return { error: err?.message || String(err) };
+            }
+        },
+    });
+
+    // ─── Context-as-code tools (available in both modes when .amoxsql/context/ exists) ───
+
+    allTools.lookup_metric = tool({
+        description: 'Look up a business metric definition from the project semantic context (.amoxsql/context/metrics.yml). Use this when the user mentions a business term like "revenue", "MAU", "churn" to get the canonical SQL expression before writing your query.',
+        inputSchema: z.object({
+            name: z.string().describe('The metric name to look up (e.g. "revenue", "monthly_active_users").'),
+        }),
+        execute: async ({ name }) => {
+            try {
+                const { loadProjectContext } = require('./contextLoader');
+                const ctx = await loadProjectContext(projectPath);
+                if (!ctx || !ctx.metrics.length) {
+                    return { found: false, message: 'No metrics context found. Create .amoxsql/context/metrics.yml to define business metrics.' };
+                }
+                const needle = name.toLowerCase().replace(/[\s-]/g, '_');
+                const metric = ctx.metrics.find(m =>
+                    m.name.toLowerCase().replace(/[\s-]/g, '_') === needle ||
+                    m.name.toLowerCase().includes(needle)
+                );
+                if (!metric) {
+                    return {
+                        found: false,
+                        available: ctx.metrics.map(m => m.name),
+                        message: `Metric "${name}" not found. Available: ${ctx.metrics.map(m => m.name).join(', ')}`,
+                    };
+                }
+                return { found: true, ...metric };
+            } catch (err) {
+                return { error: err?.message || String(err) };
+            }
+        },
+    });
+
+    allTools.find_example = tool({
+        description: 'Search for a relevant SQL example in the project semantic context (.amoxsql/context/examples/). Use this when the user asks something similar to a known pattern — the example shows the canonical approach.',
+        inputSchema: z.object({
+            question: z.string().describe('The user question or analysis goal to find a matching example for.'),
+        }),
+        execute: async ({ question }) => {
+            try {
+                const { loadProjectContext } = require('./contextLoader');
+                const ctx = await loadProjectContext(projectPath);
+                if (!ctx || !ctx.examples.length) {
+                    return { found: false, message: 'No example queries found. Create .amoxsql/context/examples/*.sql to add examples.' };
+                }
+                // Simple keyword matching — rank by overlap
+                const words = question.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+                const scored = ctx.examples.map(ex => {
+                    const text = (ex.question + ' ' + ex.sql).toLowerCase();
+                    const score = words.filter(w => text.includes(w)).length;
+                    return { ...ex, score };
+                }).filter(ex => ex.score > 0).sort((a, b) => b.score - a.score);
+
+                if (!scored.length) {
+                    return { found: false, count: ctx.examples.length, message: 'No close examples found for that question.' };
+                }
+                const top = scored.slice(0, 3);
+                return { found: true, examples: top.map(({ question, sql }) => ({ question, sql })) };
             } catch (err) {
                 return { error: err?.message || String(err) };
             }
@@ -768,12 +1203,38 @@ function createTools(context) {
         });
 
         allTools.final_answer = tool({
-            description: 'Signal that the analysis is complete. Call this as the LAST action after all plan steps are done. Provide a comprehensive markdown summary of findings and 2-4 follow-up questions.',
+            description: 'Signal that the analysis is complete. Call this as the LAST action after all plan steps are done. Use structured fields (tldr, findings, likely_cause, suggested_actions) for a professional narrative summary — skip the legacy "summary" field when using these.',
             inputSchema: z.object({
-                summary: z.string().describe('Complete markdown summary of findings, key numbers, insights, and conclusions.'),
+                // ── Structured narrative (preferred) ──
+                tldr: z.string().optional().describe('1-2 sentence TL;DR: the single most important finding.'),
+                findings: z.array(z.object({
+                    point: z.string().describe('Key observation or insight.'),
+                    value: z.string().optional().describe('Supporting metric, number, or percentage.'),
+                })).min(1).max(8).optional().describe('Key findings from the analysis, each with an optional supporting metric.'),
+                likely_cause: z.string().optional().describe('Probable explanation or root cause for the main finding (omit if not applicable).'),
+                suggested_actions: z.array(z.string()).min(1).max(4).optional().describe('Concrete next steps the user could take.'),
+                caveats: z.array(z.string()).optional().describe('Data quality notes, important limitations, or assumptions to disclose.'),
+
+                // ── Legacy fallback ──
+                summary: z.string().optional().describe('Full markdown narrative — only use this if you cannot produce structured findings above.'),
                 followup_questions: z.array(z.string()).min(2).max(4).optional().describe('Follow-up questions the user might want to explore next.'),
             }),
-            execute: async ({ summary, followup_questions }) => {
+            execute: async ({ tldr, findings, likely_cause, suggested_actions, caveats, summary, followup_questions }) => {
+                // Auto-build a markdown summary from structured fields when summary isn't provided
+                const resolvedSummary = summary || [
+                    tldr ? `**TL;DR:** ${tldr}` : '',
+                    findings?.length
+                        ? '\n**Findings:**\n' + findings.map(f =>
+                            `- ${f.point}${f.value ? ` — **${f.value}**` : ''}`
+                          ).join('\n')
+                        : '',
+                    likely_cause ? `\n**Why:** ${likely_cause}` : '',
+                    suggested_actions?.length
+                        ? '\n**Suggested actions:**\n' + suggested_actions.map(a => `- ${a}`).join('\n')
+                        : '',
+                    caveats?.length ? `\n**Note:** ${caveats.join(' ')}` : '',
+                ].filter(Boolean).join('\n');
+
                 // Mark any still-pending steps as done so the plan panel shows complete
                 if (activePlan.steps) {
                     for (const step of activePlan.steps) {
@@ -789,10 +1250,17 @@ function createTools(context) {
                 }
 
                 return {
-                    summary,
+                    // Structured fields (used by NarrativeCard in the UI)
+                    tldr:              tldr              || null,
+                    findings:          findings          || null,
+                    likely_cause:      likely_cause      || null,
+                    suggested_actions: suggested_actions || null,
+                    caveats:           caveats           || null,
+                    // Legacy / fallback
+                    summary:           resolvedSummary,
                     followup_questions: followup_questions || [],
-                    plan_id: activePlan.id,
-                    status: 'completed',
+                    plan_id:           activePlan.id,
+                    status:            'completed',
                 };
             },
         });
