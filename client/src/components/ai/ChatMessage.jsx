@@ -8,6 +8,18 @@ import ChatResultsBlock from './ChatResultsBlock';
 import EditProposalBlock from './EditProposalBlock';
 
 /**
+ * Safely decodes URL-encoded strings (like %C3%AD) that some LLMs emit in JSON.
+ */
+function decodeSafely(str) {
+    if (typeof str !== 'string') return str;
+    try {
+        return str.replace(/(%[0-9A-Fa-f]{2})+/g, match => decodeURIComponent(match));
+    } catch (e) {
+        return str;
+    }
+}
+
+/**
  * NarrativeCard — renders a structured final_answer with tldr/findings/cause/actions/caveats.
  */
 function NarrativeCard({ result, onFollowUp }) {
@@ -19,7 +31,7 @@ function NarrativeCard({ result, onFollowUp }) {
             {tldr && (
                 <div className="ai-narrative-tldr">
                     <LuZap size={12} className="ai-narrative-tldr-icon" />
-                    <span>{tldr}</span>
+                    <span>{decodeSafely(tldr)}</span>
                 </div>
             )}
 
@@ -32,8 +44,8 @@ function NarrativeCard({ result, onFollowUp }) {
                     <ul className="ai-narrative-findings">
                         {findings.map((f, i) => (
                             <li key={i} className="ai-narrative-finding">
-                                <span className="ai-narrative-finding-point">{f.point}</span>
-                                {f.value && <span className="ai-narrative-finding-value">{f.value}</span>}
+                                <span className="ai-narrative-finding-point">{decodeSafely(f.point)}</span>
+                                {f.value && <span className="ai-narrative-finding-value">{decodeSafely(f.value)}</span>}
                             </li>
                         ))}
                     </ul>
@@ -47,7 +59,7 @@ function NarrativeCard({ result, onFollowUp }) {
                         <span>Why?</span>
                         {causeOpen ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
                     </button>
-                    {causeOpen && <p className="ai-narrative-cause">{likely_cause}</p>}
+                    {causeOpen && <p className="ai-narrative-cause">{decodeSafely(likely_cause)}</p>}
                 </div>
             )}
 
@@ -59,7 +71,7 @@ function NarrativeCard({ result, onFollowUp }) {
                     </div>
                     <ol className="ai-narrative-actions">
                         {suggested_actions.map((a, i) => (
-                            <li key={i}>{a}</li>
+                            <li key={i}>{decodeSafely(a)}</li>
                         ))}
                     </ol>
                 </div>
@@ -68,7 +80,7 @@ function NarrativeCard({ result, onFollowUp }) {
             {caveats?.length > 0 && (
                 <div className="ai-narrative-caveats">
                     <LuTriangleAlert size={10} className="ai-narrative-caveats-icon" />
-                    <span>{caveats.join(' ')}</span>
+                    <span>{decodeSafely(caveats.join(' '))}</span>
                 </div>
             )}
 
@@ -78,7 +90,7 @@ function NarrativeCard({ result, onFollowUp }) {
                     <div className="ai-msg-followups__list">
                         {followup_questions.map((q, i) => (
                             <button key={i} className="ai-msg-followup" onClick={() => onFollowUp?.(q)}>
-                                {q}
+                                {decodeSafely(q)}
                             </button>
                         ))}
                     </div>
@@ -555,7 +567,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                     className="ai-msg-followup"
                                     onClick={() => onFollowUp && onFollowUp(suggestion)}
                                 >
-                                    {suggestion}
+                                    {decodeSafely(suggestion)}
                                 </button>
                             ))}
                         </div>

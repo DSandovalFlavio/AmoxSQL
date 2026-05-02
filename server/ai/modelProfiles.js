@@ -37,6 +37,20 @@ const MODEL_PATTERNS = [
     { pattern: 'gemini-1.5-flash',    tier: 'cloud',  contextWindow: 500000 },
     { pattern: 'gemini',              tier: 'cloud',  contextWindow: 100000 },
 
+    // ── Cloud (Anthropic) ──
+    { pattern: 'claude-3-7-sonnet',   tier: 'cloud',  contextWindow: 200000 },
+    { pattern: 'claude-3-5-sonnet',   tier: 'cloud',  contextWindow: 200000 },
+    { pattern: 'claude-3-opus',       tier: 'cloud',  contextWindow: 200000 },
+    { pattern: 'claude-3-5-haiku',    tier: 'cloud',  contextWindow: 200000 },
+    { pattern: 'claude',              tier: 'cloud',  contextWindow: 200000 },
+
+    // ── Cloud (MiniMax) ──
+    { pattern: 'minimax-m2.7',        tier: 'cloud',  contextWindow: 250000 },
+    { pattern: 'minimax-m2.5',        tier: 'cloud',  contextWindow: 250000 },
+    { pattern: 'minimax-m1',          tier: 'cloud',  contextWindow: 1000000 },
+    { pattern: 'minimax-m2-her',      tier: 'cloud',  contextWindow: 250000 },
+    { pattern: 'minimax',             tier: 'cloud',  contextWindow: 250000 },
+
     // ── Gemma 4 (reclassified by capability, not size) ──
     { pattern: 'gemma4:e2b',  tier: 'medium', contextWindow: 128000 },
     { pattern: 'gemma4:e4b',  tier: 'medium', contextWindow: 128000 },
@@ -299,10 +313,14 @@ function getModelProfile(modelName, providerName, ollamaInfo) {
         };
     }
 
-    // ── 2. If provider is gemini, force cloud tier ──
-    if (providerName === 'gemini') {
+    // ── 2. If provider is a cloud provider, force cloud tier ──
+    if (providerName === 'gemini' || providerName === 'anthropic' || providerName === 'minimax') {
         const match = MODEL_PATTERNS.find(p => name.includes(p.pattern));
-        const contextWindow = match ? match.contextWindow : 100000;
+        let defaultContext = 100000;
+        if (providerName === 'anthropic') defaultContext = 200000;
+        if (providerName === 'minimax') defaultContext = 250000;
+        
+        const contextWindow = match ? match.contextWindow : defaultContext;
         return {
             tier: 'cloud',
             contextWindow,

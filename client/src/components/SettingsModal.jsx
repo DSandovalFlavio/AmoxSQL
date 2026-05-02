@@ -502,6 +502,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
     // AI Settings State
     const [geminiApiKey, setGeminiApiKey] = useState('');
+    const [anthropicApiKey, setAnthropicApiKey] = useState('');
+    const [minimaxApiKey, setMinimaxApiKey] = useState('');
     const [provider, setProvider] = useState('ollama');
     const [defaultModel, setDefaultModel] = useState('qwen3:1.7b');
     const [isSaving, setIsSaving] = useState(false);
@@ -549,6 +551,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [isTestingCloud, setIsTestingCloud] = useState(false);
     const [cloudTestResult, setCloudTestResult] = useState(null);
 
+    // ADC Test State
+    const [isTestingAdc, setIsTestingAdc] = useState(false);
+    const [adcTestResult, setAdcTestResult] = useState(null);
+
     const openExternalLink = (e, url) => {
         e.preventDefault();
         if (window.electronAPI && window.electronAPI.openExternal) {
@@ -594,6 +600,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 .then(res => res.json())
                 .then(data => {
                     setGeminiApiKey(data.geminiApiKey || '');
+                    setAnthropicApiKey(data.anthropicApiKey || '');
+                    setMinimaxApiKey(data.minimaxApiKey || '');
                     setProvider(data.provider || 'ollama');
                     setDefaultModel(data.defaultModel || 'gemma4:e2b');
                     if (data.usage) setGeminiUsage(data.usage);
@@ -657,7 +665,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    geminiApiKey, provider, defaultModel, s3Config, gcsConfig,
+                    geminiApiKey, anthropicApiKey, minimaxApiKey, provider, defaultModel, s3Config, gcsConfig,
                     experimental: { planner: plannerMode },
                     geminiModels,
                     modelTierOverrides
@@ -744,6 +752,26 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         } finally {
             setIsTestingCloud(false);
             setTimeout(() => setCloudTestResult(null), 5000);
+        }
+    };
+
+    const handleTestAdc = async () => {
+        setIsTestingAdc(true);
+        setAdcTestResult(null);
+        try {
+            const res = await fetch('http://localhost:3001/api/settings/cloud/test-adc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await res.json();
+            setAdcTestResult(data.success
+                ? { type: 'success', text: data.message }
+                : { type: 'error', text: data.error || data.message || 'ADC test failed' });
+        } catch (err) {
+            setAdcTestResult({ type: 'error', text: err.message });
+        } finally {
+            setIsTestingAdc(false);
+            setTimeout(() => setAdcTestResult(null), 5000);
         }
     };
 
@@ -1449,9 +1477,11 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         >
                                             <option value="ollama">Ollama (Local Engine)</option>
                                             <option value="gemini">Google Gemini (Cloud)</option>
+                                            <option value="anthropic">Anthropic Claude (Cloud)</option>
+                                            <option value="minimax">MiniMax (Cloud)</option>
                                         </select>
                                         <p className="stg-row-desc stg-mt8">
-                                            Choose between running fully private local models or using Google's Cloud API.
+                                            Choose between running fully private local models or using Cloud APIs.
                                         </p>
                                     </div>
                                     <div className="stg-ai-actions">
@@ -1493,16 +1523,24 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     className={`stg-input${geminiApiKey ? ' stg-input--mono' : ''}`}
                                                     value={geminiApiKey}
                                                     onChange={(e) => setGeminiApiKey(e.target.value)}
-                                                    placeholder="Enter your Gemini API Key"
+                                                    placeholder="Enter your Gemini API Key (or leave blank for ADC)"
                                                 />
                                                 {geminiApiKey && (
                                                     <button onClick={() => setGeminiApiKey('')} className="stg-btn stg-btn--danger-text" title="Clear API Key">
                                                         <LuX size={14} />
                                                     </button>
                                                 )}
+                                                <button onClick={() => handleTestAdc()} disabled={isTestingAdc} className="stg-btn">
+                                                    {isTestingAdc ? 'Testing ADC...' : 'Test ADC Connection'}
+                                                </button>
                                             </div>
+                                            {adcTestResult && (
+                                                <div className={`stg-alert stg-alert--${adcTestResult.type} stg-mt8`}>
+                                                    {adcTestResult.text}
+                                                </div>
+                                            )}
                                             <p className="stg-card-desc stg-card-desc--mt8">
-                                                Your key is stored securely in your computer's home directory (~/.amoxsql/).
+                                                Your key is stored securely in your computer's home directory (~/.amoxsql/). If left blank, the SDK will attempt to use Google Cloud Application Default Credentials (ADC).
                                             </p>
                                         </div>
 
@@ -1571,6 +1609,58 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     </span>
                                                 </div>
                                             </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Anthropic */}
+                                {provider === 'anthropic' && (
+                                    <>
+                                        <div className="stg-card stg-card--transparent">
+                                            <h4 className="stg-card-title stg-card-title--mb10">Authentication</h4>
+                                            <div className="stg-flex--gap8">
+                                                <input
+                                                    type={anthropicApiKey ? "password" : "text"}
+                                                    className={`stg-input${anthropicApiKey ? ' stg-input--mono' : ''}`}
+                                                    value={anthropicApiKey}
+                                                    onChange={(e) => setAnthropicApiKey(e.target.value)}
+                                                    placeholder="Enter your Anthropic API Key"
+                                                />
+                                                {anthropicApiKey && (
+                                                    <button onClick={() => setAnthropicApiKey('')} className="stg-btn stg-btn--danger-text" title="Clear API Key">
+                                                        <LuX size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="stg-card-desc stg-card-desc--mt8">
+                                                Your key is stored securely in your computer's home directory (~/.amoxsql/).
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* MiniMax */}
+                                {provider === 'minimax' && (
+                                    <>
+                                        <div className="stg-card stg-card--transparent">
+                                            <h4 className="stg-card-title stg-card-title--mb10">Authentication</h4>
+                                            <div className="stg-flex--gap8">
+                                                <input
+                                                    type={minimaxApiKey ? "password" : "text"}
+                                                    className={`stg-input${minimaxApiKey ? ' stg-input--mono' : ''}`}
+                                                    value={minimaxApiKey}
+                                                    onChange={(e) => setMinimaxApiKey(e.target.value)}
+                                                    placeholder="Enter your MiniMax API Key"
+                                                />
+                                                {minimaxApiKey && (
+                                                    <button onClick={() => setMinimaxApiKey('')} className="stg-btn stg-btn--danger-text" title="Clear API Key">
+                                                        <LuX size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="stg-card-desc stg-card-desc--mt8">
+                                                Your key is stored securely in your computer's home directory (~/.amoxsql/).
+                                            </p>
                                         </div>
                                     </>
                                 )}

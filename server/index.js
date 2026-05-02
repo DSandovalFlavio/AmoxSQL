@@ -1157,10 +1157,12 @@ app.get('/api/settings/config', (req, res) => {
 });
 
 app.post('/api/settings/config', (req, res) => {
-    const { geminiApiKey, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
+    const { geminiApiKey, anthropicApiKey, minimaxApiKey, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
     try {
         const config = aiManager.getConfig();
         if (geminiApiKey  !== undefined) config.geminiApiKey  = geminiApiKey;
+        if (anthropicApiKey !== undefined) config.anthropicApiKey = anthropicApiKey;
+        if (minimaxApiKey !== undefined) config.minimaxApiKey = minimaxApiKey;
         if (provider      !== undefined) config.provider      = provider;
         if (defaultModel  !== undefined) config.defaultModel  = defaultModel;
         if (s3Config      !== undefined) config.s3Config      = s3Config;
@@ -1182,6 +1184,81 @@ app.post('/api/settings/config', (req, res) => {
         res.json({ success: true, config });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/settings/gemini/models', async (req, res) => {
+    try {
+        const config = aiManager.getConfig();
+        const apiKey = config.geminiApiKey;
+        
+        // Default hardcoded list for fallback or ADC mode
+        const defaultModels = [
+            { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+            { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+            { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' }
+        ];
+
+        if (!apiKey) {
+            return res.json({ models: defaultModels });
+        }
+        
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (!response.ok) {
+            console.error(`Failed to fetch Gemini models: ${response.statusText}`);
+            return res.json({ models: defaultModels });
+        }
+        
+        const data = await response.json();
+        
+        // Filter only models that support 'generateContent' and contain 'gemini' followed by a number in their name
+        const validModels = (data.models || [])
+            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+            .filter(m => {
+                const nameStr = m.name.toLowerCase();
+                const dispStr = m.displayName ? m.displayName.toLowerCase() : '';
+                const regex = /gemini[- ]?\d/i;
+                return regex.test(nameStr) || regex.test(dispStr);
+            })
+            .map(m => ({
+                id: m.name.replace('models/', ''),
+                label: m.displayName || m.name.replace('models/', '')
+            }));
+            
+        res.json({ models: validModels });
+    } catch (err) {
+        console.error("Error fetching Gemini models:", err);
+        // Fallback gracefully so UI doesn't break
+        res.json({ models: [
+            { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+            { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+            { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' }
+        ]});
+    }
+});
+
+app.post('/api/settings/cloud/test-adc', async (req, res) => {
+    try {
+        const { createGoogleGenerativeAI } = require('@ai-sdk/google');
+        const { generateText } = require('ai');
+        
+        // Passing no API key lets the Google SDK fall back to ADC automatically
+        const google = createGoogleGenerativeAI({});
+        const model = google('gemini-2.5-flash');
+
+        const result = await generateText({
+            model,
+            prompt: 'Say "ADC authentication successful"',
+            maxTokens: 10,
+        });
+
+        if (result.text) {
+            res.json({ success: true, message: 'ADC connection successful.' });
+        } else {
+            res.json({ success: false, message: 'Failed to retrieve a response using ADC.' });
+        }
+    } catch (err) {
+        res.json({ success: false, message: err.message || 'ADC connection failed.' });
     }
 });
 

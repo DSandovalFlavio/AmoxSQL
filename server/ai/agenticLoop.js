@@ -166,7 +166,44 @@ async function* agenticLoop(options, getModelFn) {
 
     // ── Shared state across iterations ──
     const queryResults = new Map();
-    const activePlan   = { id: null, goal: '', steps: [] };
+    
+    // Reconstruct active plan from previous messages if the loop is resuming
+    const activePlan = { id: null, goal: '', steps: [] };
+    for (const msg of messages) {
+        if (msg.role !== 'assistant') continue;
+        const toolCalls = msg.toolInvocations || msg.tool_calls || [];
+        for (const tc of toolCalls) {
+            const toolName = tc.toolName || tc.function?.name;
+            const args = tc.args || tc.function?.arguments;
+            if (!args) continue;
+            
+            let parsedArgs = args;
+            if (typeof args === 'string') {
+                try { parsedArgs = JSON.parse(args); } catch(e) {}
+            }
+            
+            if (toolName === 'create_plan') {
+                activePlan.id = parsedArgs.plan_id;
+                activePlan.goal = parsedArgs.goal;
+                activePlan.steps = (parsedArgs.steps || []).map(s => ({
+                    id: s.step_id,
+                    description: s.description,
+                    status: s.status || 'pending',
+                    note: null
+                }));
+            } else if (toolName === 'update_plan' && activePlan.id) {
+                const step = activePlan.steps.find(s => s.id === parsedArgs.step_id);
+                if (step) {
+                    step.status = parsedArgs.status;
+                    step.note = parsedArgs.note || null;
+                }
+            } else if (toolName === 'final_answer') {
+                activePlan.id = null;
+                activePlan.goal = '';
+                activePlan.steps = [];
+            }
+        }
+    }
 
     let iterMessages         = messages;
     let iteration            = 0;

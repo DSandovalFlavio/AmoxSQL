@@ -11,6 +11,8 @@ const fs = require('fs');
 const os = require('os');
 const { generateText, streamText } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
+const { createAnthropic } = require('@ai-sdk/anthropic');
+const { createOpenAI } = require('@ai-sdk/openai');
 const { createOllama } = require('ai-sdk-ollama');
 const ollama = createOllama();
 const { createTools } = require('./ai/tools');
@@ -44,6 +46,8 @@ class AiManager {
         if (!fs.existsSync(this.configPath)) {
             const initialConfig = {
                 geminiApiKey: "",
+                anthropicApiKey: "",
+                minimaxApiKey: "",
                 provider: "ollama",
                 defaultModel: "gemma4:e2b",
                 usageDate: new Date().toISOString().split('T')[0],
@@ -107,7 +111,7 @@ class AiManager {
             return config;
         } catch (e) {
             return {
-                geminiApiKey: "", provider: "ollama", defaultModel: "gemma4:e2b",
+                geminiApiKey: "", anthropicApiKey: "", minimaxApiKey: "", provider: "ollama", defaultModel: "gemma4:e2b",
                 usageDate: new Date().toISOString().split('T')[0],
                 usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 },
                 experimental: { planner: true },
@@ -144,14 +148,30 @@ class AiManager {
         const config = this.getConfig();
 
         if (providerName === 'gemini') {
-            if (!config.geminiApiKey) {
-                throw new Error("Gemini API Key is not configured. Please add it in Settings > AI Assistant.");
-            }
-            // Create Google AI provider with user's API key
+            // If no API key is set, the SDK will automatically fallback to Application Default Credentials (ADC)
+            // provided that the environment (e.g. gcloud cli) is configured.
             const google = createGoogleGenerativeAI({
-                apiKey: config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+                apiKey: config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY, // Note: if undefined, SDK tries ADC
             });
             return google(modelName || 'gemini-2.5-flash');
+        } else if (providerName === 'anthropic') {
+            if (!config.anthropicApiKey && !process.env.ANTHROPIC_API_KEY) {
+                throw new Error("Anthropic API Key is not configured. Please add it in Settings > AI Assistant.");
+            }
+            const anthropic = createAnthropic({
+                apiKey: config.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
+            });
+            return anthropic(modelName || 'claude-3-7-sonnet-latest');
+        } else if (providerName === 'minimax') {
+            if (!config.minimaxApiKey && !process.env.MINIMAX_API_KEY) {
+                throw new Error("MiniMax API Key is not configured. Please add it in Settings > AI Assistant.");
+            }
+            const minimax = createOpenAI({
+                apiKey: config.minimaxApiKey || process.env.MINIMAX_API_KEY,
+                baseURL: 'https://api.minimax.io/v1',
+                compatibility: 'compatible',
+            });
+            return minimax.chat(modelName || 'MiniMax-M2.7');
         } else {
             // Ollama — local model
             return ollama(modelName || 'qwen3:1.7b');
