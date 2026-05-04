@@ -1,7 +1,7 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
@@ -20,14 +20,91 @@ function decodeSafely(str) {
 }
 
 /**
+ * Modal that shows the SQL query and result rows that back a specific finding.
+ */
+function QueryAuditModal({ queryId, onClose }) {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        fetch(`http://localhost:3001/api/ai/query-cache/${queryId}`)
+            .then(r => r.json())
+            .then(d => { setData(d); setLoading(false); })
+            .catch(e => { setError(e.message); setLoading(false); });
+    }, [queryId]);
+
+    return (
+        <div className="query-audit-overlay" onClick={onClose}>
+            <div className="query-audit-modal" onClick={e => e.stopPropagation()}>
+                <div className="query-audit-header">
+                    <span className="query-audit-title">
+                        <LuSearch size={13} />
+                        Source Query
+                    </span>
+                    <button className="query-audit-close" onClick={onClose}><LuX size={14} /></button>
+                </div>
+
+                {loading && <div className="query-audit-loading">Loading…</div>}
+                {error   && <div className="query-audit-error">Error: {error}</div>}
+
+                {data && (
+                    <>
+                        <pre className="query-audit-sql">{data.sqlQuery}</pre>
+                        <div className="query-audit-meta">
+                            {data.rowCount} rows · {data.execMs}ms
+                        </div>
+                        {data.data?.length > 0 && (
+                            <div className="query-audit-table-wrap">
+                                <table className="query-audit-table">
+                                    <thead>
+                                        <tr>
+                                            {data.columns.map(c => (
+                                                <th key={c.name}>{c.name}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.data.slice(0, 20).map((row, ri) => (
+                                            <tr key={ri}>
+                                                {data.columns.map(c => (
+                                                    <td key={c.name}>{String(row[c.name] ?? '')}</td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {data.data.length > 20 && (
+                                    <div className="query-audit-truncated">
+                                        Showing 20 of {data.rowCount} rows
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/**
  * NarrativeCard — renders a structured final_answer with tldr/findings/cause/actions/caveats.
  */
 function NarrativeCard({ result, onFollowUp }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
     const [causeOpen, setCauseOpen] = useState(false);
+    const [auditQueryId, setAuditQueryId] = useState(null);
+
+    const openAudit = useCallback((qid) => setAuditQueryId(qid), []);
+    const closeAudit = useCallback(() => setAuditQueryId(null), []);
 
     return (
         <div className="ai-narrative">
+            {auditQueryId && (
+                <QueryAuditModal queryId={auditQueryId} onClose={closeAudit} />
+            )}
+
             {tldr && (
                 <div className="ai-narrative-tldr">
                     <LuZap size={12} className="ai-narrative-tldr-icon" />
@@ -45,7 +122,18 @@ function NarrativeCard({ result, onFollowUp }) {
                         {findings.map((f, i) => (
                             <li key={i} className="ai-narrative-finding">
                                 <span className="ai-narrative-finding-point">{decodeSafely(f.point)}</span>
-                                {f.value && <span className="ai-narrative-finding-value">{decodeSafely(f.value)}</span>}
+                                <span className="ai-narrative-finding-right">
+                                    {f.value && <span className="ai-narrative-finding-value">{decodeSafely(f.value)}</span>}
+                                    {f.source_query_id && (
+                                        <button
+                                            className="ai-narrative-audit-btn"
+                                            title="Ver consulta fuente"
+                                            onClick={() => openAudit(f.source_query_id)}
+                                        >
+                                            <LuSearch size={10} />
+                                        </button>
+                                    )}
+                                </span>
                             </li>
                         ))}
                     </ul>
