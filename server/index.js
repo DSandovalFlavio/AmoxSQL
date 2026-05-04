@@ -2472,6 +2472,31 @@ app.delete('/api/ai/vault/:id', async (req, res) => {
     }
 });
 
+/* --- AI Query Cache API --- */
+
+/**
+ * GET /api/ai/query-cache/:queryId — Retrieve a cached query result by queryId.
+ * Used by the NarrativeCard "view query" audit button.
+ */
+app.get('/api/ai/query-cache/:queryId', async (req, res) => {
+    try {
+        const cached = await aiPersistence.getQueryCache(dbManager, req.params.queryId);
+        if (!cached) return res.status(404).json({ error: 'Query not found' });
+        res.json({
+            queryId:       cached.id,
+            sqlQuery:      cached.sql_query,
+            columns:       cached.columns_info || [],
+            data:          cached.data         || [],
+            rowCount:      cached.row_count,
+            execMs:        cached.exec_ms,
+            createdAt:     cached.created_at,
+        });
+    } catch (err) {
+        console.error('[API] query-cache fetch error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 /* --- AI Agent Test APIs --- */
 
 /**
