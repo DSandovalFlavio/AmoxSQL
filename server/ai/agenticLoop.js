@@ -24,6 +24,7 @@ const { getSkill } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
 const { getFlockStatus, getModels, getPrompts } = require('../flockManager');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
+const { verifyFindings } = require('./findingsLinter');
 
 const MAX_LOOP_ITERATIONS = 15;
 // Per-iteration maxSteps: high enough that most plans finish in 1-2 outer iterations.
@@ -312,6 +313,19 @@ async function* agenticLoop(options, getModelFn) {
                     } else if (part.toolName === 'final_answer') {
                         iterHasFinalAnswer = true;
                         loopDone = true;
+
+                        // Verify that numeric findings are backed by real query results.
+                        // Appends an automatic caveat for any unverified numbers (non-blocking).
+                        if (toolResult.findings?.length) {
+                            const { caveat } = verifyFindings(toolResult.findings, queryResults);
+                            if (caveat) {
+                                toolResult.caveats = [
+                                    ...(toolResult.caveats || []),
+                                    caveat,
+                                ];
+                            }
+                        }
+
                         // Structured output (tldr + findings) is rendered by NarrativeCard in the UI.
                         // When structured fields are present, suppress text streaming to avoid duplication.
                         const hasStructuredOutput = !!(toolResult.tldr || toolResult.findings?.length);
