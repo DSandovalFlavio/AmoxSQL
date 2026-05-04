@@ -11,6 +11,8 @@ const { tool } = require('ai');
 const fs = require('fs');
 const path = require('path');
 
+const { analyzeJoin } = require('./joinSanityCheck');
+
 const SQL_TIMEOUT_MS = 30000; // 30 seconds
 const MAX_FILE_SIZE = 50 * 1024; // 50KB
 
@@ -39,7 +41,7 @@ function createTools(context) {
          * The agent uses this to run analytical queries.
          */
         execute_sql: tool({
-            description: 'Execute a SQL query against the DuckDB database. Use this to analyze data, aggregate metrics, join tables, and answer questions. Always verify column names exist before using them. The query must be valid DuckDB SQL. Queries have a 30-second timeout.',
+            description: 'Execute a SQL query against the DuckDB database. Use this to analyze data, aggregate metrics, join tables, and answer questions. Always verify column names exist before using them. The query must be valid DuckDB SQL. Queries have a 30-second timeout. The result may include a "warnings" array — if it contains a "join-fanout" entry, the JOIN produced more rows than expected (likely due to non-unique keys), which can inflate aggregates. In that case, add DISTINCT or GROUP BY to fix it, and mention the issue in your caveats.',
             inputSchema: z.object({
                 query: z.string().describe('The DuckDB SQL query to execute. Must be a valid SELECT statement.'),
             }),
@@ -104,6 +106,10 @@ function createTools(context) {
                         }).catch(e => console.warn('[Tools] query_cache write failed:', e.message));
                     }
 
+                    // Check for JOIN fan-out (silent — never blocks the result).
+                    // If detected, attach a warning so the agent can mention it.
+                    const joinWarning = await analyzeJoin(query, result.rows.length, dbManager);
+
                     return {
                         queryId,
                         columns,
@@ -111,6 +117,7 @@ function createTools(context) {
                         rowCount: result.rows.length,
                         executionTime,
                         truncated: result.rows.length > MAX_ROWS,
+                        ...(joinWarning ? { warnings: [joinWarning] } : {}),
                     };
                 } catch (err) {
                     const errMsg = err?.message || String(err);
@@ -1210,7 +1217,8 @@ function createTools(context) {
                 findings: z.array(z.object({
                     point: z.string().describe('Key observation or insight.'),
                     value: z.string().optional().describe('Supporting metric, number, or percentage.'),
-                })).min(1).max(8).optional().describe('Key findings from the analysis, each with an optional supporting metric.'),
+                    source_query_id: z.string().optional().describe('The queryId returned by execute_sql that produced this number. Always include this when the finding cites a specific metric or number.'),
+                })).min(1).max(8).optional().describe('Key findings from the analysis, each with an optional supporting metric. IMPORTANT: when a finding cites a number, include source_query_id with the queryId from the execute_sql call that produced it.'),
                 likely_cause: z.string().optional().describe('Probable explanation or root cause for the main finding (omit if not applicable).'),
                 suggested_actions: z.array(z.string()).min(1).max(4).optional().describe('Concrete next steps the user could take.'),
                 caveats: z.array(z.string()).optional().describe('Data quality notes, important limitations, or assumptions to disclose.'),
