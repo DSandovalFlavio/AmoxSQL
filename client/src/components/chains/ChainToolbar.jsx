@@ -5,7 +5,7 @@
 import {
     LuPlay, LuSquare, LuHistory, LuFileDown, LuFileUp,
     LuLayoutDashboard, LuSave, LuChevronRight, LuChevronLeft,
-    LuTrash2
+    LuTrash2, LuTerminal, LuTriangleAlert, LuCircleAlert, LuFileCode2
 } from 'react-icons/lu';
 
 const ChainToolbar = ({
@@ -21,10 +21,17 @@ const ChainToolbar = ({
     onImportYaml,
     onAutoLayout,
     onToggleHistory,
+    onToggleLogs,
     onClearStatus,
     selectedNodeId,
     isDirty,
+    errorCount = 0,
+    warningCount = 0,
+    progress = { completed: 0, total: 0 },
 }) => {
+    const hasErrors = errorCount > 0;
+    const hasWarnings = warningCount > 0 && !hasErrors;
+
     return (
         <div className="chain-toolbar">
             {/* Left: Chain identity + Save */}
@@ -39,6 +46,17 @@ const ChainToolbar = ({
                     <LuSave size={14} />
                     <span>Save</span>
                 </button>
+
+                {/* Validation badge */}
+                {(hasErrors || hasWarnings) && !isRunning && (
+                    <div
+                        className={`chain-toolbar-validation-badge ${hasErrors ? 'chain-toolbar-validation-error' : 'chain-toolbar-validation-warn'}`}
+                        title={hasErrors ? `${errorCount} node error(s) — fix before running` : `${warningCount} warning(s)`}
+                    >
+                        {hasErrors ? <LuCircleAlert size={12} /> : <LuTriangleAlert size={12} />}
+                        <span>{hasErrors ? `${errorCount} error${errorCount > 1 ? 's' : ''}` : `${warningCount} warning${warningCount > 1 ? 's' : ''}`}</span>
+                    </div>
+                )}
             </div>
 
             {/* Center: Run controls */}
@@ -50,7 +68,12 @@ const ChainToolbar = ({
                     </button>
                 ) : (
                     <>
-                        <button className="chain-toolbar-btn chain-toolbar-btn-primary" onClick={onRun} title="Run entire chain">
+                        <button
+                            className={`chain-toolbar-btn chain-toolbar-btn-primary ${hasErrors ? 'chain-toolbar-btn-disabled' : ''}`}
+                            onClick={onRun}
+                            title={hasErrors ? `Fix ${errorCount} error(s) before running` : 'Run entire chain'}
+                            disabled={hasErrors}
+                        >
                             <LuPlay size={14} />
                             <span>Run All</span>
                         </button>
@@ -110,6 +133,10 @@ const ChainToolbar = ({
 
                 <div className="chain-toolbar-separator" />
 
+                <button className="chain-toolbar-btn-tool" onClick={onToggleLogs} title="Toggle execution log panel">
+                    <LuTerminal size={16} />
+                    <span>Logs</span>
+                </button>
                 <button className="chain-toolbar-btn-tool" onClick={onToggleHistory} title="View execution history">
                     <LuHistory size={16} />
                     <span>History</span>

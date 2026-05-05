@@ -25,6 +25,27 @@ ipcMain.handle('dialog:selectFolder', async () => {
     return result.filePaths[0];
 });
 
+// IPC Handler: Open file picker dialog
+ipcMain.handle('dialog:openFile', async (_event, opts = {}) => {
+    const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        title: opts.title || 'Select File',
+        filters: opts.filters || [{ name: 'All Files', extensions: ['*'] }],
+        defaultPath: opts.defaultPath,
+    });
+    return result;
+});
+
+// IPC Handler: Save file picker dialog
+ipcMain.handle('dialog:saveFile', async (_event, opts = {}) => {
+    const result = await dialog.showSaveDialog({
+        title: opts.title || 'Save File',
+        filters: opts.filters || [{ name: 'All Files', extensions: ['*'] }],
+        defaultPath: opts.defaultPath,
+    });
+    return result;
+});
+
 // IPC Handler: Open URL in the system's default browser
 ipcMain.handle('shell:openExternal', async (_event, url) => {
     if (typeof url === 'string' && url.startsWith('https://')) {

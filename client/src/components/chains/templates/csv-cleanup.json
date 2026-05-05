@@ -1,0 +1,70 @@
+{
+  "name": "CSV Cleanup Pipeline",
+  "description": "Import CSV → Clean strings → Remove duplicates → Export clean CSV.",
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "import_file",
+      "position": { "x": 80, "y": 200 },
+      "data": {
+        "label": "Import CSV",
+        "nodeType": "import_file",
+        "description": "Load raw CSV data",
+        "config": {
+          "sourcePath": "",
+          "tableName": "raw_data",
+          "fileType": "csv",
+          "delimiter": ","
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "type": "clean",
+      "position": { "x": 330, "y": 200 },
+      "data": {
+        "label": "Clean Strings",
+        "nodeType": "clean",
+        "description": "Trim whitespace and normalize text",
+        "config": {
+          "tableName": "cleaned_data",
+          "operations": []
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "type": "deduplicate",
+      "position": { "x": 580, "y": 200 },
+      "data": {
+        "label": "Remove Duplicates",
+        "nodeType": "deduplicate",
+        "description": "Keep unique rows",
+        "config": {
+          "tableName": "deduped_data",
+          "keep": "first",
+          "keyColumns": []
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "type": "export_file",
+      "position": { "x": 830, "y": 200 },
+      "data": {
+        "label": "Export Clean CSV",
+        "nodeType": "export_file",
+        "description": "Save cleaned output",
+        "config": {
+          "outputPath": "",
+          "format": "csv"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1-2", "source": "n1", "target": "n2", "type": "smoothstep" },
+    { "id": "e2-3", "source": "n2", "target": "n3", "type": "smoothstep" },
+    { "id": "e3-4", "source": "n3", "target": "n4", "type": "smoothstep" }
+  ]
+}
