@@ -608,6 +608,15 @@
   --accent-color-user-transparent: var(--accent-subtle);
 }
 
+.accent-islands {
+  --accent-primary: #548af7;                  /* Islands Blue — JetBrains Dark */
+  --accent-muted:   rgba(84, 138, 247, 0.18);
+  --accent-subtle:  rgba(84, 138, 247, 0.08);
+  --focus-ring:     rgba(84, 138, 247, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
 .accent-amox-2 {
   --accent-primary: oklch(0.89 0.150 195);    /* ≈ #00F5FF */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
@@ -865,6 +874,84 @@
   --panel-section-bg: var(--surface-inset);
   --table-header-bg: #2e3440;
   --table-row-hover: rgba(216, 222, 233, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: DARK ISLANDS
+   JetBrains-inspired — neutral gray surfaces, warm
+   keyword tokens, teal numbers, purple types
+   ═══════════════════════════════════════════════ */
+.theme-islands {
+  --surface-base:    #181a1d;
+  --surface-raised:  #1e2024;
+  --surface-overlay: #252729;
+  --surface-inset:   #131517;
+
+  --border-subtle:  rgba(188, 190, 196, 0.07);
+  --border-default: rgba(188, 190, 196, 0.12);
+  --border-strong:  rgba(188, 190, 196, 0.20);
+
+  --text-primary:   #bcbec4;
+  --text-secondary: #7a7e85;
+  --text-tertiary:  #4e5157;
+  --text-disabled:  #35383d;
+
+  --hover-bg:   rgba(188, 190, 196, 0.06);
+  --active-bg:  rgba(188, 190, 196, 0.10);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  /* Islands blue — built-in accent for this theme */
+  --accent-primary: #548af7;
+  --accent-muted:   rgba(84, 138, 247, 0.18);
+  --accent-subtle:  rgba(84, 138, 247, 0.08);
+  --focus-ring:     rgba(84, 138, 247, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+
+  /* Feedback — Islands palette */
+  --feedback-success:        #6aab73;
+  --feedback-success-bg:     rgba(106, 171, 115, 0.10);
+  --feedback-success-border: rgba(106, 171, 115, 0.25);
+  --feedback-success-text:   #6aab73;
+  --feedback-error:          #f75464;
+  --feedback-error-bg:       rgba(247, 84, 100, 0.10);
+  --feedback-error-border:   rgba(247, 84, 100, 0.25);
+  --feedback-error-text:     #f9667a;
+  --feedback-warning:        #e8a33e;
+  --feedback-warning-bg:     rgba(232, 163, 62, 0.10);
+  --feedback-warning-border: rgba(232, 163, 62, 0.25);
+  --feedback-warning-text:   #f0b95e;
+  --feedback-info:           #2aacb8;
+  --feedback-info-bg:        rgba(42, 172, 184, 0.10);
+  --feedback-info-border:    rgba(42, 172, 184, 0.25);
+  --feedback-info-text:      #42c6d2;
+
+  /* Syntax — JetBrains Dark Islands palette */
+  --syntax-keyword:  #cf8e6d;  /* warm orange-tan: keywords, storage */
+  --syntax-string:   #6aab73;  /* soft green */
+  --syntax-number:   #2aacb8;  /* teal-cyan */
+  --syntax-function: #56a8f5;  /* soft blue */
+  --syntax-comment:  #555861;  /* muted gray */
+  --syntax-type:     #c77dbb;  /* soft purple: classes, types */
+  --syntax-operator: #bcbec4;  /* neutral text */
+  --syntax-variable: #bcbec4;  /* plain text */
+  --syntax-constant: #e8a33e;  /* warm yellow */
+
+  --titlebar-bg:   #121216;
+  --titlebar-text: #7a7e85;
+
+  --bg-color: var(--surface-base);
+  --sidebar-bg: var(--surface-raised);
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-header-bg: #1e2024;
+  --table-row-hover: rgba(188, 190, 196, 0.04);
 }
 
 /* ═══════════════════════════════════════════════
