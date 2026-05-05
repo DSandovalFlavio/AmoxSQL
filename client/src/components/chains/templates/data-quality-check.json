@@ -1,0 +1,62 @@
+{
+  "name": "Data Quality Check",
+  "description": "Import data, run 3 assertions (not empty, no NULLs, uniqueness), then export if all pass.",
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "import_file",
+      "position": { "x": 80, "y": 200 },
+      "data": {
+        "label": "Import Data",
+        "nodeType": "import_file",
+        "config": { "sourcePath": "", "tableName": "input_data", "fileType": "csv" }
+      }
+    },
+    {
+      "id": "n2",
+      "type": "assert",
+      "position": { "x": 340, "y": 80 },
+      "data": {
+        "label": "Check Not Empty",
+        "nodeType": "assert",
+        "config": { "assertType": "not_empty" }
+      }
+    },
+    {
+      "id": "n3",
+      "type": "assert",
+      "position": { "x": 340, "y": 230 },
+      "data": {
+        "label": "Check No NULLs",
+        "nodeType": "assert",
+        "config": { "assertType": "no_nulls", "column": "id" }
+      }
+    },
+    {
+      "id": "n4",
+      "type": "assert",
+      "position": { "x": 340, "y": 380 },
+      "data": {
+        "label": "Check Unique IDs",
+        "nodeType": "assert",
+        "config": { "assertType": "unique", "column": "id" }
+      }
+    },
+    {
+      "id": "n5",
+      "type": "export_file",
+      "position": { "x": 600, "y": 230 },
+      "data": {
+        "label": "Export Validated",
+        "nodeType": "export_file",
+        "config": { "outputPath": "", "format": "parquet" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1-2", "source": "n1", "target": "n2", "type": "smoothstep" },
+    { "id": "e1-3", "source": "n1", "target": "n3", "type": "smoothstep" },
+    { "id": "e1-4", "source": "n1", "target": "n4", "type": "smoothstep" },
+    { "id": "e3-5", "source": "n3", "target": "n5", "type": "smoothstep" }
+  ]
+}

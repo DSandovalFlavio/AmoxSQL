@@ -5,11 +5,11 @@
 import { useState } from 'react';
 import {
     LuX, LuFileCode2, LuPlus, LuExternalLink, LuTrash2, LuMinus,
-    LuCode, LuChevronDown, LuChevronRight, LuCopy
+    LuCode, LuChevronDown, LuChevronRight, LuCopy, LuFolderOpen
 } from 'react-icons/lu';
 import { NODE_TYPES } from './chainNodeTypes';
 
-const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFile, onOpenFile, sqlFiles = [] }) => {
+const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFile, onOpenFile, sqlFiles = [], chainDefinition }) => {
     if (!node) return null;
 
     const nodeType = NODE_TYPES[node.data.nodeType] || NODE_TYPES.sql_file;
@@ -151,6 +151,34 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                     <CreateTableConfig config={config} onChange={updateConfig} />
                 )}
 
+                {node.data.nodeType === 'type_cast' && (
+                    <TypeCastConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'window_functions' && (
+                    <WindowFunctionsConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'unpivot' && (
+                    <UnpivotConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'http_fetch' && (
+                    <HttpFetchConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'clean' && (
+                    <CleanConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'schema_validation' && (
+                    <SchemaValidationConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'notification' && (
+                    <NotificationConfig config={config} onChange={updateConfig} />
+                )}
+
                 {/* SQL Preview */}
                 <SqlPreview nodeType={node.data.nodeType} config={config} />
 
@@ -209,37 +237,124 @@ const SqlInlineConfig = ({ config, onChange }) => (
     </div>
 );
 
-const ImportFileConfig = ({ config, onChange }) => (
-    <div className="chain-config-section">
-        <label>Source File Path</label>
-        <input
-            type="text"
-            value={config.sourcePath || ''}
-            onChange={(e) => onChange('sourcePath', e.target.value)}
-            placeholder="data/sales.csv"
-            className="chain-config-input"
-        />
-        <label>Target Table Name</label>
-        <input
-            type="text"
-            value={config.tableName || ''}
-            onChange={(e) => onChange('tableName', e.target.value)}
-            placeholder="raw_sales"
-            className="chain-config-input"
-        />
-        <label>File Type</label>
-        <select
-            value={config.fileType || 'csv'}
-            onChange={(e) => onChange('fileType', e.target.value)}
-            className="chain-config-select"
-        >
-            <option value="csv">CSV</option>
-            <option value="parquet">Parquet</option>
-            <option value="json">JSON</option>
-            <option value="xlsx">Excel (.xlsx)</option>
-        </select>
-    </div>
-);
+const IMPORT_EXT_MAP = { csv: 'csv', tsv: 'tsv', parquet: 'parquet', json: 'json', jsonl: 'json', xlsx: 'xlsx', xls: 'xlsx' };
+
+const applyFilePath = (filePath, onChange) => {
+    onChange('sourcePath', filePath);
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    if (IMPORT_EXT_MAP[ext]) onChange('fileType', IMPORT_EXT_MAP[ext]);
+};
+
+const ImportFileConfig = ({ config, onChange }) => {
+    const handleBrowse = async () => {
+        if (window.electronAPI?.openFileDialog) {
+            const result = await window.electronAPI.openFileDialog({
+                filters: [
+                    { name: 'Data Files', extensions: ['csv', 'tsv', 'parquet', 'json', 'jsonl', 'xlsx', 'xls'] },
+                    { name: 'All Files', extensions: ['*'] },
+                ],
+            });
+            if (result && !result.canceled && result.filePaths?.[0]) {
+                applyFilePath(result.filePaths[0], onChange);
+            }
+        } else {
+            // Fallback: HTML file input (works in browser / dev)
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv,.tsv,.parquet,.json,.jsonl,.xlsx,.xls';
+            input.onchange = (e) => {
+                const file = e.target.files?.[0];
+                if (file) applyFilePath(file.path || file.name, onChange);
+            };
+            input.click();
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove('chain-config-drop-active');
+        const file = e.dataTransfer.files?.[0];
+        if (file) applyFilePath(file.path || file.name, onChange);
+    };
+
+    return (
+        <div className="chain-config-section">
+            <label>Source File Path</label>
+            <div
+                className="chain-config-input-with-btn"
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('chain-config-drop-active'); }}
+                onDragLeave={(e) => e.currentTarget.classList.remove('chain-config-drop-active')}
+                onDrop={handleDrop}
+            >
+                <input
+                    type="text"
+                    value={config.sourcePath || ''}
+                    onChange={(e) => onChange('sourcePath', e.target.value)}
+                    placeholder="Drag a file here or type path…"
+                    className="chain-config-input"
+                />
+                <button className="chain-config-browse-btn" onClick={handleBrowse} title="Browse files">
+                    <LuFolderOpen size={13} />
+                </button>
+            </div>
+            <label>Target Table Name</label>
+            <input
+                type="text"
+                value={config.tableName || ''}
+                onChange={(e) => onChange('tableName', e.target.value)}
+                placeholder="raw_sales"
+                className="chain-config-input"
+            />
+            <label>File Type</label>
+            <select
+                value={config.fileType || 'csv'}
+                onChange={(e) => onChange('fileType', e.target.value)}
+                className="chain-config-select"
+            >
+                <option value="csv">CSV</option>
+                <option value="tsv">TSV (Tab-separated)</option>
+                <option value="parquet">Parquet</option>
+                <option value="json">JSON</option>
+                <option value="xlsx">Excel (.xlsx)</option>
+            </select>
+            {(config.fileType === 'csv' || config.fileType === 'tsv') && (
+                <>
+                    <label>Delimiter <span className="chain-config-optional">(advanced)</span></label>
+                    <input
+                        type="text"
+                        value={config.delimiter || ','}
+                        onChange={(e) => onChange('delimiter', e.target.value)}
+                        placeholder=","
+                        className="chain-config-input chain-config-input-sm"
+                        maxLength={3}
+                    />
+                    <label>Skip Rows <span className="chain-config-optional">(optional)</span></label>
+                    <input
+                        type="number"
+                        value={config.skipRows || '0'}
+                        onChange={(e) => onChange('skipRows', e.target.value)}
+                        placeholder="0"
+                        className="chain-config-input chain-config-input-sm"
+                        min="0"
+                    />
+                </>
+            )}
+            {config.fileType === 'xlsx' && (
+                <>
+                    <label>Sheet Name <span className="chain-config-optional">(optional, default: first sheet)</span></label>
+                    <input
+                        type="text"
+                        value={config.sheetName || ''}
+                        onChange={(e) => onChange('sheetName', e.target.value)}
+                        placeholder="Sheet1"
+                        className="chain-config-input"
+                    />
+                </>
+            )}
+        </div>
+    );
+};
 
 const ImportFolderConfig = ({ config, onChange }) => (
     <div className="chain-config-section">
@@ -270,41 +385,95 @@ const ImportFolderConfig = ({ config, onChange }) => (
     </div>
 );
 
-const ExportFileConfig = ({ config, onChange }) => (
-    <div className="chain-config-section">
-        <label>SQL Query <span className="chain-config-optional">(optional)</span></label>
-        <textarea
-            value={config.query || ''}
-            onChange={(e) => onChange('query', e.target.value)}
-            placeholder="SELECT * FROM clean_sales"
-            className="chain-config-textarea chain-config-sql"
-            rows={4}
-        />
-        {!config.query && (
-            <p className="chain-config-hint chain-config-hint-info">
-                💡 If empty, this node will automatically export data from the connected upstream node (table, import, or query result).
-            </p>
-        )}
-        <label>Output Format</label>
-        <select
-            value={config.format || 'csv'}
-            onChange={(e) => onChange('format', e.target.value)}
-            className="chain-config-select"
-        >
-            <option value="csv">CSV</option>
-            <option value="parquet">Parquet</option>
-            <option value="xlsx">Excel (.xlsx)</option>
-        </select>
-        <label>Output File Path</label>
-        <input
-            type="text"
-            value={config.outputPath || ''}
-            onChange={(e) => onChange('outputPath', e.target.value)}
-            placeholder="exports/output.csv"
-            className="chain-config-input"
-        />
-    </div>
-);
+const ExportFileConfig = ({ config, onChange }) => {
+    const handleBrowse = async () => {
+        const ext = config.format === 'parquet' ? 'parquet' : config.format === 'xlsx' ? 'xlsx' : config.format === 'json' ? 'json' : 'csv';
+        if (window.electronAPI?.saveFileDialog) {
+            const result = await window.electronAPI.saveFileDialog({
+                defaultPath: `output.${ext}`,
+                filters: [{ name: 'Data Files', extensions: [ext] }],
+            });
+            if (result && !result.canceled && result.filePath) {
+                onChange('outputPath', result.filePath);
+            }
+        } else {
+            // Fallback: prompt for manual path entry
+            const p = window.prompt('Output file path:', `output.${ext}`);
+            if (p) onChange('outputPath', p);
+        }
+    };
+
+    return (
+        <div className="chain-config-section">
+            <label>SQL Query <span className="chain-config-optional">(optional — auto-resolved from upstream)</span></label>
+            <textarea
+                value={config.query || ''}
+                onChange={(e) => onChange('query', e.target.value)}
+                placeholder="SELECT * FROM clean_sales"
+                className="chain-config-textarea chain-config-sql"
+                rows={3}
+            />
+            {!config.query && (
+                <p className="chain-config-hint chain-config-hint-info">
+                    💡 Leave empty to automatically export from the connected upstream node.
+                </p>
+            )}
+            <label>Output Format</label>
+            <select
+                value={config.format || 'csv'}
+                onChange={(e) => onChange('format', e.target.value)}
+                className="chain-config-select"
+            >
+                <option value="csv">CSV</option>
+                <option value="parquet">Parquet</option>
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="json">JSON</option>
+            </select>
+            {config.format === 'csv' && (
+                <>
+                    <label>Delimiter <span className="chain-config-optional">(optional)</span></label>
+                    <input
+                        type="text"
+                        value={config.delimiter || ','}
+                        onChange={(e) => onChange('delimiter', e.target.value)}
+                        placeholder=","
+                        className="chain-config-input chain-config-input-sm"
+                        maxLength={3}
+                    />
+                </>
+            )}
+            {config.format === 'parquet' && (
+                <>
+                    <label>Compression <span className="chain-config-optional">(optional)</span></label>
+                    <select
+                        value={config.compression || ''}
+                        onChange={(e) => onChange('compression', e.target.value)}
+                        className="chain-config-select"
+                    >
+                        <option value="">Default (Snappy)</option>
+                        <option value="snappy">Snappy</option>
+                        <option value="gzip">GZIP</option>
+                        <option value="zstd">ZSTD</option>
+                        <option value="uncompressed">None</option>
+                    </select>
+                </>
+            )}
+            <label>Output File Path</label>
+            <div className="chain-config-input-with-btn">
+                <input
+                    type="text"
+                    value={config.outputPath || ''}
+                    onChange={(e) => onChange('outputPath', e.target.value)}
+                    placeholder="exports/output.csv"
+                    className="chain-config-input"
+                />
+                <button className="chain-config-browse-btn" onClick={handleBrowse} title="Choose output location">
+                    <LuFolderOpen size={13} />
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const CheckpointConfig = ({ config, onChange }) => (
     <div className="chain-config-section">
@@ -1198,5 +1367,215 @@ const SqlPreview = ({ nodeType, config }) => {
         </div>
     );
 };
+
+// --- New node configs ---
+
+const TypeCastConfig = ({ config, onChange }) => {
+    const casts = config.casts || [];
+    const TYPES = ['VARCHAR', 'INTEGER', 'BIGINT', 'DOUBLE', 'DECIMAL(18,4)', 'BOOLEAN', 'DATE', 'TIMESTAMP', 'TIME', 'FLOAT', 'HUGEINT'];
+
+    return (
+        <div className="chain-config-section">
+            <label>Result Table Name</label>
+            <input type="text" value={config.tableName || 'casted_data'} onChange={e => onChange('tableName', e.target.value)} className="chain-config-input" />
+            <label>Casts</label>
+            {casts.map((c, i) => (
+                <div key={i} className="chain-config-inline-row">
+                    <input type="text" value={c.column || ''} onChange={e => { const u = [...casts]; u[i] = { ...u[i], column: e.target.value }; onChange('casts', u); }} placeholder="column" className="chain-config-input chain-config-input-sm" />
+                    <select value={c.targetType || 'VARCHAR'} onChange={e => { const u = [...casts]; u[i] = { ...u[i], targetType: e.target.value }; onChange('casts', u); }} className="chain-config-select chain-config-select-sm">
+                        {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input type="text" value={c.alias || ''} onChange={e => { const u = [...casts]; u[i] = { ...u[i], alias: e.target.value }; onChange('casts', u); }} placeholder="alias (optional)" className="chain-config-input chain-config-input-sm" />
+                    <button className="chain-config-remove-btn" onClick={() => onChange('casts', casts.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
+                </div>
+            ))}
+            <button className="chain-config-add-btn" onClick={() => onChange('casts', [...casts, { column: '', targetType: 'VARCHAR', alias: '' }])}>
+                <LuPlus size={12} /> Add Cast
+            </button>
+            <p className="chain-config-hint">Uses TRY_CAST — invalid values become NULL instead of failing.</p>
+        </div>
+    );
+};
+
+const WindowFunctionsConfig = ({ config, onChange }) => {
+    const windows = config.windows || [];
+    const FUNCS = ['ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE', 'LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNT'];
+
+    return (
+        <div className="chain-config-section">
+            <label>Result Table Name</label>
+            <input type="text" value={config.tableName || 'with_window'} onChange={e => onChange('tableName', e.target.value)} className="chain-config-input" />
+            <label>Window Functions</label>
+            {windows.map((w, i) => (
+                <div key={i} className="chain-config-window-row">
+                    <div className="chain-config-inline-row">
+                        <select value={w.func || 'ROW_NUMBER'} onChange={e => { const u = [...windows]; u[i] = { ...u[i], func: e.target.value }; onChange('windows', u); }} className="chain-config-select chain-config-select-sm">
+                            {FUNCS.map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                        <input type="text" value={w.column || ''} onChange={e => { const u = [...windows]; u[i] = { ...u[i], column: e.target.value }; onChange('windows', u); }} placeholder="column (or * for COUNT)" className="chain-config-input chain-config-input-sm" />
+                        <input type="text" value={w.alias || ''} onChange={e => { const u = [...windows]; u[i] = { ...u[i], alias: e.target.value }; onChange('windows', u); }} placeholder="alias" className="chain-config-input chain-config-input-sm" />
+                        <button className="chain-config-remove-btn" onClick={() => onChange('windows', windows.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
+                    </div>
+                    <input type="text" value={(w.partitionBy || []).join(', ')} onChange={e => { const u = [...windows]; u[i] = { ...u[i], partitionBy: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }; onChange('windows', u); }} placeholder="PARTITION BY: col1, col2" className="chain-config-input" />
+                    <input type="text" value={(w.orderBy || []).join(', ')} onChange={e => { const u = [...windows]; u[i] = { ...u[i], orderBy: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }; onChange('windows', u); }} placeholder="ORDER BY: col1, col2" className="chain-config-input" />
+                </div>
+            ))}
+            <button className="chain-config-add-btn" onClick={() => onChange('windows', [...windows, { func: 'ROW_NUMBER', column: '', alias: '', partitionBy: [], orderBy: [] }])}>
+                <LuPlus size={12} /> Add Window Function
+            </button>
+        </div>
+    );
+};
+
+const UnpivotConfig = ({ config, onChange }) => {
+    const valueColumns = config.valueColumns || [];
+    const idColumns = config.idColumns || [];
+
+    return (
+        <div className="chain-config-section">
+            <label>Result Table Name</label>
+            <input type="text" value={config.tableName || 'unpivoted_data'} onChange={e => onChange('tableName', e.target.value)} className="chain-config-input" />
+            <label>Value Columns (become rows)</label>
+            {valueColumns.map((col, i) => (
+                <div key={i} className="chain-config-inline-row">
+                    <input type="text" value={col} onChange={e => { const u = [...valueColumns]; u[i] = e.target.value; onChange('valueColumns', u); }} placeholder="column_name" className="chain-config-input chain-config-input-sm" />
+                    <button className="chain-config-remove-btn" onClick={() => onChange('valueColumns', valueColumns.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
+                </div>
+            ))}
+            <button className="chain-config-add-btn" onClick={() => onChange('valueColumns', [...valueColumns, ''])}>
+                <LuPlus size={12} /> Add Value Column
+            </button>
+            <label>Name Column</label>
+            <input type="text" value={config.nameColumn || 'variable'} onChange={e => onChange('nameColumn', e.target.value)} placeholder="variable" className="chain-config-input" />
+            <label>Value Column</label>
+            <input type="text" value={config.valueColumn || 'value'} onChange={e => onChange('valueColumn', e.target.value)} placeholder="value" className="chain-config-input" />
+            <p className="chain-config-hint">Turns wide data (many columns) into tall data (many rows). Each selected column becomes a row with the column name in "Name Column" and the value in "Value Column".</p>
+        </div>
+    );
+};
+
+const HttpFetchConfig = ({ config, onChange }) => (
+    <div className="chain-config-section">
+        <label>URL</label>
+        <input type="text" value={config.url || ''} onChange={e => onChange('url', e.target.value)} placeholder="https://example.com/data.csv" className="chain-config-input" />
+        <label>Table Name</label>
+        <input type="text" value={config.tableName || 'fetched_data'} onChange={e => onChange('tableName', e.target.value)} placeholder="fetched_data" className="chain-config-input" />
+        <label>Format</label>
+        <select value={config.format || 'csv'} onChange={e => onChange('format', e.target.value)} className="chain-config-select">
+            <option value="csv">CSV</option>
+            <option value="parquet">Parquet</option>
+            <option value="json">JSON</option>
+        </select>
+        <p className="chain-config-hint chain-config-hint-info">
+            💡 DuckDB can read files directly from URLs. Requires internet access and the httpfs extension (auto-installed).
+        </p>
+    </div>
+);
+
+const CleanConfig = ({ config, onChange }) => {
+    const operations = config.operations || [];
+    const CLEAN_TYPES = [
+        { value: 'trim', label: 'Trim whitespace' },
+        { value: 'lower', label: 'Convert to lowercase' },
+        { value: 'upper', label: 'Convert to uppercase' },
+        { value: 'replace', label: 'Replace text' },
+        { value: 'regex_replace', label: 'Regex replace' },
+        { value: 'fill_null', label: 'Fill NULL values' },
+        { value: 'nullify_empty', label: 'Nullify empty strings' },
+    ];
+
+    return (
+        <div className="chain-config-section">
+            <label>Result Table Name</label>
+            <input type="text" value={config.tableName || 'cleaned_data'} onChange={e => onChange('tableName', e.target.value)} className="chain-config-input" />
+            <label>Cleaning Operations</label>
+            {operations.map((op, i) => (
+                <div key={i} className="chain-config-clean-row">
+                    <div className="chain-config-inline-row">
+                        <input type="text" value={op.column || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], column: e.target.value }; onChange('operations', u); }} placeholder="column" className="chain-config-input chain-config-input-sm" />
+                        <select value={op.type || 'trim'} onChange={e => { const u = [...operations]; u[i] = { ...u[i], type: e.target.value }; onChange('operations', u); }} className="chain-config-select chain-config-select-sm">
+                            {CLEAN_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                        <button className="chain-config-remove-btn" onClick={() => onChange('operations', operations.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
+                    </div>
+                    {op.type === 'replace' && (
+                        <div className="chain-config-inline-row">
+                            <input type="text" value={op.from || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], from: e.target.value }; onChange('operations', u); }} placeholder="search text" className="chain-config-input chain-config-input-sm" />
+                            <input type="text" value={op.to || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], to: e.target.value }; onChange('operations', u); }} placeholder="replacement" className="chain-config-input chain-config-input-sm" />
+                        </div>
+                    )}
+                    {op.type === 'regex_replace' && (
+                        <div className="chain-config-inline-row">
+                            <input type="text" value={op.pattern || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], pattern: e.target.value }; onChange('operations', u); }} placeholder="regex pattern" className="chain-config-input chain-config-input-sm" />
+                            <input type="text" value={op.replacement || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], replacement: e.target.value }; onChange('operations', u); }} placeholder="replacement" className="chain-config-input chain-config-input-sm" />
+                        </div>
+                    )}
+                    {op.type === 'fill_null' && (
+                        <input type="text" value={op.defaultValue || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], defaultValue: e.target.value }; onChange('operations', u); }} placeholder="default value for NULLs" className="chain-config-input" />
+                    )}
+                </div>
+            ))}
+            <button className="chain-config-add-btn" onClick={() => onChange('operations', [...operations, { column: '', type: 'trim' }])}>
+                <LuPlus size={12} /> Add Operation
+            </button>
+        </div>
+    );
+};
+
+const SchemaValidationConfig = ({ config, onChange }) => {
+    const expectedColumns = config.expectedColumns || [];
+    const TYPES = ['VARCHAR', 'INTEGER', 'BIGINT', 'DOUBLE', 'BOOLEAN', 'DATE', 'TIMESTAMP', 'FLOAT', 'ANY'];
+
+    return (
+        <div className="chain-config-section">
+            <label>Expected Columns</label>
+            {expectedColumns.map((col, i) => (
+                <div key={i} className="chain-config-inline-row">
+                    <input type="text" value={col.name || ''} onChange={e => { const u = [...expectedColumns]; u[i] = { ...u[i], name: e.target.value }; onChange('expectedColumns', u); }} placeholder="column_name" className="chain-config-input chain-config-input-sm" />
+                    <select value={col.type || 'ANY'} onChange={e => { const u = [...expectedColumns]; u[i] = { ...u[i], type: e.target.value }; onChange('expectedColumns', u); }} className="chain-config-select chain-config-select-sm">
+                        {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <button className="chain-config-remove-btn" onClick={() => onChange('expectedColumns', expectedColumns.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
+                </div>
+            ))}
+            <button className="chain-config-add-btn" onClick={() => onChange('expectedColumns', [...expectedColumns, { name: '', type: 'ANY' }])}>
+                <LuPlus size={12} /> Add Expected Column
+            </button>
+            <label style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={config.strict || false} onChange={e => onChange('strict', e.target.checked)} />
+                Strict mode (fail on unexpected columns)
+            </label>
+            <p className="chain-config-hint">
+                Chain stops if any expected column is missing or has wrong type. Use type "ANY" to skip type check.
+            </p>
+        </div>
+    );
+};
+
+const NotificationConfig = ({ config, onChange }) => (
+    <div className="chain-config-section">
+        <label>Notification Type</label>
+        <select value={config.notifType || 'toast'} onChange={e => onChange('notifType', e.target.value)} className="chain-config-select">
+            <option value="toast">App Toast (show message in UI)</option>
+            <option value="log_file">Append to Log File</option>
+            <option value="webhook">HTTP Webhook</option>
+        </select>
+        <label>Message</label>
+        <input type="text" value={config.message || ''} onChange={e => onChange('message', e.target.value)} placeholder="Step completed successfully" className="chain-config-input" />
+        {config.notifType === 'log_file' && (
+            <>
+                <label>Log File Path</label>
+                <input type="text" value={config.logFilePath || ''} onChange={e => onChange('logFilePath', e.target.value)} placeholder="logs/chain.log" className="chain-config-input" />
+            </>
+        )}
+        {config.notifType === 'webhook' && (
+            <>
+                <label>Webhook URL</label>
+                <input type="text" value={config.webhookUrl || ''} onChange={e => onChange('webhookUrl', e.target.value)} placeholder="https://hooks.example.com/..." className="chain-config-input" />
+                <p className="chain-config-hint">Sends a POST request with JSON body: {"{ message, timestamp }"}. Webhook failures do NOT stop the chain.</p>
+            </>
+        )}
+    </div>
+);
 
 export default ChainNodeConfigPanel;

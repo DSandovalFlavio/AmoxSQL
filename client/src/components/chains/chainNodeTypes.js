@@ -7,7 +7,8 @@ import {
     LuFileOutput, LuPause, LuTable2, LuMerge, LuShieldCheck,
     LuFilter, LuGroup, LuColumns3, LuCopyMinus, LuCalculator,
     LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle,
-    LuTableProperties
+    LuTableProperties, LuArrowLeftRight, LuGalleryVerticalEnd, LuRows3,
+    LuGlobe, LuWandSparkles, LuLayoutList, LuBell, LuRadar
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -251,6 +252,99 @@ export const NODE_TYPES = {
         },
         defaultConfig: { newName: '' },
     },
+
+    // --- New nodes ---
+
+    type_cast: {
+        id: 'type_cast',
+        label: 'Type Cast',
+        description: 'Cast columns to different data types (VARCHAR, INTEGER, DATE, etc.)',
+        icon: LuArrowLeftRight,
+        color: {
+            bg: 'oklch(0.22 0.04 210)',
+            border: 'oklch(0.35 0.08 210)',
+            accent: 'oklch(0.65 0.15 210)',
+        },
+        defaultConfig: { tableName: 'casted_data', casts: [] },
+    },
+
+    window_functions: {
+        id: 'window_functions',
+        label: 'Window Functions',
+        description: 'Apply ROW_NUMBER, RANK, LAG, running totals over partitions',
+        icon: LuGalleryVerticalEnd,
+        color: {
+            bg: 'oklch(0.22 0.04 280)',
+            border: 'oklch(0.35 0.08 280)',
+            accent: 'oklch(0.65 0.15 280)',
+        },
+        defaultConfig: { tableName: 'with_window', windows: [] },
+    },
+
+    unpivot: {
+        id: 'unpivot',
+        label: 'Unpivot',
+        description: 'Transform columns into rows (inverse of pivot)',
+        icon: LuRows3,
+        color: {
+            bg: 'oklch(0.22 0.04 15)',
+            border: 'oklch(0.35 0.08 15)',
+            accent: 'oklch(0.65 0.15 15)',
+        },
+        defaultConfig: { tableName: 'unpivoted_data', idColumns: [], valueColumns: [], nameColumn: 'variable', valueColumn: 'value' },
+    },
+
+    http_fetch: {
+        id: 'http_fetch',
+        label: 'HTTP Fetch',
+        description: 'Load data from a URL (CSV, JSON, Parquet)',
+        icon: LuGlobe,
+        color: {
+            bg: 'oklch(0.22 0.04 145)',
+            border: 'oklch(0.35 0.08 145)',
+            accent: 'oklch(0.65 0.15 145)',
+        },
+        defaultConfig: { url: '', tableName: 'fetched_data', format: 'csv' },
+    },
+
+    clean: {
+        id: 'clean',
+        label: 'Clean / Replace',
+        description: 'Apply cleaning ops: trim, lower/upper, replace, fill nulls',
+        icon: LuWandSparkles,
+        color: {
+            bg: 'oklch(0.22 0.04 70)',
+            border: 'oklch(0.35 0.08 70)',
+            accent: 'oklch(0.65 0.15 70)',
+        },
+        defaultConfig: { tableName: 'cleaned_data', operations: [] },
+    },
+
+    schema_validation: {
+        id: 'schema_validation',
+        label: 'Schema Validation',
+        description: 'Assert that upstream data has expected columns and types',
+        icon: LuLayoutList,
+        color: {
+            bg: 'oklch(0.22 0.04 110)',
+            border: 'oklch(0.35 0.08 110)',
+            accent: 'oklch(0.65 0.15 110)',
+        },
+        defaultConfig: { expectedColumns: [], strict: false },
+    },
+
+    notification: {
+        id: 'notification',
+        label: 'Notification',
+        description: 'Send a notification or log entry when this step runs',
+        icon: LuBell,
+        color: {
+            bg: 'oklch(0.22 0.04 80)',
+            border: 'oklch(0.35 0.08 80)',
+            accent: 'oklch(0.65 0.15 80)',
+        },
+        defaultConfig: { notifType: 'toast', message: '', logFilePath: '', webhookUrl: '' },
+    },
 };
 
 export const NODE_TYPE_LIST = Object.values(NODE_TYPES);
@@ -262,7 +356,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'sources',
         label: 'Data Sources',
-        types: ['import_file', 'import_folder', 'table_ref'],
+        types: ['import_file', 'import_folder', 'table_ref', 'http_fetch'],
     },
     {
         id: 'sql',
@@ -272,7 +366,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'transform',
         label: 'Transform',
-        types: ['filter', 'select_columns', 'add_column', 'group_aggregate', 'join_tables', 'sort', 'deduplicate', 'pivot', 'sample', 'rename_table'],
+        types: ['filter', 'select_columns', 'add_column', 'group_aggregate', 'join_tables', 'sort', 'deduplicate', 'pivot', 'unpivot', 'sample', 'rename_table', 'type_cast', 'window_functions', 'clean'],
     },
     {
         id: 'combine',
@@ -287,7 +381,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'control',
         label: 'Control Flow',
-        types: ['checkpoint', 'assert'],
+        types: ['checkpoint', 'assert', 'schema_validation', 'notification'],
     },
 ];
 
@@ -316,4 +410,13 @@ export const RESULT_TYPE_LABELS = {
     table_referenced: 'Table Referenced',
     assertion_passed: 'Assertion Passed',
     unknown: 'Executed',
+};
+
+export const NODE_TYPE_COLORS = {
+    sources: 'oklch(0.65 0.15 155)',
+    sql: 'oklch(0.65 0.15 260)',
+    transform: 'oklch(0.65 0.15 210)',
+    combine: 'oklch(0.65 0.15 310)',
+    output: 'oklch(0.65 0.15 50)',
+    control: 'oklch(0.65 0.15 120)',
 };
