@@ -560,6 +560,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [gsheetsTestResult, setGsheetsTestResult] = useState(null);
     const [emailCopied, setEmailCopied] = useState(false);
 
+    // GCP / Vertex AI (ADC) State
+    const [gcpProject, setGcpProject]   = useState('');
+    const [gcpLocation, setGcpLocation] = useState('us-central1');
+
     // ADC Test State
     const [isTestingAdc, setIsTestingAdc] = useState(false);
     const [adcTestResult, setAdcTestResult] = useState(null);
@@ -611,6 +615,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     setGeminiApiKey(data.geminiApiKey || '');
                     setAnthropicApiKey(data.anthropicApiKey || '');
                     setMinimaxApiKey(data.minimaxApiKey || '');
+                    setGcpProject(data.gcpProject   || '');
+                    setGcpLocation(data.gcpLocation || 'us-central1');
                     setProvider(data.provider || 'ollama');
                     setDefaultModel(data.defaultModel || 'gemma4:e2b');
                     if (data.usage) setGeminiUsage(data.usage);
@@ -682,8 +688,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
             await fetch('http://localhost:3001/api/settings/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    geminiApiKey, anthropicApiKey, minimaxApiKey, provider, defaultModel, s3Config, gcsConfig,
+                body: JSON.stringify({
+                    geminiApiKey, anthropicApiKey, minimaxApiKey,
+                    gcpProject, gcpLocation,
+                    provider, defaultModel, s3Config, gcsConfig,
                     experimental: { planner: plannerMode },
                     geminiModels,
                     modelTierOverrides
@@ -780,6 +788,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
             const res = await fetch('http://localhost:3001/api/settings/cloud/test-adc', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                // Pass current form values so the test uses whatever is typed,
+                // even if the user hasn't saved yet.
+                body: JSON.stringify({ gcpProject, gcpLocation }),
             });
             const data = await res.json();
             setAdcTestResult(data.success
@@ -789,7 +800,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
             setAdcTestResult({ type: 'error', text: err.message });
         } finally {
             setIsTestingAdc(false);
-            setTimeout(() => setAdcTestResult(null), 5000);
+            setTimeout(() => setAdcTestResult(null), 8000);
         }
     };
 
@@ -1535,31 +1546,83 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     <>
                                         <div className="stg-card stg-card--transparent">
                                             <h4 className="stg-card-title stg-card-title--mb10">Authentication</h4>
-                                            <div className="stg-flex--gap8">
+
+                                            {/* API Key */}
+                                            <div className="stg-field-label">Gemini API Key</div>
+                                            <div className="stg-flex--gap8 stg-mb8">
                                                 <input
                                                     type={geminiApiKey ? "password" : "text"}
                                                     className={`stg-input${geminiApiKey ? ' stg-input--mono' : ''}`}
                                                     value={geminiApiKey}
                                                     onChange={(e) => setGeminiApiKey(e.target.value)}
-                                                    placeholder="Enter your Gemini API Key (or leave blank for ADC)"
+                                                    placeholder="Enter API Key — or leave blank to use ADC (Vertex AI)"
                                                 />
                                                 {geminiApiKey && (
                                                     <button onClick={() => setGeminiApiKey('')} className="stg-btn stg-btn--danger-text" title="Clear API Key">
                                                         <LuX size={14} />
                                                     </button>
                                                 )}
-                                                <button onClick={() => handleTestAdc()} disabled={isTestingAdc} className="stg-btn">
-                                                    {isTestingAdc ? 'Testing ADC...' : 'Test ADC Connection'}
-                                                </button>
                                             </div>
-                                            {adcTestResult && (
-                                                <div className={`stg-alert stg-alert--${adcTestResult.type} stg-mt8`}>
-                                                    {adcTestResult.text}
-                                                </div>
+
+                                            {/* ADC fields — only relevant when no API key */}
+                                            {!geminiApiKey && (
+                                                <>
+                                                    <div className="stg-adc-section">
+                                                        <div className="stg-adc-section-label">
+                                                            Application Default Credentials (ADC) — Vertex AI
+                                                        </div>
+                                                        <div className="stg-adc-fields">
+                                                            <div className="stg-adc-field">
+                                                                <div className="stg-field-label">GCP Project ID <span className="stg-required">*</span></div>
+                                                                <input
+                                                                    type="text"
+                                                                    className="stg-input stg-input--mono"
+                                                                    value={gcpProject}
+                                                                    onChange={(e) => setGcpProject(e.target.value)}
+                                                                    placeholder="my-gcp-project-id"
+                                                                />
+                                                            </div>
+                                                            <div className="stg-adc-field stg-adc-field--sm">
+                                                                <div className="stg-field-label">Region / Location</div>
+                                                                <input
+                                                                    type="text"
+                                                                    className="stg-input stg-input--mono"
+                                                                    value={gcpLocation}
+                                                                    onChange={(e) => setGcpLocation(e.target.value)}
+                                                                    placeholder="us-central1"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="stg-flex--gap8 stg-mt8">
+                                                            <button
+                                                                onClick={handleTestAdc}
+                                                                disabled={isTestingAdc || !gcpProject}
+                                                                className="stg-btn"
+                                                                title={!gcpProject ? 'Enter a GCP Project ID first' : ''}
+                                                            >
+                                                                {isTestingAdc ? 'Testing ADC...' : 'Test ADC Connection'}
+                                                            </button>
+                                                        </div>
+                                                        {adcTestResult && (
+                                                            <div className={`stg-alert stg-alert--${adcTestResult.type} stg-mt8`}
+                                                                 style={{ whiteSpace: 'pre-wrap' }}>
+                                                                {adcTestResult.text}
+                                                            </div>
+                                                        )}
+                                                        <p className="stg-card-desc stg-card-desc--mt8">
+                                                            Run <code className="stg-code">gcloud auth application-default login</code> first.
+                                                            Your GCP account needs the <strong>Vertex AI User</strong> role on the project.
+                                                            Settings are stored in <code className="stg-code">~/.amoxsql/config.json</code>.
+                                                        </p>
+                                                    </div>
+                                                </>
                                             )}
-                                            <p className="stg-card-desc stg-card-desc--mt8">
-                                                Your key is stored securely in your computer's home directory (~/.amoxsql/). If left blank, the SDK will attempt to use Google Cloud Application Default Credentials (ADC).
-                                            </p>
+
+                                            {geminiApiKey && (
+                                                <p className="stg-card-desc">
+                                                    API Key mode active. Your key is stored in <code className="stg-code">~/.amoxsql/config.json</code>. Clear the key to switch to ADC (Vertex AI).
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div className="stg-card stg-card--mb14">
