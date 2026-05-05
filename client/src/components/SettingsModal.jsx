@@ -28,7 +28,8 @@ const THEMES = [
     { id: 'onyx',     label: 'Onyx',      icon: <LuMoon size={14} />, sidebar: '#101113', editor: '#1a1c20', text: '#ccc', desc: 'Near-black blue' },
     { id: 'carbon',   label: 'Carbon',    icon: <LuMoon size={14} />, sidebar: '#121315', editor: '#1c1f24', text: '#bbb', desc: 'Blue-grey dark' },
     { id: 'graphite', label: 'Graphite',  icon: <LuMoon size={14} />, sidebar: '#141618', editor: '#222529', text: '#bbb', desc: 'Warm dark grey' },
-    { id: 'nord',     label: 'Nord Dark', icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
+    { id: 'nord',     label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
+    { id: 'islands',  label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'JetBrains-inspired' },
     { id: 'ivory',    label: 'Ivory',     icon: <LuSun size={14} />,  sidebar: '#f3ede4', editor: '#faf6ef', text: '#3b3228', desc: 'Warm paper' },
     { id: 'mist',     label: 'Mist',      icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
     { id: 'snow',     label: 'Snow',      icon: <LuSun size={14} />,  sidebar: '#e5e7eb', editor: '#ffffff', text: '#111827', desc: 'Clean & crisp' },
@@ -42,7 +43,8 @@ const VIBRANT_ACCENTS = [
     { id: 'amox-6', color: '#00B6FF', label: 'Azure' },
     { id: 'amox-8', color: '#0090FF', label: 'Blue' },
     { id: 'amox-10', color: '#0068FF', label: 'Cobalt' },
-    { id: 'linear', color: '#5E6AD2', label: 'Linear Blue' },
+    { id: 'linear',  color: '#5E6AD2', label: 'Linear Blue' },
+    { id: 'islands', color: '#548af7', label: 'Islands Blue' },
 ];
 
 const SOBER_ACCENTS = [
