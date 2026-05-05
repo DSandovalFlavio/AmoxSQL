@@ -11,6 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const { generateText, streamText } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
+const { createVertex } = require('@ai-sdk/google-vertex');
 const { createAnthropic } = require('@ai-sdk/anthropic');
 const { createOpenAI } = require('@ai-sdk/openai');
 const { createOllama } = require('ai-sdk-ollama');
@@ -48,6 +49,8 @@ class AiManager {
                 geminiApiKey: "",
                 anthropicApiKey: "",
                 minimaxApiKey: "",
+                gcpProject: "",
+                gcpLocation: "us-central1",
                 provider: "ollama",
                 defaultModel: "gemma4:e2b",
                 usageDate: new Date().toISOString().split('T')[0],
@@ -82,6 +85,12 @@ class AiManager {
                 config.usage = { flashLite: 0, flash: 0, pro: 0, tokens: 0 };
                 fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
             }
+
+            // Migrate: ensure GCP Vertex AI fields exist for ADC support
+            let needsWrite = false;
+            if (config.gcpProject === undefined) { config.gcpProject = ''; needsWrite = true; }
+            if (config.gcpLocation === undefined) { config.gcpLocation = 'us-central1'; needsWrite = true; }
+            if (needsWrite) fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
 
             // Migrate: ensure experimental flags exist for older config files
             if (!config.experimental) {
@@ -152,12 +161,31 @@ class AiManager {
         const config = this.getConfig();
 
         if (providerName === 'gemini') {
-            // If no API key is set, the SDK will automatically fallback to Application Default Credentials (ADC)
-            // provided that the environment (e.g. gcloud cli) is configured.
-            const google = createGoogleGenerativeAI({
-                apiKey: config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY, // Note: if undefined, SDK tries ADC
-            });
-            return google(modelName || 'gemini-2.5-flash');
+            const apiKey = config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+            if (apiKey) {
+                // API Key mode — uses Gemini Developer API (generativelanguage.googleapis.com)
+                const google = createGoogleGenerativeAI({ apiKey });
+                return google(modelName || 'gemini-2.5-flash');
+            }
+
+            // ADC mode — uses Vertex AI (aiplatform.googleapis.com) with Application Default Credentials.
+            // Requires gcpProject and gcpLocation to be configured.
+            // Run: gcloud auth application-default login  before starting the app.
+            const project  = config.gcpProject  || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+            const location = config.gcpLocation || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
+            if (!project) {
+                throw new Error(
+                    'ADC mode requires a GCP Project ID. ' +
+                    'Go to Settings → AI Assistant and fill in the "GCP Project ID" field, ' +
+                    'or set the GOOGLE_CLOUD_PROJECT environment variable.'
+                );
+            }
+
+            const vertex = createVertex({ project, location });
+            // Vertex AI model IDs use the same names as Gemini Developer API
+            return vertex(modelName || 'gemini-2.5-flash');
         } else if (providerName === 'anthropic') {
             if (!config.anthropicApiKey && !process.env.ANTHROPIC_API_KEY) {
                 throw new Error("Anthropic API Key is not configured. Please add it in Settings > AI Assistant.");
