@@ -4391,6 +4391,137 @@ app.post('/api/chains/detect-result-type', (req, res) => {
     res.json(result);
 });
 
+// SSE stream for real-time execution logs
+app.get('/api/chains/run/:runId/stream', (req, res) => {
+    const { runId } = req.params;
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.flushHeaders();
+
+    // Heartbeat to keep connection alive
+    const heartbeat = setInterval(() => {
+        try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
+    }, 15000);
+
+    chainExecutor.subscribeSSE(runId, res);
+
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        chainExecutor.unsubscribeSSE(runId, res);
+    });
+});
+
+// Preview data from a table
+app.get('/api/chains/preview/:tableName', async (req, res) => {
+    const { tableName } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    try {
+        const safeTable = tableName.replace(/[^a-zA-Z0-9_\-.]/g, '');
+        const rows = await dbManager.query(`SELECT * FROM "${safeTable}" LIMIT ${limit}`);
+        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${safeTable}"`);
+        const totalRows = countResult[0]?.cnt || 0;
+        const columns = rows.length > 0 ? Object.keys(rows[0]).map(k => ({
+            name: k,
+            type: typeof rows[0][k] === 'number' ? 'number' : 'string',
+        })) : [];
+        res.json({ columns, rows, totalRows });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Infer schema for a node (upstream schema propagation)
+app.post('/api/chains/schema/infer', async (req, res) => {
+    const { nodeId, chainDefinition } = req.body;
+    if (!nodeId || !chainDefinition) return res.status(400).json({ error: 'nodeId and chainDefinition required' });
+    try {
+        const { nodes = [], edges = [] } = chainDefinition;
+        const node = nodes.find(n => n.id === nodeId);
+        if (!node) return res.status(404).json({ error: 'Node not found' });
+
+        // Walk upstream to find most direct source with schema
+        const parentEdges = edges.filter(e => e.target === nodeId);
+        if (parentEdges.length === 0) return res.json({ columns: [] });
+
+        const parentId = parentEdges[0].source;
+        const parentNode = nodes.find(n => n.id === parentId);
+        if (!parentNode) return res.json({ columns: [] });
+
+        let columns = [];
+        const cfg = parentNode.config || {};
+
+        if (parentNode.type === 'import_file' && cfg.sourcePath) {
+            const fullPath = chainExecutor.resolvePath(ROOT_DIR, cfg.sourcePath);
+            if (fs.existsSync(fullPath)) {
+                const fileType = cfg.fileType || chainExecutor.detectFileType(cfg.sourcePath);
+                let sql;
+                if (fileType === 'parquet') sql = `DESCRIBE SELECT * FROM read_parquet('${fullPath.replace(/\\/g, '/')}') LIMIT 0`;
+                else if (fileType === 'json') sql = `DESCRIBE SELECT * FROM read_json_auto('${fullPath.replace(/\\/g, '/')}') LIMIT 0`;
+                else if (fileType === 'xlsx') {
+                    try { await dbManager.query("INSTALL spatial; LOAD spatial;"); } catch {}
+                    sql = `DESCRIBE SELECT * FROM read_xlsx('${fullPath.replace(/\\/g, '/')}') LIMIT 0`;
+                } else sql = `DESCRIBE SELECT * FROM read_csv('${fullPath.replace(/\\/g, '/')}', auto_detect=true, header=true) LIMIT 0`;
+                try {
+                    const result = await dbManager.query(sql);
+                    columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
+                } catch {}
+            }
+        } else if (parentNode.type === 'table_ref' && cfg.tableName) {
+            try {
+                const result = await dbManager.query(`DESCRIBE SELECT * FROM "${cfg.tableName}" LIMIT 0`);
+                columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
+            } catch {}
+        } else if (cfg.tableName) {
+            // Any node that produces a table — try to describe it
+            try {
+                const result = await dbManager.query(`DESCRIBE SELECT * FROM "${cfg.tableName}" LIMIT 0`);
+                columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
+            } catch {}
+        }
+
+        res.json({ columns });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Export chain as SQL script
+app.post('/api/chains/export-sql', (req, res) => {
+    const { chainDefinition } = req.body;
+    if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition required' });
+    try {
+        const { nodes = [], edges = [], name = 'chain' } = chainDefinition;
+        const executor = chainExecutor;
+        const layers = executor.computeLayers(nodes, edges);
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+        const lines = [`-- AmoxSQL Chain Export: ${name}`, `-- Generated: ${new Date().toISOString()}`, ``];
+        let stepNum = 0;
+        for (const layer of layers) {
+            for (const nodeId of layer) {
+                const node = nodeMap.get(nodeId);
+                if (!node) continue;
+                stepNum++;
+                lines.push(`-- Step ${stepNum}: [${node.type}] ${node.label || node.id}`);
+                if (node.description) lines.push(`-- ${node.description}`);
+                // Emit representative SQL comment — actual SQL depends on runtime
+                const cfg = node.config || {};
+                if (node.type === 'sql_inline' && cfg.query) lines.push(cfg.query.trim());
+                else if (node.type === 'import_file') lines.push(`-- CREATE TABLE "${cfg.tableName || 'imported_data'}" AS SELECT * FROM read_csv('${cfg.sourcePath || ''}', auto_detect=true, header=true)`);
+                else if (node.type === 'export_file') lines.push(`-- COPY (...upstream...) TO '${cfg.outputPath || ''}' (FORMAT ${(cfg.format || 'csv').toUpperCase()}, HEADER)`);
+                else lines.push(`-- [${node.type}] configured at runtime`);
+                lines.push(``);
+            }
+        }
+
+        res.json({ sql: lines.join('\n') });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Chart Gallery ─────────────────────────────────────────────────────────
 const { seedGallery, registerGalleryRoutes } = require('./galleryManager');
 seedGallery();

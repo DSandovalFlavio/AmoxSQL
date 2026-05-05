@@ -1,0 +1,44 @@
+{
+  "name": "Excel → Parquet",
+  "description": "Import an Excel file and convert it to Parquet format.",
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "import_file",
+      "position": { "x": 120, "y": 200 },
+      "data": {
+        "label": "Import Excel",
+        "nodeType": "import_file",
+        "description": "Load source Excel file",
+        "config": {
+          "sourcePath": "",
+          "tableName": "raw_data",
+          "fileType": "xlsx"
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "type": "export_file",
+      "position": { "x": 420, "y": 200 },
+      "data": {
+        "label": "Export Parquet",
+        "nodeType": "export_file",
+        "description": "Save as Parquet file",
+        "config": {
+          "outputPath": "",
+          "format": "parquet",
+          "compression": "snappy"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1-2",
+      "source": "n1",
+      "target": "n2",
+      "type": "smoothstep"
+    }
+  ]
+}

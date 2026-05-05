@@ -2,7 +2,7 @@
  * ChainCanvas — React Flow wrapper for the chain DAG builder.
  * Handles node/edge rendering, drag-and-drop from palette, connection validation.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import {
     ReactFlow,
     Controls,
@@ -35,6 +35,13 @@ import SampleNode from './nodes/SampleNode';
 import PivotNode from './nodes/PivotNode';
 import RenameTableNode from './nodes/RenameTableNode';
 import CreateTableNode from './nodes/CreateTableNode';
+import TypeCastNode from './nodes/TypeCastNode';
+import WindowFunctionsNode from './nodes/WindowFunctionsNode';
+import UnpivotNode from './nodes/UnpivotNode';
+import HttpFetchNode from './nodes/HttpFetchNode';
+import CleanNode from './nodes/CleanNode';
+import SchemaValidationNode from './nodes/SchemaValidationNode';
+import NotificationNode from './nodes/NotificationNode';
 import { NODE_TYPES } from './chainNodeTypes';
 import { hasCycle, generateNodeId, generateEdgeId } from './chainUtils';
 
@@ -59,6 +66,13 @@ const nodeTypes = {
     pivot: PivotNode,
     rename_table: RenameTableNode,
     create_table: CreateTableNode,
+    type_cast: TypeCastNode,
+    window_functions: WindowFunctionsNode,
+    unpivot: UnpivotNode,
+    http_fetch: HttpFetchNode,
+    clean: CleanNode,
+    schema_validation: SchemaValidationNode,
+    notification: NotificationNode,
 };
 
 const defaultEdgeOptions = {
@@ -77,23 +91,13 @@ const ChainCanvas = ({
     onPaneClick,
     onDrop,
     onDragOver,
-    nodeStatuses = {},
+    onNodeDragStart,
+    onNodeDragStop,
 }) => {
-    // Enrich nodes with execution status data (memoized)
-    const enrichedNodes = useMemo(() =>
-        nodes.map(node => ({
-            ...node,
-            data: {
-                ...node.data,
-                ...(nodeStatuses[node.id] || {}),
-            },
-        })),
-    [nodes, nodeStatuses]);
-
     return (
         <div className="chain-canvas-container">
             <ReactFlow
-                nodes={enrichedNodes}
+                nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
@@ -102,6 +106,8 @@ const ChainCanvas = ({
                 onPaneClick={onPaneClick}
                 onDrop={onDrop}
                 onDragOver={onDragOver}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDragStop={onNodeDragStop}
                 nodeTypes={nodeTypes}
                 defaultEdgeOptions={defaultEdgeOptions}
                 fitView
@@ -128,7 +134,7 @@ const ChainCanvas = ({
                 <MiniMap
                     position="bottom-left"
                     nodeColor={(node) => {
-                        const status = nodeStatuses[node.id]?.status;
+                        const status = node.data?.status;
                         if (status === 'success') return 'oklch(0.65 0.15 155)';
                         if (status === 'failed') return 'oklch(0.65 0.15 25)';
                         if (status === 'running') return 'oklch(0.65 0.15 250)';

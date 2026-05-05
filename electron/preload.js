@@ -2,6 +2,8 @@ const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+    openFileDialog: (opts) => ipcRenderer.invoke('dialog:openFile', opts),
+    saveFileDialog: (opts) => ipcRenderer.invoke('dialog:saveFile', opts),
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
     windowControl: {
         minimize: () => ipcRenderer.send('window-control:minimize'),
