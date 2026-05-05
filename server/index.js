@@ -1157,16 +1157,18 @@ app.get('/api/settings/config', (req, res) => {
 });
 
 app.post('/api/settings/config', (req, res) => {
-    const { geminiApiKey, anthropicApiKey, minimaxApiKey, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
+    const { geminiApiKey, anthropicApiKey, minimaxApiKey, gcpProject, gcpLocation, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
     try {
         const config = aiManager.getConfig();
-        if (geminiApiKey  !== undefined) config.geminiApiKey  = geminiApiKey;
+        if (geminiApiKey    !== undefined) config.geminiApiKey    = geminiApiKey;
         if (anthropicApiKey !== undefined) config.anthropicApiKey = anthropicApiKey;
-        if (minimaxApiKey !== undefined) config.minimaxApiKey = minimaxApiKey;
-        if (provider      !== undefined) config.provider      = provider;
-        if (defaultModel  !== undefined) config.defaultModel  = defaultModel;
-        if (s3Config      !== undefined) config.s3Config      = s3Config;
-        if (gcsConfig     !== undefined) config.gcsConfig     = gcsConfig;
+        if (minimaxApiKey   !== undefined) config.minimaxApiKey   = minimaxApiKey;
+        if (gcpProject      !== undefined) config.gcpProject      = gcpProject;
+        if (gcpLocation     !== undefined) config.gcpLocation     = gcpLocation || 'us-central1';
+        if (provider        !== undefined) config.provider        = provider;
+        if (defaultModel    !== undefined) config.defaultModel    = defaultModel;
+        if (s3Config        !== undefined) config.s3Config        = s3Config;
+        if (gcsConfig       !== undefined) config.gcsConfig       = gcsConfig;
         if (experimental  !== undefined) {
             config.experimental = { ...config.experimental, ...experimental };
         }
@@ -1239,12 +1241,22 @@ app.get('/api/settings/gemini/models', async (req, res) => {
 
 app.post('/api/settings/cloud/test-adc', async (req, res) => {
     try {
-        const { createGoogleGenerativeAI } = require('@ai-sdk/google');
+        const { createVertex } = require('@ai-sdk/google-vertex');
         const { generateText } = require('ai');
-        
-        // Passing no API key lets the Google SDK fall back to ADC automatically
-        const google = createGoogleGenerativeAI({});
-        const model = google('gemini-2.5-flash');
+
+        const config = aiManager.getConfig();
+        const project  = req.body?.gcpProject  || config.gcpProject  || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+        const location = req.body?.gcpLocation || config.gcpLocation || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
+        if (!project) {
+            return res.json({
+                success: false,
+                message: 'GCP Project ID is required for ADC. Fill in the "GCP Project ID" field and save before testing.',
+            });
+        }
+
+        const vertex = createVertex({ project, location });
+        const model  = vertex('gemini-2.5-flash');
 
         const result = await generateText({
             model,
@@ -1253,12 +1265,21 @@ app.post('/api/settings/cloud/test-adc', async (req, res) => {
         });
 
         if (result.text) {
-            res.json({ success: true, message: 'ADC connection successful.' });
+            res.json({ success: true, message: `ADC connection successful. (project: ${project}, location: ${location})` });
         } else {
-            res.json({ success: false, message: 'Failed to retrieve a response using ADC.' });
+            res.json({ success: false, message: 'Vertex AI responded but returned no text. Check project and location.' });
         }
     } catch (err) {
-        res.json({ success: false, message: err.message || 'ADC connection failed.' });
+        // Surface actionable hints for the most common errors
+        let message = err.message || 'ADC connection failed.';
+        if (message.includes('UNAUTHENTICATED') || message.includes('credentials')) {
+            message = `ADC credentials not found. Run: gcloud auth application-default login\n\nDetails: ${message}`;
+        } else if (message.includes('PERMISSION_DENIED') || message.includes('403')) {
+            message = `Permission denied. Make sure your GCP account has the "Vertex AI User" role on project "${(aiManager.getConfig().gcpProject || '?')}".\n\nDetails: ${message}`;
+        } else if (message.includes('PROJECT_NOT_FOUND') || message.includes('project') && message.includes('not found')) {
+            message = `Project not found. Verify the GCP Project ID is correct.\n\nDetails: ${message}`;
+        }
+        res.json({ success: false, message });
     }
 });
 
