@@ -27,6 +27,10 @@ import {
     generateEdgeId,
 } from './chainUtils';
 import { useChainExecution } from './useChainExecution';
+import { validateChain, countErrors, countWarnings } from './chainValidation';
+import ChainLogPanel from './ChainLogPanel';
+import ChainDataPreview from './ChainDataPreview';
+import ChainTemplateGallery from './ChainTemplateGallery';
 
 const API_BASE = 'http://localhost:3001';
 
@@ -82,6 +86,10 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [historyOpen, setHistoryOpen] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [sqlFiles, setSqlFiles] = useState([]);
+    const [logCollapsed, setLogCollapsed] = useState(true);
+    const [previewTable, setPreviewTable] = useState(null);
+    const [showTemplateGallery, setShowTemplateGallery] = useState(() => initialNodes.length === 0);
+    const isDraggingRef = useRef(false);
 
     // Execution hook
     const execution = useChainExecution();
@@ -244,16 +252,63 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         setSelectedNode(null);
     }, []);
 
+    // --- Validation (recomputed on every node/edge change, skipped during drag) ---
+    const validationResults = useMemo(() => validateChain(nodes, edges), [nodes, edges]);
+    const errorCount = useMemo(() => countErrors(validationResults), [validationResults]);
+    const warningCount = useMemo(() => countWarnings(validationResults), [validationResults]);
+
+    // Stable refs so that the nodesWithValidation memo doesn't re-fire just because
+    // callbacks (setPreviewTable) have a new identity.
+    const setPreviewTableRef = useRef(setPreviewTable);
+    setPreviewTableRef.current = setPreviewTable;
+    const onPreviewCallback = useCallback((tbl) => setPreviewTableRef.current(tbl), []);
+
+    // Merge validation + execution status into node data.
+    // We keep a frozen copy while dragging so position updates don't trigger
+    // React re-renders for every mouse-move frame.
+    const frozenNodesWithValidation = useRef(null);
+    const nodesWithValidation = useMemo(() => {
+        const result = nodes.map(n => {
+            const v = validationResults[n.id];
+            return {
+                ...n,
+                data: {
+                    ...n.data,
+                    validationErrors: v?.errors || [],
+                    validationWarnings: v?.warnings || [],
+                    onPreview: onPreviewCallback,
+                    status: execution.nodeStatuses[n.id]?.status || n.data.status,
+                    resultType: execution.nodeStatuses[n.id]?.resultType || n.data.resultType,
+                    resultSummary: execution.nodeStatuses[n.id]?.resultSummary || n.data.resultSummary,
+                    durationMs: execution.nodeStatuses[n.id]?.durationMs || n.data.durationMs,
+                    errorMessage: execution.nodeStatuses[n.id]?.errorMessage || n.data.errorMessage,
+                },
+            };
+        });
+        frozenNodesWithValidation.current = result;
+        return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nodes, validationResults, execution.nodeStatuses, onPreviewCallback]);
+
+    const onNodeDragStart = useCallback(() => { isDraggingRef.current = true; }, []);
+    const onNodeDragStop = useCallback(() => { isDraggingRef.current = false; }, []);
+
     // --- Execution ---
     const handleRun = useCallback(async () => {
+        if (errorCount > 0) {
+            toast.error(`Fix ${errorCount} error${errorCount > 1 ? 's' : ''} before running`);
+            return;
+        }
+        setLogCollapsed(false);
         const chainDef = serialize();
         const result = await execution.startRun(chainDef, filePath);
         if (result?.error) {
             toast.error(`Chain failed: ${result.error}`);
         }
-    }, [serialize, filePath, execution, toast]);
+    }, [serialize, filePath, execution, toast, errorCount]);
 
     const handleRunFromNode = useCallback(async (nodeId) => {
+        setLogCollapsed(false);
         const chainDef = serialize();
         const result = await execution.startRun(chainDef, filePath, { mode: 'from_node', startNodeId: nodeId });
         if (result?.error) toast.error(`Chain failed: ${result.error}`);
@@ -374,6 +429,31 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         onOpenFile?.(filePath);
     }, [onOpenFile]);
 
+    // Load a template definition into the canvas
+    const handleSelectTemplate = useCallback((definition) => {
+        setShowTemplateGallery(false);
+        if (!definition) return;
+        if (definition.name) setChainMeta(m => ({ ...m, name: definition.name }));
+        setNodes((definition.nodes || []).map(n => ({
+            id: n.id,
+            type: n.data?.nodeType || n.type,
+            position: n.position || { x: 0, y: 0 },
+            data: {
+                label: n.data?.label || n.label || '',
+                description: n.data?.description || n.description || '',
+                nodeType: n.data?.nodeType || n.type,
+                config: n.data?.config || n.config || {},
+            },
+        })));
+        setEdges((definition.edges || []).map(e => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            type: 'smoothstep',
+            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+        })));
+    }, []);
+
     return (
         <div className="chain-editor" ref={reactFlowWrapper}>
             <ChainToolbar
@@ -389,9 +469,13 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 onImportYaml={handleImportYaml}
                 onAutoLayout={handleAutoLayout}
                 onToggleHistory={() => setHistoryOpen(!historyOpen)}
+                onToggleLogs={() => setLogCollapsed(v => !v)}
                 onClearStatus={execution.clearStatus}
                 selectedNodeId={selectedNode?.id}
                 isDirty={isDirty}
+                errorCount={errorCount}
+                warningCount={warningCount}
+                progress={execution.progress}
             />
 
             <div className="chain-editor-body">
@@ -401,7 +485,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 />
 
                 <ChainCanvas
-                    nodes={nodes}
+                    nodes={nodesWithValidation}
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
@@ -410,6 +494,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     onPaneClick={onPaneClick}
                     onDrop={onDrop}
                     onDragOver={onDragOver}
+                    onNodeDragStart={onNodeDragStart}
+                    onNodeDragStop={onNodeDragStop}
                     nodeStatuses={execution.nodeStatuses}
                 />
 
@@ -422,6 +508,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         onCreateSqlFile={handleCreateSqlFile}
                         onOpenFile={handleOpenFile}
                         sqlFiles={sqlFiles}
+                        chainDefinition={serialize()}
                     />
                 )}
 
@@ -437,14 +524,60 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 />
             </div>
 
+            {/* Log panel */}
+            <ChainLogPanel
+                logs={execution.logs}
+                isRunning={execution.isRunning}
+                onClear={execution.clearLogs}
+                collapsed={logCollapsed}
+                onToggleCollapse={() => setLogCollapsed(v => !v)}
+            />
+
+            {/* Data preview modal */}
+            {previewTable && (
+                <ChainDataPreview
+                    tableName={previewTable}
+                    onClose={() => setPreviewTable(null)}
+                />
+            )}
+
+            {/* Template gallery — shown when opening a new empty chain */}
+            {showTemplateGallery && (
+                <ChainTemplateGallery
+                    onSelect={handleSelectTemplate}
+                    onClose={() => setShowTemplateGallery(false)}
+                />
+            )}
+
             {/* Run status bar */}
             {execution.runStatus && (
                 <div className={`chain-status-bar chain-status-${execution.runStatus}`}>
-                    {execution.runStatus === 'running' && 'Executing chain...'}
-                    {execution.runStatus === 'completed' && 'Chain completed successfully'}
-                    {execution.runStatus === 'failed' && 'Chain execution failed'}
-                    {execution.runStatus === 'paused' && 'Chain paused at checkpoint'}
-                    {execution.runStatus === 'cancelled' && 'Chain execution cancelled'}
+                    {execution.runStatus === 'running' && (
+                        <>
+                            <span className="chain-status-dot chain-status-dot-running" />
+                            Executing...
+                            {execution.progress.total > 0 && (
+                                <span className="chain-status-progress">
+                                    {execution.progress.completed} / {execution.progress.total} nodes
+                                    {' '}({Math.round(execution.progress.completed / execution.progress.total * 100)}%)
+                                </span>
+                            )}
+                        </>
+                    )}
+                    {execution.runStatus === 'completed' && '✓ Chain completed'}
+                    {execution.runStatus === 'failed' && '✗ Chain failed — check logs'}
+                    {execution.runStatus === 'paused' && '⏸ Paused at checkpoint'}
+                    {execution.runStatus === 'cancelled' && 'Cancelled'}
+                </div>
+            )}
+
+            {/* Progress bar strip */}
+            {execution.isRunning && execution.progress.total > 0 && (
+                <div className="chain-progress-bar">
+                    <div
+                        className="chain-progress-bar-fill"
+                        style={{ width: `${Math.round(execution.progress.completed / execution.progress.total * 100)}%` }}
+                    />
                 </div>
             )}
         </div>

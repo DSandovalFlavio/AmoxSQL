@@ -7,13 +7,61 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { glob } = require('fs').promises ? require('fs/promises') : require('fs');
+const EventEmitter = require('events');
 const chainPersistence = require('./ChainPersistence');
 
-class ChainExecutor {
+class ChainExecutor extends EventEmitter {
     constructor() {
+        super();
         // Active runs map: runId -> { cancelled: boolean }
         this.activeRuns = new Map();
+        // SSE subscribers: runId -> res[]
+        this.sseClients = new Map();
+    }
+
+    // --- SSE helpers ---
+
+    subscribeSSE(runId, res) {
+        if (!this.sseClients.has(runId)) this.sseClients.set(runId, []);
+        this.sseClients.get(runId).push(res);
+    }
+
+    unsubscribeSSE(runId, res) {
+        const clients = this.sseClients.get(runId) || [];
+        this.sseClients.set(runId, clients.filter(c => c !== res));
+    }
+
+    emitLog(runId, event) {
+        const clients = this.sseClients.get(runId) || [];
+        const data = JSON.stringify({ ...event, timestamp: new Date().toISOString() });
+        for (const res of clients) {
+            try { res.write(`data: ${data}\n\n`); } catch {}
+        }
+    }
+
+    closeSSE(runId) {
+        const clients = this.sseClients.get(runId) || [];
+        for (const res of clients) {
+            try { res.write('data: {"type":"done"}\n\n'); res.end(); } catch {}
+        }
+        this.sseClients.delete(runId);
+    }
+
+    // --- Path helpers ---
+
+    resolvePath(projectPath, filePath) {
+        if (!filePath) return '';
+        // Already absolute
+        if (path.isAbsolute(filePath)) return filePath.replace(/\\/g, '/');
+        return path.resolve(projectPath, filePath).replace(/\\/g, '/');
+    }
+
+    async ensureSpatialExtension(dbManager) {
+        try {
+            await dbManager.query("INSTALL spatial; LOAD spatial;");
+        } catch {
+            // Already installed or unavailable — do not throw
+        }
     }
 
     // --- Topological Sort ---
@@ -406,18 +454,28 @@ class ChainExecutor {
             }
 
             case 'import_file': {
-                const sourcePath = path.resolve(projectPath, config.sourcePath).replace(/\\/g, '/');
+                const sourcePath = this.resolvePath(projectPath, config.sourcePath);
                 const tableName = config.tableName || 'imported_data';
-                const fileType = config.fileType || this.detectFileType(config.sourcePath);
+                const fileType = config.fileType || this.detectFileType(config.sourcePath || '');
+                const delimiter = config.delimiter || ',';
+                const skipRows = parseInt(config.skipRows) || 0;
+                const sheetName = config.sheetName || '';
 
-                if (fileType === 'csv') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${sourcePath}', auto_detect=true, header=true)`;
+                if (!config.sourcePath) throw new Error('Import File node: source file path is required');
+                if (!fs.existsSync(sourcePath)) throw new Error(`Import File: file not found — ${config.sourcePath}`);
+
+                if (fileType === 'csv' || fileType === 'tsv') {
+                    const delimOpt = fileType === 'tsv' ? `delim='\\t'` : `delim='${delimiter}'`;
+                    const skipOpt = skipRows > 0 ? `, skip=${skipRows}` : '';
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${sourcePath}', auto_detect=true, header=true, ${delimOpt}${skipOpt})`;
                 } else if (fileType === 'parquet') {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${sourcePath}')`;
-                } else if (fileType === 'json') {
+                } else if (fileType === 'json' || fileType === 'jsonl') {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${sourcePath}')`;
                 } else if (fileType === 'xlsx' || fileType === 'excel') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_xlsx('${sourcePath}')`;
+                    await this.ensureSpatialExtension(dbManager);
+                    const sheetOpt = sheetName ? `, sheet='${sheetName}'` : '';
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_xlsx('${sourcePath}'${sheetOpt})`;
                 } else {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${sourcePath}', auto_detect=true)`;
                 }
@@ -426,22 +484,25 @@ class ChainExecutor {
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
                 const rowCount = countResult[0]?.cnt || 0;
                 resultType = 'table_created';
-                resultSummary = { table: tableName, rowCount };
+                resultSummary = { table: tableName, rowCount, source: config.sourcePath };
                 break;
             }
 
             case 'import_folder': {
-                const folderPath = path.resolve(projectPath, config.folderPath).replace(/\\/g, '/');
+                const folderPath = this.resolvePath(projectPath, config.folderPath);
                 const pattern = config.filePattern || '*.csv';
                 const tableName = config.tableName || 'imported_data';
-                const ext = pattern.replace('*.', '');
+                const ext = pattern.replace('*.', '').toLowerCase();
 
-                sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${folderPath}/${pattern}', auto_detect=true, header=true, union_by_name=true)`;
+                if (!config.folderPath) throw new Error('Import Folder node: folder path is required');
+                if (!fs.existsSync(folderPath)) throw new Error(`Import Folder: folder not found — ${config.folderPath}`);
 
                 if (ext === 'parquet') {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${folderPath}/${pattern}', union_by_name=true)`;
-                } else if (ext === 'json') {
+                } else if (ext === 'json' || ext === 'jsonl') {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${folderPath}/${pattern}', union_by_name=true)`;
+                } else {
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${folderPath}/${pattern}', auto_detect=true, header=true, union_by_name=true)`;
                 }
 
                 await dbManager.query(sql);
@@ -453,20 +514,22 @@ class ChainExecutor {
             }
 
             case 'export_file': {
-                const outputPath = path.resolve(projectPath, config.outputPath).replace(/\\/g, '/');
+                const outputPath = this.resolvePath(projectPath, config.outputPath);
                 const format = config.format || 'csv';
+                const delimiter = config.delimiter || ',';
+                const compression = config.compression || '';
                 let query = config.query || '';
+
+                if (!config.outputPath) throw new Error('Export File node: output file path is required');
 
                 // AUTO-RESOLVE: If no query configured, use upstream node's output
                 if (!query && upstreamOutputs.length > 0) {
                     const upstreamQuery = this.outputToQuery(upstreamOutputs[0]);
-                    if (upstreamQuery) {
-                        query = upstreamQuery;
-                    }
+                    if (upstreamQuery) query = upstreamQuery;
                 }
 
                 if (!query) {
-                    throw new Error('Export node has no query and no upstream data source connected. Connect a node that produces a table or write a query manually.');
+                    throw new Error('Export node has no query and no upstream node connected. Connect a source node or write a SQL query manually.');
                 }
 
                 // Ensure output directory exists
@@ -476,19 +539,25 @@ class ChainExecutor {
                 }
 
                 if (format === 'csv') {
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER)`;
+                    const delimOpt = delimiter !== ',' ? `, SEPARATOR '${delimiter}'` : '';
+                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER${delimOpt})`;
                 } else if (format === 'parquet') {
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT PARQUET)`;
+                    const comprOpt = compression ? `, COMPRESSION ${compression.toUpperCase()}` : '';
+                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT PARQUET${comprOpt})`;
                 } else if (format === 'xlsx' || format === 'excel') {
+                    await this.ensureSpatialExtension(dbManager);
                     sql = `COPY (${query}) TO '${outputPath}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
+                } else if (format === 'json') {
+                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT JSON)`;
                 } else {
                     sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER)`;
                 }
 
                 await dbManager.query(sql);
                 const stat = fs.existsSync(outputPath) ? fs.statSync(outputPath) : null;
+                const sizeKb = stat ? (stat.size / 1024).toFixed(1) : '?';
                 resultType = 'file_exported';
-                resultSummary = { path: config.outputPath, format, size: stat ? `${(stat.size / 1024).toFixed(1)} KB` : 'unknown', resolvedQuery: query };
+                resultSummary = { path: config.outputPath, format, size: `${sizeKb} KB` };
                 break;
             }
 
@@ -851,6 +920,234 @@ class ChainExecutor {
                 break;
             }
 
+            case 'type_cast': {
+                const targetTable = config.tableName || 'casted_data';
+                const casts = config.casts || [];
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                if (!sourceQuery) throw new Error('Type Cast node: no upstream data source connected');
+                if (casts.length === 0) throw new Error('Type Cast node: at least one cast is required');
+
+                const castExprs = casts.map(c => `TRY_CAST("${c.column}" AS ${c.targetType}) AS "${c.alias || c.column}"`);
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT *, ${castExprs.join(', ')} EXCLUDE (${casts.map(c => `"${c.column}"`).join(', ')}) FROM (${sourceQuery}) AS _src`;
+                // Fallback: simpler form if EXCLUDE fails
+                try {
+                    await dbManager.query(sql);
+                } catch {
+                    // Build explicit column list: all original + cast replacements
+                    const castColSet = new Set(casts.map(c => c.column));
+                    // Get all columns from upstream
+                    const schemaResult = await dbManager.query(`DESCRIBE ${sourceQuery}`);
+                    const allCols = (schemaResult || []).map(r => r.column_name || r.name);
+                    const selParts = allCols.map(col => {
+                        const cast = casts.find(c => c.column === col);
+                        if (cast) return `TRY_CAST("${col}" AS ${cast.targetType}) AS "${cast.alias || col}"`;
+                        return `"${col}"`;
+                    });
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${selParts.join(', ')} FROM (${sourceQuery}) AS _src`;
+                    await dbManager.query(sql);
+                }
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, castsApplied: casts.length };
+                break;
+            }
+
+            case 'window_functions': {
+                const targetTable = config.tableName || 'with_window';
+                const windows = config.windows || [];
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                if (!sourceQuery) throw new Error('Window Functions node: no upstream data source connected');
+                if (windows.length === 0) throw new Error('Window Functions node: at least one window function is required');
+
+                const windowExprs = windows.map(w => {
+                    const partBy = w.partitionBy && w.partitionBy.length > 0
+                        ? `PARTITION BY ${w.partitionBy.map(c => `"${c}"`).join(', ')}`
+                        : '';
+                    const orderBy = w.orderBy && w.orderBy.length > 0
+                        ? `ORDER BY ${w.orderBy.map(c => `"${c}"`).join(', ')}`
+                        : '';
+                    const over = `OVER (${[partBy, orderBy].filter(Boolean).join(' ')})`;
+                    const col = w.column && w.column !== '*' ? `"${w.column}"` : (w.column === '*' ? '*' : '');
+                    const func = ['ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE'].includes(w.func)
+                        ? `${w.func}()`
+                        : col ? `${w.func}(${col})` : `${w.func}()`;
+                    return `${func} ${over} AS "${w.alias || w.func.toLowerCase()}"`;
+                });
+
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT *, ${windowExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0 };
+                break;
+            }
+
+            case 'unpivot': {
+                const targetTable = config.tableName || 'unpivoted_data';
+                const idColumns = config.idColumns || [];
+                const valueColumns = config.valueColumns || [];
+                const nameColumn = config.nameColumn || 'variable';
+                const valueColumn = config.valueColumn || 'value';
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                if (!sourceQuery) throw new Error('Unpivot node: no upstream data source connected');
+                if (valueColumns.length === 0) throw new Error('Unpivot node: at least one value column is required');
+
+                const valCols = valueColumns.map(c => `"${c}"`).join(', ');
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS UNPIVOT (${sourceQuery}) ON (${valCols}) INTO NAME "${nameColumn}" VALUE "${valueColumn}"`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0 };
+                break;
+            }
+
+            case 'http_fetch': {
+                const tableName = config.tableName || 'fetched_data';
+                const url = config.url || '';
+                const fetchFormat = config.format || 'csv';
+
+                if (!url) throw new Error('HTTP Fetch node: URL is required');
+
+                // Load httpfs if needed
+                try { await dbManager.query("INSTALL httpfs; LOAD httpfs;"); } catch {}
+
+                if (fetchFormat === 'parquet') {
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${url}')`;
+                } else if (fetchFormat === 'json') {
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${url}')`;
+                } else {
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${url}', auto_detect=true, header=true)`;
+                }
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
+                resultType = 'table_created';
+                resultSummary = { table: tableName, rowCount: countResult[0]?.cnt || 0, url };
+                break;
+            }
+
+            case 'clean': {
+                const targetTable = config.tableName || 'cleaned_data';
+                const operations = config.operations || [];
+
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                if (!sourceQuery) throw new Error('Clean node: no upstream data source connected');
+                if (operations.length === 0) throw new Error('Clean node: at least one cleaning operation is required');
+
+                // Get all columns
+                const schemaResult = await dbManager.query(`DESCRIBE ${sourceQuery}`);
+                const allCols = (schemaResult || []).map(r => r.column_name || r.name);
+
+                const colExprs = allCols.map(col => {
+                    const ops = operations.filter(o => o.column === col);
+                    if (ops.length === 0) return `"${col}"`;
+                    let expr = `"${col}"`;
+                    for (const op of ops) {
+                        switch (op.type) {
+                            case 'trim': expr = `TRIM(${expr})`; break;
+                            case 'lower': expr = `LOWER(${expr})`; break;
+                            case 'upper': expr = `UPPER(${expr})`; break;
+                            case 'replace': expr = `REPLACE(${expr}, '${(op.from||'').replace(/'/g,"''")}', '${(op.to||'').replace(/'/g,"''")}')` ; break;
+                            case 'regex_replace': expr = `REGEXP_REPLACE(${expr}, '${(op.pattern||'').replace(/'/g,"''")}', '${(op.replacement||'').replace(/'/g,"''")}')` ; break;
+                            case 'fill_null': expr = `COALESCE(${expr}, '${(op.defaultValue||'').replace(/'/g,"''")}')` ; break;
+                            case 'nullify_empty': expr = `NULLIF(${expr}, '')`; break;
+                        }
+                    }
+                    return `${expr} AS "${col}"`;
+                });
+
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, opsApplied: operations.length };
+                break;
+            }
+
+            case 'schema_validation': {
+                const expectedCols = config.expectedColumns || [];
+                const strict = config.strict || false;
+
+                let tableToCheck = '';
+                if (upstreamOutputs.length > 0) {
+                    const up = upstreamOutputs[0];
+                    tableToCheck = up.table || up.view || '';
+                }
+                if (!tableToCheck) throw new Error('Schema Validation node: no upstream table found');
+                if (expectedCols.length === 0) throw new Error('Schema Validation node: at least one expected column is required');
+
+                const schemaResult = await dbManager.query(`DESCRIBE SELECT * FROM "${tableToCheck}"`);
+                const actualCols = new Map((schemaResult || []).map(r => [r.column_name || r.name, r.column_type || r.type]));
+
+                const failures = [];
+                for (const expected of expectedCols) {
+                    if (!actualCols.has(expected.name)) {
+                        failures.push(`Column "${expected.name}" is missing`);
+                    } else if (expected.type && !actualCols.get(expected.name).toUpperCase().includes(expected.type.toUpperCase())) {
+                        failures.push(`Column "${expected.name}" expected type ${expected.type}, got ${actualCols.get(expected.name)}`);
+                    }
+                }
+                if (strict) {
+                    const expectedSet = new Set(expectedCols.map(c => c.name));
+                    for (const [col] of actualCols) {
+                        if (!expectedSet.has(col)) failures.push(`Unexpected column "${col}"`);
+                    }
+                }
+                if (failures.length > 0) {
+                    throw new Error(`Schema validation failed:\n${failures.join('\n')}`);
+                }
+
+                sql = `-- Schema validated: ${tableToCheck}`;
+                resultType = 'assertion_passed';
+                resultSummary = { table: tableToCheck, assertion: 'schema matches', columnsChecked: expectedCols.length };
+                break;
+            }
+
+            case 'notification': {
+                const notifType = config.notifType || 'log';
+                const message = config.message || 'Chain step completed';
+
+                if (notifType === 'log_file' && config.logFilePath) {
+                    const logPath = this.resolvePath(projectPath, config.logFilePath);
+                    const logDir = path.dirname(logPath);
+                    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+                    const entry = `[${new Date().toISOString()}] ${message}\n`;
+                    fs.appendFileSync(logPath, entry, 'utf-8');
+                } else if (notifType === 'webhook' && config.webhookUrl) {
+                    try {
+                        const https = require('https');
+                        const http = require('http');
+                        const urlObj = new URL(config.webhookUrl);
+                        const mod = urlObj.protocol === 'https:' ? https : http;
+                        const payload = JSON.stringify({ message, timestamp: new Date().toISOString() });
+                        await new Promise((resolve, reject) => {
+                            const req = mod.request(config.webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' } }, resolve);
+                            req.on('error', reject);
+                            req.write(payload);
+                            req.end();
+                        });
+                    } catch (err) {
+                        // Non-fatal: log but don't fail the chain
+                        console.warn('[Chains] Notification webhook failed:', err.message);
+                    }
+                }
+
+                sql = `-- Notification: ${message}`;
+                resultType = 'unknown';
+                resultSummary = { message, type: notifType };
+                break;
+            }
+
             default:
                 throw new Error(`Unknown node type: ${type}`);
         }
@@ -959,12 +1256,18 @@ class ChainExecutor {
                     // Mark as running
                     await chainPersistence.updateNodeRun(dbManager, nodeRunId, { status: 'running' });
                     nodeStatuses.set(nodeId, 'running');
+                    this.emitLog(runId, { type: 'node_start', nodeId, nodeLabel: node.label || node.id, nodeType: node.type });
 
                     const startTime = Date.now();
 
                     try {
                         const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs);
                         const durationMs = Date.now() - startTime;
+
+                        // Emit SQL executed
+                        if (result.sql) {
+                            this.emitLog(runId, { type: 'node_sql', nodeId, nodeLabel: node.label || node.id, sql: result.sql });
+                        }
 
                         // Store output reference for downstream nodes
                         const outputRef = this.extractOutputRef(node, result.sql, result.resultType, result.resultSummary, upstreamOutputs);
@@ -983,10 +1286,13 @@ class ChainExecutor {
                             nodeStatuses.set(nodeId, 'success');
                             completedCount++;
 
+                            this.emitLog(runId, { type: 'node_complete', nodeId, nodeLabel: node.label || node.id, durationMs, resultType: result.resultType, resultSummary: result.resultSummary });
                             await chainPersistence.updateRunStatus(dbManager, runId, {
                                 status: 'paused',
                                 completedNodes: completedCount,
                             });
+                            this.emitLog(runId, { type: 'run_paused', pausedAtNode: nodeId });
+                            this.closeSSE(runId);
                             this.activeRuns.delete(runId);
                             return { runId, status: 'paused', pausedAtNode: nodeId };
                         }
@@ -1001,6 +1307,18 @@ class ChainExecutor {
                         nodeStatuses.set(nodeId, 'success');
                         completedCount++;
 
+                        this.emitLog(runId, {
+                            type: 'node_complete',
+                            nodeId,
+                            nodeLabel: node.label || node.id,
+                            durationMs,
+                            resultType: result.resultType,
+                            rowCount: result.resultSummary?.rowCount,
+                            table: result.resultSummary?.table,
+                            path: result.resultSummary?.path,
+                        });
+                        this.emitLog(runId, { type: 'run_progress', completed: completedCount, total: activeNodes.length });
+
                         await chainPersistence.updateRunStatus(dbManager, runId, {
                             status: 'running',
                             completedNodes: completedCount,
@@ -1014,6 +1332,8 @@ class ChainExecutor {
                         });
                         nodeStatuses.set(nodeId, 'failed');
                         failed = true;
+
+                        this.emitLog(runId, { type: 'node_error', nodeId, nodeLabel: node.label || node.id, durationMs, error: err.message });
 
                         // Mark all downstream nodes as skipped
                         const downstream = this.getDownstreamNodes(nodeId, activeEdges, activeNodeIds);
@@ -1031,6 +1351,8 @@ class ChainExecutor {
                             completedNodes: completedCount,
                             failedNodeId: nodeId,
                         });
+                        this.emitLog(runId, { type: 'run_complete', status: 'failed', failedNodeId: nodeId });
+                        this.closeSSE(runId);
                         this.activeRuns.delete(runId);
                         return { runId, status: 'failed', failedNodeId: nodeId, error: err.message };
                     }
@@ -1038,11 +1360,15 @@ class ChainExecutor {
             }
         } catch (err) {
             await chainPersistence.updateRunStatus(dbManager, runId, { status: 'failed', completedNodes: completedCount });
+            this.emitLog(runId, { type: 'run_complete', status: 'failed', error: err.message });
+            this.closeSSE(runId);
             this.activeRuns.delete(runId);
             return { runId, status: 'failed', error: err.message };
         }
 
         await chainPersistence.updateRunStatus(dbManager, runId, { status: 'completed', completedNodes: completedCount });
+        this.emitLog(runId, { type: 'run_complete', status: 'completed', totalNodes: activeNodes.length });
+        this.closeSSE(runId);
         this.activeRuns.delete(runId);
         return { runId, status: 'completed' };
     }

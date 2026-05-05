@@ -1,10 +1,11 @@
 /**
  * BaseChainNode — Shared layout for all chain node types.
- * Provides: handles, status indicator, type badge, label, description preview, result badge.
+ * Provides: handles, status indicator, type badge, label, description,
+ * result badge, validation indicators, and data preview button.
  */
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { LuCheck, LuX, LuLoader, LuMinus, LuCircleAlert } from 'react-icons/lu';
+import { LuCheck, LuX, LuLoader, LuMinus, LuCircleAlert, LuTriangleAlert, LuEye } from 'react-icons/lu';
 import { NODE_TYPES, STATUS_COLORS, RESULT_TYPE_LABELS } from '../chainNodeTypes';
 
 const statusIcons = {
@@ -24,12 +25,27 @@ const BaseChainNode = ({ data, selected }) => {
     const resultSummary = data.resultSummary;
     const durationMs = data.durationMs;
 
+    const validationErrors = data.validationErrors || [];
+    const validationWarnings = data.validationWarnings || [];
+    const hasErrors = validationErrors.length > 0;
+    const hasWarnings = validationWarnings.length > 0 && !hasErrors;
+
+    const [showValidation, setShowValidation] = useState(false);
+
+    // Compute border: status overrides validation, which overrides default
+    let borderColor = nodeType.color.border;
+    if (status !== 'pending') borderColor = statusColor.border;
+    else if (hasErrors) borderColor = 'oklch(0.6 0.2 25)';
+    else if (hasWarnings) borderColor = 'oklch(0.6 0.18 85)';
+
+    const canPreview = status === 'success' && resultSummary?.table;
+
     return (
         <div
-            className={`chain-node ${selected ? 'chain-node-selected' : ''}`}
+            className={`chain-node ${selected ? 'chain-node-selected' : ''} ${hasErrors ? 'chain-node-invalid' : ''}`}
             style={{
                 '--node-bg': nodeType.color.bg,
-                '--node-border': status !== 'pending' ? statusColor.border : nodeType.color.border,
+                '--node-border': borderColor,
                 '--node-accent': nodeType.color.accent,
                 '--status-bg': statusColor.bg,
             }}
@@ -42,14 +58,43 @@ const BaseChainNode = ({ data, selected }) => {
                     <Icon size={10} />
                     <span>{nodeType.label}</span>
                 </div>
-                {status !== 'pending' && (
-                    <div className="chain-node-status" style={{ color: statusColor.text }}>
-                        {statusIcons[status]}
-                        {durationMs !== undefined && (
-                            <span className="chain-node-duration">{durationMs}ms</span>
-                        )}
-                    </div>
-                )}
+
+                <div className="chain-node-header-right">
+                    {/* Validation indicator */}
+                    {status === 'pending' && (hasErrors || hasWarnings) && (
+                        <button
+                            className={`chain-node-validation-btn ${hasErrors ? 'chain-node-validation-error' : 'chain-node-validation-warn'}`}
+                            onClick={(e) => { e.stopPropagation(); setShowValidation(v => !v); }}
+                            title={hasErrors ? `${validationErrors.length} error(s)` : `${validationWarnings.length} warning(s)`}
+                        >
+                            {hasErrors
+                                ? <LuCircleAlert size={11} />
+                                : <LuTriangleAlert size={11} />
+                            }
+                        </button>
+                    )}
+
+                    {/* Preview button */}
+                    {canPreview && (
+                        <button
+                            className="chain-node-preview-btn"
+                            onClick={(e) => { e.stopPropagation(); data.onPreview?.(resultSummary.table); }}
+                            title={`Preview: ${resultSummary.table}`}
+                        >
+                            <LuEye size={11} />
+                        </button>
+                    )}
+
+                    {/* Status */}
+                    {status !== 'pending' && (
+                        <div className="chain-node-status" style={{ color: statusColor.text }}>
+                            {statusIcons[status]}
+                            {durationMs !== undefined && (
+                                <span className="chain-node-duration">{durationMs < 1000 ? `${durationMs}ms` : `${(durationMs/1000).toFixed(1)}s`}</span>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Label */}
@@ -83,14 +128,13 @@ const BaseChainNode = ({ data, selected }) => {
                         </span>
                     )}
                     {resultSummary?.table && (
-                        <span className="chain-node-result-detail">
-                            → {resultSummary.table}
-                        </span>
+                        <span className="chain-node-result-detail">→ {resultSummary.table}</span>
                     )}
                     {resultSummary?.path && (
-                        <span className="chain-node-result-detail">
-                            → {resultSummary.path}
-                        </span>
+                        <span className="chain-node-result-detail">→ {resultSummary.path}</span>
+                    )}
+                    {resultSummary?.size && (
+                        <span className="chain-node-result-detail">{resultSummary.size}</span>
                     )}
                 </div>
             )}
@@ -100,6 +144,24 @@ const BaseChainNode = ({ data, selected }) => {
                 <div className="chain-node-error">
                     <LuCircleAlert size={10} />
                     <span>{data.errorMessage}</span>
+                </div>
+            )}
+
+            {/* Validation tooltip */}
+            {showValidation && (hasErrors || hasWarnings) && (
+                <div className="chain-node-validation-popup" onClick={(e) => e.stopPropagation()}>
+                    {validationErrors.map((e, i) => (
+                        <div key={`e${i}`} className="chain-node-validation-item chain-node-validation-item-error">
+                            <LuCircleAlert size={10} />
+                            <span>{e}</span>
+                        </div>
+                    ))}
+                    {validationWarnings.map((w, i) => (
+                        <div key={`w${i}`} className="chain-node-validation-item chain-node-validation-item-warn">
+                            <LuTriangleAlert size={10} />
+                            <span>{w}</span>
+                        </div>
+                    ))}
                 </div>
             )}
 

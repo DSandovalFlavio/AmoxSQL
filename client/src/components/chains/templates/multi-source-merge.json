@@ -1,0 +1,62 @@
+{
+  "name": "Multi-Source Merge",
+  "description": "Import 3 CSV files with the same schema, merge them, and export.",
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "import_file",
+      "position": { "x": 80, "y": 80 },
+      "data": {
+        "label": "Source A",
+        "nodeType": "import_file",
+        "config": { "sourcePath": "", "tableName": "source_a", "fileType": "csv" }
+      }
+    },
+    {
+      "id": "n2",
+      "type": "import_file",
+      "position": { "x": 80, "y": 230 },
+      "data": {
+        "label": "Source B",
+        "nodeType": "import_file",
+        "config": { "sourcePath": "", "tableName": "source_b", "fileType": "csv" }
+      }
+    },
+    {
+      "id": "n3",
+      "type": "import_file",
+      "position": { "x": 80, "y": 380 },
+      "data": {
+        "label": "Source C",
+        "nodeType": "import_file",
+        "config": { "sourcePath": "", "tableName": "source_c", "fileType": "csv" }
+      }
+    },
+    {
+      "id": "n4",
+      "type": "merge_tables",
+      "position": { "x": 370, "y": 230 },
+      "data": {
+        "label": "Merge All",
+        "nodeType": "merge_tables",
+        "config": { "tableName": "merged_data", "mergeMode": "union_all" }
+      }
+    },
+    {
+      "id": "n5",
+      "type": "export_file",
+      "position": { "x": 640, "y": 230 },
+      "data": {
+        "label": "Export Result",
+        "nodeType": "export_file",
+        "config": { "outputPath": "", "format": "parquet" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1-4", "source": "n1", "target": "n4", "type": "smoothstep" },
+    { "id": "e2-4", "source": "n2", "target": "n4", "type": "smoothstep" },
+    { "id": "e3-4", "source": "n3", "target": "n4", "type": "smoothstep" },
+    { "id": "e4-5", "source": "n4", "target": "n5", "type": "smoothstep" }
+  ]
+}
