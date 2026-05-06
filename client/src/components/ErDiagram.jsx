@@ -4,7 +4,8 @@ import {
     LuMaximize2, LuKey, LuLink, LuCopy, LuCheck, LuDatabase, LuEye, LuTable
 } from 'react-icons/lu';
 
-const API = 'http://localhost:3001/api';
+import { API_BASE as _API } from '../api.js';
+const API = `${_API}/api`;
 
 const TABLE_W = 230;
 const HEADER_H = 36;

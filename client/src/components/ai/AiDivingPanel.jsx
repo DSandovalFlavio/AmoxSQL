@@ -10,7 +10,7 @@ import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
 
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../../api.js';
 
 /**
  * AiDivingPanel — Full 3-column Data Diving mode.

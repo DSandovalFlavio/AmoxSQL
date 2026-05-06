@@ -5,7 +5,7 @@ import {
     LuCheck, LuTriangleAlert,
 } from 'react-icons/lu';
 
-const API_BASE = 'http://localhost:3001';
+import { API_BASE } from '../../api.js';
 const PAGE_SIZE = 50;
 
 /**

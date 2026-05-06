@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuTable, LuX } from "react-icons/lu";
 
@@ -30,7 +31,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:3001/api/db/table-details', {
+            const res = await fetch(`${API_BASE}/api/db/table-details`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tableName, limit: 200, offset: 0 })

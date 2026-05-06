@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuX, LuGitCompare, LuPlus, LuMinus, LuPencil } from 'react-icons/lu';
 
@@ -15,7 +16,7 @@ const SchemaDiffModal = ({ isOpen, onClose, tables = [] }) => {
     const fetchSchema = async (tableName) => {
         if (!tableName) return [];
         try {
-            const res = await fetch('http://localhost:3001/api/query', {
+            const res = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: `DESCRIBE "${tableName}"` }),

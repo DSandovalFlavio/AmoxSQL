@@ -5,6 +5,7 @@ import {
     LuTrash2, LuPackage, LuPencil,
     LuSparkles, LuFileSearch, LuDownload,
 } from 'react-icons/lu';
+import { API_BASE } from '../../api.js';
 
 const ARTIFACT_ICONS = {
     sql: LuFileCode,
@@ -52,7 +53,7 @@ const SessionInventory = ({
             return;
         }
         try {
-            const res = await fetch(`http://localhost:3001/api/ai/sessions/${conversationId}/artifacts`);
+            const res = await fetch(`${API_BASE}/api/ai/sessions/${conversationId}/artifacts`);
             if (res.ok) {
                 const data = await res.json();
                 setArtifacts(data);
@@ -74,7 +75,7 @@ const SessionInventory = ({
         if (!conversationId) return;
         try {
             const res = await fetch(
-                `http://localhost:3001/api/ai/sessions/${conversationId}/artifacts/${artifactId}`,
+                `${API_BASE}/api/ai/sessions/${conversationId}/artifacts/${artifactId}`,
                 { method: 'DELETE' }
             );
             if (res.ok) {

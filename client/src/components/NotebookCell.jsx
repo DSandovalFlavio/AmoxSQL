@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import SqlEditor from './SqlEditor';
@@ -210,7 +211,7 @@ const NotebookCell = ({
 
             setDebugQuery(injectedDebugQ);
 
-            const response = await fetch('http://localhost:3001/api/query', {
+            const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: injectedDebugQ }),

@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuX, LuZap, LuCheck, LuLoader, LuCircleAlert, LuChevronRight, LuExternalLink, LuTriangleAlert } from 'react-icons/lu';
 import { useToast } from './ToastProvider';
@@ -28,7 +29,7 @@ const FlockSetupWizard = ({ onClose, onComplete }) => {
 
     // Fetch Ollama URL from AmoxSQL AI config
     useEffect(() => {
-        fetch('http://localhost:3001/api/settings/ai')
+        fetch(`${API_BASE}/api/settings/ai`)
             .then(r => r.json())
             .then(d => { if (d.ollamaUrl) setOllamaUrl(d.ollamaUrl.replace(/^https?:\/\//, '')); })
             .catch(() => {});
@@ -39,7 +40,7 @@ const FlockSetupWizard = ({ onClose, onComplete }) => {
         setSecretStatus('creating');
         setSecretError('');
         try {
-            const res = await fetch('http://localhost:3001/api/flock/secrets/ollama', {
+            const res = await fetch(`${API_BASE}/api/flock/secrets/ollama`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ apiUrl: ollamaUrl, name: 'amoxsql_ollama', persistent: true }),
@@ -62,7 +63,7 @@ const FlockSetupWizard = ({ onClose, onComplete }) => {
     const handleToStep1 = async () => {
         setModelsLoading(true);
         try {
-            const res = await fetch('http://localhost:3001/api/settings/ollama/models');
+            const res = await fetch(`${API_BASE}/api/settings/ollama/models`);
             const data = await res.json();
             const models = (data.models || []).map(m => ({
                 id: m.name,
@@ -87,7 +88,7 @@ const FlockSetupWizard = ({ onClose, onComplete }) => {
     const handleRegisterModels = async () => {
         const toRegister = availableModels.filter(m => selectedModels[m.id]);
         try {
-            const res = await fetch('http://localhost:3001/api/flock/bootstrap', {
+            const res = await fetch(`${API_BASE}/api/flock/bootstrap`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -117,7 +118,7 @@ const FlockSetupWizard = ({ onClose, onComplete }) => {
         setTestResult('');
         setTestError('');
         try {
-            const res = await fetch(`http://localhost:3001/api/flock/models/${encodeURIComponent(testModel)}/test`, {
+            const res = await fetch(`${API_BASE}/api/flock/models/${encodeURIComponent(testModel)}/test`, {
                 method: 'POST',
             });
             const data = await res.json();

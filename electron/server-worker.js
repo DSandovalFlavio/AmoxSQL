@@ -11,8 +11,8 @@ process.parentPort.on('message', async (e) => {
     if (msg.type === 'start') {
         try {
             const { startServer } = require('../server/index.js');
-            await startServer(msg.port);
-            process.parentPort.postMessage({ type: 'ready' });
+            const { port: actualPort } = await startServer(msg.port);
+            process.parentPort.postMessage({ type: 'ready', port: actualPort });
         } catch (err) {
             process.parentPort.postMessage({ type: 'error', message: err.message });
             process.exit(1);

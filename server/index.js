@@ -4583,14 +4583,29 @@ app.post('/api/shutdown', async (_req, res) => {
     setTimeout(() => process.exit(0), 200);
 });
 
-const startServer = (port = 3001) => {
+const startServer = (preferredPort = 3001) => {
     return new Promise((resolve, reject) => {
-        const server = app.listen(port, () => {
-            console.log(`Server running at http://localhost:${port}`);
+        const server = app.listen(preferredPort, () => {
+            const actualPort = server.address().port;
+            console.log(`Server running at http://localhost:${actualPort}`);
             console.log(`Serving files from: ${ROOT_DIR}`);
-            resolve(server);
+            resolve({ server, port: actualPort });
         });
-        server.on('error', reject);
+        server.on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                // Port busy — let OS pick a free one
+                console.warn(`[Server] Port ${preferredPort} in use, requesting OS-assigned port`);
+                const fallback = app.listen(0, () => {
+                    const actualPort = fallback.address().port;
+                    console.log(`Server running at http://localhost:${actualPort}`);
+                    console.log(`Serving files from: ${ROOT_DIR}`);
+                    resolve({ server: fallback, port: actualPort });
+                });
+                fallback.on('error', reject);
+            } else {
+                reject(err);
+            }
+        });
     });
 };
 

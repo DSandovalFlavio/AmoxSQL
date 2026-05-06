@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LuBrain, LuTrash2, LuPencil, LuCheck, LuX, LuRefreshCw } from 'react-icons/lu';
-
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../../api.js';
 
 const CATEGORY_LABELS = {
     global_rule: 'Rule',

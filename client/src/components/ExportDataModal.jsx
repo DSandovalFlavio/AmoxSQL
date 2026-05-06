@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState } from 'react';
 import { LuX, LuDownload, LuFileSpreadsheet, LuFile, LuCloud, LuHardDrive } from 'react-icons/lu';
 
@@ -27,7 +28,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
 
         try {
             if (exportTarget === 'local') {
-                const response = await fetch('http://localhost:3001/api/export-data', {
+                const response = await fetch(`${API_BASE}/api/export-data`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -48,7 +49,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                 if (!destination.trim()) {
                     throw new Error("Destination URI is required for cloud export");
                 }
-                const response = await fetch('http://localhost:3001/api/export/cloud', {
+                const response = await fetch(`${API_BASE}/api/export/cloud`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
