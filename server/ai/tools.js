@@ -1173,6 +1173,8 @@ function createTools(context) {
                 activePlan.id = planId;
                 activePlan.goal = goal;
                 activePlan.steps = steps.map(s => ({ ...s, status: 'pending' }));
+                // Dynamic iteration budget: 3 iterations per step, clamped to [15, 50]
+                activePlan.dynamicMaxIterations = Math.min(50, Math.max(15, activePlan.steps.length * 3));
 
                 if (aiPersistence && conversationId) {
                     aiPersistence.savePlan(dbManager, {
@@ -1180,7 +1182,7 @@ function createTools(context) {
                     }).catch(e => console.warn('[Tools] create_plan persist:', e.message));
                 }
 
-                return { planId, goal, steps: activePlan.steps, status: 'created' };
+                return { planId, goal, steps: activePlan.steps, status: 'created', maxIterations: activePlan.dynamicMaxIterations };
             },
         });
 

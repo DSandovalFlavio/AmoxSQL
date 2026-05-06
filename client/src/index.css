@@ -6694,6 +6694,35 @@ tr:hover .rt-td {
   font-style: italic;
 }
 
+.ai-continue-banner {
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 30%, transparent);
+}
+
+.ai-continue-banner .ai-ask-user-options {
+  flex-direction: row;
+  gap: 6px;
+}
+
+.ai-continue-btn {
+  flex: 1;
+  text-align: center;
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  font-weight: var(--weight-medium);
+}
+
+.ai-continue-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+.ai-continue-btn--cancel {
+  flex: 1;
+  text-align: center;
+  color: var(--text-muted);
+}
+
 /* ══════════════════════════════════════════════════════════
    Analysis Vault — sidebar panel
    ══════════════════════════════════════════════════════════ */

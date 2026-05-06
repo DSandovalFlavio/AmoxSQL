@@ -64,7 +64,7 @@ Steps to fix:
  * at the start of each new iteration. Gives the LLM a clear picture of
  * what's done and what's left.
  */
-function buildContinuationPrompt(activePlan, iteration, maxIterations) {
+function buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations) {
     if (!activePlan.id || !activePlan.steps?.length) return '';
 
     const lines = activePlan.steps.map(step => {
@@ -206,9 +206,11 @@ async function* agenticLoop(options, getModelFn) {
         }
     }
 
-    let iterMessages         = messages;
-    let iteration            = 0;
-    let loopDone             = false;
+    let iterMessages            = messages;
+    let iteration               = 0;
+    let loopDone                = false;
+    // Effective iteration ceiling: starts at maxIterations, grows when a plan is created
+    let effectiveMaxIterations  = maxIterations;
     let idleRetries          = 0;   // consecutive iterations with zero tool calls
     let sqlCorrectionRetries = 0;   // consecutive iterations that ended with unresolved SQL errors
     let anyIterationHadText  = false; // tracks if any prior iter produced text (for fallback message)
@@ -216,11 +218,11 @@ async function* agenticLoop(options, getModelFn) {
 
     console.log(`[AgenticLoop] Starting | Provider: ${provider} | Model: ${model} | maxIter: ${maxIterations}`);
 
-    while (iteration < maxIterations && !loopDone) {
+    while (iteration < effectiveMaxIterations && !loopDone) {
         iteration++;
-        console.log(`[AgenticLoop] Iteration ${iteration}/${maxIterations} | Plan: ${activePlan.id || 'none'}`);
+        console.log(`[AgenticLoop] Iteration ${iteration}/${effectiveMaxIterations} | Plan: ${activePlan.id || 'none'}`);
 
-        yield { type: 'step-start', iteration, maxIterations };
+        yield { type: 'step-start', iteration, maxIterations: effectiveMaxIterations };
 
         // ── Compact before each iteration ──
         const compactedMessages = await compactContext(llmModel, iterMessages, null, model);
@@ -284,6 +286,11 @@ async function* agenticLoop(options, getModelFn) {
 
                     // ── Detect planner signal tools ──
                     if (part.toolName === 'create_plan') {
+                        // Expand iteration budget based on plan complexity
+                        if (activePlan.dynamicMaxIterations && activePlan.dynamicMaxIterations > effectiveMaxIterations) {
+                            effectiveMaxIterations = activePlan.dynamicMaxIterations;
+                            console.log(`[AgenticLoop] Dynamic maxIterations: ${effectiveMaxIterations} (${activePlan.steps.length} steps)`);
+                        }
                         // Apply any user step overrides (steps the user marked to skip before this turn)
                         if (planStepOverrides.length > 0) {
                             // Normalize: overrides can be strings or { stepId } objects
@@ -482,7 +489,7 @@ async function* agenticLoop(options, getModelFn) {
                         iterResponseMessages = [{ role: 'assistant', content: iterText || '...' }];
                     }
 
-                    const continuationPrompt = buildContinuationPrompt(activePlan, iteration, maxIterations);
+                    const continuationPrompt = buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations);
                     iterMessages = [
                         ...compactedMessages,
                         ...iterResponseMessages,
@@ -504,7 +511,7 @@ async function* agenticLoop(options, getModelFn) {
                 console.log(`[AgenticLoop] Idle iter ${iteration} (retry ${idleRetries}/${MAX_IDLE_RETRIES}) — forcing tools`);
 
                 const directive = activePlan.id
-                    ? buildContinuationPrompt(activePlan, iteration, maxIterations) +
+                    ? buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations) +
                       '\n\n⚡ **You MUST call at least one tool right now.** Do not respond with text only.'
                     : 'You MUST use tools to complete this task. Call `create_plan` immediately to start, then execute each step. Do NOT just describe what you will do — act now.';
 
@@ -530,12 +537,20 @@ async function* agenticLoop(options, getModelFn) {
         }
     }
 
-    // Max iterations reached without final_answer — emit a soft warning
-    if (!loopDone && iteration >= maxIterations) {
+    // Max iterations reached without final_answer — pause and ask user to continue
+    if (!loopDone && iteration >= effectiveMaxIterations) {
+        const pendingCount = activePlan.steps?.filter(s => s.status === 'pending').length || 0;
         yield {
-            type: 'text-delta',
-            text: '\n\n> ⚠️ *Maximum analysis iterations reached. Review the partial results above.*',
+            type: 'ask-continue',
+            planGoal:      activePlan.goal || '',
+            pendingSteps:  pendingCount,
+            completedSteps: activePlan.steps?.filter(s => s.status === 'done').length || 0,
+            planId:        activePlan.id || null,
         };
+        // Persist plan as paused so the status is visible in future loads
+        if (conversationId && activePlan.id) {
+            aiPersistence.updatePlan(dbManager, activePlan.id, { status: 'paused' }).catch(() => {});
+        }
     }
 
     // Background memory extraction

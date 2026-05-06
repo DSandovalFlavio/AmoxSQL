@@ -96,6 +96,8 @@ export default function useAiChat({
     const [planMaxIterations, setPlanMaxIterations] = useState(0);
     // ask_user: { question, options[], context } | null
     const [pendingAskUser, setPendingAskUser] = useState(null);
+    // ask-continue: loop exhausted mid-plan, waiting for user to continue or cancel
+    const [pendingContinue, setPendingContinue] = useState(null);
     // userSkippedSteps: Set<stepId> — steps the user marked to skip before the agent continues
     const [userSkippedSteps, setUserSkippedSteps] = useState(new Set());
 
@@ -338,13 +340,15 @@ export default function useAiChat({
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
         setInputText('');
+        const isContinuation = !!pendingContinue;
         setIsGenerating(true);
         setStreamingText('');
         setActiveToolCalls([]);
         activeToolCallsRef.current = [];
-        setPlanState(null);
+        if (!isContinuation) setPlanState(null);
         setPlanIteration(0);
         setPendingAskUser(null);
+        setPendingContinue(null);
         const currentSkippedSteps = userSkippedSteps;
         setUserSkippedSteps(new Set());
 
@@ -389,6 +393,9 @@ export default function useAiChat({
             if (fileContent) requestBody.currentQuery = fileContent;
             if (currentSkippedSteps.size > 0) {
                 requestBody.planStepOverrides = Array.from(currentSkippedSteps).map(id => ({ stepId: id, status: 'skipped', note: 'skipped by user' }));
+            }
+            if (isContinuation) {
+                requestBody.continueMode = true;
             }
             // Send a lightweight summary of the result (not the full data)
             if (fileResult) {
@@ -506,6 +513,14 @@ export default function useAiChat({
                                 options:  event.options || [],
                                 context:  event.context || '',
                             });
+                        } else if (event.type === 'ask-continue') {
+                            setPendingContinue({
+                                planGoal:       event.planGoal || '',
+                                pendingSteps:   event.pendingSteps || 0,
+                                completedSteps: event.completedSteps || 0,
+                                planId:         event.planId || null,
+                            });
+                            setPlanState(prev => prev ? { ...prev, status: 'paused' } : prev);
                         } else if (event.type === 'step-start') {
                             setPlanIteration(event.iteration || 0);
                             if (event.maxIterations) setPlanMaxIterations(event.maxIterations);
@@ -599,9 +614,20 @@ export default function useAiChat({
     }, [
         inputText, isGenerating, messages, selectedModel, customModel, provider,
         contextObjects, mode, filePath, fileType, fileContent, fileResult, fileChartConfig, activeSkillId,
+        pendingContinue,
         ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle,
         onEditFile, onUpdateChartConfig,
     ]);
+
+    // ─── Continue after loop exhaustion ───
+    const handleContinue = useCallback(() => {
+        handleSend('continua con el plan');
+    }, [handleSend]);
+
+    const handleDeclineContinue = useCallback(() => {
+        setPendingContinue(null);
+        setPlanState(prev => prev ? { ...prev, status: 'cancelled' } : prev);
+    }, []);
 
     // ─── Skip plan step (user-initiated) ───
     const handleSkipPlanStep = useCallback((stepId) => {
@@ -634,6 +660,7 @@ export default function useAiChat({
         setPlanState(null);
         setPlanIteration(0);
         setPendingAskUser(null);
+        setPendingContinue(null);
         setUserSkippedSteps(new Set());
         if (mode === 'diving') setContextObjects([]);
     }, [mode]);
@@ -850,6 +877,9 @@ export default function useAiChat({
         planIteration,
         planMaxIterations,
         pendingAskUser, setPendingAskUser,
+        pendingContinue, setPendingContinue,
+        handleContinue,
+        handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,
 
