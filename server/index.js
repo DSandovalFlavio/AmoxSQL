@@ -1917,7 +1917,7 @@ app.post('/api/ai/chat', async (req, res) => {
 const { getModelProfile: getModelProfileForRoute, fetchOllamaModelInfo: fetchOllamaInfoForRoute } = require('./ai/modelProfiles');
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -1959,6 +1959,8 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             fileType,
             conversationId: conversationId || null,
             planStepOverrides: Array.isArray(planStepOverrides) ? planStepOverrides : [],
+            // continueMode: user clicked "Continue" after loop exhaustion — grant extra iterations
+            maxIterations: continueMode ? 30 : undefined,
         };
 
         // Detect model tier to choose between tool-loop and prompt-only
@@ -4585,10 +4587,21 @@ app.post('/api/shutdown', async (_req, res) => {
 
 const startServer = (preferredPort = 3001) => {
     return new Promise((resolve, reject) => {
-        const server = app.listen(preferredPort, () => {
+        const server = app.listen(preferredPort, async () => {
             const actualPort = server.address().port;
             console.log(`Server running at http://localhost:${actualPort}`);
             console.log(`Serving files from: ${ROOT_DIR}`);
+
+            // Initialize AI schema on the default in-memory DB so DataDiving works
+            // without a project connected. When a project DB is later connected,
+            // initSchema is called again on that DB (see /api/db/connect handler).
+            try {
+                const aiPersistenceStartup = require('./ai/persistence');
+                await aiPersistenceStartup.initSchema(dbManager);
+            } catch (err) {
+                console.warn('[AI] Startup schema init warning (non-fatal):', err.message);
+            }
+
             resolve({ server, port: actualPort });
         });
         server.on('error', (err) => {

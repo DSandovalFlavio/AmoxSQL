@@ -79,6 +79,9 @@ const AiDivingPanel = ({
         planIteration,
         planMaxIterations,
         pendingAskUser, setPendingAskUser,
+        pendingContinue,
+        handleContinue,
+        handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,
     } = useAiChat({ mode: 'diving' });
@@ -465,6 +468,30 @@ const AiDivingPanel = ({
                             ) : (
                                 <p className="ai-ask-user-hint">Type your answer in the chat input.</p>
                             )}
+                        </div>
+                    )}
+
+                    {/* Continue banner — shown when loop exhausts without final_answer */}
+                    {pendingContinue && (
+                        <div className="ai-ask-user-banner ai-continue-banner">
+                            <p className="ai-ask-user-question">
+                                El análisis necesita más iteraciones para completarse.
+                                {pendingContinue.pendingSteps > 0 && ` Quedan ${pendingContinue.pendingSteps} paso(s) pendientes.`}
+                            </p>
+                            <div className="ai-ask-user-options">
+                                <button
+                                    className="ai-ask-user-option ai-continue-btn"
+                                    onClick={handleContinue}
+                                >
+                                    Continuar
+                                </button>
+                                <button
+                                    className="ai-ask-user-option ai-continue-btn--cancel"
+                                    onClick={handleDeclineContinue}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
                         </div>
                     )}
                 </SessionInventory>
