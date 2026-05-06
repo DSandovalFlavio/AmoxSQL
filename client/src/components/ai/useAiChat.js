@@ -251,6 +251,7 @@ export default function useAiChat({
             if (res.ok) {
                 const conv = await res.json();
                 setConversationId(conv.id);
+                window.dispatchEvent(new CustomEvent('amox_conversation_created', { detail: { id: conv.id } }));
                 return conv.id;
             }
         } catch (err) {
