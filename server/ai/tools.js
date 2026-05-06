@@ -449,21 +449,59 @@ function createTools(context) {
          * The user can then open, execute, and expand the notebook.
          */
         build_notebook: tool({
-            description: 'Create a SQL Notebook (.sqlnb) as a self-contained analytical document. The notebook must read like a professional data analysis report — not a script dump. Include executive summary, data quality assessment, analytical sections with interpretations, and conclusions. Minimum 8 cells.',
+            description: 'Create or update a SQL Notebook (.sqlnb). ONLY call this tool when the user explicitly requests a notebook, report, or document (e.g. "create a notebook", "save this analysis", "export as a report", "add this to the notebook"). Do NOT call this automatically at the end of every EDA — it is a user-triggered deliverable, not a default step.\n\nModes:\n- mode="create" (default): creates a new .sqlnb file. The notebook must read like a professional data analysis report. Minimum 8 cells.\n- mode="update": appends new cells to an EXISTING notebook. Use targetPath (relative path returned by a previous build_notebook call). No minimum cell count — just the new cells to add.',
             inputSchema: z.object({
-                title: z.string().describe('Descriptive analytical title (e.g. "EDA — Customer Revenue Segmentation Analysis").'),
+                mode: z.enum(['create', 'update']).optional().default('create').describe('"create" to build a new notebook (default), "update" to append cells to an existing one.'),
+                title: z.string().describe('Descriptive analytical title (e.g. "EDA — Customer Revenue Segmentation Analysis"). Required for create; used as section heading for update.'),
+                targetPath: z.string().optional().describe('For mode="update" only: relative path to the existing .sqlnb file (as returned by a previous build_notebook call).'),
                 cells: z.array(z.object({
                     type: z.enum(['markdown', 'code']).describe('"markdown" for analytical prose and interpretations, "code" for standalone SQL queries.'),
                     content: z.string().describe('Markdown cells: analytical text with specific findings, metrics, and interpretations — not just headers. Code cells: standalone executable SQL.'),
-                })).min(8).describe('Cells array. Structure: (1) title + executive summary, (2) data overview markdown, (3-4) profiling SQL + quality assessment, (5+) analysis pairs (context markdown → SQL → interpretation markdown), (last) conclusions with recommendations.'),
+                })).min(1).describe('Cells to add. For create: minimum 8, structure (1) title + executive summary, (2) data overview, (3-4) profiling SQL + quality, (5+) analysis pairs, (last) conclusions. For update: just the new cells to append.'),
             }),
-            execute: async ({ title, cells }) => {
+            execute: async ({ mode = 'create', title, targetPath, cells }) => {
                 try {
                     if (!projectPath) {
                         return { error: 'No project directory available.' };
                     }
 
-                    // Build v3.0 notebook structure
+                    if (mode === 'update') {
+                        if (!targetPath) {
+                            return { error: 'targetPath is required for mode="update".' };
+                        }
+                        const absPath = path.isAbsolute(targetPath)
+                            ? targetPath
+                            : path.join(projectPath, targetPath);
+                        if (!fs.existsSync(absPath)) {
+                            return { error: `Notebook not found: ${targetPath}` };
+                        }
+                        const raw = await fs.promises.readFile(absPath, 'utf8');
+                        const notebook = JSON.parse(raw);
+                        const ts = Date.now();
+                        // Add a section-divider markdown cell before the new content
+                        const divider = {
+                            id: `${ts}_divider`,
+                            type: 'markdown',
+                            content: `---\n## ${title}`,
+                        };
+                        const newCells = cells.map((cell, i) => ({
+                            id: `${ts}_append_${i}`,
+                            type: cell.type,
+                            content: cell.content,
+                        }));
+                        notebook.cells.push(divider, ...newCells);
+                        await fs.promises.writeFile(absPath, JSON.stringify(notebook, null, 2), 'utf8');
+                        const relativePath = path.relative(projectPath, absPath);
+                        return {
+                            success: true,
+                            path: relativePath,
+                            cellCount: notebook.cells.length,
+                            fileName: path.basename(absPath),
+                            appended: newCells.length,
+                        };
+                    }
+
+                    // mode === 'create'
                     const notebookCells = cells.map((cell, i) => ({
                         id: `${Date.now()}_${i}`,
                         type: cell.type,
@@ -1173,6 +1211,8 @@ function createTools(context) {
                 activePlan.id = planId;
                 activePlan.goal = goal;
                 activePlan.steps = steps.map(s => ({ ...s, status: 'pending' }));
+                // Dynamic iteration budget: 3 iterations per step, clamped to [15, 50]
+                activePlan.dynamicMaxIterations = Math.min(50, Math.max(15, activePlan.steps.length * 3));
 
                 if (aiPersistence && conversationId) {
                     aiPersistence.savePlan(dbManager, {
@@ -1180,7 +1220,7 @@ function createTools(context) {
                     }).catch(e => console.warn('[Tools] create_plan persist:', e.message));
                 }
 
-                return { planId, goal, steps: activePlan.steps, status: 'created' };
+                return { planId, goal, steps: activePlan.steps, status: 'created', maxIterations: activePlan.dynamicMaxIterations };
             },
         });
 

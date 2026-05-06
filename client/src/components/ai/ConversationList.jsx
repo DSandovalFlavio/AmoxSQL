@@ -50,6 +50,13 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
         fetchConversations(false);
     }, [search]);
 
+    // Refresh when a new conversation is created from this tab
+    useEffect(() => {
+        const handler = () => fetchConversations(false);
+        window.addEventListener('amox_conversation_created', handler);
+        return () => window.removeEventListener('amox_conversation_created', handler);
+    }, [fetchConversations]);
+
     // Infinite scroll handler
     const handleScroll = useCallback(() => {
         if (!listRef.current || !hasMore || loading) return;
