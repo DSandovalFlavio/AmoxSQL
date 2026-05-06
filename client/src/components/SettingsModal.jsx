@@ -611,7 +611,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
     useEffect(() => {
         if (isOpen) {
-            fetch('${API}/api/settings/config')
+            fetch(`${API}/api/settings/config`)
                 .then(res => res.json())
                 .then(data => {
                     setGeminiApiKey(data.geminiApiKey || '');
@@ -636,14 +636,14 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 })
                 .catch(err => console.error("Failed to load config", err));
 
-            fetch('${API}/api/db/version')
+            fetch(`${API}/api/db/version`)
                 .then(res => res.json())
                 .then(data => {
                     if (data?.version) setDuckdbVersion(data.version);
                 })
                 .catch(() => setDuckdbVersion('N/A'));
 
-            fetch('${API}/api/gsheets/status')
+            fetch(`${API}/api/gsheets/status`)
                 .then(res => res.json())
                 .then(data => setGsheetsStatus(data))
                 .catch(() => {});
@@ -653,7 +653,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     }, [isOpen]);
 
     const fetchCatalogStats = () => {
-        fetch('${API}/api/functions/coverage')
+        fetch(`${API}/api/functions/coverage`)
             .then(res => res.json())
             .then(data => setCatalogStats(data))
             .catch(err => console.error("Failed to load catalog stats", err));
@@ -662,7 +662,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const handleRefreshCatalog = async () => {
         setIsRefreshingCatalog(true);
         try {
-            await fetch('${API}/api/functions/refresh', { method: 'POST' });
+            await fetch(`${API}/api/functions/refresh`, { method: 'POST' });
             fetchCatalogStats();
             window.dispatchEvent(new Event('amox_catalog_refreshed'));
         } catch (err) { console.error(err); }
@@ -676,7 +676,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const fetchInstalledModels = async () => {
         setIsLoadingModels(true);
         try {
-            const res = await fetch('${API}/api/settings/ollama/models-enriched');
+            const res = await fetch(`${API}/api/settings/ollama/models-enriched`);
             const data = await res.json();
             if (data.models) setInstalledModels(data.models);
         } catch (err) { console.error(err); }
@@ -687,7 +687,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         setIsSaving(true);
         setSaveMessage(null);
         try {
-            await fetch('${API}/api/settings/config', {
+            await fetch(`${API}/api/settings/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -714,7 +714,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         setDownloadProgress({ status: 'Starting download...', percent: 0 });
 
         try {
-            const response = await fetch('${API}/api/settings/ollama/pull', {
+            const response = await fetch(`${API}/api/settings/ollama/pull`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ model: modelId })
@@ -761,12 +761,12 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         setIsTestingCloud(true);
         setCloudTestResult(null);
         try {
-            await fetch('${API}/api/settings/config', {
+            await fetch(`${API}/api/settings/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ s3Config, gcsConfig })
             });
-            const res = await fetch('${API}/api/export/cloud/test', {
+            const res = await fetch(`${API}/api/export/cloud/test`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ provider: testProvider })
@@ -787,7 +787,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         setIsTestingAdc(true);
         setAdcTestResult(null);
         try {
-            const res = await fetch('${API}/api/settings/cloud/test-adc', {
+            const res = await fetch(`${API}/api/settings/cloud/test-adc`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // Pass current form values so the test uses whatever is typed,
@@ -2032,7 +2032,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             setIsTestingGSheets(true);
                                             setGsheetsTestResult(null);
                                             try {
-                                                const res = await fetch('${API}/api/gsheets/setup', {
+                                                const res = await fetch(`${API}/api/gsheets/setup`, {
                                                     method: 'POST',
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({ serviceAccountKeyPath: gsheetsKeyPath.trim() })
