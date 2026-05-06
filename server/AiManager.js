@@ -11,7 +11,6 @@ const fs = require('fs');
 const os = require('os');
 const { generateText, streamText } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
-const { createVertex } = require('@ai-sdk/google-vertex');
 const { createAnthropic } = require('@ai-sdk/anthropic');
 const { createOpenAI } = require('@ai-sdk/openai');
 const { createOllama } = require('ai-sdk-ollama');
@@ -183,6 +182,18 @@ class AiManager {
                 );
             }
 
+            // Lazy-require: @ai-sdk/google-vertex is an optional dep — only needed
+            // for this code path. A missing install produces a clear error message
+            // rather than crashing the entire server on startup.
+            let createVertex;
+            try {
+                ({ createVertex } = require('@ai-sdk/google-vertex'));
+            } catch {
+                throw new Error(
+                    'El proveedor Vertex AI requiere el paquete @ai-sdk/google-vertex. ' +
+                    'Ejecuta `npm install @ai-sdk/google-vertex` y reinicia la aplicación.'
+                );
+            }
             const vertex = createVertex({ project, location });
             // Vertex AI model IDs use the same names as Gemini Developer API
             return vertex(modelName || 'gemini-2.5-flash');
