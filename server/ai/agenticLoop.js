@@ -64,7 +64,7 @@ Steps to fix:
  * at the start of each new iteration. Gives the LLM a clear picture of
  * what's done and what's left.
  */
-function buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations) {
+function buildContinuationPrompt(activePlan, iteration, maxIter) {
     if (!activePlan.id || !activePlan.steps?.length) return '';
 
     const lines = activePlan.steps.map(step => {
@@ -83,7 +83,7 @@ function buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations) 
         : 'All steps are done. Call `final_answer` with your summary now.';
 
     // Add urgency when approaching the iteration limit
-    const itersLeft = maxIterations - iteration;
+    const itersLeft = maxIter - iteration;
     const urgency = itersLeft <= 3
         ? `\n\n⚡ **URGENT: Only ${itersLeft} iteration(s) left. Skip any remaining optional steps and call \`final_answer\` NOW with the results you already have.**`
         : '';
