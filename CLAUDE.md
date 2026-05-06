@@ -6,16 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 **AmoxSQL** is a desktop SQL IDE for local data analysis, built with Electron + React + Express + DuckDB.
-- **Version**: 2.0.1
+- **Version**: 2.2.0
 - **Author**: Flavio Sandoval (@dsandovalflavio)
 - **License**: AmoxSQL Community License (Source Available)
 - **Tagline**: "The Modern Codex for Local Data Analysis"
 
 ## Runtime Topology (big picture)
 Three processes cooperate at runtime:
-1. **Electron main** ([electron/main.js](electron/main.js)) — owns the BrowserWindow, holds the single-instance lock, handles native dialogs / window controls via `ipcMain`, and **spawns the Express server as a `utilityProcess`** on port 3001.
-2. **Express server** ([server/index.js](server/index.js)) — all REST endpoints + DuckDB connection. The renderer talks to it over HTTP, not IPC.
-3. **Renderer (React)** — in dev, loaded from Vite on `http://localhost:5173`; in prod, from `client/dist/`. The preload bridge ([electron/preload.js](electron/preload.js)) exposes only a narrow `window.electronAPI` for dialogs, shell-open, and window controls. Data calls go directly to `http://localhost:3001`.
+1. **Electron main** ([electron/main.js](electron/main.js)) — owns the BrowserWindow, holds the single-instance lock, handles native dialogs / window controls via `ipcMain`, and **spawns the Express server as a `utilityProcess`** on a dynamically assigned port (prefers 3001, falls back to OS-assigned if busy).
+2. **Express server** ([server/index.js](server/index.js)) — all REST endpoints + DuckDB connection. The renderer talks to it over HTTP, not IPC. The actual port is communicated to the renderer via `process.parentPort` and stored in `window.__API_PORT__`.
+3. **Renderer (React)** — in dev, loaded from Vite on `http://localhost:5173`; in prod, from `client/dist/`. The preload bridge ([electron/preload.js](electron/preload.js)) exposes only a narrow `window.electronAPI` for dialogs, shell-open, and window controls. Data calls go to `http://localhost:{dynamic_port}` via `API_BASE` from `client/src/api.js`.
 
 When debugging "it works in dev but not in the built app," check (a) Vite dev server vs `client/dist` loading in `main.js`, and (b) whether the utility process spawned the server — server stdout is piped through main.
 
