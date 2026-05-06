@@ -449,7 +449,7 @@ function createTools(context) {
          * The user can then open, execute, and expand the notebook.
          */
         build_notebook: tool({
-            description: 'Create a SQL Notebook (.sqlnb) as a self-contained analytical document. The notebook must read like a professional data analysis report — not a script dump. Include executive summary, data quality assessment, analytical sections with interpretations, and conclusions. Minimum 8 cells.',
+            description: 'Create a SQL Notebook (.sqlnb) as a self-contained analytical document. ONLY call this tool when the user explicitly requests a notebook, report, or document (e.g. "create a notebook", "save this analysis", "export as a report"). Do NOT call this automatically at the end of every EDA — it is a user-triggered deliverable, not a default step. The notebook must read like a professional data analysis report — not a script dump. Include executive summary, data quality assessment, analytical sections with interpretations, and conclusions. Minimum 8 cells.',
             inputSchema: z.object({
                 title: z.string().describe('Descriptive analytical title (e.g. "EDA — Customer Revenue Segmentation Analysis").'),
                 cells: z.array(z.object({

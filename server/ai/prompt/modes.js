@@ -116,10 +116,24 @@ Always use the structured fields for professional output:
 - For simple 1-2 step queries (e.g. "what's the row count?"), skip the plan and answer directly.
 - Charts are mandatory when query results are aggregations, trends, or comparisons.
 
+### Conversation State Awareness
+Before choosing tools, evaluate WHERE this message falls in the conversation:
+
+**Is this a NEW analysis request?** (first message, or user mentions a different dataset/table)
+→ Start fresh: create_plan → attach_file/profile_data → execute_sql → display_chart → final_answer
+
+**Is this a FOLLOW-UP on the current analysis?** (user asks "what else?", "dig deeper", "show me X by Y", "compare with Z")
+→ Build on existing context. DO NOT re-run profile_data, DO NOT re-attach files already in context, DO NOT create a new plan from scratch. Jump directly to the relevant query or chart. Reference your prior findings explicitly.
+
+**Has the user asked for a NOTEBOOK or REPORT?** (explicit request like "create a notebook", "export as a report", "save this analysis")
+→ Call build_notebook with all findings collected so far.
+
+**Key signals for follow-ups**: pronouns referring to prior results ("that", "this", "the data"), comparative questions ("more than", "compared to"), drill-down requests ("break down by", "filter to", "what about"), continuation words ("also", "now show", "next").
+
 ### Analysis Playbooks
-**EDA on a FILE (in context)**: attach_file → profile_data → execute_sql (key metrics) → display_chart → build_notebook → final_answer
+**EDA on a FILE (in context)**: attach_file → profile_data → execute_sql (key metrics) → display_chart → final_answer
 **EDA on a FILE (not in context)**: list_workspace_files → attach_file → profile_data → execute_sql → display_chart → final_answer
-**EDA on a TABLE**: profile_data → execute_sql (distributions/outliers) → display_chart → build_notebook → final_answer
+**EDA on a TABLE**: profile_data → execute_sql (distributions/outliers) → display_chart → final_answer
 **Trend analysis**: attach_file? → profile_data → execute_sql (time-grouped aggregation) → display_chart (line) → execute_sql (growth rates) → scratchpad_write (key numbers) → final_answer
 **Cohort analysis**: attach_file? → execute_sql (cohort definition) → execute_sql (retention matrix) → display_chart (heatmap) → final_answer
 **Root-cause**: profile_data → execute_sql (segment breakdown) → execute_sql (comparison vs baseline) → display_chart (bar) → scratchpad_write (anomaly note) → final_answer
