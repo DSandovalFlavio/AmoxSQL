@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v2.1.3)
+# AmoxSQL (v2.2.0)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -59,13 +59,22 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 <img src="./images/07_ai_sidebar.png" alt="AI Sidebar" width="100%" />
 
 *   **Sistema Agéntico con Tool-Calling**: El asistente de IA ejecuta herramientas autónomamente (SQL, listar tablas, describir esquemas, generar gráficos, sugerir pasos siguientes).
-*   **Nueva Arquitectura de Paneles**: Separación clara entre *AI Assistant* (contexto de archivo activo) y *Data Diving* (exploración a pantalla completa de toda la BD). El agente de Data Diving fue ultra-optimizado previniendo cualquier congelación de interfaz (*UI Lag* / *Crashes*) durante el volcado de diccionarios masivos de respuesta.
+*   **Nueva Arquitectura de Paneles**: Separación clara entre *AI Assistant* (contexto de archivo activo) y *Data Diving* (exploración a pantalla completa de toda la BD).
 *   **Gestión de Contexto Avanzada**: Compactación automática de mensajes, recorte astuto de resultados de herramientas para prevenir sobrecarga de tokens (AI SDK v6 support).
 *   **100% Offline y Privado (Local)**: Potenciado por **Ollama** (Qwen 2.5, Llama 3.2, Gemma 2). Tus datos nunca salen de tu máquina.
-*   **Cloud Power (Gemini Mode)**: Cambia sin fricciones a la API de Google Gemini con tracking de uso diario.
+*   **Cloud Power (Gemini + MiniMax)**: Cambia sin fricciones a la API de Google Gemini o MiniMax con tracking de uso.
 *   **Gestión Integrada de Modelos**: Descarga nuevos modelos de Ollama directamente desde el IDE con progreso en tiempo real.
-*   **Conversaciones Persistentes**: Historial de chat guardado entre sesiones.
+*   **Conversaciones Persistentes**: Historial de chat guardado entre sesiones, incluso sin proyecto conectado.
 *   **Lenguaje Natural a SQL**: Haz preguntas como *"Muéstrame los 5 mejores productos por ventas en 2023"* y obtén SQL DuckDB preciso.
+
+#### 🚀 NUEVO en v2.2.0 — Data Diving Agéntico v2
+*   **Agentic Loop v2**: Iteraciones dinámicas calculadas según la complejidad del plan (3× pasos, límite 50). El agente ya no se detiene prematuramente en análisis complejos.
+*   **Botón "Continue"**: Cuando el agente agota su presupuesto de iteraciones a mitad del plan, el usuario ve un banner con el estado del plan y puede continuarlo con un click — sin perder el contexto ni el historial de pasos.
+*   **Conversación State Awareness**: El agente detecta si el mensaje es una nueva solicitud o un follow-up. En follow-ups no re-ejecuta el EDA completo — retoma el análisis donde lo dejó, usando los datos ya perfilados.
+*   **Patrones de Análisis Flexibles**: Los playbooks de EDA fueron reescritos como guías descriptivas (no secuencias rígidas). El agente adapta el camino según el contexto, saltando pasos ya ejecutados.
+*   **build_notebook bajo demanda**: El agente ya no crea notebooks automáticamente al final de cada análisis. Los notebooks se generan sólo cuando el usuario lo pide explícitamente.
+*   **build_notebook modo Update**: Permite al agente agregar nuevas secciones a un notebook existente en la misma sesión, construyendo el documento de forma incremental.
+*   **Persistencia garantizada**: El schema de AI se inicializa al arrancar el servidor, no sólo al conectar un proyecto. Las conversaciones se guardan desde el primer mensaje.
 
 ### 💾 Gestión e Inspección de Base de Datos
 <img src="./images/03_database_explorer.png" alt="Database Explorer" width="100%" />
@@ -150,12 +159,12 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v2.1.3 — Data-Aware Markdown & Mermaid Engine
+### 🎉 v2.2.0 — Data Diving Agéntico v2
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v2.1.3](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v2.2.0](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).
