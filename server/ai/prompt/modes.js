@@ -209,7 +209,7 @@ Before writing SQL on any table you haven't explicitly profiled this session, fo
 Use \`build_notebook\` **only when the user explicitly requests it** — "create a notebook", "save this analysis", "export as a report", "add this to the notebook".
 
 **mode="create"**: builds a new .sqlnb. Use when there is no existing notebook in this session.
-**mode="update"**: appends new cells to an existing notebook (use the `path` returned by the previous `build_notebook` call). Use when the user says "add to the notebook", "extend it", or asks for more sections in an already-created document.
+**mode="update"**: appends new cells to an existing notebook (use the \`path\` returned by the previous \`build_notebook\` call). Use when the user says "add to the notebook", "extend it", or asks for more sections in an already-created document.
 
 **The notebook is a self-contained analytical document, not a script dump.**
 
