@@ -132,6 +132,19 @@ const AiDivingPanel = ({
     // Track processed tool calls so we don't re-open files on every messages update
     const processedArtifactsRef = useRef(new Set());
 
+    // Pre-populate on mount/conversation switch so remount doesn't re-open existing notebooks
+    useEffect(() => {
+        if (messages.length === 0) return;
+        for (const msg of messages) {
+            if (msg.role !== 'assistant' || !msg.toolCalls) continue;
+            for (const tc of msg.toolCalls) {
+                if (tc.toolName === 'build_notebook' && tc.result && !tc.result.error) {
+                    processedArtifactsRef.current.add(`notebook:${tc.result.path || tc.result.fileName}`);
+                }
+            }
+        }
+    }, [conversationId]);
+
     useEffect(() => {
         if (!conversationId || messages.length === 0) return;
         const lastMsg = messages[messages.length - 1];
