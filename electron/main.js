@@ -242,13 +242,38 @@ const initApp = () => {
         }
     );
 
+    // Safety net: if server never sends 'ready' within 30 s, show an error dialog
+    // instead of leaving the user with a blank screen / no window.
+    let serverReady = false;
+    const startupTimeout = setTimeout(() => {
+        if (!serverReady) {
+            console.error('[Main] Server startup timed out after 30 s');
+            dialog.showErrorBox(
+                'AmoxSQL — Error de inicio',
+                'El servidor interno no respondió en 30 segundos.\n\n' +
+                'Esto puede deberse a un conflicto en el puerto 3001 o a un problema ' +
+                'con el módulo de base de datos.\n\n' +
+                'La aplicación se cerrará. Revisa el registro de errores si el problema persiste.'
+            );
+            app.quit();
+        }
+    }, 30000);
+
     serverProcess.on('message', (msg) => {
         if (msg.type === 'ready') {
+            serverReady = true;
+            clearTimeout(startupTimeout);
             actualServerPort = msg.port || SERVER_PORT;
             console.log(`Server ready on port ${actualServerPort}. Creating window...`);
             createWindow();
         } else if (msg.type === 'error') {
+            serverReady = true; // prevent double-dialog
+            clearTimeout(startupTimeout);
             console.error("Server failed to start:", msg.message);
+            dialog.showErrorBox(
+                'AmoxSQL — Error de inicio',
+                `El servidor interno no pudo iniciarse:\n\n${msg.message}\n\nLa aplicación se cerrará.`
+            );
             app.quit();
         }
     });
