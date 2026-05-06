@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { LuX, LuLoader, LuTable2 } from 'react-icons/lu';
 
-const API_BASE = 'http://localhost:3001/api/chains';
+import { API_BASE as _API } from '../../api.js';
+const API_BASE = `${_API}/api/chains`;
 
 const ChainDataPreview = ({ tableName, onClose }) => {
     const [data, setData] = useState(null);

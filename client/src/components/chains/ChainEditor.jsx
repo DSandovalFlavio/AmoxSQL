@@ -32,7 +32,7 @@ import ChainLogPanel from './ChainLogPanel';
 import ChainDataPreview from './ChainDataPreview';
 import ChainTemplateGallery from './ChainTemplateGallery';
 
-const API_BASE = 'http://localhost:3001';
+import { API_BASE } from '../../api.js';
 
 const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) => {
     const toast = useToast();

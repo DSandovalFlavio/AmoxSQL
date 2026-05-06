@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
 import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader } from "react-icons/lu";
 
@@ -274,7 +275,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         setVaultSaving(true);
         try {
             const sqlContent = query || currentEditorQuery || '';
-            const res = await fetch('http://localhost:3001/api/ai/vault', {
+            const res = await fetch(`${API_BASE}/api/ai/vault`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -325,7 +326,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         const createSql = `CREATE ${type} "${name}" AS ${cleanQuery}`;
 
         try {
-            const response = await fetch('http://localhost:3001/api/query', {
+            const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: createSql }),

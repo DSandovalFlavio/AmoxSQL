@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { API_BASE } from '../../api.js';
 import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
@@ -28,7 +29,7 @@ function QueryAuditModal({ queryId, onClose }) {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetch(`http://localhost:3001/api/ai/query-cache/${queryId}`)
+        fetch(`${API_BASE}/api/ai/query-cache/${queryId}`)
             .then(r => r.json())
             .then(d => { setData(d); setLoading(false); })
             .catch(e => { setError(e.message); setLoading(false); });

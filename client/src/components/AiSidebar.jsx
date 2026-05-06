@@ -5,8 +5,7 @@ import ToolCallBlock from './ai/ToolCallBlock';
 import ConversationList from './ai/ConversationList';
 import AiContextPanel from './ai/AiContextPanel';
 import AlertDialog from './AlertDialog';
-
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../api.js';
 
 import { DEFAULT_GEMINI_MODELS, fetchGeminiModels, ANTHROPIC_MODELS, MINIMAX_MODELS } from './ai/useAiChat';
 

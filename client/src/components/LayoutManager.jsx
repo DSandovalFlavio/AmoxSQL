@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
@@ -79,7 +80,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const loadTab = async (t) => {
                     if (!t.path) return null; // Skip unsaved tabs
                     try {
-                        const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(t.path)}`);
+                        const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(t.path)}`);
                         const data = await res.json();
                         if (data.error) return null;
                         return {
@@ -212,7 +213,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         queryAbortControllerRef.current?.abort();
         // Also tell the server to interrupt the DuckDB query
         try {
-            await fetch(`http://localhost:3001/api/query/cancel/${runningQueryId}`, { method: 'POST' });
+            await fetch(`${API_BASE}/api/query/cancel/${runningQueryId}`, { method: 'POST' });
         } catch {}
         setRunningQueryId(null);
     };
@@ -245,7 +246,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         queryAbortControllerRef.current = controller;
         setRunningQueryId(qid);
         try {
-            const response = await fetch('http://localhost:3001/api/query', {
+            const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: editorSettings?.queryResultLimit ?? 10000, flockConfirmed }),
@@ -335,7 +336,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 saveContent = JSON.stringify(newConfig, null, 2);
             }
 
-            const response = await fetch('http://localhost:3001/api/file', {
+            const response = await fetch(`${API_BASE}/api/file`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: tab.path, content: saveContent })
@@ -367,7 +368,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const explainQuery = `EXPLAIN (FORMAT JSON) ${query}`;
 
         try {
-            const response = await fetch('http://localhost:3001/api/query', {
+            const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: explainQuery }),
@@ -630,7 +631,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 }
 
                 // Fetch the config
-                const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
+                const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
 
@@ -664,7 +665,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // Open .amoxvis in legacy SQL editor mode (Edit with SQL)
         handleEditChartWithSql: async (filePath) => {
             try {
-                const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
+                const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
 
@@ -744,7 +745,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // SQL and Markdown files: open directly
         if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md')) {
             try {
-                const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(filePath)}`);
+                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
                 if (!data.error) {
                     const type = lowerName.endsWith('.sqlnb') ? 'sqlnb' : lowerName.endsWith('.sqlchain') ? 'sqlchain' : lowerName.endsWith('.md') ? 'md' : 'sql';
@@ -766,7 +767,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
             try {
-                const res = await fetch(`http://localhost:3001/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
+                const res = await fetch(`${API_BASE}/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
                 const sheets = data.sheets || ['Sheet1'];
                 const sheetsWithColumns = data.sheetsWithColumns || {};
@@ -789,7 +790,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             // CSV, Parquet, JSON — fetch columns via inspect-columns API
             let columnComment = '';
             try {
-                const res = await fetch(`http://localhost:3001/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
+                const res = await fetch(`${API_BASE}/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
                 if (data.columns && data.columns.length > 0) {
                     const colList = data.columns.map(c => `${c.name} (${c.type})`).join(', ');

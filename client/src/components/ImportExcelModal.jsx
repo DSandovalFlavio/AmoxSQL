@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 
 const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
@@ -32,7 +33,7 @@ const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`http://localhost:3001/api/files/inspect-excel?path=${encodeURIComponent(initialFile)}`);
+            const response = await fetch(`${API_BASE}/api/files/inspect-excel?path=${encodeURIComponent(initialFile)}`);
             const data = await response.json();
             if (response.ok) {
                 setSheets(data.sheets);

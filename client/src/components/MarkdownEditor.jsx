@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
@@ -29,7 +30,7 @@ const FileLinkHover = ({ href, children }) => {
         setLoading(true);
         try {
             const cleanPath = href.replace(/^(\.\/|\/)/, '');
-            const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(cleanPath)}`);
+            const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(cleanPath)}`);
             const data = await res.json();
             if (data.error) throw new Error(data.error);
             if (isSql) {
@@ -280,7 +281,7 @@ const MarkdownEditor = ({
                         const suggestions = [];
 
                         // 1. Fetch tables from Schema
-                        const schemaRes = await fetch('http://localhost:3001/api/db/schemas');
+                        const schemaRes = await fetch(`${API_BASE}/api/db/schemas`);
                         if (schemaRes.ok) {
                             const schemas = await schemaRes.json();
                             if (schemas && schemas.length) {
@@ -311,7 +312,7 @@ const MarkdownEditor = ({
 
                         // 2. Fetch Files (recursive)
                         const collectSqlFiles = async (dir = '') => {
-                            const res = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dir)}`);
+                            const res = await fetch(`${API_BASE}/api/files/list?path=${encodeURIComponent(dir)}`);
                             if (!res.ok) return [];
                             const files = await res.json();
                             let sqlFiles = [];

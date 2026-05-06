@@ -4,7 +4,7 @@ import {
     LuTable, LuExternalLink, LuCopy, LuCheck, LuLoader, LuX, LuFileSpreadsheet
 } from 'react-icons/lu';
 
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../api.js';
 
 function GSheetsSection({ onQuerySheet }) {
     const [sheets, setSheets] = useState([]);

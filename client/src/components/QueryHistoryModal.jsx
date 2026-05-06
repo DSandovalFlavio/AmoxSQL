@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useRef } from 'react';
 import { LuX, LuClipboard, LuStar, LuHistory, LuBookmark } from "react-icons/lu";
 
@@ -18,7 +19,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:3001/api/db/history');
+            const response = await fetch(`${API_BASE}/api/db/history`);
             const data = await response.json();
             if (Array.isArray(data)) {
                 setHistory(data);
@@ -32,7 +33,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
 
     const fetchBookmarks = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/bookmarks');
+            const response = await fetch(`${API_BASE}/api/bookmarks`);
             const data = await response.json();
             if (Array.isArray(data)) setBookmarks(data);
         } catch (e) { /* silent */ }
@@ -49,7 +50,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
         }
         setBookmarks(updated);
         try {
-            await fetch('http://localhost:3001/api/bookmarks', {
+            await fetch(`${API_BASE}/api/bookmarks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updated),
@@ -62,7 +63,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
         const updated = bookmarks.filter(b => b.query !== query);
         setBookmarks(updated);
         try {
-            await fetch('http://localhost:3001/api/bookmarks', {
+            await fetch(`${API_BASE}/api/bookmarks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updated),
