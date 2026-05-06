@@ -53,6 +53,9 @@
       "!**/*.map",
       "package.json"
     ],
+    "asarUnpack": [
+      "node_modules/@duckdb/**"
+    ],
     "directories": {
       "output": "dist"
     },
