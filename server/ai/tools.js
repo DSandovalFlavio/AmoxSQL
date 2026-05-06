@@ -449,13 +449,13 @@ function createTools(context) {
          * The user can then open, execute, and expand the notebook.
          */
         build_notebook: tool({
-            description: 'Create a SQL Notebook (.sqlnb) file with multiple analysis cells (markdown + SQL code). Use this when the user asks for a comprehensive analysis, report, or exploration that would benefit from being saved as a reusable notebook.',
+            description: 'Create a SQL Notebook (.sqlnb) as a self-contained analytical document. The notebook must read like a professional data analysis report — not a script dump. Include executive summary, data quality assessment, analytical sections with interpretations, and conclusions. Minimum 8 cells.',
             inputSchema: z.object({
-                title: z.string().describe('The title for the notebook and filename.'),
+                title: z.string().describe('Descriptive analytical title (e.g. "EDA — Customer Revenue Segmentation Analysis").'),
                 cells: z.array(z.object({
-                    type: z.enum(['markdown', 'code']).describe('Cell type: "markdown" for explanatory text, "code" for SQL queries.'),
-                    content: z.string().describe('The cell content. Markdown text or SQL query.'),
-                })).min(2).describe('Array of notebook cells. Start with a markdown cell for context, alternate between markdown and code cells.'),
+                    type: z.enum(['markdown', 'code']).describe('"markdown" for analytical prose and interpretations, "code" for standalone SQL queries.'),
+                    content: z.string().describe('Markdown cells: analytical text with specific findings, metrics, and interpretations — not just headers. Code cells: standalone executable SQL.'),
+                })).min(8).describe('Cells array. Structure: (1) title + executive summary, (2) data overview markdown, (3-4) profiling SQL + quality assessment, (5+) analysis pairs (context markdown → SQL → interpretation markdown), (last) conclusions with recommendations.'),
             }),
             execute: async ({ title, cells }) => {
                 try {

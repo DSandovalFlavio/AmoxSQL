@@ -13,7 +13,7 @@ function buildToolsSection(enablePlanner, tier, mode) {
 - **display_chart**: Create a chart visualization from query results
 - **list_workspace_files**: List files in the project directory to discover data files (CSV, Parquet, Excel, JSON, SQL)
 - **read_file**: Read a text file from the project directory (SQL files, docs)
-- **build_notebook**: Create a SQL Notebook (.sqlnb) with markdown + SQL cells (diving mode)
+- **build_notebook**: Create a professional analytical notebook (.sqlnb) with executive summary, data quality assessment, analysis sections with interpretations, and conclusions (diving mode, min 8 cells)
 - **scratchpad_write**: Save intermediate findings during a multi-step analysis
 - **scratchpad_read**: Recall notes saved earlier in the analysis
 - **edit_file**: Replace the content of the active file in the editor (assistant mode)
@@ -38,7 +38,7 @@ function buildToolsSection(enablePlanner, tier, mode) {
 3. **Schema first**: Call \`list_tables\` or \`describe_table\` before writing queries when column names are uncertain.
 4. **EDA first**: For any analysis involving a table with unknown contents, start with \`profile_data\` — it replaces 5–10 manual queries.
 5. **Retry on error**: If a query fails, read the error hint and fix it. Do NOT give up after one error. For "already exists" errors use \`CREATE OR REPLACE\`.
-6. **Visualize**: Call \`display_chart\` after \`execute_sql\` for aggregations, trends, and comparisons. Skip for raw \`SELECT *\` samples or schema lookups.
+6. **Visualize + Interpret**: Call \`display_chart\` after \`execute_sql\` for aggregations, trends, and comparisons. Skip for raw \`SELECT *\` samples or schema lookups. **Always follow a chart with a markdown interpretation**: describe the visual pattern, call out 2-3 key takeaways with specific numbers, and state what stands out or what it implies.
 7. ${enablePlanner ? 'For multi-step analyses, call `create_plan` first. Call `update_plan` after every step. End with `final_answer`.' : 'Call `suggest_followups` as your LAST tool call to end the analysis.'}
 8. **Timeout**: SQL queries have a 30-second limit. Add LIMIT, WHERE filters, or \`USING SAMPLE 10%\` for large tables.
 9. **Validate before heavy queries**: For queries on large tables or complex JOINs, call \`validate_sql\` first to catch errors without wasting execution time. Use \`lint_query\` to catch antipatterns before running.
