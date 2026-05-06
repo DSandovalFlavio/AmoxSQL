@@ -7,8 +7,8 @@ import {
     LuClipboardCopy, LuSquareTerminal, LuWrench, LuGitBranch
 } from 'react-icons/lu';
 import DbtLineageGraph from './DbtLineageGraph';
-
-const API = 'http://localhost:3001/api';
+import { API_BASE as _API } from '../api.js';
+const API = `${_API}/api`;
 
 const DbtPanel = ({ projectPath, onFileOpen }) => {
     // Navigation

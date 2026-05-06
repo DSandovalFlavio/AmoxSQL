@@ -3,6 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
+import { API_BASE } from './api.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -400,7 +401,7 @@ function App() {
     const handler = async (e) => {
       const { path: chartPath, readOnly } = e.detail;
       try {
-        const res = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(chartPath)}`);
+        const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(chartPath)}`);
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         layoutRef.current?.openFile(chartPath, data.content, 'amoxvis', { readOnly });
@@ -423,7 +424,7 @@ function App() {
   const handleOpenChain = useCallback(async () => {
     try {
       const collectSqlFiles = async (dir = '') => {
-        const res = await fetch(`http://localhost:3001/api/files?path=${encodeURIComponent(dir)}`);
+        const res = await fetch(`${API_BASE}/api/files?path=${encodeURIComponent(dir)}`);
         const files = await res.json();
         let sqlFiles = [];
         for (const f of files) {
@@ -472,16 +473,16 @@ function App() {
   const startIdeSession = useCallback(async (dbPath, readOnly) => {
     // 1. Configure DB
     if (dbPath === ':memory:') {
-      await fetch('http://localhost:3001/api/db/close', { method: 'POST' });
+      await fetch(`${API_BASE}/api/db/close`, { method: 'POST' });
       setCurrentDb(':memory:');
       setDbReadOnly(false);
     } else {
       // Ensure clean slate
-      await fetch('http://localhost:3001/api/db/close', { method: 'POST' });
+      await fetch(`${API_BASE}/api/db/close`, { method: 'POST' });
       await new Promise(r => setTimeout(r, 200));
 
       try {
-        const response = await fetch('http://localhost:3001/api/db/connect', {
+        const response = await fetch(`${API_BASE}/api/db/connect`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: dbPath, readOnly: readOnly })
@@ -508,7 +509,7 @@ function App() {
 
     // 3. Check if workspace wizard should be shown (new/empty project)
     try {
-      const statusRes = await fetch('http://localhost:3001/api/project/scaffold-status');
+      const statusRes = await fetch(`${API_BASE}/api/project/scaffold-status`);
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         if (statusData.isNewProject && !statusData.wizardCompleted) {
@@ -520,7 +521,7 @@ function App() {
 
   const handleWorkspaceSelect = useCallback(async (path) => {
     try {
-      const response = await fetch('http://localhost:3001/api/project/open', {
+      const response = await fetch(`${API_BASE}/api/project/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path })
@@ -542,7 +543,7 @@ function App() {
 
         // 2. Scan for Databases
         try {
-          const scanRes = await fetch('http://localhost:3001/api/project/scan-dbs');
+          const scanRes = await fetch(`${API_BASE}/api/project/scan-dbs`);
           const dbs = await scanRes.json();
           return { success: true, path: data.path, dbs: dbs || [] };
         } catch (scanErr) {
@@ -569,7 +570,7 @@ function App() {
   /* --- File Handlers --- */
   const handleFileOpen = useCallback(async (path) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(path)}`);
+      const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(path)}`);
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
@@ -605,7 +606,7 @@ function App() {
   const performImport = useCallback(async (tableName, cleanColumns, overridePath = null) => {
     try {
       const finalPath = overridePath || importTargetFile;
-      const response = await fetch('http://localhost:3001/api/db/import', {
+      const response = await fetch(`${API_BASE}/api/db/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -630,7 +631,7 @@ function App() {
 
   const performExcelImport = useCallback(async (config) => {
     try {
-      const response = await fetch('http://localhost:3001/api/db/import-excel', {
+      const response = await fetch(`${API_BASE}/api/db/import-excel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
@@ -663,7 +664,7 @@ function App() {
     const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
 
     try {
-      const response = await fetch('http://localhost:3001/api/folder', {
+      const response = await fetch(`${API_BASE}/api/folder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: folderPath })
@@ -681,7 +682,7 @@ function App() {
 
   const performSave = useCallback(async (filePath, content) => {
     try {
-      const response = await fetch('http://localhost:3001/api/file', {
+      const response = await fetch(`${API_BASE}/api/file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: filePath, content })
@@ -740,7 +741,7 @@ function App() {
     ];
 
     try {
-      const response = await fetch('http://localhost:3001/api/file', {
+      const response = await fetch(`${API_BASE}/api/file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: filename, content: JSON.stringify(cells, null, 2) })
@@ -768,7 +769,7 @@ function App() {
     };
 
     try {
-      const response = await fetch('http://localhost:3001/api/file', {
+      const response = await fetch(`${API_BASE}/api/file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: filename, content: JSON.stringify(amoxvisContent, null, 2) })

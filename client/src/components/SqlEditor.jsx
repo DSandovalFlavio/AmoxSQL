@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import React, { useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
@@ -604,7 +605,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 const fileName = fm[1].toLowerCase();
                 if (!window.__amoxSqlSchemaCache.tables[fileName]) {
                     window.__amoxSqlSchemaCache.tables[fileName] = [];
-                    fetch(`http://localhost:3001/api/db/file-schema?path=${encodeURIComponent(fm[1])}`)
+                    fetch(`${API_BASE}/api/db/file-schema?path=${encodeURIComponent(fm[1])}`)
                         .then(r => r.json())
                         .then(data => {
                             if (data && !data.error && Array.isArray(data)) {
@@ -631,7 +632,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 }
 
                 // Fetch Full Schema (Tables + Columns)
-                fetch('http://localhost:3001/api/db/tables')
+                fetch(`${API_BASE}/api/db/tables`)
                     .then(res => res.json())
                     .then(data => {
                         if (Array.isArray(data)) {
@@ -662,7 +663,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     .catch(err => console.warn("Schema fetch failed", err));
 
                 // If DBT Manifest API exists, fetch it
-                fetch('http://localhost:3001/api/dbt/manifest')
+                fetch(`${API_BASE}/api/dbt/manifest`)
                     .then(res => {
                         if (res.ok) return res.json();
                         return { available: false };
@@ -721,7 +722,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     dirToFetch = parts.join('/');
                 }
                 try {
-                    const response = await fetch(`http://localhost:3001/api/files/list?path=${encodeURIComponent(dirToFetch)}`);
+                    const response = await fetch(`${API_BASE}/api/files/list?path=${encodeURIComponent(dirToFetch)}`);
                     const files = await response.json();
                     return {
                         suggestions: files.map(f => ({
@@ -775,7 +776,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             // Flock status (lazy-checked once per session)
             if (window.__flockLoaded === undefined) {
                 window.__flockLoaded = false;
-                fetch('http://localhost:3001/api/flock/status')
+                fetch(`${API_BASE}/api/flock/status`)
                     .then(r => r.json())
                     .then(d => { window.__flockLoaded = !!d.loaded; })
                     .catch(() => {});
@@ -784,7 +785,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             // DuckDB Functions (lazy-loaded on main thread)
             if (!window.__duckdbFunctionCatalog) {
                 window.__duckdbFunctionCatalog = [];
-                fetch('http://localhost:3001/api/functions/catalog')
+                fetch(`${API_BASE}/api/functions/catalog`)
                     .then(r => r.json())
                     .then(data => {
                         window.__duckdbFunctionCatalog = (data.functions || []).map(fn => ({

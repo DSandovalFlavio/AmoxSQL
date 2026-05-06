@@ -3,6 +3,7 @@
  * Mirrors the style of TablePreviewModal but queries with the file-path syntax
  * that DuckDB supports: SELECT * FROM 'path/to/file.csv' LIMIT 100
  */
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuEye, LuX, LuFileSpreadsheet } from 'react-icons/lu';
 
@@ -22,7 +23,7 @@ const FilePreviewModal = ({ filePath, onClose }) => {
             setError(null);
             try {
                 const query = `SELECT * FROM '${normalizedPath}' LIMIT 100`;
-                const response = await fetch('http://localhost:3001/api/query', {
+                const response = await fetch(`${API_BASE}/api/query`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query }),

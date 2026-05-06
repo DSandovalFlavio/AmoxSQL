@@ -3,6 +3,7 @@
  * Renders in the Settings modal. Shows PNG thumbnails stored on disk.
  * Click opens the .amoxvis in read-only mode.
  */
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GALLERY_CHARTS } from '../data/galleryChartDefinitions';
@@ -41,7 +42,7 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
     const fetchCharts = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('http://localhost:3001/api/gallery/list');
+            const res = await fetch(`${API_BASE}/api/gallery/list`);
             const data = await res.json();
             setCharts(data.charts || []);
         } catch (err) {
@@ -114,7 +115,7 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
     const handleCopyConfig = useCallback(async (e, chartId) => {
         e.stopPropagation();
         try {
-            const res = await fetch(`http://localhost:3001/api/gallery/chart/${chartId}`);
+            const res = await fetch(`${API_BASE}/api/gallery/chart/${chartId}`);
             const data = await res.json();
             await navigator.clipboard.writeText(JSON.stringify(data.content, null, 2));
             toast.success('Config copied to clipboard');
@@ -127,7 +128,7 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
     const handleSaveToWorkspace = useCallback(async (e, chartId) => {
         e.stopPropagation();
         try {
-            const res = await fetch('http://localhost:3001/api/gallery/copy-to-workspace', {
+            const res = await fetch(`${API_BASE}/api/gallery/copy-to-workspace`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chartId }),
@@ -245,7 +246,7 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
                                 <div className="chart-gallery-card__image-wrap">
                                     {chart.hasThumbnail ? (
                                         <img
-                                            src={`http://localhost:3001/api/gallery/thumbnail/${chart.id}`}
+                                            src={`${API_BASE}/api/gallery/thumbnail/${chart.id}`}
                                             alt={chart.title}
                                             className="chart-gallery-card__image"
                                             loading="lazy"
@@ -386,7 +387,7 @@ async function generateSingleThumbnail(chartDef) {
                 const dataUrl = canvas.toDataURL('image/png');
 
                 // Send to backend
-                await fetch('http://localhost:3001/api/gallery/thumbnail', {
+                await fetch(`${API_BASE}/api/gallery/thumbnail`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: chartDef.id, imageData: dataUrl }),

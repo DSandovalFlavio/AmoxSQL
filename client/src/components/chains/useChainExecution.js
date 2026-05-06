@@ -4,7 +4,8 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 
-const API_BASE = 'http://localhost:3001/api/chains';
+import { API_BASE as _API } from '../../api.js';
+const API_BASE = `${_API}/api/chains`;
 
 export function useChainExecution() {
     const [runId, setRunId] = useState(null);

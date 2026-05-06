@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuRefreshCw, LuLoader, LuCircleAlert, LuZoomIn, LuZoomOut, LuMaximize2 } from 'react-icons/lu';
-
-const API = 'http://localhost:3001/api';
+import { API_BASE as _API } from '../api.js';
+const API = `${_API}/api`;
 
 const NODE_W = 180;
 const NODE_H = 56;

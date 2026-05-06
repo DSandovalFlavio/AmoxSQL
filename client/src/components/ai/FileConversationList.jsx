@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LuMessageSquarePlus, LuArrowLeft, LuMessageSquare, LuLoader, LuTrash2 } from 'react-icons/lu';
 
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../../api.js';
 
 /**
  * Groups conversations by relative date buckets.

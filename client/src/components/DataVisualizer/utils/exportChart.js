@@ -1,6 +1,7 @@
 /**
  * Chart export utilities — PNG export with resolution scaling.
  */
+import { API_BASE } from '../../../api.js';
 import html2canvas from 'html2canvas-pro';
 
 /**
@@ -91,7 +92,7 @@ export const saveChartConfig = async (filename, config, query = '') => {
     const payload = { ...config, query };
 
     try {
-        const response = await fetch('http://localhost:3001/api/file', {
+        const response = await fetch(`${API_BASE}/api/file`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

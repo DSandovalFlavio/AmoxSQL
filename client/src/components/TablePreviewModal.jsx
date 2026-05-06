@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuSearch, LuX } from "react-icons/lu";
 
@@ -15,7 +16,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
                 // Determine quote style based on table name (simple check)
                 // usually simple query is fine, backend handles connection
                 const query = `SELECT * FROM "${tableName}" LIMIT 50;`;
-                const response = await fetch('http://localhost:3001/api/query', {
+                const response = await fetch(`${API_BASE}/api/query`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query })

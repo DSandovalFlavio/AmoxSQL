@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useRef } from 'react';
 import { LuHash, LuType, LuLoader, LuMaximize, LuMinimize, LuTriangleAlert, LuInfo, LuCircleCheck } from 'react-icons/lu';
 import { useModalA11y } from '../hooks/useModalA11y';
@@ -32,7 +33,7 @@ const DataProfiler = ({ data, isActive, query }) => {
             const fetchProfile = async () => {
                 setIsCalculating(true);
                 try {
-                    const res = await fetch(`http://localhost:3001/api/profile`, {
+                    const res = await fetch(`${API_BASE}/api/profile`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ query })

@@ -9,7 +9,8 @@ import {
 } from 'react-icons/lu';
 import { RESULT_TYPE_LABELS } from './chainNodeTypes';
 
-const API_BASE = 'http://localhost:3001/api/chains';
+import { API_BASE as _API } from '../../api.js';
+const API_BASE = `${_API}/api/chains`;
 
 const statusIcons = {
     running: <LuLoader size={12} className="chain-node-spin" style={{ color: 'oklch(0.7 0.15 250)' }} />,

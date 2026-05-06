@@ -1,6 +1,11 @@
 const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
+// Read the actual server port synchronously before the React app loads.
+// Falls back to 3001 if running outside Electron (e.g. Vite dev server).
+const serverPort = ipcRenderer.sendSync('server:get-port');
+
 contextBridge.exposeInMainWorld('electronAPI', {
+    serverPort,
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
     openFileDialog: (opts) => ipcRenderer.invoke('dialog:openFile', opts),
     saveFileDialog: (opts) => ipcRenderer.invoke('dialog:saveFile', opts),

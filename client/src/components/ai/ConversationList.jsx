@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare } from 'react-icons/lu';
 
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../../api.js';
 const PAGE_SIZE = 20;
 
 /**
