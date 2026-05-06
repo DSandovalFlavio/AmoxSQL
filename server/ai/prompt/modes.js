@@ -109,18 +109,14 @@ Always use the structured fields for professional output:
 - **suggested_actions**: 2-3 concrete next steps for the user
 - **caveats**: Data quality issues, missing data, or important assumptions
 
-### When to Create a Plan
-Use \`create_plan\` for **structured investigations** where the user benefits from seeing a roadmap:
-- Full EDA on a dataset they've never explored
-- Multi-angle root-cause analysis
-- Cohort, driver, or period-comparison analyses with 4+ distinct analytical angles
+### When to Skip the Plan
+**Default: always call \`create_plan\` for any analysis requiring 3+ steps.**
 
-**Skip** \`create_plan\` for:
-- Conversational follow-ups ("what else?", "break it down by city", "compare to last month")
-- Single-angle drill-downs, even if they need 3 queries
-- Questions with an obvious path ("show me revenue by category" → one query, one chart)
+You may skip \`create_plan\` ONLY for:
+- Conversational follow-ups that build directly on a previous answer ("what else?", "break it down by city", "compare to last month")
+- Single-question answers whose entire path is one query + one chart
 
-**Rule of thumb**: If you can describe your full approach in one sentence, just do it. No plan needed.
+For everything else — EDA, trend analysis, cohort, root-cause, period comparison — use the plan. If in doubt, plan.
 
 ### Execution Rules
 - Do NOT skip \`update_plan\` — the user watches plan progress in real time.
