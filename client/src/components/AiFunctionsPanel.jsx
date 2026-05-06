@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useCallback } from 'react';
 import {
     LuZap, LuRefreshCw, LuPlus, LuTrash2, LuPencilLine, LuCheck,
@@ -42,7 +43,7 @@ const AiFunctionsPanel = ({ onInsertSql, onOpenWizard }) => {
     const checkStatus = useCallback(async () => {
         setFlockLoaded(null);
         try {
-            const res = await fetch('http://localhost:3001/api/flock/status');
+            const res = await fetch(`${API_BASE}/api/flock/status`);
             const data = await res.json();
             setFlockLoaded(!!data.loaded);
         } catch {
@@ -153,7 +154,7 @@ const ModelsTab = ({ onInsertSql, toast }) => {
     const fetchModels = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:3001/api/flock/models');
+            const res = await fetch(`${API_BASE}/api/flock/models`);
             setModels(await res.json());
         } catch { setModels([]); }
         finally { setLoading(false); }
@@ -163,7 +164,7 @@ const ModelsTab = ({ onInsertSql, toast }) => {
 
     const handleCreate = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/flock/models', {
+            const res = await fetch(`${API_BASE}/api/flock/models`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
             });
@@ -174,7 +175,7 @@ const ModelsTab = ({ onInsertSql, toast }) => {
 
     const handleDelete = async (name) => {
         try {
-            await fetch(`http://localhost:3001/api/flock/models/${encodeURIComponent(name)}`, { method: 'DELETE' });
+            await fetch(`${API_BASE}/api/flock/models/${encodeURIComponent(name)}`, { method: 'DELETE' });
             toast.success(`Model '${name}' deleted.`); fetchModels();
         } catch (err) { toast.error(err.message); }
     };
@@ -182,7 +183,7 @@ const ModelsTab = ({ onInsertSql, toast }) => {
     const handleTest = async (name) => {
         setTesting(name);
         try {
-            const res = await fetch(`http://localhost:3001/api/flock/models/${encodeURIComponent(name)}/test`, { method: 'POST' });
+            const res = await fetch(`${API_BASE}/api/flock/models/${encodeURIComponent(name)}/test`, { method: 'POST' });
             const data = await res.json();
             if (res.ok) toast.success(`'${name}' responded: ${String(data.result).slice(0, 100)}`, 6000);
             else toast.error(data.error, 8000);
@@ -250,7 +251,7 @@ const PromptsTab = ({ onInsertSql, toast }) => {
     const fetchPrompts = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:3001/api/flock/prompts');
+            const res = await fetch(`${API_BASE}/api/flock/prompts`);
             setPrompts(await res.json());
         } catch { setPrompts([]); }
         finally { setLoading(false); }
@@ -260,7 +261,7 @@ const PromptsTab = ({ onInsertSql, toast }) => {
 
     const handleCreate = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/flock/prompts', {
+            const res = await fetch(`${API_BASE}/api/flock/prompts`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
             });
@@ -271,7 +272,7 @@ const PromptsTab = ({ onInsertSql, toast }) => {
 
     const handleDelete = async (name) => {
         try {
-            await fetch(`http://localhost:3001/api/flock/prompts/${encodeURIComponent(name)}`, { method: 'DELETE' });
+            await fetch(`${API_BASE}/api/flock/prompts/${encodeURIComponent(name)}`, { method: 'DELETE' });
             toast.success(`Prompt '${name}' deleted.`); fetchPrompts();
         } catch (err) { toast.error(err.message); }
     };
@@ -336,7 +337,7 @@ const SecretsTab = ({ toast }) => {
     const fetchSecrets = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:3001/api/flock/secrets');
+            const res = await fetch(`${API_BASE}/api/flock/secrets`);
             setSecrets(await res.json());
         } catch { setSecrets([]); }
         finally { setLoading(false); }
@@ -346,7 +347,7 @@ const SecretsTab = ({ toast }) => {
 
     const handleAddOllama = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/flock/secrets/ollama', {
+            const res = await fetch(`${API_BASE}/api/flock/secrets/ollama`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ apiUrl: ollamaUrl, name: 'amoxsql_ollama', persistent: true }),
             });

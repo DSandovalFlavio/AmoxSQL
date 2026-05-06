@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuSearch, LuClipboardCopy, LuPlus, LuTrash2, LuCode, LuChevronRight, LuChevronDown } from 'react-icons/lu';
 
@@ -67,7 +68,7 @@ const SnippetsPanel = ({ onInsert }) => {
 
     // Load custom snippets from server
     useEffect(() => {
-        fetch('http://localhost:3001/api/snippets')
+        fetch(`${API_BASE}/api/snippets`)
             .then(r => r.ok ? r.json() : [])
             .then(data => setCustomSnippets(data))
             .catch(() => { });
@@ -93,7 +94,7 @@ const SnippetsPanel = ({ onInsert }) => {
         setShowAddForm(false);
         // Persist
         try {
-            await fetch('http://localhost:3001/api/snippets', {
+            await fetch(`${API_BASE}/api/snippets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updated),
@@ -105,7 +106,7 @@ const SnippetsPanel = ({ onInsert }) => {
         const updated = customSnippets.filter((_, i) => i !== idx);
         setCustomSnippets(updated);
         try {
-            await fetch('http://localhost:3001/api/snippets', {
+            await fetch(`${API_BASE}/api/snippets`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updated),

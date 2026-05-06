@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 
 const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '', title = 'Save Query', placeholder = 'query.sql or notebook.sqlnb', hideDescription = false }) => {
@@ -24,7 +25,7 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '', title = 'Sa
     const fetchFolders = async () => {
         setLoadingFolders(true);
         try {
-            const response = await fetch('http://localhost:3001/api/folders');
+            const response = await fetch(`${API_BASE}/api/folders`);
             if (response.ok) {
                 const data = await response.json();
                 setFolders(data);

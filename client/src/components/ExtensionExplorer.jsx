@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import {
     LuRefreshCw, LuDownload, LuSearch, LuPackage, LuCheck, LuCircle,
@@ -44,7 +45,7 @@ const ExtensionExplorer = ({ onFlockWizard }) => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:3001/api/db/extensions');
+            const res = await fetch(`${API_BASE}/api/db/extensions`);
             if (!res.ok) throw new Error('Failed to fetch');
             const data = await res.json();
             setExtensions(data);
@@ -79,7 +80,7 @@ const ExtensionExplorer = ({ onFlockWizard }) => {
     const handleInstall = async (name, fromCommunity = false) => {
         setBusyExt(name);
         try {
-            const res = await fetch('http://localhost:3001/api/db/extensions/install', {
+            const res = await fetch(`${API_BASE}/api/db/extensions/install`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, fromCommunity }),
@@ -123,7 +124,7 @@ const ExtensionExplorer = ({ onFlockWizard }) => {
         setBusyExt(name);
         setContextMenu(null);
         try {
-            const res = await fetch('http://localhost:3001/api/db/extensions/load', {
+            const res = await fetch(`${API_BASE}/api/db/extensions/load`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name }),

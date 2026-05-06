@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useRef, memo, useDeferredValue, useLayoutEffect, useCallback } from 'react';
 import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
@@ -116,7 +117,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
     const fetchGitStatus = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/git/status');
+            const res = await fetch(`${API_BASE}/api/git/status`);
             const data = await res.json();
             if (!data.isRepo || !Array.isArray(data.files)) { setGitStatusMap({}); return; }
             const map = {};
@@ -133,7 +134,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         if (!silent) setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`http://localhost:3001/api/files?path=${encodeURIComponent(path)}`);
+            const response = await fetch(`${API_BASE}/api/files?path=${encodeURIComponent(path)}`);
             if (!response.ok) throw new Error('Failed to fetch files');
             let data = await response.json();
 
@@ -344,7 +345,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
             pathParts[pathParts.length - 1] = renameValue.trim();
             const newPath = pathParts.join('/');
 
-            const response = await fetch('http://localhost:3001/api/file/rename', {
+            const response = await fetch(`${API_BASE}/api/file/rename`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ oldPath, newPath })
@@ -372,7 +373,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
     const confirmDelete = async () => {
         if (!fileToDelete) return;
-        const response = await fetch('http://localhost:3001/api/file/delete', {
+        const response = await fetch(`${API_BASE}/api/file/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: fileToDelete.path, isDirectory: fileToDelete.isDirectory })
@@ -391,7 +392,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     const duplicateFile = async (file) => {
         setContextMenu(null);
         try {
-            const res = await fetch('http://localhost:3001/api/file/copy', {
+            const res = await fetch(`${API_BASE}/api/file/copy`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sourcePath: file.path })
@@ -408,7 +409,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         setContextMenu(null);
         const pattern = file.isDirectory ? `${file.path.replace(/\\/g, '/')}/` : file.path.replace(/\\/g, '/');
         try {
-            const res = await fetch('http://localhost:3001/api/git/ignore', {
+            const res = await fetch(`${API_BASE}/api/git/ignore`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pattern })
@@ -426,7 +427,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     const revealInExplorer = async (file) => {
         setContextMenu(null);
         try {
-            await fetch('http://localhost:3001/api/file/reveal', {
+            await fetch(`${API_BASE}/api/file/reveal`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filePath: file.path })
@@ -438,7 +439,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     const openMoveTo = async (filesToMove) => {
         setContextMenu(null);
         try {
-            const res = await fetch('http://localhost:3001/api/folders');
+            const res = await fetch(`${API_BASE}/api/folders`);
             const folders = await res.json();
             setFolderList(folders);
             setMoveToModal({ files: filesToMove });
@@ -449,7 +450,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         if (!moveToModal) return;
         try {
             for (const f of moveToModal.files) {
-                await fetch('http://localhost:3001/api/file/move', {
+                await fetch(`${API_BASE}/api/file/move`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sourcePath: f.path, destinationDir: destPath })
@@ -481,7 +482,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
             // Optimistic removal — file disappears instantly
             setFiles(prev => prev.filter(f => f.path !== sourcePath));
 
-            const res = await fetch('http://localhost:3001/api/file/move', {
+            const res = await fetch(`${API_BASE}/api/file/move`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sourcePath, destinationDir: destDir })
@@ -554,7 +555,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         try {
             for (const f of clipboardFiles) {
                 const endpoint = clipboardMode === 'cut' ? '/api/file/move' : '/api/file/copy';
-                await fetch(`http://localhost:3001${endpoint}`, {
+                await fetch(`${API_BASE}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sourcePath: f.path, destinationDir: currentPath })
@@ -868,7 +869,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                 if (copyingColumns) return;
                                 setCopyingColumns(true);
                                 try {
-                                    const res = await fetch(`http://localhost:3001/api/files/inspect-columns?path=${encodeURIComponent(contextMenu.file.path)}`);
+                                    const res = await fetch(`${API_BASE}/api/files/inspect-columns?path=${encodeURIComponent(contextMenu.file.path)}`);
                                     const data = await res.json();
                                     const fName = contextMenu.file.name;
                                     let comment = '';

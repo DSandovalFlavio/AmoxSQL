@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../../api.js';
 
 export const DEFAULT_GEMINI_MODELS = [
     { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', size: 'Cloud' },

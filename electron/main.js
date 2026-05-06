@@ -16,6 +16,11 @@ if (!gotTheLock) {
 }
 
 // IPC Handler: Open native folder picker dialog
+// Synchronous IPC so the preload can read the port before the React app loads
+ipcMain.on('server:get-port', (event) => {
+    event.returnValue = actualServerPort;
+});
+
 ipcMain.handle('dialog:selectFolder', async () => {
     const result = await dialog.showOpenDialog({
         properties: ['openDirectory'],
@@ -77,6 +82,7 @@ let popoutWindow = null;
 let pendingPopoutData = null;
 let serverProcess = null;
 const SERVER_PORT = 3001;
+let actualServerPort = SERVER_PORT;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -88,7 +94,7 @@ if (require('electron-squirrel-startup')) {
 // Tolerates failures silently (e.g. server already dead) so quit always proceeds.
 async function shutdownServer() {
     try {
-        await fetch(`http://localhost:${SERVER_PORT}/api/shutdown`, {
+        await fetch(`http://localhost:${actualServerPort}/api/shutdown`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: AbortSignal.timeout(4000),
@@ -148,8 +154,8 @@ const createWindow = () => {
         mainWindow.loadURL('http://localhost:5173');
         mainWindow.webContents.openDevTools();
     } else {
-        console.log(`[Main] Loading content from http://localhost:${SERVER_PORT}`);
-        mainWindow.loadURL(`http://localhost:${SERVER_PORT}`)
+        console.log(`[Main] Loading content from http://localhost:${actualServerPort}`);
+        mainWindow.loadURL(`http://localhost:${actualServerPort}`)
             .catch(e => {
                 console.error("Failed to load app content:", e);
             });
@@ -170,7 +176,7 @@ ipcMain.handle('popout:open', async (_event, data) => {
 
     const baseUrl = !app.isPackaged
         ? 'http://localhost:5173'
-        : `http://localhost:${SERVER_PORT}`;
+        : `http://localhost:${actualServerPort}`;
 
     popoutWindow = new BrowserWindow({
         width: 1000,
@@ -238,7 +244,8 @@ const initApp = () => {
 
     serverProcess.on('message', (msg) => {
         if (msg.type === 'ready') {
-            console.log("Server ready. Creating window...");
+            actualServerPort = msg.port || SERVER_PORT;
+            console.log(`Server ready on port ${actualServerPort}. Creating window...`);
             createWindow();
         } else if (msg.type === 'error') {
             console.error("Server failed to start:", msg.message);

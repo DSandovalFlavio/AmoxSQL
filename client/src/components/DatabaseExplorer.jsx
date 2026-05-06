@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect, memo, useDeferredValue } from 'react';
 import { getCached, setCached } from '../state/sidebarCache';
 import TablePreviewModal from './TablePreviewModal';
@@ -80,7 +81,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
         }
         setLoading(!cached);
         try {
-            const response = await fetch('http://localhost:3001/api/db/schemas');
+            const response = await fetch(`${API_BASE}/api/db/schemas`);
             if (response.ok) {
                 const data = await response.json();
                 setCached(cacheKey, data);
@@ -147,7 +148,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     const confirmDrop = async () => {
         if (!tableToDelete) return;
         const qName = qualifiedName(schemaToDelete, tableToDelete);
-        const res = await fetch('http://localhost:3001/api/query', {
+        const res = await fetch(`${API_BASE}/api/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: `DROP TABLE IF EXISTS ${qName}` })

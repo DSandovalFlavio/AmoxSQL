@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuX, LuPlay, LuGripVertical, LuPlus, LuTrash2, LuCheck, LuCircleAlert, LuLoader, LuLink } from 'react-icons/lu';
 
@@ -56,7 +57,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
 
             try {
                 // Read the file content
-                const fileRes = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(chain[i])}`);
+                const fileRes = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(chain[i])}`);
                 const fileData = await fileRes.json();
 
                 if (fileData.error) {
@@ -66,7 +67,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
 
                 // Execute the query
                 const start = performance.now();
-                const queryRes = await fetch('http://localhost:3001/api/query', {
+                const queryRes = await fetch(`${API_BASE}/api/query`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query: fileData.content, skipHistory: true }),

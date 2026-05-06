@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuX, LuShieldCheck, LuCircleAlert, LuCircleCheck, LuLoader } from 'react-icons/lu';
 
@@ -23,7 +24,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
 
         try {
             // Use SUMMARIZE for basic profile
-            const summaryRes = await fetch('http://localhost:3001/api/query', {
+            const summaryRes = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: `SUMMARIZE "${tableName}"` }),
@@ -33,7 +34,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
             if (!summaryRes.ok) throw new Error(summaryData.error);
 
             // Count total rows
-            const countRes = await fetch('http://localhost:3001/api/query', {
+            const countRes = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: `SELECT COUNT(*) AS total_rows FROM "${tableName}"` }),
@@ -42,7 +43,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
             const totalRows = countData.data?.[0]?.total_rows || 0;
 
             // Check for duplicate full rows
-            const dupRes = await fetch('http://localhost:3001/api/query', {
+            const dupRes = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: `SELECT COUNT(*) AS dup_count FROM (SELECT *, COUNT(*) AS cnt FROM "${tableName}" GROUP BY ALL HAVING cnt > 1)` }),

@@ -7,6 +7,7 @@
  * - Saving the chart config
  * - Switching to "Edit with SQL" mode (opens the same file as a SQL tab)
  */
+import { API_BASE } from '../api.js';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { LuCode, LuLoader, LuChevronDown, LuChevronRight, LuSquare, LuRefreshCw, LuBookOpen, LuSave } from 'react-icons/lu';
 import DataVisualizer from './DataVisualizer';
@@ -42,7 +43,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch('http://localhost:3001/api/query', {
+            const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: q }),
@@ -66,7 +67,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`http://localhost:3001/api/file?path=${encodeURIComponent(tab.path)}`);
+            const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(tab.path)}`);
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
@@ -122,7 +123,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
                             onClick={async () => {
                                 try {
                                     const chartId = tab.path.split(/[/\\]/).pop().replace('.amoxvis', '');
-                                    const res = await fetch('http://localhost:3001/api/gallery/copy-to-workspace', {
+                                    const res = await fetch(`${API_BASE}/api/gallery/copy-to-workspace`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ chartId }),

@@ -2,6 +2,7 @@
  * WorkspaceWizard — shows on first open of a new project.
  * Lets the user pick which canonical folders to scaffold.
  */
+import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import {
     LuFolderOpen, LuSparkles, LuCheck, LuArrowRight, LuX,
@@ -32,7 +33,7 @@ export default function WorkspaceWizard({ projectPath, onComplete, onSkip }) {
     const [created,    setCreated]        = useState([]);
 
     useEffect(() => {
-        fetch('http://localhost:3001/api/project/folder-defs')
+        fetch(`${API_BASE}/api/project/folder-defs`)
             .then(r => r.json())
             .then(data => setFolderDefs(data.folders || []))
             .catch(() => {});
@@ -49,7 +50,7 @@ export default function WorkspaceWizard({ projectPath, onComplete, onSkip }) {
     const handleCreate = async () => {
         setCreating(true);
         try {
-            const res  = await fetch('http://localhost:3001/api/project/scaffold', {
+            const res  = await fetch(`${API_BASE}/api/project/scaffold`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ folders: [...selected] }),
@@ -68,7 +69,7 @@ export default function WorkspaceWizard({ projectPath, onComplete, onSkip }) {
 
     const handleSkip = async () => {
         // Mark wizard as completed even when skipped
-        await fetch('http://localhost:3001/api/project/config', {
+        await fetch(`${API_BASE}/api/project/config`, {
             method:  'PUT',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ updates: { wizard: { completed: true, skipped: true } } }),

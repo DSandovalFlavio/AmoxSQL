@@ -8,7 +8,7 @@ import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
 
-const API = 'http://localhost:3001';
+import { API_BASE as API } from '../../api.js';
 
 /**
  * AiAssistantPanel — File-aware AI assistant sidebar panel.

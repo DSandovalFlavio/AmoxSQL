@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
@@ -244,7 +245,7 @@ const EditorPane = ({
             const debugQ = `${partialQuery} SELECT * FROM ${cteName} LIMIT 100`;
             setDebugQuery(debugQ);
 
-            const response = await fetch('http://localhost:3001/api/query', {
+            const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: debugQ }),

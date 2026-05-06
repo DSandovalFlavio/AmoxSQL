@@ -1,3 +1,4 @@
+import { API_BASE } from '../api.js';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import NotebookCell from './NotebookCell';
@@ -89,7 +90,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     // One-time sidecar migration (v2.0 → v3.0)
     const migrateSidecarState = async (path, currentCells) => {
         try {
-            const res = await fetch(`http://localhost:3001/api/notebook-state?path=${encodeURIComponent(path)}`);
+            const res = await fetch(`${API_BASE}/api/notebook-state?path=${encodeURIComponent(path)}`);
             const state = await res.json();
             if (!state || !state.cells) return;
 
