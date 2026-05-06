@@ -4587,10 +4587,21 @@ app.post('/api/shutdown', async (_req, res) => {
 
 const startServer = (preferredPort = 3001) => {
     return new Promise((resolve, reject) => {
-        const server = app.listen(preferredPort, () => {
+        const server = app.listen(preferredPort, async () => {
             const actualPort = server.address().port;
             console.log(`Server running at http://localhost:${actualPort}`);
             console.log(`Serving files from: ${ROOT_DIR}`);
+
+            // Initialize AI schema on the default in-memory DB so DataDiving works
+            // without a project connected. When a project DB is later connected,
+            // initSchema is called again on that DB (see /api/db/connect handler).
+            try {
+                const aiPersistenceStartup = require('./ai/persistence');
+                await aiPersistenceStartup.initSchema(dbManager);
+            } catch (err) {
+                console.warn('[AI] Startup schema init warning (non-fatal):', err.message);
+            }
+
             resolve({ server, port: actualPort });
         });
         server.on('error', (err) => {
