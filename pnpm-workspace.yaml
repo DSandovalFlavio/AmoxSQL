@@ -1,0 +1,11 @@
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - electron
+  - electron-builder
+  - "@duckdb/node-api"
+allowBuilds:
+  "@duckdb/node-api": true
+  electron: true
+  electron-builder: true
+  electron-squirrel-startup: true
+  esbuild: true

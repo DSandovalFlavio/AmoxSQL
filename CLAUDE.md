@@ -50,15 +50,20 @@ Electron Shell
 
 ## Key Commands
 ```bash
-npm start              # Dev: concurrently runs Vite, waits on :5173, then launches Electron
-npm run client:dev     # Frontend only (Vite on port 5173)
-npm run client:build   # Production build → client/dist/
-npm run dist           # client:build + electron-builder (NSIS installer, Windows)
+pnpm install           # Install deps (raíz). Repetir dentro de client/ para el frontend.
+pnpm start             # Dev: concurrently runs Vite, waits on :5173, then launches Electron
+pnpm client:dev        # Frontend only (Vite on port 5173)
+pnpm client:build      # Production build → client/dist/
+pnpm dist              # client:build + electron-builder (NSIS installer, Windows)
 ```
+
+**Package manager: pnpm 11+ (obligatorio).** No usar `npm install` ni `yarn`. pnpm 11 aplica `minimumReleaseAge=1440` (cuarentena de 24h para versiones recién publicadas) y allowlist explícita de scripts de instalación — defensa contra ataques tipo Shai‑Hulud / TeamPCP. Config en `pnpm-workspace.yaml` (raíz y `client/`).
 
 **No test, lint, or typecheck scripts exist** in `package.json` — don't claim to have run them. If you change code, verify by running the app and exercising the affected UI path.
 
-The `postinstall` hook runs `electron-builder install-app-deps` to rebuild native modules (notably `@duckdb/node-api`) against Electron's Node ABI. If DuckDB fails to load after `npm install`, re-run `npm run postinstall`.
+The `postinstall` hook runs `electron-builder install-app-deps` to rebuild native modules (notably `@duckdb/node-api`) against Electron's Node ABI. If DuckDB fails to load after `pnpm install`, re-run `pnpm run postinstall`.
+
+**Si pnpm reporta `ERR_PNPM_IGNORED_BUILDS`** al añadir una dep nueva con script de install: revisar el script, y si es legítimo añadirlo a `allowBuilds` en `pnpm-workspace.yaml` con `true`; si no se necesita ejecutar, marcarlo con `false` explícitamente para silenciar la advertencia.
 
 ## Project Structure — Key Files
 

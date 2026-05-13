@@ -10,10 +10,10 @@
   },
   "main": "electron/main.js",
   "scripts": {
-    "start": "concurrently -k \"npm run client:dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "client:dev": "cd client && npm run dev",
-    "client:build": "cd client && npm run build",
-    "dist": "npm run client:build && electron-builder",
+    "start": "concurrently -k \"pnpm run client:dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "client:dev": "cd client && pnpm dev",
+    "client:build": "cd client && pnpm build",
+    "dist": "pnpm run client:build && electron-builder",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

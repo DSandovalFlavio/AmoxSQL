@@ -1,0 +1,6 @@
+minimumReleaseAge: 1440
+allowBuilds:
+  esbuild: true
+  core-js: false
+  tree-sitter: false
+  "@derekstride/tree-sitter-sql": false
