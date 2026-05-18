@@ -35,6 +35,7 @@ BigInt.prototype.toJSON = function () {
 };
 
 let ROOT_DIR = process.cwd();
+const APP_DIR = process.cwd(); // AmoxSQL app directory — never changes, unlike ROOT_DIR
 
 // Track in-flight user queries for cancellation support
 const activeQueries = new Map(); // queryId → { interrupt }
@@ -2277,8 +2278,8 @@ app.put('/api/ai/conversations/:id/title/auto', async (req, res) => {
  */
 app.get('/api/ai/skills', async (req, res) => {
     try {
-        const skills = await aiSkills.loadSkills(ROOT_DIR);
-        res.json(skills.map(s => ({ id: s.id, name: s.name, description: s.description })));
+        const skills = await aiSkills.loadSkills(APP_DIR);
+        res.json(skills.map(s => ({ id: s.id, name: s.name, description: s.description, keywords: s.keywords || [], fileName: s.fileName || '' })));
     } catch (err) {
         console.error('[API] Load skills error:', err);
         res.status(500).json({ error: err.message });
@@ -2290,7 +2291,7 @@ app.get('/api/ai/skills', async (req, res) => {
  */
 app.get('/api/ai/skills/:id', async (req, res) => {
     try {
-        const skill = await aiSkills.getSkill(ROOT_DIR, req.params.id);
+        const skill = await aiSkills.getSkill(APP_DIR, req.params.id);
         if (!skill) return res.status(404).json({ error: 'Skill not found' });
         res.json(skill);
     } catch (err) {
