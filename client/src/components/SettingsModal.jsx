@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE as API } from '../api.js';
 import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
+import SkillsPanel from './ai/SkillsPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
@@ -1492,6 +1493,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     tabs={[
                                         { id: 'models',    label: 'Models' },
                                         { id: 'knowledge', label: 'Knowledge' },
+                                        { id: 'skills',    label: 'Skills' },
                                     ]}
                                     activeTab={aiSubTab}
                                     onChange={setAiSubTab}
@@ -1916,6 +1918,16 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         Define business metrics, joins and a domain glossary so the AI understands your data.
                                     </p>
                                     <AiContextTab />
+                                </div>
+                                </div>}
+                                {/* ── Skills sub-tab ── */}
+                                {aiSubTab === 'skills' && <div className="stg-subtab-content">
+                                <div>
+                                    <h3 className="stg-section-title">AI Skills</h3>
+                                    <p className="stg-row-desc stg-row-desc--mb14">
+                                        Skills are specialized workflows that guide the AI agent for specific analysis types. They are loaded from <code style={{ fontSize: 11 }}>agent/skills/</code> in your project.
+                                    </p>
+                                    <SkillsPanel />
                                 </div>
                                 </div>}
                             </div>
