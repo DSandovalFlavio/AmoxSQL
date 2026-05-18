@@ -3,10 +3,10 @@
  * reference elements, and margins.
  * Tab: "Annotate" — "Tell the story"
  */
-import { memo, useRef } from 'react';
+import { memo, useRef, useState } from 'react';
 import { Section, Toggle, SelectField, InputField, SimpleColorPicker, panelStyles, Divider } from './shared';
 
-const AnnotationsPanel = memo(({ state, setField }) => {
+const AnnotationsPanel = memo(({ state, setField, onGenerateStory }) => {
     const { chartType, chartTitle, chartSubtitle, chartFootnote, textAlign,
         refLine, refArea, goalLine, trendLine,
         headline, marginTop, marginBottom, marginLeft, marginRight, titleSpacing
@@ -15,6 +15,8 @@ const AnnotationsPanel = memo(({ state, setField }) => {
     const titleRef = useRef(null);
     const subtitleRef = useRef(null);
     const footnoteRef = useRef(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [storyError, setStoryError] = useState(null);
 
     const isDonut = chartType === 'donut';
     const hasAxes = chartType !== 'donut';
@@ -23,6 +25,29 @@ const AnnotationsPanel = memo(({ state, setField }) => {
         if (titleRef.current) setField('chartTitle', titleRef.current.value);
         if (subtitleRef.current) setField('chartSubtitle', subtitleRef.current.value);
         if (footnoteRef.current) setField('chartFootnote', footnoteRef.current.value);
+    };
+
+    const handleGenerateStory = async () => {
+        if (!onGenerateStory) return;
+        setIsGenerating(true);
+        setStoryError(null);
+        try {
+            const story = await onGenerateStory();
+            if (story && !story.error) {
+                if (titleRef.current) titleRef.current.value = story.chart_title || '';
+                if (subtitleRef.current) subtitleRef.current.value = story.chart_subtitle || '';
+                if (footnoteRef.current) footnoteRef.current.value = story.footnote || '';
+                setField('chartTitle', story.chart_title || '');
+                setField('chartSubtitle', story.chart_subtitle || '');
+                setField('chartFootnote', story.footnote || '');
+            } else {
+                setStoryError(story?.error || 'Could not generate story.');
+            }
+        } catch (err) {
+            setStoryError('Error generating story.');
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     return (
@@ -104,19 +129,45 @@ const AnnotationsPanel = memo(({ state, setField }) => {
                     <input ref={footnoteRef} type="text" placeholder="Data source or footnote"
                         defaultValue={chartFootnote} style={panelStyles.input} />
                 </div>
-                <button
-                    onClick={applyTexts}
-                    style={{
-                        width: '100%', padding: '6px',
-                        background: 'var(--accent-color-user)',
-                        color: 'var(--button-text-color)',
-                        border: 'none', borderRadius: '4px',
-                        cursor: 'pointer', fontSize: '11px',
-                        marginTop: '4px', fontWeight: '500',
-                    }}
-                >
-                    Apply Text
-                </button>
+
+                <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                    <button
+                        onClick={applyTexts}
+                        style={{
+                            flex: 1, padding: '6px',
+                            background: 'var(--accent-color-user)',
+                            color: 'var(--button-text-color)',
+                            border: 'none', borderRadius: '4px',
+                            cursor: 'pointer', fontSize: '11px', fontWeight: '500',
+                        }}
+                    >
+                        Apply
+                    </button>
+                    {onGenerateStory && (
+                        <button
+                            onClick={handleGenerateStory}
+                            disabled={isGenerating}
+                            title="Generate story from chart data using AI"
+                            style={{
+                                flex: 1, padding: '6px',
+                                background: isGenerating ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
+                                color: isGenerating ? 'var(--text-muted)' : 'var(--text-primary)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '4px',
+                                cursor: isGenerating ? 'default' : 'pointer',
+                                fontSize: '11px', fontWeight: '500',
+                            }}
+                        >
+                            {isGenerating ? 'Generating...' : 'Auto Story'}
+                        </button>
+                    )}
+                </div>
+
+                {storyError && (
+                    <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--color-error, #e05555)', padding: '4px 6px', background: 'var(--bg-secondary)', borderRadius: '3px' }}>
+                        {storyError}
+                    </div>
+                )}
             </Section>
 
             {/* ── Goal Line ── */}

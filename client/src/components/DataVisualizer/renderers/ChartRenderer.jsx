@@ -98,7 +98,7 @@ const ChartRenderer = memo(({
         let pb = Number(marginBottom);
         let pl = Number(marginLeft);
         if (showYAxisTitle && !isHorizontal) pl += 15;
-        if (showXAxisTitle && isHorizontal) pl += 15;
+        if (showXAxisTitle && isHorizontal) pl += 15; // XLabel goes on left axis for horizontal bars
         if (legendPosition === 'top') pt += 5;
         if (legendPosition === 'bottom') pb += 10;
         return { top: pt, right: Number(marginRight), left: pl, bottom: pb };
@@ -491,15 +491,18 @@ const ChartRenderer = memo(({
 
                         {isHorizontal ? (
                             <>
+                                {/* For horizontal bars the visual axes are swapped:
+                                    XAxis (bottom) = values → gets the Y label (metric name with units)
+                                    YAxis (left)   = categories → gets the X label (dimension name) */}
                                 <XAxis {...axisCommonProps} type="number" stroke="var(--border-color)"
                                     tick={{ fill: 'var(--text-muted)', fontSize }} tickFormatter={fmt}
                                     domain={yDomain} scale={yScale}
-                                    label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined}
-                                    height={showXAxisTitle ? 30 : 5} />
+                                    label={showYAxisTitle ? { value: YLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined}
+                                    height={showYAxisTitle ? 30 : 5} />
                                 <YAxis {...axisCommonProps} type="category" dataKey={xAxisKey}
                                     stroke="var(--border-color)" tick={{ fill: 'var(--text-muted)', fontSize }}
                                     width={dynamicYAxisWidth} tickFormatter={xAxisTickFormatter}
-                                    label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined} />
+                                    label={showXAxisTitle ? { value: XLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined} />
                             </>
                         ) : (
                             <>

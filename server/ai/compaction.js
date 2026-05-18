@@ -68,7 +68,7 @@ async function compactContext(model, messages, maxTokensOverride, modelName) {
 
     // Determine context window limit
     const contextWindow = maxTokensOverride || getModelContextWindow(modelName);
-    const threshold = Math.floor(contextWindow * 0.75);
+    const threshold = Math.floor(contextWindow * 0.80);
 
     // We always keep the latest 4 messages pristine
     const latestMessages = messages.slice(-4);

@@ -16,7 +16,7 @@
 
 const { streamText } = require('ai');
 const { createTools } = require('./tools');
-const { buildSystemPrompt } = require('./systemPrompt');
+const { buildSystemPrompt, buildSystemParts } = require('./systemPrompt');
 const { loadUserRules } = require('./userRules');
 const { compactContext } = require('./compaction');
 const { loadMemoriesText, extractMemories } = require('./memory');
@@ -26,9 +26,10 @@ const { getFlockStatus, getModels, getPrompts } = require('../flockManager');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
 const { verifyFindings } = require('./findingsLinter');
 
-const MAX_LOOP_ITERATIONS = 15;
-// Per-iteration maxSteps: high enough that most plans finish in 1-2 outer iterations.
-const ITER_MAX_STEPS = 15;
+// Hard ceiling — never grows dynamically beyond this
+const MAX_LOOP_ITERATIONS = 20;
+// Per-iteration tool steps
+const ITER_MAX_STEPS = 10;
 // Max times we retry an iteration that produced no tool calls (idle recovery)
 const MAX_IDLE_RETRIES = 2;
 // Max times we inject a SQL correction directive before giving up
@@ -152,16 +153,27 @@ async function* agenticLoop(options, getModelFn) {
 
     const profile = getModelProfile(model, provider);
 
-    const systemPrompt = buildSystemPrompt({
+    const promptOptions = {
         tables, files, mode,
         userRules, memories,
         currentQuery, currentResult, currentChartConfig,
         activeSkill, modelProfile: profile,
         filePath, fileType,
-        enablePlanner: true,
+        enablePlanner: mode === 'diving',
         flockContext,
         projectCtx,
-    });
+    };
+
+    // For Anthropic: split into static (cached) + dynamic blocks.
+    // For all others: single string system prompt.
+    const useStructuredSystem = provider === 'anthropic';
+    let systemPrompt = null;
+    let systemParts  = null;
+    if (useStructuredSystem) {
+        systemParts = buildSystemParts(promptOptions);
+    } else {
+        systemPrompt = buildSystemPrompt(promptOptions);
+    }
 
     const llmModel = getModelFn(provider, model);
 
@@ -231,7 +243,7 @@ async function* agenticLoop(options, getModelFn) {
         const tools = createTools({
             dbManager, queryResults, projectPath, mode,
             conversationId, aiPersistence,
-            activePlan, enablePlanner: true,
+            activePlan, enablePlanner: mode === 'diving',
         });
 
         const iterStart = Date.now();
@@ -244,9 +256,22 @@ async function* agenticLoop(options, getModelFn) {
         let iterResult         = null;   // holds the streamText handle for response.messages
 
         try {
+            // Build system argument: array of content blocks for Anthropic (enables
+            // prompt caching on the stable static section), plain string for others.
+            const systemArg = useStructuredSystem
+                ? [
+                    {
+                        type: 'text',
+                        text: systemParts.static,
+                        providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+                    },
+                    { type: 'text', text: systemParts.dynamic },
+                  ]
+                : systemPrompt;
+
             const result = iterResult = streamText({
                 model:     llmModel,
-                system:    systemPrompt,
+                system:    systemArg,
                 messages:  compactedMessages,
                 tools:     profile.supportsToolCalling ? tools : undefined,
                 maxSteps:  Math.min(profile.maxSteps, ITER_MAX_STEPS),
@@ -286,11 +311,6 @@ async function* agenticLoop(options, getModelFn) {
 
                     // ── Detect planner signal tools ──
                     if (part.toolName === 'create_plan') {
-                        // Expand iteration budget based on plan complexity
-                        if (activePlan.dynamicMaxIterations && activePlan.dynamicMaxIterations > effectiveMaxIterations) {
-                            effectiveMaxIterations = activePlan.dynamicMaxIterations;
-                            console.log(`[AgenticLoop] Dynamic maxIterations: ${effectiveMaxIterations} (${activePlan.steps.length} steps)`);
-                        }
                         // Apply any user step overrides (steps the user marked to skip before this turn)
                         if (planStepOverrides.length > 0) {
                             // Normalize: overrides can be strings or { stepId } objects

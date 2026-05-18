@@ -70,11 +70,19 @@ function buildUserRulesSection(userRules) {
 
 function buildMemoriesSection(memories) {
     if (!memories) return '';
+    const WARNING = '> Past state only — do not assume files/tables here are available now.';
     if (typeof memories === 'string' && memories.trim()) {
-        return `\n\n## Past Session Context\n> ⚠️ These are facts learned from PREVIOUS conversations — they describe past state, not the current session. Do NOT assume files or tables mentioned here are available now unless they appear in the current "Tables" or "Files" sections above.\n\n${memories}`;
+        // Truncate long string memories at 600 chars total
+        const trimmed = memories.length > 600 ? memories.substring(0, 597) + '...' : memories;
+        return `\n\n## Past Session Context\n${WARNING}\n\n${trimmed}`;
     }
     if (Array.isArray(memories) && memories.length > 0) {
-        return `\n\n## Past Session Context\n> ⚠️ These are facts learned from PREVIOUS conversations — do NOT assume files or tables mentioned here are available in the current session.\n${memories.map(m => `- ${m}`).join('\n')}`;
+        // Top 3 most recent, max 200 chars each
+        const top3 = memories.slice(-3).map(m => {
+            const s = String(m);
+            return s.length > 200 ? s.substring(0, 197) + '...' : s;
+        });
+        return `\n\n## Past Session Context\n${WARNING}\n${top3.map(m => `- ${m}`).join('\n')}`;
     }
     return '';
 }

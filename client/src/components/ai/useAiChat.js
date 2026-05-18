@@ -695,18 +695,24 @@ export default function useAiChat({
                 const loadedMessages = (conv.messages || []).map(m => {
                     let toolCalls = m.tool_calls || undefined;
 
-                    // Enrich tool calls with persisted query results and chart configs
+                    // Enrich tool calls with persisted query results and chart configs.
+                    // Two-pass strategy: execute_sql calls build a clientQueryId→dbQrId map
+                    // so display_chart calls can find their exact chart config instead of the first one.
                     if (toolCalls && Array.isArray(toolCalls) && queryResultsByMsgId[m.id]) {
                         const qResults = queryResultsByMsgId[m.id];
                         let qrIndex = 0;
+                        const clientIdToDbQrId = new Map(); // queryId (client) → qr.id (DB)
+
                         toolCalls = toolCalls.map(tc => {
                             if (tc.toolName === 'execute_sql' && qrIndex < qResults.length) {
                                 const qr = qResults[qrIndex++];
+                                const clientQueryId = tc.result?.queryId;
+                                if (clientQueryId) clientIdToDbQrId.set(clientQueryId, qr.id);
                                 return {
                                     ...tc,
                                     result: {
                                         ...tc.result,
-                                        queryId: tc.result?.queryId || qr.id,
+                                        queryId: clientQueryId || qr.id,
                                         query: qr.sql_query,
                                         columns: qr.columns_info || tc.result?.columns,
                                         data: qr.data || tc.result?.data,
@@ -716,19 +722,21 @@ export default function useAiChat({
                                 };
                             }
                             if (tc.toolName === 'display_chart') {
-                                // Find matching chart config via query result
-                                for (const qr of qResults) {
-                                    const cc = chartConfigsByQrId[qr.id];
-                                    if (cc) {
-                                        return {
-                                            ...tc,
-                                            result: {
-                                                ...tc.result,
-                                                ...(cc.config || {}),
-                                                queryId: tc.result?.queryId || tc.args?.query_id || qr.id,
-                                            },
-                                        };
-                                    }
+                                // Match this chart to its exact query result using the queryId the agent used
+                                const clientQueryId = tc.args?.query_id || tc.result?.queryId;
+                                const dbQrId = clientQueryId ? clientIdToDbQrId.get(clientQueryId) : undefined;
+                                const cc = dbQrId
+                                    ? chartConfigsByQrId[dbQrId]
+                                    : null;
+                                if (cc) {
+                                    return {
+                                        ...tc,
+                                        result: {
+                                            ...tc.result,
+                                            ...(cc.config || {}),
+                                            queryId: clientQueryId || dbQrId,
+                                        },
+                                    };
                                 }
                             }
                             return tc;

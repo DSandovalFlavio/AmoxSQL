@@ -4,10 +4,6 @@ const path = require('path');
 // In-memory cache: projectPath -> { skills, mtime }
 const cache = new Map();
 
-/**
- * Parse YAML-like front-matter from a markdown file.
- * Supports: name, description fields.
- */
 function parseFrontMatter(content) {
     const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
     if (!match) return { meta: {}, body: content };
@@ -26,10 +22,15 @@ function parseFrontMatter(content) {
 
 /**
  * Load all skills from the project's agent/skills/ directory.
- * Skills are markdown files with optional YAML front-matter.
+ * Supports two formats:
+ *   - Flat:   agent/skills/<id>.md
+ *   - Folder: agent/skills/<id>/SKILL.md  (Anthropic Skills canon format)
  *
- * @param {string} projectPath - The root directory of the current project
- * @returns {Promise<Array<{id: string, name: string, description: string, content: string, fileName: string}>>}
+ * Frontmatter fields:
+ *   name        — display name
+ *   description — one-line description (used in UI and intent matching)
+ *   keywords    — comma-separated keywords for auto-activation scoring
+ *   next        — comma-separated skill IDs to suggest after this one completes
  */
 async function loadSkills(projectPath) {
     if (!projectPath) return [];
@@ -45,26 +46,46 @@ async function loadSkills(projectPath) {
             return cached.skills;
         }
 
-        const files = await fs.promises.readdir(skillsDir);
-        const mdFiles = files.filter(f => f.endsWith('.md'));
-
+        const entries = await fs.promises.readdir(skillsDir, { withFileTypes: true });
         const skills = [];
-        for (const fileName of mdFiles) {
-            try {
-                const filePath = path.join(skillsDir, fileName);
-                const raw = await fs.promises.readFile(filePath, 'utf8');
-                const { meta, body } = parseFrontMatter(raw);
 
-                const id = fileName.replace(/\.md$/, '');
+        for (const entry of entries) {
+            try {
+                let raw, id, fileName;
+
+                if (entry.isDirectory()) {
+                    // Folder format: agent/skills/<id>/SKILL.md
+                    const skillFile = path.join(skillsDir, entry.name, 'SKILL.md');
+                    if (!fs.existsSync(skillFile)) continue;
+                    raw = await fs.promises.readFile(skillFile, 'utf8');
+                    id = entry.name;
+                    fileName = `${entry.name}/SKILL.md`;
+                } else if (entry.name.endsWith('.md')) {
+                    // Flat format: agent/skills/<id>.md
+                    const filePath = path.join(skillsDir, entry.name);
+                    raw = await fs.promises.readFile(filePath, 'utf8');
+                    id = entry.name.replace(/\.md$/, '');
+                    fileName = entry.name;
+                } else {
+                    continue;
+                }
+
+                const { meta, body } = parseFrontMatter(raw);
                 skills.push({
                     id,
                     name: meta.name || id,
                     description: meta.description || '',
+                    keywords: meta.keywords
+                        ? meta.keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
+                        : [],
+                    next: meta.next
+                        ? meta.next.split(',').map(k => k.trim()).filter(Boolean)
+                        : [],
                     content: body,
                     fileName,
                 });
             } catch (err) {
-                console.warn(`[AI Skills] Error reading skill ${fileName}:`, err.message);
+                console.warn(`[AI Skills] Error reading skill ${entry.name}:`, err.message);
             }
         }
 
@@ -85,10 +106,57 @@ async function getSkill(projectPath, skillId) {
 }
 
 /**
- * Invalidate the cache for a project (call when files change).
+ * Match a skill to a user message using keyword scoring.
+ * Returns { skillId, skillName, confidence } or null if no good match.
+ * confidence is 0.0–1.0. Threshold for auto-activation: 0.5.
+ *
+ * Scoring: for each keyword in (skill.keywords ∪ description words), count
+ * how many appear in the message. Normalize by sqrt(keyword count) so skills
+ * with many keywords don't dominate unfairly.
+ */
+function matchSkillByIntent(userMessage, skills) {
+    if (!userMessage || !skills.length) return null;
+
+    const msg = userMessage.toLowerCase();
+
+    let best = null;
+    let bestScore = 0;
+
+    for (const skill of skills) {
+        // Combine explicit keywords with long words from description
+        const descWords = skill.description
+            .toLowerCase()
+            .split(/\W+/)
+            .filter(w => w.length > 4);
+        const allKeywords = [...new Set([...skill.keywords, ...descWords])];
+        if (allKeywords.length === 0) continue;
+
+        let matches = 0;
+        for (const kw of allKeywords) {
+            if (msg.includes(kw)) matches++;
+        }
+
+        const score = matches / Math.sqrt(allKeywords.length);
+        if (score > bestScore) {
+            bestScore = score;
+            best = skill;
+        }
+    }
+
+    if (!best || bestScore < 0.25) return null;
+
+    return {
+        skillId: best.id,
+        skillName: best.name,
+        confidence: Math.min(1.0, +(bestScore).toFixed(2)),
+    };
+}
+
+/**
+ * Invalidate the cache for a project (call when skill files change).
  */
 function invalidateCache(projectPath) {
     cache.delete(projectPath);
 }
 
-module.exports = { loadSkills, getSkill, invalidateCache };
+module.exports = { loadSkills, getSkill, matchSkillByIntent, invalidateCache };
