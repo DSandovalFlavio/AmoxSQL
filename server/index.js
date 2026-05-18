@@ -1916,6 +1916,23 @@ app.post('/api/ai/chat', async (req, res) => {
  */
 const { getModelProfile: getModelProfileForRoute, fetchOllamaModelInfo: fetchOllamaInfoForRoute } = require('./ai/modelProfiles');
 
+// ── Chart Story — on-demand story generation for the UI button ───────────────
+app.post('/api/ai/chart-story', async (req, res) => {
+    try {
+        const { data, xKey, yKey, chartType, titleHint } = req.body;
+        if (!data || !Array.isArray(data) || !xKey || !yKey) {
+            return res.status(400).json({ error: 'data (array), xKey, and yKey are required.' });
+        }
+        const { generateChartStory } = require('./ai/chartStory');
+        const story = generateChartStory(data, { xKey, yKey, chartType, titleHint });
+        if (story.error) return res.status(422).json({ error: story.error });
+        return res.json(story);
+    } catch (err) {
+        console.error('[chart-story]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/ai/chat/stream', async (req, res) => {
     const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode } = req.body;
 

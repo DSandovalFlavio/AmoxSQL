@@ -71,54 +71,88 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
     const columns = data.length > 0 ? Object.keys(data[0]) : [];
     const isDateCol = isDateColumn(data, chartConfig.xAxisKey);
 
-    // Merge LLM config with required defaults for ChartRenderer
+    // Merge LLM config with defaults. AI-supplied values always win over defaults.
     const fullConfig = useMemo(() => {
+        const cc = chartConfig;
+        const hasXLabel = !!cc.xAxisLabel;
+        const hasYLabel = !!cc.yAxisLabel;
         return {
-            chartType: chartConfig.chartType || 'bar',
-            xAxisKey: chartConfig.xAxisKey,
-            yAxisKeys: chartConfig.yAxisKeys || [],
-            chartTitle: chartConfig.title || '',
-            numberFormat: 'auto',
-            decimalPlaces: 2,
-            gridMode: 'horizontal',
-            showAxisLines: true,
-            yLogScale: false,
-            yAxisDomain: ['auto', 'auto'],
-            showXAxisTitle: true,
-            showYAxisTitle: true,
-            customAxisTitles: {},
-            xAxisLabelAngle: '0',
-            showLabels: true,
+            // ── Core ──────────────────────────────────────────────────────────────
+            chartType:   cc.chartType || 'bar',
+            xAxisKey:    cc.xAxisKey,
+            yAxisKeys:   cc.yAxisKeys || [],
+            chartTitle:  cc.title || cc.chartTitle || '',
+            chartSubtitle: cc.chartSubtitle || '',
+            chartFootnote: cc.chartFootnote || '',
+
+            // ── Data mapping ──────────────────────────────────────────────────────
+            rightYAxisKey: cc.rightYAxisKey || '',
+            splitByKey:    cc.splitByKey    || '',
+            bubbleSizeKey: cc.bubbleSizeKey || '',
+
+            // ── Axes ──────────────────────────────────────────────────────────────
+            customAxisTitles: { x: cc.xAxisLabel || '', y: cc.yAxisLabel || '' },
+            showXAxisTitle:   hasXLabel,
+            showYAxisTitle:   hasYLabel,
+            xAxisLabelAngle:  cc.xAxisLabelAngle ?? 0,
+            dateAggregation:  cc.dateAggregation || 'none',
+            yLogScale:        cc.yLogScale ?? false,
+            yAxisDomain:      ['auto', 'auto'],
+            yAxisPosition:    'left',
+            showAxisLines:    true,
+
+            // ── Data options ──────────────────────────────────────────────────────
+            numberFormat:  cc.numberFormat  || 'compact',
+            decimalPlaces: -1,
+            sortMode:      cc.sortMode      || 'natural',
+            limit:         cc.limit         ?? 0,
+            isCumulative:  cc.isCumulative  ?? false,
+
+            // ── Visual style ──────────────────────────────────────────────────────
+            colorTheme:     cc.colorTheme    || 'default',
+            showLabels:     cc.showLabels    ?? false,
             dataLabelPosition: 'outside',
-            dataLabelSize: 10,
+            dataLabelSize:  10,
+            legendPosition: cc.legendPosition || 'top',
+            gridMode:       cc.gridMode      || 'horizontal',
             tooltipShowPercent: false,
-            legendPosition: 'top',
-            lineType: 'monotone',
-            lineAreaFill: false,
-            showDots: true,
-            barStackMode: 'none',
-            barRadius: 2,
-            barColorMode: 'series',
-            donutThickness: 60,
-            donutCenterKpi: 'none',
-            donutLabelContent: 'percent',
-            donutLabelPosition: 'outside',
-            donutGroupingThreshold: 0,
-            scatterQuadrants: false,
-            highlightConfig: { type: 'none' },
-            seriesConfig: {},
-            refLine: { value: '', label: '', color: '#ff0000', style: 'dashed' },
-            refArea: { x1: '', x2: '', y1: '', y2: '', color: '#ff0000', opacity: 0.1 },
-            goalLine: { enabled: false, value: '', label: '', color: '#00ff00', style: 'dashed' },
-            trendLine: { type: 'none', windowSize: 3, color: '#ffaa00' },
-            headline: { metric: 'total', compareWith: 'none' },
-            textScale: 0.9,
-            textAlign: 'left',
+            textScale:  0.9,
+            textAlign:  cc.textAlign || 'left',
             titleSpacing: 10,
-            marginTop: 10,
-            marginBottom: 10,
-            marginLeft: 10,
-            marginRight: 10,
+            marginTop: 10, marginBottom: 10, marginLeft: 10, marginRight: 10,
+
+            // ── Line/Area ─────────────────────────────────────────────────────────
+            lineType:     cc.lineType    || 'monotone',
+            lineAreaFill: false,
+            showDots:     cc.showDots    ?? true,
+
+            // ── Bar ───────────────────────────────────────────────────────────────
+            barStackMode:  'none',
+            barRadius:     cc.barRadius     ?? 2,
+            barColorMode:  cc.barColorMode  || 'series',
+
+            // ── Donut ─────────────────────────────────────────────────────────────
+            donutThickness:        60,
+            donutCenterKpi:        cc.donutCenterKpi    || 'none',
+            donutLabelContent:     cc.donutLabelContent || 'percent',
+            donutLabelPosition:    'outside',
+            donutGroupingThreshold: 0,
+
+            // ── Scatter ───────────────────────────────────────────────────────────
+            scatterQuadrants: false,
+
+            // ── Analytical overlays ───────────────────────────────────────────────
+            trendLine:       cc.trendLine     || { type: 'none', windowSize: 3, color: '#fbbf24' },
+            goalLine:        cc.goalLine      || { enabled: false, value: '', label: '', color: '#22c55e', style: 'dashed' },
+            refLine:         cc.refLine       || { value: '', label: '', color: '#ff4444', style: 'dashed' },
+            refArea:         { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 },
+            highlightConfig: cc.highlightConfig || { type: 'none', value: '', color: '#ff4444' },
+
+            // ── Headline KPI ──────────────────────────────────────────────────────
+            headline: cc.headline || { visible: false, metric: 'total', compareWith: 'none', size: 'auto' },
+
+            // ── Series colors ─────────────────────────────────────────────────────
+            seriesConfig: {},
         };
     }, [chartConfig]);
 
@@ -139,7 +173,7 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         });
     }, [data, fullConfig, isDateCol]);
 
-    const activeColors = COLOR_PALETTES.default;
+    const activeColors = COLOR_PALETTES[fullConfig.colorTheme] || COLOR_PALETTES.default;
     const isExpandedMode = isExpanded || isDiving;
 
     const handleDownloadImage = async () => {

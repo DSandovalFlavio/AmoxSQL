@@ -16,6 +16,7 @@
  *   onConfigChange - Callback when config changes
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import { API_BASE } from '../../api';
 import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
@@ -171,6 +172,22 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         if (result.success) setIsSaveModalOpen(false);
         return result;
     }, [getConfigForSave, query]);
+
+    const handleGenerateStory = useCallback(async () => {
+        if (!data || data.length === 0 || !state.xAxisKey || !state.yAxisKeys?.[0]) return null;
+        const res = await fetch(`${API_BASE}/api/ai/chart-story`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: data.slice(0, 500),
+                xKey: state.xAxisKey,
+                yKey: state.yAxisKeys[0],
+                chartType: state.chartType,
+            }),
+        });
+        if (!res.ok) return { error: 'Server error generating story.' };
+        return res.json();
+    }, [data, state.xAxisKey, state.yAxisKeys, state.chartType]);
 
     const handleLoadConfig = useCallback((event) => {
         const file = event.target.files[0];
@@ -353,6 +370,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             <AnnotationsPanel
                                 state={state}
                                 setField={setField}
+                                onGenerateStory={handleGenerateStory}
                             />
                         )}
                     </div>

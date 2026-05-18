@@ -3,15 +3,23 @@
  * Formats table and file context into human-readable schema strings.
  */
 
+const TABLE_DISPLAY_LIMIT = 30;
+
 function formatTableSchemas(tables) {
     if (!tables || tables.length === 0) return 'No tables available.';
-    return tables.map(t => {
+    const overflow = tables.length > TABLE_DISPLAY_LIMIT;
+    const visible = overflow ? tables.slice(0, TABLE_DISPLAY_LIMIT) : tables;
+    const result = visible.map(t => {
         const cols = t.columns
             ? t.columns.map(c => `  ${c.name} ${c.type}`).join('\n')
             : '  (schema unknown)';
         const rowInfo = t.rows !== undefined ? ` — ${t.rows} rows` : '';
         return `TABLE "${t.name}"${rowInfo}\n${cols}`;
     }).join('\n\n');
+    if (overflow) {
+        return result + `\n\n_(${tables.length - TABLE_DISPLAY_LIMIT} more tables not shown — call \`list_tables\` for the full list)_`;
+    }
+    return result;
 }
 
 function formatFileSchemas(files) {

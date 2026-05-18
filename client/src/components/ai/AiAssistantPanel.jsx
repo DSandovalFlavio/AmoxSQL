@@ -141,6 +141,31 @@ const AiAssistantPanel = ({
         }
     }, [conversationId, activeFilePath]);
 
+    // ─── Skill activation from Command Palette ───
+    useEffect(() => {
+        const SKILL_MESSAGES = {
+            'eda-initial':         'Analyze the current table: run a full exploratory data analysis — profile the data, find distributions, outliers, and key patterns.',
+            'data-quality':        'Check data quality: find null rates, duplicates, outliers, and flag any data integrity issues.',
+            'metric-investigation': 'Investigate what is driving changes in the key metric — break it down by dimension to find the top contributors.',
+            'data-storytelling':   'Create a data story from the current chart or analysis results.',
+            'time-series':         'Analyze trends over time: detect seasonality, growth rate, and anomalies.',
+            'cohort-comparison':   'Run a cohort analysis to measure retention and behavior over time.',
+            'sql-optimization':    'Optimize the current query for better performance.',
+            'analysis-planning':   'Plan and execute a detailed multi-step analysis with progress tracking.',
+        };
+        const handler = (e) => {
+            const { skillId } = e.detail || {};
+            if (!skillId) return;
+            const msg = SKILL_MESSAGES[skillId];
+            if (msg) {
+                setInputText(msg);
+                setTimeout(() => inputRef.current?.focus(), 50);
+            }
+        };
+        window.addEventListener('amox_activate_skill', handler);
+        return () => window.removeEventListener('amox_activate_skill', handler);
+    }, [setInputText]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // ─── Escalate current chat to Data Diving ───
     const handleEscalateToDataDiving = useCallback(async () => {
         if (!messages.length || !onOpenDataDiving) return;

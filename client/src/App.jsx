@@ -450,6 +450,14 @@ function App() {
   // settingsInitialTab controls which tab opens in SettingsModal
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
 
+  // AI skill activation from Command Palette — opens AI panel and dispatches skill event
+  const handleActivateSkill = useCallback((skillId) => {
+    setShowAiSidebar(true);
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('amox_activate_skill', { detail: { skillId } }));
+    }, 100);
+  }, [setShowAiSidebar]);
+
   // Command Palette actions
   const commandPaletteActions = useMemo(() => {
     if (appPhase !== PHASE.IDE) return [];
@@ -463,12 +471,12 @@ function App() {
         setSettingsInitialTab,
         theme,
         setTheme,
-
         setUiZoomLevel,
         setEditorSettings,
+        onActivateSkill: handleActivateSkill,
       }),
     ];
-  }, [appPhase, showAiSidebar, theme]);
+  }, [appPhase, showAiSidebar, theme, handleActivateSkill]);
 
   const startIdeSession = useCallback(async (dbPath, readOnly) => {
     // 1. Configure DB

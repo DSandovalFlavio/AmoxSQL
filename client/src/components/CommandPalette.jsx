@@ -155,8 +155,29 @@ export function buildDefaultActions({
     setTheme,
     setUiZoomLevel,
     setEditorSettings,
+    onActivateSkill,
 }) {
+    const aiSkillActions = onActivateSkill ? [
+        {
+            id: 'ai-eda', label: 'AI: Analyze current table (EDA)', category: 'AI Analysis', icon: LuBot,
+            action: () => onActivateSkill('eda-initial'),
+        },
+        {
+            id: 'ai-quality', label: 'AI: Verify data quality', category: 'AI Analysis', icon: LuBot,
+            action: () => onActivateSkill('data-quality'),
+        },
+        {
+            id: 'ai-investigate', label: 'AI: Investigate metric drivers', category: 'AI Analysis', icon: LuBot,
+            action: () => onActivateSkill('metric-investigation'),
+        },
+        {
+            id: 'ai-story', label: 'AI: Generate chart story', category: 'AI Analysis', icon: LuBot,
+            action: () => onActivateSkill('data-storytelling'),
+        },
+    ] : [];
+
     return [
+        ...aiSkillActions,
         // Query Actions
         { id: 'run', label: 'Run Query', category: 'Query', icon: LuPlay, shortcut: 'Ctrl+Enter', action: () => layoutRef.current?.handleTriggerRun() },
         { id: 'run-f5', label: 'Run Query (F5)', category: 'Query', icon: LuPlay, shortcut: 'F5', action: () => layoutRef.current?.handleTriggerRun() },
