@@ -1056,7 +1056,7 @@ function App() {
 
             {visitedSidebarTabs.has('dbt') && (
               <div style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} />
+                <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={() => layoutRef.current?.createNew('dbt-lineage')} />
               </div>
             )}
 
