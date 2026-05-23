@@ -10,7 +10,7 @@ import DbtLineageGraph from './DbtLineageGraph';
 import { API_BASE as _API } from '../api.js';
 const API = `${_API}/api`;
 
-const DbtPanel = ({ projectPath, onFileOpen }) => {
+const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
     // Navigation
     const [activeSection, setActiveSection] = useState('setup'); // setup | config | models | sources | commands
 
@@ -491,6 +491,17 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
             <div className="dbt-panel-header">
                 <LuContainer size={16} style={{ color: 'var(--accent-primary)' }} />
                 <span>DBT Studio</span>
+                {activeSection === 'lineage' && onOpenDbtLineage && (
+                    <button
+                        className="dbt-icon-btn"
+                        onClick={onOpenDbtLineage}
+                        title="Open in full tab"
+                        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 8px' }}
+                    >
+                        <LuSquareTerminal size={12} />
+                        <span>Open in tab</span>
+                    </button>
+                )}
             </div>
 
             {/* Section Tabs */}
@@ -499,7 +510,13 @@ const DbtPanel = ({ projectPath, onFileOpen }) => {
                     <button
                         key={tab.id}
                         className={`dbt-tab ${activeSection === tab.id ? 'dbt-tab--active' : ''}`}
-                        onClick={() => setActiveSection(tab.id)}
+                        onClick={() => {
+                            if (tab.id === 'lineage' && onOpenDbtLineage) {
+                                onOpenDbtLineage();
+                            } else {
+                                setActiveSection(tab.id);
+                            }
+                        }}
                         title={tab.label}
                     >
                         <tab.icon size={13} />

@@ -7,6 +7,7 @@ import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
 import { VariablesToggle, VariablesPanel } from './VariablesBar';
 import ErDiagram from './ErDiagram';
+import DbtLineageGraph from './DbtLineageGraph';
 import AmoxvisPane from './AmoxvisPane';
 import MarkdownEditor from './MarkdownEditor';
 
@@ -288,6 +289,7 @@ const EditorPane = ({
     const isNotebook = activeTab.name.endsWith('.sqlnb') || activeTab.type === 'sqlnb';
     const isChain = activeTab.name.endsWith('.sqlchain') || activeTab.type === 'sqlchain';
     const isErDiagram = activeTab.type === 'er-diagram';
+    const isDbtLineage = activeTab.type === 'dbt-lineage';
     const isDataDiving = activeTab.type === 'datadiving';
     const isAmoxvis = activeTab.type === 'amoxvis';
     const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
@@ -422,6 +424,10 @@ const EditorPane = ({
                 ) : isErDiagram ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
                         <ErDiagram onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                    </div>
+                ) : isDbtLineage ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)', height: '100%' }}>
+                        <DbtLineageGraph onFileOpen={onOpenFile} />
                     </div>
                 ) : isChain ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>

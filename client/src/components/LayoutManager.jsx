@@ -426,18 +426,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'md' ? 'Untitled.md'
                 : normalizedType === 'er-diagram' ? 'ER Diagram'
                 : normalizedType === 'datadiving' ? 'Data Diving'
+                : normalizedType === 'dbt-lineage' ? 'DBT Lineage'
                 : 'Untitled.sql',
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
                 ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
                 : normalizedType === 'sqlchain'
                 ? JSON.stringify({ version: '1.0', name: 'New Chain', description: '', nodes: [], edges: [], variables: {} }, null, 2)
-                : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...' 
-                : normalizedType === 'er-diagram' ? '' 
-                : normalizedType === 'datadiving' ? '' 
+                : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...'
+                : normalizedType === 'er-diagram' ? ''
+                : normalizedType === 'datadiving' ? ''
+                : normalizedType === 'dbt-lineage' ? ''
                 : 'SELECT 1;'),
             results: null,
-            dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving'
+            dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving' && normalizedType !== 'dbt-lineage'
         };
         if (activePane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
