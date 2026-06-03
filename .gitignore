@@ -140,3 +140,14 @@ documentacion/
 plan.md
 .claude/settings.local.json
 plan/
+
+# --- Scratch / throwaway test files (NUNCA commitear: pueden contener API keys hardcodeadas) ---
+# Usa server/ai/testRunner.js para tests reales. Estos patrones son para scripts de prueba manual.
+**/test-*.js
+**/test_*.js
+**/test_*.cjs
+**/test_*.mjs
+**/test_output*.txt
+**/scratch*.js
+# Excepción: archivos de test legítimos versionados
+!**/testRunner.js
