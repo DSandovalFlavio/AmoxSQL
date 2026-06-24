@@ -9264,6 +9264,14 @@ tr:hover td {
   font-weight: var(--weight-medium);
 }
 
+/* Divider between the "Configure" and "Help & info" tab groups */
+.stg-tab-sep {
+  height: 1px;
+  margin: 8px 16px;
+  background-color: var(--border-color);
+  opacity: 0.6;
+}
+
 /* ── Content Area ── */
 
 .stg-content {

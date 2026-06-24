@@ -836,23 +836,29 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
                         // ── Help & info ──
+                        { separator: true, id: '_sep_help' },
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
                         { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
                         { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
                     ].filter(tab => {
+                        if (tab.separator) return !settingsSearch;
                         if (!settingsSearch) return true;
                         const q = settingsSearch.toLowerCase();
                         return tab.label.toLowerCase().includes(q);
                     }).map(tab => (
-                        <div
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`stg-tab${activeTab === tab.id ? ' stg-tab--active' : ''}`}
-                        >
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {tab.icon} {tab.label}
-                            </span>
-                        </div>
+                        tab.separator ? (
+                            <div key={tab.id} className="stg-tab-sep" aria-hidden="true" />
+                        ) : (
+                            <div
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`stg-tab${activeTab === tab.id ? ' stg-tab--active' : ''}`}
+                            >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    {tab.icon} {tab.label}
+                                </span>
+                            </div>
+                        )
                     ))}
                 </div>
 
