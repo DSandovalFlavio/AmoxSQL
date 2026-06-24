@@ -394,6 +394,7 @@ const AiAssistantPanel = ({
                                 onRunSql={onRunSql}
                                 onApplyToFile={onEditFile}
                                 onAppendToFile={onAppendToFile}
+                                onApplyChart={onUpdateChartConfig}
                                 onFollowUp={(text) => handleSend(text)}
                                 pendingEdits={pendingEdits}
                                 acceptEdit={acceptEdit}

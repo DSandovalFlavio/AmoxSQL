@@ -26,13 +26,13 @@ This conversation is linked to the active file.`;
     }
 
     if (currentChartConfig) {
-        section += `\n**Chart:** ${currentChartConfig.chartType} | X: ${currentChartConfig.xAxisKey} | Y: ${currentChartConfig.yAxisKeys?.join(', ')}
-To update the chart, re-call \`display_chart\` with new parameters.`;
+        section += `\n**Chart:** ${currentChartConfig.chartType} | X: ${currentChartConfig.xAxisKey} | Y: ${currentChartConfig.yAxisKeys?.join(', ')}`;
     }
 
     section += `\n\n### Capabilities
-- **write_file** (mode='overwrite'): Replace the active file content in the editor for user review.
-- Generate, explain, or optimize the current query; suggest better visualizations.`;
+- **write_file** (mode='overwrite'): Replace the active file content in the editor for the user to accept/reject.
+- **display_chart**: renders a fully-configured chart as a PREVIEW in the chat. The user can click "Apply to chart" to set it as the visualization of their active file (or just keep it in the conversation). To propose a chart for the current data, build a complete display_chart and briefly explain what it shows; the user decides whether to apply it.
+- Generate, explain, or optimize the current query; suggest better visualizations and storytelling (title, subtitle, takeaway, highlights).`;
 
     return section;
 }
