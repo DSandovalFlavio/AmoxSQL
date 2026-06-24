@@ -8,8 +8,6 @@ import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } fro
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import ExtensionExplorer from './components/ExtensionExplorer';
-import AiFunctionsPanel from './components/AiFunctionsPanel';
-import FlockSetupWizard from './components/FlockSetupWizard';
 import SnippetsPanel from './components/SnippetsPanel';
 import DbtPanel from './components/DbtPanel';
 import GitPanel from './components/GitPanel';
@@ -99,7 +97,6 @@ function App() {
 
   const [availableTables, setAvailableTables] = useState([]);
 
-  const [showFlockWizard, setShowFlockWizard] = useState(false);
 
   // Workspace Wizard — shown after first open of a new project
   const [showWorkspaceWizard, setShowWorkspaceWizard] = useState(false);
@@ -879,13 +876,6 @@ function App() {
         actions={commandPaletteActions}
       />
 
-      {/* Flock Setup Wizard */}
-      {showFlockWizard && (
-        <FlockSetupWizard
-          onClose={() => setShowFlockWizard(false)}
-          onComplete={() => setActiveSidebarTab('aifunctions')}
-        />
-      )}
 
       {/* Workspace Scaffolding Wizard — shown on first open of new projects */}
       {showWorkspaceWizard && (
@@ -928,14 +918,6 @@ function App() {
                 title="Extensions"
               >
                 <LuPuzzle size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('aifunctions')}
-                className={`activity-bar-btn ${activeSidebarTab === 'aifunctions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="AI Functions (Flock)"
-                style={{ color: activeSidebarTab === 'aifunctions' && !sidebarCollapsed ? undefined : undefined }}
-              >
-                <LuZap size={20} />
               </button>
               <button
                 onClick={() => handleSidebarTabClick('dbt')}
@@ -1059,18 +1041,10 @@ function App() {
 
             {visitedSidebarTabs.has('extensions') && (
               <div style={{ flex: 1, display: activeSidebarTab === 'extensions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <ExtensionExplorer onFlockWizard={() => setShowFlockWizard(true)} />
+                <ExtensionExplorer />
               </div>
             )}
 
-            {visitedSidebarTabs.has('aifunctions') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'aifunctions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <AiFunctionsPanel
-                  onInsertSql={(sql) => layoutRef.current?.createNew('sql', sql)}
-                  onOpenWizard={() => setShowFlockWizard(true)}
-                />
-              </div>
-            )}
 
             {visitedSidebarTabs.has('dbt') && (
               <div style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>

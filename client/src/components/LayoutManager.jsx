@@ -218,7 +218,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         setRunningQueryId(null);
     };
 
-    const executeQuery = async (tabId, query, { flockConfirmed = false } = {}) => {
+    const executeQuery = async (tabId, query) => {
         const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
@@ -249,23 +249,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: editorSettings?.queryResultLimit ?? 10000, flockConfirmed }),
+                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: editorSettings?.queryResultLimit ?? 10000 }),
                 signal: controller.signal,
             });
             const data = await response.json();
-
-            // Flock cost guardrail: server detected an unlimited llm_* call
-            if (data.flockWarning) {
-                setRunningQueryId(null);
-                queryAbortControllerRef.current = null;
-                const confirmed = window.confirm(
-                    `⚠️ Flock cost warning\n\n${data.message}\n\n${data.suggestion}\n\nClick OK to run anyway, or Cancel to add a LIMIT first.`
-                );
-                if (confirmed) {
-                    return executeQuery(tabId, query, { flockConfirmed: true });
-                }
-                return { cancelled: true };
-            }
 
             if (response.ok) {
                 updateTab(pane, tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null });

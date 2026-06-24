@@ -299,7 +299,7 @@ server/ai/prompt/
 ├── tools.js     ← buildToolsSection(enablePlanner, tier, mode)
 ├── modes.js     ← buildAssistantModeSection(), buildDivingModeSection()
 └── context.js   ← buildChartTypesSection(), buildUserRulesSection(),
-                    buildMemoriesSection(), buildSkillSection(), buildFlockSection()
+                    buildMemoriesSection(), buildSkillSection()
 ```
 
 `server/ai/systemPrompt.js` es ahora un thin re-export: `module.exports = require('./prompt/index')`.
@@ -512,11 +512,10 @@ El AI carga el contexto del proyecto (`context/`) al inicio de cada conversació
 
 ```javascript
 // agenticLoop.js — se carga en paralelo con otras inicializaciones
-const [userRules, memories, activeSkill, flockStatus, projectCtx] = await Promise.all([
+const [userRules, memories, activeSkill, projectCtx] = await Promise.all([
   loadUserRules(projectPath),
   loadMemoriesText(dbManager),
   loadActiveSkill(activeSkillId),
-  getFlockStatus(),
   loadProjectContext(projectPath)   // ← contextLoader.js
 ]);
 
