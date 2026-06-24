@@ -1069,6 +1069,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <option value="'Consolas', monospace">Consolas</option>
                                                 <option value="'Monaco', 'Courier New', monospace">Monaco</option>
                                                 <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                                                <option value="'Manrope', sans-serif">Manrope (sans-serif)</option>
                                             </select>
                                         </div>
                                         <div className="stg-row">
