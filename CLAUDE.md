@@ -73,7 +73,7 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `SqlNotebook.jsx` (20KB) — Notebook interface with cells
 - `NotebookCell.jsx` (28KB) — Individual cell (SQL, Markdown, Input)
 - `ResultsTable.jsx` (38KB) — Paginated results with sort/filter
-- `DataVisualizer/` — 12+ chart types (Recharts)
+- `DataVisualizer/` — **"Story Flow"**, the data-visualization section (official name): 15+ Recharts chart types organized in a 6-stage flow (Type → Data → Format → Style → Story → Export), with storytelling layer (annotations, takeaway, emphasis), bundled fonts, an in-app guide + first-run tour (`StoryFlowGuide.jsx`). Config persists to `.amoxvis`.
 - `DataProfiler.jsx` (30KB) — Statistical profiling
 - `AiSidebar.jsx` (36KB) — AI chat assistant
 - `SettingsModal.jsx` (97KB) — Full settings UI
@@ -151,5 +151,6 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 
 ## Further Reading (in-repo docs, mostly Spanish)
 - `docs/dev/arquitectura.md`, `decisiones_tecnicas.md`, `patrones_react.md`, `guia_estilos.md` — deeper architecture, design decisions, React patterns, and style guide
+- `docs/dev/auditoria_visualizaciones.md`, `plan_story_flow.md` — **Story Flow** (the data-viz section): capability audit + phased implementation plan/status
 - `contexto_caracteristicas/*.md` — per-feature deep dives (AI system, notebook, autocomplete, layout/tabs, DB ops, file formats)
 - `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` — contribution flow, security policy, version history
