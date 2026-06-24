@@ -11,6 +11,13 @@
   },
   "dependencies": {
     "@derekstride/tree-sitter-sql": "^0.3.11",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/lato": "^5.2.7",
+    "@fontsource/lora": "^5.2.8",
+    "@fontsource/manrope": "^5.2.8",
+    "@fontsource/space-grotesk": "^5.2.10",
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.2",
     "html-to-image": "^1.11.13",

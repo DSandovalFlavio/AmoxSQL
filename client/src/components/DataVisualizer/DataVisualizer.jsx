@@ -17,7 +17,7 @@
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -25,28 +25,30 @@ import AlertDialog from '../AlertDialog';
 import { useChartState } from './useChartState';
 import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES } from './constants';
 import { processChartData, isDateColumn, computeHeadline } from './utils/dataProcessing';
-import { exportChartAsPng, saveChartConfig } from './utils/exportChart';
+import { exportChartAsPng, saveChartConfig, copyChartToClipboard } from './utils/exportChart';
+import { renderRichText } from './utils/richText';
 
 // Panels
 import ChartTypeSelector from './panels/ChartTypeSelector';
 import DataPanel from './panels/DataPanel';
-import DetailPanel from './panels/DetailPanel';
-import AxisPanel from './panels/AxisPanel';
+import FormatPanel from './panels/FormatPanel';
 import ThemePanel from './panels/ThemePanel';
-import AnnotationsPanel from './panels/AnnotationsPanel';
+import StoryPanel from './panels/StoryPanel';
+import ExportPanel from './panels/ExportPanel';
 
 // Renderers & Overlays
 import ChartRenderer from './renderers/ChartRenderer';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
+import { StoryFlowGuide, StoryFlowTour } from './StoryFlowGuide';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const TABS = [
-    { key: 'chart', icon: LuChartColumn, title: 'Chart' },
-    { key: 'data', icon: LuDatabase, title: 'Data' },
-    { key: 'detail', icon: LuSettings2, title: 'Detail' },
-    { key: 'axes', icon: LuRuler, title: 'Axes' },
-    { key: 'theme', icon: LuPalette, title: 'Theme' },
-    { key: 'annotate', icon: LuPenLine, title: 'Story' },
+    { key: 'type', icon: LuChartColumn, title: 'Type', hint: 'What shape tells the story?' },
+    { key: 'data', icon: LuDatabase, title: 'Data', hint: 'What goes where?' },
+    { key: 'format', icon: LuSettings2, title: 'Format', hint: 'Make it readable' },
+    { key: 'style', icon: LuPalette, title: 'Style', hint: 'Make it look good' },
+    { key: 'story', icon: LuPenLine, title: 'Story', hint: 'Make it speak' },
+    { key: 'export', icon: LuDownload, title: 'Export', hint: 'Ship it' },
 ];
 
 // ─── Component ───────────────────────────────────────────────
@@ -58,11 +60,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         useConfigChangeNotifier, getConfigForSave,
     } = useChartState(initialChartConfig);
 
-    const [activeTab, setActiveTab] = useState('chart');
+    const [activeTab, setActiveTab] = useState('type');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
+    const [showGuide, setShowGuide] = useState(false);
+    const [showTour, setShowTour] = useState(false);
 
     const chartRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -123,6 +127,17 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         return () => window.removeEventListener('amox_update_chart_config', handler);
     }, [setFields]);
 
+    // First-run Story Flow tour + replay listener (editor only, not report mode)
+    useEffect(() => {
+        if (isReportMode) return;
+        let seen = true;
+        try { seen = !!localStorage.getItem('amoxsql-storyflow-tour-seen'); } catch (e) { seen = true; }
+        if (!seen) setShowTour(true);
+        const replay = () => setShowTour(true);
+        window.addEventListener('amox_replay_storyflow_tour', replay);
+        return () => window.removeEventListener('amox_replay_storyflow_tour', replay);
+    }, [isReportMode]);
+
     // ── Font family resolution ──
     const fontFamily = useMemo(() => {
         const f = FONT_OPTIONS.find(f => f.value === state.fontFamily);
@@ -150,6 +165,16 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         return { border: `${width} ${style} ${color}`, borderRadius: '8px' };
     }, [state.borderStyle, state.borderColor]);
 
+    // ── Card styling (shadow / radius / gradient background) ──
+    const cardCss = useMemo(() => {
+        const c = state.cardStyle || {};
+        const s = {};
+        if (c.radius != null) s.borderRadius = `${c.radius}px`;
+        if (c.shadow) s.boxShadow = '0 8px 30px rgba(0,0,0,0.35)';
+        if (c.gradient) s.background = `linear-gradient(160deg, ${c.gradientFrom || '#1e1f29'}, ${c.gradientTo || '#0f1015'})`;
+        return s;
+    }, [state.cardStyle]);
+
     // ── Handlers ──
     const handleYAxisChange = useCallback((col) => {
         const keys = state.yAxisKeys.includes(col)
@@ -166,6 +191,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         }
         setShowExportMenu(false);
     }, [state.chartType]);
+
+    const handleCopy = useCallback(async () => {
+        try {
+            await copyChartToClipboard(chartRef.current);
+            setAlertData({ isOpen: true, title: 'Copied', type: 'success', message: 'Chart copied to clipboard as an image.' });
+        } catch {
+            setAlertData({ isOpen: true, title: 'Clipboard', type: 'error', message: 'Could not copy chart to clipboard.' });
+        }
+    }, []);
 
     const performSaveConfig = useCallback(async (filename) => {
         const result = await saveChartConfig(filename, getConfigForSave(), query);
@@ -225,8 +259,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
             {/* ━━━ Controls Panel ━━━ */}
             {!isReportMode && (
                 <div style={{
-                    width: '280px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
-                    padding: '12px', overflowY: 'auto', backgroundColor: 'var(--panel-bg)',
+                    width: '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
+                    padding: '12px', overflowY: 'auto',
+                    backgroundColor: 'var(--panel-bg)',
                     display: 'flex', flexDirection: 'column',
                 }}>
                     {/* ── Header ── */}
@@ -234,51 +269,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         <h3 style={{
                             margin: 0, fontSize: '12px', fontWeight: '600',
                             color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px'
-                        }}>Configuration</h3>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                            <input type="file" accept=".json,.amoxvis" ref={fileInputRef} style={{ display: 'none' }} onChange={handleLoadConfig} />
-                            <button onClick={() => fileInputRef.current.click()} title="Load Configuration"
-                                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                                <LuUpload size={13} />
-                            </button>
-                            <button onClick={() => setIsSaveModalOpen(true)} title="Save Configuration"
-                                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                                <LuSave size={13} />
-                            </button>
-                            <div style={{ position: 'relative' }}>
-                                <button onClick={() => setShowExportMenu(v => !v)} title="Export Chart as PNG"
-                                    style={{
-                                        background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)',
-                                        cursor: 'pointer', padding: '3px 6px', borderRadius: '4px', fontSize: '10px',
-                                        display: 'flex', alignItems: 'center', gap: '3px'
-                                    }}>
-                                    <LuDownload size={13} /> PNG ▾
-                                </button>
-                                {showExportMenu && (
-                                    <div style={{
-                                        position: 'absolute', top: '100%', right: 0, marginTop: '4px',
-                                        background: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
-                                        borderRadius: '8px', boxShadow: 'var(--shadow-md)', padding: '4px',
-                                        zIndex: 999, minWidth: '180px', backdropFilter: 'blur(12px)',
-                                    }}>
-                                        {EXPORT_PRESETS.map(p => (
-                                            <div key={p.label} onClick={() => handleDownload(p)}
-                                                className="dv-export-item"
-                                                style={{ padding: '5px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>{p.label}</span>
-                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{p.width}×{p.height}</span>
-                                            </div>
-                                        ))}
-                                        <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
-                                        <div onClick={() => handleDownload({ label: 'Original', width: chartRef.current?.offsetWidth || 1920, height: chartRef.current?.offsetHeight || 1080 })}
-                                            className="dv-export-item"
-                                            style={{ padding: '5px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-secondary)', borderRadius: '4px' }}>
-                                            Original Size
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        }}>Story Flow</h3>
+                        <input type="file" accept=".json,.amoxvis" ref={fileInputRef} style={{ display: 'none' }} onChange={handleLoadConfig} />
+                        <button onClick={() => setShowGuide(true)} title="What is Story Flow?"
+                            style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                            <LuInfo size={13} />
+                        </button>
                     </div>
 
                     {/* ── Tab Navigation ── */}
@@ -303,9 +299,19 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         })}
                     </div>
 
+                    {/* ── Tab hint ── */}
+                    {(() => {
+                        const cur = TABS.find(t => t.key === activeTab);
+                        return cur?.hint ? (
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '-4px 0 10px 0', fontStyle: 'italic' }}>
+                                {cur.hint}
+                            </div>
+                        ) : null;
+                    })()}
+
                     {/* ── Tab Content ── */}
-                    <div style={{ flex: 1, overflowY: 'auto' }}>
-                        {activeTab === 'chart' && (() => {
+                    <div style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: '4px' }}>
+                        {activeTab === 'type' && (() => {
                             // Compute the effective visual type including stack mode
                             let effectiveType = state.chartType;
                             if (state.chartType === 'bar' && state.barStackMode === 'stack') effectiveType = 'bar-stacked';
@@ -339,24 +345,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             />
                         )}
 
-                        {activeTab === 'detail' && (
-                            <DetailPanel
+                        {activeTab === 'format' && (
+                            <FormatPanel
                                 state={state}
                                 setField={setField}
                                 finalSeriesKeys={finalSeriesKeys}
                             />
                         )}
 
-                        {activeTab === 'axes' && (
-                            <AxisPanel
-                                state={state}
-                                setField={setField}
-                                defaultXLabel={state.xAxisKey}
-                                defaultYLabel={state.yAxisKeys.join(', ')}
-                            />
-                        )}
-
-                        {activeTab === 'theme' && (
+                        {activeTab === 'style' && (
                             <ThemePanel
                                 state={state}
                                 setField={setField}
@@ -366,11 +363,22 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             />
                         )}
 
-                        {activeTab === 'annotate' && (
-                            <AnnotationsPanel
+                        {activeTab === 'story' && (
+                            <StoryPanel
                                 state={state}
                                 setField={setField}
                                 onGenerateStory={handleGenerateStory}
+                                xValues={[...new Set(processedData.map(d => d[state.xAxisKey]))]}
+                            />
+                        )}
+
+                        {activeTab === 'export' && (
+                            <ExportPanel
+                                onExport={handleDownload}
+                                onOpenSave={() => setIsSaveModalOpen(true)}
+                                onLoadFile={() => fileInputRef.current.click()}
+                                onCopy={handleCopy}
+                                chartRef={chartRef}
                             />
                         )}
                     </div>
@@ -384,6 +392,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                 overflow: isReportMode ? 'visible' : 'hidden',
                 ...bgStyle,
                 ...borderCss,
+                ...cardCss,
                 ...(isFullscreen ? {
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     zIndex: 9999, padding: '40px',
@@ -438,7 +447,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             fontSize: `${Math.round(18 * state.textScale)}px`,
                             fontWeight: '600',
                             paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>{state.chartTitle}</h2>
+                        }}>{renderRichText(state.chartTitle)}</h2>
                     )}
                     {state.chartSubtitle && (
                         <h3 style={{
@@ -448,7 +457,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             fontSize: `${Math.round(14 * state.textScale)}px`,
                             fontWeight: '400',
                             paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>{state.chartSubtitle}</h3>
+                        }}>{renderRichText(state.chartSubtitle)}</h3>
                     )}
 
                     {/* Chart */}
@@ -463,6 +472,21 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             textScale={state.textScale}
                         />
                     </div>
+
+                    {/* Takeaway */}
+                    {state.takeaway && (
+                        <div style={{
+                            marginTop: `${state.titleSpacing}px`,
+                            color: 'var(--text-secondary)',
+                            fontSize: `${Math.round(13 * state.textScale)}px`,
+                            lineHeight: 1.5,
+                            borderLeft: '3px solid var(--accent-color-user)',
+                            paddingLeft: '10px',
+                            textAlign: state.textAlign,
+                            marginLeft: state.textAlign === 'left' ? '50px' : '0',
+                            whiteSpace: 'pre-wrap',
+                        }}>{renderRichText(state.takeaway)}</div>
+                    )}
 
                     {/* Footnote */}
                     {state.chartFootnote && (
@@ -481,12 +505,32 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                 </div>
             </div>
 
+            {showGuide && (
+                <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '80vh', overflowY: 'auto', padding: '20px 22px' }}>
+                        <button onClick={() => setShowGuide(false)} title="Close"
+                            style={{ position: 'absolute', top: '12px', right: '12px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
+                            <LuX size={18} />
+                        </button>
+                        <h2 style={{ margin: '0 0 12px', fontSize: '15px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <LuInfo size={16} /> Story Flow
+                        </h2>
+                        <StoryFlowGuide />
+                    </div>
+                </div>
+            )}
+
+            <StoryFlowTour
+                isOpen={showTour}
+                onClose={() => { setShowTour(false); try { localStorage.setItem('amoxsql-storyflow-tour-seen', '1'); } catch (e) {} }}
+            />
+
             <AlertDialog
                 isOpen={alertData.isOpen}
                 onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
-                title="Chart Error"
+                title={alertData.title || 'Chart'}
                 message={alertData.message}
-                type="error"
+                type={alertData.type || 'error'}
             />
         </div>
     );

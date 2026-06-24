@@ -164,7 +164,9 @@ Default: `editorSettings.defaultViewMode` o `chart` si hay config existente
 
 ---
 
-## D) DataVisualizer
+## D) DataVisualizer ("Story Flow")
+
+> **Nombre de la sección:** el visualizador se conoce como **Story Flow** — la edición se organiza en 6 etapas (Type → Data → Format → Style → Story → Export) con capa de storytelling (anotaciones, takeaway, énfasis), guía in-app y tour de primer uso. Detalle en `docs/dev/auditoria_visualizaciones.md` y `plan_story_flow.md`.
 
 ### Directorio: `client/src/components/DataVisualizer/`
 

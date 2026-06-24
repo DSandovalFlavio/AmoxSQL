@@ -131,9 +131,9 @@
   --type-default:  oklch(0.82 0.06 95);       /* ≈ #dcdcaa yellow */
 
   /* ── Font Families ── */
-  --font-sans:  'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:  'Manrope', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:  'JetBrains Mono', 'Consolas', 'Courier New', monospace;
-  --font-display: 'Inter', system-ui, sans-serif;
+  --font-display: 'Manrope', 'Inter', system-ui, sans-serif;
 
   /* ── Font Weight Scale ── */
   --weight-normal:   400;

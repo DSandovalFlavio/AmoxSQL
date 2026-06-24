@@ -14,16 +14,18 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
     const isScatter = chartType === 'scatter' || chartType === 'bubble';
     const isHorizontal = chartType.startsWith('bar-horizontal');
 
-    // Dynamic labels
-    let xLabel = 'X-Axis Column';
-    let yLabel = 'Y-Axis Columns';
-    if (isHorizontal) { xLabel = 'Values'; yLabel = 'Categories'; }
+    // Field roles are orientation-independent: xAxisKey is ALWAYS the
+    // dimension/category and yAxisKeys are ALWAYS the measures. Horizontal
+    // vs vertical only swaps which screen axis they render on (handled by the
+    // renderer) — so the labels must NOT flip with orientation.
+    let xLabel = 'Category';
+    let yLabel = 'Values';
     if (isDonut) { xLabel = 'Segment Label'; yLabel = 'Segment Size'; }
 
     return (
         <>
-            {/* ── Data Mapping ── */}
-            <Section title="Data Mapping">
+            {/* ── Channels ── */}
+            <Section title="Channels">
                 {/* X-Axis */}
                 <div style={{ marginBottom: '10px' }}>
                     <label style={panelStyles.label}>{xLabel}</label>

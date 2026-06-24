@@ -133,7 +133,7 @@ export const SliderField = memo(({ label, value, onChange, min = 0, max = 100, s
 SliderField.displayName = 'SliderField';
 
 // ─── Color Picker ────────────────────────────────────────────
-export const SimpleColorPicker = memo(({ color, onChange }) => {
+export const SimpleColorPicker = memo(({ color, onChange, swatches }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
 
@@ -171,30 +171,50 @@ export const SimpleColorPicker = memo(({ color, onChange }) => {
                     display: 'flex', flexDirection: 'column', gap: '8px'
                 }}>
                     <div style={{ overflowY: 'auto', maxHeight: '180px', paddingRight: '4px' }}>
-                        {Object.entries(COLOR_PALETTES).map(([category, colors]) => (
-                            <div key={category} style={{ marginBottom: '6px' }}>
-                                <div style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>
-                                    {category}
-                                </div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-                                    {colors.map(c => (
-                                        <div
-                                            key={c}
-                                            onClick={() => { onChange(c); setIsOpen(false); }}
-                                            style={{
-                                                width: '18px', height: '18px',
-                                                backgroundColor: c, cursor: 'pointer',
-                                                border: color === c ? '2px solid var(--text-primary)' : '1px solid var(--border-subtle)',
-                                                borderRadius: '3px', boxSizing: 'border-box',
-                                                transition: 'transform 0.1s',
-                                            }}
-                                            className="dv-color-swatch"
-                                            title={c}
-                                        />
-                                    ))}
-                                </div>
+                        {swatches ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                                {swatches.map(c => (
+                                    <div
+                                        key={c}
+                                        onClick={() => { onChange(c); setIsOpen(false); }}
+                                        style={{
+                                            width: '18px', height: '18px',
+                                            backgroundColor: c, cursor: 'pointer',
+                                            border: color === c ? '2px solid var(--text-primary)' : '1px solid var(--border-subtle)',
+                                            borderRadius: '3px', boxSizing: 'border-box',
+                                            transition: 'transform 0.1s',
+                                        }}
+                                        className="dv-color-swatch"
+                                        title={c}
+                                    />
+                                ))}
                             </div>
-                        ))}
+                        ) : (
+                            Object.entries(COLOR_PALETTES).map(([category, colors]) => (
+                                <div key={category} style={{ marginBottom: '6px' }}>
+                                    <div style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                                        {category}
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                                        {colors.map(c => (
+                                            <div
+                                                key={c}
+                                                onClick={() => { onChange(c); setIsOpen(false); }}
+                                                style={{
+                                                    width: '18px', height: '18px',
+                                                    backgroundColor: c, cursor: 'pointer',
+                                                    border: color === c ? '2px solid var(--text-primary)' : '1px solid var(--border-subtle)',
+                                                    borderRadius: '3px', boxSizing: 'border-box',
+                                                    transition: 'transform 0.1s',
+                                                }}
+                                                className="dv-color-swatch"
+                                                title={c}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '5px',

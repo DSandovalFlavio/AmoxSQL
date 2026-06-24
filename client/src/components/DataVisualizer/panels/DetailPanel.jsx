@@ -5,8 +5,8 @@
 import { memo } from 'react';
 import { Section, Toggle, SelectField, SliderField, SimpleColorPicker, panelStyles } from './shared';
 
-const DetailPanel = memo(({ state, setField, finalSeriesKeys }) => {
-    const { chartType, showLabels, dataLabelPosition, tooltipShowPercent, showPercentages,
+const DetailPanel = memo(({ state, setField, finalSeriesKeys, showHighlight = true }) => {
+    const { chartType, showLabels, dataLabelPosition, tooltipShowPercent, tooltipMode,
         gridMode, showAxisLines, legendPosition,
         // Line specific
         lineType, lineAreaFill, showDots, isCumulative,
@@ -16,6 +16,8 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys }) => {
         donutThickness, donutLabelContent, donutLabelPosition, donutCenterKpi,
         // Scatter specific
         scatterQuadrants,
+        // Combo specific
+        comboLineKeys,
         // Highlight
         highlightConfig,
     } = state;
@@ -26,14 +28,35 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys }) => {
     const isScatter = chartType === 'scatter' || chartType === 'bubble';
     const isCombo = chartType === 'combo';
 
+    // Effective combo line set: explicit selection, or auto (2nd series onward)
+    const effectiveComboLines = (comboLineKeys && comboLineKeys.length > 0)
+        ? comboLineKeys
+        : (finalSeriesKeys || []).slice(1);
+    const toggleComboLine = (key) => {
+        const set = new Set(effectiveComboLines);
+        if (set.has(key)) set.delete(key); else set.add(key);
+        setField('comboLineKeys', Array.from(set));
+    };
+
     return (
         <>
             {/* ── Labels & Annotations ── */}
             <Section title="Data Labels">
                 <Toggle label="Show Data Labels" checked={showLabels}
                     onChange={v => setField('showLabels', v)} />
-                <Toggle label="Show % of Total in Tooltip" checked={tooltipShowPercent}
-                    onChange={v => setField('tooltipShowPercent', v)} />
+                {tooltipMode !== 'rich' && (
+                    <Toggle label="Show % of Total in Tooltip" checked={tooltipShowPercent}
+                        onChange={v => setField('tooltipShowPercent', v)} />
+                )}
+                <SelectField
+                    label="Tooltip Style"
+                    value={tooltipMode}
+                    onChange={v => setField('tooltipMode', v)}
+                    style={{ marginTop: '6px' }}
+                >
+                    <option value="standard">Standard</option>
+                    <option value="rich">Rich (value + Δ vs previous)</option>
+                </SelectField>
 
                 {showLabels && !isDonut && (
                     <SelectField
@@ -210,8 +233,30 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys }) => {
                 </Section>
             )}
 
+            {/* ── Combo-Specific ── */}
+            {isCombo && (
+                <Section title="Combo Options">
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                        Toggle which series render as a line — the rest are bars.
+                    </div>
+                    {(finalSeriesKeys || []).length < 2 && (
+                        <div style={{ fontSize: '9px', color: 'var(--text-disabled)' }}>
+                            Add at least 2 series (Values) to mix bars and lines.
+                        </div>
+                    )}
+                    {(finalSeriesKeys || []).map(key => (
+                        <Toggle
+                            key={key}
+                            label={`Line: ${key}`}
+                            checked={effectiveComboLines.includes(key)}
+                            onChange={() => toggleComboLine(key)}
+                        />
+                    ))}
+                </Section>
+            )}
+
             {/* ── Highlight Rules ── */}
-            {(isBar || isLine || isCombo) && (
+            {showHighlight && (isBar || isLine || isCombo) && (
                 <Section title="Highlight Rule">
                     <SelectField
                         value={highlightConfig.type}

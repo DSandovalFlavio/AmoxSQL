@@ -6,6 +6,7 @@ import SkillsPanel from './ai/SkillsPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
+import { StoryFlowGuide } from './DataVisualizer/StoryFlowGuide';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
@@ -67,6 +68,7 @@ const TAB_TITLES = {
     workspace:   'Workspace',
     shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
+    storyflow:   'Story Flow',
     // Legacy aliases so existing initialTab values keep working
     formatter:   'Editor',
     memories:    'AI Assistant',
@@ -495,7 +497,7 @@ const LEGACY_TAB_MAP = {
     gallery:      { tab: 'appearance', sub: null },
 };
 
-const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
+const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentInterfaceFont = 'manrope', onInterfaceFontChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
     const [editorSubTab, setEditorSubTab]   = useState('general');
     const [aiSubTab,     setAiSubTab]       = useState('models');
@@ -827,6 +829,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     />
                     {[
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
+                        { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
@@ -860,6 +863,24 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                     <div className="stg-content-body" ref={contentRef}>
 
+                        {/* ═══ STORY FLOW ═══ */}
+                        {activeTab === 'storyflow' && (
+                            <div className="stg-section">
+                                <StoryFlowGuide />
+                                <div style={{ marginTop: '18px' }}>
+                                    <button
+                                        onClick={() => { try { localStorage.removeItem('amoxsql-storyflow-tour-seen'); } catch (e) {} window.dispatchEvent(new CustomEvent('amox_replay_storyflow_tour')); }}
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--accent-color-user, #5E6AD2)', color: 'var(--button-text-color, #fff)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
+                                    >
+                                        <LuSparkles size={14} /> Replay tour
+                                    </button>
+                                    <p style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                        Opens the step-by-step tour the next time you open a chart.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* ═══ APPEARANCE ═══ */}
                         {activeTab === 'appearance' && (
                             <div className="stg-section">
@@ -887,6 +908,34 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </div>
                                         ))}
                                     </div>
+                                </div>
+
+                                {/* Interface Font */}
+                                <div>
+                                    <h3 className="stg-section-heading stg-section-heading--mb12">Interface Font</h3>
+                                    <select
+                                        value={currentInterfaceFont}
+                                        onChange={e => onInterfaceFontChange?.(e.target.value)}
+                                        style={{
+                                            width: '100%', maxWidth: 300, padding: '8px 10px',
+                                            background: 'var(--input-bg, var(--bg-secondary))',
+                                            color: 'var(--text-primary)',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: 6, fontSize: 13,
+                                            fontFamily: 'var(--font-sans)',
+                                        }}
+                                    >
+                                        <option value="manrope">Manrope</option>
+                                        <option value="inter">Inter</option>
+                                        <option value="lato">Lato</option>
+                                        <option value="ibm-plex">IBM Plex Sans</option>
+                                        <option value="space-grotesk">Space Grotesk</option>
+                                        <option value="lora">Lora (serif)</option>
+                                        <option value="system">System Default</option>
+                                    </select>
+                                    <p style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                                        Applies to the whole interface. The code editor font is configured separately under Editor.
+                                    </p>
                                 </div>
 
                                 {/* Accent */}

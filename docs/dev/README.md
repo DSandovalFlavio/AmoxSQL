@@ -15,6 +15,7 @@
 | [guia_estilos.md](guia_estilos.md) | CSS tokens, theming, acentos, convenciones de clases, DO/DON'T | Agregues tokens, temas, acentos o patrones CSS nuevos |
 | [patrones_react.md](patrones_react.md) | State management, lazy loading, keep-alive, refs, RAF | Introduzcas un nuevo patrón de componente |
 | [decisiones_tecnicas.md](decisiones_tecnicas.md) | ADRs: qué se decidió, por qué y consecuencias | Tomes una decisión técnica significativa |
+| [auditoria_visualizaciones.md](auditoria_visualizaciones.md) · [plan_story_flow.md](plan_story_flow.md) | **Story Flow** (la sección de visualización): auditoría de capacidades + plan/estado de implementación por fases | Toques el visualizador / Story Flow |
 
 ### `contexto_caracteristicas/` — Por Feature
 
@@ -25,7 +26,7 @@
 | [formatos_archivo.md](../../contexto_caracteristicas/formatos_archivo.md) | `.sqlnb`, `.amoxvis`, `.sqlnb.state.json`, `metrics.yml`, `joins.yml` | Cambies el schema de cualquier formato propio |
 | [autocompletado_editor.md](../../contexto_caracteristicas/autocompletado_editor.md) | Arquitectura del autocompletado SQL (Monaco + Worker + Backend) | Toques el sistema de autocompletado |
 | [notebook_sql.md](../../contexto_caracteristicas/notebook_sql.md) | Formato `.sqlnb`, celdas, ejecución, sidecar state | Cambies el formato de notebook o su parser |
-| [layout_tabs_resultados.md](../../contexto_caracteristicas/layout_tabs_resultados.md) | LayoutManager, tabs, ResultsTable, DataVisualizer, DataProfiler | Toques el sistema de tabs o la visualización |
+| [layout_tabs_resultados.md](../../contexto_caracteristicas/layout_tabs_resultados.md) | LayoutManager, tabs, ResultsTable, DataVisualizer ("Story Flow"), DataProfiler | Toques el sistema de tabs o la visualización |
 | [database_operations.md](../../contexto_caracteristicas/database_operations.md) | DatabaseManager, importación, endpoints DB | Cambies la capa de DuckDB o endpoints `/api/db/*` |
 
 ---

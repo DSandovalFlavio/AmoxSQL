@@ -72,7 +72,7 @@ export const formatDateLabel = (val) => {
     if (!val) return '';
     const str = String(val);
     if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-        return str.split('T')[0];
+        return str.split('T')[0].split(' ')[0];
     }
     return str;
 };

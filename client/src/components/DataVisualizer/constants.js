@@ -33,36 +33,39 @@ export const COLOR_PALETTES = {
 
 // ─── Chart Type Registry ─────────────────────────────────────
 // Each type has: key, label, category, icon (SVG path or emoji), supports (features list)
+// Grouped by narrative INTENT (what the chart is meant to communicate),
+// not by geometry. Order within each intent goes simple → complex.
 export const CHART_TYPES = [
-    // Columns / Bars
-    { key: 'bar', label: 'Column', category: 'column', description: 'Vertical bars' },
-    { key: 'bar-stacked', label: 'Stacked Column', category: 'column', description: 'Stacked vertically' },
-    { key: 'bar-100', label: '100% Stacked', category: 'column', description: 'Proportional stacked' },
-    { key: 'bar-horizontal', label: 'Bar', category: 'bar', description: 'Horizontal bars' },
-    { key: 'bar-horizontal-stacked', label: 'Stacked Bar', category: 'bar', description: 'Horizontal stacked' },
-    { key: 'bar-horizontal-100', label: '100% Stacked Bar', category: 'bar', description: 'Horizontal proportional' },
-    // Lines & Areas
-    { key: 'line', label: 'Line', category: 'line', description: 'Line series' },
-    { key: 'area', label: 'Stacked Area', category: 'line', description: 'Filled area stacked' },
-    // Circular
-    { key: 'donut', label: 'Donut', category: 'circular', description: 'Donut ring chart' },
-    // Scatter
-    { key: 'scatter', label: 'Scatter', category: 'scatter', description: 'XY scatter plot' },
-    { key: 'bubble', label: 'Bubble', category: 'scatter', description: 'Scatter with size' },
-    // Advanced
-    { key: 'combo', label: 'Combo', category: 'other', description: 'Bar + Line combined' },
-    { key: 'funnel', label: 'Funnel', category: 'other', description: 'Funnel / pipeline' },
-    { key: 'heatmap', label: 'Heatmap', category: 'other', description: 'Color intensity matrix' },
-    { key: 'treemap', label: 'Treemap', category: 'other', description: 'Hierarchical rectangles' },
+    // Compare — magnitudes side by side
+    { key: 'bar', label: 'Column', category: 'compare', description: 'Vertical bars' },
+    { key: 'bar-horizontal', label: 'Bar', category: 'compare', description: 'Horizontal bars' },
+    // Trend — change over a continuum
+    { key: 'line', label: 'Line', category: 'trend', description: 'Line series' },
+    { key: 'area', label: 'Stacked Area', category: 'trend', description: 'Filled area stacked' },
+    { key: 'combo', label: 'Combo', category: 'trend', description: 'Bar + Line combined' },
+    // Composition — parts of a whole
+    { key: 'bar-stacked', label: 'Stacked Column', category: 'composition', description: 'Stacked vertically' },
+    { key: 'bar-100', label: '100% Stacked', category: 'composition', description: 'Proportional stacked' },
+    { key: 'bar-horizontal-stacked', label: 'Stacked Bar', category: 'composition', description: 'Horizontal stacked' },
+    { key: 'bar-horizontal-100', label: '100% Stacked Bar', category: 'composition', description: 'Horizontal proportional' },
+    { key: 'donut', label: 'Donut', category: 'composition', description: 'Donut ring chart' },
+    { key: 'pie', label: 'Pie', category: 'composition', description: 'Full pie chart' },
+    { key: 'treemap', label: 'Treemap', category: 'composition', description: 'Hierarchical rectangles' },
+    // Relationship — how variables relate
+    { key: 'scatter', label: 'Scatter', category: 'relation', description: 'XY scatter plot' },
+    { key: 'bubble', label: 'Bubble', category: 'relation', description: 'Scatter with size' },
+    { key: 'heatmap', label: 'Heatmap', category: 'relation', description: 'Color intensity matrix' },
+    // Flow — stages / pipeline
+    { key: 'funnel', label: 'Funnel', category: 'flow', description: 'Funnel / pipeline' },
+    { key: 'waterfall', label: 'Waterfall', category: 'flow', description: 'Cumulative bridge' },
 ];
 
 export const CHART_CATEGORIES = [
-    { key: 'column', label: 'Columns' },
-    { key: 'bar', label: 'Bars' },
-    { key: 'line', label: 'Lines & Areas' },
-    { key: 'circular', label: 'Circular' },
-    { key: 'scatter', label: 'Scatter' },
-    { key: 'other', label: 'Other' },
+    { key: 'compare', label: 'Compare' },
+    { key: 'trend', label: 'Trend' },
+    { key: 'composition', label: 'Composition' },
+    { key: 'relation', label: 'Relationship' },
+    { key: 'flow', label: 'Flow' },
 ];
 
 // ─── Export Presets ───────────────────────────────────────────
@@ -75,14 +78,18 @@ export const EXPORT_PRESETS = [
 ];
 
 // ─── Font Options ────────────────────────────────────────────
+// Curated for data-viz storytelling: high legibility at small sizes, clear
+// numerals, and a range of voices (neutral / humanist / technical / editorial).
+// All families below are loaded via the Google Fonts link in index.html.
 export const FONT_OPTIONS = [
-    { value: 'system', label: 'System Default', family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
-    { value: 'inter', label: 'Inter', family: '"Inter", sans-serif' },
-    { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
-    { value: 'outfit', label: 'Outfit', family: '"Outfit", sans-serif' },
-    { value: 'source-sans', label: 'Source Sans Pro', family: '"Source Sans Pro", sans-serif' },
-    { value: 'jetbrains', label: 'JetBrains Mono', family: '"JetBrains Mono", monospace' },
-    { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
+    { value: 'system', label: 'System Default', family: 'system-ui, -apple-system, "Segoe UI", sans-serif' },
+    { value: 'inter', label: 'Inter — clean & neutral', family: '"Inter", sans-serif' },
+    { value: 'lato', label: 'Lato — warm & humanist', family: '"Lato", sans-serif' },
+    { value: 'ibm-plex', label: 'IBM Plex Sans — technical', family: '"IBM Plex Sans", sans-serif' },
+    { value: 'manrope', label: 'Manrope — modern dashboard', family: '"Manrope", sans-serif' },
+    { value: 'space-grotesk', label: 'Space Grotesk — bold headlines', family: '"Space Grotesk", sans-serif' },
+    { value: 'lora', label: 'Lora — editorial serif', family: '"Lora", Georgia, serif' },
+    { value: 'jetbrains', label: 'JetBrains Mono — numeric', family: '"JetBrains Mono", monospace' },
 ];
 
 // ─── Background Tonal Options ────────────────────────────────
@@ -128,7 +135,7 @@ export const DEFAULT_CONFIG = {
     dataLabelSize: 11,
     dataLabelMinSpace: 30,
     tooltipShowPercent: false,
-    showPercentages: false,
+    tooltipMode: 'standard', // 'standard' | 'rich'
 
     // Colors & Theme
     colorTheme: 'default',
@@ -139,6 +146,10 @@ export const DEFAULT_CONFIG = {
     fontFamily: 'system',
     textScale: 1,
 
+    // Fill & card styling
+    fillStyle: 'gradient', // 'gradient' | 'solid' (area/line fill)
+    cardStyle: { shadow: false, radius: 8, gradient: false, gradientFrom: '#1e1f29', gradientTo: '#0f1015' },
+
     // Number format
     numberFormat: 'compact',
     decimalPlaces: -1, // -1 = auto
@@ -146,9 +157,13 @@ export const DEFAULT_CONFIG = {
     // Grid & Axes
     gridMode: 'horizontal',
     showAxisLines: true,
+    axisLabelOpacity: 0.6, // intensity of axis tick labels (0.2–1, over text-primary)
+    axisLabelSize: 11,     // axis tick label font size (px)
+    axisLabelGap: 5,       // gap between tick labels and the axis (tickMargin)
+    axisLabelMaxChars: 0,  // 0 = auto truncation; >0 = truncate long labels to N chars
     yLogScale: false,
     yAxisDomain: ['auto', 'auto'],
-    yAxisPosition: 'left',
+    rightYAxisDomain: ['auto', 'auto'],
     showXAxisTitle: true,
     showYAxisTitle: true,
     customAxisTitles: { x: '', y: '' },
@@ -157,7 +172,7 @@ export const DEFAULT_CONFIG = {
     // Line specific
     lineType: 'monotone',
     lineAreaFill: false,
-    showDots: true,
+    showDots: false,
     isCumulative: false,
 
     // Bar specific
@@ -191,11 +206,16 @@ export const DEFAULT_CONFIG = {
     chartTitle: '',
     chartSubtitle: '',
     chartFootnote: '',
+    takeaway: '',
     textAlign: 'left',
 
     // Reference elements
     refLine: { value: '', label: '', color: '#ff4444', style: 'dashed' },
     refArea: { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 },
+
+    // Annotations — free-form callouts anchored to data
+    // [{ id, type:'text'|'box', x, y, x2, y2, text, color }]
+    annotations: [],
 
     // Goal line
     goalLine: { enabled: false, value: '', label: 'Goal', color: '#22c55e', style: 'dashed' },

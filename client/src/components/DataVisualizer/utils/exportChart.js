@@ -82,6 +82,28 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart') => 
 };
 
 /**
+ * Copy the chart (full card incl. title/takeaway) to the clipboard as a PNG image.
+ */
+export const copyChartToClipboard = async (element) => {
+    if (!element) throw new Error('No chart element.');
+    const bgColor = getComputedStyle(document.documentElement)
+        .getPropertyValue('--surface-base').trim() || '#1e1f22';
+
+    const canvas = await html2canvas(element, {
+        backgroundColor: bgColor,
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        ignoreElements: (el) => el.tagName === 'BUTTON',
+    });
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Could not render image.');
+    await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
+    return true;
+};
+
+/**
  * Save chart configuration as .amoxvis file via API.
  */
 export const saveChartConfig = async (filename, config, query = '') => {
