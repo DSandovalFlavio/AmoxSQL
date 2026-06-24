@@ -45,7 +45,7 @@ Electron Shell
 | Backend   | Express 5.2 (Node.js)                     |
 | Database  | DuckDB (Neo API nativa @duckdb/node-api)  |
 | AI SDK    | Vercel AI SDK 6.0 + Zod                   |
-| AI        | Ollama (local), Google Gemini (cloud)     |
+| AI        | Ollama (local) + cloud: Google Gemini, Anthropic, OpenAI, Google Vertex (MiniMax key reserved) |
 | Build     | electron-builder (NSIS/Windows)           |
 
 ## Key Commands
@@ -88,14 +88,19 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 ### Backend (server/)
 - `index.js` (88KB) — All REST endpoints
 - `DatabaseManager.js` (10KB) — DuckDB connection lifecycle
-- `AiManager.js` (14KB) — Ollama/Gemini provider management
+- `AiManager.js` (14KB) — Provider management (Ollama, Gemini, Anthropic, OpenAI, Vertex) + legacy `generateQuery()` and the tool-loop `chat()`
 - `ai/agenticLoop.js` — Main tool-calling loop (drives multi-step AI turns)
 - `ai/tools.js` — AI tool definitions (execute_sql, list_tables, describe_table, display_chart, suggest_followups)
-- `ai/systemPrompt.js` — Dynamic prompt builder with schema context
-- `ai/skills.js` — Skill definitions invoked by the agent
-- `ai/modelProfiles.js` — Per-model capability / parameter profiles (Ollama + Gemini)
-- `ai/promptOnlyMode.js` — Fallback path when the active model can't do tool-calling
+- `ai/tools_planner.js` — Tool set for the experimental planner mode (`experimental.planner` in config)
+- `ai/systemPrompt.js` — Thin re-export of `ai/prompt/index.js` (kept for back-compat `require` paths)
+- `ai/prompt/` — Modular system-prompt composer: `index.js` (entry, also `buildSystemParts` for Anthropic prompt caching), `schema.js`, `tools.js`, `modes.js`, `context.js`
+- `ai/skills.js` — **Loader** for project-level skills; reads markdown from the project's `agent/skills/<id>/SKILL.md` (front-matter: name, description, keywords, next), mtime-cached
+- `ai/contextLoader.js` — Loads per-project context files (e.g. `.amoxsql/context/`) into the prompt
+- `ai/modelProfiles.js` — Per-model capability / parameter profiles (Ollama + cloud)
+- `ai/promptOnlyMode.js` — Fallback path when the active model can't do tool-calling (virtual table mapping, SQL block extraction)
 - `ai/profiling.js` — Table/column profiling used as AI context
+- `ai/chartStory.js` — Narrative generation for charts
+- `ai/findingsLinter.js`, `ai/joinSanityCheck.js` — Validation passes over AI output / generated SQL
 - `ai/compaction.js` — Context window token management
 - `ai/persistence.js` — Conversation storage in DuckDB (`amoxsql_ai` schema)
 - `ai/memory.js` — Cross-conversation memory extraction
@@ -113,6 +118,8 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `.sqlnb.state.json` — Sidecar file for notebook visual state (results cache, chart configs)
 - `.amoxvis` — Chart configuration files
 - `RULES.md` — Per-project AI behavior rules
+- `agent/skills/<id>/SKILL.md` — Project-level AI skills (markdown + YAML front-matter), loaded by `ai/skills.js`. The repo ships a starter set (eda-initial, data-quality, sql-optimization, time-series, cohort-comparison, metric-investigation, data-storytelling, analysis-planning).
+- `.amoxsql/context/*.md` — Per-project context fed to the AI (see `templates/.amoxsql/context/`)
 
 ## State Management
 - **No Redux/Zustand** — React Context (ToastProvider) + local useState + localStorage/sessionStorage
@@ -141,3 +148,8 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - Config stored at `~/.amoxsql/config.json`
 - **Desktop-native mindset**: DuckDB is local and fast — do not reason about network latency, loading spinners, or caching like a web app. Call queries directly.
 - **Do NOT introduce list/table virtualization** (e.g. `@tanstack/react-virtual`). Prior attempts hurt performance in this app; `ResultsTable` paginates instead.
+
+## Further Reading (in-repo docs, mostly Spanish)
+- `docs/dev/arquitectura.md`, `decisiones_tecnicas.md`, `patrones_react.md`, `guia_estilos.md` — deeper architecture, design decisions, React patterns, and style guide
+- `contexto_caracteristicas/*.md` — per-feature deep dives (AI system, notebook, autocomplete, layout/tabs, DB ops, file formats)
+- `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` — contribution flow, security policy, version history

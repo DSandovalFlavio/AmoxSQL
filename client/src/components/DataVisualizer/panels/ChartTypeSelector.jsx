@@ -91,6 +91,20 @@ const ChartIcon = ({ type, size = 28 }) => {
                 <path d="M4,14 A10,10 0 0,1 14,4" stroke={color} strokeWidth="4" fill="none" opacity="0.6" />
             </svg>
         ),
+        'pie': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <circle cx="14" cy="14" r="10" fill={color} opacity="0.4" />
+                <path d="M14,14 L14,4 A10,10 0 0,1 24,14 Z" fill={color} opacity="0.9" />
+            </svg>
+        ),
+        'waterfall': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <rect x="3" y="16" width="4" height="6" rx="1" fill={color} opacity="0.5" />
+                <rect x="9" y="11" width="4" height="6" rx="1" fill={color} opacity="0.7" />
+                <rect x="15" y="7" width="4" height="6" rx="1" fill={color} opacity="0.9" />
+                <rect x="21" y="4" width="4" height="9" rx="1" fill={color} />
+            </svg>
+        ),
         'scatter': (
             <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
                 <circle cx="8" cy="18" r="2.5" fill={color} opacity="0.6" />

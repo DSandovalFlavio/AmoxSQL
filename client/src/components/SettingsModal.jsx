@@ -495,7 +495,7 @@ const LEGACY_TAB_MAP = {
     gallery:      { tab: 'appearance', sub: null },
 };
 
-const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
+const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentInterfaceFont = 'manrope', onInterfaceFontChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
     const [editorSubTab, setEditorSubTab]   = useState('general');
     const [aiSubTab,     setAiSubTab]       = useState('models');
@@ -887,6 +887,34 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </div>
                                         ))}
                                     </div>
+                                </div>
+
+                                {/* Interface Font */}
+                                <div>
+                                    <h3 className="stg-section-heading stg-section-heading--mb12">Interface Font</h3>
+                                    <select
+                                        value={currentInterfaceFont}
+                                        onChange={e => onInterfaceFontChange?.(e.target.value)}
+                                        style={{
+                                            width: '100%', maxWidth: 300, padding: '8px 10px',
+                                            background: 'var(--input-bg, var(--bg-secondary))',
+                                            color: 'var(--text-primary)',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: 6, fontSize: 13,
+                                            fontFamily: 'var(--font-sans)',
+                                        }}
+                                    >
+                                        <option value="manrope">Manrope</option>
+                                        <option value="inter">Inter</option>
+                                        <option value="lato">Lato</option>
+                                        <option value="ibm-plex">IBM Plex Sans</option>
+                                        <option value="space-grotesk">Space Grotesk</option>
+                                        <option value="lora">Lora (serif)</option>
+                                        <option value="system">System Default</option>
+                                    </select>
+                                    <p style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                                        Applies to the whole interface. The code editor font is configured separately under Editor.
+                                    </p>
                                 </div>
 
                                 {/* Accent */}

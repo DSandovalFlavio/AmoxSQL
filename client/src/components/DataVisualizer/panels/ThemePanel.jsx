@@ -3,7 +3,7 @@
  * Tab: "Theme" — "How does it look?"
  */
 import { memo } from 'react';
-import { Section, SelectField, SliderField, SimpleColorPicker, panelStyles } from './shared';
+import { Section, Toggle, SelectField, SliderField, SimpleColorPicker, panelStyles } from './shared';
 import { COLOR_PALETTES, FONT_OPTIONS, BACKGROUND_TONES } from '../constants';
 
 const PalettePreview = memo(({ colors, isActive, onClick }) => (
@@ -30,7 +30,8 @@ PalettePreview.displayName = 'PalettePreview';
 
 const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData }) => {
     const { colorTheme, backgroundTone, customBgColor, borderStyle, borderColor,
-        fontFamily, textScale, seriesConfig, chartType } = state;
+        fontFamily, textScale, seriesConfig, chartType,
+        fillStyle = 'gradient', cardStyle = {} } = state;
 
     const isDonut = chartType === 'donut';
 
@@ -79,6 +80,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                     <SimpleColorPicker
                                         color={color}
+                                        swatches={activeColors}
                                         onChange={val => setField('seriesConfig', {
                                             ...seriesConfig, [key]: { ...seriesConfig[key], color: val }
                                         })}
@@ -107,6 +109,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                                     <div style={{ display: 'flex', gap: '5px' }}>
                                         <SimpleColorPicker
                                             color={currentColor}
+                                            swatches={activeColors}
                                             onChange={val => setField('seriesConfig', {
                                                 ...seriesConfig, [key]: { ...seriesConfig[key], color: val }
                                             })}
@@ -172,6 +175,48 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                     onChange={v => setField('textScale', v / 100)}
                     suffix="%"
                 />
+            </Section>
+
+            {/* ── Fill ── */}
+            {(chartType === 'line' || chartType === 'area') && (
+                <Section title="Fill">
+                    <SelectField
+                        label="Area Fill"
+                        value={fillStyle}
+                        onChange={v => setField('fillStyle', v)}
+                    >
+                        <option value="gradient">Gradient (fade out)</option>
+                        <option value="solid">Solid</option>
+                    </SelectField>
+                </Section>
+            )}
+
+            {/* ── Card ── */}
+            <Section title="Card">
+                <Toggle label="Drop shadow" checked={!!cardStyle.shadow}
+                    onChange={v => setField('cardStyle', { ...cardStyle, shadow: v })} />
+                <SliderField
+                    label="Corner Radius"
+                    value={cardStyle.radius ?? 8}
+                    min={0} max={28}
+                    onChange={v => setField('cardStyle', { ...cardStyle, radius: v })}
+                    suffix="px"
+                />
+                <Toggle label="Gradient background" checked={!!cardStyle.gradient}
+                    onChange={v => setField('cardStyle', { ...cardStyle, gradient: v })} />
+                {cardStyle.gradient && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                        <SimpleColorPicker
+                            color={cardStyle.gradientFrom || '#1e1f29'}
+                            onChange={v => setField('cardStyle', { ...cardStyle, gradientFrom: v })}
+                        />
+                        <SimpleColorPicker
+                            color={cardStyle.gradientTo || '#0f1015'}
+                            onChange={v => setField('cardStyle', { ...cardStyle, gradientTo: v })}
+                        />
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>From → To</span>
+                    </div>
+                )}
             </Section>
 
             {/* ── Border ── */}

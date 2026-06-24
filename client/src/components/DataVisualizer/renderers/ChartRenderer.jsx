@@ -2,15 +2,16 @@
  * ChartRenderer — Renders the appropriate chart based on chartType.
  * Consolidates all Recharts rendering in one place with shared axis/grid/tooltip helpers.
  */
-import { memo, useMemo, useCallback, useRef, useState, useEffect } from 'react';
+import { memo, useMemo, useCallback, useRef, useState, useEffect, useId } from 'react';
 import {
     LineChart, Line, AreaChart, Area, BarChart, Bar, ComposedChart,
     PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-    ResponsiveContainer, ReferenceLine, ReferenceArea, LabelList, Funnel, FunnelChart, Treemap,
+    ResponsiveContainer, ReferenceLine, ReferenceArea, ReferenceDot, LabelList, Funnel, FunnelChart, Treemap,
 } from 'recharts';
 import { formatNumber, createFormatter, formatDateLabel, createTooltipFormatter } from '../utils/numberFormat';
 import { computeTrendLine, processDonutData } from '../utils/dataProcessing';
+import RichTooltip from './RichTooltip';
 
 // ─── Helper: CustomizedDot ───────────────────────────────────
 const CustomizedDot = (props) => {
@@ -46,48 +47,64 @@ const ChartRenderer = memo(({
 }) => {
     const {
         chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey, bubbleSizeKey,
-        numberFormat, decimalPlaces, gridMode, showAxisLines, yLogScale, yAxisDomain,
+        numberFormat, decimalPlaces, gridMode, showAxisLines,
+        axisLabelOpacity = 1, axisLabelSize = 11, axisLabelGap = 5, axisLabelMaxChars = 0,
+        yLogScale, yAxisDomain, rightYAxisDomain,
         showXAxisTitle, showYAxisTitle, customAxisTitles, xAxisLabelAngle,
-        showLabels, dataLabelPosition, dataLabelSize, dataLabelMinSpace, tooltipShowPercent, legendPosition,
-        lineType, lineAreaFill, showDots, barStackMode, barRadius, barColorMode,
+        showLabels, dataLabelPosition, dataLabelSize, dataLabelMinSpace, tooltipShowPercent, tooltipMode, legendPosition,
+        lineType, lineAreaFill, showDots, fillStyle, barStackMode, barRadius, barColorMode,
         donutThickness, donutCenterKpi, donutLabelContent, donutLabelPosition,
         donutGroupingThreshold, scatterQuadrants, highlightConfig, seriesConfig,
-        refLine, refArea, goalLine, trendLine, comboLineKeys,
+        refLine, refArea, goalLine, trendLine, comboLineKeys, annotations,
         marginTop, marginBottom, marginLeft, marginRight,
     } = config;
 
     const labelFontSize = dataLabelSize || 11;
+    const uid = useId();
 
     // ── Format functions ──
     const fmt = useCallback((value) => formatNumber(value, numberFormat, decimalPlaces), [numberFormat, decimalPlaces]);
 
     const xAxisTickFormatter = useCallback((val) => {
         if (typeof val === 'number') return fmt(val);
-        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return val.split('T')[0];
-        const str = String(val);
+        let str = String(val);
+        // Normalize date-like values (strip time portion) before truncating
+        if (/^\d{4}-\d{2}-\d{2}/.test(str)) str = str.split('T')[0].split(' ')[0];
         const isHoriz = chartType.startsWith('bar-horizontal');
-        if (isHoriz && str.length > 40) return str.substring(0, 37) + '...';
-        if (!isHoriz && str.length > 20) return str.substring(0, 17) + '...';
+        const max = axisLabelMaxChars > 0 ? axisLabelMaxChars : (isHoriz ? 40 : 20);
+        if (str.length > max) return str.substring(0, Math.max(1, max - 1)) + '…';
         return str;
-    }, [fmt, chartType]);
+    }, [fmt, chartType, axisLabelMaxChars]);
 
     const tooltipFormatter = useCallback(
         createTooltipFormatter(fmt, tooltipShowPercent, chartType, yAxisKeys),
         [fmt, tooltipShowPercent, chartType, yAxisKeys]
     );
 
+    // ── Tooltip mode: standard formatter vs rich (value + Δ vs previous) ──
+    const tooltipExtra = tooltipMode === 'rich'
+        ? { content: (props) => <RichTooltip {...props} numberFormat={numberFormat} decimalPlaces={decimalPlaces} processedData={processedData} xAxisKey={xAxisKey} /> }
+        : { formatter: tooltipFormatter, labelFormatter: xAxisTickFormatter };
+
     // ── Axis labels ──
-    const defaultXLabel = chartType.includes('horizontal') ? 'Values' : chartType === 'donut' ? 'Segment' : 'X Axis';
-    const defaultYLabel = chartType.includes('horizontal') ? 'Categories' : chartType === 'donut' ? 'Size' : 'Values';
-    const XLabel = showXAxisTitle ? (customAxisTitles.x || defaultXLabel || xAxisKey) : '';
-    const YLabel = showYAxisTitle ? (customAxisTitles.y || defaultYLabel || 'Values') : '';
+    const defaultXLabel = chartType === 'donut' ? (xAxisKey || 'Segment') : (xAxisKey || '');
+    const defaultYLabel = chartType === 'donut' ? (yAxisKeys[0] || 'Size') : (yAxisKeys.join(', ') || '');
+    const XLabel = showXAxisTitle ? (customAxisTitles.x || defaultXLabel) : '';
+    const YLabel = showYAxisTitle ? (customAxisTitles.y || defaultYLabel) : '';
 
     // ── Theme & Scale ──
     const fontSize = Math.round(11 * textScale);
     const titleFontSize = Math.round(12 * textScale);
+    const tickFontSize = Math.round((axisLabelSize || 11) * textScale);
+    const axisTick = { fill: 'var(--text-primary)', fontSize: tickFontSize, fillOpacity: axisLabelOpacity };
     const yDomain = [
         yAxisDomain[0] !== '' && !isNaN(yAxisDomain[0]) ? Number(yAxisDomain[0]) : 'auto',
         yAxisDomain[1] !== '' && !isNaN(yAxisDomain[1]) ? Number(yAxisDomain[1]) : 'auto'
+    ];
+    const rda = rightYAxisDomain || ['auto', 'auto'];
+    const rightYDomain = [
+        rda[0] !== '' && rda[0] !== 'auto' && !isNaN(rda[0]) ? Number(rda[0]) : 'auto',
+        rda[1] !== '' && rda[1] !== 'auto' && !isNaN(rda[1]) ? Number(rda[1]) : 'auto'
     ];
     const yScale = yLogScale ? 'log' : 'auto';
     const isHorizontal = chartType.startsWith('bar-horizontal');
@@ -108,14 +125,15 @@ const ChartRenderer = memo(({
     const axisCommonProps = useMemo(() => ({
         axisLine: showAxisLines ? { stroke: 'var(--border-color)' } : false,
         tickLine: showAxisLines ? { stroke: 'var(--border-color)' } : false,
-    }), [showAxisLines]);
+        tickMargin: Number(axisLabelGap) || 0,
+    }), [showAxisLines, axisLabelGap]);
 
     const xAxisTickProps = useMemo(() => ({
-        fill: 'var(--text-muted)', fontSize,
+        fill: 'var(--text-primary)', fontSize: tickFontSize, fillOpacity: axisLabelOpacity,
         angle: -Number(xAxisLabelAngle),
         textAnchor: Number(xAxisLabelAngle) > 0 ? 'end' : 'middle',
         dy: Number(xAxisLabelAngle) > 0 ? 5 : 0,
-    }), [xAxisLabelAngle, fontSize]);
+    }), [xAxisLabelAngle, tickFontSize, axisLabelOpacity]);
 
     // ── Tooltip style ──
     const tooltipStyle = {
@@ -189,24 +207,26 @@ const ChartRenderer = memo(({
             const l = xAxisTickFormatter(d[xAxisKey])?.length || 0;
             if (l > max) max = l;
         });
-        return Math.min(Math.max(20 + max * 8 + (showXAxisTitle ? 25 : 10), 60), 400);
-    }, [processedData, xAxisKey, isHorizontal, xAxisTickFormatter, showXAxisTitle]);
+        const charW = tickFontSize * 0.62;
+        return Math.min(Math.max(20 + max * charW + (Number(axisLabelGap) || 0) + (showXAxisTitle ? 25 : 10), 60), 420);
+    }, [processedData, xAxisKey, isHorizontal, xAxisTickFormatter, showXAxisTitle, tickFontSize, axisLabelGap]);
 
     const dynamicXAxisHeight = useMemo(() => {
         if (!processedData?.length) return 30;
-        let base = showXAxisTitle ? 30 : 10;
+        let base = (showXAxisTitle ? 30 : 10) + (Number(axisLabelGap) || 0);
         if (isHorizontal) return base + 15;
         const angle = Number(xAxisLabelAngle);
-        if (angle === 0) return base + 20;
+        const charW = tickFontSize * 0.62;
+        if (angle === 0) return base + tickFontSize + 8;
         let max = 0;
         processedData.forEach(d => {
             const l = xAxisTickFormatter(d[xAxisKey])?.length || 0;
             if (l > max) max = l;
         });
         const rad = angle * (Math.PI / 180);
-        const textH = Math.abs(Math.sin(rad)) * (max * 6);
-        return Math.min(Math.max(base + textH + 10, 40), 180);
-    }, [processedData, xAxisKey, xAxisLabelAngle, isHorizontal, xAxisTickFormatter, showXAxisTitle]);
+        const textH = Math.abs(Math.sin(rad)) * (max * charW);
+        return Math.min(Math.max(base + textH + 10, 40), 240);
+    }, [processedData, xAxisKey, xAxisLabelAngle, isHorizontal, xAxisTickFormatter, showXAxisTitle, tickFontSize, axisLabelGap]);
 
     // ── Label position mapping ──
     // ── Contrast color helper ──
@@ -341,6 +361,50 @@ const ChartRenderer = memo(({
         return els;
     }, [refLine, goalLine, refArea, isHorizontal, fontSize]);
 
+    // ── Free-form annotations (text callouts + boxes) ──
+    // Coordinates are stored role-based (a.x = category, a.y = value). For
+    // horizontal bars the category lives on the Y axis and the value on the X
+    // axis, so we swap the mapping and target the default (0) y-axis id.
+    const annotationElements = useMemo(() => {
+        if (!annotations || annotations.length === 0) return [];
+        const accent = '#fbbf24';
+        const annYAxisId = isHorizontal ? 0 : 'left';
+        return annotations.map((a, i) => {
+            if (a.type === 'box') {
+                const hasY = a.y !== '' && a.y != null && a.y2 !== '' && a.y2 != null;
+                const areaProps = isHorizontal
+                    ? { y1: a.x, y2: a.x2 ?? a.x, ...(hasY ? { x1: Number(a.y), x2: Number(a.y2) } : {}) }
+                    : { x1: a.x, x2: a.x2 ?? a.x, ...(hasY ? { y1: Number(a.y), y2: Number(a.y2) } : {}) };
+                return (
+                    <ReferenceArea
+                        key={a.id || `ann-${i}`} yAxisId={annYAxisId}
+                        {...areaProps}
+                        fill={a.color || accent} fillOpacity={0.12}
+                        stroke={a.color || accent} strokeOpacity={0.5}
+                        label={{ value: a.text, position: 'insideTopLeft', fill: a.color || accent, fontSize, fontWeight: 600 }}
+                    />
+                );
+            }
+            // text / point callout
+            let yVal = a.y;
+            if (yVal === '' || yVal == null) {
+                const row = processedData.find(d => String(d[xAxisKey]) === String(a.x));
+                yVal = row ? Number(row[finalSeriesKeys[0]]) : 0;
+            }
+            const dotProps = isHorizontal
+                ? { x: Number(yVal), y: a.x }
+                : { x: a.x, y: Number(yVal) };
+            return (
+                <ReferenceDot
+                    key={a.id || `ann-${i}`} yAxisId={annYAxisId}
+                    {...dotProps} r={4}
+                    fill={a.color || accent} stroke="#fff" strokeWidth={1.5}
+                    label={{ value: a.text, position: 'top', fill: a.color || accent, fontSize, fontWeight: 600 }}
+                />
+            );
+        });
+    }, [annotations, processedData, xAxisKey, finalSeriesKeys, fontSize, isHorizontal]);
+
     // ── Trend line data ──
     const trendData = useMemo(() => {
         if (trendLine.type === 'none') return null;
@@ -349,7 +413,7 @@ const ChartRenderer = memo(({
 
     // ── Donut data ──
     const donutData = useMemo(() => {
-        if (chartType !== 'donut') return [];
+        if (chartType !== 'donut' && chartType !== 'pie') return [];
         return processDonutData(processedData, yAxisKeys, xAxisKey, donutGroupingThreshold);
     }, [processedData, yAxisKeys, xAxisKey, donutGroupingThreshold, chartType]);
 
@@ -405,24 +469,38 @@ const ChartRenderer = memo(({
             return wrapChart(
                 <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <ChartComp data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={isHorizontal ? gridH : gridV} horizontal={isHorizontal ? gridV : gridH} />
+                        <defs>
+                            {finalSeriesKeys.map((key, index) => {
+                                const cfg = seriesConfig[key] || {};
+                                const gColor = cfg.color || activeColors[index % activeColors.length];
+                                return (
+                                    <linearGradient key={`g-${index}`} id={`amoxAreaGrad-${uid}-${index}`} x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor={gColor} stopOpacity={0.35} />
+                                        <stop offset="95%" stopColor={gColor} stopOpacity={0.02} />
+                                    </linearGradient>
+                                );
+                            })}
+                        </defs>
+                        <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5} vertical={gridV} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
                             tick={xAxisTickProps} tickFormatter={xAxisTickFormatter}
-                            label={showXAxisTitle ? { value: XLabel, position: 'insideBottom', offset: -5, fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined}
+                            minTickGap={28} interval="preserveStartEnd"
+                            label={showXAxisTitle ? { value: XLabel, position: 'insideBottom', offset: -5, fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined}
                             height={dynamicXAxisHeight} />
                         <YAxis yAxisId="left" {...axisCommonProps} stroke="var(--border-color)"
-                            tick={{ fill: 'var(--text-muted)', fontSize }} tickFormatter={fmt}
+                            tick={axisTick} tickFormatter={fmt}
                             domain={yDomain} scale={yScale} allowDataOverflow
-                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined} />
+                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
                         {rightYAxisKey && (
                             <YAxis yAxisId="right" orientation="right" {...axisCommonProps} stroke="var(--border-color)"
-                                tick={{ fill: 'var(--text-muted)', fontSize }} tickFormatter={fmt}
-                                domain={yDomain} scale={yScale} allowDataOverflow />
+                                tick={axisTick} tickFormatter={fmt}
+                                domain={rightYDomain} scale={yScale} allowDataOverflow />
                         )}
                         <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.2)' }}
-                            formatter={tooltipFormatter} labelFormatter={xAxisTickFormatter} />
+                            {...tooltipExtra} />
                         {legendPosition !== 'none' && <Legend {...legendProps} />}
                         {refElements}
+                        {annotationElements}
 
                         {/* Trend line */}
                         {trendData && (
@@ -446,8 +524,8 @@ const ChartRenderer = memo(({
                                     key={key || index} yAxisId={key === rightYAxisKey ? 'right' : 'left'}
                                     type={lineType} dataKey={key} stroke={color} strokeWidth={2}
                                     strokeDasharray={dash}
-                                    fill={lineAreaFill || chartType === 'area' ? color : 'transparent'}
-                                    fillOpacity={0.2}
+                                    fill={(lineAreaFill || chartType === 'area') ? (fillStyle === 'solid' ? color : `url(#amoxAreaGrad-${uid}-${index})`) : 'transparent'}
+                                    fillOpacity={(lineAreaFill || chartType === 'area') && fillStyle === 'solid' ? 0.25 : 1}
                                     stackId={isStacked ? 'stack' : undefined}
                                     dot={<CustomizedDot dataKey={key} showDots={showDots}
                                         highlightType={highlightConfig.type} highlightVal={hlVal}
@@ -484,10 +562,11 @@ const ChartRenderer = memo(({
                     <BarChart
                         layout={isHorizontal ? 'vertical' : 'horizontal'}
                         stackOffset={effectiveStack === 'expand' ? 'expand' : 'none'}
+                        barCategoryGap="18%" barGap={4} maxBarSize={56}
                         data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}
                     >
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)"
-                            vertical={isHorizontal ? gridH : gridV} horizontal={isHorizontal ? gridV : gridH} />
+                        <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5}
+                            vertical={gridV} horizontal={gridH} />
 
                         {isHorizontal ? (
                             <>
@@ -495,37 +574,38 @@ const ChartRenderer = memo(({
                                     XAxis (bottom) = values → gets the Y label (metric name with units)
                                     YAxis (left)   = categories → gets the X label (dimension name) */}
                                 <XAxis {...axisCommonProps} type="number" stroke="var(--border-color)"
-                                    tick={{ fill: 'var(--text-muted)', fontSize }} tickFormatter={fmt}
+                                    tick={axisTick} tickFormatter={fmt}
                                     domain={yDomain} scale={yScale}
-                                    label={showYAxisTitle ? { value: YLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined}
+                                    label={showYAxisTitle ? { value: YLabel, position: 'bottom', offset: 0, fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined}
                                     height={showYAxisTitle ? 30 : 5} />
                                 <YAxis {...axisCommonProps} type="category" dataKey={xAxisKey}
-                                    stroke="var(--border-color)" tick={{ fill: 'var(--text-muted)', fontSize }}
+                                    stroke="var(--border-color)" tick={axisTick}
                                     width={dynamicYAxisWidth} tickFormatter={xAxisTickFormatter}
-                                    label={showXAxisTitle ? { value: XLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined} />
+                                    label={showXAxisTitle ? { value: XLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
                             </>
                         ) : (
                             <>
                                 <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
                                     tick={xAxisTickProps} tickFormatter={xAxisTickFormatter}
-                                    label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined}
+                                    label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined}
                                     height={dynamicXAxisHeight} />
                                 <YAxis yAxisId="left" {...axisCommonProps} stroke="var(--border-color)"
-                                    tick={{ fill: 'var(--text-muted)', fontSize }} tickFormatter={fmt}
+                                    tick={axisTick} tickFormatter={fmt}
                                     domain={yDomain} scale={yScale}
-                                    label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined} />
+                                    label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
                                 {rightYAxisKey && (
                                     <YAxis yAxisId="right" orientation="right" {...axisCommonProps}
-                                        stroke="var(--border-color)" tick={{ fill: 'var(--text-muted)', fontSize }}
-                                        tickFormatter={fmt} domain={yDomain} scale={yScale} />
+                                        stroke="var(--border-color)" tick={axisTick}
+                                        tickFormatter={fmt} domain={rightYDomain} scale={yScale} />
                                 )}
                             </>
                         )}
 
                         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                            formatter={tooltipFormatter} labelFormatter={xAxisTickFormatter} />
+                            {...tooltipExtra} />
                         {legendPosition !== 'none' && <Legend {...legendProps} />}
                         {refElements}
+                        {annotationElements}
 
                         {/* Trend line overlay on bar chart */}
                         {trendData && !isHorizontal && (
@@ -584,24 +664,25 @@ const ChartRenderer = memo(({
 
             return wrapChart(
                 <ResponsiveContainer width={rcWidth} height={rcHeight}>
-                    <ComposedChart data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridV} horizontal={gridH} />
+                    <ComposedChart data={processedData} margin={margin} barCategoryGap="18%" barGap={4} maxBarSize={56} style={{ fontSize: `${fontSize}px` }}>
+                        <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5} vertical={gridV} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
                             tick={xAxisTickProps} tickFormatter={xAxisTickFormatter}
-                            label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined}
+                            label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined}
                             height={dynamicXAxisHeight} />
                         <YAxis yAxisId="left" {...axisCommonProps} stroke="var(--border-color)"
-                            tick={{ fill: 'var(--text-muted)', fontSize }} tickFormatter={fmt}
+                            tick={axisTick} tickFormatter={fmt}
                             domain={yDomain} scale={yScale}
-                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined} />
+                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
                         {rightYAxisKey && (
                             <YAxis yAxisId="right" orientation="right" {...axisCommonProps}
-                                stroke="var(--border-color)" tick={{ fill: 'var(--text-muted)', fontSize }}
-                                tickFormatter={fmt} domain={yDomain} scale={yScale} />
+                                stroke="var(--border-color)" tick={axisTick}
+                                tickFormatter={fmt} domain={rightYDomain} scale={yScale} />
                         )}
-                        <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} labelFormatter={xAxisTickFormatter} />
+                        <Tooltip contentStyle={tooltipStyle} {...tooltipExtra} />
                         {legendPosition !== 'none' && <Legend {...legendProps} />}
                         {refElements}
+                        {annotationElements}
 
                         {finalSeriesKeys.map((key, i) => {
                             const cfg = seriesConfig[key] || {};
@@ -627,26 +708,82 @@ const ChartRenderer = memo(({
             );
         }
 
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ WATERFALL ━━━
+        if (chartType === 'waterfall') {
+            const key = yAxisKeys[0];
+            let cum = 0;
+            const wf = processedData.map(d => {
+                const v = Number(d[key]) || 0;
+                const start = cum;
+                cum += v;
+                return {
+                    [xAxisKey]: d[xAxisKey],
+                    __base: v >= 0 ? start : cum,
+                    __bar: Math.abs(v),
+                    __pos: v >= 0,
+                    __val: v,
+                };
+            });
+            const posColor = activeColors[4] || '#34d399';
+            const negColor = activeColors[1] || '#f87171';
+
+            return wrapChart(
+                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                    <BarChart data={wf} margin={margin} barCategoryGap="18%" maxBarSize={56} style={{ fontSize: `${fontSize}px` }}>
+                        <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5} vertical={false} horizontal={gridH} />
+                        <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
+                            tick={xAxisTickProps} tickFormatter={xAxisTickFormatter} height={dynamicXAxisHeight}
+                            label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
+                        <YAxis {...axisCommonProps} stroke="var(--border-color)"
+                            tick={axisTick} tickFormatter={fmt} domain={yDomain} scale={yScale}
+                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
+                        <Tooltip
+                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                            content={({ active, payload, label }) => {
+                                if (!active || !payload || !payload.length) return null;
+                                const row = payload[0]?.payload;
+                                if (!row) return null;
+                                return (
+                                    <div style={tooltipStyle}>
+                                        <div style={{ fontSize: `${fontSize}px`, color: 'var(--text-muted)', marginBottom: '4px' }}>{xAxisTickFormatter(label)}</div>
+                                        <div style={{ fontSize: '13px', fontWeight: 700, color: row.__pos ? 'var(--color-success)' : 'var(--color-error)' }}>
+                                            {row.__pos ? '+' : ''}{fmt(row.__val)}
+                                        </div>
+                                    </div>
+                                );
+                            }}
+                        />
+                        {refElements}
+                        <Bar dataKey="__base" stackId="wf" fill="transparent" isAnimationActive={false} />
+                        <Bar dataKey="__bar" stackId="wf" radius={[barRadius, barRadius, 0, 0]} isAnimationActive={false}>
+                            {wf.map((e, i) => <Cell key={`wf-${i}`} fill={e.__pos ? posColor : negColor} />)}
+                            {showLabels && <LabelList dataKey="__val" position="top" fontSize={labelFontSize} fill="var(--text-secondary)" formatter={(v) => fmt(v)} />}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            );
+        }
+
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ SCATTER / BUBBLE ━━━
         if (chartType === 'scatter' || chartType === 'bubble') {
             return wrapChart(
                 <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <ScatterChart data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color)" vertical={gridV} horizontal={gridH} />
+                        <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5} vertical={gridV} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey}
                             type={isDateCol ? 'category' : 'number'} name={XLabel}
                             stroke="var(--border-color)" tick={xAxisTickProps} tickFormatter={xAxisTickFormatter}
                             interval="preserveStartEnd" domain={['auto', 'auto']}
-                            label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined}
+                            label={showXAxisTitle ? { value: XLabel, position: 'bottom', offset: 0, fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined}
                             height={dynamicXAxisHeight} />
                         <YAxis yAxisId="left" {...axisCommonProps} type="number" name={YLabel}
-                            stroke="var(--border-color)" tick={{ fill: 'var(--text-muted)', fontSize }}
+                            stroke="var(--border-color)" tick={axisTick}
                             tickFormatter={fmt}
-                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-muted)', fontSize: titleFontSize } : undefined} />
+                            label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
                         {rightYAxisKey && (
                             <YAxis yAxisId="right" orientation="right" {...axisCommonProps} type="number"
                                 name={rightYAxisKey} stroke="var(--border-color)"
-                                tick={{ fill: 'var(--text-muted)', fontSize }} tickFormatter={fmt} />
+                                tick={axisTick} tickFormatter={fmt} />
                         )}
                         <ZAxis type="number" dataKey="size" range={[60, 600]} name="Size" />
                         <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle}
@@ -686,8 +823,8 @@ const ChartRenderer = memo(({
             );
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ DONUT ━━━
-        if (chartType === 'donut') {
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ DONUT / PIE ━━━
+        if (chartType === 'donut' || chartType === 'pie') {
             let centerText = '', centerSubtext = '';
             if (donutCenterKpi !== 'none' && donutData.length > 0) {
                 const sum = donutData.reduce((acc, d) => acc + (Number(d[yAxisKeys[0]]) || 0), 0);
@@ -698,7 +835,7 @@ const ChartRenderer = memo(({
             return wrapChart(
                 <ResponsiveContainer width={rcWidth} height={rcHeight}>
                     <PieChart>
-                        {donutCenterKpi !== 'none' && donutThickness > 30 && (
+                        {chartType === 'donut' && donutCenterKpi !== 'none' && donutThickness > 30 && (
                             <>
                                 <text x="50%" y="50%" dy={-5} textAnchor="middle" dominantBaseline="middle"
                                     style={{ fill: 'var(--text-active)', fontSize: `${Math.round(20 * textScale)}px`, fontWeight: 'bold' }}>
@@ -711,7 +848,7 @@ const ChartRenderer = memo(({
                             </>
                         )}
                         <Pie data={donutData} cx="50%" cy="50%"
-                            innerRadius={donutThickness} outerRadius="80%"
+                            innerRadius={chartType === 'pie' ? 0 : donutThickness} outerRadius="80%"
                             paddingAngle={2} dataKey={yAxisKeys[0]} nameKey={xAxisKey}
                             label={showLabels ? renderDonutLabel : false}
                             labelLine={showLabels && donutLabelPosition === 'outside'}

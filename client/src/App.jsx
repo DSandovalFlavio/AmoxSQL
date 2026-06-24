@@ -147,6 +147,7 @@ function App() {
   // Theme State
   const [theme, setTheme] = useState(() => localStorage.getItem('amoxsql-theme') || 'dark');
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
+  const [interfaceFont, setInterfaceFont] = useState(() => localStorage.getItem('amoxsql-ui-font') || 'manrope'); // interface font (separate from editor font)
   const [editorLayout, setEditorLayout] = useState(() => localStorage.getItem('amoxsql-editor-layout') || 'horizontal'); // 'horizontal' | 'vertical'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -248,6 +249,21 @@ function App() {
   useEffect(() => {
     localStorage.setItem('amoxsql-editor-layout', editorLayout);
   }, [editorLayout]);
+
+  // Apply interface font (separate from the code editor font, which uses --font-mono)
+  useEffect(() => {
+    localStorage.setItem('amoxsql-ui-font', interfaceFont);
+    const FAMILIES = {
+      manrope: "'Manrope', system-ui, sans-serif",
+      inter: "'Inter', system-ui, sans-serif",
+      lato: "'Lato', system-ui, sans-serif",
+      'ibm-plex': "'IBM Plex Sans', system-ui, sans-serif",
+      'space-grotesk': "'Space Grotesk', system-ui, sans-serif",
+      lora: "'Lora', Georgia, serif",
+      system: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+    };
+    document.documentElement.style.setProperty('--font-sans', FAMILIES[interfaceFont] || FAMILIES.manrope);
+  }, [interfaceFont]);
 
   useEffect(() => {
     const t = setTimeout(() => localStorage.setItem('amoxsql-editor-settings', JSON.stringify(editorSettings)), 300);
@@ -835,6 +851,8 @@ function App() {
           onThemeChange={setTheme}
           currentAccent={accentColor}
           onAccentChange={setAccentColor}
+          currentInterfaceFont={interfaceFont}
+          onInterfaceFontChange={setInterfaceFont}
           currentLayout={editorLayout}
           onLayoutChange={setEditorLayout}
           uiZoomLevel={uiZoomLevel}
@@ -1298,6 +1316,8 @@ function App() {
           onThemeChange={setTheme}
           currentAccent={accentColor}
           onAccentChange={setAccentColor}
+          currentInterfaceFont={interfaceFont}
+          onInterfaceFontChange={setInterfaceFont}
           currentLayout={editorLayout}
           onLayoutChange={setEditorLayout}
           editorSettings={mergedEditorSettings}

@@ -55,6 +55,7 @@ export const processChartData = ({
     if (splitByKey && yAxisKeys.length > 0) {
         const valueCol = yAxisKeys[0];
         const uniqueSeries = new Set();
+        const splitIsDate = isDateColumn(data, splitByKey);
 
         data.forEach(row => {
             const xVal = getGroupKey(row, xAxisKey, isDate, dateAggregation);
@@ -62,7 +63,7 @@ export const processChartData = ({
 
             if (!grouped[xVal]) grouped[xVal] = { [xAxisKey]: xVal };
 
-            const splitVal = String(row[splitByKey]);
+            const splitVal = splitIsDate ? formatDateLabel(row[splitByKey]) : String(row[splitByKey]);
             uniqueSeries.add(splitVal);
 
             const numericVal = Number(row[valueCol]) || 0;
