@@ -13,7 +13,6 @@ const { buildToolsSection } = require('./tools');
 const { buildAssistantModeSection, buildDivingModeSection } = require('./modes');
 const {
     buildChartTypesSection,
-    buildFlockSection,
     buildSkillSection,
     buildUserRulesSection,
     buildMemoriesSection,
@@ -67,7 +66,6 @@ function buildDynamicSection(options) {
         currentChartConfig = null,
         activeSkill = null,
         enablePlanner = false,
-        flockContext = null,
         projectCtx = null,
         filePath = null,
         fileType = null,
@@ -93,7 +91,6 @@ function buildDynamicSection(options) {
 
     // Extensions
     d += buildProjectContextSection(projectCtx);
-    d += buildFlockSection(flockContext);
     d += buildSkillSection(activeSkill);
     d += buildUserRulesSection(userRules);
     d += buildMemoriesSection(memories);

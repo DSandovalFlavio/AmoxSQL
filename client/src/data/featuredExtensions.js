@@ -3,20 +3,10 @@
 // postInstall: optional key to trigger a special setup flow after install.
 const FEATURED_EXTENSIONS = [
     {
-        name: 'flock',
-        tagline: 'LLM & RAG native en SQL',
-        description: 'Ejecuta llm_complete, llm_filter, llm_embedding, llm_reduce y fusion de búsqueda híbrida directamente desde DuckDB. El equivalente open-source local de BigQuery AI Functions.',
-        docsUrl: 'https://dais-polymtl.github.io/flock/docs/what-is-flock',
-        category: 'AI',
-        fromCommunity: true,
-        postInstall: 'flock-wizard',
-        badge: 'Featured',
-    },
-    {
         name: 'rapidfuzz',
         tagline: 'Fuzzy string matching de alto rendimiento',
         description: 'Funciones SQL para similitud de strings (Levenshtein, Jaro-Winkler, token ratio). Ideal para deduplicación y búsqueda aproximada.',
-        docsUrl: 'https://duckdb.org/community_extensions/extensions/flock',
+        docsUrl: 'https://duckdb.org/community_extensions/extensions/rapidfuzz',
         category: 'Text',
         fromCommunity: true,
     },
@@ -47,7 +37,7 @@ const FEATURED_EXTENSIONS = [
     {
         name: 'fts',
         tagline: 'Full-text search con BM25',
-        description: 'Índices de texto completo con ranking BM25. Prerrequisito para búsqueda híbrida con Flock (BM25 + embeddings).',
+        description: 'Índices de texto completo con ranking BM25. Ideal para búsqueda full-text y ranking de relevancia.',
         docsUrl: 'https://duckdb.org/docs/extensions/full_text_search',
         category: 'Search',
         fromCommunity: false,

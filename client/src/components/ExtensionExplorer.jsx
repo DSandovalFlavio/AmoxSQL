@@ -29,7 +29,7 @@ const isCore = (ext) => {
 
 const FILTER_OPTIONS = ['All', 'Featured', 'Loaded', 'Installed', 'Community', 'Core'];
 
-const ExtensionExplorer = ({ onFlockWizard }) => {
+const ExtensionExplorer = () => {
     const [extensions, setExtensions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -89,10 +89,6 @@ const ExtensionExplorer = ({ onFlockWizard }) => {
             if (res.ok) {
                 toast.success(`Extension '${name}' installed and loaded.`);
                 fetchExtensions();
-                // Trigger flock wizard if needed
-                if (data.postInstall === 'flock-wizard' || name === 'flock') {
-                    onFlockWizard?.();
-                }
             } else {
                 if (data.platformUnavailable) {
                     const ver = data.duckdbVersion ? ` for DuckDB ${data.duckdbVersion}` : '';
@@ -339,7 +335,6 @@ const ExtensionExplorer = ({ onFlockWizard }) => {
                                         busy={busyExt === feat.name}
                                         onInstall={handleInstall}
                                         onLoad={handleLoad}
-                                        onFlockWizard={onFlockWizard}
                                         onContextMenu={handleContextMenu}
                                     />
                                 ))}
@@ -417,8 +412,8 @@ const ExtensionExplorer = ({ onFlockWizard }) => {
     );
 };
 
-/* ── Featured card (richer, with special Flock CTA) ── */
-const FeaturedCard = ({ feat, busy, onInstall, onLoad, onFlockWizard, onContextMenu }) => {
+/* ── Featured card ── */
+const FeaturedCard = ({ feat, busy, onInstall, onLoad, onContextMenu }) => {
     const categoryColor = {
         AI: 'oklch(0.68 0.16 300)',
         Text: 'oklch(0.68 0.18 200)',

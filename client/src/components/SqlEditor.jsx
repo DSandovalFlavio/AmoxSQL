@@ -773,14 +773,6 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 });
             });
 
-            // Flock status (lazy-checked once per session)
-            if (window.__flockLoaded === undefined) {
-                window.__flockLoaded = false;
-                fetch(`${API_BASE}/api/flock/status`)
-                    .then(r => r.json())
-                    .then(d => { window.__flockLoaded = !!d.loaded; })
-                    .catch(() => {});
-            }
 
             // DuckDB Functions (lazy-loaded on main thread)
             if (!window.__duckdbFunctionCatalog) {
@@ -835,35 +827,6 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 });
             });
 
-            // Flock AI-SQL functions (shown when flock is loaded in the connection)
-            if (window.__flockLoaded) {
-                const flockItems = [
-                    { name: 'llm_complete',   insert: "llm_complete(\n    {'model_name': '${1:MyModel}'},\n    {'prompt': '${2:Your prompt}',\n     'context_columns': [{'data': ${3:column}}]}\n)",  doc: 'Text completion per row → JSON. Flock docs: https://dais-polymtl.github.io/flock/docs/scalar-functions/llm-complete' },
-                    { name: 'llm_filter',     insert: "llm_filter(\n    {'model_name': '${1:MyModel}'},\n    {'prompt': '${2:Is this...?}',\n     'context_columns': [{'data': ${3:column}}]}\n)",   doc: 'Semantic boolean predicate → BOOLEAN. Perfect in WHERE.' },
-                    { name: 'llm_embedding',  insert: "llm_embedding(\n    {'model_name': '${1:embed_default}'},\n    {'context_columns': [{'data': ${2:column}}]}\n)",                                doc: 'Semantic embedding vector → FLOAT[]. Use with array_cosine_similarity().' },
-                    { name: 'llm_reduce',     insert: "llm_reduce(\n    {'model_name': '${1:MyModel}'},\n    {'prompt': '${2:Summarize...}',\n     'context_columns': [{'data': ${3:column}}]}\n)",  doc: 'Aggregate: collapses a GROUP BY into one LLM summary → JSON.' },
-                    { name: 'llm_rerank',     insert: "llm_rerank(\n    {'model_name': '${1:MyModel}'},\n    {'prompt': '${2:Rank by...}',\n     'context_columns': [{'data': ${3:column}}]}\n)",   doc: 'Aggregate: reranks rows in a group by LLM relevance → JSON[].' },
-                    { name: 'llm_first',      insert: "llm_first(\n    {'model_name': '${1:MyModel}'},\n    {'prompt': '${2:Best pick for...}',\n     'context_columns': [{'data': ${3:column}}]}\n)", doc: 'Aggregate: top-ranked item after llm_rerank → JSON.' },
-                    { name: 'llm_last',       insert: "llm_last(\n    {'model_name': '${1:MyModel}'},\n    {'prompt': '${2:...}',\n     'context_columns': [{'data': ${3:column}}]}\n)",             doc: 'Aggregate: bottom-ranked item after llm_rerank → JSON.' },
-                    { name: 'fusion_rrf',     insert: 'fusion_rrf(\n    row_number() OVER (ORDER BY ${1:bm25_score} DESC NULLS LAST),\n    row_number() OVER (ORDER BY ${2:embed_score} DESC NULLS LAST)\n)', doc: 'Reciprocal Rank Fusion — combines rankings → DOUBLE. Hybrid search.' },
-                    { name: 'fusion_combsum', insert: 'fusion_combsum(${1:score1}, ${2:score2})', doc: 'Sum of normalized scores → DOUBLE.' },
-                    { name: 'fusion_combmnz', insert: 'fusion_combmnz(${1:score1}, ${2:score2})', doc: 'Sum × count of non-zero hits → DOUBLE.' },
-                    { name: 'fusion_combmed', insert: 'fusion_combmed(${1:score1}, ${2:score2})', doc: 'Median of normalized scores → DOUBLE.' },
-                    { name: 'fusion_combanz', insert: 'fusion_combanz(${1:score1}, ${2:score2})', doc: 'Average of non-zero scores → DOUBLE.' },
-                ];
-                flockItems.forEach(item => {
-                    suggestions.push({
-                        label: `flock: ${item.name}`,
-                        kind: monaco.languages.CompletionItemKind.Function,
-                        insertText: item.insert,
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                        detail: 'Flock — AI SQL function',
-                        documentation: { value: item.doc, isTrusted: true },
-                        sortText: '5_' + item.name,
-                        filterText: item.name + ' flock ' + item.name.toLowerCase(),
-                    });
-                });
-            }
 
             // DBT / Jinja
             const dbtItems = [
