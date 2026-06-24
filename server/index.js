@@ -16,14 +16,22 @@ const app = express();
 const PORT = 3001;
 
 // ─── Internal schemas & tables to ALWAYS hide from the user ───
+// Exact internal schemas created by AmoxSQL itself:
 const INTERNAL_SCHEMAS = ['information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains'];
 const INTERNAL_TABLES_MAIN = ['amox_query_history']; // legacy tables in 'main' (pre-migration)
+// Internal schemas matched by PREFIX (catches generated/future names):
+//   amoxsql%  → any current/future AmoxSQL internal schema
+//   fts\_%    → DuckDB full-text index schemas (fts_main_<table>, fts_amoxsql_ai_messages, …)
+const INTERNAL_SCHEMA_PREFIXES = ['amoxsql', 'fts\\_'];
 
 /** Builds a SQL WHERE clause to exclude internal schemas and tables */
 function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name') {
     const schemaList = INTERNAL_SCHEMAS.map(s => `'${s}'`).join(',');
     const tableList = INTERNAL_TABLES_MAIN.map(t => `'${t}'`).join(',');
-    return `${schemaCol} NOT IN (${schemaList}) AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
+    const prefixClauses = INTERNAL_SCHEMA_PREFIXES
+        .map(p => `${schemaCol} NOT LIKE '${p}%' ESCAPE '\\'`)
+        .join(' AND ');
+    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
 }
 
 app.use(cors());
