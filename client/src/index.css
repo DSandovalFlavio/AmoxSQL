@@ -1575,6 +1575,12 @@
 }
 
 
+/* Form controls don't inherit font-family by default — force them to use the
+   interface font so buttons/inputs/selects everywhere follow --font-sans. */
+button, input, select, textarea, optgroup {
+  font-family: inherit;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);

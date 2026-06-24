@@ -136,7 +136,7 @@ const QueryPlanViewer = ({ plan }) => {
     return (
         <div style={{
             padding: '20px', overflow: 'auto', height: '100%',
-            backgroundColor: 'var(--editor-bg)', borderRadius: '4px', fontFamily: 'Inter, sans-serif'
+            backgroundColor: 'var(--editor-bg)', borderRadius: '4px', fontFamily: 'var(--font-sans)'
         }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
                 <h3 style={{ margin: 0, color: 'var(--text-active)', fontSize: '14px' }}>
