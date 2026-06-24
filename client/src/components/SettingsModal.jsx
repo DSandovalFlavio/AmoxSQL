@@ -828,29 +828,37 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         aria-label="Search settings"
                     />
                     {[
+                        // ── Configure ──
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
-                        { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
+                        // ── Help & info ──
+                        { separator: true, id: '_sep_help' },
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
+                        { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
                         { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
                     ].filter(tab => {
+                        if (tab.separator) return !settingsSearch;
                         if (!settingsSearch) return true;
                         const q = settingsSearch.toLowerCase();
                         return tab.label.toLowerCase().includes(q);
                     }).map(tab => (
-                        <div
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`stg-tab${activeTab === tab.id ? ' stg-tab--active' : ''}`}
-                        >
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {tab.icon} {tab.label}
-                            </span>
-                        </div>
+                        tab.separator ? (
+                            <div key={tab.id} className="stg-tab-sep" aria-hidden="true" />
+                        ) : (
+                            <div
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`stg-tab${activeTab === tab.id ? ' stg-tab--active' : ''}`}
+                            >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    {tab.icon} {tab.label}
+                                </span>
+                            </div>
+                        )
                     ))}
                 </div>
 
@@ -971,42 +979,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                 </div>
 
-                                {/* Layout */}
-                                <div>
-                                    <h3 className="stg-section-heading stg-section-heading--mb4">Editor Layout</h3>
-                                    <p className="stg-row-desc stg-row-desc--mb14">
-                                        Choose how the SQL editor and results panel are arranged. Vertical is ideal for ultrawide monitors.
-                                    </p>
-                                    <div className="stg-layout-grid">
-                                        <div
-                                            onClick={() => onLayoutChange?.('horizontal')}
-                                            className={`stg-layout-card${currentLayout !== 'vertical' ? ' stg-layout-card--active' : ''}`}
-                                        >
-                                            <div className="stg-layout-label">
-                                                <div className="stg-radio">{currentLayout !== 'vertical' && <div className="stg-radio-dot" />}</div>
-                                                <LuRows3 size={18} /> Horizontal
-                                            </div>
-                                            <div className="stg-layout-preview stg-layout-preview--h">
-                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--editor">EDITOR</div>
-                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--results">RESULTS</div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            onClick={() => onLayoutChange?.('vertical')}
-                                            className={`stg-layout-card${currentLayout === 'vertical' ? ' stg-layout-card--active' : ''}`}
-                                        >
-                                            <div className="stg-layout-label">
-                                                <div className="stg-radio">{currentLayout === 'vertical' && <div className="stg-radio-dot" />}</div>
-                                                <LuColumns3 size={18} /> Vertical
-                                            </div>
-                                            <div className="stg-layout-preview stg-layout-preview--v">
-                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--editor">EDITOR</div>
-                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--results">RESULTS</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 {/* Interface Scale */}
                                 <hr className="stg-divider" />
                                 <div>
@@ -1016,7 +988,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </p>
                                     <div className="stg-group">
                                         <div className="stg-row">
-                                            <span className="stg-row-label">UI Zoom Level</span>
+                                            <span className="stg-row-label">Scale</span>
                                             <div className="stg-flex">
                                                 <input type="range" className="stg-range" min="0.7" max="1.4" step="0.05"
                                                     value={uiZoomLevel}
@@ -1052,6 +1024,42 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     onChange={setEditorSubTab}
                                 />
                                 {editorSubTab === 'general' && <div className="stg-subtab-content">
+                                {/* Layout */}
+                                <div>
+                                    <h3 className="stg-section-title">Layout</h3>
+                                    <p className="stg-row-desc stg-row-desc--mb14">
+                                        Choose how the SQL editor and results panel are arranged. Vertical is ideal for ultrawide monitors.
+                                    </p>
+                                    <div className="stg-layout-grid">
+                                        <div
+                                            onClick={() => onLayoutChange?.('horizontal')}
+                                            className={`stg-layout-card${currentLayout !== 'vertical' ? ' stg-layout-card--active' : ''}`}
+                                        >
+                                            <div className="stg-layout-label">
+                                                <div className="stg-radio">{currentLayout !== 'vertical' && <div className="stg-radio-dot" />}</div>
+                                                <LuRows3 size={18} /> Horizontal
+                                            </div>
+                                            <div className="stg-layout-preview stg-layout-preview--h">
+                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--editor">EDITOR</div>
+                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--results">RESULTS</div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            onClick={() => onLayoutChange?.('vertical')}
+                                            className={`stg-layout-card${currentLayout === 'vertical' ? ' stg-layout-card--active' : ''}`}
+                                        >
+                                            <div className="stg-layout-label">
+                                                <div className="stg-radio">{currentLayout === 'vertical' && <div className="stg-radio-dot" />}</div>
+                                                <LuColumns3 size={18} /> Vertical
+                                            </div>
+                                            <div className="stg-layout-preview stg-layout-preview--v">
+                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--editor">EDITOR</div>
+                                                <div className="stg-layout-preview-pane stg-layout-preview-pane--results">RESULTS</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr className="stg-divider" />
                                 {/* Typography */}
                                 <div>
                                     <h3 className="stg-section-title">Typography</h3>
@@ -1069,6 +1077,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <option value="'Consolas', monospace">Consolas</option>
                                                 <option value="'Monaco', 'Courier New', monospace">Monaco</option>
                                                 <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                                                <option value="'Manrope', sans-serif">Manrope (sans-serif)</option>
                                             </select>
                                         </div>
                                         <div className="stg-row">
@@ -1199,9 +1208,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                                 <hr className="stg-divider" />
 
-                                {/* Results Panel */}
+                                {/* Results */}
                                 <div>
-                                    <h3 className="stg-section-title">Results Panel</h3>
+                                    <h3 className="stg-section-title">Results</h3>
                                     <div className="stg-group stg-group--mt14">
                                         <div className="stg-row">
                                             <span className="stg-row-label">Results Font Size</span>
@@ -1225,6 +1234,30 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <option value="profile">Profile</option>
                                             </select>
                                         </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Default Results Limit</span>
+                                                <p className="stg-row-desc">Maximum number of rows to return on quick SELECT operations</p>
+                                            </div>
+                                            <select
+                                                className="stg-select stg-select--w120"
+                                                value={editorSettings.queryResultLimit ?? 10000}
+                                                onChange={(e) => onEditorSettingsChange?.({ queryResultLimit: parseInt(e.target.value) })}
+                                            >
+                                                <option value={100}>100 rows</option>
+                                                <option value={500}>500 rows</option>
+                                                <option value={1000}>1,000 rows</option>
+                                                <option value={5000}>5,000 rows</option>
+                                                <option value={10000}>10,000 rows</option>
+                                                <option value={50000}>50,000 rows</option>
+                                                <option value={0}>Sin límite</option>
+                                            </select>
+                                        </div>
+                                        {editorSettings.queryResultLimit === 0 && (
+                                            <div className="stg-alert stg-alert--warning stg-mt8">
+                                                <strong>Advertencia:</strong> Quitar el límite de resultados puede causar un consumo excesivo de memoria o congelar la interfaz si la tabla tiene demasiados registros. Recomendamos usar SQL Notebooks con consultas agregadas para explorar datos masivos.
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1378,6 +1411,21 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <option value="tabsLeftAlign">Tabs Left Align</option>
                                             </select>
                                         </div>
+
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Format on Save</span>
+                                                <p className="stg-row-desc">Automatically format SQL when manually saving</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.formatOnSave ?? false)} onChange={() => onEditorSettingsChange?.({ formatOnSave: !(editorSettings.formatOnSave ?? false) })} />
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Format on Paste</span>
+                                                <p className="stg-row-desc">Format SQL automatically when pasting content</p>
+                                            </div>
+                                            <Toggle on={(editorSettings.formatOnPaste ?? false)} onChange={() => onEditorSettingsChange?.({ formatOnPaste: !(editorSettings.formatOnPaste ?? false) })} />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1420,20 +1468,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <option value={30000}>After 30 seconds</option>
                                                 <option value={60000}>After 1 minute</option>
                                             </select>
-                                        </div>
-                                        <div className="stg-row">
-                                            <div>
-                                                <span className="stg-row-label">Format on Save</span>
-                                                <p className="stg-row-desc">Automatically format SQL when manually saving</p>
-                                            </div>
-                                            <Toggle on={(editorSettings.formatOnSave ?? false)} onChange={() => onEditorSettingsChange?.({ formatOnSave: !(editorSettings.formatOnSave ?? false) })} />
-                                        </div>
-                                        <div className="stg-row">
-                                            <div>
-                                                <span className="stg-row-label">Format on Paste</span>
-                                                <p className="stg-row-desc">Format SQL automatically when pasting content</p>
-                                            </div>
-                                            <Toggle on={(editorSettings.formatOnPaste ?? false)} onChange={() => onEditorSettingsChange?.({ formatOnPaste: !(editorSettings.formatOnPaste ?? false) })} />
                                         </div>
                                         <div className="stg-row">
                                             <div>
@@ -1502,34 +1536,83 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                 </div>
                                 <hr className="stg-divider" />
-                                {/* Queries */}
+                                {/* Settings backup & reset */}
                                 <div>
-                                    <h3 className="stg-section-title">Query Execution</h3>
+                                    <h3 className="stg-section-title">Backup & Reset</h3>
                                     <div className="stg-group stg-group--mt14">
                                         <div className="stg-row">
                                             <div>
-                                                <span className="stg-row-label">Default Results Limit</span>
-                                                <p className="stg-row-desc">Maximum number of rows to return on quick SELECT operations</p>
+                                                <span className="stg-row-label">Export Settings</span>
+                                                <p className="stg-row-desc">Save your current configuration to a JSON file</p>
                                             </div>
-                                            <select
-                                                className="stg-select stg-select--w120"
-                                                value={editorSettings.queryResultLimit ?? 10000}
-                                                onChange={(e) => onEditorSettingsChange?.({ queryResultLimit: parseInt(e.target.value) })}
-                                            >
-                                                <option value={100}>100 rows</option>
-                                                <option value={500}>500 rows</option>
-                                                <option value={1000}>1,000 rows</option>
-                                                <option value={5000}>5,000 rows</option>
-                                                <option value={10000}>10,000 rows</option>
-                                                <option value={50000}>50,000 rows</option>
-                                                <option value={0}>Sin límite</option>
-                                            </select>
+                                            <button className="stg-btn" onClick={() => {
+                                                const settings = { editor: editorSettings, theme: currentTheme, accent: currentAccent, layout: currentLayout, zoom: uiZoomLevel };
+                                                const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = 'amoxsql-settings.json';
+                                                a.click();
+                                            }}>
+                                                <LuDownload size={14} /> Export
+                                            </button>
                                         </div>
-                                        {editorSettings.queryResultLimit === 0 && (
-                                            <div className="stg-alert stg-alert--warning stg-mt8">
-                                                <strong>Advertencia:</strong> Quitar el límite de resultados puede causar un consumo excesivo de memoria o congelar la interfaz si la tabla tiene demasiados registros. Recomendamos usar SQL Notebooks con consultas agregadas para explorar datos masivos.
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Import Settings</span>
+                                                <p className="stg-row-desc">Load a previously exported configuration file</p>
                                             </div>
-                                        )}
+                                            <button className="stg-btn" onClick={() => {
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = 'application/json';
+                                                input.onchange = (e) => {
+                                                    const file = e.target.files[0];
+                                                    const reader = new FileReader();
+                                                    reader.onload = (re) => {
+                                                        try {
+                                                            const data = JSON.parse(re.target.result);
+                                                            if (data.editor) onEditorSettingsChange?.(data.editor);
+                                                            if (data.theme) onThemeChange?.(data.theme);
+                                                            if (data.accent) onAccentChange?.(data.accent);
+                                                            if (data.layout) onLayoutChange?.(data.layout);
+                                                            if (data.zoom) onUiZoomChange?.(data.zoom);
+                                                            toast.success('Settings imported successfully');
+                                                        } catch {
+                                                            toast.error('Invalid settings file');
+                                                        }
+                                                    };
+                                                    reader.readAsText(file);
+                                                };
+                                                input.click();
+                                            }}>
+                                                <LuDownload size={14} style={{ transform: 'rotate(180deg)' }} /> Import
+                                            </button>
+                                        </div>
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label stg-text-danger">Reset to Defaults</span>
+                                                <p className="stg-row-desc">Restore all editor and appearance settings to factory defaults</p>
+                                            </div>
+                                            <button className="stg-btn stg-btn--danger-text" onClick={async () => {
+                                                const ok = await dialog.confirmAsync({
+                                                    title: 'Reset to defaults?',
+                                                    message: 'All UI and editor settings will be restored to factory defaults. Your queries and databases will NOT be affected.',
+                                                    confirmLabel: 'Reset',
+                                                    destructive: true,
+                                                });
+                                                if (ok) {
+                                                    onEditorSettingsChange?.({});
+                                                    onThemeChange?.('dark');
+                                                    onAccentChange?.('cyan');
+                                                    onLayoutChange?.('horizontal');
+                                                    onUiZoomChange?.(1.0);
+                                                    toast.success('Settings restored to defaults');
+                                                }
+                                            }}>
+                                                <LuTrash2 size={14} /> Reset
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2187,19 +2270,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         )}
 
                         {/* ═══ CHART GALLERY ═══ */}
-                        {activeTab === 'gallery' && (
-                            <div className="stg-section">
-                                <ChartGallery
-                                    onOpenChart={(chartPath) => {
-                                        onClose();
-                                        window.dispatchEvent(new CustomEvent('amox_open_gallery_chart', {
-                                            detail: { path: chartPath, readOnly: true }
-                                        }));
-                                    }}
-                                />
-                            </div>
-                        )}
-
                         {/* ═══ WORKSPACE ═══ */}
                         {activeTab === 'workspace' && (
                             <WorkspaceSettingsPanel />
@@ -2258,85 +2328,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </p>
                                 </div>
 
-                                {/* System Settings Actions */}
-                                <div>
-                                    <h3 className="stg-section-heading stg-section-heading--mb10">Configuration Management</h3>
-                                    <div className="stg-group">
-                                        <div className="stg-row">
-                                            <div>
-                                                <span className="stg-row-label">Export Settings</span>
-                                                <p className="stg-row-desc">Save your current configuration to a JSON file</p>
-                                            </div>
-                                            <button className="stg-btn" onClick={() => {
-                                                const settings = { editor: editorSettings, theme: currentTheme, accent: currentAccent, layout: currentLayout, zoom: uiZoomLevel };
-                                                const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-                                                const url = URL.createObjectURL(blob);
-                                                const a = document.createElement('a');
-                                                a.href = url;
-                                                a.download = 'amoxsql-settings.json';
-                                                a.click();
-                                            }}>
-                                                <LuDownload size={14} /> Export
-                                            </button>
-                                        </div>
-                                        <div className="stg-row">
-                                            <div>
-                                                <span className="stg-row-label">Import Settings</span>
-                                                <p className="stg-row-desc">Load a previously exported configuration file</p>
-                                            </div>
-                                            <button className="stg-btn" onClick={() => {
-                                                const input = document.createElement('input');
-                                                input.type = 'file';
-                                                input.accept = 'application/json';
-                                                input.onchange = (e) => {
-                                                    const file = e.target.files[0];
-                                                    const reader = new FileReader();
-                                                    reader.onload = (re) => {
-                                                        try {
-                                                            const data = JSON.parse(re.target.result);
-                                                            if (data.editor) onEditorSettingsChange?.(data.editor);
-                                                            if (data.theme) onThemeChange?.(data.theme);
-                                                            if (data.accent) onAccentChange?.(data.accent);
-                                                            if (data.layout) onLayoutChange?.(data.layout);
-                                                            if (data.zoom) onUiZoomChange?.(data.zoom);
-                                                            toast.success('Settings imported successfully');
-                                                        } catch {
-                                                            toast.error('Invalid settings file');
-                                                        }
-                                                    };
-                                                    reader.readAsText(file);
-                                                };
-                                                input.click();
-                                            }}>
-                                                <LuDownload size={14} style={{ transform: 'rotate(180deg)' }} /> Import
-                                            </button>
-                                        </div>
-                                        <div className="stg-row">
-                                            <div>
-                                                <span className="stg-row-label stg-text-danger">Reset to Defaults</span>
-                                                <p className="stg-row-desc">Restore all editor and appearance settings to factory defaults</p>
-                                            </div>
-                                            <button className="stg-btn stg-btn--danger-text" onClick={async () => {
-                                                const ok = await dialog.confirmAsync({
-                                                    title: 'Reset to defaults?',
-                                                    message: 'All UI and editor settings will be restored to factory defaults. Your queries and databases will NOT be affected.',
-                                                    confirmLabel: 'Reset',
-                                                    destructive: true,
-                                                });
-                                                if (ok) {
-                                                    onEditorSettingsChange?.({});
-                                                    onThemeChange?.('dark');
-                                                    onAccentChange?.('cyan');
-                                                    onLayoutChange?.('horizontal');
-                                                    onUiZoomChange?.(1.0);
-                                                    toast.success('Settings restored to defaults');
-                                                }
-                                            }}>
-                                                <LuTrash2 size={14} /> Reset
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
                                 <hr className="stg-divider" />
 
                                 <div>

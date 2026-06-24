@@ -1575,6 +1575,12 @@
 }
 
 
+/* Form controls don't inherit font-family by default — force them to use the
+   interface font so buttons/inputs/selects everywhere follow --font-sans. */
+button, input, select, textarea, optgroup {
+  font-family: inherit;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -9256,6 +9262,14 @@ tr:hover td {
   color: var(--text-primary);
   border-left-color: var(--accent-primary);
   font-weight: var(--weight-medium);
+}
+
+/* Divider between the "Configure" and "Help & info" tab groups */
+.stg-tab-sep {
+  height: 1px;
+  margin: 8px 16px;
+  background-color: var(--border-color);
+  opacity: 0.6;
 }
 
 /* ── Content Area ── */
