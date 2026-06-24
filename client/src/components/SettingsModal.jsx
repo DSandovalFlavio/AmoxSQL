@@ -828,14 +828,16 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         aria-label="Search settings"
                     />
                     {[
+                        // ── Configure ──
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
-                        { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
+                        // ── Help & info ──
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
+                        { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
                         { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
                     ].filter(tab => {
                         if (!settingsSearch) return true;
