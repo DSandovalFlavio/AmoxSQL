@@ -1097,6 +1097,93 @@ app.get('/api/settings/gemini/models', async (req, res) => {
     }
 });
 
+/**
+ * Generic cloud model discovery. Queries each provider's live "list models" API
+ * so a new release (e.g. MiniMax M3, a new Gemini/Claude) appears automatically
+ * with NO code change. Always returns { models: [{id, label}], source } and
+ * degrades to a small fallback list when there's no API key or the API is down.
+ * New cloud model ids also "just work" at runtime: AiManager.getModel() passes the
+ * id straight through, and modelProfiles forces cloud-tier for cloud providers.
+ */
+async function fetchCloudModels(provider, config) {
+    const FALLBACKS = {
+        gemini: [
+            { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+            { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+            { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+        ],
+        anthropic: [
+            { id: 'claude-3-7-sonnet-latest', label: 'Claude 3.7 Sonnet' },
+            { id: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' },
+            { id: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku' },
+        ],
+        minimax: [
+            { id: 'MiniMax-M2.7', label: 'MiniMax M2.7' },
+            { id: 'MiniMax-M2.5', label: 'MiniMax M2.5' },
+            { id: 'MiniMax-M2-Her', label: 'MiniMax M2 Her' },
+        ],
+    };
+    const fallback = FALLBACKS[provider] || [];
+
+    try {
+        if (provider === 'gemini') {
+            const key = config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+            if (!key) return { models: fallback, source: 'fallback' };
+            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+            if (!r.ok) return { models: fallback, source: 'fallback' };
+            const d = await r.json();
+            const re = /gemini[- ]?\d/i;
+            const models = (d.models || [])
+                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                .filter(m => re.test(m.name || '') || re.test(m.displayName || ''))
+                .map(m => ({ id: m.name.replace('models/', ''), label: m.displayName || m.name.replace('models/', '') }));
+            return { models: models.length ? models : fallback, source: models.length ? 'api' : 'fallback' };
+        }
+
+        if (provider === 'anthropic') {
+            const key = config.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+            if (!key) return { models: fallback, source: 'fallback' };
+            const r = await fetch('https://api.anthropic.com/v1/models?limit=100', {
+                headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+            });
+            if (!r.ok) return { models: fallback, source: 'fallback' };
+            const d = await r.json();
+            const models = (d.data || []).map(m => ({ id: m.id, label: m.display_name || m.id })).filter(m => m.id);
+            return { models: models.length ? models : fallback, source: models.length ? 'api' : 'fallback' };
+        }
+
+        if (provider === 'minimax') {
+            const key = config.minimaxApiKey || process.env.MINIMAX_API_KEY;
+            if (!key) return { models: fallback, source: 'fallback' };
+            // MiniMax is OpenAI-compatible; /v1/models may or may not be exposed.
+            const r = await fetch('https://api.minimax.io/v1/models', {
+                headers: { Authorization: `Bearer ${key}` },
+            });
+            if (!r.ok) return { models: fallback, source: 'fallback' };
+            const d = await r.json();
+            const raw = d.data || d.models || [];
+            const models = raw.map(m => ({ id: m.id || m.name, label: m.id || m.name })).filter(m => m.id);
+            return { models: models.length ? models : fallback, source: models.length ? 'api' : 'fallback' };
+        }
+    } catch (err) {
+        console.error(`[Models] ${provider} discovery failed:`, err.message);
+        return { models: fallback, source: 'fallback', error: err.message };
+    }
+
+    return { models: fallback, source: 'fallback' };
+}
+
+// Unified endpoint — works for any cloud provider with a list API.
+app.get('/api/settings/models/:provider', async (req, res) => {
+    try {
+        const config = aiManager.getConfig();
+        const out = await fetchCloudModels(req.params.provider, config);
+        res.json(out);
+    } catch (err) {
+        res.json({ models: [], source: 'error', error: err.message });
+    }
+});
+
 app.post('/api/settings/cloud/test-adc', async (req, res) => {
     try {
         const { createVertex } = require('@ai-sdk/google-vertex');

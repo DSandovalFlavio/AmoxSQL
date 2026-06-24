@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { LuCpu, LuCloud, LuCheck, LuChevronDown } from 'react-icons/lu';
 
-function ModelDropdown({ provider, selectedModel, setSelectedModel, installedModels, geminiModelsList, ANTHROPIC_MODELS, MINIMAX_MODELS, isModelsLoading }) {
+function ModelDropdown({ provider, selectedModel, setSelectedModel, installedModels, cloudModelsList, isModelsLoading }) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const containerRef = useRef(null);
@@ -26,8 +26,7 @@ function ModelDropdown({ provider, selectedModel, setSelectedModel, installedMod
     if (provider === 'ollama') {
         options = (installedModels || []).map(m => ({ value: m.name, label: m.name }));
     } else {
-        const list = provider === 'gemini' ? (geminiModelsList || []) : provider === 'anthropic' ? (ANTHROPIC_MODELS || []) : (MINIMAX_MODELS || []);
-        options = list.map(m => ({ value: m.id || m, label: m.label || m }));
+        options = (cloudModelsList || []).map(m => ({ value: m.id || m, label: m.label || m }));
     }
 
     // Determine display text

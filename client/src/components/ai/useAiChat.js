@@ -34,6 +34,34 @@ export const MINIMAX_MODELS = [
     { id: 'custom', label: 'Custom Model...', size: 'Cloud' }
 ];
 
+// Hardcoded lists are now only FALLBACKS. The real list is discovered live per
+// provider so new models (MiniMax M3, new Gemini/Claude) show up without edits.
+const CLOUD_FALLBACKS = {
+    gemini: DEFAULT_GEMINI_MODELS,
+    anthropic: ANTHROPIC_MODELS,
+    minimax: MINIMAX_MODELS,
+};
+
+/**
+ * Discover available models for a cloud provider from the backend, which queries
+ * the provider's live "list models" API. Falls back to the static list on error,
+ * and always appends a "Custom Model..." escape hatch so any brand-new id can be
+ * typed in even if the provider's listing lags.
+ */
+export const fetchCloudModels = async (provider) => {
+    const fallback = CLOUD_FALLBACKS[provider] || [];
+    try {
+        const res = await fetch(`${API}/api/settings/models/${provider}`);
+        if (!res.ok) return fallback;
+        const data = await res.json();
+        const models = (data.models || []).map(m => ({ id: m.id, label: m.label || m.id, size: 'Cloud' }));
+        if (!models.length) return fallback;
+        return [...models, { id: 'custom', label: 'Custom Model...', size: 'Cloud' }];
+    } catch {
+        return fallback;
+    }
+};
+
 /**
  * useAiChat — Core shared hook for AI chat logic.
  * Used by both AiAssistantPanel and AiDivingPanel.
@@ -64,7 +92,9 @@ export default function useAiChat({
     const [selectedModel, setSelectedModel] = useState('qwen3:1.7b');
     const [customModel, setCustomModel] = useState('');
     const [installedModels, setInstalledModels] = useState([]);
-    const [geminiModelsList, setGeminiModelsList] = useState(DEFAULT_GEMINI_MODELS);
+    // Unified list of models for the active CLOUD provider (gemini/anthropic/minimax),
+    // discovered live from the backend.
+    const [cloudModelsList, setCloudModelsList] = useState([]);
     const [isModelsLoading, setIsModelsLoading] = useState(false);
 
     // ─── Skills State ───
@@ -140,15 +170,11 @@ export default function useAiChat({
                         setIsModelsLoading(false);
                     }
                 } else {
-                    let availableModels = DEFAULT_GEMINI_MODELS;
-                    if (prov === 'gemini') {
-                        setIsModelsLoading(true);
-                        availableModels = await fetchGeminiModels();
-                        setGeminiModelsList(availableModels);
-                        setIsModelsLoading(false);
-                    }
-                    if (prov === 'anthropic') availableModels = ANTHROPIC_MODELS;
-                    if (prov === 'minimax') availableModels = MINIMAX_MODELS;
+                    // Cloud provider — discover models live (gemini/anthropic/minimax)
+                    setIsModelsLoading(true);
+                    const availableModels = await fetchCloudModels(prov);
+                    setCloudModelsList(availableModels);
+                    setIsModelsLoading(false);
 
                     const modelFound = availableModels.find(m => m.id === configData.defaultModel);
                     if (modelFound && modelFound.id !== 'custom') {
@@ -826,10 +852,8 @@ export default function useAiChat({
 
     // ─── Return ───
     return {
-        // Constants
-        GEMINI_MODELS: geminiModelsList,
-        ANTHROPIC_MODELS,
-        MINIMAX_MODELS,
+        // Live-discovered model list for the active cloud provider
+        cloudModelsList,
 
         // Config state
         status,

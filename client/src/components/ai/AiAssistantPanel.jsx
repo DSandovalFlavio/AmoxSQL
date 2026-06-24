@@ -32,9 +32,7 @@ const AiAssistantPanel = ({
     onOpenDataDiving,
 }) => {
     const {
-        GEMINI_MODELS,
-        ANTHROPIC_MODELS,
-        MINIMAX_MODELS,
+        cloudModelsList,
 
         // Config
         status, setStatus,
@@ -493,9 +491,7 @@ const AiAssistantPanel = ({
                                         selectedModel={selectedModel}
                                         setSelectedModel={setSelectedModel}
                                         installedModels={installedModels}
-                                        geminiModelsList={GEMINI_MODELS}
-                                        ANTHROPIC_MODELS={ANTHROPIC_MODELS}
-                                        MINIMAX_MODELS={MINIMAX_MODELS}
+                                        cloudModelsList={cloudModelsList}
                                         customModel={customModel}
                                         setCustomModel={setCustomModel}
                                         isModelsLoading={isModelsLoading}

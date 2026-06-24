@@ -26,10 +26,8 @@ const AiDivingPanel = ({
     startConversationId,
 }) => {
     const {
-        // Constants
-        GEMINI_MODELS,
-        ANTHROPIC_MODELS,
-        MINIMAX_MODELS,
+        // Live-discovered cloud model list
+        cloudModelsList,
 
         // Config state
         status, setStatus: _setStatus,
@@ -313,9 +311,7 @@ const AiDivingPanel = ({
                         selectedModel={selectedModel}
                         setSelectedModel={setSelectedModel}
                         installedModels={installedModels}
-                        geminiModelsList={GEMINI_MODELS}
-                        ANTHROPIC_MODELS={ANTHROPIC_MODELS}
-                        MINIMAX_MODELS={MINIMAX_MODELS}
+                        cloudModelsList={cloudModelsList}
                         customModel={customModel}
                         setCustomModel={setCustomModel}
                         isModelsLoading={isModelsLoading}
