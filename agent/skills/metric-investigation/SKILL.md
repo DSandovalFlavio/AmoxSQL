@@ -18,7 +18,9 @@ Activa cuando el usuario quiere entender POR QUÉ una métrica cambió. Sigue la
 
 **Objetivo**: encontrar la combinación de dimensiones (región, producto, canal, etc.) que explica la mayor parte del cambio entre período A y período B.
 
-1. **Definir períodos** — preguntar o inferir período de anomalía vs baseline
+**Razona en hipótesis, no en barrido**: antes de medir, lista qué dimensiones *podrían* explicar el cambio y por qué (¿lanzamiento? ¿estacionalidad? ¿un segmento?). Mide para **confirmar o descartar** esas hipótesis, empezando por la más probable — no descompongas todas las dimensiones por inercia.
+
+1. **Definir períodos** — pregunta o infiere período de anomalía vs baseline. Si cuál es "el cambio" es ambiguo, **pregunta** antes de inventar un recorte.
 2. **Query de impacto por dimensión** — para cada dimensión candidata:
    ```sql
    SELECT dimension,

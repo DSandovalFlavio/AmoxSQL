@@ -1,6 +1,6 @@
 ---
 name: Calidad de Datos
-description: Detect nulls, duplicates, outliers, and data integrity issues in a table
+description: Detect nulls, duplicates, outliers, and integrity issues in a table, prioritized by downstream impact. Use when auditing data before a business analysis or when the user suspects problems in the data.
 keywords: quality, null, duplicate, outlier, validate, integrity, calidad, nulos, duplicados, limpieza, limpiar, inconsistente, anomalía, faltantes, errores, validar
 next: eda-initial
 ---
@@ -14,6 +14,17 @@ Activa cuando el objetivo es auditar la integridad del dataset antes de un anál
 - "¿Los datos están limpios?", "¿hay duplicados?", "¿cuántos nulls hay?"
 - Antes de un análisis crítico donde la calidad importa
 - Si `profile_data` en EDA muestra indicadores sospechosos
+
+## Razona antes de medir: ¿qué calidad importa AQUÍ?
+
+"Calidad" no es absoluta — depende del uso. Antes de correr checks, pregúntate qué rompería el análisis que viene, y prioriza por ahí:
+
+- **Claves / joins**: nulls o duplicados en una PK o en columnas de join → corrompen conteos y cruces. Máxima prioridad.
+- **Métricas**: nulls, ceros o negativos imposibles en columnas que se van a sumar/promediar.
+- **Dimensiones**: categorías inconsistentes (mayúsculas, espacios, sinónimos) que fragmentan agrupaciones.
+- **Fechas**: fuera de rango, futuras, o formatos mezclados.
+
+Las queries de abajo son herramientas; **elige y ordena los checks por ese impacto**, no las corras todas mecánicamente.
 
 ## Secuencia de análisis
 

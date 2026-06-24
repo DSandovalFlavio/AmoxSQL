@@ -14,9 +14,11 @@ Activa cuando el análisis requiere comparar grupos definidos por un evento de i
 - "¿Cómo es la retención?", "¿los usuarios de enero retornan más que los de marzo?"
 - "¿Cuál es el LTV por cohorte?", "¿cuántos vuelven en el segundo mes?"
 
+> El SQL de abajo es una **plantilla canónica deliberada** — el patrón de cohortes es frágil, así que síguela de cerca. Lo que sí es decisión de juicio es **qué define la cohorte** (paso 1): el evento de inicio, la granularidad y la métrica de éxito cambian todo el análisis. Si es ambiguo, **pregunta** antes de asumir.
+
 ## Secuencia de análisis
 
-1. **Definir evento de inicio** — primera compra, primer login, fecha de registro, etc.
+1. **Definir evento de inicio** — primera compra, primer login, fecha de registro, etc. Elige el que corresponda a la pregunta del usuario; si no está claro, confírmalo.
 2. **Construir tabla de cohorte**:
    ```sql
    WITH cohortes AS (

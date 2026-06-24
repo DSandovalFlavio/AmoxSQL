@@ -331,6 +331,35 @@ function createTools(context) {
                     };
                 }
 
+                // ── Storytelling guardrails (data-driven, not prompt-only) ──────────
+                // These catch the choices that misrepresent the data even when the
+                // model ignores the prompt guidance. A hard error makes the model
+                // re-call correctly; soft issues are surfaced as warnings.
+                const rows = Array.isArray(queryResult.data) ? queryResult.data : [];
+                const chartWarnings = [];
+
+                if (chart_type === 'line' || chart_type === 'area') {
+                    const distinctX = new Set(rows.map(r => String(r?.[x_axis_key] ?? ''))).size;
+                    if (rows.length > 0 && distinctX <= 2) {
+                        return {
+                            error: `A ${chart_type} chart needs ≥4–5 points to show a trend, but '${x_axis_key}' has only ${distinctX} distinct value(s). Two periods is a COMPARISON, not a trend — a line implies a continuous progression that doesn't exist here.`,
+                            hint: split_by
+                                ? `Re-call display_chart with chart_type='bar' and split_by='${split_by}' for grouped before/after bars per category, and omit trend_line.`
+                                : `Re-call display_chart with chart_type='bar' (one bar per '${x_axis_key}'); add split_by='<category>' for a breakdown, and omit trend_line.`,
+                        };
+                    }
+                    if (rows.length > 0 && distinctX === 3) {
+                        chartWarnings.push(`Only 3 '${x_axis_key}' points — a line is borderline; grouped bars usually read clearer for a 3-period comparison.`);
+                    }
+                }
+
+                // A trend line over split/multiple series would sum unrelated series
+                // into a meaningless line — strip it rather than render nonsense.
+                if (trend_line && (split_by || (Array.isArray(y_axis_keys) && y_axis_keys.length > 1))) {
+                    trend_line = undefined;
+                    chartWarnings.push(`Removed the trend line: it cannot be computed over split/multiple series (it would aggregate unrelated series into a meaningless trend).`);
+                }
+
                 const chartConfig = {
                     // Core
                     chartType: chart_type,
@@ -417,6 +446,7 @@ function createTools(context) {
                     success: true,
                     chartConfig,
                     dataRowCount: queryResult.rowCount,
+                    ...(chartWarnings.length ? { warnings: chartWarnings } : {}),
                 };
             },
         }),
