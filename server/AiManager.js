@@ -9,7 +9,7 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { generateText, streamText } = require('ai');
+const { generateText, streamText, stepCountIs } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 const { createAnthropic } = require('@ai-sdk/anthropic');
 const { createOpenAI } = require('@ai-sdk/openai');
@@ -320,7 +320,7 @@ class AiManager {
                 system: systemPrompt,
                 messages: compactedMessages,
                 tools: profile.supportsToolCalling ? tools : undefined,
-                maxSteps: profile.maxSteps,
+                stopWhen: stepCountIs(profile.maxSteps),
                 maxTokens: profile.maxTokens,
             });
 
@@ -438,7 +438,7 @@ class AiManager {
             system: systemPrompt,
             messages: compactedMessages,
             tools: profile.supportsToolCalling ? tools : undefined,
-            maxSteps: profile.maxSteps,
+            stopWhen: stepCountIs(profile.maxSteps),
             maxTokens: profile.maxTokens,
             onFinish: async ({ usage }) => {
                 // Run memory extraction in the background (skip for low-tier models)

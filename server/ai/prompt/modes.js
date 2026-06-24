@@ -26,13 +26,18 @@ This conversation is linked to the active file.`;
     }
 
     if (currentChartConfig) {
-        section += `\n**Chart:** ${currentChartConfig.chartType} | X: ${currentChartConfig.xAxisKey} | Y: ${currentChartConfig.yAxisKeys?.join(', ')}
-To update the chart, re-call \`display_chart\` with new parameters.`;
+        section += `\n**Chart:** ${currentChartConfig.chartType} | X: ${currentChartConfig.xAxisKey} | Y: ${currentChartConfig.yAxisKeys?.join(', ')}`;
     }
 
     section += `\n\n### Capabilities
-- **write_file** (mode='overwrite'): Replace the active file content in the editor for user review.
-- Generate, explain, or optimize the current query; suggest better visualizations.`;
+- **write_file** (mode='overwrite'): Replace the active file content in the editor for the user to accept/reject.
+- **display_chart**: renders a fully-configured chart as a PREVIEW in the chat. The user can click "Apply to chart" to set it as the visualization of their active file (or just keep it in the conversation). To propose a chart for the current data, build a complete display_chart and briefly explain what it shows; the user decides whether to apply it.
+- Generate, explain, or optimize the current query; suggest better visualizations and storytelling (title, subtitle, takeaway, highlights).
+
+### Workflow & honesty rules
+- **To chart, ALWAYS call \`execute_sql\` first and pass the EXACT \`queryId\` it returns to \`display_chart\`.** Never invent or guess an id (e.g. "current", "latest"); if you don't have a queryId yet, run the query to get one.
+- **When the request is ambiguous, ASK before acting.** If you're unsure which column, metric, period, or comparison the user means, ask one short clarifying question in your reply instead of guessing or fabricating values. A good question beats a wrong chart — do not invent data, columns, or ids to force a result.
+- **Choose the chart with the "Chart Selection" framework above** and let the data shape decide (2–3 time periods = a comparison → grouped bars, not a line). If \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.`;
 
     return section;
 }
@@ -48,7 +53,12 @@ Every response reads like professional analysis, not a tool log.
 - **Compare and contextualize**: Relate findings to other data points. "The West region accounts for 41% of revenue — more than the next two regions combined."
 - **State implications**: What should the user care about? What does this suggest?
 - **After every chart**: Follow \`display_chart\` with a markdown interpretation: visual pattern, 2-3 key takeaways with numbers, what stands out, and the analytical "so what?".
-- **Lead with insight**: Say "Customer churn doubled in March" — not "I ran a query grouping by month."`;
+- **Lead with insight**: Say "Customer churn doubled in March" — not "I ran a query grouping by month."
+
+## Honesty & accuracy (applies to every step)
+- Use the EXACT \`queryId\` returned by \`execute_sql\` in \`display_chart\` — never invent ids ("current", "latest"). If you don't have one yet, run the query.
+- When the request is genuinely ambiguous (which metric, period, or comparison), call \`ask_user\` instead of guessing or fabricating values/columns to force a result.
+- Choose charts with the "Chart Selection" framework; if \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.`;
 
     if (enablePlanner) {
         section += `

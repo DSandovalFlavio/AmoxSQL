@@ -406,10 +406,23 @@ const ChartRenderer = memo(({
     }, [annotations, processedData, xAxisKey, finalSeriesKeys, fontSize, isHorizontal]);
 
     // ── Trend line data ──
+    // Compute the trend over the series actually plotted: with split-by the rows
+    // are pivoted, so the real series live in finalSeriesKeys (not yAxisKeys).
     const trendData = useMemo(() => {
         if (trendLine.type === 'none') return null;
-        return computeTrendLine(processedData, xAxisKey, yAxisKeys, trendLine.type, trendLine.windowSize);
-    }, [trendLine, processedData, xAxisKey, yAxisKeys]);
+        const trendKeys = (splitByKey && finalSeriesKeys.length) ? finalSeriesKeys : yAxisKeys;
+        return computeTrendLine(processedData, xAxisKey, trendKeys, trendLine.type, trendLine.windowSize);
+    }, [trendLine, processedData, xAxisKey, yAxisKeys, finalSeriesKeys, splitByKey]);
+
+    // Merge the trend into the main dataset as a synthetic field so the trend
+    // <Line> shares the chart's data instead of carrying its own `data` prop.
+    // A separate-data series breaks Recharts' category alignment / Y-domain calc
+    // (with allowDuplicatedCategory defaulting to true), which left split charts
+    // rendering empty with a collapsed Y axis. One dataset keeps everything aligned.
+    const chartData = useMemo(() => {
+        if (!trendData || trendData.length === 0) return processedData;
+        return processedData.map((row, i) => ({ ...row, __amoxTrend: trendData[i]?.trend ?? null }));
+    }, [processedData, trendData]);
 
     // ── Donut data ──
     const donutData = useMemo(() => {
@@ -468,7 +481,7 @@ const ChartRenderer = memo(({
 
             return wrapChart(
                 <ResponsiveContainer width={rcWidth} height={rcHeight}>
-                    <ChartComp data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
+                    <ChartComp data={chartData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <defs>
                             {finalSeriesKeys.map((key, index) => {
                                 const cfg = seriesConfig[key] || {};
@@ -502,9 +515,9 @@ const ChartRenderer = memo(({
                         {refElements}
                         {annotationElements}
 
-                        {/* Trend line */}
+                        {/* Trend line — shares chartData via the __amoxTrend field */}
                         {trendData && (
-                            <Line yAxisId="left" data={trendData} dataKey="trend" stroke={trendLine.color}
+                            <Line yAxisId="left" dataKey="__amoxTrend" stroke={trendLine.color}
                                 strokeWidth={2} strokeDasharray="6 3" dot={false} name="Trend"
                                 connectNulls isAnimationActive={false} />
                         )}
@@ -563,7 +576,7 @@ const ChartRenderer = memo(({
                         layout={isHorizontal ? 'vertical' : 'horizontal'}
                         stackOffset={effectiveStack === 'expand' ? 'expand' : 'none'}
                         barCategoryGap="18%" barGap={4} maxBarSize={56}
-                        data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}
+                        data={chartData} margin={margin} style={{ fontSize: `${fontSize}px` }}
                     >
                         <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5}
                             vertical={gridV} horizontal={gridH} />
@@ -607,9 +620,9 @@ const ChartRenderer = memo(({
                         {refElements}
                         {annotationElements}
 
-                        {/* Trend line overlay on bar chart */}
+                        {/* Trend line overlay on bar chart — shares chartData via __amoxTrend */}
                         {trendData && !isHorizontal && (
-                            <Line yAxisId="left" data={trendData} dataKey="trend" stroke={trendLine.color}
+                            <Line yAxisId="left" dataKey="__amoxTrend" stroke={trendLine.color}
                                 strokeWidth={2} strokeDasharray="6 3" dot={false} name="Trend"
                                 connectNulls isAnimationActive={false} />
                         )}

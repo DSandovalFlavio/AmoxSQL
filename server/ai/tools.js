@@ -207,7 +207,7 @@ function createTools(context) {
         }),
 
         display_chart: tool({
-            description: 'Render a fully configured chart from a previous execute_sql result. Choose all options to make the chart self-explanatory and visually compelling — the model should act as a data journalist. For date/timestamp X axes always set x_axis_angle=45 and date_aggregation. Always follow with chart_storyteller.',
+            description: 'Render a fully configured chart from a previous execute_sql result. Act as a data journalist. CHOOSE THE CHART TYPE BY REASONING, not by column type — follow the "Chart Selection" framework in your instructions: (1) state the ONE message, (2) classify the intent (comparison / change-over-time / part-of-whole / relationship / ranking-change), (3) check the data shape. Key trap: a date column with only 2–3 periods is a COMPARISON, not a trend — use grouped bars (split_by) rather than a line; lines need ≥4–5 points to be honest. For real date/timestamp time series set date_aggregation and x_axis_angle=45. After rendering, follow with chart_storyteller.',
             inputSchema: z.object({
                 // ── Core ──────────────────────────────────────────────────────────
                 query_id: z.string().describe('The queryId from a previous execute_sql result.'),
@@ -216,7 +216,7 @@ function createTools(context) {
                     'line', 'area', 'donut',
                     'scatter', 'bubble', 'combo',
                     'funnel', 'heatmap', 'treemap',
-                ]).describe('Chart type. line/area for time series; bar for vertical categories; bar-horizontal for horizontal ranking (x_axis_key=category column shown LEFT, y_axis_keys=value column shown BOTTOM); donut for part-of-whole; scatter for correlations; combo for dual metrics.'),
+                ]).describe('Chart type — pick by the message + data shape, NOT by column type. bar=compare categories (with split_by → grouped bars, ideal for before/after across 2–3 periods); bar-horizontal=ranking or long category names (x_axis_key=category shown LEFT, y_axis_keys=value shown BOTTOM); line/area=true time series with ≥4–5 points; donut=part-of-whole (≤7 slices); scatter=correlation; combo=two metrics at different scales. A date column with only 2–3 points is a comparison → use grouped bars, not a line.'),
                 title: z.string().describe('Descriptive chart title including the key metric and time range or dimension.'),
                 subtitle: z.string().optional().describe('One-line insight below the title, e.g. "Revenue grew 23% YoY driven by the West region".'),
                 footnote: z.string().optional().describe('Data source or caveat below the chart, e.g. "Based on 1,240 transactions · Jan–Dec 2024".'),
@@ -260,7 +260,7 @@ function createTools(context) {
                     type: z.enum(['linear', 'moving-average']).describe('linear=OLS regression line; moving-average=smoothed trend.'),
                     window_size: z.number().int().min(2).max(50).optional().describe('Window for moving average (default: 3).'),
                     color: z.string().optional().describe('Hex color, e.g. "#fbbf24". Default: amber.'),
-                }).optional().describe('Overlay a trend or moving-average line. Use on time-series to reveal direction.'),
+                }).optional().describe('Overlay a trend/moving-average line. GUARDRAIL: only for a SINGLE-series time series with ≥5 points. NEVER use together with split_by or multiple y_axis_keys — the trend would sum unrelated series into a meaningless line. Omit it for ≤4 points.'),
 
                 goal_line: z.object({
                     value: z.number().describe('Y value for the goal/target line.'),
@@ -329,6 +329,35 @@ function createTools(context) {
                         missingX: missingX ? x_axis_key : null,
                         missingY: missingY.length > 0 ? missingY : null,
                     };
+                }
+
+                // ── Storytelling guardrails (data-driven, not prompt-only) ──────────
+                // These catch the choices that misrepresent the data even when the
+                // model ignores the prompt guidance. A hard error makes the model
+                // re-call correctly; soft issues are surfaced as warnings.
+                const rows = Array.isArray(queryResult.data) ? queryResult.data : [];
+                const chartWarnings = [];
+
+                if (chart_type === 'line' || chart_type === 'area') {
+                    const distinctX = new Set(rows.map(r => String(r?.[x_axis_key] ?? ''))).size;
+                    if (rows.length > 0 && distinctX <= 2) {
+                        return {
+                            error: `A ${chart_type} chart needs ≥4–5 points to show a trend, but '${x_axis_key}' has only ${distinctX} distinct value(s). Two periods is a COMPARISON, not a trend — a line implies a continuous progression that doesn't exist here.`,
+                            hint: split_by
+                                ? `Re-call display_chart with chart_type='bar' and split_by='${split_by}' for grouped before/after bars per category, and omit trend_line.`
+                                : `Re-call display_chart with chart_type='bar' (one bar per '${x_axis_key}'); add split_by='<category>' for a breakdown, and omit trend_line.`,
+                        };
+                    }
+                    if (rows.length > 0 && distinctX === 3) {
+                        chartWarnings.push(`Only 3 '${x_axis_key}' points — a line is borderline; grouped bars usually read clearer for a 3-period comparison.`);
+                    }
+                }
+
+                // A trend line over split/multiple series would sum unrelated series
+                // into a meaningless line — strip it rather than render nonsense.
+                if (trend_line && (split_by || (Array.isArray(y_axis_keys) && y_axis_keys.length > 1))) {
+                    trend_line = undefined;
+                    chartWarnings.push(`Removed the trend line: it cannot be computed over split/multiple series (it would aggregate unrelated series into a meaningless trend).`);
                 }
 
                 const chartConfig = {
@@ -417,6 +446,7 @@ function createTools(context) {
                     success: true,
                     chartConfig,
                     dataRowCount: queryResult.rowCount,
+                    ...(chartWarnings.length ? { warnings: chartWarnings } : {}),
                 };
             },
         }),

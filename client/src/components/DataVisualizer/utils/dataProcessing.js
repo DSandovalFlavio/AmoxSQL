@@ -239,8 +239,13 @@ export const computeHeadline = (processedData, yAxisKeys, metric, compareWith) =
 export const computeTrendLine = (processedData, xAxisKey, yAxisKeys, type, windowSize = 3) => {
     if (!processedData || processedData.length < 2 || yAxisKeys.length === 0) return [];
 
-    const key = yAxisKeys[0];
-    const values = processedData.map((d, i) => ({ x: i, y: Number(d[key]) || 0, label: d[xAxisKey] }));
+    // Trend is computed over the sum of every plotted series at each x. For a
+    // single-series chart this is just that series; for a split-by / multi-series
+    // chart the pivoted rows no longer carry the original value column, so we must
+    // sum the actual series keys (e.g. each region) instead of a missing yAxisKeys[0].
+    const keys = Array.isArray(yAxisKeys) ? yAxisKeys : [yAxisKeys];
+    const rowValue = (d) => keys.reduce((acc, k) => acc + (Number(d[k]) || 0), 0);
+    const values = processedData.map((d, i) => ({ x: i, y: rowValue(d), label: d[xAxisKey] }));
 
     if (type === 'linear') {
         // Simple linear regression

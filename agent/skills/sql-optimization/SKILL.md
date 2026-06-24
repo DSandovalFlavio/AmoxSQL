@@ -16,6 +16,8 @@ Activa cuando una query es lenta, hace timeout, o el usuario pide mejorar el ren
 
 ## Secuencia de diagnóstico
 
+Diagnostica como un médico: **el plan de ejecución es la radiografía** — léelo, forma una hipótesis del cuello de botella, aplica el fix que ataca *esa* causa, y mide. No apliques optimizaciones a ciegas; cada fix debe responder a algo que viste en el plan.
+
 1. **Obtener plan de ejecución** — `validate_sql` con `detailed=true` para ver operadores, estimated rows y join strategies
 2. **Identificar el cuello de botella** en el plan:
    - `HASH_JOIN` con estimated_rows muy alto → problema de join
