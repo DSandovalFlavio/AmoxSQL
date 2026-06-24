@@ -22,7 +22,6 @@ const { compactContext } = require('./compaction');
 const { loadMemoriesText, extractMemories } = require('./memory');
 const { getSkill } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
-const { getFlockStatus, getModels, getPrompts } = require('../flockManager');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
 const { verifyFindings } = require('./findingsLinter');
 
@@ -133,23 +132,12 @@ async function* agenticLoop(options, getModelFn) {
     const aiPersistence = require('./persistence');
 
     // ── Load shared context once ──
-    const [userRules, memories, activeSkill, flockStatus, projectCtx] = await Promise.all([
+    const [userRules, memories, activeSkill, projectCtx] = await Promise.all([
         loadUserRules(projectPath),
         loadMemoriesText(dbManager),
         activeSkillId ? getSkill(projectPath, activeSkillId) : Promise.resolve(null),
-        getFlockStatus(dbManager).catch(() => ({ loaded: false })),
         loadProjectContext(projectPath).catch(() => null),
     ]);
-
-    // Build Flock context for the system prompt (only if loaded)
-    let flockContext = null;
-    if (flockStatus.loaded) {
-        const [flockModels, flockPrompts] = await Promise.all([
-            getModels(dbManager).catch(() => []),
-            getPrompts(dbManager).catch(() => []),
-        ]);
-        flockContext = { loaded: true, models: flockModels, prompts: flockPrompts };
-    }
 
     const profile = getModelProfile(model, provider);
 
@@ -160,7 +148,6 @@ async function* agenticLoop(options, getModelFn) {
         activeSkill, modelProfile: profile,
         filePath, fileType,
         enablePlanner: mode === 'diving',
-        flockContext,
         projectCtx,
     };
 
