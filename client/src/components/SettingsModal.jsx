@@ -6,6 +6,7 @@ import SkillsPanel from './ai/SkillsPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
+import { StoryFlowGuide } from './DataVisualizer/StoryFlowGuide';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
@@ -67,6 +68,7 @@ const TAB_TITLES = {
     workspace:   'Workspace',
     shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
+    storyflow:   'Story Flow',
     // Legacy aliases so existing initialTab values keep working
     formatter:   'Editor',
     memories:    'AI Assistant',
@@ -827,6 +829,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     />
                     {[
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
+                        { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
@@ -859,6 +862,24 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     </div>
 
                     <div className="stg-content-body" ref={contentRef}>
+
+                        {/* ═══ STORY FLOW ═══ */}
+                        {activeTab === 'storyflow' && (
+                            <div className="stg-section">
+                                <StoryFlowGuide />
+                                <div style={{ marginTop: '18px' }}>
+                                    <button
+                                        onClick={() => { try { localStorage.removeItem('amoxsql-storyflow-tour-seen'); } catch (e) {} window.dispatchEvent(new CustomEvent('amox_replay_storyflow_tour')); }}
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--accent-color-user, #5E6AD2)', color: 'var(--button-text-color, #fff)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
+                                    >
+                                        <LuSparkles size={14} /> Replay tour
+                                    </button>
+                                    <p style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                        Opens the step-by-step tour the next time you open a chart.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* ═══ APPEARANCE ═══ */}
                         {activeTab === 'appearance' && (

@@ -17,7 +17,7 @@
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -39,6 +39,7 @@ import ExportPanel from './panels/ExportPanel';
 // Renderers & Overlays
 import ChartRenderer from './renderers/ChartRenderer';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
+import { StoryFlowGuide, StoryFlowTour } from './StoryFlowGuide';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const TABS = [
@@ -64,6 +65,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
+    const [showGuide, setShowGuide] = useState(false);
+    const [showTour, setShowTour] = useState(false);
 
     const chartRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -123,6 +126,17 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         window.addEventListener('amox_update_chart_config', handler);
         return () => window.removeEventListener('amox_update_chart_config', handler);
     }, [setFields]);
+
+    // First-run Story Flow tour + replay listener (editor only, not report mode)
+    useEffect(() => {
+        if (isReportMode) return;
+        let seen = true;
+        try { seen = !!localStorage.getItem('amoxsql-storyflow-tour-seen'); } catch (e) { seen = true; }
+        if (!seen) setShowTour(true);
+        const replay = () => setShowTour(true);
+        window.addEventListener('amox_replay_storyflow_tour', replay);
+        return () => window.removeEventListener('amox_replay_storyflow_tour', replay);
+    }, [isReportMode]);
 
     // ── Font family resolution ──
     const fontFamily = useMemo(() => {
@@ -255,8 +269,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         <h3 style={{
                             margin: 0, fontSize: '12px', fontWeight: '600',
                             color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px'
-                        }}>Configuration</h3>
+                        }}>Story Flow</h3>
                         <input type="file" accept=".json,.amoxvis" ref={fileInputRef} style={{ display: 'none' }} onChange={handleLoadConfig} />
+                        <button onClick={() => setShowGuide(true)} title="What is Story Flow?"
+                            style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                            <LuInfo size={13} />
+                        </button>
                     </div>
 
                     {/* ── Tab Navigation ── */}
@@ -486,6 +504,26 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     )}
                 </div>
             </div>
+
+            {showGuide && (
+                <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '80vh', overflowY: 'auto', padding: '20px 22px' }}>
+                        <button onClick={() => setShowGuide(false)} title="Close"
+                            style={{ position: 'absolute', top: '12px', right: '12px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
+                            <LuX size={18} />
+                        </button>
+                        <h2 style={{ margin: '0 0 12px', fontSize: '15px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <LuInfo size={16} /> Story Flow
+                        </h2>
+                        <StoryFlowGuide />
+                    </div>
+                </div>
+            )}
+
+            <StoryFlowTour
+                isOpen={showTour}
+                onClose={() => { setShowTour(false); try { localStorage.setItem('amoxsql-storyflow-tour-seen', '1'); } catch (e) {} }}
+            />
 
             <AlertDialog
                 isOpen={alertData.isOpen}
