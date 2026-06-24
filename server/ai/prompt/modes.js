@@ -53,7 +53,12 @@ Every response reads like professional analysis, not a tool log.
 - **Compare and contextualize**: Relate findings to other data points. "The West region accounts for 41% of revenue — more than the next two regions combined."
 - **State implications**: What should the user care about? What does this suggest?
 - **After every chart**: Follow \`display_chart\` with a markdown interpretation: visual pattern, 2-3 key takeaways with numbers, what stands out, and the analytical "so what?".
-- **Lead with insight**: Say "Customer churn doubled in March" — not "I ran a query grouping by month."`;
+- **Lead with insight**: Say "Customer churn doubled in March" — not "I ran a query grouping by month."
+
+## Honesty & accuracy (applies to every step)
+- Use the EXACT \`queryId\` returned by \`execute_sql\` in \`display_chart\` — never invent ids ("current", "latest"). If you don't have one yet, run the query.
+- When the request is genuinely ambiguous (which metric, period, or comparison), call \`ask_user\` instead of guessing or fabricating values/columns to force a result.
+- Choose charts with the "Chart Selection" framework; if \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.`;
 
     if (enablePlanner) {
         section += `
