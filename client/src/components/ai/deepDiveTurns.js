@@ -170,6 +170,58 @@ export function buildStepGroups(turn) {
     return sections.filter(s => s.tools.length > 0 || s.insight || s.note);
 }
 
+/**
+ * Flatten every referenceable artifact in a conversation into a single list for
+ * @/# mention autocomplete: plan steps, charts, queries and (optionally) tables.
+ * Each item is a ready-to-use reference (same shape as addReference consumes).
+ */
+export function buildSessionArtifacts(messages = [], availableTables = []) {
+    const out = [];
+    const seen = new Set();
+    const push = (ref) => { if (ref.key && !seen.has(ref.key)) { seen.add(ref.key); out.push(ref); } };
+
+    const planDesc = {};
+    for (const m of messages) {
+        for (const tc of m.toolCalls || []) {
+            if (tc.toolName === 'create_plan') {
+                for (const s of tc.args?.steps || []) planDesc[s.id] = s.description;
+            }
+        }
+    }
+
+    for (const m of messages) {
+        for (const tc of m.toolCalls || []) {
+            if (tc.toolName === 'execute_sql' && tc.result?.queryId) {
+                push({
+                    type: 'query', queryId: tc.result.queryId, sql: tc.args?.query || '',
+                    label: `Query (${tc.result.rowCount ?? '?'} rows)`, key: `query:${tc.result.queryId}`,
+                });
+            }
+            if (tc.toolName === 'display_chart' && tc.result?.chartConfig) {
+                const cc = tc.result.chartConfig;
+                push({
+                    type: 'chart', queryId: cc.queryId, chartConfig: cc,
+                    label: cc.title || cc.chartTitle || 'Chart', key: `chart:${cc.queryId || (cc.title || 'x')}`,
+                });
+            }
+            if (tc.toolName === 'update_plan' && tc.args?.step_id) {
+                const sid = tc.args.step_id;
+                push({
+                    type: 'step', stepId: sid, stepLabel: planDesc[sid] || sid,
+                    insight: tc.args?.note || '', label: `Step: ${planDesc[sid] || sid}`, key: `step:${sid}`,
+                });
+            }
+        }
+    }
+
+    for (const t of availableTables || []) {
+        const name = typeof t === 'string' ? t : t?.name;
+        if (name) push({ type: 'table', table: name, label: `Table: ${name}`, key: `table:${name}` });
+    }
+
+    return out;
+}
+
 /** Count the activity inside a turn (for the compact chip in the transcript). */
 export function turnActivityStats(turn) {
     let steps = 0, charts = 0, queries = 0, hasReasoning = false;

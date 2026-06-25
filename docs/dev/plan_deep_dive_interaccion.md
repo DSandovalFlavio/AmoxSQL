@@ -1,5 +1,15 @@
 # Plan de Implementación — Interactividad humano ↔ agente (referencia de artefactos)
 
+> **Estado (implementado en este PR):** Fases 1–6 completas. ✅
+> - F1 cimiento (refs en `useAiChat`, `referencedArtifacts` en el body, expansión por `queryId` en el servidor, `buildReferencesSection` + guía en `modes.js`).
+> - F2 "Ask about this" en gráficos (`ChatResultsBlock`).
+> - F3 refs para query (`SqlActivityBlock`), paso (header del inspector) y hallazgo (`NarrativeCard`).
+> - F4 menciones `@/#` con autocompletado (`buildSessionArtifacts` + popup en el composer).
+> - F5 quick-actions (Explain · Redo differently · Go deeper · Validate) sobre las refs activas.
+> - F6 selección de texto/número → botón flotante "Ask about this".
+> - **F7 (dirigir en vuelo)** queda fuera: va en su propio PR (toca `agenticLoop`).
+
+
 Deriva de [deep_dive_interaccion.md](deep_dive_interaccion.md). El agente ya **comunica** sus resultados paso a paso; falta que el humano pueda **señalar** cualquier artefacto y conversar sobre él. Esto plantea la **capa de referencia (deixis)** y las interacciones de mayor valor.
 
 ## Objetivo

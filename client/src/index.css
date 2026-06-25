@@ -5679,6 +5679,48 @@ tr:hover .rt-td {
   color: var(--text-primary);
 }
 .ai-composer-chip--ref svg { color: var(--accent-primary); }
+/* Floating "Ask about this" on text selection */
+.ai-sel-ask {
+  position: fixed; transform: translate(-50%, calc(-100% - 8px)); z-index: 50;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--accent-primary); color: var(--button-text-color, #fff);
+  border: none; border-radius: 7px; padding: 5px 10px; cursor: pointer;
+  font-size: var(--text-mini); box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+}
+.ai-sel-ask:hover { filter: brightness(1.08); }
+/* Quick-actions over a referenced artifact */
+.ai-quick-action-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ai-quick-action-chip {
+  background: var(--surface-inset); border: 1px solid var(--border-subtle);
+  border-radius: 20px; padding: 3px 11px; cursor: pointer;
+  font-size: var(--text-mini); color: var(--text-secondary);
+}
+.ai-quick-action-chip:hover { border-color: var(--accent-primary); color: var(--text-primary); background: var(--accent-subtle); }
+/* @/# mention autocomplete */
+.ai-mention-wrap { position: relative; }
+.ai-mention-popup {
+  position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
+  max-height: 240px; overflow-y: auto; z-index: 30;
+  background: var(--panel-bg); border: 1px solid var(--border-subtle);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); padding: 4px;
+}
+.ai-mention-popup-head {
+  font-size: var(--text-mini); color: var(--text-tertiary);
+  padding: 4px 8px 6px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ai-mention-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: none; cursor: pointer; text-align: left;
+  padding: 6px 8px; border-radius: 7px; color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.ai-mention-item:hover, .ai-mention-item--first { background: var(--hover-bg); color: var(--text-primary); }
+.ai-mention-item svg { color: var(--accent-primary); flex-shrink: 0; }
+.ai-mention-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-mention-item-type {
+  font-size: var(--text-mini); color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0;
+}
 .ddi-reasoning-chunk { white-space: pre-wrap; }
 .ddi-reasoning-chunk + .ddi-reasoning-chunk { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle); }
 

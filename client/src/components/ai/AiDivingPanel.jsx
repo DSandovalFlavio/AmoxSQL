@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import DeepDiveTranscript from './DeepDiveTranscript';
 import DeepDiveInspector from './DeepDiveInspector';
-import { groupIntoTurns } from './deepDiveTurns';
+import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
 import ToolCallBlock from './ToolCallBlock';
 import ModelDropdown from './ModelDropdown';
 import SessionInventory from './SessionInventory';
@@ -293,6 +293,97 @@ const AiDivingPanel = ({
         requestAnimationFrame(() => inputRef.current?.focus());
     }, [addReference, inputRef]);
 
+    // ─── Select text/number in a response → floating "Ask about this" ───
+    const [selAsk, setSelAsk] = useState(null); // { x, y, text, queryId } | null
+    const handleThreadMouseUp = useCallback(() => {
+        const sel = window.getSelection();
+        const text = sel ? sel.toString().trim() : '';
+        if (!sel || sel.isCollapsed || text.length < 2 || text.length > 300) { setSelAsk(null); return; }
+        try {
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            // Find a queryId from an ancestor that carries one (e.g. a cited value)
+            let node = range.startContainer;
+            let queryId;
+            while (node && node !== document.body) {
+                if (node.dataset?.queryId) { queryId = node.dataset.queryId; break; }
+                node = node.parentElement;
+            }
+            setSelAsk({ x: rect.left + rect.width / 2, y: rect.top, text, queryId });
+        } catch { setSelAsk(null); }
+    }, []);
+    const askAboutSelection = useCallback(() => {
+        if (!selAsk) return;
+        handleAskAbout({
+            type: selAsk.queryId ? 'number' : 'text',
+            findingText: selAsk.text,
+            queryId: selAsk.queryId,
+            label: `"${selAsk.text.slice(0, 32)}${selAsk.text.length > 32 ? '…' : ''}"`,
+            key: `sel:${selAsk.text.slice(0, 40)}`,
+        });
+        setSelAsk(null);
+        window.getSelection()?.removeAllRanges();
+    }, [selAsk, handleAskAbout]);
+
+    // ─── @/# mention autocomplete (reference any session artifact by typing) ───
+    const sessionArtifacts = useMemo(
+        () => buildSessionArtifacts(messages, availableTables),
+        [messages, availableTables]
+    );
+    const [mention, setMention] = useState(null); // { query, start } | null
+
+    const handleInputChange = useCallback((e) => {
+        const value = e.target.value;
+        const caret = e.target.selectionStart ?? value.length;
+        setInputText(value);
+        const m = /[@#]([\w-]*)$/.exec(value.slice(0, caret));
+        setMention(m ? { query: m[1].toLowerCase(), start: caret - m[0].length } : null);
+    }, [setInputText]);
+
+    const mentionMatches = useMemo(() => {
+        if (!mention) return [];
+        return sessionArtifacts.filter(a => a.label.toLowerCase().includes(mention.query)).slice(0, 8);
+    }, [mention, sessionArtifacts]);
+
+    const pickMention = useCallback((ref) => {
+        setInputText(prev => {
+            if (!mention) return prev;
+            const before = prev.slice(0, mention.start);
+            const after = prev.slice(mention.start).replace(/^[@#][\w-]*/, '');
+            return before + after;
+        });
+        addReference(ref);
+        setMention(null);
+        requestAnimationFrame(() => inputRef.current?.focus());
+    }, [mention, addReference, setInputText, inputRef]);
+
+    const handleComposerKeyDown = useCallback((e) => {
+        if (mention && mentionMatches.length > 0) {
+            if (e.key === 'Escape') { e.preventDefault(); setMention(null); return; }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pickMention(mentionMatches[0]); return; }
+        }
+        handleKeyDown(e);
+    }, [mention, mentionMatches, pickMention, handleKeyDown]);
+
+    const mentionIcon = (type) => {
+        switch (type) {
+            case 'chart': return <LuChartColumn size={12} />;
+            case 'query': return <LuDatabase size={12} />;
+            case 'step': return <LuListChecks size={12} />;
+            case 'table': return <LuTable size={12} />;
+            default: return <LuAtSign size={12} />;
+        }
+    };
+
+    // Canonical quick-actions over the referenced artifact(s) — send with the
+    // pending references already attached as turn context.
+    const QUICK_ACTIONS = [
+        { label: 'Explain', text: 'Explain this in plain terms — what does it show and why does it matter?' },
+        { label: 'Redo differently', text: 'Show this a different way — pick a better chart or framing for the same data.' },
+        { label: 'Go deeper', text: 'Go deeper on this — break it down further and surface what is driving it.' },
+        { label: 'Validate', text: 'Validate this — is it real or noise? Check the numbers and call out caveats.' },
+    ];
+
     // Icon for an artifact reference chip, by type
     const refIcon = (type) => {
         switch (type) {
@@ -314,17 +405,33 @@ const AiDivingPanel = ({
             onDrop={handleDrop}
         >
             {pendingReferences.length > 0 && (
-                <div className="ai-composer-context ai-composer-refs">
-                    {pendingReferences.map((ref, i) => (
-                        <span key={ref.key || i} className="ai-composer-chip ai-composer-chip--ref" title={ref.label}>
-                            {refIcon(ref.type)}
-                            <span className="ai-composer-chip-name">{ref.label}</span>
-                            <button className="ai-composer-chip-x" onClick={() => removeReference(i)} title="Remove reference">
-                                <LuX size={10} />
-                            </button>
-                        </span>
-                    ))}
-                </div>
+                <>
+                    <div className="ai-composer-context ai-composer-refs">
+                        {pendingReferences.map((ref, i) => (
+                            <span key={ref.key || i} className="ai-composer-chip ai-composer-chip--ref" title={ref.label}>
+                                {refIcon(ref.type)}
+                                <span className="ai-composer-chip-name">{ref.label}</span>
+                                <button className="ai-composer-chip-x" onClick={() => removeReference(i)} title="Remove reference">
+                                    <LuX size={10} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                    {!inputText.trim() && !isGenerating && (
+                        <div className="ai-quick-action-row">
+                            {QUICK_ACTIONS.map(qa => (
+                                <button
+                                    key={qa.label}
+                                    className="ai-quick-action-chip"
+                                    onClick={() => handleSend(qa.text)}
+                                    title={qa.text}
+                                >
+                                    {qa.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
             {contextObjects.length > 0 && (
                 <div className="ai-composer-context">
@@ -339,19 +446,38 @@ const AiDivingPanel = ({
                     ))}
                 </div>
             )}
-            <textarea
-                className="ai-textarea"
-                ref={inputRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={isDragOver ? 'Drop tables or files to add as context…' : 'Ask about your data — drop tables here for context…'}
-                rows={1}
-                onInput={(e) => {
-                    e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                }}
-            />
+            <div className="ai-mention-wrap">
+                {mention && mentionMatches.length > 0 && (
+                    <div className="ai-mention-popup">
+                        <div className="ai-mention-popup-head">Reference an artifact</div>
+                        {mentionMatches.map((a, i) => (
+                            <button
+                                key={a.key}
+                                className={`ai-mention-item${i === 0 ? ' ai-mention-item--first' : ''}`}
+                                onMouseDown={(e) => { e.preventDefault(); pickMention(a); }}
+                            >
+                                {mentionIcon(a.type)}
+                                <span className="ai-mention-item-label">{a.label}</span>
+                                <span className="ai-mention-item-type">{a.type}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <textarea
+                    className="ai-textarea"
+                    ref={inputRef}
+                    value={inputText}
+                    onChange={handleInputChange}
+                    onKeyDown={handleComposerKeyDown}
+                    onBlur={() => setTimeout(() => setMention(null), 120)}
+                    placeholder={isDragOver ? 'Drop tables or files to add as context…' : 'Ask about your data — type @ to reference a chart/query/step…'}
+                    rows={1}
+                    onInput={(e) => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                    }}
+                />
+            </div>
             <div className="ai-composer-toolbar">
                 <div className="ai-composer-toolbar-left">
                     <ModelDropdown 
@@ -437,7 +563,7 @@ const AiDivingPanel = ({
                     <div className="ai-diving-split">
                         {/* LEFT: conversation thread + composer */}
                         <div className="ai-diving-thread">
-                            <div className="ai-diving-messages">
+                            <div className="ai-diving-messages" onMouseUp={handleThreadMouseUp}>
                                 <div className="ai-diving-messages-inner">
                                     {turns.length === 0 && !isGenerating ? emptyState : (
                                         <DeepDiveTranscript
@@ -561,6 +687,16 @@ const AiDivingPanel = ({
                         </div>
                     )}
                 </SessionInventory>
+            )}
+
+            {selAsk && (
+                <button
+                    className="ai-sel-ask"
+                    style={{ left: selAsk.x, top: selAsk.y }}
+                    onMouseDown={(e) => { e.preventDefault(); askAboutSelection(); }}
+                >
+                    <LuMessageSquareQuote size={12} /> Ask about this
+                </button>
             )}
 
             <AlertDialog
