@@ -33,6 +33,12 @@ const ITER_MAX_STEPS = 10;
 const MAX_IDLE_RETRIES = 2;
 // Max times we inject a SQL correction directive before giving up
 const MAX_SQL_CORRECTION_RETRIES = 3;
+// If a single iteration's stream produces no event for this long, treat it as a
+// stalled model (e.g. a frozen provider stream) and abort that iteration so the
+// loop can recover instead of hanging forever.
+const ITER_STALL_TIMEOUT_MS = 90_000;
+// Max consecutive stalled iterations before giving up on the analysis
+const MAX_STALL_RETRIES = 2;
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -239,6 +245,7 @@ async function* agenticLoop(options, getModelFn) {
     let effectiveMaxIterations  = maxIterations;
     let idleRetries          = 0;   // consecutive iterations with zero tool calls
     let sqlCorrectionRetries = 0;   // consecutive iterations that ended with unresolved SQL errors
+    let stallRetries         = 0;   // consecutive iterations aborted by the stall watchdog
     let anyIterationHadText  = false; // tracks if any prior iter produced text (for fallback message)
     let totalUsage           = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
@@ -269,6 +276,16 @@ async function* agenticLoop(options, getModelFn) {
         let iterSqlSuccesses   = 0;   // successful execute_sql calls this iteration
         let iterResult         = null;   // holds the streamText handle for response.messages
 
+        // Stall watchdog (declared out here so the catch block can inspect it):
+        // abort this iteration if the provider stream goes silent for too long.
+        const iterAbort = new AbortController();
+        let iterStalled = false;
+        let stallTimer  = null;
+        const armStall = () => {
+            if (stallTimer) clearTimeout(stallTimer);
+            stallTimer = setTimeout(() => { iterStalled = true; try { iterAbort.abort(); } catch { /* noop */ } }, ITER_STALL_TIMEOUT_MS);
+        };
+
         try {
             // Build system argument: array of content blocks for Anthropic (enables
             // prompt caching on the stable static section), plain string for others.
@@ -284,15 +301,18 @@ async function* agenticLoop(options, getModelFn) {
                 : systemPrompt;
 
             const result = iterResult = streamText({
-                model:     llmModel,
-                system:    systemArg,
-                messages:  compactedMessages,
-                tools:     profile.supportsToolCalling ? tools : undefined,
-                maxSteps:  Math.min(profile.maxSteps, ITER_MAX_STEPS),
-                maxTokens: profile.maxTokens,
+                model:       llmModel,
+                system:      systemArg,
+                messages:    compactedMessages,
+                tools:       profile.supportsToolCalling ? tools : undefined,
+                maxSteps:    Math.min(profile.maxSteps, ITER_MAX_STEPS),
+                maxTokens:   profile.maxTokens,
+                abortSignal: iterAbort.signal,
             });
 
+            armStall();
             for await (const part of result.fullStream) {
+                armStall(); // reset the silence timer on every event
 
                 if (part.type === 'text-delta') {
                     const textChunk = part.textDelta ?? part.text ?? '';
@@ -459,13 +479,41 @@ async function* agenticLoop(options, getModelFn) {
                     loopDone = true;
                 }
             }
+            if (stallTimer) clearTimeout(stallTimer);
 
         } catch (err) {
+            if (stallTimer) clearTimeout(stallTimer);
+
+            // Stall watchdog fired: the iteration was aborted because the model
+            // stream went silent. Recover instead of killing the whole analysis.
+            if (iterStalled) {
+                console.warn(`[AgenticLoop] Iteration ${iteration} stalled (no stream activity for ${ITER_STALL_TIMEOUT_MS}ms) — aborting iteration`);
+                yield { type: 'step-end', iteration, latencyMs: Date.now() - iterStart };
+                stallRetries++;
+                if (stallRetries <= MAX_STALL_RETRIES && activePlan.id) {
+                    const resume = buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations);
+                    iterMessages = [
+                        ...compactedMessages,
+                        { role: 'user', content: '[The previous step stalled and was interrupted before finishing. Resume from where the plan stands — do NOT call create_plan again.]\n\n' + resume },
+                    ];
+                    continue; // retry the loop
+                }
+                // Out of stall retries — stop cleanly so the UI isn't left spinning.
+                if (!anyIterationHadText) {
+                    yield { type: 'text-delta', text: 'El modelo dejó de responder a mitad del análisis. Intenta de nuevo o usa un modelo distinto.' };
+                }
+                loopDone = true;
+                break;
+            }
+
             console.error(`[AgenticLoop] Iteration ${iteration} error:`, err.message);
             yield { type: 'error', error: err.message || String(err) };
             loopDone = true;
             break;
         }
+
+        // A clean (non-stalled) iteration resets the stall counter.
+        stallRetries = 0;
 
         // ── Decide whether to continue ──
         if (!loopDone) {

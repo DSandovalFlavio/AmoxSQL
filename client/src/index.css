@@ -5575,7 +5575,7 @@ tr:hover .rt-td {
 }
 
 /* Transcript (left thread) */
-.ddt { display: flex; flex-direction: column; gap: 6px; }
+.ddt { display: flex; flex-direction: column; gap: 10px; }
 
 .ddt-user { display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px; margin: 6px 0; }
 .ddt-user-bubble {
@@ -5598,7 +5598,7 @@ tr:hover .rt-td {
 .ddt-ai {
   display: flex; gap: 8px; align-items: flex-start;
   border: 1px solid transparent; border-radius: 10px;
-  padding: 6px 8px; width: 100%;
+  padding: 12px 8px 8px; width: 100%;
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 .ddt-ai--selected { border-color: var(--border-default); background: var(--surface-base); }
