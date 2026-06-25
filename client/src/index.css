@@ -4442,14 +4442,26 @@ tr:hover .rt-td {
 /* ── AI Conversation List — Linear: grouped sidebar panel ── */
 
 .ai-conv {
-  width: 260px;
-  min-width: 220px;
-  border-right: 1px solid var(--border-subtle);
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background-color: var(--surface-base);
-  flex-shrink: 0;
   height: 100%;
+  overflow: hidden;
+}
+
+.ai-conv-rename-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-base);
+  border: 1px solid var(--accent-primary, var(--border-default));
+  border-radius: 4px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 6px;
+  outline: none;
 }
 
 .ai-conv-header {

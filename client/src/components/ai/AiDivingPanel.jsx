@@ -3,7 +3,6 @@ import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, Lu
 import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
-import ConversationList from './ConversationList';
 import ModelDropdown from './ModelDropdown';
 import SessionInventory from './SessionInventory';
 import AgentPlanPanel from './AgentPlanPanel';
@@ -337,14 +336,8 @@ const AiDivingPanel = ({
     // RENDER — 3-column layout
     // ═══════════════════════════════════════════════════════
     return (
-        <div className="ai-diving" style={{ width }}>
-            {/* ─── Left column: Conversations ─── */}
-            <ConversationList
-                activeId={conversationId}
-                onSelect={handleSelectConversation}
-                onNew={handleNewConversation}
-                mode="diving"
-            />
+        <div className="ai-diving ai-diving--no-list" style={{ width }}>
+            {/* Conversations now live in the main left sidebar (Deep Dive section) */}
 
             {/* ─── Center column: Chat ─── */}
             <div className="ai-diving-center">

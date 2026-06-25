@@ -519,6 +519,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
         },
         createNew,
+        // Open a Deep Dive conversation in a tab: focus an existing tab bound to
+        // this conversation if one is open, otherwise create a new one. A null
+        // convId always opens a fresh (empty) Deep Dive conversation.
+        openDataDiving: (convId = null) => {
+            if (convId) {
+                const inLeft = leftTabs.find(t => t.type === 'datadiving' && t.content === convId);
+                if (inLeft) { setActivePane('left'); setLeftActiveId(inLeft.id); return; }
+                const inRight = rightTabs.find(t => t.type === 'datadiving' && t.content === convId);
+                if (inRight) { setActivePane('right'); setRightActiveId(inRight.id); return; }
+            }
+            createNew('datadiving', convId || '');
+        },
         handleTriggerRun: () => handleRunActive(),
         handleTriggerSave: (isSilent = false) => handleSaveActive(isSilent),
         handleTriggerAnalyze: () => handleAnalyzeActive(),
