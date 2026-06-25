@@ -148,6 +148,8 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - Config stored at `~/.amoxsql/config.json`
 - **Desktop-native mindset**: DuckDB is local and fast — do not reason about network latency, loading spinners, or caching like a web app. Call queries directly.
 - **Do NOT introduce list/table virtualization** (e.g. `@tanstack/react-virtual`). Prior attempts hurt performance in this app; `ResultsTable` paginates instead.
+- **No emojis in the UI** — always use Lucide icons (`react-icons/lu`). The only exception is the Markdown export in `client/src/components/ai/exportConversation.js` (it's text, not UI).
+- **No references to external technologies or products** in code, prompts, comments, UI text, or docs. Only what the product is built on or integrates may be named: the LLM providers (Ollama, Google Gemini, Anthropic, OpenAI, Google Vertex), DuckDB (the engine), AmoxSQL itself, and the project's own dependencies (React, Vite, Electron, Recharts, Express, Vercel AI SDK, Zod, Monaco, etc.).
 
 ## Further Reading (in-repo docs, mostly Spanish)
 - `docs/dev/arquitectura.md`, `decisiones_tecnicas.md`, `patrones_react.md`, `guia_estilos.md` — deeper architecture, design decisions, React patterns, and style guide
