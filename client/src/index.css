@@ -5563,6 +5563,17 @@ tr:hover .rt-td {
   padding: 20px 0 40px;
 }
 
+/* Narrow widths: stack the thread over the inspector so neither gets cramped. */
+@media (max-width: 1040px) {
+  .ai-diving-split { flex-direction: column; }
+  .ai-diving-thread {
+    flex: 1 1 50%; min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .ai-diving-inspector-pane { flex: 1 1 50%; }
+}
+
 /* Transcript (left thread) */
 .ddt { display: flex; flex-direction: column; gap: 6px; }
 
@@ -5640,6 +5651,22 @@ tr:hover .rt-td {
 }
 .ddi-insight-icon { color: var(--accent-primary); flex-shrink: 0; margin-top: 2px; }
 .ai-msg-table-more { padding: 4px 0; font-size: var(--text-mini); color: var(--text-muted); }
+
+/* Composer context attach (drop tables/files at the input) */
+.ai-composer--dragover { outline: 2px dashed var(--accent-primary); outline-offset: 3px; border-radius: 14px; }
+.ai-composer-context { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ai-composer-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--surface-inset); border: 1px solid var(--border-subtle);
+  border-radius: 20px; padding: 2px 4px 2px 9px;
+  font-size: var(--text-mini); color: var(--text-secondary);
+}
+.ai-composer-chip-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-composer-chip-x {
+  background: none; border: none; cursor: pointer; color: var(--text-tertiary);
+  display: flex; padding: 2px; border-radius: 50%;
+}
+.ai-composer-chip-x:hover { color: var(--text-primary); background: var(--hover-bg); }
 .ddi-reasoning-chunk { white-space: pre-wrap; }
 .ddi-reasoning-chunk + .ddi-reasoning-chunk { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle); }
 

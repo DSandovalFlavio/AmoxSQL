@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import DeepDiveTranscript from './DeepDiveTranscript';
@@ -276,16 +276,34 @@ const AiDivingPanel = ({
         </div>
     );
 
-    // ─── Input composer ───
+    // ─── Input composer (with context attach: drop tables/files here) ───
     const inputComposer = (
-        <div className="ai-composer">
+        <div
+            className={`ai-composer${isDragOver ? ' ai-composer--dragover' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+        >
+            {contextObjects.length > 0 && (
+                <div className="ai-composer-context">
+                    {contextObjects.map((obj, i) => (
+                        <span key={i} className="ai-composer-chip">
+                            {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
+                            <span className="ai-composer-chip-name">{obj.name}</span>
+                            <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove">
+                                <LuX size={10} />
+                            </button>
+                        </span>
+                    ))}
+                </div>
+            )}
             <textarea
                 className="ai-textarea"
                 ref={inputRef}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about your data..."
+                placeholder={isDragOver ? 'Drop tables or files to add as context…' : 'Ask about your data — drop tables here for context…'}
                 rows={1}
                 onInput={(e) => {
                     e.target.style.height = 'auto';
