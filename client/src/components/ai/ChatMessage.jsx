@@ -636,7 +636,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 border: '1px solid var(--accent-color-user)',
                                 borderRadius: '6px', fontSize: '12px',
                             }}>
-                                <span style={{ color: 'var(--accent-color-user)' }}>📓</span>
+                                <LuNotebookPen size={14} style={{ color: 'var(--accent-color-user)', flexShrink: 0 }} />
                                 <span style={{ flex: 1, color: 'var(--text-active)' }}>
                                     Notebook created: <strong>{tc.result.fileName}</strong> ({tc.result.cellCount} cells)
                                 </span>
