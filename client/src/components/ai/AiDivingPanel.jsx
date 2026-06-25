@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
+import DeepDiveTranscript from './DeepDiveTranscript';
+import DeepDiveInspector from './DeepDiveInspector';
+import { groupIntoTurns } from './deepDiveTurns';
 import ToolCallBlock from './ToolCallBlock';
 import ModelDropdown from './ModelDropdown';
 import SessionInventory from './SessionInventory';
@@ -88,6 +91,35 @@ const AiDivingPanel = ({
     const [sessionName, setSessionName] = useState('');
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showModesGuide, setShowModesGuide] = useState(false);
+
+    // ─── Turns (transcript) + selected turn (inspector) ───
+    const turns = useMemo(() => {
+        const base = groupIntoTurns(messages);
+        if (isGenerating && (streamingText || activeToolCalls.length > 0)) {
+            base.push({
+                id: '__live__', type: 'ai', text: streamingText || '', inProgress: true,
+                messages: [{ id: '__live__', role: 'assistant', content: streamingText || '', toolCalls: activeToolCalls }],
+            });
+        }
+        return base;
+    }, [messages, isGenerating, streamingText, activeToolCalls]);
+
+    const [selectedTurnId, setSelectedTurnId] = useState(null);
+
+    // While generating, follow the live turn; otherwise keep selection valid (default: last AI turn).
+    useEffect(() => {
+        if (isGenerating) {
+            const live = turns[turns.length - 1];
+            if (live) setSelectedTurnId(live.id);
+            return;
+        }
+        if (!turns.find(t => t.id === selectedTurnId)) {
+            const lastAi = [...turns].reverse().find(t => t.type === 'ai');
+            setSelectedTurnId(lastAi ? lastAi.id : null);
+        }
+    }, [turns, isGenerating, selectedTurnId]);
+
+    const selectedTurn = turns.find(t => t.id === selectedTurnId) || null;
 
     // ─── Auto-select escalated conversation on mount ───
     const didSelectStartConvRef = useRef(false);
@@ -220,73 +252,28 @@ const AiDivingPanel = ({
         }
     }, [messages, conversationId, onOpenFile]);
 
-    // ─── Chat messages area ───
-    const chatMessages = (
-        <>
-            {messages.length === 0 && !isGenerating && (
-                <div className="ai-empty-state ai-empty-state--diving">
-                    <div className="ai-empty-state-icon">
-                        <LuSparkles size={40} />
-                    </div>
-                    <h2 className="ai-empty-state-title">Deep Dive</h2>
-                    <div className="ai-empty-state-hint">
-                        Your autonomous analyst — hand it a question and it plans, explores your data, and tells the story.
-                    </div>
-                    <div className="ai-quick-actions">
-                        <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
-                            Show all tables
-                        </button>
-                        <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
-                            Describe schema
-                        </button>
-                        <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
-                            Sample data
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {messages.map((msg, i) => (
-                <ChatMessage
-                    key={msg.id || i}
-                    role={msg.role}
-                    content={msg.content}
-                    toolCalls={msg.toolCalls}
-                    allMessages={messages}
-                    isDiving={true}
-                    isStreaming={false}
-                    onRunSql={onRunSql}
-                    onFollowUp={handleSend}
-                    onExportNotebook={onExportNotebook}
-                    onExportAmoxvis={onExportAmoxvis}
-                    onOpenFile={onOpenFile}
-                />
-            ))}
-
-            {/* Streaming assistant message */}
-            {isGenerating && (streamingText || activeToolCalls.length > 0) && (
-                <ChatMessage
-                    role="assistant"
-                    content={streamingText}
-                    toolCalls={activeToolCalls}
-                    isStreaming={true}
-                    isDiving={true}
-                    onRunSql={onRunSql}
-                    onFollowUp={handleSend}
-                    onExportNotebook={onExportNotebook}
-                />
-            )}
-
-            {/* Generating indicator */}
-            {isGenerating && !streamingText && activeToolCalls.length === 0 && (
-                <div className="ai-thinking">
-                    <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
-                    Thinking...
-                </div>
-            )}
-
-            <div ref={chatEndRef} />
-        </>
+    // ─── Empty state (no conversation yet) ───
+    const emptyState = (
+        <div className="ai-empty-state ai-empty-state--diving">
+            <div className="ai-empty-state-icon">
+                <LuSparkles size={40} />
+            </div>
+            <h2 className="ai-empty-state-title">Deep Dive</h2>
+            <div className="ai-empty-state-hint">
+                Your autonomous analyst — hand it a question and it plans, explores your data, and tells the story.
+            </div>
+            <div className="ai-quick-actions">
+                <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
+                    Show all tables
+                </button>
+                <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
+                    Describe schema
+                </button>
+                <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
+                    Sample data
+                </button>
+            </div>
+        </div>
     );
 
     // ─── Input composer ───
@@ -387,29 +374,50 @@ const AiDivingPanel = ({
                 )}
 
                 {status === 'READY' && (
-                    <div className="ai-diving-chat">
-                        {/* Scrollable message area with centered content */}
-                        <div className="ai-diving-messages">
-                            <div className="ai-diving-messages-inner">
-                                {chatMessages}
+                    <div className="ai-diving-split">
+                        {/* LEFT: conversation thread + composer */}
+                        <div className="ai-diving-thread">
+                            <div className="ai-diving-messages">
+                                <div className="ai-diving-messages-inner">
+                                    {turns.length === 0 && !isGenerating ? emptyState : (
+                                        <DeepDiveTranscript
+                                            turns={turns}
+                                            selectedTurnId={selectedTurnId}
+                                            onSelect={setSelectedTurnId}
+                                            isGenerating={isGenerating}
+                                        />
+                                    )}
+                                    <div ref={chatEndRef} />
+                                </div>
+                            </div>
+
+                            {errorMsg && (
+                                <div className="ai-error-bar">
+                                    <span>{errorMsg}</span>
+                                    <button onClick={() => setErrorMsg(null)}>
+                                        <LuX size={12} />
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="ai-diving-composer-wrap">
+                                <div className="ai-diving-composer">
+                                    {inputComposer}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Error */}
-                        {errorMsg && (
-                            <div className="ai-error-bar">
-                                <span>{errorMsg}</span>
-                                <button onClick={() => setErrorMsg(null)}>
-                                    <LuX size={12} />
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Floating composer */}
-                        <div className="ai-diving-composer-wrap">
-                            <div className="ai-diving-composer">
-                                {inputComposer}
-                            </div>
+                        {/* CENTER: step inspector */}
+                        <div className="ai-diving-inspector-pane">
+                            <DeepDiveInspector
+                                turn={selectedTurn}
+                                allMessages={messages}
+                                onRunSql={onRunSql}
+                                onFollowUp={handleSend}
+                                onExportNotebook={onExportNotebook}
+                                onExportAmoxvis={onExportAmoxvis}
+                                onOpenFile={onOpenFile}
+                            />
                         </div>
                     </div>
                 )}

@@ -357,7 +357,7 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onAppendToFile, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onAppendToFile, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent, activityOnly = false }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -561,6 +561,9 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 if (part.type === 'thinking') {
                                     return <ThinkingBlock key={idx} content={part.content} isStreaming={part.isStreaming} />;
                                 }
+                                // Inspector mode: reasoning + activity only, hide the prose
+                                // (the prose already lives in the transcript card).
+                                if (activityOnly) return null;
                                 return (
                                     <ReactMarkdown
                                         key={idx}
