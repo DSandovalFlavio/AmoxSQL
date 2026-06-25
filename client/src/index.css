@@ -5592,9 +5592,9 @@ tr:hover .rt-td {
 .ddt-avatar--ai { color: var(--accent-primary); }
 
 .ddt-ai {
-  display: flex; gap: 8px; align-items: flex-start;
+  display: flex; gap: 10px; align-items: flex-start;
   border: 1px solid transparent; border-radius: 10px;
-  padding: 12px 8px 8px; width: 100%;
+  padding: 14px 16px; width: 100%;
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 .ddt-ai--selected { border-color: var(--border-default); background: var(--surface-base); }
@@ -5657,8 +5657,9 @@ tr:hover .rt-td {
   background: var(--surface-inset);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
+  padding: 8px 12px;
+  /* Match the input's side margins (.ai-composer: 0 10px) so they align in width */
+  margin: 0 10px 8px;
 }
 .ai-context-bar-head {
   display: flex; align-items: center; gap: 6px;
