@@ -5585,14 +5585,21 @@ tr:hover .rt-td {
 .ddt-avatar--ai { color: var(--accent-primary); }
 
 .ddt-ai {
-  display: flex; gap: 8px; align-items: flex-start; text-align: left;
-  background: none; border: 1px solid transparent; border-radius: 10px;
-  padding: 8px 10px; cursor: pointer; width: 100%; font: inherit; color: inherit;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  display: flex; gap: 8px; align-items: flex-start;
+  border: 1px solid transparent; border-radius: 10px;
+  padding: 6px 8px; width: 100%;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
-.ddt-ai:hover { background: var(--hover-bg); }
-.ddt-ai--selected { background: var(--surface-inset); border-color: var(--border-default); }
+.ddt-ai--selected { border-color: var(--border-default); background: var(--surface-base); }
 .ddt-ai-body { min-width: 0; flex: 1; }
+.ddt-ai-select {
+  cursor: pointer; border-radius: 8px; padding: 4px 6px; margin: -4px -6px 4px;
+  transition: background-color var(--transition-fast);
+}
+.ddt-ai-select:hover { background: var(--hover-bg); }
+.ddt-chip-hint, .ddt-chip-inspecting { font-size: var(--text-mini); margin-left: auto; }
+.ddt-chip-hint { color: var(--text-muted); }
+.ddt-chip-inspecting { color: var(--accent-primary); }
 .ddt-ai-prose { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.55; }
 .ddt-ai-prose p { margin: 0 0 4px; }
 .ddt-ai-working { font-size: var(--text-sm); color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }

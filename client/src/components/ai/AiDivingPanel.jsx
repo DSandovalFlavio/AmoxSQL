@@ -384,6 +384,7 @@ const AiDivingPanel = ({
                                             turns={turns}
                                             selectedTurnId={selectedTurnId}
                                             onSelect={setSelectedTurnId}
+                                            onFollowUp={handleSend}
                                             isGenerating={isGenerating}
                                         />
                                     )}

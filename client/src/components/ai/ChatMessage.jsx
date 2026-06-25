@@ -92,7 +92,7 @@ function QueryAuditModal({ queryId, onClose }) {
 /**
  * NarrativeCard — renders a structured final_answer with tldr/findings/cause/actions/caveats.
  */
-function NarrativeCard({ result, onFollowUp }) {
+export function NarrativeCard({ result, onFollowUp }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
     const [causeOpen, setCauseOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);

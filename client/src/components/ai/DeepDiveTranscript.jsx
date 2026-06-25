@@ -2,26 +2,21 @@ import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LuUser, LuBot, LuLoader, LuChartColumn, LuDatabase, LuListChecks } from 'react-icons/lu';
-import { stripThink, turnActivityStats } from './deepDiveTurns';
+import { stripThink, turnActivityStats, turnFinalAnswer } from './deepDiveTurns';
+import { NarrativeCard } from './ChatMessage';
 
-/** Display text for an AI turn: its prose, or a final_answer tldr, else empty. */
+/** AI turn prose (without reasoning). The final synthesis renders as a card instead. */
 function aiTurnText(turn) {
-    const t = stripThink(turn.text).trim();
-    if (t) return t;
-    for (const m of turn.messages || []) {
-        for (const tc of m.toolCalls || []) {
-            if (tc.toolName === 'final_answer' && tc.result?.tldr) return tc.result.tldr;
-        }
-    }
-    return '';
+    return stripThink(turn.text).trim();
 }
 
 /**
  * DeepDiveTranscript — the left conversation thread.
- * One card per turn (user bubble / AI prose card). AI cards are selectable and
- * show a compact activity chip; selecting one drives the center inspector.
+ * One entry per turn. The AI turn shows its prose + a compact activity chip
+ * (clickable → drives the inspector), and — when the turn produced a final_answer —
+ * the synthesis itself as a NarrativeCard right here in the chat.
  */
-const DeepDiveTranscript = memo(({ turns, selectedTurnId, onSelect, isGenerating }) => {
+const DeepDiveTranscript = memo(({ turns, selectedTurnId, onSelect, onFollowUp, isGenerating }) => {
     return (
         <div className="ddt">
             {turns.map((turn) => {
@@ -36,36 +31,47 @@ const DeepDiveTranscript = memo(({ turns, selectedTurnId, onSelect, isGenerating
 
                 const text = aiTurnText(turn);
                 const stats = turnActivityStats(turn);
+                const finalAnswer = turnFinalAnswer(turn);
                 const isSel = turn.id === selectedTurnId;
                 const working = turn.inProgress && isGenerating;
+                const hasActivity = stats.steps > 0 || stats.hasReasoning;
 
                 return (
-                    <button
-                        key={turn.id}
-                        type="button"
-                        onClick={() => onSelect(turn.id)}
-                        className={`ddt-ai${isSel ? ' ddt-ai--selected' : ''}`}
-                    >
+                    <div key={turn.id} className={`ddt-ai${isSel ? ' ddt-ai--selected' : ''}`}>
                         <span className="ddt-avatar ddt-avatar--ai"><LuBot size={12} /></span>
                         <div className="ddt-ai-body">
-                            {text ? (
-                                <div className="ddt-ai-prose markdown-body">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{stripThink(text)}</ReactMarkdown>
-                                </div>
-                            ) : (
-                                <div className="ddt-ai-working">
-                                    {working ? <><LuLoader size={12} className="ddt-spin" /> Working…</> : 'Step'}
-                                </div>
-                            )}
-                            {(stats.steps > 0 || stats.hasReasoning) && (
-                                <div className="ddt-chip">
-                                    {stats.queries > 0 && <span className="ddt-chip-item"><LuDatabase size={10} /> {stats.queries}</span>}
-                                    {stats.charts > 0 && <span className="ddt-chip-item"><LuChartColumn size={10} /> {stats.charts}</span>}
-                                    {stats.steps > 0 && <span className="ddt-chip-item"><LuListChecks size={10} /> {stats.steps} {stats.steps === 1 ? 'step' : 'steps'}</span>}
-                                </div>
-                            )}
+                            {/* Clickable region — selects the turn to inspect its steps */}
+                            <div
+                                className="ddt-ai-select"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => onSelect(turn.id)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(turn.id); } }}
+                                title={hasActivity ? 'Click to inspect this step' : undefined}
+                            >
+                                {text ? (
+                                    <div className="ddt-ai-prose markdown-body">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+                                    </div>
+                                ) : !finalAnswer ? (
+                                    <div className="ddt-ai-working">
+                                        {working ? <><LuLoader size={12} className="ddt-spin" /> Working…</> : 'Step'}
+                                    </div>
+                                ) : null}
+                                {hasActivity && (
+                                    <div className="ddt-chip">
+                                        {stats.queries > 0 && <span className="ddt-chip-item"><LuDatabase size={10} /> {stats.queries}</span>}
+                                        {stats.charts > 0 && <span className="ddt-chip-item"><LuChartColumn size={10} /> {stats.charts}</span>}
+                                        {stats.steps > 0 && <span className="ddt-chip-item"><LuListChecks size={10} /> {stats.steps} {stats.steps === 1 ? 'step' : 'steps'}</span>}
+                                        {isSel ? <span className="ddt-chip-inspecting">inspecting →</span> : <span className="ddt-chip-hint">view steps →</span>}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Final synthesis lives in the chat, not the inspector */}
+                            {finalAnswer && <NarrativeCard result={finalAnswer} onFollowUp={onFollowUp} />}
                         </div>
-                    </button>
+                    </div>
                 );
             })}
         </div>

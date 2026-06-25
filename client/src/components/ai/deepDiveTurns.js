@@ -103,6 +103,18 @@ export function turnReasoning(turn) {
 }
 
 const PLAN_TOOLS = new Set(['create_plan', 'update_plan']);
+// Not "work" — these belong in the chat thread, not the step inspector.
+const NON_ACTIVITY_TOOLS = new Set(['final_answer', 'suggest_followups']);
+
+/** The final_answer result for a turn (rendered as the narrative card in the chat). */
+export function turnFinalAnswer(turn) {
+    for (const m of turn?.messages || []) {
+        for (const tc of m.toolCalls || []) {
+            if (tc.toolName === 'final_answer' && tc.result) return tc.result;
+        }
+    }
+    return null;
+}
 
 /**
  * Group a turn's activity by AGENT-PLAN STEP, following the real execution flow
@@ -147,11 +159,13 @@ export function buildStepGroups(turn) {
             current.status = status || current.status;
             return;
         }
+        if (NON_ACTIVITY_TOOLS.has(tc.toolName)) return; // final_answer / followups → chat thread
         if (!current) open('setup', 'Setup', null);
         current.tools.push(tc);
     });
 
-    return sections;
+    // Drop empty trailing/sections with no real work (e.g. the final step that only held final_answer).
+    return sections.filter(s => s.tools.length > 0 || s.note);
 }
 
 /** Count the activity inside a turn (for the compact chip in the transcript). */
