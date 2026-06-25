@@ -5650,7 +5650,11 @@ tr:hover .rt-td {
   font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.5;
 }
 .ddi-insight-icon { color: var(--accent-primary); flex-shrink: 0; margin-top: 2px; }
-.ai-msg-table-more { padding: 4px 0; font-size: var(--text-mini); color: var(--text-muted); }
+.ai-msg-table-more {
+  padding: 4px 0; font-size: var(--text-mini); color: var(--text-secondary);
+  background: none; border: none; cursor: pointer;
+}
+.ai-msg-table-more:hover { color: var(--text-primary); text-decoration: underline; }
 
 /* Composer context attach (drop tables/files at the input) */
 .ai-composer--dragover { outline: 2px dashed var(--accent-primary); outline-offset: 3px; border-radius: 14px; }
@@ -5696,6 +5700,7 @@ tr:hover .rt-td {
 .ddi-status--failed { color: var(--color-error, #f87171); }
 .ddi-stepgroup .ddi-step { padding: 8px 12px; }
 .ddi-stepgroup-empty { padding: 8px 12px; color: var(--text-muted); font-size: var(--text-xs); }
+.ddi-stepgroup-reasoning { padding: 6px 12px 0; display: flex; flex-direction: column; gap: 4px; }
 
 .ai-empty-state-icon {
   color: var(--accent-primary);
