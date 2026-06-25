@@ -563,19 +563,51 @@ function createTools(context) {
         }),
 
         build_notebook: tool({
-            description: "Create or update a SQL Notebook (.sqlnb). ONLY call when the user explicitly asks for a notebook, report, or document. mode='create': new file, minimum 8 cells structured as (1) title+summary, (2) data overview, (3-4) profiling+quality, (5+) analysis pairs, (last) conclusions. mode='update': append cells to an existing notebook via targetPath.",
+            description: "Create or update a SQL Notebook (.sqlnb). mode='create': new file, minimum 8 cells structured as (1) title+summary, (2) data overview, (3-4) profiling+quality, (5+) analysis pairs, (last) conclusions. mode='update': append cells via targetPath. IMPORTANT for storytelling: attach a `chart` to each analysis CODE cell so its result renders as a Story Flow chart — a report should be visual, not just text + tables.",
             inputSchema: z.object({
                 mode: z.enum(['create', 'update']).optional().default('create').describe('"create" builds a new notebook (default); "update" appends to an existing one.'),
                 title: z.string().describe('Analytical title. Required for create; used as section heading for update.'),
                 targetPath: z.string().optional().describe('mode="update" only: relative path to an existing .sqlnb file.'),
                 cells: z.array(z.object({
                     type: z.enum(['markdown', 'code']).describe('"markdown" for analysis prose; "code" for standalone SQL queries.'),
-                    content: z.string().describe('Markdown: analytical text with findings. Code: executable SQL.'),
+                    content: z.string().describe('Markdown: analytical text with findings (GFM tables/lists supported). Code: executable SQL.'),
+                    chart: z.object({
+                        chart_type: z.enum(['bar', 'bar-stacked', 'bar-horizontal', 'bar-100', 'line', 'area', 'donut', 'scatter', 'bubble', 'combo', 'funnel', 'heatmap', 'treemap']).describe('Pick by message + data shape (same rules as display_chart).'),
+                        x_axis_key: z.string().describe('Column for the X axis / category.'),
+                        y_axis_keys: z.array(z.string()).describe('Value column(s).'),
+                        split_by: z.string().optional().describe('Column to split into one series per value (grouped bars / multi-line).'),
+                        title: z.string().optional(),
+                        subtitle: z.string().optional(),
+                        color_theme: z.string().optional(),
+                        date_aggregation: z.enum(['none', 'day', 'week', 'month', 'quarter', 'year']).optional(),
+                        sort_mode: z.enum(['x-asc', 'x-desc', 'y-asc', 'y-desc', 'natural']).optional(),
+                        show_data_labels: z.boolean().optional(),
+                    }).optional().describe('Attach a chart to a CODE cell so its SQL result renders as a Story Flow chart in the notebook. Add one to every analysis query so the report is visual, not just text + tables.'),
                 })).min(1).describe('Cells to add. create: min 8. update: just the new cells to append.'),
             }),
             execute: async ({ mode = 'create', title, targetPath, cells }) => {
                 try {
                     if (!projectPath) return { error: 'No project directory available.' };
+
+                    // Map a compact chart spec to the notebook cell's chartConfig (DataVisualizer
+                    // shape). Stored under cell.state so the SQL result renders as a chart once run.
+                    const cellState = (cell) => {
+                        if (cell.type !== 'code' || !cell.chart) return undefined;
+                        const c = cell.chart;
+                        const chartConfig = {
+                            chartType: c.chart_type,
+                            xAxisKey: c.x_axis_key,
+                            yAxisKeys: c.y_axis_keys,
+                            ...(c.split_by !== undefined && { splitByKey: c.split_by }),
+                            ...(c.title !== undefined && { chartTitle: c.title }),
+                            ...(c.subtitle !== undefined && { chartSubtitle: c.subtitle }),
+                            ...(c.color_theme !== undefined && { colorTheme: c.color_theme }),
+                            ...(c.date_aggregation !== undefined && { dateAggregation: c.date_aggregation }),
+                            ...(c.sort_mode !== undefined && { sortMode: c.sort_mode }),
+                            ...(c.show_data_labels !== undefined && { showLabels: c.show_data_labels }),
+                        };
+                        return { viewMode: 'chart', chartConfig };
+                    };
 
                     if (mode === 'update') {
                         if (!targetPath) return { error: 'targetPath is required for mode="update".' };
@@ -587,11 +619,15 @@ function createTools(context) {
                         const notebook = JSON.parse(raw);
                         const ts = Date.now();
                         const divider = { id: `${ts}_divider`, type: 'markdown', content: `---\n## ${title}` };
-                        const newCells = cells.map((cell, i) => ({
-                            id: `${ts}_append_${i}`,
-                            type: cell.type,
-                            content: cell.content,
-                        }));
+                        const newCells = cells.map((cell, i) => {
+                            const state = cellState(cell);
+                            return {
+                                id: `${ts}_append_${i}`,
+                                type: cell.type,
+                                content: cell.content,
+                                ...(state ? { state } : {}),
+                            };
+                        });
                         notebook.cells.push(divider, ...newCells);
                         await fs.promises.writeFile(absPath, JSON.stringify(notebook, null, 2), 'utf8');
                         const relativePath = path.relative(projectPath, absPath);
@@ -604,11 +640,15 @@ function createTools(context) {
                         };
                     }
 
-                    const notebookCells = cells.map((cell, i) => ({
-                        id: `${Date.now()}_${i}`,
-                        type: cell.type,
-                        content: cell.content,
-                    }));
+                    const notebookCells = cells.map((cell, i) => {
+                        const state = cellState(cell);
+                        return {
+                            id: `${Date.now()}_${i}`,
+                            type: cell.type,
+                            content: cell.content,
+                            ...(state ? { state } : {}),
+                        };
+                    });
 
                     const notebook = { version: '3.0', cells: notebookCells, environment: {} };
 

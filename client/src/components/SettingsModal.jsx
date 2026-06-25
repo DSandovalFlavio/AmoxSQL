@@ -63,7 +63,7 @@ const TAB_TITLES = {
     appearance:  'Appearance',
     editor:      'Editor',
     behavior:    'Behavior',
-    ai:          'AI Assistant',
+    ai:          'AI',
     integrations:'Store Integrations',
     workspace:   'Workspace',
     shortcuts:   'Keyboard Shortcuts',
@@ -71,8 +71,8 @@ const TAB_TITLES = {
     storyflow:   'Story Flow',
     // Legacy aliases so existing initialTab values keep working
     formatter:   'Editor',
-    memories:    'AI Assistant',
-    aicontext:   'AI Assistant',
+    memories:    'AI',
+    aicontext:   'AI',
     cloud:       'Store Integrations',
     gallery:     'Chart Gallery',
 };
@@ -106,7 +106,7 @@ const SHORTCUT_SECTIONS = [
             { keys: 'Ctrl + Tab', description: 'Next Tab' },
             { keys: 'Ctrl + Shift + Tab', description: 'Previous Tab' },
             { keys: 'Ctrl + B', description: 'Toggle Sidebar' },
-            { keys: 'Ctrl + L', description: 'Toggle AI Assistant' },
+            { keys: 'Ctrl + L', description: 'Toggle Assist' },
             { keys: 'Ctrl + Shift + E', description: 'Focus File Explorer' },
             { keys: 'Ctrl + Shift + D', description: 'Focus Database Explorer' },
         ]
@@ -342,7 +342,7 @@ function AiContextTab() {
                         <div className="stg-ctx-how-num">3</div>
                         <div>
                             <strong>AI reads it automatically</strong>
-                            <p>Every new Data Diving conversation loads the context. No need to re-explain "revenue" or table relationships session after session.</p>
+                            <p>Every new Deep Dive conversation loads the context. No need to re-explain "revenue" or table relationships session after session.</p>
                         </div>
                     </div>
                     <div className="stg-ctx-how-step">
@@ -832,7 +832,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
-                        { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
+                        { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI' },
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
                         // ── Help & info ──
@@ -1623,6 +1623,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                             <div className="stg-section">
                                 <TabWithSubTabs
                                     tabs={[
+                                        { id: 'modes',     label: 'Modes' },
                                         { id: 'models',    label: 'Models' },
                                         { id: 'knowledge', label: 'Knowledge' },
                                         { id: 'skills',    label: 'Skills' },
@@ -1630,6 +1631,37 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     activeTab={aiSubTab}
                                     onChange={setAiSubTab}
                                 />
+                                {aiSubTab === 'modes' && <div className="stg-subtab-content">
+                                    <h3 className="stg-section-heading stg-section-heading--mb8">The two AI modes</h3>
+                                    <p className="stg-card-desc" style={{ marginTop: 0 }}>
+                                        Same engine, different autonomy and scope. One works alongside you while you edit; the other runs the analysis for you.
+                                    </p>
+                                    <div className="stg-cloud-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '12px' }}>
+                                        <div className="stg-card">
+                                            <div className="stg-card-title">Assist <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· Ctrl+L</span></div>
+                                            <p className="stg-card-desc" style={{ marginTop: '4px' }}><strong>Your copilot in the editor.</strong></p>
+                                            <ul className="stg-card-desc" style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
+                                                <li>Lives in the sidebar, bound to the open <code className="stg-code">.sql</code>/<code className="stg-code">.sqlnb</code> file.</li>
+                                                <li>Generate, fix or explain the current query; build a chart for the result.</li>
+                                                <li>Reactive and compact — you drive, it helps.</li>
+                                                <li><strong>Use it when:</strong> you're writing SQL or tweaking a chart and want a hand.</li>
+                                            </ul>
+                                        </div>
+                                        <div className="stg-card">
+                                            <div className="stg-card-title">Deep Dive</div>
+                                            <p className="stg-card-desc" style={{ marginTop: '4px' }}><strong>Your autonomous analyst.</strong></p>
+                                            <ul className="stg-card-desc" style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
+                                                <li>Full-screen tab over the whole local database.</li>
+                                                <li>Plans steps, explores on its own, narrates findings and can build a notebook.</li>
+                                                <li>Proactive — you delegate the question.</li>
+                                                <li><strong>Use it when:</strong> you have a business question and want the whole analysis done.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <p className="stg-card-desc" style={{ marginTop: '12px' }}>
+                                        Rule of thumb: <strong>Assist</strong> while you work; <strong>Deep Dive</strong> when you want work done. You can promote an Assist chat to Deep Dive anytime with the ↗ button.
+                                    </p>
+                                </div>}
                                 {aiSubTab === 'models' && <div className="stg-subtab-content">
                                 {/* Provider */}
                                 <div className="stg-row stg-row--top">

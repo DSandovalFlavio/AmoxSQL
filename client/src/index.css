@@ -6511,7 +6511,7 @@ tr:hover .rt-td {
 }
 
 .query-audit-modal {
-  background: var(--bg-surface);
+  background: var(--panel-bg, var(--surface-raised));
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   width: min(720px, 100%);
@@ -6594,7 +6594,7 @@ tr:hover .rt-td {
 .query-audit-table th {
   position: sticky;
   top: 0;
-  background: var(--bg-surface);
+  background: var(--panel-bg, var(--surface-raised));
   padding: 5px 10px;
   text-align: left;
   font-weight: var(--weight-semibold);

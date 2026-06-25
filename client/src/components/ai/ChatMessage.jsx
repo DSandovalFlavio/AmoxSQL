@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { API_BASE } from '../../api.js';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
@@ -95,7 +95,9 @@ function QueryAuditModal({ queryId, onClose }) {
 function NarrativeCard({ result, onFollowUp }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
     const [causeOpen, setCauseOpen] = useState(false);
+    const [detailsOpen, setDetailsOpen] = useState(false);
     const [auditQueryId, setAuditQueryId] = useState(null);
+    const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0 || caveats?.length > 0;
 
     const openAudit = useCallback((qid) => setAuditQueryId(qid), []);
     const closeAudit = useCallback(() => setAuditQueryId(null), []);
@@ -112,6 +114,23 @@ function NarrativeCard({ result, onFollowUp }) {
                     <span>{decodeSafely(tldr)}</span>
                 </div>
             )}
+
+            {hasDetails && (
+                <button
+                    onClick={() => setDetailsOpen(o => !o)}
+                    title={detailsOpen ? 'Hide the structured summary' : 'Show the structured summary'}
+                    style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-muted)', fontSize: '11px', padding: '2px 0', marginTop: '2px',
+                    }}
+                >
+                    {detailsOpen ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
+                    {detailsOpen ? 'Hide summary' : 'Show summary'}
+                </button>
+            )}
+
+            {detailsOpen && (<>
 
             {findings?.length > 0 && (
                 <div className="ai-narrative-section">
@@ -173,6 +192,8 @@ function NarrativeCard({ result, onFollowUp }) {
                 </div>
             )}
 
+            </>)}
+
             {followup_questions?.length > 0 && (
                 <div className="ai-msg-followups">
                     <span className="ai-msg-followups__label">Explore</span>
@@ -183,6 +204,25 @@ function NarrativeCard({ result, onFollowUp }) {
                             </button>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {onFollowUp && (
+                <div className="ai-msg-followups" style={{ marginTop: '4px' }}>
+                    <button
+                        className="ai-msg-followup"
+                        title="Build a .sqlnb notebook from this analysis"
+                        onClick={() => onFollowUp('Save this analysis as a notebook — include the queries, the charts, and a short narrative for each section.')}
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            color: 'var(--accent-primary)',
+                            border: '1px solid var(--accent-primary)',
+                            background: 'var(--accent-subtle, transparent)',
+                            fontWeight: 600,
+                        }}
+                    >
+                        <LuNotebookPen size={13} /> Save as notebook
+                    </button>
                 </div>
             )}
         </div>
@@ -331,6 +371,9 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
             return next;
         });
     };
+
+    // Inline citation → opens the query audit modal for the cited result
+    const [citeQueryId, setCiteQueryId] = useState(null);
 
     // Parse follow-up suggestions from suggest_followups tool
     const followUps = toolCalls?.filter(tc => tc.toolName === 'suggest_followups')
@@ -513,6 +556,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     const parts = parseThinkingBlocks(content);
                     return (
                         <div className="ai-msg-text">
+                            {citeQueryId && <QueryAuditModal queryId={citeQueryId} onClose={() => setCiteQueryId(null)} />}
                             {parts.map((part, idx) => {
                                 if (part.type === 'thinking') {
                                     return <ThinkingBlock key={idx} content={part.content} isStreaming={part.isStreaming} />;
@@ -523,6 +567,26 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                         remarkPlugins={[remarkGfm]}
                                         components={{
                                             p: ({ children }) => <p>{children}</p>,
+                                            a: ({ href, children }) => {
+                                                // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query
+                                                if (href && href.startsWith('cite:')) {
+                                                    const [qid, column] = href.slice(5).split('#');
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect`}
+                                                            onClick={() => setCiteQueryId(qid)}
+                                                            style={{
+                                                                font: 'inherit', color: 'var(--accent-primary)',
+                                                                background: 'none', border: 'none',
+                                                                borderBottom: '1px dotted var(--accent-primary)',
+                                                                padding: 0, cursor: 'pointer', whiteSpace: 'nowrap',
+                                                            }}
+                                                        >{children}</button>
+                                                    );
+                                                }
+                                                return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                                            },
                                             pre: ({ children, ...props }) => (
                                                 <pre className="ai-msg-code-block" {...props}>{children}</pre>
                                             ),
@@ -593,7 +657,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 border: '1px solid var(--accent-color-user)',
                                 borderRadius: '6px', fontSize: '12px',
                             }}>
-                                <span style={{ color: 'var(--accent-color-user)' }}>📓</span>
+                                <LuNotebookPen size={14} style={{ color: 'var(--accent-color-user)', flexShrink: 0 }} />
                                 <span style={{ flex: 1, color: 'var(--text-active)' }}>
                                     Notebook created: <strong>{tc.result.fileName}</strong> ({tc.result.cellCount} cells)
                                 </span>

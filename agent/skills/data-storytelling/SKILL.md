@@ -75,9 +75,15 @@ Elige un candidato, hazle la prueba de los 5 segundos, y si falla prueba otro.
 
 ## Estructura del insight narrativo
 
-Para cada visualización, genera en `final_answer.findings`:
-- **point**: la observación concreta con números ("El segmento Premium creció 34% en Q3")
-- **value**: la métrica de soporte ("$2.4M vs $1.8M en Q2")
+Cada hallazgo es una **frase interpretativa con el número embebido**, NO una etiqueta con un valor suelto. Di la implicación, no el dato pelón. El lector debe poder leer el `point` como una oración completa.
+- ✅ "Premium creció 34% en Q3 ($1.8M→$2.4M), ya es el segmento de mayor aceleración."
+- ❌ point: "Creció Premium" · value: "$2.4M"  *(esto se lee como un resumen, no como análisis)*
+
+En `final_answer.findings`:
+- **point**: la oración interpretativa completa, con el número tejido dentro y el "y qué" implícito.
+- **value**: úsalo SOLO para una métrica de soporte adicional — nunca para partir la frase en `etiqueta: valor`.
+
+Regla de oro: si tu respuesta se puede leer como una lista de `etiqueta: valor`, reescríbela como análisis que fluye. "Total de ventas: X" es un resumen; "Las ventas llegaron a X, +Y% impulsadas por Z" es análisis.
 
 Para la narrativa completa:
 - **tldr**: 1–2 frases con el hallazgo más importante y su implicación

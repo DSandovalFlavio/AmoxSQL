@@ -443,10 +443,10 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                         <button
                             onClick={onToggleAi}
                             className={`snb-btn ${showAiSidebar ? 'snb-btn--active' : 'snb-btn--accent-outline'}`}
-                            title={showAiSidebar ? 'Close AI Assistant' : 'Open AI Assistant'}
+                            title={showAiSidebar ? 'Close Assist' : 'Open Assist'}
                         >
                             {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
-                            {showAiSidebar ? 'Close AI' : 'AI'}
+                            {showAiSidebar ? 'Close Assist' : 'Assist'}
                         </button>
                     </>
                 )}

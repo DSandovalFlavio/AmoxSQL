@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp } from 'react-icons/lu';
+import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import ConversationList from './ConversationList';
@@ -87,6 +88,7 @@ const AiDivingPanel = ({
     // ─── Session Name ───
     const [sessionName, setSessionName] = useState('');
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
+    const [showModesGuide, setShowModesGuide] = useState(false);
 
     // ─── Auto-select escalated conversation on mount ───
     const didSelectStartConvRef = useRef(false);
@@ -227,9 +229,9 @@ const AiDivingPanel = ({
                     <div className="ai-empty-state-icon">
                         <LuSparkles size={40} />
                     </div>
-                    <h2 className="ai-empty-state-title">Data Diving</h2>
+                    <h2 className="ai-empty-state-title">Deep Dive</h2>
                     <div className="ai-empty-state-hint">
-                        Ask anything about your data.
+                        Your autonomous analyst — hand it a question and it plans, explores your data, and tells the story.
                     </div>
                     <div className="ai-quick-actions">
                         <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
@@ -350,7 +352,7 @@ const AiDivingPanel = ({
                 <div className="ai-diving-header">
                     <div className="ai-diving-header-left">
                         <LuBot size={16} className="ai-diving-header-icon" />
-                        <span className="ai-diving-header-title">Data Diving</span>
+                        <span className="ai-diving-header-title">Deep Dive</span>
                         {provider === 'gemini' && (
                             <span className="ai-badge-cloud">CLOUD</span>
                         )}
@@ -359,7 +361,7 @@ const AiDivingPanel = ({
                         {messages.length > 0 && (
                             <button
                                 className="ai-icon-btn"
-                                onClick={() => exportConversationToMarkdown(messages, sessionName || 'Data Diving')}
+                                onClick={() => exportConversationToMarkdown(messages, sessionName || 'Deep Dive')}
                                 title="Export conversation to Markdown"
                             >
                                 <LuDownload size={14} />
@@ -370,8 +372,12 @@ const AiDivingPanel = ({
                                 <LuTrash2 size={14} />
                             </button>
                         )}
+                        <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
+                            <LuCircleHelp size={14} />
+                        </button>
                     </div>
                 </div>
+                <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
 
                 {status === 'LOADING' && (
                     <div className="ai-loading">
@@ -496,7 +502,7 @@ const AiDivingPanel = ({
             <AlertDialog
                 isOpen={alertData.isOpen}
                 onClose={() => setAlertData(prev => ({ ...prev, isOpen: false }))}
-                title="AI Assistant Info"
+                title="AmoxSQL AI"
                 message={alertData.message}
                 type="info"
             />

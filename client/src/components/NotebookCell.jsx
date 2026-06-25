@@ -1,6 +1,7 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
 import DebugResultModal from './DebugResultModal';
@@ -408,7 +409,7 @@ const NotebookCell = ({
                         >
                             {localContent && localContent.trim() ? (
                                 <div className="markdown-body nb-md-body">
-                                    <ReactMarkdown>{localContent}</ReactMarkdown>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{localContent}</ReactMarkdown>
                                 </div>
                             ) : (
                                 !isReportMode && <div className="nb-md-empty">Empty Markdown Cell (Double click to edit)</div>

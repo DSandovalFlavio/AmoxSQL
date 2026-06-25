@@ -39,7 +39,7 @@ function createPlannerTools({ activePlan, aiPersistence, dbManager, conversation
                 activePlan.goal = goal;
                 activePlan.steps = steps.map(s => ({ ...s, status: 'pending' }));
                 // Dynamic iteration budget: 3 iterations per step, clamped to [15, 50].
-                // Capa 4 will enforce an absolute hardcap of 20 in the loop itself.
+                // Capa 4 will enforce an absolute hardcap of 25 in the loop itself.
                 activePlan.dynamicMaxIterations = Math.min(50, Math.max(15, activePlan.steps.length * 3));
 
                 if (aiPersistence && conversationId) {
@@ -59,10 +59,10 @@ function createPlannerTools({ activePlan, aiPersistence, dbManager, conversation
         }),
 
         update_plan: tool({
-            description: 'Mark a plan step as done, failed, or skipped. Call this after EVERY step completes so the plan panel stays current and the user sees progress.',
+            description: 'Update a plan step\'s status so the plan panel stays current and the user sees progress. Mark it "in_progress" when you START a step, then "done" / "failed" / "skipped" when it ends.',
             inputSchema: z.object({
                 step_id: z.string().describe('The step id to update (e.g. "s1").'),
-                status: z.enum(['done', 'failed', 'skipped']).describe('New status.'),
+                status: z.enum(['in_progress', 'done', 'failed', 'skipped', 'pending']).describe('New status: in_progress when starting the step; done/failed/skipped when it ends.'),
                 note: z.string().optional().describe('Brief note on what was found or why a step was skipped/failed.'),
             }),
             execute: async ({ step_id, status, note }) => {
