@@ -609,27 +609,27 @@ const AiDivingPanel = ({
                             )}
 
                             <div className="ai-diving-composer-wrap">
-                                {contextObjects.length > 0 && (
-                                    <div className="ai-context-bar">
-                                        <div className="ai-context-bar-head">
-                                            <LuPaperclip size={12} />
-                                            <span className="ai-context-bar-title">Context for this conversation</span>
-                                            <span className="ai-context-bar-hint">always available · reference with @</span>
-                                        </div>
-                                        <div className="ai-context-bar-chips">
-                                            {contextObjects.map((obj, i) => (
-                                                <span key={i} className="ai-composer-chip ai-context-chip">
-                                                    {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
-                                                    <span className="ai-composer-chip-name">{obj.name}</span>
-                                                    <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
-                                                        <LuX size={10} />
-                                                    </button>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                                 <div className="ai-diving-composer">
+                                    {contextObjects.length > 0 && (
+                                        <div className="ai-context-bar">
+                                            <div className="ai-context-bar-head">
+                                                <LuPaperclip size={12} />
+                                                <span className="ai-context-bar-title">Context for this conversation</span>
+                                                <span className="ai-context-bar-hint">always available · reference with @</span>
+                                            </div>
+                                            <div className="ai-context-bar-chips">
+                                                {contextObjects.map((obj, i) => (
+                                                    <span key={i} className="ai-composer-chip ai-context-chip">
+                                                        {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
+                                                        <span className="ai-composer-chip-name">{obj.name}</span>
+                                                        <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
+                                                            <LuX size={10} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                     {inputComposer}
                                 </div>
                             </div>

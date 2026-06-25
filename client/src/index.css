@@ -5503,7 +5503,7 @@ tr:hover .rt-td {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px 0 160px 0;
+  padding: 20px 0 24px 0;
 }
 
 .ai-diving-messages-inner {
@@ -5512,15 +5512,12 @@ tr:hover .rt-td {
   padding: 0 24px;
 }
 
-/* Floating composer */
+/* Docked composer — sits below the scrollable chat so nothing hides behind it */
 .ai-diving-composer-wrap {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 0 24px 16px;
-  background: linear-gradient(to bottom, transparent, var(--surface-raised) 30%);
-  pointer-events: none;
+  flex-shrink: 0;
+  padding: 12px 24px 16px;
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: center;
 }
@@ -5528,7 +5525,6 @@ tr:hover .rt-td {
 .ai-diving-composer {
   max-width: 768px;
   width: 100%;
-  pointer-events: auto;
 }
 
 /* Empty state — diving variant */
