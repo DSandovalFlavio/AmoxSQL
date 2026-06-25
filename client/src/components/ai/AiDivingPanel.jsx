@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp } from 'react-icons/lu';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
+import DeepDiveTranscript from './DeepDiveTranscript';
+import DeepDiveInspector from './DeepDiveInspector';
+import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
 import ToolCallBlock from './ToolCallBlock';
-import ConversationList from './ConversationList';
 import ModelDropdown from './ModelDropdown';
 import SessionInventory from './SessionInventory';
 import AgentPlanPanel from './AgentPlanPanel';
@@ -12,6 +14,10 @@ import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
 
 import { API_BASE as API } from '../../api.js';
+
+// Remembers the transcript scroll position per conversation so switching tabs
+// (e.g. opening a chart in Story Flow and coming back) doesn't reset to the top.
+const scrollMemory = new Map();
 
 /**
  * AiDivingPanel — Full 3-column Data Diving mode.
@@ -25,6 +31,7 @@ const AiDivingPanel = ({
     onOpenFile,
     availableTables,
     startConversationId,
+    onConversationChange,
 }) => {
     const {
         // Live-discovered cloud model list
@@ -45,6 +52,9 @@ const AiDivingPanel = ({
         // Context state
         contextObjects,
         isDragOver, setIsDragOver,
+
+        // Artifact references ("Ask about this")
+        pendingReferences, addReference, removeReference,
 
         // Chat state
         messages,
@@ -90,6 +100,54 @@ const AiDivingPanel = ({
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showModesGuide, setShowModesGuide] = useState(false);
 
+    // ─── Turns (transcript) + selected turn (inspector) ───
+    const turns = useMemo(() => {
+        const base = groupIntoTurns(messages);
+        if (isGenerating && (streamingText || activeToolCalls.length > 0)) {
+            base.push({
+                id: '__live__', type: 'ai', text: streamingText || '', inProgress: true,
+                messages: [{ id: '__live__', role: 'assistant', content: streamingText || '', toolCalls: activeToolCalls }],
+            });
+        }
+        return base;
+    }, [messages, isGenerating, streamingText, activeToolCalls]);
+
+    const [selectedTurnId, setSelectedTurnId] = useState(null);
+
+    // While generating, follow the live turn; otherwise keep selection valid (default: last AI turn).
+    useEffect(() => {
+        if (isGenerating) {
+            const live = turns[turns.length - 1];
+            if (live) setSelectedTurnId(live.id);
+            return;
+        }
+        if (!turns.find(t => t.id === selectedTurnId)) {
+            const lastAi = [...turns].reverse().find(t => t.type === 'ai');
+            setSelectedTurnId(lastAi ? lastAi.id : null);
+        }
+    }, [turns, isGenerating, selectedTurnId]);
+
+    const selectedTurn = turns.find(t => t.id === selectedTurnId) || null;
+
+    // ─── Preserve transcript scroll across tab switches / remounts ───
+    const messagesElRef = useRef(null);
+    const restoredScrollRef = useRef(false);
+    const handleMessagesScroll = useCallback((e) => {
+        if (conversationId) scrollMemory.set(conversationId, e.currentTarget.scrollTop);
+    }, [conversationId]);
+    useEffect(() => {
+        if (restoredScrollRef.current) return;
+        const el = messagesElRef.current;
+        if (!el || !conversationId || messages.length === 0) return;
+        restoredScrollRef.current = true;
+        const saved = scrollMemory.get(conversationId);
+        // Restore the saved spot, or land at the bottom (latest) on a fresh open.
+        requestAnimationFrame(() => {
+            const el = messagesElRef.current;
+            if (el) el.scrollTop = saved != null ? saved : el.scrollHeight;
+        });
+    }, [conversationId, messages.length]);
+
     // ─── Auto-select escalated conversation on mount ───
     const didSelectStartConvRef = useRef(false);
     useEffect(() => {
@@ -98,6 +156,13 @@ const AiDivingPanel = ({
             handleSelectConversation(startConversationId);
         }
     }, [startConversationId, handleSelectConversation]);
+
+    // Remember this conversation on its tab (so switching tabs / reopening keeps it,
+    // and "New Conversation" never reuses an existing tab's state).
+    useEffect(() => {
+        if (conversationId) onConversationChange?.(conversationId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversationId]);
 
     // Reset session name when conversation changes
     useEffect(() => {
@@ -221,91 +286,218 @@ const AiDivingPanel = ({
         }
     }, [messages, conversationId, onOpenFile]);
 
-    // ─── Chat messages area ───
-    const chatMessages = (
-        <>
-            {messages.length === 0 && !isGenerating && (
-                <div className="ai-empty-state ai-empty-state--diving">
-                    <div className="ai-empty-state-icon">
-                        <LuSparkles size={40} />
-                    </div>
-                    <h2 className="ai-empty-state-title">Deep Dive</h2>
-                    <div className="ai-empty-state-hint">
-                        Your autonomous analyst — hand it a question and it plans, explores your data, and tells the story.
-                    </div>
-                    <div className="ai-quick-actions">
-                        <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
-                            Show all tables
-                        </button>
-                        <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
-                            Describe schema
-                        </button>
-                        <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
-                            Sample data
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {messages.map((msg, i) => (
-                <ChatMessage
-                    key={msg.id || i}
-                    role={msg.role}
-                    content={msg.content}
-                    toolCalls={msg.toolCalls}
-                    allMessages={messages}
-                    isDiving={true}
-                    isStreaming={false}
-                    onRunSql={onRunSql}
-                    onFollowUp={handleSend}
-                    onExportNotebook={onExportNotebook}
-                    onExportAmoxvis={onExportAmoxvis}
-                    onOpenFile={onOpenFile}
-                />
-            ))}
-
-            {/* Streaming assistant message */}
-            {isGenerating && (streamingText || activeToolCalls.length > 0) && (
-                <ChatMessage
-                    role="assistant"
-                    content={streamingText}
-                    toolCalls={activeToolCalls}
-                    isStreaming={true}
-                    isDiving={true}
-                    onRunSql={onRunSql}
-                    onFollowUp={handleSend}
-                    onExportNotebook={onExportNotebook}
-                />
-            )}
-
-            {/* Generating indicator */}
-            {isGenerating && !streamingText && activeToolCalls.length === 0 && (
-                <div className="ai-thinking">
-                    <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
-                    Thinking...
-                </div>
-            )}
-
-            <div ref={chatEndRef} />
-        </>
+    // ─── Empty state (no conversation yet) ───
+    const emptyState = (
+        <div className="ai-empty-state ai-empty-state--diving">
+            <div className="ai-empty-state-icon">
+                <LuSparkles size={40} />
+            </div>
+            <h2 className="ai-empty-state-title">Deep Dive</h2>
+            <div className="ai-empty-state-hint">
+                Your autonomous analyst — hand it a question and it plans, explores your data, and tells the story.
+            </div>
+            <div className="ai-quick-actions">
+                <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
+                    Show all tables
+                </button>
+                <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
+                    Describe schema
+                </button>
+                <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
+                    Sample data
+                </button>
+            </div>
+        </div>
     );
 
-    // ─── Input composer ───
+    // "Ask about this" → add reference + focus the input so the user types the question
+    const handleAskAbout = useCallback((ref) => {
+        addReference(ref);
+        requestAnimationFrame(() => inputRef.current?.focus());
+    }, [addReference, inputRef]);
+
+    // ─── Select text/number in a response → floating "Ask about this" ───
+    const [selAsk, setSelAsk] = useState(null); // { x, y, text, queryId } | null
+    const handleThreadMouseUp = useCallback(() => {
+        const sel = window.getSelection();
+        const text = sel ? sel.toString().trim() : '';
+        if (!sel || sel.isCollapsed || text.length < 2 || text.length > 300) { setSelAsk(null); return; }
+        try {
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            // Find a queryId from an ancestor that carries one (e.g. a cited value)
+            let node = range.startContainer;
+            let queryId;
+            while (node && node !== document.body) {
+                if (node.dataset?.queryId) { queryId = node.dataset.queryId; break; }
+                node = node.parentElement;
+            }
+            setSelAsk({ x: rect.left + rect.width / 2, y: rect.top, text, queryId });
+        } catch { setSelAsk(null); }
+    }, []);
+    const askAboutSelection = useCallback(() => {
+        if (!selAsk) return;
+        handleAskAbout({
+            type: selAsk.queryId ? 'number' : 'text',
+            findingText: selAsk.text,
+            queryId: selAsk.queryId,
+            label: `"${selAsk.text.slice(0, 32)}${selAsk.text.length > 32 ? '…' : ''}"`,
+            key: `sel:${selAsk.text.slice(0, 40)}`,
+        });
+        setSelAsk(null);
+        window.getSelection()?.removeAllRanges();
+    }, [selAsk, handleAskAbout]);
+
+    // ─── @/# mention autocomplete (reference any session artifact by typing) ───
+    const sessionArtifacts = useMemo(() => {
+        const base = buildSessionArtifacts(messages, availableTables);
+        // Shared conversation context (dropped tables/files) is referenceable too.
+        const ctx = contextObjects.map(o => ({
+            type: o.type === 'table' ? 'table' : 'file',
+            table: o.name,
+            label: `${o.type === 'table' ? 'Table' : 'File'}: ${o.name}`,
+            key: `ctx:${o.type}:${o.name}`,
+        }));
+        const seen = new Set();
+        return [...ctx, ...base].filter(a => (seen.has(a.key) ? false : (seen.add(a.key), true)));
+    }, [messages, availableTables, contextObjects]);
+    const [mention, setMention] = useState(null); // { query, start } | null
+
+    const handleInputChange = useCallback((e) => {
+        const value = e.target.value;
+        const caret = e.target.selectionStart ?? value.length;
+        setInputText(value);
+        const m = /[@#]([\w-]*)$/.exec(value.slice(0, caret));
+        setMention(m ? { query: m[1].toLowerCase(), start: caret - m[0].length } : null);
+    }, [setInputText]);
+
+    const mentionMatches = useMemo(() => {
+        if (!mention) return [];
+        return sessionArtifacts.filter(a => a.label.toLowerCase().includes(mention.query)).slice(0, 8);
+    }, [mention, sessionArtifacts]);
+
+    const pickMention = useCallback((ref) => {
+        setInputText(prev => {
+            if (!mention) return prev;
+            const before = prev.slice(0, mention.start);
+            const after = prev.slice(mention.start).replace(/^[@#][\w-]*/, '');
+            return before + after;
+        });
+        addReference(ref);
+        setMention(null);
+        requestAnimationFrame(() => inputRef.current?.focus());
+    }, [mention, addReference, setInputText, inputRef]);
+
+    const handleComposerKeyDown = useCallback((e) => {
+        if (mention && mentionMatches.length > 0) {
+            if (e.key === 'Escape') { e.preventDefault(); setMention(null); return; }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pickMention(mentionMatches[0]); return; }
+        }
+        handleKeyDown(e);
+    }, [mention, mentionMatches, pickMention, handleKeyDown]);
+
+    const mentionIcon = (type) => {
+        switch (type) {
+            case 'chart': return <LuChartColumn size={12} />;
+            case 'query': return <LuDatabase size={12} />;
+            case 'step': return <LuListChecks size={12} />;
+            case 'table': return <LuTable size={12} />;
+            case 'file': return <LuFile size={12} />;
+            default: return <LuAtSign size={12} />;
+        }
+    };
+
+    // Canonical quick-actions over the referenced artifact(s) — send with the
+    // pending references already attached as turn context.
+    const QUICK_ACTIONS = [
+        { label: 'Explain', text: 'Explain this in plain terms — what does it show and why does it matter?' },
+        { label: 'Redo differently', text: 'Show this a different way — pick a better chart or framing for the same data.' },
+        { label: 'Go deeper', text: 'Go deeper on this — break it down further and surface what is driving it.' },
+        { label: 'Validate', text: 'Validate this — is it real or noise? Check the numbers and call out caveats.' },
+    ];
+
+    // Icon for an artifact reference chip, by type
+    const refIcon = (type) => {
+        switch (type) {
+            case 'chart': return <LuChartColumn size={11} />;
+            case 'query': return <LuDatabase size={11} />;
+            case 'step': return <LuListChecks size={11} />;
+            case 'finding': return <LuLightbulb size={11} />;
+            case 'table': return <LuTable size={11} />;
+            case 'file': return <LuFile size={11} />;
+            default: return <LuAtSign size={11} />;
+        }
+    };
+
+    // ─── Input composer (with context attach: drop tables/files here) ───
     const inputComposer = (
-        <div className="ai-composer">
-            <textarea
-                className="ai-textarea"
-                ref={inputRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about your data..."
-                rows={1}
-                onInput={(e) => {
-                    e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                }}
-            />
+        <div
+            className={`ai-composer${isDragOver ? ' ai-composer--dragover' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+        >
+            {pendingReferences.length > 0 && (
+                <>
+                    <div className="ai-composer-context ai-composer-refs">
+                        {pendingReferences.map((ref, i) => (
+                            <span key={ref.key || i} className="ai-composer-chip ai-composer-chip--ref" title={ref.label}>
+                                {refIcon(ref.type)}
+                                <span className="ai-composer-chip-name">{ref.label}</span>
+                                <button className="ai-composer-chip-x" onClick={() => removeReference(i)} title="Remove reference">
+                                    <LuX size={10} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                    {!inputText.trim() && !isGenerating && (
+                        <div className="ai-quick-action-row">
+                            {QUICK_ACTIONS.map(qa => (
+                                <button
+                                    key={qa.label}
+                                    className="ai-quick-action-chip"
+                                    onClick={() => handleSend(qa.text)}
+                                    title={qa.text}
+                                >
+                                    {qa.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+            <div className="ai-mention-wrap">
+                {mention && mentionMatches.length > 0 && (
+                    <div className="ai-mention-popup">
+                        <div className="ai-mention-popup-head">Reference an artifact</div>
+                        {mentionMatches.map((a, i) => (
+                            <button
+                                key={a.key}
+                                className={`ai-mention-item${i === 0 ? ' ai-mention-item--first' : ''}`}
+                                onMouseDown={(e) => { e.preventDefault(); pickMention(a); }}
+                            >
+                                {mentionIcon(a.type)}
+                                <span className="ai-mention-item-label">{a.label}</span>
+                                <span className="ai-mention-item-type">{a.type}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <textarea
+                    className="ai-textarea"
+                    ref={inputRef}
+                    value={inputText}
+                    onChange={handleInputChange}
+                    onKeyDown={handleComposerKeyDown}
+                    onBlur={() => setTimeout(() => setMention(null), 120)}
+                    placeholder={isDragOver ? 'Drop tables or files to add as context…' : 'Ask about your data — type @ to reference a chart/query/step…'}
+                    rows={1}
+                    onInput={(e) => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                    }}
+                />
+            </div>
             <div className="ai-composer-toolbar">
                 <div className="ai-composer-toolbar-left">
                     <ModelDropdown 
@@ -337,14 +529,8 @@ const AiDivingPanel = ({
     // RENDER — 3-column layout
     // ═══════════════════════════════════════════════════════
     return (
-        <div className="ai-diving" style={{ width }}>
-            {/* ─── Left column: Conversations ─── */}
-            <ConversationList
-                activeId={conversationId}
-                onSelect={handleSelectConversation}
-                onNew={handleNewConversation}
-                mode="diving"
-            />
+        <div className="ai-diving ai-diving--no-list" style={{ width }}>
+            {/* Conversations now live in the main left sidebar (Deep Dive section) */}
 
             {/* ─── Center column: Chat ─── */}
             <div className="ai-diving-center">
@@ -394,29 +580,73 @@ const AiDivingPanel = ({
                 )}
 
                 {status === 'READY' && (
-                    <div className="ai-diving-chat">
-                        {/* Scrollable message area with centered content */}
-                        <div className="ai-diving-messages">
-                            <div className="ai-diving-messages-inner">
-                                {chatMessages}
+                    <div className="ai-diving-split">
+                        {/* LEFT: conversation thread + composer */}
+                        <div className="ai-diving-thread">
+                            <div className="ai-diving-messages" ref={messagesElRef} onScroll={handleMessagesScroll} onMouseUp={handleThreadMouseUp}>
+                                <div className="ai-diving-messages-inner">
+                                    {turns.length === 0 && !isGenerating ? emptyState : (
+                                        <DeepDiveTranscript
+                                            turns={turns}
+                                            selectedTurnId={selectedTurnId}
+                                            onSelect={setSelectedTurnId}
+                                            onFollowUp={handleSend}
+                                            onAskAbout={handleAskAbout}
+                                            isGenerating={isGenerating}
+                                        />
+                                    )}
+                                    <div ref={chatEndRef} />
+                                </div>
+                            </div>
+
+                            {errorMsg && (
+                                <div className="ai-error-bar">
+                                    <span>{errorMsg}</span>
+                                    <button onClick={() => setErrorMsg(null)}>
+                                        <LuX size={12} />
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="ai-diving-composer-wrap">
+                                <div className="ai-diving-composer">
+                                    {contextObjects.length > 0 && (
+                                        <div className="ai-context-bar">
+                                            <div className="ai-context-bar-head">
+                                                <LuPaperclip size={12} />
+                                                <span className="ai-context-bar-title">Context for this conversation</span>
+                                                <span className="ai-context-bar-hint">always available · reference with @</span>
+                                            </div>
+                                            <div className="ai-context-bar-chips">
+                                                {contextObjects.map((obj, i) => (
+                                                    <span key={i} className="ai-composer-chip ai-context-chip">
+                                                        {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
+                                                        <span className="ai-composer-chip-name">{obj.name}</span>
+                                                        <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
+                                                            <LuX size={10} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {inputComposer}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Error */}
-                        {errorMsg && (
-                            <div className="ai-error-bar">
-                                <span>{errorMsg}</span>
-                                <button onClick={() => setErrorMsg(null)}>
-                                    <LuX size={12} />
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Floating composer */}
-                        <div className="ai-diving-composer-wrap">
-                            <div className="ai-diving-composer">
-                                {inputComposer}
-                            </div>
+                        {/* CENTER: step inspector */}
+                        <div className="ai-diving-inspector-pane">
+                            <DeepDiveInspector
+                                turn={selectedTurn}
+                                allMessages={messages}
+                                onRunSql={onRunSql}
+                                onFollowUp={handleSend}
+                                onAskAbout={handleAskAbout}
+                                onExportNotebook={onExportNotebook}
+                                onExportAmoxvis={onExportAmoxvis}
+                                onOpenFile={onOpenFile}
+                            />
                         </div>
                     </div>
                 )}
@@ -497,6 +727,16 @@ const AiDivingPanel = ({
                         </div>
                     )}
                 </SessionInventory>
+            )}
+
+            {selAsk && (
+                <button
+                    className="ai-sel-ask"
+                    style={{ left: selAsk.x, top: selAsk.y }}
+                    onMouseDown={(e) => { e.preventDefault(); askAboutSelection(); }}
+                >
+                    <LuMessageSquareQuote size={12} /> Ask about this
+                </button>
             )}
 
             <AlertDialog

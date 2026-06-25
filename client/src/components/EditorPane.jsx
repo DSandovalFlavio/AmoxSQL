@@ -21,6 +21,7 @@ const EditorPane = ({
     onTabClick,
     onTabClose,
     onContentChange, // (tabId, newContent)
+    onConversationChange, // (tabId, convId) — Deep Dive: remember the conversation without marking dirty
     onRunQuery,      // (tabId, queryToRun) -> returns Promise<Result>
     onSave,           // Trigger save needed? Actually App handles save button. This is just for internal updates.
     onAnalyze,
@@ -412,6 +413,7 @@ const EditorPane = ({
                 ) : isDataDiving ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
                         <AiDivingPanel
+                            key={activeTab.id}
                             width="100%"
                             onRunSql={(sql) => onCreateNew && onCreateNew('sql', sql)}
                             onExportNotebook={onExportNotebook}
@@ -419,6 +421,7 @@ const EditorPane = ({
                             onOpenFile={onOpenFile}
                             availableTables={availableTables}
                             startConversationId={activeTab?.content || null}
+                            onConversationChange={(cid) => onConversationChange?.(activeTab.id, cid)}
                         />
                     </div>
                 ) : isErDiagram ? (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign } from 'react-icons/lu';
 import { AiModesGuideModal, AiModesTour } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
@@ -48,6 +48,9 @@ const AiAssistantPanel = ({
         isDragOver, setIsDragOver,
         handleDrop,
         removeContextObj,
+
+        // Artifact references ("Ask about this")
+        pendingReferences, removeReference,
 
         // Chat
         messages,
@@ -460,6 +463,26 @@ const AiAssistantPanel = ({
                         onDragLeave={() => setIsDragOver(false)}
                         onDrop={handleDrop}
                     >
+                        {/* Artifact reference chips ("Ask about this") */}
+                        {pendingReferences.length > 0 && (
+                            <div className="ai-composer-ctx ai-composer-refs">
+                                {pendingReferences.map((ref, i) => (
+                                    <div key={ref.key || i} className="ai-composer-chip ai-composer-chip--ref" title={ref.label}>
+                                        {ref.type === 'chart' ? <LuChartColumn size={10} />
+                                            : ref.type === 'query' ? <LuDatabase size={10} />
+                                            : ref.type === 'step' ? <LuListChecks size={10} />
+                                            : ref.type === 'finding' ? <LuLightbulb size={10} />
+                                            : ref.type === 'table' ? <LuTable size={10} />
+                                            : <LuAtSign size={10} />}
+                                        <span>{ref.label}</span>
+                                        <button onClick={() => removeReference(i)} className="ai-composer-chip-x">
+                                            <LuX size={9} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Context chips inside the box */}
                         {contextObjects.length > 0 && (
                             <div className="ai-composer-ctx">

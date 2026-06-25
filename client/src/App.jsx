@@ -22,6 +22,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import WorkspaceWizard from './components/WorkspaceWizard';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
 import AiDivingPanel from './components/ai/AiDivingPanel';
+import ConversationList from './components/ai/ConversationList';
 // StatusBar removed — info redundant with ResultsTable + WindowTitleBar
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
 import { useToast } from './components/ToastProvider';
@@ -783,10 +784,12 @@ function App() {
   const handleExportAmoxvis = useCallback(async (title, query, config) => {
     const safeTitle = (title || 'chart').replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const filename = `AI_${safeTitle}_${Date.now()}.amoxvis`;
+    // Flat format (canonical): chart fields at top level + query, matching what
+    // Story Flow's own "Save as .amoxvis" writes and what the loader expects.
+    // (A nested { config } shape would make DataVisualizer auto-detect defaults.)
     const amoxvisContent = {
-      version: 1,
+      ...(config || {}),
       query: query || '',
-      config: config || {}
     };
 
     try {
@@ -956,6 +959,14 @@ function App() {
               >
                 <LuGitBranch size={20} />
               </button>
+              {/* Deep Dive — autonomous analyst conversations */}
+              <button
+                onClick={() => handleSidebarTabClick('deepdive')}
+                className={`activity-bar-btn ${activeSidebarTab === 'deepdive' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Deep Dive — autonomous analyst conversations"
+              >
+                <LuSparkles size={20} />
+              </button>
 
               <div className="activity-bar-spacer" />
 
@@ -966,15 +977,6 @@ function App() {
                 title="Chart Gallery"
               >
                 <LuLayoutGrid size={20} />
-              </button>
-
-              {/* Deep Dive toggle */}
-              <button
-                onClick={() => layoutRef.current?.createNew('datadiving')}
-                className="activity-bar-btn"
-                title="New Deep Dive — an autonomous analyst that plans and explores on its own (Assist, in the editor sidebar, helps you while you work)"
-              >
-                <LuSparkles size={20} />
               </button>
 
               {/* Execution Chain */}
@@ -1080,6 +1082,16 @@ function App() {
             {visitedSidebarTabs.has('git') && (
               <div style={{ flex: 1, display: activeSidebarTab === 'git' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <GitPanel projectPath={projectPath} />
+              </div>
+            )}
+            {visitedSidebarTabs.has('deepdive') && (
+              <div style={{ flex: 1, display: activeSidebarTab === 'deepdive' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+                <ConversationList
+                  mode="diving"
+                  activeId={null}
+                  onSelect={(convId) => layoutRef.current?.openDataDiving(convId)}
+                  onNew={() => layoutRef.current?.openDataDiving(null)}
+                />
               </div>
             )}
             </div>{/* end .sidebar */}

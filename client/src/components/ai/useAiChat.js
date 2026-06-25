@@ -109,6 +109,8 @@ export default function useAiChat({
 
     // ─── Chat State ───
     const [messages, setMessages] = useState([]);
+    // Artifacts the user referenced for the next turn ("Ask about this": chart/query/step/finding)
+    const [pendingReferences, setPendingReferences] = useState([]);
     const [inputText, setInputText] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [streamingText, setStreamingText] = useState('');
@@ -214,9 +216,12 @@ export default function useAiChat({
     }, [mode]);
 
     // ─── Auto-scroll ───
+    // Only follow the bottom while actively generating; on plain load the panel
+    // restores its remembered scroll position instead (see AiDivingPanel).
     useEffect(() => {
+        if (!isGenerating && !streamingText) return;
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, streamingText, activeToolCalls]);
+    }, [messages, streamingText, activeToolCalls, isGenerating]);
 
     // ─── Drag & Drop ───
     const handleDrop = useCallback((e) => {
@@ -387,6 +392,10 @@ export default function useAiChat({
             .filter(o => o.type === 'table')
             .map(o => ({ name: o.name }));
 
+        // Artifacts the user referenced for this turn (consumed once)
+        const refs = pendingReferences;
+        if (refs.length > 0) setPendingReferences([]);
+
         // Build API messages (only role + content)
         const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
 
@@ -414,6 +423,7 @@ export default function useAiChat({
                 contextTables: contextTables.length > 0 ? contextTables : undefined,
                 activeSkillId: mode === 'diving' && activeSkillId ? activeSkillId : undefined,
                 conversationId: activeConvId || undefined,
+                referencedArtifacts: refs.length > 0 ? refs : undefined,
             };
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
@@ -689,8 +699,18 @@ export default function useAiChat({
         setPendingAskUser(null);
         setPendingContinue(null);
         setUserSkippedSteps(new Set());
+        setPendingReferences([]);
         if (mode === 'diving') setContextObjects([]);
     }, [mode]);
+
+    // ─── Artifact references ("Ask about this") ───
+    const addReference = useCallback((ref) => {
+        if (!ref) return;
+        setPendingReferences(prev => (prev.some(r => r.key === ref.key) ? prev : [...prev, ref]));
+    }, []);
+    const removeReference = useCallback((i) => {
+        setPendingReferences(prev => prev.filter((_, idx) => idx !== i));
+    }, []);
 
     // ─── Conversation management ───
     const handleNewConversation = useCallback(() => {
@@ -854,6 +874,9 @@ export default function useAiChat({
     return {
         // Live-discovered model list for the active cloud provider
         cloudModelsList,
+
+        // Artifact references ("Ask about this")
+        pendingReferences, addReference, removeReference,
 
         // Config state
         status,

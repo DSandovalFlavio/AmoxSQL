@@ -146,6 +146,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     };
 
+    // A Deep Dive tab remembers its conversation in `content` (used as
+    // startConversationId). Update it WITHOUT marking the tab dirty.
+    const handleConversationChange = (tabId, convId) => {
+        if (!convId) return;
+        if (leftTabs.find(t => t.id === tabId)) updateTab('left', tabId, { content: convId });
+        else if (rightTabs.find(t => t.id === tabId)) updateTab('right', tabId, { content: convId });
+    };
+
     const handleTabClose = (tabId) => {
         if (leftTabs.find(t => t.id === tabId)) {
             const index = leftTabs.findIndex(t => t.id === tabId);
@@ -519,6 +527,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
         },
         createNew,
+        // Open a Deep Dive conversation in a tab: focus an existing tab bound to
+        // this conversation if one is open, otherwise create a new one. A null
+        // convId always opens a fresh (empty) Deep Dive conversation.
+        openDataDiving: (convId = null) => {
+            if (convId) {
+                const inLeft = leftTabs.find(t => t.type === 'datadiving' && t.content === convId);
+                if (inLeft) { setActivePane('left'); setLeftActiveId(inLeft.id); return; }
+                const inRight = rightTabs.find(t => t.type === 'datadiving' && t.content === convId);
+                if (inRight) { setActivePane('right'); setRightActiveId(inRight.id); return; }
+            }
+            createNew('datadiving', convId || '');
+        },
         handleTriggerRun: () => handleRunActive(),
         handleTriggerSave: (isSilent = false) => handleSaveActive(isSilent),
         handleTriggerAnalyze: () => handleAnalyzeActive(),
@@ -969,6 +989,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onTabClick={(id) => { setLeftActiveId(id); setActivePane('left'); }}
                     onTabClose={handleTabClose}
                     onContentChange={handleContentChange}
+                    onConversationChange={handleConversationChange}
                     onRunQuery={executeQuery}
                     onSave={handleSaveActive}
                     onAnalyze={handleAnalyzeActive}
@@ -1004,6 +1025,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onTabClick={(id) => { setRightActiveId(id); setActivePane('right'); }}
                         onTabClose={handleTabClose}
                         onContentChange={handleContentChange}
+                    onConversationChange={handleConversationChange}
                         onRunQuery={executeQuery}
                         onSave={handleSaveActive}
                         onAnalyze={handleAnalyzeActive}

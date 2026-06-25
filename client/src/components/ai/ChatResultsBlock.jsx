@@ -1,5 +1,5 @@
 import { useMemo, useState, Component } from 'react';
-import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn } from 'react-icons/lu';
+import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote } from 'react-icons/lu';
 import html2canvas from 'html2canvas-pro';
 import ChartRenderer from '../DataVisualizer/renderers/ChartRenderer';
 import { processChartData, isDateColumn } from '../DataVisualizer/utils/dataProcessing';
@@ -36,7 +36,7 @@ class ChartErrorBoundary extends Component {
  * ChatResultsBlock — Renders an inline chart visualization for the AI chat.
  * Finds the data from previous messages using queryId and renders ChartRenderer.
  */
-const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart }) => {
+const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart, onAskAbout }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [applied, setApplied] = useState(false);
     const chartDOMId = useMemo(() => `ai-chart-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -77,6 +77,8 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         const cc = chartConfig;
         const hasXLabel = !!cc.xAxisLabel;
         const hasYLabel = !!cc.yAxisLabel;
+        const isHorizontalBar = (cc.chartType || '').startsWith('bar-horizontal');
+        const showsLabels = cc.showLabels ?? false;
         return {
             // ── Core ──────────────────────────────────────────────────────────────
             chartType:   cc.chartType || 'bar',
@@ -120,7 +122,10 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             textScale:  0.9,
             textAlign:  cc.textAlign || 'left',
             titleSpacing: 10,
-            marginTop: 10, marginBottom: 10, marginLeft: 10, marginRight: 10,
+            // Horizontal bars draw their value labels to the RIGHT of each bar;
+            // a 10px right margin clips the longest one (e.g. "46.5M"). Give it room.
+            marginTop: 10, marginBottom: 10, marginLeft: 10,
+            marginRight: isHorizontalBar && showsLabels ? 52 : 10,
 
             // ── Line/Area ─────────────────────────────────────────────────────────
             lineType:     cc.lineType    || 'monotone',
@@ -254,6 +259,21 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     Based on {data.length} rows {executionTime ? `(${executionTime}ms)` : ''}
                 </span>
                 <div className="ai-chart-footer-actions">
+                    {onAskAbout && chartConfig?.queryId && (
+                        <button
+                            className="ai-chart-btn"
+                            onClick={() => onAskAbout({
+                                type: 'chart',
+                                queryId: chartConfig.queryId,
+                                chartConfig: fullConfig,
+                                label: chartConfig.title || chartConfig.chartTitle || 'Chart',
+                                key: `chart:${chartConfig.queryId}`,
+                            })}
+                            title="Ask the agent about this chart"
+                        >
+                            <LuMessageSquareQuote size={12} /> Ask about this
+                        </button>
+                    )}
                     {onApplyChart && (
                         <button
                             className="ai-chart-btn"
@@ -281,9 +301,9 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     <button
                         className="ai-chart-btn"
                         onClick={handleDownloadConfig}
-                        title="Edit in Amoxvis"
+                        title="Save as .amoxvis and open it in the Story Flow editor"
                     >
-                        <LuFileJson size={12} /> Edit Config
+                        <LuFileJson size={12} /> Open in Story Flow
                     </button>
                 </div>
             </div>

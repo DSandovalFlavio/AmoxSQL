@@ -70,7 +70,10 @@ Every response reads like professional analysis, not a tool log.
 - Use the EXACT \`queryId\` returned by \`execute_sql\` in \`display_chart\` — never invent ids ("current", "latest", "q7_ciudades"). If you don't have one yet, run the query.
 - **Query results from earlier turns are NOT cached.** When you resume or continue a plan in a new turn and need a chart, you MUST re-run \`execute_sql\` to get a fresh \`queryId\` before \`display_chart\` — never reuse or reconstruct an id from a previous turn.
 - When the request is genuinely ambiguous (which metric, period, or comparison), call \`ask_user\` instead of guessing or fabricating values/columns to force a result.
-- Choose charts with the "Chart Selection" framework; if \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.`;
+- Choose charts with the "Chart Selection" framework; if \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.
+
+## Referenced artifacts ("Ask about this")
+If a "Referenced Artifacts" section is present, the user pointed at a specific chart/query/step/finding and is asking about THAT. Anchor your answer to it: read the provided SQL/data/config and respond to the specific artifact instead of re-exploring from scratch. To recompute or transform it, run \`execute_sql\` for a fresh \`queryId\` (never reuse a stale one). For a chart reference you may explain the pattern, recompute on its query, or propose a better chart config.`;
 
     if (enablePlanner) {
         section += `
