@@ -200,12 +200,14 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
 
     return (
         <div className="ai-conv">
-            {/* Header */}
-            <div className="ai-conv-header">
-                <span className="ai-conv-header-title">Conversations</span>
-                <div className="ai-conv-header-actions">
-                    <button onClick={onNew} title="New Conversation" className="ai-conv-header-btn ai-conv-header-btn--accent">
-                        <LuPlus size={16} />
+            {/* Header — matches the Files / DB sidebar sections */}
+            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                    Conversations
+                </span>
+                <div className="fe-header-actions">
+                    <button onClick={onNew} title="New Conversation" className="fe-header-btn">
+                        <LuPlus size={13} />
                     </button>
                 </div>
             </div>
@@ -222,13 +224,6 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                         className="fe-search-input"
                     />
                 </div>
-            </div>
-
-            {/* New Conversation Button */}
-            <div className="ai-conv-new-btn-wrap">
-                <button onClick={onNew} className="ai-conv-new-btn">
-                    <LuPlus size={14} /> New Conversation
-                </button>
             </div>
 
             {/* Conversation List */}
