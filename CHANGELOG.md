@@ -5,6 +5,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.0.0] — 2026-06-25
+
+### Deep Dive — full redesign + artifact reference layer
+
+A major overhaul of the Deep Dive experience: the agent now communicates its work step by step, and the user can point at any artifact it produced and converse about it.
+
+#### Deep Dive redesign
+- **3-region window**: chat (left, with input + conversation context) · step inspector (center) · fixed right bar (Plan + Artifacts), splitting the remaining space 50/50.
+- **Conversations moved to the left sidebar**; Deep Dive opens in its own tab.
+- **Inspector grouped by plan step in execution order**, each step showing its conclusion, readable SQL + result table, inline charts, and its reasoning.
+- **Final synthesis (NarrativeCard) rendered in the chat**, not the inspector.
+- Fixes: "+" no longer opens duplicate conversations; long plans continue correctly; context consolidated to the input.
+
+#### Artifact reference layer ("Ask about this")
+- Reference any chart, query, plan step or finding and ask about it — the artifact is packaged as turn context (rehydrated server-side from the query cache by `queryId`).
+- `@`/`#` mention autocomplete for session artifacts; quick-actions (Explain · Redo differently · Go deeper · Validate); select text/number → floating "Ask about this".
+
+#### UX & robustness fixes
+- `.amoxvis` export now uses the canonical flat shape, so the opened chart matches the preview; chart action renamed to **"Open in Story Flow"**.
+- Horizontal bar value labels no longer clipped in the inspector.
+- Transcript scroll position remembered per conversation.
+- **Stall watchdog in the agentic loop**: a frozen model stream is aborted after 90s of silence and the plan resumes, instead of hanging forever.
+- Labeled **"Context for this conversation"** bar docked above the input; consistent spacing in the agent message bubble.
+
+---
+
 ## [2.2.0] — 2026-05-06
 
 ### Data Diving — Agentic Loop v2
