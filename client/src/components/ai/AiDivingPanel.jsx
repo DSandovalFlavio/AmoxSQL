@@ -27,6 +27,7 @@ const AiDivingPanel = ({
     onOpenFile,
     availableTables,
     startConversationId,
+    onConversationChange,
 }) => {
     const {
         // Live-discovered cloud model list
@@ -129,6 +130,13 @@ const AiDivingPanel = ({
             handleSelectConversation(startConversationId);
         }
     }, [startConversationId, handleSelectConversation]);
+
+    // Remember this conversation on its tab (so switching tabs / reopening keeps it,
+    // and "New Conversation" never reuses an existing tab's state).
+    useEffect(() => {
+        if (conversationId) onConversationChange?.(conversationId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversationId]);
 
     // Reset session name when conversation changes
     useEffect(() => {
