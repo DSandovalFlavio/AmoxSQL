@@ -145,44 +145,7 @@ const SessionInventory = ({
             {/* Agent Plan + banners slot (Fase 1) */}
             {children}
 
-            {/* Context Objects */}
-            <div className="ai-ctx-section">
-                <div className="ai-ctx-section-label">
-                    <span>Tables & Files</span>
-                    <span className="ai-ctx-count">{contextObjects.length}</span>
-                </div>
-                <div
-                    className={`ai-ctx-drop${isDragOver ? ' ai-ctx-drop--active' : ''}${contextObjects.length > 0 ? ' ai-ctx-drop--has-items' : ''}`}
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                >
-                    {contextObjects.length === 0 ? (
-                        <div className="ai-ctx-drop-empty">
-                            <LuDatabase size={20} />
-                            <span>Drag tables or files here</span>
-                        </div>
-                    ) : (
-                        <div className="ai-ctx-items">
-                            {contextObjects.map((obj, i) => (
-                                <div key={i} className="ai-ctx-chip">
-                                    {obj.type === 'table'
-                                        ? <LuTable size={12} className="ai-ctx-chip-icon ai-ctx-chip-icon--table" />
-                                        : <LuFile size={12} className="ai-ctx-chip-icon ai-ctx-chip-icon--file" />
-                                    }
-                                    <span className="ai-ctx-chip-name">{obj.name}</span>
-                                    <button
-                                        className="ai-ctx-chip-remove"
-                                        onClick={() => onRemoveContext(i)}
-                                    >
-                                        <LuX size={10} />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Context (tables/files) is attached at the chat input now, not here. */}
 
             {/* Quick Actions */}
             {!hasMessages && (
