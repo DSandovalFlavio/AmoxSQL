@@ -185,6 +185,18 @@ function NarrativeCard({ result, onFollowUp }) {
                     </div>
                 </div>
             )}
+
+            {onFollowUp && (
+                <div className="ai-msg-followups" style={{ marginTop: '4px' }}>
+                    <button
+                        className="ai-msg-followup"
+                        title="Build a .sqlnb notebook from this analysis"
+                        onClick={() => onFollowUp('Save this analysis as a notebook — include the queries, the charts, and a short narrative for each section.')}
+                    >
+                        📓 Save as notebook
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

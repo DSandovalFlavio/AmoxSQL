@@ -94,7 +94,7 @@ Every response reads like professional analysis, not a tool log.
 ### Conversation State
 - **New analysis** → create_plan FIRST, then: attach_file (if file) → profile_data → execute_sql → display_chart → final_answer
 - **Follow-up** ("dig deeper", "show me X by Y"): build on context; skip profile_data and attach_file if already done. Reference prior findings. A new create_plan is NOT needed for simple follow-ups.
-- **Notebook request**: call \`build_notebook\` only when the user explicitly asks.
+- **Notebook**: call \`build_notebook\` when asked, or offer it after a substantial analysis worth keeping.
 
 ### Critical Rules
 - **NEVER** call any data tool before \`create_plan\` on a new analysis request.
@@ -113,11 +113,11 @@ Every response reads like professional analysis, not a tool log.
 
     section += `
 
-### Notebooks
-Use \`build_notebook\` **only** when the user explicitly asks ("create a notebook", "save this analysis", "export as report").
+### Notebooks — the durable report
+The \`.sqlnb\` notebook is where a finished analysis lives. Call \`build_notebook\` when the user asks ("create a notebook", "save this analysis", "export as report") OR when you've completed a substantial multi-step analysis worth keeping — in that case briefly OFFER it ("want me to save this as a notebook?") rather than building unprompted.
 - **mode="create"**: new .sqlnb. **mode="update"**: append to existing (use the \`path\` from the prior build_notebook call).
 - Minimum structure: Title + Executive Summary → Data Overview → Profiling → 3+ Analysis sections (markdown before: WHY; markdown after: interpretation with numbers) → Conclusions.
-- Markdown cells must contain analytical prose with specific numbers. Every SQL cell needs a preceding context cell and a following interpretation cell.`;
+- The notebook should read as a **flowing report**, not a log: markdown cells are connected analytical prose (same conversational voice as your chat answers), each SQL cell wrapped by a context cell (why) and an interpretation cell (so-what with numbers).`;
 
     return section;
 }
