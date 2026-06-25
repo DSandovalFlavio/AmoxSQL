@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp } from 'react-icons/lu';
+import { AiModesGuideModal, AiModesTour } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
@@ -87,6 +88,16 @@ const AiAssistantPanel = ({
 
     // ─── View Mode: 'chat' or 'history' ───
     const [viewMode, setViewMode] = useState('chat');
+
+    // ─── AI modes guide + first-run tour ───
+    const [showModesGuide, setShowModesGuide] = useState(false);
+    const [showModesTour, setShowModesTour] = useState(() => {
+        try { return !localStorage.getItem('amox-ai-modes-tour-seen'); } catch { return false; }
+    });
+    const dismissModesTour = useCallback(() => {
+        setShowModesTour(false);
+        try { localStorage.setItem('amox-ai-modes-tour-seen', '1'); } catch { /* ignore */ }
+    }, []);
 
     // ─── Cache: filePath → last conversationId per session ───
     const fileConvCacheRef = useRef({});
@@ -334,11 +345,17 @@ const AiAssistantPanel = ({
                             <LuTrash2 size={14} />
                         </button>
                     )}
+                    <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
+                        <LuCircleHelp size={14} />
+                    </button>
                     <button className="ai-icon-btn" onClick={onClose}>
                         <LuX size={16} />
                     </button>
                 </div>
             </div>
+
+            <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
+            <AiModesTour isOpen={showModesTour} onClose={dismissModesTour} />
 
             {status === 'LOADING' && (
                 <div className="ai-loading">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp } from 'react-icons/lu';
+import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import ConversationList from './ConversationList';
@@ -87,6 +88,7 @@ const AiDivingPanel = ({
     // ─── Session Name ───
     const [sessionName, setSessionName] = useState('');
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
+    const [showModesGuide, setShowModesGuide] = useState(false);
 
     // ─── Auto-select escalated conversation on mount ───
     const didSelectStartConvRef = useRef(false);
@@ -370,8 +372,12 @@ const AiDivingPanel = ({
                                 <LuTrash2 size={14} />
                             </button>
                         )}
+                        <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
+                            <LuCircleHelp size={14} />
+                        </button>
                     </div>
                 </div>
+                <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
 
                 {status === 'LOADING' && (
                     <div className="ai-loading">
