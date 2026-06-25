@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { API_BASE } from '../../api.js';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
@@ -192,8 +192,15 @@ function NarrativeCard({ result, onFollowUp }) {
                         className="ai-msg-followup"
                         title="Build a .sqlnb notebook from this analysis"
                         onClick={() => onFollowUp('Save this analysis as a notebook — include the queries, the charts, and a short narrative for each section.')}
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            color: 'var(--accent-primary)',
+                            border: '1px solid var(--accent-primary)',
+                            background: 'var(--accent-subtle, transparent)',
+                            fontWeight: 600,
+                        }}
                     >
-                        📓 Save as notebook
+                        <LuNotebookPen size={13} /> Save as notebook
                     </button>
                 </div>
             )}
