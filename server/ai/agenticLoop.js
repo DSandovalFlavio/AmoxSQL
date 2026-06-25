@@ -26,7 +26,7 @@ const { loadProjectContext, buildProjectContextSection } = require('./contextLoa
 const { verifyFindings } = require('./findingsLinter');
 
 // Hard ceiling — never grows dynamically beyond this
-const MAX_LOOP_ITERATIONS = 20;
+const MAX_LOOP_ITERATIONS = 25;
 // Per-iteration tool steps
 const ITER_MAX_STEPS = 10;
 // Max times we retry an iteration that produced no tool calls (idle recovery)

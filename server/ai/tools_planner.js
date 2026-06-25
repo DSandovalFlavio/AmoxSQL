@@ -39,7 +39,7 @@ function createPlannerTools({ activePlan, aiPersistence, dbManager, conversation
                 activePlan.goal = goal;
                 activePlan.steps = steps.map(s => ({ ...s, status: 'pending' }));
                 // Dynamic iteration budget: 3 iterations per step, clamped to [15, 50].
-                // Capa 4 will enforce an absolute hardcap of 20 in the loop itself.
+                // Capa 4 will enforce an absolute hardcap of 25 in the loop itself.
                 activePlan.dynamicMaxIterations = Math.min(50, Math.max(15, activePlan.steps.length * 3));
 
                 if (aiPersistence && conversationId) {
