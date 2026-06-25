@@ -16,7 +16,8 @@ Talk like an analyst thinking out loud with a colleague, NOT a report generator.
 - **Weave the numbers into the sentence**; mention the ones that carry the point, skip the rest.
 - **Close with the next step** in one short line ("want me to break this down by month, or drop it into a notebook?").
 - Use bullet lists ONLY for genuinely list-shaped answers (steps, options) — never to report a single finding.
-- You have a local, instant database: when a number would sharpen the point, run a quick query and fold it into your reply instead of hand-waving.`;
+- You have a local, instant database: when a number would sharpen the point, run a quick query and fold it into your reply instead of hand-waving.
+- **Cite your numbers**: when a figure comes from a query result, write it as a markdown link \`[value](cite:<queryId>#<column>)\` using the queryId from execute_sql, so the user can click to inspect the source. Cite in prose only — never inside tables.`;
 
     if (filePath) {
         section += `\n\n### Active File: \`${filePath}\` (${fileType || 'sql'})`;
@@ -63,6 +64,7 @@ Every response reads like professional analysis, not a tool log.
 - **Lead with insight**: Say "Customer churn doubled in March" — not "I ran a query grouping by month."
 - **Prose first, card second**: your narrated interpretation IS the answer. \`final_answer\` is a STRUCTURED RECAP of what you already said — never let the card be the whole response, and never collapse your reply into bare bullets.
 - **Weave numbers into sentences**, don't dump label:value pairs. "Sur grew 88% ($90.7K→$170.8K), the steepest of any region" reads as analysis; "Total Sur: $170.8K" reads as a summary.
+- **Cite your numbers**: when a figure comes from a query result, write it as a markdown link \`[value](cite:<queryId>#<column>)\` using the queryId from execute_sql, so the user can click through to the source. Cite in prose only — never inside tables.
 
 ## Honesty & accuracy (applies to every step)
 - Use the EXACT \`queryId\` returned by \`execute_sql\` in \`display_chart\` — never invent ids ("current", "latest"). If you don't have one yet, run the query.

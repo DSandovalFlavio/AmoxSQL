@@ -332,6 +332,9 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
         });
     };
 
+    // Inline citation → opens the query audit modal for the cited result
+    const [citeQueryId, setCiteQueryId] = useState(null);
+
     // Parse follow-up suggestions from suggest_followups tool
     const followUps = toolCalls?.filter(tc => tc.toolName === 'suggest_followups')
         .flatMap(tc => tc.result?.suggestions || []) || [];
@@ -513,6 +516,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     const parts = parseThinkingBlocks(content);
                     return (
                         <div className="ai-msg-text">
+                            {citeQueryId && <QueryAuditModal queryId={citeQueryId} onClose={() => setCiteQueryId(null)} />}
                             {parts.map((part, idx) => {
                                 if (part.type === 'thinking') {
                                     return <ThinkingBlock key={idx} content={part.content} isStreaming={part.isStreaming} />;
@@ -523,6 +527,26 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                         remarkPlugins={[remarkGfm]}
                                         components={{
                                             p: ({ children }) => <p>{children}</p>,
+                                            a: ({ href, children }) => {
+                                                // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query
+                                                if (href && href.startsWith('cite:')) {
+                                                    const [qid, column] = href.slice(5).split('#');
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect`}
+                                                            onClick={() => setCiteQueryId(qid)}
+                                                            style={{
+                                                                font: 'inherit', color: 'var(--accent-primary)',
+                                                                background: 'none', border: 'none',
+                                                                borderBottom: '1px dotted var(--accent-primary)',
+                                                                padding: 0, cursor: 'pointer', whiteSpace: 'nowrap',
+                                                            }}
+                                                        >{children}</button>
+                                                    );
+                                                }
+                                                return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                                            },
                                             pre: ({ children, ...props }) => (
                                                 <pre className="ai-msg-code-block" {...props}>{children}</pre>
                                             ),
