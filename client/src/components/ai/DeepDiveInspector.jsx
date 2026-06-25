@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { LuMousePointerClick, LuBrain, LuChevronDown, LuChevronRight, LuListChecks, LuLightbulb } from 'react-icons/lu';
+import { LuMousePointerClick, LuBrain, LuChevronDown, LuChevronRight, LuListChecks, LuLightbulb, LuMessageSquareQuote } from 'react-icons/lu';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
 import SqlActivityBlock from './SqlActivityBlock';
@@ -46,7 +46,7 @@ function distributeReasoning(reasoning, n) {
  * Each phase card shows its reasoning (un-grouped), what it concluded, the SQL +
  * result table, and charts inline.
  */
-const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, onExportNotebook, onExportAmoxvis }) => {
+const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, onAskAbout, onExportNotebook, onExportAmoxvis }) => {
     if (!turn || turn.type !== 'ai') {
         return (
             <div className="ddi-empty">
@@ -78,6 +78,22 @@ const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, 
                         <LuListChecks size={12} />
                         <span className="ddi-stepgroup-label">{sec.label}</span>
                         {sec.status && <span className={`ddi-stepgroup-status ddi-status--${sec.status}`}>{STATUS_LABEL[sec.status] || sec.status}</span>}
+                        {onAskAbout && (
+                            <button
+                                className="ddi-ask-btn"
+                                title="Ask the agent about this step"
+                                onClick={() => onAskAbout({
+                                    type: 'step',
+                                    stepId: sec.stepId || sec.key,
+                                    stepLabel: sec.label,
+                                    insight: sec.insight || sec.note || '',
+                                    label: `Step: ${sec.label}`,
+                                    key: `step:${sec.stepId || sec.key}`,
+                                })}
+                            >
+                                <LuMessageSquareQuote size={12} />
+                            </button>
+                        )}
                     </header>
 
                     {(sec.insight || sec.note) && (
@@ -97,7 +113,7 @@ const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, 
                     {sec.tools.map((tc, i) => (
                         <div key={i} className="ddi-step">
                             {tc.toolName === 'execute_sql' ? (
-                                <SqlActivityBlock tc={tc} onRunSql={onRunSql} />
+                                <SqlActivityBlock tc={tc} onRunSql={onRunSql} onAskAbout={onAskAbout} />
                             ) : (
                                 <>
                                     <ToolCallBlock
@@ -111,6 +127,7 @@ const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, 
                                             chartConfig={tc.result.chartConfig}
                                             allMessages={allMessages}
                                             isDiving={isDiving}
+                                            onAskAbout={onAskAbout}
                                             onExportNotebook={onExportNotebook}
                                             onExportAmoxvis={onExportAmoxvis}
                                         />

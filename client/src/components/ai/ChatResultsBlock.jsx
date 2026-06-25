@@ -1,5 +1,5 @@
 import { useMemo, useState, Component } from 'react';
-import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn } from 'react-icons/lu';
+import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote } from 'react-icons/lu';
 import html2canvas from 'html2canvas-pro';
 import ChartRenderer from '../DataVisualizer/renderers/ChartRenderer';
 import { processChartData, isDateColumn } from '../DataVisualizer/utils/dataProcessing';
@@ -36,7 +36,7 @@ class ChartErrorBoundary extends Component {
  * ChatResultsBlock — Renders an inline chart visualization for the AI chat.
  * Finds the data from previous messages using queryId and renders ChartRenderer.
  */
-const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart }) => {
+const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart, onAskAbout }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [applied, setApplied] = useState(false);
     const chartDOMId = useMemo(() => `ai-chart-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -254,6 +254,21 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     Based on {data.length} rows {executionTime ? `(${executionTime}ms)` : ''}
                 </span>
                 <div className="ai-chart-footer-actions">
+                    {onAskAbout && chartConfig?.queryId && (
+                        <button
+                            className="ai-chart-btn"
+                            onClick={() => onAskAbout({
+                                type: 'chart',
+                                queryId: chartConfig.queryId,
+                                chartConfig: fullConfig,
+                                label: chartConfig.title || chartConfig.chartTitle || 'Chart',
+                                key: `chart:${chartConfig.queryId}`,
+                            })}
+                            title="Ask the agent about this chart"
+                        >
+                            <LuMessageSquareQuote size={12} /> Ask about this
+                        </button>
+                    )}
                     {onApplyChart && (
                         <button
                             className="ai-chart-btn"

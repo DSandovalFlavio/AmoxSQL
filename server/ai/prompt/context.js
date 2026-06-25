@@ -24,6 +24,62 @@ Do NOT map a column type to a chart type (the trap: "has a date → line"). Reas
 - \`donut\`: ≤7 slices, else use a bar.`;
 }
 
+/**
+ * Build the "Referenced Artifacts" section — artifacts the user pointed at for
+ * this turn ("Ask about this" on a chart/query/step/finding). The server has
+ * already rehydrated heavy data (SQL + sample rows) from the query cache.
+ * The agent must ANCHOR its answer to these, not re-explore blindly.
+ */
+function buildReferencesSection(refs) {
+    if (!Array.isArray(refs) || refs.length === 0) return '';
+
+    const fmtRows = (columns, rows) => {
+        if (!Array.isArray(rows) || rows.length === 0) return '';
+        const cols = (columns && columns.length)
+            ? columns.map(c => c.name || c)
+            : Object.keys(rows[0] || {});
+        const sample = rows.slice(0, 10);
+        const header = `| ${cols.join(' | ')} |`;
+        const sep = `| ${cols.map(() => '---').join(' | ')} |`;
+        const body = sample.map(r =>
+            `| ${cols.map(c => {
+                const v = r[c];
+                return v === null || v === undefined ? '' : String(v);
+            }).join(' | ')} |`
+        ).join('\n');
+        const more = rows.length > sample.length ? `\n_(showing ${sample.length} of ${rows.length} rows)_` : '';
+        return `\n${header}\n${sep}\n${body}${more}`;
+    };
+
+    const blocks = refs.map((ref, i) => {
+        const label = ref.label || ref.type || `artifact ${i + 1}`;
+        let b = `### ${i + 1}. ${label} (${ref.type || 'artifact'})`;
+        if (ref.stepLabel) b += `\n- Plan step: ${ref.stepLabel}`;
+        if (ref.insight)   b += `\n- What it showed: ${ref.insight}`;
+        if (ref.findingText) b += `\n- Finding: "${ref.findingText}"`;
+        if (ref.column)    b += `\n- Cited value column: ${ref.column}`;
+        if (ref.table)     b += `\n- Table: ${ref.table}${ref.columnName ? ` · column: ${ref.columnName}` : ''}`;
+        if (ref.chartConfig) {
+            const cc = ref.chartConfig;
+            const axes = [cc.xAxis && `x=${cc.xAxis}`, cc.yAxis && `y=${cc.yAxis}`, cc.split_by && `split=${cc.split_by}`]
+                .filter(Boolean).join(', ');
+            b += `\n- Chart: type=${cc.chartType || cc.type || '?'}${axes ? ` (${axes})` : ''}`;
+        }
+        if (ref.sql) b += `\n- SQL:\n\`\`\`sql\n${ref.sql}\n\`\`\``;
+        if (ref.sampleRows && ref.sampleRows.length) {
+            b += `\n- Data:${fmtRows(ref.columns, ref.sampleRows)}`;
+        }
+        if (ref.queryId) b += `\n- queryId: \`${ref.queryId}\` (cite as needed; re-run with execute_sql if you transform it)`;
+        if (ref.stale)   b += `\n- ⚠️ This artifact's data is no longer cached — re-run its SQL with execute_sql to inspect it.`;
+        return b;
+    }).join('\n\n');
+
+    return `\n\n## Referenced Artifacts (the user is asking about THESE)
+The user pointed at the following artifact(s) from this session. Anchor your answer to them — read the SQL/data/config provided and respond specifically. Do NOT re-explore from scratch. If you need to transform or recompute, use \`execute_sql\` (never invent a queryId).
+
+${blocks}`;
+}
+
 function buildSkillSection(activeSkill) {
     if (!activeSkill || !activeSkill.content) return '';
     return `\n\n## Active Skill: ${activeSkill.name || 'Custom'}
@@ -57,6 +113,7 @@ function buildMemoriesSection(memories) {
 
 module.exports = {
     buildChartTypesSection,
+    buildReferencesSection,
     buildSkillSection,
     buildUserRulesSection,
     buildMemoriesSection,

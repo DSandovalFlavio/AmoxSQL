@@ -275,6 +275,7 @@ class AiManager {
             currentQuery = '',
             currentResult = null,
             currentChartConfig = null,
+            referencedArtifacts = [],
             activeSkillId = null,
             filePath = null,
             fileType = null,
@@ -298,6 +299,7 @@ class AiManager {
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
+            referencedArtifacts,
             activeSkill, modelProfile: profile,
             filePath, fileType,
         });
@@ -396,6 +398,7 @@ class AiManager {
             currentQuery = '',
             currentResult = null,
             currentChartConfig = null,
+            referencedArtifacts = [],
             activeSkillId = null,
             filePath = null,
             fileType = null,
@@ -418,6 +421,7 @@ class AiManager {
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
+            referencedArtifacts,
             activeSkill, modelProfile: profile,
             filePath, fileType,
         });

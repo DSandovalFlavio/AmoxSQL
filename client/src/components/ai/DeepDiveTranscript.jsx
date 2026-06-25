@@ -16,7 +16,7 @@ function aiTurnText(turn) {
  * (clickable → drives the inspector), and — when the turn produced a final_answer —
  * the synthesis itself as a NarrativeCard right here in the chat.
  */
-const DeepDiveTranscript = memo(({ turns, selectedTurnId, onSelect, onFollowUp, isGenerating }) => {
+const DeepDiveTranscript = memo(({ turns, selectedTurnId, onSelect, onFollowUp, onAskAbout, isGenerating }) => {
     return (
         <div className="ddt">
             {turns.map((turn) => {
@@ -69,7 +69,7 @@ const DeepDiveTranscript = memo(({ turns, selectedTurnId, onSelect, onFollowUp, 
                             </div>
 
                             {/* Final synthesis lives in the chat, not the inspector */}
-                            {finalAnswer && <NarrativeCard result={finalAnswer} onFollowUp={onFollowUp} />}
+                            {finalAnswer && <NarrativeCard result={finalAnswer} onFollowUp={onFollowUp} onAskAbout={onAskAbout} />}
                         </div>
                     </div>
                 );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LuChevronDown, LuChevronRight, LuDownload } from 'react-icons/lu';
+import { LuChevronDown, LuChevronRight, LuDownload, LuMessageSquareQuote } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 
 const PREVIEW_ROWS = 50;
@@ -25,7 +25,7 @@ function exportCsv(cols, data) {
  * formatted SQL (copy/open-in-editor) + result summary + an expandable result
  * table (preview, "show all", export CSV).
  */
-function SqlActivityBlock({ tc, onRunSql }) {
+function SqlActivityBlock({ tc, onRunSql, onAskAbout }) {
     const [showTable, setShowTable] = useState(false);
     const [showAll, setShowAll] = useState(false);
     const result = tc.result;
@@ -53,6 +53,21 @@ function SqlActivityBlock({ tc, onRunSql }) {
                                 <LuDownload size={10} /> CSV
                             </button>
                         </>
+                    )}
+                    {onAskAbout && result.queryId && (
+                        <button
+                            className="ai-msg-table-toggle"
+                            onClick={() => onAskAbout({
+                                type: 'query',
+                                queryId: result.queryId,
+                                sql: tc.args?.query || '',
+                                label: `Query (${result.rowCount} rows)`,
+                                key: `query:${result.queryId}`,
+                            })}
+                            title="Ask the agent about this query"
+                        >
+                            <LuMessageSquareQuote size={10} /> Ask about this
+                        </button>
                     )}
                 </div>
             )}

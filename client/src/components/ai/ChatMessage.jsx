@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { API_BASE } from '../../api.js';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
@@ -92,7 +92,7 @@ function QueryAuditModal({ queryId, onClose }) {
 /**
  * NarrativeCard — renders a structured final_answer with tldr/findings/cause/actions/caveats.
  */
-export function NarrativeCard({ result, onFollowUp }) {
+export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
     const [causeOpen, setCauseOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
@@ -151,6 +151,21 @@ export function NarrativeCard({ result, onFollowUp }) {
                                             onClick={() => openAudit(f.source_query_id)}
                                         >
                                             <LuSearch size={10} />
+                                        </button>
+                                    )}
+                                    {onAskAbout && (
+                                        <button
+                                            className="ai-narrative-audit-btn"
+                                            title="Ask the agent about this finding"
+                                            onClick={() => onAskAbout({
+                                                type: 'finding',
+                                                findingText: decodeSafely(f.point) + (f.value ? ` (${decodeSafely(f.value)})` : ''),
+                                                queryId: f.source_query_id || undefined,
+                                                label: `Finding: ${decodeSafely(f.point).slice(0, 40)}`,
+                                                key: `finding:${i}:${f.source_query_id || decodeSafely(f.point).slice(0, 20)}`,
+                                            })}
+                                        >
+                                            <LuMessageSquareQuote size={10} />
                                         </button>
                                     )}
                                 </span>

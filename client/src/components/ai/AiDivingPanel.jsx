@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import DeepDiveTranscript from './DeepDiveTranscript';
@@ -48,6 +48,9 @@ const AiDivingPanel = ({
         // Context state
         contextObjects,
         isDragOver, setIsDragOver,
+
+        // Artifact references ("Ask about this")
+        pendingReferences, addReference, removeReference,
 
         // Chat state
         messages,
@@ -284,6 +287,24 @@ const AiDivingPanel = ({
         </div>
     );
 
+    // "Ask about this" → add reference + focus the input so the user types the question
+    const handleAskAbout = useCallback((ref) => {
+        addReference(ref);
+        requestAnimationFrame(() => inputRef.current?.focus());
+    }, [addReference, inputRef]);
+
+    // Icon for an artifact reference chip, by type
+    const refIcon = (type) => {
+        switch (type) {
+            case 'chart': return <LuChartColumn size={11} />;
+            case 'query': return <LuDatabase size={11} />;
+            case 'step': return <LuListChecks size={11} />;
+            case 'finding': return <LuLightbulb size={11} />;
+            case 'table': return <LuTable size={11} />;
+            default: return <LuAtSign size={11} />;
+        }
+    };
+
     // ─── Input composer (with context attach: drop tables/files here) ───
     const inputComposer = (
         <div
@@ -292,6 +313,19 @@ const AiDivingPanel = ({
             onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDrop}
         >
+            {pendingReferences.length > 0 && (
+                <div className="ai-composer-context ai-composer-refs">
+                    {pendingReferences.map((ref, i) => (
+                        <span key={ref.key || i} className="ai-composer-chip ai-composer-chip--ref" title={ref.label}>
+                            {refIcon(ref.type)}
+                            <span className="ai-composer-chip-name">{ref.label}</span>
+                            <button className="ai-composer-chip-x" onClick={() => removeReference(i)} title="Remove reference">
+                                <LuX size={10} />
+                            </button>
+                        </span>
+                    ))}
+                </div>
+            )}
             {contextObjects.length > 0 && (
                 <div className="ai-composer-context">
                     {contextObjects.map((obj, i) => (
@@ -411,6 +445,7 @@ const AiDivingPanel = ({
                                             selectedTurnId={selectedTurnId}
                                             onSelect={setSelectedTurnId}
                                             onFollowUp={handleSend}
+                                            onAskAbout={handleAskAbout}
                                             isGenerating={isGenerating}
                                         />
                                     )}
@@ -441,6 +476,7 @@ const AiDivingPanel = ({
                                 allMessages={messages}
                                 onRunSql={onRunSql}
                                 onFollowUp={handleSend}
+                                onAskAbout={handleAskAbout}
                                 onExportNotebook={onExportNotebook}
                                 onExportAmoxvis={onExportAmoxvis}
                                 onOpenFile={onOpenFile}

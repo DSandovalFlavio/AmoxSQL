@@ -13,6 +13,7 @@ const { buildToolsSection } = require('./tools');
 const { buildAssistantModeSection, buildDivingModeSection } = require('./modes');
 const {
     buildChartTypesSection,
+    buildReferencesSection,
     buildSkillSection,
     buildUserRulesSection,
     buildMemoriesSection,
@@ -64,6 +65,7 @@ function buildDynamicSection(options) {
         currentQuery = '',
         currentResult = null,
         currentChartConfig = null,
+        referencedArtifacts = [],
         activeSkill = null,
         enablePlanner = false,
         projectCtx = null,
@@ -90,6 +92,7 @@ function buildDynamicSection(options) {
     }
 
     // Extensions
+    d += buildReferencesSection(referencedArtifacts);
     d += buildProjectContextSection(projectCtx);
     d += buildSkillSection(activeSkill);
     d += buildUserRulesSection(userRules);

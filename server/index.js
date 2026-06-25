@@ -1878,8 +1878,40 @@ app.post('/api/ai/chart-story', async (req, res) => {
     }
 });
 
+/**
+ * Expand lightweight artifact references ("Ask about this") into prompt-ready
+ * objects: rehydrate SQL + sample rows from the persistent query cache by
+ * queryId so the agent can answer anchored to the actual artifact. Refs whose
+ * data is no longer cached are flagged `stale` (the agent re-runs their SQL).
+ */
+async function expandReferencedArtifacts(refs) {
+    if (!Array.isArray(refs) || refs.length === 0) return [];
+    const persistence = require('./ai/persistence');
+    const out = [];
+    for (const ref of refs) {
+        if (!ref || typeof ref !== 'object') continue;
+        const enriched = { ...ref };
+        if (ref.queryId) {
+            try {
+                const cached = await persistence.getQueryCache(dbManager, ref.queryId);
+                if (cached) {
+                    enriched.sql = cached.sql_query || ref.sql || null;
+                    enriched.columns = cached.columns_info || null;
+                    enriched.sampleRows = Array.isArray(cached.data) ? cached.data.slice(0, 20) : null;
+                } else {
+                    enriched.stale = true;
+                }
+            } catch {
+                enriched.stale = true;
+            }
+        }
+        out.push(enriched);
+    }
+    return out;
+}
+
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, referencedArtifacts } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -1900,9 +1932,10 @@ app.post('/api/ai/chat/stream', async (req, res) => {
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
         const tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
 
-        const [tables, files] = await Promise.all([
+        const [tables, files, expandedReferences] = await Promise.all([
             buildTableContext(tablesToLoad),
             buildFileContext(contextFiles),
+            expandReferencedArtifacts(referencedArtifacts),
         ]);
 
         const chatOptions = {
@@ -1916,6 +1949,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            referencedArtifacts: expandedReferences,
             activeSkillId,
             filePath,
             fileType,
