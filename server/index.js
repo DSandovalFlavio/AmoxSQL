@@ -1921,7 +1921,10 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             fileType,
             conversationId: conversationId || null,
             planStepOverrides: Array.isArray(planStepOverrides) ? planStepOverrides : [],
-            // continueMode: user clicked "Continue" after loop exhaustion — grant extra iterations
+            // continueMode: user clicked "Continue" after loop exhaustion — grant extra
+            // iterations AND resume the persisted plan (the client sends content-only
+            // messages, so the loop can't reconstruct the plan from history).
+            continueMode: !!continueMode,
             maxIterations: continueMode ? 30 : undefined,
         };
 

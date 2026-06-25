@@ -79,7 +79,7 @@ function buildContinuationPrompt(activePlan, iteration, maxIter) {
     const pending  = activePlan.steps.filter(s => s.status === 'pending');
     const nextStep = pending[0];
     const directive = pending.length > 0
-        ? `Continue with step "${nextStep.id}: ${nextStep.description}". Call \`update_plan\` after it finishes.`
+        ? `The plan already exists — do NOT call create_plan again. Continue with step "${nextStep.id}: ${nextStep.description}": mark it \`update_plan(..., "in_progress")\`, do the work (re-run any queries you need — results from earlier turns are not cached), then \`update_plan(..., "done")\`.`
         : 'All steps are done. Call `final_answer` with your summary now.';
 
     // Add urgency when approaching the iteration limit
@@ -124,6 +124,7 @@ async function* agenticLoop(options, getModelFn) {
         conversationId = null,
         maxIterations = MAX_LOOP_ITERATIONS,
         planStepOverrides = [],
+        continueMode = false,
     } = options;
 
     const provider = providerOverride;
@@ -205,7 +206,31 @@ async function* agenticLoop(options, getModelFn) {
         }
     }
 
-    let iterMessages            = messages;
+    // The client sends content-only messages, so the reconstruction above finds no
+    // tool calls on a continuation. Rehydrate the live plan from persistence so the
+    // agent resumes with full plan context (pending steps, statuses) instead of
+    // re-planning or stalling.
+    if (continueMode && !activePlan.id && conversationId) {
+        try {
+            const saved = await aiPersistence.getActivePlan(dbManager, conversationId);
+            if (saved && Array.isArray(saved.steps) && saved.steps.length) {
+                activePlan.id = saved.id;
+                activePlan.goal = saved.goal || '';
+                activePlan.steps = saved.steps.map(s => ({
+                    id: s.id, description: s.description,
+                    status: s.status || 'pending', note: s.note || null,
+                }));
+            }
+        } catch { /* plan rehydration is best-effort */ }
+    }
+
+    // On a continuation, inject the (rehydrated) plan status into the first iteration
+    // so the agent resumes immediately instead of relying on content-only history.
+    let iterMessages = messages;
+    if (continueMode && activePlan.id) {
+        const resumePrompt = buildContinuationPrompt(activePlan, 0, maxIterations);
+        if (resumePrompt) iterMessages = [...messages, { role: 'user', content: resumePrompt }];
+    }
     let iteration               = 0;
     let loopDone                = false;
     // Effective iteration ceiling: starts at maxIterations, grows when a plan is created
