@@ -5634,9 +5634,9 @@ tr:hover .rt-td {
 .ddi-insight {
   display: flex; gap: 8px; align-items: flex-start;
   margin: 0 0 8px; padding: 8px 12px;
-  background: var(--accent-subtle, var(--surface-inset));
+  background: var(--surface-inset);
   border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--text-sm); color: var(--text-primary); line-height: 1.5;
+  font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.5;
 }
 .ddi-insight-icon { color: var(--accent-primary); flex-shrink: 0; margin-top: 2px; }
 .ai-msg-table-more { padding: 4px 0; font-size: var(--text-mini); color: var(--text-muted); }
