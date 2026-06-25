@@ -324,7 +324,7 @@ const AiAssistantPanel = ({
                         <button
                             className="ai-icon-btn"
                             onClick={handleEscalateToDataDiving}
-                            title="Continue in Data Diving"
+                            title="Continue in Deep Dive"
                         >
                             <LuArrowUpRight size={14} />
                         </button>
@@ -363,8 +363,9 @@ const AiAssistantPanel = ({
                                 <div className="ai-empty-state-icon">
                                     <LuSparkles size={28} />
                                 </div>
+                                <h2 className="ai-empty-state-title">Assist</h2>
                                 <div className="ai-empty-state-hint">
-                                    Ask anything about your data.
+                                    Your copilot in the editor — ask about the current query, fix or explain SQL, or build a chart for the active file.
                                 </div>
                                 <div className="ai-quick-actions">
                                     <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>

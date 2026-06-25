@@ -195,7 +195,7 @@ export function buildDefaultActions({
         { id: 'nav-files', label: 'Show File Explorer', category: 'Navigation', icon: LuFolder, shortcut: 'Ctrl+Shift+E', action: () => setActiveSidebarTab('files') },
         { id: 'nav-schema', label: 'Show Database Schema', category: 'Navigation', icon: LuDatabase, shortcut: 'Ctrl+Shift+D', action: () => setActiveSidebarTab('schema') },
         { id: 'nav-extensions', label: 'Show Extensions', category: 'Navigation', icon: LuPuzzle, action: () => setActiveSidebarTab('extensions') },
-        { id: 'toggle-ai', label: showAiSidebar ? 'Close AI Assistant' : 'Open AI Assistant', category: 'Navigation', icon: LuBot, shortcut: 'Ctrl+L', action: () => setShowAiSidebar(!showAiSidebar) },
+        { id: 'toggle-ai', label: showAiSidebar ? 'Close Assist' : 'Open Assist', category: 'Navigation', icon: LuBot, shortcut: 'Ctrl+L', action: () => setShowAiSidebar(!showAiSidebar) },
         { id: 'next-tab', label: 'Next Tab', category: 'Navigation', icon: LuCommand, shortcut: 'Ctrl+Tab', action: () => layoutRef.current?.navigateTab(1) },
         { id: 'prev-tab', label: 'Previous Tab', category: 'Navigation', icon: LuCommand, shortcut: 'Ctrl+Shift+Tab', action: () => layoutRef.current?.navigateTab(-1) },
 

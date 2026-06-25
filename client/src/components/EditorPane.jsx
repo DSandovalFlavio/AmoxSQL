@@ -574,10 +574,10 @@ const EditorPane = ({
                                         <button
                                             className={`ep-action-ai${showAiSidebar ? ' active' : ''}`}
                                             onClick={onToggleAi}
-                                            title="Toggle AI Assistant"
+                                            title="Toggle Assist"
                                         >
                                             {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
-                                            <span>{showAiSidebar ? 'Close AI' : 'AI'}</span>
+                                            <span>{showAiSidebar ? 'Close Assist' : 'Assist'}</span>
                                         </button>
                                     )}
                                 </div>

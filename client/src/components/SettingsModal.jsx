@@ -63,7 +63,7 @@ const TAB_TITLES = {
     appearance:  'Appearance',
     editor:      'Editor',
     behavior:    'Behavior',
-    ai:          'AI Assistant',
+    ai:          'AI',
     integrations:'Store Integrations',
     workspace:   'Workspace',
     shortcuts:   'Keyboard Shortcuts',
@@ -71,8 +71,8 @@ const TAB_TITLES = {
     storyflow:   'Story Flow',
     // Legacy aliases so existing initialTab values keep working
     formatter:   'Editor',
-    memories:    'AI Assistant',
-    aicontext:   'AI Assistant',
+    memories:    'AI',
+    aicontext:   'AI',
     cloud:       'Store Integrations',
     gallery:     'Chart Gallery',
 };
@@ -106,7 +106,7 @@ const SHORTCUT_SECTIONS = [
             { keys: 'Ctrl + Tab', description: 'Next Tab' },
             { keys: 'Ctrl + Shift + Tab', description: 'Previous Tab' },
             { keys: 'Ctrl + B', description: 'Toggle Sidebar' },
-            { keys: 'Ctrl + L', description: 'Toggle AI Assistant' },
+            { keys: 'Ctrl + L', description: 'Toggle Assist' },
             { keys: 'Ctrl + Shift + E', description: 'Focus File Explorer' },
             { keys: 'Ctrl + Shift + D', description: 'Focus Database Explorer' },
         ]
@@ -342,7 +342,7 @@ function AiContextTab() {
                         <div className="stg-ctx-how-num">3</div>
                         <div>
                             <strong>AI reads it automatically</strong>
-                            <p>Every new Data Diving conversation loads the context. No need to re-explain "revenue" or table relationships session after session.</p>
+                            <p>Every new Deep Dive conversation loads the context. No need to re-explain "revenue" or table relationships session after session.</p>
                         </div>
                     </div>
                     <div className="stg-ctx-how-step">
@@ -832,7 +832,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
-                        { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI Assistant' },
+                        { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI' },
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
                         // ── Help & info ──
