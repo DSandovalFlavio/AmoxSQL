@@ -157,6 +157,8 @@ export function buildStepGroups(turn) {
                 open(sid || `u-${i}`, label, sid || null);
             }
             current.status = status || current.status;
+            // The note on a closing update_plan is the step's conclusion / what it learned.
+            if (tc.args?.note) current.insight = tc.args.note;
             return;
         }
         if (NON_ACTIVITY_TOOLS.has(tc.toolName)) return; // final_answer / followups → chat thread
@@ -164,8 +166,8 @@ export function buildStepGroups(turn) {
         current.tools.push(tc);
     });
 
-    // Drop empty trailing/sections with no real work (e.g. the final step that only held final_answer).
-    return sections.filter(s => s.tools.length > 0 || s.note);
+    // Keep sections that did real work, carry a conclusion, or are the plan header.
+    return sections.filter(s => s.tools.length > 0 || s.insight || s.note);
 }
 
 /** Count the activity inside a turn (for the compact chip in the transcript). */

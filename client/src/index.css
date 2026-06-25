@@ -5619,16 +5619,27 @@ tr:hover .rt-td {
 .ddi-reasoning-head {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none; cursor: pointer;
-  color: var(--text-tertiary); font-size: var(--text-xs); padding: 2px 0;
+  color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-semibold); padding: 2px 0;
 }
-.ddi-reasoning-head:hover { color: var(--text-secondary); }
+.ddi-reasoning-head:hover { color: var(--text-primary); }
 .ddi-reasoning-body {
   margin: 4px 0 0; padding: 8px 10px;
-  border-left: 2px solid var(--border-default);
+  border-left: 2px solid var(--accent-primary);
   background: var(--surface-inset); border-radius: 0 6px 6px 0;
-  color: var(--text-tertiary); font-size: var(--text-xs);
-  line-height: 1.5;
+  color: var(--text-secondary); font-size: var(--text-xs);
+  line-height: 1.6;
 }
+
+/* Per-phase conclusion ("what it learned") */
+.ddi-insight {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 0 0 8px; padding: 8px 12px;
+  background: var(--accent-subtle, var(--surface-inset));
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm); color: var(--text-primary); line-height: 1.5;
+}
+.ddi-insight-icon { color: var(--accent-primary); flex-shrink: 0; margin-top: 2px; }
+.ai-msg-table-more { padding: 4px 0; font-size: var(--text-mini); color: var(--text-muted); }
 .ddi-reasoning-chunk { white-space: pre-wrap; }
 .ddi-reasoning-chunk + .ddi-reasoning-chunk { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle); }
 
