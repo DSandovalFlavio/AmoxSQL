@@ -5620,8 +5620,37 @@ tr:hover .rt-td {
   border-left: 2px solid var(--border-default);
   background: var(--surface-inset); border-radius: 0 6px 6px 0;
   color: var(--text-tertiary); font-size: var(--text-xs);
-  white-space: pre-wrap; line-height: 1.5;
+  line-height: 1.5;
 }
+.ddi-reasoning-chunk { white-space: pre-wrap; }
+.ddi-reasoning-chunk + .ddi-reasoning-chunk { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle); }
+
+/* Step groups (divided by agent plan step) */
+.ddi-stepgroup {
+  margin: 10px 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-base);
+}
+.ddi-stepgroup-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-inset);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+}
+.ddi-stepgroup-label { font-weight: var(--weight-semibold); color: var(--text-primary); flex: 1; min-width: 0; }
+.ddi-stepgroup-note { color: var(--text-muted); font-size: var(--text-mini); }
+.ddi-stepgroup-status {
+  font-size: var(--text-mini); padding: 1px 8px; border-radius: 20px;
+  background: var(--hover-bg); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.03em;
+}
+.ddi-status--in_progress { background: var(--accent-subtle); color: var(--accent-primary); }
+.ddi-status--done { color: var(--color-success, #34d399); }
+.ddi-status--failed { color: var(--color-error, #f87171); }
+.ddi-stepgroup .ddi-step { padding: 8px 12px; }
+.ddi-stepgroup-empty { padding: 8px 12px; color: var(--text-muted); font-size: var(--text-xs); }
 
 .ai-empty-state-icon {
   color: var(--accent-primary);

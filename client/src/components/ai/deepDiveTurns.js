@@ -12,10 +12,11 @@
  */
 
 const THINK_RE = /<think>[\s\S]*?<\/think>/gi;
+const OPEN_THINK_RE = /<think>[\s\S]*$/i; // unclosed (streaming / malformed) reasoning tail
 
-/** Remove <think>…</think> reasoning blocks from a message body. */
+/** Remove <think>…</think> reasoning blocks (and any unclosed trailing one) from a body. */
 export function stripThink(s = '') {
-    return String(s || '').replace(THINK_RE, '');
+    return String(s || '').replace(THINK_RE, '').replace(OPEN_THINK_RE, '');
 }
 
 /** True when an assistant message has visible prose (text beyond reasoning). */
@@ -92,6 +93,65 @@ export function buildTimeline(turn, { live = false } = {}) {
         }
     }
     return items;
+}
+
+/** All reasoning chunks across a turn (shown collapsed; can't be mapped to steps). */
+export function turnReasoning(turn) {
+    const out = [];
+    for (const m of turn?.messages || []) out.push(...extractReasoning(m.content));
+    return out;
+}
+
+const PLAN_TOOLS = new Set(['create_plan', 'update_plan']);
+
+/**
+ * Group a turn's activity by AGENT-PLAN STEP, following the real execution flow
+ * instead of bundling by tool type.
+ *
+ * Walks the tool calls in order; `create_plan` opens a "Plan" section and each
+ * `update_plan` (a step transition) opens/labels a step section. Real work tools
+ * (execute_sql, display_chart, profile_data, …) attach, in order, to the current
+ * step. Returns sections [{ key, stepId, label, status, tools[] }].
+ */
+export function buildStepGroups(turn) {
+    const toolStream = [];
+    for (const m of turn?.messages || []) for (const tc of m.toolCalls || []) toolStream.push(tc);
+
+    // step id -> description, from create_plan
+    const planDesc = {};
+    for (const tc of toolStream) {
+        if (tc.toolName === 'create_plan') {
+            for (const s of tc.args?.steps || tc.result?.steps || []) planDesc[s.id] = s.description;
+        }
+    }
+
+    const sections = [];
+    let current = null;
+    const open = (key, label, stepId) => { current = { key, label, stepId, status: null, tools: [] }; sections.push(current); };
+
+    toolStream.forEach((tc, i) => {
+        if (tc.toolName === 'create_plan') {
+            open('plan', 'Plan', null);
+            const n = (tc.args?.steps || []).length;
+            current.note = n ? `${n}-step plan created` : 'Plan created';
+            return;
+        }
+        if (tc.toolName === 'update_plan') {
+            const sid = tc.args?.step_id;
+            const status = tc.args?.status;
+            // Start a new section when a step begins, or when the step id changes.
+            if (status === 'in_progress' || !current || current.stepId !== sid) {
+                const label = sid ? (planDesc[sid] ? `${sid} · ${planDesc[sid]}` : sid) : 'Step';
+                open(sid || `u-${i}`, label, sid || null);
+            }
+            current.status = status || current.status;
+            return;
+        }
+        if (!current) open('setup', 'Setup', null);
+        current.tools.push(tc);
+    });
+
+    return sections;
 }
 
 /** Count the activity inside a turn (for the compact chip in the transcript). */
