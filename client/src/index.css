@@ -4446,7 +4446,7 @@ tr:hover .rt-td {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background-color: var(--surface-base);
+  background-color: transparent; /* inherit the sidebar bg, like the Files section */
   height: 100%;
   overflow: hidden;
 }
