@@ -64,6 +64,36 @@ export function groupIntoTurns(messages = []) {
     return turns;
 }
 
+/** Extract reasoning chunks (<think>…</think>) from a message body, in order. */
+export function extractReasoning(content = '') {
+    const out = [];
+    const re = /<think>([\s\S]*?)<\/think>/gi;
+    let m;
+    while ((m = re.exec(String(content || '')))) {
+        const t = (m[1] || '').trim();
+        if (t) out.push(t);
+    }
+    return out;
+}
+
+/**
+ * Flatten a turn into an ordered activity timeline that preserves the real
+ * execution cycle (reason → update_plan → query → reason → chart → …), instead
+ * of grouping by tool type. Per message: its reasoning first, then its tool
+ * calls in call order.
+ * @returns {Array<{kind:'reasoning', content} | {kind:'tool', tc, loading}>}
+ */
+export function buildTimeline(turn, { live = false } = {}) {
+    const items = [];
+    for (const msg of turn?.messages || []) {
+        for (const r of extractReasoning(msg.content)) items.push({ kind: 'reasoning', content: r });
+        for (const tc of msg.toolCalls || []) {
+            items.push({ kind: 'tool', tc, loading: live && !tc.result });
+        }
+    }
+    return items;
+}
+
 /** Count the activity inside a turn (for the compact chip in the transcript). */
 export function turnActivityStats(turn) {
     let steps = 0, charts = 0, queries = 0, hasReasoning = false;

@@ -5607,6 +5607,21 @@ tr:hover .rt-td {
   gap: 10px; min-height: 240px; padding: 40px 28px; text-align: center;
   color: var(--text-muted); font-size: var(--text-sm); line-height: 1.5;
 }
+.ddi-step { margin-bottom: 6px; }
+.ddi-reasoning { margin: 4px 0; }
+.ddi-reasoning-head {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); font-size: var(--text-xs); padding: 2px 0;
+}
+.ddi-reasoning-head:hover { color: var(--text-secondary); }
+.ddi-reasoning-body {
+  margin: 4px 0 0; padding: 8px 10px;
+  border-left: 2px solid var(--border-default);
+  background: var(--surface-inset); border-radius: 0 6px 6px 0;
+  color: var(--text-tertiary); font-size: var(--text-xs);
+  white-space: pre-wrap; line-height: 1.5;
+}
 
 .ai-empty-state-icon {
   color: var(--accent-primary);
