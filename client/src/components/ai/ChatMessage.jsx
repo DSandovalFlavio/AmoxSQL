@@ -95,7 +95,9 @@ function QueryAuditModal({ queryId, onClose }) {
 function NarrativeCard({ result, onFollowUp }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
     const [causeOpen, setCauseOpen] = useState(false);
+    const [detailsOpen, setDetailsOpen] = useState(false);
     const [auditQueryId, setAuditQueryId] = useState(null);
+    const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0 || caveats?.length > 0;
 
     const openAudit = useCallback((qid) => setAuditQueryId(qid), []);
     const closeAudit = useCallback(() => setAuditQueryId(null), []);
@@ -112,6 +114,23 @@ function NarrativeCard({ result, onFollowUp }) {
                     <span>{decodeSafely(tldr)}</span>
                 </div>
             )}
+
+            {hasDetails && (
+                <button
+                    onClick={() => setDetailsOpen(o => !o)}
+                    title={detailsOpen ? 'Hide the structured summary' : 'Show the structured summary'}
+                    style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-muted)', fontSize: '11px', padding: '2px 0', marginTop: '2px',
+                    }}
+                >
+                    {detailsOpen ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
+                    {detailsOpen ? 'Hide summary' : 'Show summary'}
+                </button>
+            )}
+
+            {detailsOpen && (<>
 
             {findings?.length > 0 && (
                 <div className="ai-narrative-section">
@@ -172,6 +191,8 @@ function NarrativeCard({ result, onFollowUp }) {
                     <span>{decodeSafely(caveats.join(' '))}</span>
                 </div>
             )}
+
+            </>)}
 
             {followup_questions?.length > 0 && (
                 <div className="ai-msg-followups">

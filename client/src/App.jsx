@@ -972,7 +972,7 @@ function App() {
               <button
                 onClick={() => layoutRef.current?.createNew('datadiving')}
                 className="activity-bar-btn"
-                title="New Deep Dive Session"
+                title="New Deep Dive — an autonomous analyst that plans and explores on its own (Assist, in the editor sidebar, helps you while you work)"
               >
                 <LuSparkles size={20} />
               </button>
