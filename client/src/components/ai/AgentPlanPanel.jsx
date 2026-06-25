@@ -47,10 +47,12 @@ export default function AgentPlanPanel({
     const total = steps.length;
     const pct   = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
-    // Determine which step is "running" — the first pending (non-user-skipped) one while generating
-    const runningIdx = isGenerating
-        ? steps.findIndex(s => s.status === 'pending' && !userSkippedSteps.has(s.id))
-        : -1;
+    // Determine which step is "running": an explicitly in_progress step takes
+    // precedence; otherwise the first pending (non-user-skipped) one while generating.
+    const inProgressIdx = steps.findIndex(s => s.status === 'in_progress' && !userSkippedSteps.has(s.id));
+    const runningIdx = inProgressIdx !== -1
+        ? inProgressIdx
+        : (isGenerating ? steps.findIndex(s => s.status === 'pending' && !userSkippedSteps.has(s.id)) : -1);
 
     const isEditable = !isGenerating && status !== 'completed';
 
@@ -106,7 +108,7 @@ export default function AgentPlanPanel({
                             const isUserSkipped = userSkippedSteps.has(step.id);
                             const effectiveStatus = isUserSkipped
                                 ? 'skipped'
-                                : (idx === runningIdx) ? 'running' : (step.status || 'pending');
+                                : (idx === runningIdx || step.status === 'in_progress') ? 'running' : (step.status || 'pending');
                             const { Icon, cls } = STATUS_ICON[effectiveStatus] || STATUS_ICON.pending;
                             const canSkip = isEditable && onSkipStep && step.status === 'pending' && !isUserSkipped;
 
