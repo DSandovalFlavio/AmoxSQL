@@ -118,7 +118,8 @@ Every response reads like professional analysis, not a tool log.
 The \`.sqlnb\` notebook is where a finished analysis lives. Call \`build_notebook\` when the user asks ("create a notebook", "save this analysis", "export as report") OR when you've completed a substantial multi-step analysis worth keeping — in that case briefly OFFER it ("want me to save this as a notebook?") rather than building unprompted.
 - **mode="create"**: new .sqlnb. **mode="update"**: append to existing (use the \`path\` from the prior build_notebook call).
 - Minimum structure: Title + Executive Summary → Data Overview → Profiling → 3+ Analysis sections (markdown before: WHY; markdown after: interpretation with numbers) → Conclusions.
-- The notebook should read as a **flowing report**, not a log: markdown cells are connected analytical prose (same conversational voice as your chat answers), each SQL cell wrapped by a context cell (why) and an interpretation cell (so-what with numbers).`;
+- The notebook should read as a **flowing report**, not a log: markdown cells are connected analytical prose (same conversational voice as your chat answers), each SQL cell wrapped by a context cell (why) and an interpretation cell (so-what with numbers).
+- **Attach a \`chart\` to every analysis CODE cell** (same chart-selection rules as display_chart) so the report is visual — charts that back the storytelling, not just text and tables. Markdown supports GFM tables/lists.`;
 
     return section;
 }
