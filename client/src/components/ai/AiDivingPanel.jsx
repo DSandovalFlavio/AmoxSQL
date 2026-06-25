@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import ChatMessage from './ChatMessage';
 import DeepDiveTranscript from './DeepDiveTranscript';
@@ -349,10 +349,18 @@ const AiDivingPanel = ({
     }, [selAsk, handleAskAbout]);
 
     // ─── @/# mention autocomplete (reference any session artifact by typing) ───
-    const sessionArtifacts = useMemo(
-        () => buildSessionArtifacts(messages, availableTables),
-        [messages, availableTables]
-    );
+    const sessionArtifacts = useMemo(() => {
+        const base = buildSessionArtifacts(messages, availableTables);
+        // Shared conversation context (dropped tables/files) is referenceable too.
+        const ctx = contextObjects.map(o => ({
+            type: o.type === 'table' ? 'table' : 'file',
+            table: o.name,
+            label: `${o.type === 'table' ? 'Table' : 'File'}: ${o.name}`,
+            key: `ctx:${o.type}:${o.name}`,
+        }));
+        const seen = new Set();
+        return [...ctx, ...base].filter(a => (seen.has(a.key) ? false : (seen.add(a.key), true)));
+    }, [messages, availableTables, contextObjects]);
     const [mention, setMention] = useState(null); // { query, start } | null
 
     const handleInputChange = useCallback((e) => {
@@ -394,6 +402,7 @@ const AiDivingPanel = ({
             case 'query': return <LuDatabase size={12} />;
             case 'step': return <LuListChecks size={12} />;
             case 'table': return <LuTable size={12} />;
+            case 'file': return <LuFile size={12} />;
             default: return <LuAtSign size={12} />;
         }
     };
@@ -415,6 +424,7 @@ const AiDivingPanel = ({
             case 'step': return <LuListChecks size={11} />;
             case 'finding': return <LuLightbulb size={11} />;
             case 'table': return <LuTable size={11} />;
+            case 'file': return <LuFile size={11} />;
             default: return <LuAtSign size={11} />;
         }
     };
@@ -455,19 +465,6 @@ const AiDivingPanel = ({
                         </div>
                     )}
                 </>
-            )}
-            {contextObjects.length > 0 && (
-                <div className="ai-composer-context">
-                    {contextObjects.map((obj, i) => (
-                        <span key={i} className="ai-composer-chip">
-                            {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
-                            <span className="ai-composer-chip-name">{obj.name}</span>
-                            <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove">
-                                <LuX size={10} />
-                            </button>
-                        </span>
-                    ))}
-                </div>
             )}
             <div className="ai-mention-wrap">
                 {mention && mentionMatches.length > 0 && (
@@ -612,6 +609,26 @@ const AiDivingPanel = ({
                             )}
 
                             <div className="ai-diving-composer-wrap">
+                                {contextObjects.length > 0 && (
+                                    <div className="ai-context-bar">
+                                        <div className="ai-context-bar-head">
+                                            <LuPaperclip size={12} />
+                                            <span className="ai-context-bar-title">Context for this conversation</span>
+                                            <span className="ai-context-bar-hint">always available · reference with @</span>
+                                        </div>
+                                        <div className="ai-context-bar-chips">
+                                            {contextObjects.map((obj, i) => (
+                                                <span key={i} className="ai-composer-chip ai-context-chip">
+                                                    {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
+                                                    <span className="ai-composer-chip-name">{obj.name}</span>
+                                                    <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
+                                                        <LuX size={10} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="ai-diving-composer">
                                     {inputComposer}
                                 </div>

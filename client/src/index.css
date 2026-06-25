@@ -5656,6 +5656,27 @@ tr:hover .rt-td {
 }
 .ai-msg-table-more:hover { color: var(--text-primary); text-decoration: underline; }
 
+/* Shared conversation context bar (dropped tables/files, above the composer) */
+.ai-context-bar {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.ai-context-bar-head {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 7px; color: var(--text-tertiary);
+}
+.ai-context-bar-head svg { color: var(--accent-primary); flex-shrink: 0; }
+.ai-context-bar-title {
+  font-size: var(--text-mini); font-weight: var(--weight-semibold);
+  color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ai-context-bar-hint { font-size: var(--text-mini); color: var(--text-muted); margin-left: auto; }
+.ai-context-bar-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-context-chip { background: var(--surface-raised); }
+
 /* Composer context attach (drop tables/files at the input) */
 .ai-composer--dragover { outline: 2px dashed var(--accent-primary); outline-offset: 3px; border-radius: 14px; }
 .ai-composer-context { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
