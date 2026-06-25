@@ -77,6 +77,8 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         const cc = chartConfig;
         const hasXLabel = !!cc.xAxisLabel;
         const hasYLabel = !!cc.yAxisLabel;
+        const isHorizontalBar = (cc.chartType || '').startsWith('bar-horizontal');
+        const showsLabels = cc.showLabels ?? false;
         return {
             // ── Core ──────────────────────────────────────────────────────────────
             chartType:   cc.chartType || 'bar',
@@ -120,7 +122,10 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             textScale:  0.9,
             textAlign:  cc.textAlign || 'left',
             titleSpacing: 10,
-            marginTop: 10, marginBottom: 10, marginLeft: 10, marginRight: 10,
+            // Horizontal bars draw their value labels to the RIGHT of each bar;
+            // a 10px right margin clips the longest one (e.g. "46.5M"). Give it room.
+            marginTop: 10, marginBottom: 10, marginLeft: 10,
+            marginRight: isHorizontalBar && showsLabels ? 52 : 10,
 
             // ── Line/Area ─────────────────────────────────────────────────────────
             lineType:     cc.lineType    || 'monotone',
@@ -296,9 +301,9 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     <button
                         className="ai-chart-btn"
                         onClick={handleDownloadConfig}
-                        title="Edit in Amoxvis"
+                        title="Save as .amoxvis and open it in the Story Flow editor"
                     >
-                        <LuFileJson size={12} /> Edit Config
+                        <LuFileJson size={12} /> Open in Story Flow
                     </button>
                 </div>
             </div>

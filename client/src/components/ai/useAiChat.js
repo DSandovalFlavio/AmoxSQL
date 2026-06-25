@@ -216,9 +216,12 @@ export default function useAiChat({
     }, [mode]);
 
     // ─── Auto-scroll ───
+    // Only follow the bottom while actively generating; on plain load the panel
+    // restores its remembered scroll position instead (see AiDivingPanel).
     useEffect(() => {
+        if (!isGenerating && !streamingText) return;
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, streamingText, activeToolCalls]);
+    }, [messages, streamingText, activeToolCalls, isGenerating]);
 
     // ─── Drag & Drop ───
     const handleDrop = useCallback((e) => {

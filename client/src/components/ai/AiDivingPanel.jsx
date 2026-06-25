@@ -15,6 +15,10 @@ import { exportConversationToMarkdown } from './exportConversation';
 
 import { API_BASE as API } from '../../api.js';
 
+// Remembers the transcript scroll position per conversation so switching tabs
+// (e.g. opening a chart in Story Flow and coming back) doesn't reset to the top.
+const scrollMemory = new Map();
+
 /**
  * AiDivingPanel — Full 3-column Data Diving mode.
  * Replaces the diving branch of AiSidebar.jsx, powered by the useAiChat hook.
@@ -124,6 +128,25 @@ const AiDivingPanel = ({
     }, [turns, isGenerating, selectedTurnId]);
 
     const selectedTurn = turns.find(t => t.id === selectedTurnId) || null;
+
+    // ─── Preserve transcript scroll across tab switches / remounts ───
+    const messagesElRef = useRef(null);
+    const restoredScrollRef = useRef(false);
+    const handleMessagesScroll = useCallback((e) => {
+        if (conversationId) scrollMemory.set(conversationId, e.currentTarget.scrollTop);
+    }, [conversationId]);
+    useEffect(() => {
+        if (restoredScrollRef.current) return;
+        const el = messagesElRef.current;
+        if (!el || !conversationId || messages.length === 0) return;
+        restoredScrollRef.current = true;
+        const saved = scrollMemory.get(conversationId);
+        // Restore the saved spot, or land at the bottom (latest) on a fresh open.
+        requestAnimationFrame(() => {
+            const el = messagesElRef.current;
+            if (el) el.scrollTop = saved != null ? saved : el.scrollHeight;
+        });
+    }, [conversationId, messages.length]);
 
     // ─── Auto-select escalated conversation on mount ───
     const didSelectStartConvRef = useRef(false);
@@ -563,7 +586,7 @@ const AiDivingPanel = ({
                     <div className="ai-diving-split">
                         {/* LEFT: conversation thread + composer */}
                         <div className="ai-diving-thread">
-                            <div className="ai-diving-messages" onMouseUp={handleThreadMouseUp}>
+                            <div className="ai-diving-messages" ref={messagesElRef} onScroll={handleMessagesScroll} onMouseUp={handleThreadMouseUp}>
                                 <div className="ai-diving-messages-inner">
                                     {turns.length === 0 && !isGenerating ? emptyState : (
                                         <DeepDiveTranscript
