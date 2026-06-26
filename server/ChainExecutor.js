@@ -9,6 +9,33 @@ const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('events');
 const chainPersistence = require('./ChainPersistence');
+const aiManager = require('./AiManager');
+
+/**
+ * Node types that produce a *derived intermediate* table — plumbing between
+ * source and sink. Their physical output is materialized under a deterministic,
+ * chain-scoped name (see physName) so two different chains using the same default
+ * table name (e.g. "filtered_data") never collide, and intermediates don't
+ * pollute the user's main namespace. Sources (import_*, http_fetch) and explicit
+ * outputs (create_table, rename_table) keep writing to their user-facing name.
+ */
+const DERIVED_NODE_TYPES = new Set([
+    'merge_tables', 'join_tables', 'filter', 'group_aggregate', 'select_columns',
+    'deduplicate', 'add_column', 'sort', 'sample', 'pivot', 'unpivot',
+    'type_cast', 'window_functions', 'clean', 'date_ops', 'flatten',
+]);
+
+/**
+ * Derived nodes that are safe + beneficial to materialize as a lazy TEMP VIEW
+ * instead of a TABLE: pure deterministic projections/filters. A downstream filter
+ * then pushes down into the source scan. EXCLUDED on purpose: deduplicate (rowid),
+ * sort (view order isn't guaranteed), sample (non-deterministic), aggregations /
+ * reshapes (natural materialization points), type_cast (EXCLUDE fallback path).
+ * A view-eligible node still materializes as a TABLE when it has fan-out > 1.
+ */
+const VIEW_ELIGIBLE_NODE_TYPES = new Set([
+    'filter', 'select_columns', 'add_column', 'clean', 'date_ops',
+]);
 
 class ChainExecutor extends EventEmitter {
     constructor() {
@@ -240,19 +267,142 @@ class ChainExecutor extends EventEmitter {
 
     // --- Output Context ---
 
+    isDerivedNode(type) {
+        return DERIVED_NODE_TYPES.has(type);
+    }
+
     /**
-     * Resolve the output reference from upstream parent nodes.
-     * Returns the table/view name or query that can be used by downstream nodes.
-     * If multiple parents, returns an array of references.
+     * Recursively substitute ${var} placeholders in every string value of a
+     * config object/array, using the provided variables map. Non-string leaves
+     * are left untouched; unknown ${...} placeholders are left intact (so they
+     * surface as a clear error rather than silently becoming empty).
      */
-    resolveUpstreamOutputs(nodeId, parentMap, nodeOutputs) {
-        const parents = parentMap.get(nodeId) || [];
+    applyVars(value, vars) {
+        if (typeof value === 'string') {
+            return value.replace(/\$\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+        }
+        if (Array.isArray(value)) return value.map(v => this.applyVars(v, vars));
+        if (value && typeof value === 'object') {
+            const out = {};
+            for (const [k, v] of Object.entries(value)) out[k] = this.applyVars(v, vars);
+            return out;
+        }
+        return value;
+    }
+
+    /**
+     * Small, stable, dependency-free hash of a string → short base36 token.
+     * Used to scope intermediate table names to a specific chain file.
+     */
+    hashString(str) {
+        let h = 0;
+        const s = String(str || '');
+        for (let i = 0; i < s.length; i++) {
+            h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+        }
+        return (h >>> 0).toString(36);
+    }
+
+    /**
+     * Deterministic physical name for a derived node's materialized output,
+     * scoped to the chain. Same (chainFile, nodeId) → same name across runs,
+     * so partial runs and checkpoint resume can resolve upstream outputs left
+     * behind by a previous run. Re-running overwrites the same name (CREATE OR
+     * REPLACE), so there is no unbounded growth.
+     */
+    physName(chainFile, nodeId) {
+        const scope = chainFile ? this.hashString(chainFile) : 'adhoc';
+        const safeNode = String(nodeId).replace(/[^a-zA-Z0-9_]/g, '_');
+        return `__chain_${scope}_${safeNode}`;
+    }
+
+    /**
+     * Build the materialization prefix for a derived node: a lazy TEMP VIEW when the
+     * node is view-eligible and has fan-out ≤ 1, otherwise a TABLE. Drops the opposite
+     * object kind first so a stale TABLE/VIEW from a prior run (or a different fan-out)
+     * can't shadow the new one. `ctx.fanout` is a Map nodeId → downstream edge count.
+     */
+    async materializeTarget(dbManager, node, ctx, name) {
+        const eligible = VIEW_ELIGIBLE_NODE_TYPES.has(node.type);
+        const fan = (ctx && ctx.fanout) ? (ctx.fanout.get(node.id) || 0) : 0;
+        const asView = eligible && fan <= 1;
+        // Drop the opposite object kind first (separate single statement). DROP … IF EXISTS
+        // is type-tolerant in DuckDB (no-op on the wrong kind), so this is safe and prevents
+        // a stale TABLE/VIEW from shadowing the new one when a node toggles kind across runs.
+        try {
+            await dbManager.query(asView ? `DROP TABLE IF EXISTS "${name}"` : `DROP VIEW IF EXISTS "${name}"`);
+        } catch { /* tolerant */ }
+        return asView ? `CREATE OR REPLACE TEMP VIEW "${name}"` : `CREATE OR REPLACE TABLE "${name}"`;
+    }
+
+    /**
+     * The output reference a node *would* produce, derived statically (without
+     * executing it). Used to resolve upstream parents that were not part of the
+     * current (partial) run — e.g. when resuming after a checkpoint or running
+     * "from here". Returns null when the output can't be known without running
+     * (sql_inline/sql_file, etc.).
+     */
+    staticOutputRef(node, chainFile) {
+        if (!node) return null;
+        const c = node.config || {};
+        if (this.isDerivedNode(node.type)) {
+            return { table: this.physName(chainFile, node.id) };
+        }
+        switch (node.type) {
+            case 'table_ref':     return c.tableName ? { table: c.tableName } : null;
+            case 'import_file':
+            case 'import_folder': return { table: c.tableName || 'imported_data' };
+            case 'http_fetch':    return { table: c.tableName || 'fetched_data' };
+            case 'bucket_read':   return { table: c.tableName || 'cloud_data' };
+            case 'gsheet_read':   return { table: c.tableName || 'gsheet_data' };
+            case 'ai_enrich':     return { table: this.physName(chainFile, node.id) };
+            case 'create_table':  return c.tableName ? { table: c.tableName } : null;
+            case 'rename_table':  return c.newName ? { table: c.newName } : null;
+            default:              return null;
+        }
+    }
+
+    /**
+     * Resolve the output references from a node's upstream parents.
+     * Parents executed in this run are read from nodeOutputs; parents NOT in this
+     * run (partial run / checkpoint resume) fall back to their deterministic
+     * static output name, so the materialized table left by a previous run is
+     * found. For a full run every parent is in nodeOutputs, so behavior is
+     * identical to before.
+     */
+    resolveUpstreamOutputs(nodeId, fullParentMap, nodeOutputs, nodeMap, chainFile) {
+        const parents = fullParentMap.get(nodeId) || [];
         const outputs = [];
         for (const pid of parents) {
-            const out = nodeOutputs.get(pid);
+            let out = nodeOutputs.get(pid);
+            if (!out) out = this.staticOutputRef(nodeMap?.get(pid), chainFile);
             if (out) outputs.push(out);
         }
         return outputs;
+    }
+
+    /**
+     * Drop all intermediate tables materialized for a given chain
+     * (the deterministic "__chain_<scope>_*" namespace). Exposed for an explicit
+     * "clean intermediates" action; not run automatically so partial runs and
+     * checkpoint resume keep working across separate run() invocations.
+     */
+    async cleanupChainArtifacts(dbManager, chainFile) {
+        const prefix = `__chain_${chainFile ? this.hashString(chainFile) : 'adhoc'}_`;
+        let dropped = 0;
+        try {
+            const tables = await dbManager.query('SELECT table_name FROM information_schema.tables');
+            for (const row of (tables || [])) {
+                const t = row.table_name;
+                if (t && t.startsWith(prefix)) {
+                    // Intermediates may be a TABLE or a TEMP VIEW — drop whichever exists.
+                    try { await dbManager.query(`DROP VIEW IF EXISTS "${t}"`); } catch {}
+                    try { await dbManager.query(`DROP TABLE IF EXISTS "${t}"`); } catch {}
+                    dropped++;
+                }
+            }
+        } catch {}
+        return { dropped };
     }
 
     /**
@@ -316,10 +466,452 @@ class ChainExecutor extends EventEmitter {
         return null;
     }
 
+    /**
+     * Build the SELECT body for a Date/Time node from its operations list. Each op
+     * adds a column (replaces in place when alias === source column, via EXCLUDE).
+     * Uses TRY_* so invalid values become NULL instead of failing. `fromSrc` is the
+     * already-parenthesized source (e.g. "(SELECT …)").
+     */
+    dateOpsSelect(config, fromSrc) {
+        const ops = config.operations || [];
+        const exprs = [];
+        const replaced = [];
+        const esc = (s) => String(s || '').replace(/'/g, "''");
+        for (const o of ops) {
+            if (!o.column || !o.op) continue;
+            const col = `"${o.column}"`;
+            const alias = (o.alias && o.alias.trim()) ? o.alias.trim() : `${o.column}_${o.op}`;
+            let expr;
+            switch (o.op) {
+                case 'parse':    expr = o.format ? `TRY_STRPTIME(${col}, '${esc(o.format)}')` : `TRY_CAST(${col} AS TIMESTAMP)`; break;
+                case 'extract':  expr = `date_part('${esc(o.part || 'year')}', ${col})`; break;
+                case 'truncate': expr = `date_trunc('${esc(o.unit || 'month')}', ${col})`; break;
+                case 'format':   expr = `strftime(${col}, '${esc(o.format || '%Y-%m-%d')}')`; break;
+                case 'add':      expr = `(${col} + (${parseInt(o.amount) || 0} * INTERVAL '1 ${esc(o.unit || 'day')}'))`; break;
+                case 'diff':     expr = `date_diff('${esc(o.unit || 'day')}', ${col}, "${o.column2 || o.column}")`; break;
+                case 'age':      expr = `date_diff('${esc(o.unit || 'day')}', ${col}, current_date)`; break;
+                default: continue;
+            }
+            exprs.push(`${expr} AS "${alias}"`);
+            if (alias === o.column) replaced.push(col);
+        }
+        if (exprs.length === 0) return `SELECT * FROM ${fromSrc} AS _src`;
+        const exclude = replaced.length ? ` EXCLUDE (${[...new Set(replaced)].join(', ')})` : '';
+        return `SELECT *${exclude}, ${exprs.join(', ')} FROM ${fromSrc} AS _src`;
+    }
+
+    /**
+     * Build the SELECT for a Flatten node: 'fields' extracts JSON paths to columns,
+     * 'explode' unnests an array/list column into rows. `fromSrc` is parenthesized.
+     */
+    flattenSelect(config, fromSrc) {
+        const col = `"${config.column}"`;
+        const esc = (s) => String(s || '').replace(/'/g, "''");
+        if (config.mode === 'explode') {
+            const alias = (config.alias && config.alias.trim()) ? config.alias.trim() : `${config.column}_item`;
+            return `SELECT *, UNNEST(${col}) AS "${alias}" FROM ${fromSrc} AS _src`;
+        }
+        const paths = (config.paths || []).filter(p => p && p.path);
+        if (paths.length === 0) return `SELECT * FROM ${fromSrc} AS _src`;
+        const exprs = paths.map(p => {
+            const alias = (p.alias && p.alias.trim()) ? p.alias.trim() : String(p.path).replace(/[^a-zA-Z0-9_]/g, '_');
+            return `json_extract_string(${col}, '${esc(p.path)}') AS "${alias}"`;
+        });
+        return `SELECT *, ${exprs.join(', ')} FROM ${fromSrc} AS _src`;
+    }
+
+    /**
+     * Resolve a join node's key pairs. Prefers the new composite `keys: [{left,right}]`,
+     * falls back to the legacy single `leftKey`/`rightKey` for older .sqlchain files.
+     */
+    joinKeys(config) {
+        if (config.keys && config.keys.length) return config.keys.filter(k => k && k.left && k.right);
+        if (config.leftKey && config.rightKey) return [{ left: config.leftKey, right: config.rightKey }];
+        return [];
+    }
+
+    /**
+     * Build one aggregation SELECT expression (with alias) for a group_aggregate node.
+     * Handles COUNT(*), COUNT DISTINCT, PERCENTILE, STRING_AGG and plain funcs
+     * (SUM/AVG/MIN/MAX/MEDIAN/STDDEV/VAR_SAMP/LIST/FIRST/LAST).
+     */
+    aggExpr(a) {
+        const func = a.func || 'COUNT';
+        const col = a.column;
+        const alias = a.alias || `${String(func).toLowerCase()}_${col}`;
+        let e;
+        if (func === 'COUNT' && col === '*') e = 'COUNT(*)';
+        else if (func === 'COUNT_DISTINCT') e = `COUNT(DISTINCT "${col}")`;
+        else if (func === 'PERCENTILE') e = `PERCENTILE_CONT(${parseFloat(a.percentile) || 0.5}) WITHIN GROUP (ORDER BY "${col}")`;
+        else if (func === 'STRING_AGG') e = `STRING_AGG("${col}", '${String(a.sep || ', ').replace(/'/g, "''")}')`;
+        else e = `${func}("${col}")`;
+        return `${e} AS "${alias === '*' ? 'count' : alias}"`;
+    }
+
+    // --- Cloud / external source helpers (reuse the app's existing config & extensions) ---
+
+    /** Load httpfs + apply S3/GCS credentials from config (mirrors /api/export/cloud). */
+    async prepareCloud(dbManager, provider) {
+        const config = aiManager.getConfig();
+        await dbManager.query('INSTALL httpfs; LOAD httpfs;');
+        if (provider === 'gcs') {
+            const gcs = config.gcsConfig || {};
+            await dbManager.query(`SET s3_endpoint='storage.googleapis.com'`);
+            await dbManager.query(`SET s3_url_style='path'`);
+            if (gcs.accessKeyId) await dbManager.query(`SET s3_access_key_id='${gcs.accessKeyId}'`);
+            if (gcs.secretKey) await dbManager.query(`SET s3_secret_access_key='${gcs.secretKey}'`);
+        } else {
+            const s3 = config.s3Config || {};
+            if (s3.accessKeyId) await dbManager.query(`SET s3_access_key_id='${s3.accessKeyId}'`);
+            if (s3.secretKey) await dbManager.query(`SET s3_secret_access_key='${s3.secretKey}'`);
+            if (s3.region) await dbManager.query(`SET s3_region='${s3.region}'`);
+            if (s3.endpoint) await dbManager.query(`SET s3_endpoint='${s3.endpoint}'`);
+        }
+    }
+
+    /** Ensure the DuckDB gsheets extension + service-account secret (mirrors ensureGSheetsReady). */
+    async ensureGSheets(dbManager) {
+        try {
+            const exts = await dbManager.query("SELECT installed, loaded FROM duckdb_extensions() WHERE extension_name = 'gsheets'");
+            const ext = exts[0];
+            if (!ext || !ext.installed) await dbManager.query('INSTALL gsheets FROM community');
+            if (!ext || !ext.loaded) await dbManager.query('LOAD gsheets');
+        } catch (e) { if (!String(e.message || '').includes('already loaded')) throw e; }
+        const gs = (aiManager.getConfig().gsheets) || {};
+        if (gs.serviceAccountKeyPath) {
+            try {
+                try { await dbManager.query('DROP SECRET IF EXISTS __amox_gsheet'); } catch {}
+                const saPath = gs.serviceAccountKeyPath.replace(/\\/g, '/');
+                await dbManager.query(`CREATE SECRET __amox_gsheet (TYPE gsheet, PROVIDER key_file, FILEPATH '${saPath}')`);
+            } catch (e) { if (!String(e.message || '').includes('already exists')) throw e; }
+        }
+    }
+
+    /**
+     * Run an LLM over each row's input value (bounded concurrency). Returns
+     * [{ rn, out }] keyed by the row index. Failures per row → out: null.
+     */
+    async runAiEnrich(rows, opts) {
+        const { generateText } = require('ai');
+        const cfg = aiManager.getConfig();
+        const provider = opts.provider || cfg.provider || 'ollama';
+        const model = opts.model || cfg.defaultModel;
+        const llm = aiManager.getModel(provider, model);
+        const o = opts.options || {};
+        const buildPrompt = (val) => {
+            const v = String(val ?? '');
+            switch (opts.task) {
+                case 'classify':  return `Classify the text into exactly one of these labels: ${o.categories || o.labels || 'positive, negative, neutral'}. Reply with ONLY the label.\n\nText: ${v}`;
+                case 'extract':   return `Extract ${o.instruction || o.what || 'the key entity'} from the text. Reply with ONLY the value, or empty if none.\n\nText: ${v}`;
+                case 'summarize': return `Summarize the text in one short sentence. Reply with ONLY the summary.\n\nText: ${v}`;
+                case 'redact_pii':return `Redact all personal data (names, emails, phones, addresses), replacing each with [REDACTED]. Reply with ONLY the redacted text.\n\nText: ${v}`;
+                default:          return `${o.instruction || o.prompt || 'Process the following text'}:\n\n${v}`;
+            }
+        };
+        const concurrency = 4;
+        const out = [];
+        for (let i = 0; i < rows.length; i += concurrency) {
+            const batch = rows.slice(i, i + concurrency);
+            const settled = await Promise.all(batch.map(async (row) => {
+                try {
+                    const res = await generateText({ model: llm, prompt: buildPrompt(row.__val), maxTokens: 200 });
+                    return { rn: row.__rn, out: (res.text || '').trim() };
+                } catch { return { rn: row.__rn, out: null }; }
+            }));
+            out.push(...settled);
+        }
+        return out;
+    }
+
+    // --- Chain → SQL compiler ---
+    // NOTE: buildNodeSql mirrors the statements produced by executeNode but is pure
+    // (no execution). It powers the "export to runnable SQL" feature. Unifying it with
+    // executeNode into a single source is a safe follow-up (kept separate for now so the
+    // live execution path is untouched).
+
+    /**
+     * Build the primary SQL a node produces, without executing it.
+     * `sources` is the array of upstream SELECT strings (already resolved). Returns a SQL
+     * string, or null for nodes that have no SQL to emit (checkpoint/notification/table_ref).
+     */
+    buildNodeSql(node, sources, chainFile, vars = {}, projectPath = '') {
+        const config = this.applyVars(node.config || {}, vars);
+        const out = this.physName(chainFile, node.id);
+        const src0 = sources[0];
+        const fromSrc = src0 ? `(${src0})` : '(SELECT NULL /* connect an upstream node */)';
+
+        switch (node.type) {
+            case 'sql_inline':
+                return config.query || null;
+            case 'sql_file': {
+                try {
+                    const fp = path.resolve(projectPath, config.filePath || '');
+                    if (config.filePath && fs.existsSync(fp)) {
+                        return `-- from file: ${config.filePath}\n${fs.readFileSync(fp, 'utf-8').trim()}`;
+                    }
+                } catch { /* ignore */ }
+                return `-- SQL file: ${config.filePath || '?'} (not found at export time)`;
+            }
+            case 'table_ref':
+                return null;
+            case 'import_file': {
+                const tbl = config.tableName || 'imported_data';
+                const p = (config.sourcePath || '').replace(/\\/g, '/');
+                const ft = config.fileType || this.detectFileType(config.sourcePath || '');
+                let reader;
+                if (ft === 'parquet') reader = `read_parquet('${p}')`;
+                else if (ft === 'json' || ft === 'jsonl') reader = `read_json_auto('${p}')`;
+                else if (ft === 'xlsx' || ft === 'excel') reader = `read_xlsx('${p}')`;
+                else reader = `read_csv('${p}', auto_detect=true, header=true)`;
+                return `CREATE OR REPLACE TABLE "${tbl}" AS SELECT * FROM ${reader}`;
+            }
+            case 'import_folder': {
+                const tbl = config.tableName || 'imported_data';
+                const fp = (config.folderPath || '').replace(/\\/g, '/');
+                const pattern = config.filePattern || '*.csv';
+                const ext = pattern.replace('*.', '').toLowerCase();
+                let reader;
+                if (ext === 'parquet') reader = `read_parquet('${fp}/${pattern}', union_by_name=true)`;
+                else if (ext === 'json' || ext === 'jsonl') reader = `read_json_auto('${fp}/${pattern}', union_by_name=true)`;
+                else reader = `read_csv('${fp}/${pattern}', auto_detect=true, header=true, union_by_name=true)`;
+                return `CREATE OR REPLACE TABLE "${tbl}" AS SELECT * FROM ${reader}`;
+            }
+            case 'http_fetch': {
+                const tbl = config.tableName || 'fetched_data';
+                const url = config.url || '';
+                const ft = config.format || 'csv';
+                const reader = ft === 'parquet' ? `read_parquet('${url}')` : ft === 'json' ? `read_json_auto('${url}')` : `read_csv('${url}', auto_detect=true, header=true)`;
+                return `INSTALL httpfs; LOAD httpfs;\nCREATE OR REPLACE TABLE "${tbl}" AS SELECT * FROM ${reader}`;
+            }
+            case 'create_table': {
+                const tbl = config.tableName || 'new_table';
+                const q = config.query || src0 || '(SELECT NULL)';
+                return `CREATE OR REPLACE TABLE "${tbl}" AS ${q}`;
+            }
+            case 'export_file': {
+                const q = config.query || src0 || '(SELECT NULL)';
+                const fmt = config.format || 'csv';
+                const p = (config.outputPath || '').replace(/\\/g, '/');
+                const partCols = Array.isArray(config.partitionBy) ? config.partitionBy : (config.partitionBy ? String(config.partitionBy).split(',').map(s => s.trim()).filter(Boolean) : []);
+                const partOpt = partCols.length ? `, PARTITION_BY (${partCols.map(pc => `"${pc}"`).join(', ')})` : '';
+                if (fmt === 'parquet') {
+                    const c = config.compression ? `, COMPRESSION ${config.compression.toUpperCase()}` : '';
+                    return `COPY (${q}) TO '${p}' (FORMAT PARQUET${c}${partOpt})`;
+                }
+                if (fmt === 'json') return `COPY (${q}) TO '${p}' (FORMAT JSON${partOpt})`;
+                if (fmt === 'xlsx' || fmt === 'excel') return `COPY (${q}) TO '${p}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
+                const d = (config.delimiter && config.delimiter !== ',') ? `, SEPARATOR '${config.delimiter}'` : '';
+                return `COPY (${q}) TO '${p}' (FORMAT CSV, HEADER${d}${partOpt})`;
+            }
+            case 'merge_tables': {
+                if (sources.length === 0) return null;
+                const joiner = config.mergeMode === 'union' ? ' UNION ' : ' UNION ALL ';
+                return `CREATE OR REPLACE TABLE "${out}" AS ${sources.join(joiner)}`;
+            }
+            case 'join_tables': {
+                if (sources.length < 2) return '-- join_tables: needs 2 upstream inputs';
+                const jt = config.joinType || 'LEFT';
+                const jkeys = this.joinKeys(config);
+                const jon = jkeys.length ? jkeys.map(k => `_left."${k.left}" = _right."${k.right}"`).join(' AND ') : `_left."?" = _right."?"`;
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM (${sources[0]}) AS _left ${jt} JOIN (${sources[1]}) AS _right ON ${jon}`;
+            }
+            case 'filter': {
+                const conds = config.conditions || [];
+                if (!conds.length) return null;
+                const connector = config.connector || 'AND';
+                const where = conds.map(c => {
+                    const col = `"${c.column}"`;
+                    switch (c.operator) {
+                        case 'IS NULL': return `${col} IS NULL`;
+                        case 'IS NOT NULL': return `${col} IS NOT NULL`;
+                        case '>': case '>=': case '<': case '<=': return `${col} ${c.operator} ${c.value}`;
+                        case 'LIKE': return `${col} LIKE '${(c.value || '').replace(/'/g, "''")}'`;
+                        case 'NOT LIKE': return `${col} NOT LIKE '${(c.value || '').replace(/'/g, "''")}'`;
+                        case 'IN': { const vals = (c.value || '').split(',').map(v => `'${v.trim().replace(/'/g, "''")}'`).join(', '); return `${col} IN (${vals})`; }
+                        case 'BETWEEN': return `${col} BETWEEN ${c.value} AND ${c.value2}`;
+                        default: return `${col} ${c.operator || '='} '${(c.value || '').replace(/'/g, "''")}'`;
+                    }
+                }).join(` ${connector} `);
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src WHERE ${where}`;
+            }
+            case 'group_aggregate': {
+                const groups = config.groupColumns || [];
+                const aggs = config.aggregations || [];
+                if (!aggs.length) return null;
+                const parts = [
+                    ...groups.map(g => `"${g}"`),
+                    ...aggs.map(a => this.aggExpr(a)),
+                ];
+                const gb = groups.length ? ` GROUP BY ${groups.map(g => `"${g}"`).join(', ')}` : '';
+                const having = (config.having && config.having.trim()) ? ` HAVING ${config.having.trim()}` : '';
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT ${parts.join(', ')} FROM ${fromSrc} AS _src${gb}${having}`;
+            }
+            case 'select_columns': {
+                const cols = config.columns || [];
+                if (!cols.length) return null;
+                const exprs = cols.map(c => (c.alias && c.alias !== c.name) ? `"${c.name}" AS "${c.alias}"` : `"${c.name}"`);
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT ${exprs.join(', ')} FROM ${fromSrc} AS _src`;
+            }
+            case 'deduplicate': {
+                const keys = config.keyColumns || [];
+                if (!keys.length) return `CREATE OR REPLACE TABLE "${out}" AS SELECT DISTINCT * FROM ${fromSrc} AS _src`;
+                const part = keys.map(k => `"${k}"`).join(', ');
+                const order = config.keep === 'last' ? 'DESC' : 'ASC';
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${part} ORDER BY rowid ${order}) AS _rn FROM ${fromSrc} AS _src) WHERE _rn = 1`;
+            }
+            case 'add_column': {
+                const cols = config.newColumns || [];
+                if (!cols.length) return null;
+                const exprs = cols.map(c => `(${c.expression}) AS "${c.name}"`);
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT *, ${exprs.join(', ')} FROM ${fromSrc} AS _src`;
+            }
+            case 'sort': {
+                const s = config.sortColumns || [];
+                if (!s.length) return null;
+                const ob = s.map(c => `"${c.column}" ${c.direction || 'ASC'}`).join(', ');
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src ORDER BY ${ob}`;
+            }
+            case 'sample': {
+                const v = parseInt(config.sampleValue) || 100;
+                if (config.sampleType === 'percent') return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src USING SAMPLE ${Math.min(v, 100)}%`;
+                if (config.sampleType === 'stratified' && config.strataColumn) return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY random()) AS _rn FROM ${fromSrc} AS _src) WHERE _rn <= ${v}`;
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src LIMIT ${v}`;
+            }
+            case 'pivot': {
+                if (!config.groupColumn || !config.pivotColumn || !config.valueColumn) return null;
+                return `CREATE OR REPLACE TABLE "${out}" AS PIVOT ${fromSrc} ON "${config.pivotColumn}" USING ${config.aggFunc || 'SUM'}("${config.valueColumn}") GROUP BY "${config.groupColumn}"`;
+            }
+            case 'unpivot': {
+                const vc = (config.valueColumns || []).map(c => `"${c}"`).join(', ');
+                if (!vc) return null;
+                return `CREATE OR REPLACE TABLE "${out}" AS UNPIVOT ${fromSrc} ON (${vc}) INTO NAME "${config.nameColumn || 'variable'}" VALUE "${config.valueColumn || 'value'}"`;
+            }
+            case 'type_cast': {
+                const casts = config.casts || [];
+                if (!casts.length) return null;
+                const ce = casts.map(c => `TRY_CAST("${c.column}" AS ${c.targetType}) AS "${c.alias || c.column}"`);
+                const ex = casts.map(c => `"${c.column}"`).join(', ');
+                // DuckDB requires EXCLUDE attached to the star, then the new expressions.
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (${ex}), ${ce.join(', ')} FROM ${fromSrc} AS _src`;
+            }
+            case 'window_functions': {
+                const ws = config.windows || [];
+                if (!ws.length) return null;
+                const we = ws.map(w => {
+                    const pb = (w.partitionBy && w.partitionBy.length) ? `PARTITION BY ${w.partitionBy.map(c => `"${c}"`).join(', ')}` : '';
+                    const ob = (w.orderBy && w.orderBy.length) ? `ORDER BY ${w.orderBy.map(c => `"${c}"`).join(', ')}` : '';
+                    const over = `OVER (${[pb, ob].filter(Boolean).join(' ')})`;
+                    const col = (w.column && w.column !== '*') ? `"${w.column}"` : (w.column === '*' ? '*' : '');
+                    const fn = ['ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE'].includes(w.func) ? `${w.func}()` : (col ? `${w.func}(${col})` : `${w.func}()`);
+                    return `${fn} ${over} AS "${w.alias || String(w.func || '').toLowerCase()}"`;
+                });
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT *, ${we.join(', ')} FROM ${fromSrc} AS _src`;
+            }
+            case 'clean':
+                return `-- clean/replace: column transforms resolved from the live schema at run time — not inlined`;
+            case 'date_ops':
+                return (config.operations || []).length
+                    ? `CREATE OR REPLACE TABLE "${out}" AS ${this.dateOpsSelect(config, fromSrc)}`
+                    : null;
+            case 'flatten':
+                return config.column
+                    ? `CREATE OR REPLACE TABLE "${out}" AS ${this.flattenSelect(config, fromSrc)}`
+                    : null;
+            case 'bucket_read': {
+                const bf = config.format || 'parquet';
+                const breader = bf === 'csv' ? `read_csv('${config.uri || ''}', auto_detect=true, header=true)` : bf === 'json' ? `read_json_auto('${config.uri || ''}')` : `read_parquet('${config.uri || ''}')`;
+                return `-- cloud credentials applied at run time (httpfs)\nCREATE OR REPLACE TABLE "${config.tableName || 'cloud_data'}" AS SELECT * FROM ${breader}`;
+            }
+            case 'gsheet_read': {
+                const sid = config.spreadsheetId || config.url || '';
+                const sc = config.sheet ? `, sheet='${config.sheet}'` : '';
+                return `-- Google Sheets via the gsheets extension\nCREATE OR REPLACE TABLE "${config.tableName || 'gsheet_data'}" AS SELECT * FROM read_gsheet('${sid}'${sc})`;
+            }
+            case 'ai_enrich':
+                return `-- ai_enrich: an LLM is applied per row at run time (not pure SQL)`;
+            case 'rename_table':
+                return config.newName ? `-- rename upstream table to "${config.newName}" (ALTER TABLE … RENAME TO)` : null;
+            case 'assert':
+            case 'schema_validation':
+                return `-- ${node.type}: data-quality gate (no table output)`;
+            case 'checkpoint':
+            case 'notification':
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Compile a whole chain into an ordered, (mostly) runnable DuckDB SQL script.
+     * Reuses the topological order and the deterministic intermediate naming, so the
+     * emitted script reproduces what a run would do. Nodes that resolve only at run
+     * time (clean, rename, asserts, notifications) are emitted as comments.
+     */
+    compileToSql(chainDef, projectPath = '', chainFile = '', variables = {}) {
+        const { nodes = [], edges = [], name = 'chain' } = chainDef;
+        const vars = { ...(chainDef.variables || {}), ...(variables || {}) };
+        const layers = this.computeLayers(nodes, edges);
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+        const parentMap = new Map(nodes.map(n => [n.id, []]));
+        for (const e of edges) if (parentMap.has(e.target)) parentMap.get(e.target).push(e.source);
+
+        // The SELECT string a parent exposes to its children.
+        const refQuery = (pid) => {
+            const pn = nodeMap.get(pid);
+            if (!pn) return null;
+            if (pn.type === 'sql_inline') {
+                // Only inline as a subquery if it's a read query; a CREATE/INSERT can't be a FROM source.
+                const q = (this.applyVars(pn.config || {}, vars).query || '').trim().replace(/;\s*$/, '');
+                return /^(select|with)\b/i.test(q) ? q : null;
+            }
+            return this.outputToQuery(this.staticOutputRef(pn, chainFile));
+        };
+
+        const lines = [
+            `-- AmoxSQL Chain → SQL: ${name}`,
+            `-- Reproduces the chain run order. Intermediate tables use the chain's`,
+            `-- deterministic names; nodes resolved only at run time appear as comments.`,
+            ``,
+        ];
+        if (Object.keys(vars).length) {
+            lines.push('-- Variables:');
+            for (const [k, v] of Object.entries(vars)) lines.push(`--   ${k} = ${v}`);
+            lines.push('');
+        }
+
+        let step = 0;
+        for (const layer of layers) {
+            for (const nodeId of layer) {
+                const node = nodeMap.get(nodeId);
+                if (!node) continue;
+                step++;
+                const sources = (parentMap.get(nodeId) || []).map(refQuery).filter(Boolean);
+                lines.push(`-- Step ${step}: [${node.type}] ${node.label || node.id}`);
+                if (node.description) lines.push(`-- ${node.description}`);
+                const sql = this.buildNodeSql(node, sources, chainFile, vars, projectPath);
+                if (sql && sql.trim()) {
+                    const t = sql.trim();
+                    // Leave comment-only emissions as-is; terminate real statements with ';'.
+                    lines.push(t.startsWith('--') ? t : (t.endsWith(';') ? t : `${t};`));
+                } else {
+                    lines.push(`-- (${node.type}: nothing to emit)`);
+                }
+                lines.push('');
+            }
+        }
+        return lines.join('\n');
+    }
+
     // --- Node Execution ---
 
-    async executeNode(node, dbManager, projectPath, upstreamOutputs = []) {
-        const { type, config = {} } = node;
+    async executeNode(node, dbManager, projectPath, upstreamOutputs = [], ctx = {}) {
+        const { type } = node;
+        const chainFile = ctx.chainFile || '';
+        // Interpolate ${var} placeholders across all string config fields before use.
+        const vars = ctx.variables || {};
+        const config = Object.keys(vars).length > 0 ? this.applyVars(node.config || {}, vars) : (node.config || {});
         let sql = '';
         let resultType = 'unknown';
         let resultSummary = {};
@@ -362,7 +954,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'merge_tables': {
-                const targetTable = config.tableName || 'merged_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const mergeMode = config.mergeMode || 'union_all';
 
                 // Build UNION ALL / UNION from upstream outputs
@@ -514,50 +1106,56 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'export_file': {
-                const outputPath = this.resolvePath(projectPath, config.outputPath);
+                if (!config.outputPath) throw new Error('Export File node: output file path is required');
+                const isCloud = /^(s3|gs|gcs):\/\//i.test(config.outputPath);
+                const outputPath = isCloud ? config.outputPath : this.resolvePath(projectPath, config.outputPath);
                 const format = config.format || 'csv';
                 const delimiter = config.delimiter || ',';
                 const compression = config.compression || '';
                 let query = config.query || '';
-
-                if (!config.outputPath) throw new Error('Export File node: output file path is required');
 
                 // AUTO-RESOLVE: If no query configured, use upstream node's output
                 if (!query && upstreamOutputs.length > 0) {
                     const upstreamQuery = this.outputToQuery(upstreamOutputs[0]);
                     if (upstreamQuery) query = upstreamQuery;
                 }
-
                 if (!query) {
                     throw new Error('Export node has no query and no upstream node connected. Connect a source node or write a SQL query manually.');
                 }
 
-                // Ensure output directory exists
-                const outputDir = path.dirname(outputPath);
-                if (!fs.existsSync(outputDir)) {
-                    fs.mkdirSync(outputDir, { recursive: true });
+                if (isCloud) {
+                    await this.prepareCloud(dbManager, /^(gs|gcs):/i.test(config.outputPath) ? 'gcs' : 's3');
+                } else {
+                    const outputDir = path.dirname(outputPath);
+                    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
                 }
+
+                // Partitioned output (writes to a directory of parquet/csv files).
+                const partCols = Array.isArray(config.partitionBy)
+                    ? config.partitionBy
+                    : (config.partitionBy ? String(config.partitionBy).split(',').map(s => s.trim()).filter(Boolean) : []);
+                const partOpt = partCols.length ? `, PARTITION_BY (${partCols.map(c => `"${c}"`).join(', ')})` : '';
 
                 if (format === 'csv') {
                     const delimOpt = delimiter !== ',' ? `, SEPARATOR '${delimiter}'` : '';
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER${delimOpt})`;
+                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER${delimOpt}${partOpt})`;
                 } else if (format === 'parquet') {
                     const comprOpt = compression ? `, COMPRESSION ${compression.toUpperCase()}` : '';
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT PARQUET${comprOpt})`;
+                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT PARQUET${comprOpt}${partOpt})`;
                 } else if (format === 'xlsx' || format === 'excel') {
                     await this.ensureSpatialExtension(dbManager);
                     sql = `COPY (${query}) TO '${outputPath}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
                 } else if (format === 'json') {
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT JSON)`;
+                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT JSON${partOpt})`;
                 } else {
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER)`;
+                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER${partOpt})`;
                 }
 
                 await dbManager.query(sql);
-                const stat = fs.existsSync(outputPath) ? fs.statSync(outputPath) : null;
+                const stat = (!isCloud && fs.existsSync(outputPath)) ? fs.statSync(outputPath) : null;
                 const sizeKb = stat ? (stat.size / 1024).toFixed(1) : '?';
                 resultType = 'file_exported';
-                resultSummary = { path: config.outputPath, format, size: `${sizeKb} KB` };
+                resultSummary = { path: config.outputPath, format, size: isCloud ? 'cloud' : `${sizeKb} KB` };
                 break;
             }
 
@@ -590,16 +1188,15 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'join_tables': {
-                const targetTable = config.tableName || 'joined_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const joinType = config.joinType || 'LEFT';
-                const leftKey = config.leftKey || '';
-                const rightKey = config.rightKey || '';
+                const keys = this.joinKeys(config);
 
                 if (upstreamOutputs.length < 2) {
                     throw new Error('Join node requires exactly 2 upstream nodes connected (left and right tables)');
                 }
-                if (!leftKey || !rightKey) {
-                    throw new Error('Join node: left key and right key columns must be specified');
+                if (keys.length === 0) {
+                    throw new Error('Join node: at least one key pair (left = right) is required');
                 }
 
                 const leftQuery = this.outputToQuery(upstreamOutputs[0]);
@@ -608,7 +1205,8 @@ class ChainExecutor extends EventEmitter {
                     throw new Error('Join node: could not resolve upstream tables');
                 }
 
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${leftQuery}) AS _left ${joinType} JOIN (${rightQuery}) AS _right ON _left."${leftKey}" = _right."${rightKey}"`;
+                const onClause = keys.map(k => `_left."${k.left}" = _right."${k.right}"`).join(' AND ');
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${leftQuery}) AS _left ${joinType} JOIN (${rightQuery}) AS _right ON ${onClause}`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 const rowCount = countResult[0]?.cnt || 0;
@@ -618,7 +1216,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'filter': {
-                const targetTable = config.tableName || 'filtered_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const conditions = config.conditions || [];
 
                 // Resolve source from upstream or config
@@ -655,12 +1253,14 @@ class ChainExecutor extends EventEmitter {
                             const vals = (c.value || '').split(',').map(v => `'${v.trim().replace(/'/g, "''")}'`).join(', ');
                             return `${col} IN (${vals})`;
                         }
+                        case 'BETWEEN': return `${col} BETWEEN ${c.value} AND ${c.value2}`;
                         default: return `${col} = '${(c.value || '').replace(/'/g, "''")}'`;
                     }
                 });
 
                 const whereStr = whereClauses.join(` ${connector} `);
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src WHERE ${whereStr}`;
+                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
+                sql = `${mp} AS SELECT * FROM (${sourceQuery}) AS _src WHERE ${whereStr}`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 const rowCount = countResult[0]?.cnt || 0;
@@ -670,7 +1270,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'group_aggregate': {
-                const targetTable = config.tableName || 'aggregated_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const groupColumns = config.groupColumns || [];
                 const aggregations = config.aggregations || [];
 
@@ -693,19 +1293,15 @@ class ChainExecutor extends EventEmitter {
                     selectParts.push(`"${col}"`);
                 }
                 for (const agg of aggregations) {
-                    const alias = agg.alias || `${agg.func.toLowerCase()}_${agg.column}`;
-                    if (agg.func === 'COUNT' && agg.column === '*') {
-                        selectParts.push(`COUNT(*) AS "${alias}"`);
-                    } else {
-                        selectParts.push(`${agg.func}("${agg.column}") AS "${alias}"`);
-                    }
+                    selectParts.push(this.aggExpr(agg));
                 }
 
                 const groupByStr = groupColumns.length > 0
                     ? ` GROUP BY ${groupColumns.map(c => `"${c}"`).join(', ')}`
                     : '';
+                const havingStr = (config.having && config.having.trim()) ? ` HAVING ${config.having.trim()}` : '';
 
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${selectParts.join(', ')} FROM (${sourceQuery}) AS _src${groupByStr}`;
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${selectParts.join(', ')} FROM (${sourceQuery}) AS _src${groupByStr}${havingStr}`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 const rowCount = countResult[0]?.cnt || 0;
@@ -715,7 +1311,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'select_columns': {
-                const targetTable = config.tableName || 'selected_columns';
+                const targetTable = this.physName(chainFile, node.id);
                 const columns = config.columns || [];
 
                 let sourceQuery = '';
@@ -739,7 +1335,8 @@ class ChainExecutor extends EventEmitter {
                     return `"${c.name}"`;
                 });
 
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
+                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
+                sql = `${mp} AS SELECT ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 const rowCount = countResult[0]?.cnt || 0;
@@ -749,7 +1346,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'deduplicate': {
-                const targetTable = config.tableName || 'deduplicated';
+                const targetTable = this.physName(chainFile, node.id);
                 const keyColumns = config.keyColumns || [];
                 const keepPolicy = config.keep || 'first';
 
@@ -783,7 +1380,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'add_column': {
-                const targetTable = config.tableName || 'with_column';
+                const targetTable = this.physName(chainFile, node.id);
                 const newColumns = config.newColumns || [];
 
                 let sourceQuery = '';
@@ -801,7 +1398,8 @@ class ChainExecutor extends EventEmitter {
                 }
 
                 const colExprs = newColumns.map(c => `(${c.expression}) AS "${c.name}"`);
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT *, ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
+                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
+                sql = `${mp} AS SELECT *, ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 const rowCount = countResult[0]?.cnt || 0;
@@ -811,7 +1409,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'sort': {
-                const targetTable = config.tableName || 'sorted_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const sortColumns = config.sortColumns || [];
 
                 let sourceQuery = '';
@@ -839,7 +1437,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'sample': {
-                const targetTable = config.tableName || 'sample_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const sampleType = config.sampleType || 'rows';
                 const sampleValue = parseInt(config.sampleValue) || 100;
 
@@ -856,6 +1454,8 @@ class ChainExecutor extends EventEmitter {
 
                 if (sampleType === 'percent') {
                     sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src USING SAMPLE ${Math.min(sampleValue, 100)}%`;
+                } else if (sampleType === 'stratified' && config.strataColumn) {
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * EXCLUDE (_rn) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY random()) AS _rn FROM (${sourceQuery}) AS _src) WHERE _rn <= ${sampleValue}`;
                 } else {
                     sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src LIMIT ${sampleValue}`;
                 }
@@ -868,7 +1468,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'pivot': {
-                const targetTable = config.tableName || 'pivoted_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const groupColumn = config.groupColumn || '';
                 const pivotColumn = config.pivotColumn || '';
                 const valueColumn = config.valueColumn || '';
@@ -921,7 +1521,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'type_cast': {
-                const targetTable = config.tableName || 'casted_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const casts = config.casts || [];
 
                 let sourceQuery = '';
@@ -956,7 +1556,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'window_functions': {
-                const targetTable = config.tableName || 'with_window';
+                const targetTable = this.physName(chainFile, node.id);
                 const windows = config.windows || [];
 
                 let sourceQuery = '';
@@ -989,7 +1589,7 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'unpivot': {
-                const targetTable = config.tableName || 'unpivoted_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const idColumns = config.idColumns || [];
                 const valueColumns = config.valueColumns || [];
                 const nameColumn = config.nameColumn || 'variable';
@@ -1034,8 +1634,67 @@ class ChainExecutor extends EventEmitter {
                 break;
             }
 
+            case 'bucket_read': {
+                const tableName = config.tableName || 'cloud_data';
+                const uri = config.uri || '';
+                const fmt = config.format || 'parquet';
+                if (!uri) throw new Error('Cloud Bucket node: a URI (s3:// or gs://) is required');
+                await this.prepareCloud(dbManager, config.provider || (uri.startsWith('gs://') ? 'gcs' : 's3'));
+                const reader = fmt === 'csv' ? `read_csv('${uri}', auto_detect=true, header=true)`
+                    : fmt === 'json' ? `read_json_auto('${uri}')`
+                    : `read_parquet('${uri}')`;
+                sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM ${reader}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
+                resultType = 'table_created';
+                resultSummary = { table: tableName, rowCount: countResult[0]?.cnt || 0, uri };
+                break;
+            }
+
+            case 'gsheet_read': {
+                const tableName = config.tableName || 'gsheet_data';
+                const sheetId = config.spreadsheetId || config.url || '';
+                if (!sheetId) throw new Error('Google Sheets node: a spreadsheet ID or URL is required');
+                await this.ensureGSheets(dbManager);
+                const sheetClause = config.sheet ? `, sheet='${String(config.sheet).replace(/'/g, "''")}'` : '';
+                sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_gsheet('${String(sheetId).replace(/'/g, "''")}'${sheetClause})`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
+                resultType = 'table_created';
+                resultSummary = { table: tableName, rowCount: countResult[0]?.cnt || 0 };
+                break;
+            }
+
+            case 'ai_enrich': {
+                const targetTable = this.physName(chainFile, node.id);
+                const inputColumn = config.inputColumn || '';
+                const outputColumn = config.outputColumn || 'ai_result';
+                const maxRows = Math.min(parseInt(config.maxRows) || 500, 2000);
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                if (!sourceQuery) throw new Error('AI Enrich node: no upstream data source connected');
+                if (!inputColumn) throw new Error('AI Enrich node: an input column is required');
+
+                // Materialize the source ONCE with a fixed row index, so the LLM read and the
+                // final join align on the same rows (two separate ROW_NUMBER() scans could differ).
+                const tmp = `__ai_src_${this.hashString(String(node.id))}`;
+                await dbManager.query(`CREATE OR REPLACE TEMP TABLE "${tmp}" AS SELECT *, ROW_NUMBER() OVER () AS __rn FROM (${sourceQuery}) AS _src LIMIT ${maxRows}`);
+                const rows = await dbManager.query(`SELECT __rn, "${inputColumn}" AS __val FROM "${tmp}"`);
+                const results = await this.runAiEnrich(rows, { task: config.task || 'classify', options: config.options || {}, provider: config.provider, model: config.model });
+                const valuesList = results.map(r => `(${parseInt(r.rn)}, '${String(r.out ?? '').replace(/'/g, "''")}')`).join(', ');
+                const valuesClause = valuesList ? `(VALUES ${valuesList})` : `(SELECT NULL::BIGINT AS __rn, NULL::VARCHAR AS out WHERE false)`;
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT t.* EXCLUDE (__rn), v.out AS "${outputColumn}" FROM "${tmp}" AS t LEFT JOIN ${valuesClause} AS v(__rn, out) ON t.__rn = v.__rn`;
+                await dbManager.query(sql);
+                try { await dbManager.query(`DROP TABLE IF EXISTS "${tmp}"`); } catch {}
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, enriched: results.length };
+                break;
+            }
+
             case 'clean': {
-                const targetTable = config.tableName || 'cleaned_data';
+                const targetTable = this.physName(chainFile, node.id);
                 const operations = config.operations || [];
 
                 let sourceQuery = '';
@@ -1061,16 +1720,52 @@ class ChainExecutor extends EventEmitter {
                             case 'regex_replace': expr = `REGEXP_REPLACE(${expr}, '${(op.pattern||'').replace(/'/g,"''")}', '${(op.replacement||'').replace(/'/g,"''")}')` ; break;
                             case 'fill_null': expr = `COALESCE(${expr}, '${(op.defaultValue||'').replace(/'/g,"''")}')` ; break;
                             case 'nullify_empty': expr = `NULLIF(${expr}, '')`; break;
+                            case 'regex_extract': expr = `REGEXP_EXTRACT(${expr}, '${(op.pattern||'').replace(/'/g,"''")}')`; break;
+                            case 'normalize': expr = `TRIM(REGEXP_REPLACE(STRIP_ACCENTS(${expr}), '\\s+', ' ', 'g'))`; break;
+                            case 'split_part': expr = `SPLIT_PART(${expr}, '${(op.delimiter||',').replace(/'/g,"''")}', ${parseInt(op.part)||1})`; break;
                         }
                     }
                     return `${expr} AS "${col}"`;
                 });
 
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
+                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
+                sql = `${mp} AS SELECT ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 resultType = 'table_created';
                 resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, opsApplied: operations.length };
+                break;
+            }
+
+            case 'date_ops': {
+                const targetTable = this.physName(chainFile, node.id);
+                const operations = config.operations || [];
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                if (!sourceQuery) throw new Error('Date/Time node: no upstream data source connected');
+                if (operations.length === 0) throw new Error('Date/Time node: at least one operation is required');
+                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
+                sql = `${mp} AS ${this.dateOpsSelect(config, `(${sourceQuery})`)}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, opsApplied: operations.length };
+                break;
+            }
+
+            case 'flatten': {
+                const targetTable = this.physName(chainFile, node.id);
+                let sourceQuery = '';
+                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+                if (!sourceQuery) throw new Error('Flatten node: no upstream data source connected');
+                if (!config.column) throw new Error('Flatten node: a source column is required');
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS ${this.flattenSelect(config, `(${sourceQuery})`)}`;
+                await dbManager.query(sql);
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+                resultType = 'table_created';
+                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0 };
                 break;
             }
 
@@ -1163,8 +1858,10 @@ class ChainExecutor extends EventEmitter {
 
     // --- Main Execution Loop ---
 
-    async run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '' } = {}) {
+    async run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {} } = {}) {
         const { nodes, edges = [], name = 'Untitled Chain' } = chainDef;
+        // Chain-level variables (from the .sqlchain) merged with run-time overrides.
+        const chainVars = { ...(chainDef.variables || {}), ...(variables || {}) };
 
         // Determine which nodes to execute based on mode
         let activeNodeIds;
@@ -1218,6 +1915,21 @@ class ChainExecutor extends EventEmitter {
             if (parentMap.has(e.target)) parentMap.get(e.target).push(e.source);
         }
 
+        // Full parent map (across ALL edges, not just the active subgraph) so that
+        // partial runs / checkpoint resume can resolve parents left behind by a
+        // previous run via their deterministic output name. For a full run this is
+        // equivalent to parentMap (every parent is active and in nodeOutputs).
+        const fullParentMap = new Map();
+        for (const n of nodes) fullParentMap.set(n.id, []);
+        for (const e of edges) {
+            if (fullParentMap.has(e.target)) fullParentMap.get(e.target).push(e.source);
+        }
+
+        // Downstream fan-out per node (across ALL edges, deterministic) — drives the
+        // TEMP VIEW vs TABLE materialization decision (fan-out > 1 → materialize a table).
+        const fanout = new Map();
+        for (const e of edges) fanout.set(e.source, (fanout.get(e.source) || 0) + 1);
+
         let completedCount = 0;
         let failed = false;
 
@@ -1251,7 +1963,7 @@ class ChainExecutor extends EventEmitter {
                     }
 
                     // Resolve upstream outputs for this node
-                    const upstreamOutputs = this.resolveUpstreamOutputs(nodeId, parentMap, nodeOutputs);
+                    const upstreamOutputs = this.resolveUpstreamOutputs(nodeId, fullParentMap, nodeOutputs, nodeMap, chainFile);
 
                     // Mark as running
                     await chainPersistence.updateNodeRun(dbManager, nodeRunId, { status: 'running' });
@@ -1261,7 +1973,7 @@ class ChainExecutor extends EventEmitter {
                     const startTime = Date.now();
 
                     try {
-                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs);
+                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, fanout });
                         const durationMs = Date.now() - startTime;
 
                         // Emit SQL executed

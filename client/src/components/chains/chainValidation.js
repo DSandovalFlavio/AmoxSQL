@@ -107,8 +107,10 @@ export function validateNode(node, edges = []) {
 
         case 'join_tables': {
             if (inEdges.length < 2) errors.push('Join requires exactly 2 upstream connections (left and right table)');
-            if (!config.leftKey?.trim()) errors.push('Left table key column is required');
-            if (!config.rightKey?.trim()) errors.push('Right table key column is required');
+            const jkeys = (config.keys && config.keys.length)
+                ? config.keys.filter(k => k.left?.trim() && k.right?.trim())
+                : ((config.leftKey?.trim() && config.rightKey?.trim()) ? [1] : []);
+            if (jkeys.length === 0) errors.push('At least one join key pair (left = right) is required');
             break;
         }
 
@@ -181,12 +183,63 @@ export function validateNode(node, edges = []) {
             break;
         }
 
+        case 'bucket_read': {
+            if (!config.uri?.trim()) errors.push('Bucket URI is required (s3://… or gs://…)');
+            else if (!/^(s3|gs|gcs):\/\//i.test(config.uri)) {
+                errors.push('URI must start with s3:// or gs://');
+            }
+            if (!config.tableName?.trim()) warnings.push('Table name is empty — will default to "cloud_data"');
+            warnings.push('Cloud credentials must be configured in Settings (S3/GCS)');
+            break;
+        }
+
+        case 'gsheet_read': {
+            if (!config.spreadsheetId?.trim()) errors.push('Spreadsheet ID is required');
+            if (!config.tableName?.trim()) warnings.push('Table name is empty — will default to "gsheet_data"');
+            warnings.push('A Google service account key must be configured in Settings');
+            break;
+        }
+
+        case 'ai_enrich': {
+            if (!hasUpstream) errors.push('No upstream data source connected');
+            if (!config.inputColumn?.trim()) errors.push('An input column is required');
+            if (!config.outputColumn?.trim()) warnings.push('Output column is empty — will default to "ai_result"');
+            if (config.task === 'custom' && !config.options?.instruction?.trim()) {
+                errors.push('Custom task requires an instruction');
+            }
+            if (config.task === 'classify' && !config.options?.categories?.trim()) {
+                warnings.push('No categories given — the model will choose labels freely');
+            }
+            warnings.push('Runs one LLM call per row — keep Max rows modest for large tables');
+            break;
+        }
+
         case 'clean': {
             if (!hasUpstream) errors.push('No upstream data source connected');
             if (!config.operations?.length) errors.push('At least one cleaning operation is required');
             for (const op of (config.operations || [])) {
                 if (!op.column?.trim()) errors.push('Each operation must specify a column');
                 if (!op.type) errors.push('Each operation must have a type (trim, lower, replace, etc.)');
+            }
+            break;
+        }
+
+        case 'date_ops': {
+            if (!hasUpstream) errors.push('No upstream data source connected');
+            if (!config.operations?.length) errors.push('At least one date operation is required');
+            for (const o of (config.operations || [])) {
+                if (!o.column?.trim()) errors.push('Each operation must specify a column');
+                if (!o.op) errors.push('Each operation must have a type');
+                if (o.op === 'diff' && !o.column2?.trim()) errors.push('Difference needs a second date column');
+            }
+            break;
+        }
+
+        case 'flatten': {
+            if (!hasUpstream) errors.push('No upstream data source connected');
+            if (!config.column?.trim()) errors.push('A source column is required');
+            if ((config.mode || 'fields') === 'fields' && !config.paths?.length) {
+                warnings.push('No fields to extract — add at least one JSON path');
             }
             break;
         }

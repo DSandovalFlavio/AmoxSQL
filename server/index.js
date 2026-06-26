@@ -31,7 +31,10 @@ function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name
     const prefixClauses = INTERNAL_SCHEMA_PREFIXES
         .map(p => `${schemaCol} NOT LIKE '${p}%' ESCAPE '\\'`)
         .join(' AND ');
-    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
+    // Hide Chains intermediate tables (deterministic "__chain_<scope>_*" namespace).
+    // Underscores are escaped so LIKE treats them as literals, not wildcards.
+    const chainArtifactClause = `${nameCol} NOT LIKE '\\_\\_chain\\_%' ESCAPE '\\'`;
+    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
 }
 
 app.use(cors());
@@ -2259,8 +2262,10 @@ app.put('/api/ai/conversations/:id/title/auto', async (req, res) => {
  */
 app.get('/api/ai/skills', async (req, res) => {
     try {
-        const skills = await aiSkills.loadSkills(APP_DIR);
-        res.json(skills.map(s => ({ id: s.id, name: s.name, description: s.description, keywords: s.keywords || [], fileName: s.fileName || '' })));
+        const scope = (req.query.scope || '').toLowerCase();
+        let skills = await aiSkills.loadSkills(APP_DIR);
+        if (scope) skills = skills.filter(s => (s.scope || 'analysis') === scope);
+        res.json(skills.map(s => ({ id: s.id, name: s.name, description: s.description, scope: s.scope || 'analysis', keywords: s.keywords || [], fileName: s.fileName || '' })));
     } catch (err) {
         console.error('[API] Load skills error:', err);
         res.status(500).json({ error: err.message });
@@ -4197,7 +4202,7 @@ const chainExecutor = require('./ChainExecutor');
 
 // Run a chain
 app.post('/api/chains/run', async (req, res) => {
-    const { chainDefinition, chainFile, mode, startNodeId } = req.body;
+    const { chainDefinition, chainFile, mode, startNodeId, variables } = req.body;
     if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition is required' });
 
     try {
@@ -4212,6 +4217,7 @@ app.post('/api/chains/run', async (req, res) => {
             mode: mode || 'full',
             startNodeId,
             chainFile: chainFile || '',
+            variables: variables || undefined,
         });
 
         res.json(result);
@@ -4240,7 +4246,7 @@ app.post('/api/chains/run/:runId/cancel', (req, res) => {
 
 // Resume from checkpoint (re-run from a specific node)
 app.post('/api/chains/run/:runId/resume', async (req, res) => {
-    const { chainDefinition, chainFile, startNodeId } = req.body;
+    const { chainDefinition, chainFile, startNodeId, variables } = req.body;
     if (!chainDefinition || !startNodeId) {
         return res.status(400).json({ error: 'chainDefinition and startNodeId required' });
     }
@@ -4249,6 +4255,7 @@ app.post('/api/chains/run/:runId/resume', async (req, res) => {
             mode: 'from_node',
             startNodeId,
             chainFile: chainFile || '',
+            variables: variables || undefined,
         });
         res.json(result);
     } catch (err) {
@@ -4441,9 +4448,36 @@ app.get('/api/chains/preview/:tableName', async (req, res) => {
     }
 });
 
+// Preview a node's OWN output (resolves its physical table; available only after it has run)
+app.post('/api/chains/preview-node', async (req, res) => {
+    const { nodeId, chainDefinition, chainFile } = req.body;
+    const limit = Math.min(parseInt(req.body.limit) || 50, 200);
+    if (!nodeId || !chainDefinition) return res.status(400).json({ error: 'nodeId and chainDefinition required' });
+    try {
+        const node = (chainDefinition.nodes || []).find(n => n.id === nodeId);
+        if (!node) return res.json({ available: false });
+        const ref = chainExecutor.staticOutputRef(node, chainFile || '');
+        const table = ref && ref.table;
+        if (!table) return res.json({ available: false });
+        const safeTable = table.replace(/[^a-zA-Z0-9_\-.]/g, '');
+        const exists = await dbManager.query(
+            `SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_name = '${safeTable.replace(/'/g, "''")}'`
+        );
+        if (!(exists[0]?.cnt > 0)) return res.json({ available: false, table });
+        const rows = await dbManager.query(`SELECT * FROM "${safeTable}" LIMIT ${limit}`);
+        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${safeTable}"`);
+        const columns = rows.length > 0
+            ? Object.keys(rows[0]).map(k => ({ name: k, type: typeof rows[0][k] === 'number' ? 'number' : 'string' }))
+            : [];
+        res.json({ available: true, table, columns, rows, totalRows: countResult[0]?.cnt || 0 });
+    } catch (err) {
+        res.json({ available: false, error: err.message });
+    }
+});
+
 // Infer schema for a node (upstream schema propagation)
 app.post('/api/chains/schema/infer', async (req, res) => {
-    const { nodeId, chainDefinition } = req.body;
+    const { nodeId, chainDefinition, chainFile } = req.body;
     if (!nodeId || !chainDefinition) return res.status(400).json({ error: 'nodeId and chainDefinition required' });
     try {
         const { nodes = [], edges = [] } = chainDefinition;
@@ -4477,17 +4511,18 @@ app.post('/api/chains/schema/infer', async (req, res) => {
                     columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
                 } catch {}
             }
-        } else if (parentNode.type === 'table_ref' && cfg.tableName) {
-            try {
-                const result = await dbManager.query(`DESCRIBE SELECT * FROM "${cfg.tableName}" LIMIT 0`);
-                columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
-            } catch {}
-        } else if (cfg.tableName) {
-            // Any node that produces a table — try to describe it
-            try {
-                const result = await dbManager.query(`DESCRIBE SELECT * FROM "${cfg.tableName}" LIMIT 0`);
-                columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
-            } catch {}
+        } else {
+            // Any other node — resolve its physical output table (derived nodes use the
+            // deterministic "__chain_*" name post-A1) and describe it. Available once that
+            // node has run at least once; before that, columns come back empty.
+            const ref = chainExecutor.staticOutputRef(parentNode, chainFile || '');
+            const tname = ref && ref.table;
+            if (tname) {
+                try {
+                    const result = await dbManager.query(`DESCRIBE SELECT * FROM "${tname}" LIMIT 0`);
+                    columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
+                } catch {}
+            }
         }
 
         res.json({ columns });
@@ -4496,37 +4531,53 @@ app.post('/api/chains/schema/infer', async (req, res) => {
     }
 });
 
-// Export chain as SQL script
+// Export chain as a (mostly) runnable SQL script
 app.post('/api/chains/export-sql', (req, res) => {
-    const { chainDefinition } = req.body;
+    const { chainDefinition, chainFile, variables } = req.body;
     if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition required' });
     try {
-        const { nodes = [], edges = [], name = 'chain' } = chainDefinition;
-        const executor = chainExecutor;
-        const layers = executor.computeLayers(nodes, edges);
-        const nodeMap = new Map(nodes.map(n => [n.id, n]));
-
-        const lines = [`-- AmoxSQL Chain Export: ${name}`, `-- Generated: ${new Date().toISOString()}`, ``];
-        let stepNum = 0;
-        for (const layer of layers) {
-            for (const nodeId of layer) {
-                const node = nodeMap.get(nodeId);
-                if (!node) continue;
-                stepNum++;
-                lines.push(`-- Step ${stepNum}: [${node.type}] ${node.label || node.id}`);
-                if (node.description) lines.push(`-- ${node.description}`);
-                // Emit representative SQL comment — actual SQL depends on runtime
-                const cfg = node.config || {};
-                if (node.type === 'sql_inline' && cfg.query) lines.push(cfg.query.trim());
-                else if (node.type === 'import_file') lines.push(`-- CREATE TABLE "${cfg.tableName || 'imported_data'}" AS SELECT * FROM read_csv('${cfg.sourcePath || ''}', auto_detect=true, header=true)`);
-                else if (node.type === 'export_file') lines.push(`-- COPY (...upstream...) TO '${cfg.outputPath || ''}' (FORMAT ${(cfg.format || 'csv').toUpperCase()}, HEADER)`);
-                else lines.push(`-- [${node.type}] configured at runtime`);
-                lines.push(``);
-            }
-        }
-
-        res.json({ sql: lines.join('\n') });
+        const sql = chainExecutor.compileToSql(chainDefinition, ROOT_DIR, chainFile || '', variables || {});
+        res.json({ sql });
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Generate a chain DAG from a natural-language description (embedded canvas AI)
+app.post('/api/chains/ai/generate', async (req, res) => {
+    const { prompt, chainDefinition, provider, model } = req.body;
+    if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'prompt is required' });
+    try {
+        const { generateChain } = require('./ai/chainGenerator');
+
+        // Engineering skills as guidance (bias toward good pipeline patterns).
+        let skillsText = '';
+        try {
+            const skills = (await aiSkills.loadSkills(APP_DIR)).filter(s => (s.scope || 'analysis') === 'engineering');
+            skillsText = skills.map(s => `## ${s.name}\n${s.content}`).join('\n\n').slice(0, 8000);
+        } catch { /* skills optional */ }
+
+        // Available tables for grounding.
+        let tables = [];
+        try { tables = await buildTableContext(); } catch { /* db optional */ }
+
+        const cfg = aiManager.getConfig();
+        const result = await generateChain({
+            getModel: aiManager.getModel.bind(aiManager),
+            provider: provider || cfg.provider || 'ollama',
+            model: model || cfg.defaultModel,
+            prompt: String(prompt).trim(),
+            currentChain: chainDefinition || null,
+            tables,
+            skillsText,
+            validateGraph: (chain) => {
+                try { chainExecutor.computeLayers(chain.nodes, chain.edges); return true; }
+                catch (e) { return e.message; }
+            },
+        });
+        res.json(result);
+    } catch (err) {
+        console.error('[Chains AI] generate error:', err);
         res.status(500).json({ error: err.message });
     }
 });

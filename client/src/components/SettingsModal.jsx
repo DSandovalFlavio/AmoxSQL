@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE as API } from '../api.js';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy } from 'react-icons/lu';
+import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy, LuGitBranch } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
 import SkillsPanel from './ai/SkillsPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 import { StoryFlowGuide } from './DataVisualizer/StoryFlowGuide';
+import { DataFlowGuide } from './chains/DataFlowGuide';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
@@ -69,6 +70,7 @@ const TAB_TITLES = {
     shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
     storyflow:   'Story Flow',
+    dataflow:    'Data Flow',
     // Legacy aliases so existing initialTab values keep working
     formatter:   'Editor',
     memories:    'AI',
@@ -839,6 +841,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { separator: true, id: '_sep_help' },
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
                         { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
+                        { id: 'dataflow',      icon: <LuGitBranch size={16} />, label: 'Data Flow' },
                         { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
                     ].filter(tab => {
                         if (tab.separator) return !settingsSearch;
@@ -884,6 +887,24 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </button>
                                     <p style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
                                         Opens the step-by-step tour the next time you open a chart.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ═══ DATA FLOW ═══ */}
+                        {activeTab === 'dataflow' && (
+                            <div className="stg-section">
+                                <DataFlowGuide />
+                                <div style={{ marginTop: '18px' }}>
+                                    <button
+                                        onClick={() => { try { localStorage.removeItem('amoxsql-dataflow-tour-seen'); } catch (e) {} window.dispatchEvent(new CustomEvent('amox_replay_dataflow_tour')); }}
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--accent-color-user, #5E6AD2)', color: 'var(--button-text-color, #fff)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
+                                    >
+                                        <LuGitBranch size={14} /> Replay tour
+                                    </button>
+                                    <p style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                        Opens the step-by-step tour the next time you open a Data Flow.
                                     </p>
                                 </div>
                             </div>

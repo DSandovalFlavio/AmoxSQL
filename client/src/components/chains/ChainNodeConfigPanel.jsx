@@ -2,19 +2,129 @@
  * ChainNodeConfigPanel — Right-side config panel for the selected node.
  * Displays editable label, description, and type-specific configuration fields.
  */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     LuX, LuFileCode2, LuPlus, LuExternalLink, LuTrash2, LuMinus,
-    LuCode, LuChevronDown, LuChevronRight, LuCopy, LuFolderOpen
+    LuCode, LuChevronDown, LuChevronRight, LuCopy, LuFolderOpen, LuLightbulb
 } from 'react-icons/lu';
 import { NODE_TYPES } from './chainNodeTypes';
+import Combobox from './_Combobox';
+import { computeOutputColumns } from './nodeLineage';
+import { validateNode } from './chainValidation';
+import NodeDocView from './NodeDocView';
+import { LuCircleAlert, LuTriangleAlert, LuCheck } from 'react-icons/lu';
+import { API_BASE } from '../../api.js';
 
-const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFile, onOpenFile, sqlFiles = [], chainDefinition }) => {
+// Renders a list of columns ({ name, type?, from? }) with a dimmed right-hand hint.
+const ColumnRows = ({ columns, hintKey = 'type' }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+        {columns.map((c, i) => (
+            <div key={`${c.name}-${i}`} style={{
+                display: 'flex', justifyContent: 'space-between', gap: 8,
+                padding: '4px 8px', borderRadius: 4, background: 'var(--surface-raised)', fontSize: 12,
+            }}>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-active)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                {c[hintKey] && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>{c[hintKey]}</span>}
+            </div>
+        ))}
+    </div>
+);
+
+const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFile, onOpenFile, sqlFiles = [], chainDefinition, chainFile }) => {
+    const [availableTables, setAvailableTables] = useState([]);
+    const [projectFiles, setProjectFiles] = useState([]);
+    const [upstreamColumns, setUpstreamColumns] = useState([]);
+    const [activeTab, setActiveTab] = useState('basic');
+    const [previewData, setPreviewData] = useState(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [panelWidth, setPanelWidth] = useState(() => {
+        const v = Number(localStorage.getItem('amoxsql-chain-config-width'));
+        return v >= 260 ? v : 300;
+    });
+
+    // Available tables/views for table autocomplete.
+    useEffect(() => {
+        let cancelled = false;
+        fetch(`${API_BASE}/api/db/tables`)
+            .then(r => r.json())
+            .then(data => { if (!cancelled) setAvailableTables(Array.isArray(data) ? data : []); })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
+
+    // Project data files for import autocomplete.
+    useEffect(() => {
+        let cancelled = false;
+        fetch(`${API_BASE}/api/files/list?path=&recursive=true`)
+            .then(r => r.json())
+            .then(data => {
+                if (cancelled) return;
+                const files = (data.files || data || [])
+                    .map(f => (typeof f === 'string' ? f : (f.path || f.name)))
+                    .filter(f => f && /\.(csv|tsv|parquet|json|jsonl|xlsx|xls)$/i.test(f));
+                setProjectFiles(files);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
+
+    // Upstream columns for the selected node (column autocomplete). Re-fetched when the
+    // selected node, the chain file, or the connection topology changes — so reconnecting
+    // nodes refreshes suggestions (edgesSig is a stable value-compared string).
+    const nodeId = node?.id;
+    const edgesSig = JSON.stringify((chainDefinition && chainDefinition.edges) || []);
+    useEffect(() => {
+        if (!nodeId || !chainDefinition) { setUpstreamColumns([]); return; }
+        let cancelled = false;
+        fetch(`${API_BASE}/api/chains/schema/infer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nodeId, chainDefinition, chainFile: chainFile || '' }),
+        })
+            .then(r => r.json())
+            .then(data => { if (!cancelled) setUpstreamColumns(Array.isArray(data?.columns) ? data.columns : []); })
+            .catch(() => { if (!cancelled) setUpstreamColumns([]); });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nodeId, chainFile, edgesSig]);
+
+    // Node output preview (only when the Preview tab is open). Resolves the node's
+    // physical output table server-side; available after the node has run.
+    useEffect(() => {
+        if (activeTab !== 'preview' || !nodeId || !chainDefinition) return;
+        let cancelled = false;
+        setPreviewLoading(true);
+        fetch(`${API_BASE}/api/chains/preview-node`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nodeId, chainDefinition, chainFile: chainFile || '', limit: 50 }),
+        })
+            .then(r => r.json())
+            .then(d => { if (!cancelled) setPreviewData(d); })
+            .catch(() => { if (!cancelled) setPreviewData({ available: false }); })
+            .finally(() => { if (!cancelled) setPreviewLoading(false); });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, nodeId, chainFile, edgesSig]);
+
+    useEffect(() => {
+        localStorage.setItem('amoxsql-chain-config-width', String(panelWidth));
+    }, [panelWidth]);
+
+    // Clean up an in-progress panel resize if the panel unmounts mid-drag.
+    const resizeCleanupRef = useRef(null);
+    useEffect(() => () => { resizeCleanupRef.current?.(); }, []);
+
     if (!node) return null;
 
     const nodeType = NODE_TYPES[node.data.nodeType] || NODE_TYPES.sql_file;
     const Icon = nodeType.icon;
     const config = node.data.config || {};
+    const tableOptions = availableTables.map(t => ({ value: t.name, hint: t.type === 'VIEW' ? 'view' : (t.schema && t.schema !== 'main' ? t.schema : undefined) }));
+    const columnOptions = upstreamColumns.map(c => ({ value: c.name, hint: c.type }));
+    const fileOptions = projectFiles.map(f => ({ value: f }));
+    const outputColumns = computeOutputColumns(node.data.nodeType, config, upstreamColumns);
+    const nodeValidation = validateNode(node, (chainDefinition && chainDefinition.edges) || []);
 
     const updateField = (field, value) => {
         onUpdate(node.id, { [field]: value });
@@ -24,8 +134,36 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
         onUpdate(node.id, { config: { ...config, [key]: value } });
     };
 
+    // Merge several config keys in a single update (avoids stale-config clobber when
+    // two related fields change together, e.g. sourcePath + auto-detected fileType).
+    const updateConfigMulti = (patch) => {
+        onUpdate(node.id, { config: { ...config, ...patch } });
+    };
+
+    const startResize = (e) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startW = panelWidth;
+        const onMove = (ev) => setPanelWidth(Math.min(680, Math.max(260, startW + (startX - ev.clientX))));
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.style.userSelect = '';
+            resizeCleanupRef.current = null;
+        };
+        resizeCleanupRef.current = onUp;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    };
+
     return (
-        <div className="chain-config-panel">
+        <div className="chain-config-panel" style={{ width: panelWidth, minWidth: panelWidth, position: 'relative' }}>
+            <div
+                onMouseDown={startResize}
+                title="Drag to resize panel"
+                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, cursor: 'ew-resize', zIndex: 6 }}
+            />
             {/* Header */}
             <div className="chain-config-header">
                 <div className="chain-config-header-left">
@@ -37,7 +175,27 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 </button>
             </div>
 
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 4, padding: '0 12px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
+                {['basic', 'schema', 'preview', 'validation', 'info'].map(t => (
+                    <button
+                        key={t}
+                        onClick={() => setActiveTab(t)}
+                        style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            borderBottom: activeTab === t ? '2px solid var(--accent-color-user)' : '2px solid transparent',
+                            color: activeTab === t ? 'var(--text-active)' : 'var(--text-muted)',
+                            padding: '8px 6px', fontSize: 12, fontWeight: activeTab === t ? 600 : 400,
+                            textTransform: 'capitalize',
+                        }}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+
             <div className="chain-config-body">
+                {activeTab === 'basic' && (<>
                 {/* Label */}
                 <div className="chain-config-field">
                     <label>Name</label>
@@ -80,7 +238,7 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 )}
 
                 {node.data.nodeType === 'import_file' && (
-                    <ImportFileConfig config={config} onChange={updateConfig} />
+                    <ImportFileConfig config={config} onChange={updateConfig} onChangeMulti={updateConfigMulti} fileOptions={fileOptions} />
                 )}
 
                 {node.data.nodeType === 'import_folder' && (
@@ -96,7 +254,7 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 )}
 
                 {node.data.nodeType === 'table_ref' && (
-                    <TableRefConfig config={config} onChange={updateConfig} />
+                    <TableRefConfig config={config} onChange={updateConfig} tableOptions={tableOptions} />
                 )}
 
                 {node.data.nodeType === 'merge_tables' && (
@@ -104,43 +262,43 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 )}
 
                 {node.data.nodeType === 'assert' && (
-                    <AssertConfig config={config} onChange={updateConfig} />
+                    <AssertConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'join_tables' && (
-                    <JoinTablesConfig config={config} onChange={updateConfig} />
+                    <JoinTablesConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'filter' && (
-                    <FilterConfig config={config} onChange={updateConfig} />
+                    <FilterConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'group_aggregate' && (
-                    <GroupAggregateConfig config={config} onChange={updateConfig} />
+                    <GroupAggregateConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'select_columns' && (
-                    <SelectColumnsConfig config={config} onChange={updateConfig} />
+                    <SelectColumnsConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'deduplicate' && (
-                    <DeduplicateConfig config={config} onChange={updateConfig} />
+                    <DeduplicateConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'add_column' && (
-                    <AddColumnConfig config={config} onChange={updateConfig} />
+                    <AddColumnConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'sort' && (
-                    <SortConfig config={config} onChange={updateConfig} />
+                    <SortConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'sample' && (
-                    <SampleConfig config={config} onChange={updateConfig} />
+                    <SampleConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'pivot' && (
-                    <PivotConfig config={config} onChange={updateConfig} />
+                    <PivotConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'rename_table' && (
@@ -152,15 +310,15 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 )}
 
                 {node.data.nodeType === 'type_cast' && (
-                    <TypeCastConfig config={config} onChange={updateConfig} />
+                    <TypeCastConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'window_functions' && (
-                    <WindowFunctionsConfig config={config} onChange={updateConfig} />
+                    <WindowFunctionsConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'unpivot' && (
-                    <UnpivotConfig config={config} onChange={updateConfig} />
+                    <UnpivotConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'http_fetch' && (
@@ -168,11 +326,31 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 )}
 
                 {node.data.nodeType === 'clean' && (
-                    <CleanConfig config={config} onChange={updateConfig} />
+                    <CleanConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
+                )}
+
+                {node.data.nodeType === 'date_ops' && (
+                    <DateOpsConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
+                )}
+
+                {node.data.nodeType === 'flatten' && (
+                    <FlattenConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
+                )}
+
+                {node.data.nodeType === 'bucket_read' && (
+                    <BucketReadConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'gsheet_read' && (
+                    <GSheetReadConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'ai_enrich' && (
+                    <AiEnrichConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'schema_validation' && (
-                    <SchemaValidationConfig config={config} onChange={updateConfig} />
+                    <SchemaValidationConfig config={config} onChange={updateConfig} columnOptions={columnOptions} />
                 )}
 
                 {node.data.nodeType === 'notification' && (
@@ -189,6 +367,111 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                     <LuTrash2 size={13} />
                     <span>Delete Node</span>
                 </button>
+                </>)}
+
+                {activeTab === 'schema' && (
+                    <>
+                        <div className="chain-config-section">
+                            <label>Input Columns</label>
+                            {upstreamColumns.length === 0 ? (
+                                <p className="chain-config-hint">
+                                    No upstream columns detected yet. Connect a data source, or run the
+                                    chain so derived columns become available.
+                                </p>
+                            ) : (
+                                <ColumnRows columns={upstreamColumns} hintKey="type" />
+                            )}
+                        </div>
+                        <div className="chain-config-section">
+                            <label>Output Columns</label>
+                            {outputColumns === null ? (
+                                <p className="chain-config-hint">
+                                    Output shape depends on the data for this node — run the chain to
+                                    see the resulting columns.
+                                </p>
+                            ) : outputColumns.length === 0 ? (
+                                <p className="chain-config-hint">
+                                    Configure this node to define its output columns.
+                                </p>
+                            ) : (
+                                <ColumnRows columns={outputColumns} hintKey="from" />
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'preview' && (
+                    <div className="chain-config-section">
+                        <label>Output Preview</label>
+                        {previewLoading ? (
+                            <p className="chain-config-hint">Loading…</p>
+                        ) : !previewData?.available ? (
+                            <p className="chain-config-hint">
+                                No materialized output yet. Run the chain (or up to this node) to preview its result.
+                            </p>
+                        ) : (previewData.rows || []).length === 0 ? (
+                            <p className="chain-config-hint">Output table is empty (0 rows).</p>
+                        ) : (
+                            <div style={{ overflowX: 'auto', border: '1px solid var(--border-default)', borderRadius: 6, marginTop: 4 }}>
+                                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                                    <thead>
+                                        <tr>
+                                            {previewData.columns.map(c => (
+                                                <th key={c.name} style={{ position: 'sticky', top: 0, textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-active)', whiteSpace: 'nowrap' }}>{c.name}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {previewData.rows.map((row, ri) => (
+                                            <tr key={ri}>
+                                                {previewData.columns.map(c => (
+                                                    <td key={c.name} style={{ padding: '3px 8px', borderBottom: '1px solid var(--border-default)', color: 'var(--text-secondary)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {row[c.name] === null || row[c.name] === undefined ? <span style={{ opacity: 0.4 }}>null</span> : String(row[c.name])}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {previewData.totalRows > previewData.rows.length && (
+                                    <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)' }}>
+                                        Showing {previewData.rows.length} of {Number(previewData.totalRows).toLocaleString()} rows
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'validation' && (
+                    <div className="chain-config-section">
+                        <label>Validation</label>
+                        {nodeValidation.errors.length === 0 && nodeValidation.warnings.length === 0 ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
+                                <LuCheck size={13} style={{ color: 'oklch(0.7 0.15 155)' }} /> No issues — this node is ready.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                                {nodeValidation.errors.map((e, i) => (
+                                    <div key={`e${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'oklch(0.72 0.17 25)' }}>
+                                        <LuCircleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> <span>{e}</span>
+                                    </div>
+                                ))}
+                                {nodeValidation.warnings.map((w, i) => (
+                                    <div key={`w${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'oklch(0.75 0.15 85)' }}>
+                                        <LuTriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> <span>{w}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'info' && (
+                    <div className="chain-config-section">
+                        <NodeDocView typeId={node.data.nodeType} showHeader={false} />
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -239,13 +522,17 @@ const SqlInlineConfig = ({ config, onChange }) => (
 
 const IMPORT_EXT_MAP = { csv: 'csv', tsv: 'tsv', parquet: 'parquet', json: 'json', jsonl: 'json', xlsx: 'xlsx', xls: 'xlsx' };
 
-const applyFilePath = (filePath, onChange) => {
-    onChange('sourcePath', filePath);
+// Sets sourcePath + (auto-detected) fileType in ONE merged config update, so the
+// two fields don't clobber each other (sequential single-key updates spread the
+// same stale config and the last one wins). onChangeMulti merges a patch object.
+const applyFilePath = (filePath, onChangeMulti) => {
     const ext = filePath.split('.').pop()?.toLowerCase();
-    if (IMPORT_EXT_MAP[ext]) onChange('fileType', IMPORT_EXT_MAP[ext]);
+    const patch = { sourcePath: filePath };
+    if (IMPORT_EXT_MAP[ext]) patch.fileType = IMPORT_EXT_MAP[ext];
+    onChangeMulti(patch);
 };
 
-const ImportFileConfig = ({ config, onChange }) => {
+const ImportFileConfig = ({ config, onChange, onChangeMulti, fileOptions = [] }) => {
     const handleBrowse = async () => {
         if (window.electronAPI?.openFileDialog) {
             const result = await window.electronAPI.openFileDialog({
@@ -255,7 +542,7 @@ const ImportFileConfig = ({ config, onChange }) => {
                 ],
             });
             if (result && !result.canceled && result.filePaths?.[0]) {
-                applyFilePath(result.filePaths[0], onChange);
+                applyFilePath(result.filePaths[0], onChangeMulti);
             }
         } else {
             // Fallback: HTML file input (works in browser / dev)
@@ -264,7 +551,7 @@ const ImportFileConfig = ({ config, onChange }) => {
             input.accept = '.csv,.tsv,.parquet,.json,.jsonl,.xlsx,.xls';
             input.onchange = (e) => {
                 const file = e.target.files?.[0];
-                if (file) applyFilePath(file.path || file.name, onChange);
+                if (file) applyFilePath(file.path || file.name, onChangeMulti);
             };
             input.click();
         }
@@ -274,6 +561,18 @@ const ImportFileConfig = ({ config, onChange }) => {
         e.preventDefault();
         e.stopPropagation();
         e.currentTarget.classList.remove('chain-config-drop-active');
+        // 1) Internal FileExplorer drag (application/json payload).
+        const json = e.dataTransfer.getData('application/json');
+        if (json) {
+            try {
+                const payload = JSON.parse(json);
+                if (payload && (payload.type === 'file' || payload.type === 'folder') && payload.path) {
+                    applyFilePath(payload.path, onChangeMulti);
+                    return;
+                }
+            } catch { /* fall through to OS files */ }
+        }
+        // 2) OS file drag (Windows Explorer, etc.).
         const file = e.dataTransfer.files?.[0];
         if (file) applyFilePath(file.path || file.name, onChange);
     };
@@ -283,16 +582,18 @@ const ImportFileConfig = ({ config, onChange }) => {
             <label>Source File Path</label>
             <div
                 className="chain-config-input-with-btn"
-                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('chain-config-drop-active'); }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.classList.add('chain-config-drop-active'); }}
                 onDragLeave={(e) => e.currentTarget.classList.remove('chain-config-drop-active')}
                 onDrop={handleDrop}
             >
-                <input
-                    type="text"
+                <Combobox
                     value={config.sourcePath || ''}
-                    onChange={(e) => onChange('sourcePath', e.target.value)}
-                    placeholder="Drag a file here or type path…"
+                    onChange={(v) => applyFilePath(v, onChangeMulti)}
+                    options={fileOptions}
+                    placeholder="Drag, pick, or type a file path…"
                     className="chain-config-input"
+                    onDrop={handleDrop}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                 />
                 <button className="chain-config-browse-btn" onClick={handleBrowse} title="Browse files">
                     <LuFolderOpen size={13} />
@@ -415,7 +716,7 @@ const ExportFileConfig = ({ config, onChange }) => {
             />
             {!config.query && (
                 <p className="chain-config-hint chain-config-hint-info">
-                    💡 Leave empty to automatically export from the connected upstream node.
+                    <LuLightbulb size={12} />{' '}Leave empty to automatically export from the connected upstream node.
                 </p>
             )}
             <label>Output Format</label>
@@ -471,6 +772,26 @@ const ExportFileConfig = ({ config, onChange }) => {
                     <LuFolderOpen size={13} />
                 </button>
             </div>
+            {/^(s3|gs|gcs):\/\//i.test(config.outputPath || '') && (
+                <p className="chain-config-hint chain-config-hint-info">
+                    <LuLightbulb size={12} />{' '}Cloud destination — credentials are read from Settings (S3/GCS).
+                </p>
+            )}
+            {(config.format === 'parquet' || config.format === 'csv') && (
+                <>
+                    <label>Partition By <span className="chain-config-optional">(optional)</span></label>
+                    <input
+                        type="text"
+                        value={Array.isArray(config.partitionBy) ? config.partitionBy.join(', ') : (config.partitionBy || '')}
+                        onChange={(e) => onChange('partitionBy', e.target.value)}
+                        placeholder="year, region"
+                        className="chain-config-input"
+                    />
+                    <p className="chain-config-hint">
+                        Comma-separated columns. When set, the output path is treated as a directory of partitioned files (e.g. <code>year=2025/…</code>).
+                    </p>
+                </>
+            )}
         </div>
     );
 };
@@ -491,15 +812,14 @@ const CheckpointConfig = ({ config, onChange }) => (
     </div>
 );
 
-const TableRefConfig = ({ config, onChange }) => (
+const TableRefConfig = ({ config, onChange, tableOptions = [] }) => (
     <div className="chain-config-section">
         <label>Table / View Name</label>
-        <input
-            type="text"
+        <Combobox
             value={config.tableName || ''}
-            onChange={(e) => onChange('tableName', e.target.value)}
-            placeholder="my_table"
-            className="chain-config-input"
+            onChange={(v) => onChange('tableName', v)}
+            options={tableOptions}
+            placeholder="Type or pick a table…"
         />
         <p className="chain-config-hint">
             Select an existing table or view. This node passes it as input to downstream nodes (Export, SQL, Assert, etc.).
@@ -532,7 +852,7 @@ const MergeTablesConfig = ({ config, onChange }) => (
     </div>
 );
 
-const AssertConfig = ({ config, onChange }) => (
+const AssertConfig = ({ config, onChange, columnOptions = [] }) => (
     <div className="chain-config-section">
         <label>Assertion Type</label>
         <select
@@ -577,10 +897,10 @@ const AssertConfig = ({ config, onChange }) => (
         {(config.assertType === 'no_nulls' || config.assertType === 'unique') && (
             <>
                 <label>Column Name</label>
-                <input
-                    type="text"
+                <Combobox
                     value={config.column || ''}
-                    onChange={(e) => onChange('column', e.target.value)}
+                    onChange={(v) => onChange('column', v)}
+                    options={columnOptions}
                     placeholder="column_name"
                     className="chain-config-input"
                 />
@@ -605,55 +925,58 @@ const AssertConfig = ({ config, onChange }) => (
 
         {config.assertType !== 'custom_query' && (
             <p className="chain-config-hint chain-config-hint-info">
-                💡 If no table is specified, this node will check the table produced by the connected upstream node.
+                <LuLightbulb size={12} />{' '}If no table is specified, this node will check the table produced by the connected upstream node.
             </p>
         )}
     </div>
 );
 
-const JoinTablesConfig = ({ config, onChange }) => (
-    <div className="chain-config-section">
-        <label>Result Table Name</label>
-        <input
-            type="text"
-            value={config.tableName || 'joined_data'}
-            onChange={(e) => onChange('tableName', e.target.value)}
-            className="chain-config-input"
-        />
-        <label>Join Type</label>
-        <select
-            value={config.joinType || 'LEFT'}
-            onChange={(e) => onChange('joinType', e.target.value)}
-            className="chain-config-select"
-        >
-            <option value="LEFT">LEFT JOIN (keep all from left)</option>
-            <option value="INNER">INNER JOIN (only matching rows)</option>
-            <option value="RIGHT">RIGHT JOIN (keep all from right)</option>
-            <option value="FULL">FULL JOIN (keep everything)</option>
-        </select>
-        <label>Left Table Key Column</label>
-        <input
-            type="text"
-            value={config.leftKey || ''}
-            onChange={(e) => onChange('leftKey', e.target.value)}
-            placeholder="id"
-            className="chain-config-input"
-        />
-        <label>Right Table Key Column</label>
-        <input
-            type="text"
-            value={config.rightKey || ''}
-            onChange={(e) => onChange('rightKey', e.target.value)}
-            placeholder="customer_id"
-            className="chain-config-input"
-        />
-        <p className="chain-config-hint chain-config-hint-info">
-            💡 Connect exactly 2 upstream nodes. The first connection is the left table, the second is the right table.
-        </p>
-    </div>
-);
+const JoinTablesConfig = ({ config, onChange, columnOptions = [] }) => {
+    const keys = (config.keys && config.keys.length)
+        ? config.keys
+        : ((config.leftKey || config.rightKey) ? [{ left: config.leftKey || '', right: config.rightKey || '' }] : [{ left: '', right: '' }]);
+    const update = (i, patch) => onChange('keys', keys.map((k, j) => (j === i ? { ...k, ...patch } : k)));
+    const remove = (i) => onChange('keys', keys.filter((_, j) => j !== i));
+    const add = () => onChange('keys', [...keys, { left: '', right: '' }]);
 
-const FilterConfig = ({ config, onChange }) => {
+    return (
+        <div className="chain-config-section">
+            <label>Result Table Name</label>
+            <input
+                type="text"
+                value={config.tableName || 'joined_data'}
+                onChange={(e) => onChange('tableName', e.target.value)}
+                className="chain-config-input"
+            />
+            <label>Join Type</label>
+            <select
+                value={config.joinType || 'LEFT'}
+                onChange={(e) => onChange('joinType', e.target.value)}
+                className="chain-config-select"
+            >
+                <option value="LEFT">LEFT JOIN (keep all from left)</option>
+                <option value="INNER">INNER JOIN (only matching rows)</option>
+                <option value="RIGHT">RIGHT JOIN (keep all from right)</option>
+                <option value="FULL">FULL JOIN (keep everything)</option>
+            </select>
+            <label>Join Keys (left = right)</label>
+            {keys.map((k, i) => (
+                <div key={i} className="chain-config-inline-row">
+                    <Combobox value={k.left || ''} onChange={(v) => update(i, { left: v })} options={columnOptions} placeholder="left column" className="chain-config-input chain-config-input-sm" />
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>=</span>
+                    <Combobox value={k.right || ''} onChange={(v) => update(i, { right: v })} options={[]} placeholder="right column" className="chain-config-input chain-config-input-sm" />
+                    <button className="chain-config-remove-btn" onClick={() => remove(i)}><LuMinus size={12} /></button>
+                </div>
+            ))}
+            <button className="chain-config-add-btn" onClick={add}><LuPlus size={12} /> Add Key</button>
+            <p className="chain-config-hint chain-config-hint-info">
+                <LuLightbulb size={12} />{' '}Connect exactly 2 upstream nodes (1st = left, 2nd = right). Add multiple keys for a composite join. (The right-side column list isn't shown — the second table's schema isn't known here.)
+            </p>
+        </div>
+    );
+};
+
+const FilterConfig = ({ config, onChange, columnOptions = [] }) => {
     const conditions = config.conditions || [];
 
     const addCondition = () => {
@@ -696,10 +1019,10 @@ const FilterConfig = ({ config, onChange }) => {
             <label>Conditions</label>
             {conditions.map((cond, i) => (
                 <div key={i} className="chain-config-condition-row">
-                    <input
-                        type="text"
+                    <Combobox
                         value={cond.column}
-                        onChange={(e) => updateCondition(i, 'column', e.target.value)}
+                        onChange={(v) => updateCondition(i, 'column', v)}
+                        options={columnOptions}
                         placeholder="column"
                         className="chain-config-input chain-config-input-sm"
                     />
@@ -719,13 +1042,23 @@ const FilterConfig = ({ config, onChange }) => {
                         <option value="IS NULL">IS NULL</option>
                         <option value="IS NOT NULL">IS NOT NULL</option>
                         <option value="IN">IN</option>
+                        <option value="BETWEEN">BETWEEN</option>
                     </select>
                     {cond.operator !== 'IS NULL' && cond.operator !== 'IS NOT NULL' && (
                         <input
                             type="text"
                             value={cond.value}
                             onChange={(e) => updateCondition(i, 'value', e.target.value)}
-                            placeholder="value"
+                            placeholder={cond.operator === 'IN' ? 'a, b, c' : cond.operator === 'BETWEEN' ? 'min' : 'value'}
+                            className="chain-config-input chain-config-input-sm"
+                        />
+                    )}
+                    {cond.operator === 'BETWEEN' && (
+                        <input
+                            type="text"
+                            value={cond.value2 || ''}
+                            onChange={(e) => updateCondition(i, 'value2', e.target.value)}
+                            placeholder="max"
                             className="chain-config-input chain-config-input-sm"
                         />
                     )}
@@ -741,7 +1074,7 @@ const FilterConfig = ({ config, onChange }) => {
     );
 };
 
-const GroupAggregateConfig = ({ config, onChange }) => {
+const GroupAggregateConfig = ({ config, onChange, columnOptions = [] }) => {
     const groupColumns = config.groupColumns || [];
     const aggregations = config.aggregations || [];
 
@@ -783,23 +1116,47 @@ const GroupAggregateConfig = ({ config, onChange }) => {
             />
 
             <label>Group By Columns</label>
-            {groupColumns.map((col, i) => (
-                <div key={i} className="chain-config-inline-row">
-                    <input
-                        type="text"
-                        value={col}
-                        onChange={(e) => updateGroupColumn(i, e.target.value)}
-                        placeholder="column_name"
-                        className="chain-config-input chain-config-input-sm"
-                    />
-                    <button className="chain-config-remove-btn" onClick={() => removeGroupColumn(i)}>
-                        <LuMinus size={12} />
-                    </button>
+            {columnOptions.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 6, padding: 4 }}>
+                    {[...new Set([...columnOptions.map(o => o.value), ...groupColumns])].map(name => {
+                        const hint = columnOptions.find(o => o.value === name)?.hint;
+                        const checked = groupColumns.includes(name);
+                        return (
+                            <label key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 6px', fontSize: 12, cursor: 'pointer', borderRadius: 4 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => onChange('groupColumns', e.target.checked
+                                        ? [...groupColumns, name]
+                                        : groupColumns.filter(c => c !== name))}
+                                />
+                                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-active)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                                {hint && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>{hint}</span>}
+                            </label>
+                        );
+                    })}
                 </div>
-            ))}
-            <button className="chain-config-add-btn" onClick={addGroupColumn}>
-                <LuPlus size={12} /> Add Group Column
-            </button>
+            ) : (
+                <>
+                    {groupColumns.map((col, i) => (
+                        <div key={i} className="chain-config-inline-row">
+                            <Combobox
+                                value={col}
+                                onChange={(v) => updateGroupColumn(i, v)}
+                                options={columnOptions}
+                                placeholder="column_name"
+                                className="chain-config-input chain-config-input-sm"
+                            />
+                            <button className="chain-config-remove-btn" onClick={() => removeGroupColumn(i)}>
+                                <LuMinus size={12} />
+                            </button>
+                        </div>
+                    ))}
+                    <button className="chain-config-add-btn" onClick={addGroupColumn}>
+                        <LuPlus size={12} /> Add Group Column
+                    </button>
+                </>
+            )}
 
             <label style={{ marginTop: 8 }}>Aggregations</label>
             {aggregations.map((agg, i) => (
@@ -810,15 +1167,24 @@ const GroupAggregateConfig = ({ config, onChange }) => {
                         className="chain-config-select chain-config-select-sm"
                     >
                         <option value="COUNT">COUNT</option>
+                        <option value="COUNT_DISTINCT">COUNT DISTINCT</option>
                         <option value="SUM">SUM</option>
                         <option value="AVG">AVG</option>
                         <option value="MIN">MIN</option>
                         <option value="MAX">MAX</option>
+                        <option value="MEDIAN">MEDIAN</option>
+                        <option value="PERCENTILE">PERCENTILE</option>
+                        <option value="STDDEV">STDDEV</option>
+                        <option value="VAR_SAMP">VARIANCE</option>
+                        <option value="STRING_AGG">STRING_AGG</option>
+                        <option value="LIST">LIST</option>
+                        <option value="FIRST">FIRST</option>
+                        <option value="LAST">LAST</option>
                     </select>
-                    <input
-                        type="text"
+                    <Combobox
                         value={agg.column}
-                        onChange={(e) => updateAggregation(i, 'column', e.target.value)}
+                        onChange={(v) => updateAggregation(i, 'column', v)}
+                        options={[{ value: '*' }, ...columnOptions]}
                         placeholder="column or *"
                         className="chain-config-input chain-config-input-sm"
                     />
@@ -832,16 +1198,43 @@ const GroupAggregateConfig = ({ config, onChange }) => {
                     <button className="chain-config-remove-btn" onClick={() => removeAggregation(i)}>
                         <LuMinus size={12} />
                     </button>
+                    {agg.func === 'PERCENTILE' && (
+                        <input
+                            type="number" step="0.05" min="0" max="1"
+                            value={agg.percentile ?? 0.5}
+                            onChange={(e) => updateAggregation(i, 'percentile', e.target.value)}
+                            placeholder="0.5"
+                            className="chain-config-input chain-config-input-sm"
+                        />
+                    )}
+                    {agg.func === 'STRING_AGG' && (
+                        <input
+                            type="text"
+                            value={agg.sep ?? ', '}
+                            onChange={(e) => updateAggregation(i, 'sep', e.target.value)}
+                            placeholder="separator"
+                            className="chain-config-input chain-config-input-sm"
+                        />
+                    )}
                 </div>
             ))}
             <button className="chain-config-add-btn" onClick={addAggregation}>
                 <LuPlus size={12} /> Add Aggregation
             </button>
+
+            <label style={{ marginTop: 8 }}>HAVING <span className="chain-config-optional">(optional)</span></label>
+            <input
+                type="text"
+                value={config.having || ''}
+                onChange={(e) => onChange('having', e.target.value)}
+                placeholder="e.g. SUM(amount) > 1000"
+                className="chain-config-input chain-config-sql"
+            />
         </div>
     );
 };
 
-const SelectColumnsConfig = ({ config, onChange }) => {
+const SelectColumnsConfig = ({ config, onChange, columnOptions = [] }) => {
     const columns = config.columns || [];
 
     const addColumn = () => {
@@ -870,10 +1263,10 @@ const SelectColumnsConfig = ({ config, onChange }) => {
             <label>Columns</label>
             {columns.map((col, i) => (
                 <div key={i} className="chain-config-inline-row">
-                    <input
-                        type="text"
+                    <Combobox
                         value={col.name}
-                        onChange={(e) => updateColumn(i, 'name', e.target.value)}
+                        onChange={(v) => updateColumn(i, 'name', v)}
+                        options={columnOptions}
                         placeholder="column_name"
                         className="chain-config-input chain-config-input-sm"
                     />
@@ -896,7 +1289,7 @@ const SelectColumnsConfig = ({ config, onChange }) => {
     );
 };
 
-const DeduplicateConfig = ({ config, onChange }) => {
+const DeduplicateConfig = ({ config, onChange, columnOptions = [] }) => {
     const keyColumns = config.keyColumns || [];
 
     const addKeyColumn = () => {
@@ -936,10 +1329,10 @@ const DeduplicateConfig = ({ config, onChange }) => {
             <label>Key Columns <span className="chain-config-optional">(empty = all columns)</span></label>
             {keyColumns.map((col, i) => (
                 <div key={i} className="chain-config-inline-row">
-                    <input
-                        type="text"
+                    <Combobox
                         value={col}
-                        onChange={(e) => updateKeyColumn(i, e.target.value)}
+                        onChange={(v) => updateKeyColumn(i, v)}
+                        options={columnOptions}
                         placeholder="column_name"
                         className="chain-config-input chain-config-input-sm"
                     />
@@ -958,7 +1351,21 @@ const DeduplicateConfig = ({ config, onChange }) => {
     );
 };
 
-const AddColumnConfig = ({ config, onChange }) => {
+// No-code expression snippets for Add Column. {} marks where the cursor logically continues.
+const ADD_COLUMN_SNIPPETS = [
+    { label: 'a + b', insert: ' + ' },
+    { label: 'a − b', insert: ' - ' },
+    { label: 'a × b', insert: ' * ' },
+    { label: 'a ÷ b', insert: ' / ' },
+    { label: 'ROUND', insert: 'ROUND(, 2)' },
+    { label: 'UPPER', insert: 'UPPER()' },
+    { label: 'LOWER', insert: 'LOWER()' },
+    { label: 'CONCAT', insert: "CONCAT(, ' ', )" },
+    { label: 'COALESCE', insert: 'COALESCE(, 0)' },
+    { label: 'CASE', insert: 'CASE WHEN  THEN  ELSE  END' },
+];
+
+const AddColumnConfig = ({ config, onChange, columnOptions = [] }) => {
     const newColumns = config.newColumns || [];
 
     const addNewColumn = () => {
@@ -968,6 +1375,12 @@ const AddColumnConfig = ({ config, onChange }) => {
     const updateNewColumn = (index, field, value) => {
         const updated = newColumns.map((c, i) => i === index ? { ...c, [field]: value } : c);
         onChange('newColumns', updated);
+    };
+
+    const appendToExpression = (index, fragment) => {
+        const cur = newColumns[index]?.expression || '';
+        const needsSpace = cur && !/[\s(]$/.test(cur) && !/^[\s),]/.test(fragment);
+        updateNewColumn(index, 'expression', cur + (needsSpace ? ' ' : '') + fragment);
     };
 
     const removeNewColumn = (index) => {
@@ -986,37 +1399,63 @@ const AddColumnConfig = ({ config, onChange }) => {
 
             <label>New Columns</label>
             {newColumns.map((col, i) => (
-                <div key={i} className="chain-config-column-def">
-                    <input
-                        type="text"
-                        value={col.name}
-                        onChange={(e) => updateNewColumn(i, 'name', e.target.value)}
-                        placeholder="column_name"
-                        className="chain-config-input"
-                    />
-                    <input
-                        type="text"
-                        value={col.expression}
-                        onChange={(e) => updateNewColumn(i, 'expression', e.target.value)}
-                        placeholder='e.g. price * quantity'
-                        className="chain-config-input"
-                    />
-                    <button className="chain-config-remove-btn" onClick={() => removeNewColumn(i)}>
-                        <LuMinus size={12} />
-                    </button>
+                <div key={i} className="chain-config-column-builder">
+                    <div className="chain-config-column-def">
+                        <input
+                            type="text"
+                            value={col.name}
+                            onChange={(e) => updateNewColumn(i, 'name', e.target.value)}
+                            placeholder="column_name"
+                            className="chain-config-input"
+                        />
+                        <input
+                            type="text"
+                            value={col.expression}
+                            onChange={(e) => updateNewColumn(i, 'expression', e.target.value)}
+                            placeholder='e.g. price * quantity'
+                            className="chain-config-input"
+                        />
+                        <button className="chain-config-remove-btn" onClick={() => removeNewColumn(i)}>
+                            <LuMinus size={12} />
+                        </button>
+                    </div>
+                    <div className="chain-config-builder-tools">
+                        {columnOptions.length > 0 && (
+                            <Combobox
+                                value=""
+                                onChange={(v) => { if (v) appendToExpression(i, `"${v}"`); }}
+                                options={columnOptions}
+                                placeholder="+ insert column"
+                                className="chain-config-input chain-config-input-sm"
+                            />
+                        )}
+                        <div className="chain-config-snippet-row">
+                            {ADD_COLUMN_SNIPPETS.map(s => (
+                                <button
+                                    key={s.label}
+                                    type="button"
+                                    className="chain-config-chip-btn"
+                                    onClick={() => appendToExpression(i, s.insert)}
+                                    title={`Insert ${s.label}`}
+                                >
+                                    {s.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             ))}
             <button className="chain-config-add-btn" onClick={addNewColumn}>
                 <LuPlus size={12} /> Add Column
             </button>
             <p className="chain-config-hint">
-                Use SQL expressions: price * quantity, UPPER(name), YEAR(date), CONCAT(first, ' ', last)
+                Build expressions with the buttons, or type SQL directly: price * quantity, UPPER(name), YEAR(date), CONCAT(first, ' ', last)
             </p>
         </div>
     );
 };
 
-const SortConfig = ({ config, onChange }) => {
+const SortConfig = ({ config, onChange, columnOptions = [] }) => {
     const sortColumns = config.sortColumns || [];
 
     const addSortColumn = () => {
@@ -1045,10 +1484,10 @@ const SortConfig = ({ config, onChange }) => {
             <label>Sort By</label>
             {sortColumns.map((col, i) => (
                 <div key={i} className="chain-config-inline-row">
-                    <input
-                        type="text"
+                    <Combobox
                         value={col.column}
-                        onChange={(e) => updateSortColumn(i, 'column', e.target.value)}
+                        onChange={(v) => updateSortColumn(i, 'column', v)}
+                        options={columnOptions}
                         placeholder="column_name"
                         className="chain-config-input chain-config-input-sm"
                     />
@@ -1072,7 +1511,7 @@ const SortConfig = ({ config, onChange }) => {
     );
 };
 
-const SampleConfig = ({ config, onChange }) => (
+const SampleConfig = ({ config, onChange, columnOptions = [] }) => (
     <div className="chain-config-section">
         <label>Result Table Name</label>
         <input
@@ -1089,8 +1528,21 @@ const SampleConfig = ({ config, onChange }) => (
         >
             <option value="rows">First N rows</option>
             <option value="percent">Random percentage</option>
+            <option value="stratified">Stratified (N per group)</option>
         </select>
-        <label>{config.sampleType === 'percent' ? 'Percentage (%)' : 'Number of Rows'}</label>
+        {config.sampleType === 'stratified' && (
+            <>
+                <label>Group Column</label>
+                <Combobox
+                    value={config.strataColumn || ''}
+                    onChange={(v) => onChange('strataColumn', v)}
+                    options={columnOptions}
+                    placeholder="column to stratify by"
+                    className="chain-config-input"
+                />
+            </>
+        )}
+        <label>{config.sampleType === 'percent' ? 'Percentage (%)' : config.sampleType === 'stratified' ? 'Rows per group' : 'Number of Rows'}</label>
         <input
             type="number"
             value={config.sampleValue || '100'}
@@ -1102,7 +1554,7 @@ const SampleConfig = ({ config, onChange }) => (
     </div>
 );
 
-const PivotConfig = ({ config, onChange }) => (
+const PivotConfig = ({ config, onChange, columnOptions = [] }) => (
     <div className="chain-config-section">
         <label>Result Table Name</label>
         <input
@@ -1112,26 +1564,26 @@ const PivotConfig = ({ config, onChange }) => (
             className="chain-config-input"
         />
         <label>Group Column (rows)</label>
-        <input
-            type="text"
+        <Combobox
             value={config.groupColumn || ''}
-            onChange={(e) => onChange('groupColumn', e.target.value)}
+            onChange={(v) => onChange('groupColumn', v)}
+            options={columnOptions}
             placeholder="e.g. region"
             className="chain-config-input"
         />
         <label>Pivot Column (becomes new columns)</label>
-        <input
-            type="text"
+        <Combobox
             value={config.pivotColumn || ''}
-            onChange={(e) => onChange('pivotColumn', e.target.value)}
+            onChange={(v) => onChange('pivotColumn', v)}
+            options={columnOptions}
             placeholder="e.g. month"
             className="chain-config-input"
         />
         <label>Value Column</label>
-        <input
-            type="text"
+        <Combobox
             value={config.valueColumn || ''}
-            onChange={(e) => onChange('valueColumn', e.target.value)}
+            onChange={(v) => onChange('valueColumn', v)}
+            options={columnOptions}
             placeholder="e.g. sales_amount"
             className="chain-config-input"
         />
@@ -1164,7 +1616,7 @@ const RenameTableConfig = ({ config, onChange }) => (
             className="chain-config-input"
         />
         <p className="chain-config-hint chain-config-hint-info">
-            💡 Renames the table produced by the connected upstream node.
+            <LuLightbulb size={12} />{' '}Renames the table produced by the connected upstream node.
         </p>
     </div>
 );
@@ -1189,7 +1641,7 @@ const CreateTableConfig = ({ config, onChange }) => (
         />
         {!config.query && (
             <p className="chain-config-hint chain-config-hint-info">
-                💡 If empty, the table will be created from the upstream node's output.
+                <LuLightbulb size={12} />{' '}If empty, the table will be created from the upstream node's output.
             </p>
         )}
     </div>
@@ -1226,7 +1678,28 @@ const generateSqlPreview = (nodeType, config) => {
             if (!c.outputPath) return null;
             const q = c.query || 'SELECT * FROM <upstream_table>';
             const fmt = (c.format || 'csv').toUpperCase();
-            return `COPY (\n  ${q}\n) TO '${c.outputPath}'\n(FORMAT ${fmt}, HEADER)`;
+            const partCols = Array.isArray(c.partitionBy) ? c.partitionBy : (c.partitionBy ? String(c.partitionBy).split(',').map(s => s.trim()).filter(Boolean) : []);
+            const partOpt = partCols.length ? `, PARTITION_BY (${partCols.map(p => `"${p}"`).join(', ')})` : '';
+            return `COPY (\n  ${q}\n) TO '${c.outputPath}'\n(FORMAT ${fmt}, HEADER${partOpt})`;
+        }
+        case 'bucket_read': {
+            if (!c.uri) return null;
+            const tbl = c.tableName || 'cloud_data';
+            const ft = c.format || 'parquet';
+            const reader = ft === 'parquet' ? 'read_parquet' : ft === 'json' ? 'read_json_auto' : 'read_csv';
+            const opts = ft === 'csv' ? ', auto_detect=true, header=true' : '';
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM ${reader}('${c.uri}'${opts})`;
+        }
+        case 'gsheet_read': {
+            if (!c.spreadsheetId) return null;
+            const tbl = c.tableName || 'gsheet_data';
+            const sheetOpt = c.sheet ? `, sheet='${c.sheet}'` : '';
+            return `CREATE OR REPLACE TABLE "${tbl}" AS\nSELECT * FROM read_gsheet('${c.spreadsheetId}'${sheetOpt})`;
+        }
+        case 'ai_enrich': {
+            if (!c.inputColumn) return null;
+            const out = c.outputColumn || 'ai_result';
+            return `-- For each row, the AI ${c.task || 'classify'} task reads "${c.inputColumn}"\n-- and writes the result into "${out}".\nSELECT *, ai_${c.task || 'classify'}("${c.inputColumn}") AS "${out}"\nFROM <upstream_table>\nLIMIT ${c.maxRows ?? 500}`;
         }
         case 'create_table': {
             if (!c.tableName) return null;
@@ -1370,7 +1843,7 @@ const SqlPreview = ({ nodeType, config }) => {
 
 // --- New node configs ---
 
-const TypeCastConfig = ({ config, onChange }) => {
+const TypeCastConfig = ({ config, onChange, columnOptions = [] }) => {
     const casts = config.casts || [];
     const TYPES = ['VARCHAR', 'INTEGER', 'BIGINT', 'DOUBLE', 'DECIMAL(18,4)', 'BOOLEAN', 'DATE', 'TIMESTAMP', 'TIME', 'FLOAT', 'HUGEINT'];
 
@@ -1381,7 +1854,7 @@ const TypeCastConfig = ({ config, onChange }) => {
             <label>Casts</label>
             {casts.map((c, i) => (
                 <div key={i} className="chain-config-inline-row">
-                    <input type="text" value={c.column || ''} onChange={e => { const u = [...casts]; u[i] = { ...u[i], column: e.target.value }; onChange('casts', u); }} placeholder="column" className="chain-config-input chain-config-input-sm" />
+                    <Combobox value={c.column || ''} onChange={v => { const u = [...casts]; u[i] = { ...u[i], column: v }; onChange('casts', u); }} options={columnOptions} placeholder="column" className="chain-config-input chain-config-input-sm" />
                     <select value={c.targetType || 'VARCHAR'} onChange={e => { const u = [...casts]; u[i] = { ...u[i], targetType: e.target.value }; onChange('casts', u); }} className="chain-config-select chain-config-select-sm">
                         {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
@@ -1397,7 +1870,7 @@ const TypeCastConfig = ({ config, onChange }) => {
     );
 };
 
-const WindowFunctionsConfig = ({ config, onChange }) => {
+const WindowFunctionsConfig = ({ config, onChange, columnOptions = [] }) => {
     const windows = config.windows || [];
     const FUNCS = ['ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE', 'LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNT'];
 
@@ -1412,7 +1885,7 @@ const WindowFunctionsConfig = ({ config, onChange }) => {
                         <select value={w.func || 'ROW_NUMBER'} onChange={e => { const u = [...windows]; u[i] = { ...u[i], func: e.target.value }; onChange('windows', u); }} className="chain-config-select chain-config-select-sm">
                             {FUNCS.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
-                        <input type="text" value={w.column || ''} onChange={e => { const u = [...windows]; u[i] = { ...u[i], column: e.target.value }; onChange('windows', u); }} placeholder="column (or * for COUNT)" className="chain-config-input chain-config-input-sm" />
+                        <Combobox value={w.column || ''} onChange={v => { const u = [...windows]; u[i] = { ...u[i], column: v }; onChange('windows', u); }} options={[{ value: '*' }, ...columnOptions]} placeholder="column (or * for COUNT)" className="chain-config-input chain-config-input-sm" />
                         <input type="text" value={w.alias || ''} onChange={e => { const u = [...windows]; u[i] = { ...u[i], alias: e.target.value }; onChange('windows', u); }} placeholder="alias" className="chain-config-input chain-config-input-sm" />
                         <button className="chain-config-remove-btn" onClick={() => onChange('windows', windows.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
                     </div>
@@ -1427,7 +1900,7 @@ const WindowFunctionsConfig = ({ config, onChange }) => {
     );
 };
 
-const UnpivotConfig = ({ config, onChange }) => {
+const UnpivotConfig = ({ config, onChange, columnOptions = [] }) => {
     const valueColumns = config.valueColumns || [];
     const idColumns = config.idColumns || [];
 
@@ -1438,7 +1911,7 @@ const UnpivotConfig = ({ config, onChange }) => {
             <label>Value Columns (become rows)</label>
             {valueColumns.map((col, i) => (
                 <div key={i} className="chain-config-inline-row">
-                    <input type="text" value={col} onChange={e => { const u = [...valueColumns]; u[i] = e.target.value; onChange('valueColumns', u); }} placeholder="column_name" className="chain-config-input chain-config-input-sm" />
+                    <Combobox value={col} onChange={v => { const u = [...valueColumns]; u[i] = v; onChange('valueColumns', u); }} options={columnOptions} placeholder="column_name" className="chain-config-input chain-config-input-sm" />
                     <button className="chain-config-remove-btn" onClick={() => onChange('valueColumns', valueColumns.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
                 </div>
             ))}
@@ -1467,12 +1940,125 @@ const HttpFetchConfig = ({ config, onChange }) => (
             <option value="json">JSON</option>
         </select>
         <p className="chain-config-hint chain-config-hint-info">
-            💡 DuckDB can read files directly from URLs. Requires internet access and the httpfs extension (auto-installed).
+            <LuLightbulb size={12} />{' '}DuckDB can read files directly from URLs. Requires internet access and the httpfs extension (auto-installed).
         </p>
     </div>
 );
 
-const CleanConfig = ({ config, onChange }) => {
+const BucketReadConfig = ({ config, onChange }) => {
+    const uri = config.uri || '';
+    const provider = /^(gs|gcs):\/\//i.test(uri) ? 'gcs' : (uri ? 's3' : (config.provider || 's3'));
+    return (
+        <div className="chain-config-section">
+            <label>Bucket URI</label>
+            <input
+                type="text"
+                value={uri}
+                onChange={e => {
+                    const v = e.target.value;
+                    const p = /^(gs|gcs):\/\//i.test(v) ? 'gcs' : 's3';
+                    onChange('uri', v);
+                    if (p !== config.provider) onChange('provider', p);
+                }}
+                placeholder="s3://my-bucket/data/*.parquet"
+                className="chain-config-input"
+            />
+            <label>Format</label>
+            <select value={config.format || 'parquet'} onChange={e => onChange('format', e.target.value)} className="chain-config-select">
+                <option value="parquet">Parquet</option>
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
+            </select>
+            <label>Table Name</label>
+            <input type="text" value={config.tableName || 'cloud_data'} onChange={e => onChange('tableName', e.target.value)} placeholder="cloud_data" className="chain-config-input" />
+            <p className="chain-config-hint chain-config-hint-info">
+                <LuLightbulb size={12} />{' '}Reads directly from {provider === 'gcs' ? 'Google Cloud Storage' : 'S3-compatible storage'}. Configure credentials in Settings → Cloud. Glob patterns like <code>*.parquet</code> are supported.
+            </p>
+        </div>
+    );
+};
+
+const GSheetReadConfig = ({ config, onChange }) => (
+    <div className="chain-config-section">
+        <label>Spreadsheet ID or URL</label>
+        <input
+            type="text"
+            value={config.spreadsheetId || ''}
+            onChange={e => {
+                const raw = e.target.value.trim();
+                const m = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+                onChange('spreadsheetId', m ? m[1] : raw);
+            }}
+            placeholder="1AbC… or full Google Sheets URL"
+            className="chain-config-input"
+        />
+        <label>Sheet / Tab Name <span className="chain-config-optional">(optional)</span></label>
+        <input type="text" value={config.sheet || ''} onChange={e => onChange('sheet', e.target.value)} placeholder="Sheet1" className="chain-config-input" />
+        <label>Table Name</label>
+        <input type="text" value={config.tableName || 'gsheet_data'} onChange={e => onChange('tableName', e.target.value)} placeholder="gsheet_data" className="chain-config-input" />
+        <p className="chain-config-hint chain-config-hint-info">
+            <LuLightbulb size={12} />{' '}Requires a Google service-account key configured in Settings. The account must have read access to the sheet.
+        </p>
+    </div>
+);
+
+const AiEnrichConfig = ({ config, onChange, columnOptions = [] }) => {
+    const task = config.task || 'classify';
+    const options = config.options || {};
+    const setOption = (key, value) => onChange('options', { ...options, [key]: value });
+    return (
+        <div className="chain-config-section">
+            <label>Input Column</label>
+            <Combobox
+                value={config.inputColumn || ''}
+                onChange={v => onChange('inputColumn', v)}
+                options={columnOptions}
+                placeholder="text column to read"
+            />
+            <label>Task</label>
+            <select value={task} onChange={e => onChange('task', e.target.value)} className="chain-config-select">
+                <option value="classify">Classify (assign a label)</option>
+                <option value="extract">Extract (pull a value)</option>
+                <option value="summarize">Summarize</option>
+                <option value="redact_pii">Redact PII</option>
+                <option value="custom">Custom instruction</option>
+            </select>
+            {task === 'classify' && (
+                <>
+                    <label>Categories <span className="chain-config-optional">(optional)</span></label>
+                    <input type="text" value={options.categories || ''} onChange={e => setOption('categories', e.target.value)} placeholder="positive, neutral, negative" className="chain-config-input" />
+                </>
+            )}
+            {task === 'extract' && (
+                <>
+                    <label>What to extract</label>
+                    <input type="text" value={options.instruction || ''} onChange={e => setOption('instruction', e.target.value)} placeholder="the company name" className="chain-config-input" />
+                </>
+            )}
+            {task === 'custom' && (
+                <>
+                    <label>Instruction</label>
+                    <textarea value={options.instruction || ''} onChange={e => setOption('instruction', e.target.value)} placeholder="Describe exactly what to return for each row…" className="chain-config-textarea" rows={3} />
+                </>
+            )}
+            <label>Output Column</label>
+            <input type="text" value={config.outputColumn || 'ai_result'} onChange={e => onChange('outputColumn', e.target.value)} placeholder="ai_result" className="chain-config-input" />
+            <label>Max Rows</label>
+            <input
+                type="number"
+                value={config.maxRows ?? 500}
+                onChange={e => onChange('maxRows', Math.max(1, parseInt(e.target.value, 10) || 1))}
+                min={1}
+                className="chain-config-input chain-config-input-sm"
+            />
+            <p className="chain-config-hint chain-config-hint-info">
+                <LuLightbulb size={12} />{' '}Runs the active AI model once per row using the configured provider. Keep Max Rows modest — large tables mean many calls.
+            </p>
+        </div>
+    );
+};
+
+const CleanConfig = ({ config, onChange, columnOptions = [] }) => {
     const operations = config.operations || [];
     const CLEAN_TYPES = [
         { value: 'trim', label: 'Trim whitespace' },
@@ -1482,6 +2068,9 @@ const CleanConfig = ({ config, onChange }) => {
         { value: 'regex_replace', label: 'Regex replace' },
         { value: 'fill_null', label: 'Fill NULL values' },
         { value: 'nullify_empty', label: 'Nullify empty strings' },
+        { value: 'regex_extract', label: 'Regex extract' },
+        { value: 'split_part', label: 'Split — take part' },
+        { value: 'normalize', label: 'Normalize (accents/spaces)' },
     ];
 
     return (
@@ -1492,7 +2081,7 @@ const CleanConfig = ({ config, onChange }) => {
             {operations.map((op, i) => (
                 <div key={i} className="chain-config-clean-row">
                     <div className="chain-config-inline-row">
-                        <input type="text" value={op.column || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], column: e.target.value }; onChange('operations', u); }} placeholder="column" className="chain-config-input chain-config-input-sm" />
+                        <Combobox value={op.column || ''} onChange={v => { const u = [...operations]; u[i] = { ...u[i], column: v }; onChange('operations', u); }} options={columnOptions} placeholder="column" className="chain-config-input chain-config-input-sm" />
                         <select value={op.type || 'trim'} onChange={e => { const u = [...operations]; u[i] = { ...u[i], type: e.target.value }; onChange('operations', u); }} className="chain-config-select chain-config-select-sm">
                             {CLEAN_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                         </select>
@@ -1513,6 +2102,15 @@ const CleanConfig = ({ config, onChange }) => {
                     {op.type === 'fill_null' && (
                         <input type="text" value={op.defaultValue || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], defaultValue: e.target.value }; onChange('operations', u); }} placeholder="default value for NULLs" className="chain-config-input" />
                     )}
+                    {op.type === 'regex_extract' && (
+                        <input type="text" value={op.pattern || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], pattern: e.target.value }; onChange('operations', u); }} placeholder="regex pattern (first match)" className="chain-config-input" />
+                    )}
+                    {op.type === 'split_part' && (
+                        <div className="chain-config-inline-row">
+                            <input type="text" value={op.delimiter || ''} onChange={e => { const u = [...operations]; u[i] = { ...u[i], delimiter: e.target.value }; onChange('operations', u); }} placeholder="delimiter (e.g. ,)" className="chain-config-input chain-config-input-sm" />
+                            <input type="number" min="1" value={op.part ?? 1} onChange={e => { const u = [...operations]; u[i] = { ...u[i], part: e.target.value }; onChange('operations', u); }} placeholder="part #" className="chain-config-input chain-config-input-sm" />
+                        </div>
+                    )}
                 </div>
             ))}
             <button className="chain-config-add-btn" onClick={() => onChange('operations', [...operations, { column: '', type: 'trim' }])}>
@@ -1522,7 +2120,135 @@ const CleanConfig = ({ config, onChange }) => {
     );
 };
 
-const SchemaValidationConfig = ({ config, onChange }) => {
+const DATE_OPS = [
+    { value: 'parse', label: 'Parse text → date' },
+    { value: 'extract', label: 'Extract part' },
+    { value: 'truncate', label: 'Truncate (bucket)' },
+    { value: 'format', label: 'Format date → text' },
+    { value: 'add', label: 'Add / subtract' },
+    { value: 'diff', label: 'Difference (2 dates)' },
+    { value: 'age', label: 'Age (from today)' },
+];
+const DATE_PARTS = ['year', 'quarter', 'month', 'week', 'day', 'dayofweek', 'hour', 'minute'];
+const DATE_UNITS = ['year', 'quarter', 'month', 'week', 'day', 'hour', 'minute'];
+
+const DateOpsConfig = ({ config, onChange, columnOptions = [] }) => {
+    const operations = config.operations || [];
+    const update = (i, patch) => onChange('operations', operations.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+    const remove = (i) => onChange('operations', operations.filter((_, j) => j !== i));
+    const add = () => onChange('operations', [...operations, { column: '', op: 'parse', alias: '' }]);
+
+    return (
+        <div className="chain-config-section">
+            <label>Result Table Name</label>
+            <input type="text" value={config.tableName || 'dated_data'} onChange={e => onChange('tableName', e.target.value)} className="chain-config-input" />
+
+            <label>Date Operations</label>
+            {operations.map((o, i) => (
+                <div key={i} className="chain-config-clean-row">
+                    <div className="chain-config-inline-row">
+                        <Combobox value={o.column || ''} onChange={v => update(i, { column: v })} options={columnOptions} placeholder="date column" className="chain-config-input chain-config-input-sm" />
+                        <select value={o.op || 'parse'} onChange={e => update(i, { op: e.target.value })} className="chain-config-select chain-config-select-sm">
+                            {DATE_OPS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                        <button className="chain-config-remove-btn" onClick={() => remove(i)}><LuMinus size={12} /></button>
+                    </div>
+
+                    {(o.op === 'parse' || o.op === 'format') && (
+                        <input
+                            type="text"
+                            value={o.format || ''}
+                            onChange={e => update(i, { format: e.target.value })}
+                            placeholder={o.op === 'parse' ? 'format e.g. %d/%m/%Y  (blank = auto)' : 'format e.g. %Y-%m-%d'}
+                            className="chain-config-input"
+                        />
+                    )}
+                    {o.op === 'extract' && (
+                        <select value={o.part || 'year'} onChange={e => update(i, { part: e.target.value })} className="chain-config-select">
+                            {DATE_PARTS.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                    )}
+                    {(o.op === 'truncate' || o.op === 'age') && (
+                        <select value={o.unit || (o.op === 'age' ? 'day' : 'month')} onChange={e => update(i, { unit: e.target.value })} className="chain-config-select">
+                            {DATE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                    )}
+                    {o.op === 'add' && (
+                        <div className="chain-config-inline-row">
+                            <input type="number" value={o.amount ?? ''} onChange={e => update(i, { amount: e.target.value })} placeholder="amount (e.g. -7)" className="chain-config-input chain-config-input-sm" />
+                            <select value={o.unit || 'day'} onChange={e => update(i, { unit: e.target.value })} className="chain-config-select chain-config-select-sm">
+                                {DATE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                        </div>
+                    )}
+                    {o.op === 'diff' && (
+                        <div className="chain-config-inline-row">
+                            <Combobox value={o.column2 || ''} onChange={v => update(i, { column2: v })} options={columnOptions} placeholder="second date column" className="chain-config-input chain-config-input-sm" />
+                            <select value={o.unit || 'day'} onChange={e => update(i, { unit: e.target.value })} className="chain-config-select chain-config-select-sm">
+                                {DATE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    <input
+                        type="text"
+                        value={o.alias || ''}
+                        onChange={e => update(i, { alias: e.target.value })}
+                        placeholder={`output column (blank = ${o.column || 'col'}_${o.op || 'op'}; = source to replace)`}
+                        className="chain-config-input"
+                    />
+                </div>
+            ))}
+            <button className="chain-config-add-btn" onClick={add}><LuPlus size={12} /> Add Operation</button>
+            <p className="chain-config-hint">
+                Uses TRY_* — invalid values become NULL instead of failing. Set the output column equal
+                to the source column to replace it in place.
+            </p>
+        </div>
+    );
+};
+
+const FlattenConfig = ({ config, onChange, columnOptions = [] }) => {
+    const mode = config.mode || 'fields';
+    const paths = config.paths || [];
+    const updatePath = (i, patch) => onChange('paths', paths.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+    return (
+        <div className="chain-config-section">
+            <label>Result Table Name</label>
+            <input type="text" value={config.tableName || 'flattened_data'} onChange={e => onChange('tableName', e.target.value)} className="chain-config-input" />
+            <label>Mode</label>
+            <select value={mode} onChange={e => onChange('mode', e.target.value)} className="chain-config-select">
+                <option value="fields">Extract JSON fields → columns</option>
+                <option value="explode">Explode array → rows</option>
+            </select>
+            <label>Source Column</label>
+            <Combobox value={config.column || ''} onChange={v => onChange('column', v)} options={columnOptions} placeholder="JSON / array column" className="chain-config-input" />
+            {mode === 'explode' ? (
+                <>
+                    <label>Output Column</label>
+                    <input type="text" value={config.alias || ''} onChange={e => onChange('alias', e.target.value)} placeholder={`${config.column || 'col'}_item`} className="chain-config-input" />
+                </>
+            ) : (
+                <>
+                    <label>Fields to extract</label>
+                    {paths.map((p, i) => (
+                        <div key={i} className="chain-config-inline-row">
+                            <input type="text" value={p.path || ''} onChange={e => updatePath(i, { path: e.target.value })} placeholder="$.user.id" className="chain-config-input chain-config-input-sm" />
+                            <input type="text" value={p.alias || ''} onChange={e => updatePath(i, { alias: e.target.value })} placeholder="alias" className="chain-config-input chain-config-input-sm" />
+                            <button className="chain-config-remove-btn" onClick={() => onChange('paths', paths.filter((_, j) => j !== i))}><LuMinus size={12} /></button>
+                        </div>
+                    ))}
+                    <button className="chain-config-add-btn" onClick={() => onChange('paths', [...paths, { path: '', alias: '' }])}><LuPlus size={12} /> Add Field</button>
+                </>
+            )}
+            <p className="chain-config-hint">
+                Fields: extract JSON paths (e.g. $.user.id) to columns. Explode: unnest a list/array column into one row per element.
+            </p>
+        </div>
+    );
+};
+
+const SchemaValidationConfig = ({ config, onChange, columnOptions = [] }) => {
     const expectedColumns = config.expectedColumns || [];
     const TYPES = ['VARCHAR', 'INTEGER', 'BIGINT', 'DOUBLE', 'BOOLEAN', 'DATE', 'TIMESTAMP', 'FLOAT', 'ANY'];
 
@@ -1531,7 +2257,7 @@ const SchemaValidationConfig = ({ config, onChange }) => {
             <label>Expected Columns</label>
             {expectedColumns.map((col, i) => (
                 <div key={i} className="chain-config-inline-row">
-                    <input type="text" value={col.name || ''} onChange={e => { const u = [...expectedColumns]; u[i] = { ...u[i], name: e.target.value }; onChange('expectedColumns', u); }} placeholder="column_name" className="chain-config-input chain-config-input-sm" />
+                    <Combobox value={col.name || ''} onChange={v => { const u = [...expectedColumns]; u[i] = { ...u[i], name: v }; onChange('expectedColumns', u); }} options={columnOptions} placeholder="column_name" className="chain-config-input chain-config-input-sm" />
                     <select value={col.type || 'ANY'} onChange={e => { const u = [...expectedColumns]; u[i] = { ...u[i], type: e.target.value }; onChange('expectedColumns', u); }} className="chain-config-select chain-config-select-sm">
                         {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>

@@ -188,7 +188,7 @@ export function buildDefaultActions({
         { id: 'save-as', label: 'Save As…', category: 'File', icon: LuSave, shortcut: 'Ctrl+Shift+S', action: () => layoutRef.current?.handleTriggerSaveAs() },
         { id: 'new-sql', label: 'New SQL Query', category: 'File', icon: LuFilePlus, shortcut: 'Ctrl+N', action: () => layoutRef.current?.createNew('sql') },
         { id: 'new-notebook', label: 'New Notebook', category: 'File', icon: LuBookOpen, shortcut: 'Ctrl+Shift+N', action: () => layoutRef.current?.createNew('notebook') },
-        { id: 'new-chain', label: 'New Execution Chain', category: 'File', icon: LuGitBranch, action: () => layoutRef.current?.createNew('sqlchain') },
+        { id: 'new-chain', label: 'New Chain', category: 'File', icon: LuGitBranch, action: () => layoutRef.current?.createNew('sqlchain') },
         { id: 'close-tab', label: 'Close Tab', category: 'File', icon: LuCommand, shortcut: 'Ctrl+W', action: () => layoutRef.current?.closeActiveTab() },
 
         // Navigation

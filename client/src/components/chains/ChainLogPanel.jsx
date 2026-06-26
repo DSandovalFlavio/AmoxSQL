@@ -3,14 +3,17 @@
  * Shows structured logs per node: SQL executed, timing, row counts, errors.
  */
 import { useRef, useEffect, useState } from 'react';
-import { LuX, LuCopy, LuTrash2, LuChevronDown, LuChevronUp, LuFilter } from 'react-icons/lu';
+import {
+    LuX, LuCopy, LuTrash2, LuChevronDown, LuChevronUp, LuFilter,
+    LuInfo, LuCheck, LuTriangleAlert, LuChevronRight,
+} from 'react-icons/lu';
 
 const LOG_TYPE_STYLES = {
-    info: { color: 'var(--text-secondary)', prefix: 'ℹ' },
-    success: { color: 'oklch(0.75 0.15 155)', prefix: '✓' },
-    error: { color: 'oklch(0.7 0.18 25)', prefix: '✗' },
-    sql: { color: 'oklch(0.65 0.08 260)', prefix: '▸' },
-    warn: { color: 'oklch(0.75 0.15 85)', prefix: '⚠' },
+    info: { color: 'var(--text-secondary)', Icon: LuInfo },
+    success: { color: 'oklch(0.75 0.15 155)', Icon: LuCheck },
+    error: { color: 'oklch(0.7 0.18 25)', Icon: LuX },
+    sql: { color: 'oklch(0.65 0.08 260)', Icon: LuChevronRight },
+    warn: { color: 'oklch(0.75 0.15 85)', Icon: LuTriangleAlert },
 };
 
 const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleCollapse }) => {
@@ -118,10 +121,11 @@ const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleColla
                 ) : (
                     filteredLogs.map((log) => {
                         const style = LOG_TYPE_STYLES[log.type] || LOG_TYPE_STYLES.info;
+                        const PrefixIcon = style.Icon;
                         return (
                             <div key={log.id} className={`chain-log-entry chain-log-entry-${log.type}`}>
                                 <span className="chain-log-time">{formatTime(log.timestamp)}</span>
-                                <span className="chain-log-prefix" style={{ color: style.color }}>{style.prefix}</span>
+                                <span className="chain-log-prefix" style={{ color: style.color }}><PrefixIcon size={12} /></span>
                                 {log.nodeLabel && (
                                     <span className="chain-log-node-label">[{log.nodeLabel}]</span>
                                 )}

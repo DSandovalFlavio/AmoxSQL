@@ -75,6 +75,10 @@ async function loadSkills(projectPath) {
                     id,
                     name: meta.name || id,
                     description: meta.description || '',
+                    // Scope groups skills by use-case: 'analysis' (SQL/notebook, the default)
+                    // or 'engineering' (Chains data-pipeline building). Lets the UI surface
+                    // the right set per editor.
+                    scope: (meta.scope || 'analysis').toLowerCase(),
                     keywords: meta.keywords
                         ? meta.keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
                         : [],

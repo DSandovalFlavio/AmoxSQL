@@ -9,6 +9,7 @@ import {
     useEdgesState,
     addEdge,
 } from '@xyflow/react';
+import { LuCheck, LuX, LuPause, LuInfo } from 'react-icons/lu';
 import { useToast } from '../ToastProvider';
 import { useDialog } from '../dialogs/DialogProvider';
 import ChainCanvas from './ChainCanvas';
@@ -16,6 +17,8 @@ import ChainToolbar from './ChainToolbar';
 import ChainNodePalette from './ChainNodePalette';
 import ChainNodeConfigPanel from './ChainNodeConfigPanel';
 import ChainHistoryPanel from './ChainHistoryPanel';
+import ChainVariablesPanel from './ChainVariablesPanel';
+import ChainAiPrompt from './ChainAiPrompt';
 import { NODE_TYPES } from './chainNodeTypes';
 import {
     hasCycle,
@@ -31,6 +34,7 @@ import { validateChain, countErrors, countWarnings } from './chainValidation';
 import ChainLogPanel from './ChainLogPanel';
 import ChainDataPreview from './ChainDataPreview';
 import ChainTemplateGallery from './ChainTemplateGallery';
+import { DataFlowGuide, DataFlowTour } from './DataFlowGuide';
 
 import { API_BASE } from '../../api.js';
 
@@ -88,11 +92,25 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [sqlFiles, setSqlFiles] = useState([]);
     const [logCollapsed, setLogCollapsed] = useState(true);
     const [previewTable, setPreviewTable] = useState(null);
+    const [showVariables, setShowVariables] = useState(false);
+    const [aiLoading, setAiLoading] = useState(false);
     const [showTemplateGallery, setShowTemplateGallery] = useState(() => initialNodes.length === 0);
+    const [showGuide, setShowGuide] = useState(false);
+    const [showTour, setShowTour] = useState(false);
     const isDraggingRef = useRef(false);
 
     // Execution hook
     const execution = useChainExecution();
+
+    // First-run Data Flow tour + replay listener (mirrors Story Flow)
+    useEffect(() => {
+        let seen = true;
+        try { seen = !!localStorage.getItem('amoxsql-dataflow-tour-seen'); } catch { seen = true; }
+        if (!seen) setShowTour(true);
+        const replay = () => setShowTour(true);
+        window.addEventListener('amox_replay_dataflow_tour', replay);
+        return () => window.removeEventListener('amox_replay_dataflow_tour', replay);
+    }, []);
 
     // Load SQL files from project
     useEffect(() => {
@@ -194,10 +212,6 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
 
     const onDrop = useCallback((event) => {
         event.preventDefault();
-        const nodeType = event.dataTransfer.getData('application/chain-node-type');
-        if (!nodeType || !NODE_TYPES[nodeType]) return;
-
-        const typeDef = NODE_TYPES[nodeType];
         const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
         if (!reactFlowBounds) return;
 
@@ -206,20 +220,52 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             y: event.clientY - reactFlowBounds.top - 40,
         };
 
-        const newNode = {
-            id: generateNodeId(),
-            type: nodeType,
-            position,
-            data: {
-                label: typeDef.label,
-                description: '',
-                nodeType: nodeType,
-                config: { ...typeDef.defaultConfig },
-            },
+        const addNode = (nodeType, overrides = {}) => {
+            const typeDef = NODE_TYPES[nodeType];
+            if (!typeDef) return;
+            const newNode = {
+                id: generateNodeId(),
+                type: nodeType,
+                position,
+                data: {
+                    label: overrides.label || typeDef.label,
+                    description: '',
+                    nodeType,
+                    config: { ...typeDef.defaultConfig, ...(overrides.config || {}) },
+                },
+            };
+            setNodes((nds) => [...nds, newNode]);
+            setSelectedNode(newNode);
         };
 
-        setNodes((nds) => [...nds, newNode]);
-        setSelectedNode(newNode);
+        // 1) Node dragged from the palette.
+        const nodeType = event.dataTransfer.getData('application/chain-node-type');
+        if (nodeType && NODE_TYPES[nodeType]) { addNode(nodeType); return; }
+
+        // 2) Table / file / folder dragged from the Database or File Explorer
+        //    (reuses the existing 'application/json' drag contract).
+        const json = event.dataTransfer.getData('application/json');
+        if (!json) return;
+        let payload;
+        try { payload = JSON.parse(json); } catch { return; }
+        if (!payload) return;
+
+        if (payload.type === 'table' && payload.name) {
+            addNode('table_ref', { label: payload.name, config: { tableName: payload.name } });
+        } else if (payload.type === 'folder' && payload.path) {
+            const base = (payload.name || 'imported_data').replace(/\.[^.]+$/, '');
+            addNode('import_folder', { label: payload.name || 'Import Folder', config: { folderPath: payload.path, tableName: base } });
+        } else if (payload.type === 'file' && payload.path) {
+            const extMatch = payload.path.match(/\.([^.\\/]+)$/);
+            const ext = extMatch ? extMatch[1].toLowerCase() : '';
+            const base = (payload.name || payload.path.split(/[\\/]/).pop() || 'imported_data').replace(/\.[^.]+$/, '');
+            if (ext === 'sql') {
+                addNode('sql_file', { label: payload.name || base, config: { filePath: payload.path } });
+            } else {
+                const FT = { csv: 'csv', tsv: 'tsv', parquet: 'parquet', json: 'json', jsonl: 'json', xlsx: 'xlsx', xls: 'xlsx' };
+                addNode('import_file', { label: base, config: { sourcePath: payload.path, fileType: FT[ext] || 'csv', tableName: base } });
+            }
+        }
     }, []);
 
     // --- Node update ---
@@ -338,6 +384,30 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         }
     }, [serialize, chainMeta.name, toast]);
 
+    // --- Compile to runnable SQL ---
+    const handleExportSql = useCallback(async () => {
+        try {
+            const chainDef = serialize();
+            const res = await fetch(`${API_BASE}/api/chains/export-sql`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chainDefinition: chainDef, chainFile: filePath, variables: chainDef.variables }),
+            });
+            const data = await res.json();
+            if (data.error) { toast.error(`Compile failed: ${data.error}`); return; }
+            const blob = new Blob([data.sql], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${chainMeta.name.replace(/\s+/g, '_').toLowerCase()}.sql`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success('Chain compiled to SQL');
+        } catch (err) {
+            toast.error(`Compile failed: ${err.message}`);
+        }
+    }, [serialize, filePath, chainMeta.name, toast]);
+
     const handleImportYaml = useCallback(() => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -388,6 +458,66 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         );
         toast.info('Layout reorganized');
     }, [nodes, edges, toast]);
+
+    // --- AI: generate pipeline from a natural-language prompt (embedded canvas) ---
+    const applyGeneratedChain = useCallback((chain) => {
+        const layoutInput = chain.nodes.map(n => ({ id: n.id, position: { x: 0, y: 0 } }));
+        let positions = new Map();
+        try { positions = computeAutoLayout(layoutInput, chain.edges || []); } catch { /* fallback below */ }
+        const newNodes = chain.nodes.map((n, i) => ({
+            id: n.id,
+            type: n.type,
+            position: positions.get(n.id) || { x: 120 + (i % 4) * 240, y: 80 + Math.floor(i / 4) * 160 },
+            data: { label: n.label || n.type, description: '', nodeType: n.type, config: n.config || {} },
+        }));
+        const newEdges = (chain.edges || []).map((e, i) => ({
+            id: e.id || `ai-edge-${i}`,
+            source: e.source,
+            target: e.target,
+            type: 'smoothstep',
+            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+        }));
+        setNodes(newNodes);
+        setEdges(newEdges);
+        setChainMeta(m => ({
+            ...m,
+            name: chain.name || m.name,
+            variables: { ...m.variables, ...(chain.variables || {}) },
+        }));
+        setShowTemplateGallery(false);
+        setSelectedNode(null);
+    }, []);
+
+    const handleAiGenerate = useCallback(async (prompt) => {
+        setAiLoading(true);
+        try {
+            // When the canvas already has nodes, send the current chain so the AI EXTENDS/edits it.
+            const extend = nodes.length > 0;
+            const res = await fetch(`${API_BASE}/api/chains/ai/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, chainDefinition: extend ? serialize() : null }),
+            });
+            const data = await res.json();
+            if (data.error) { toast.error(`AI: ${data.error}`); return; }
+            const chain = data.chain;
+            if (!chain?.nodes?.length) { toast.error('AI returned an empty pipeline'); return; }
+            // Preview before applying: show the proposed flow and confirm.
+            const flow = chain.nodes.map(n => n.label || n.type).join('  →  ');
+            const ok = await dialog.confirmAsync({
+                title: extend ? 'Apply AI changes' : 'Generated pipeline',
+                message: `${chain.nodes.length} nodes:\n${flow}\n\n${extend ? 'This replaces the current chain on the canvas. ' : ''}Apply?`,
+                confirmLabel: 'Apply',
+            });
+            if (!ok) return;
+            applyGeneratedChain(chain);
+            toast.success(`Pipeline applied — ${chain.nodes.length} nodes`);
+        } catch (err) {
+            toast.error(`AI generation failed: ${err.message}`);
+        } finally {
+            setAiLoading(false);
+        }
+    }, [nodes.length, serialize, dialog, toast, applyGeneratedChain]);
 
     // --- Create SQL file from canvas ---
     const handleCreateSqlFile = useCallback(async () => {
@@ -466,10 +596,13 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 onCancel={execution.cancelRun}
                 onSave={handleSave}
                 onExportYaml={handleExportYaml}
+                onExportSql={handleExportSql}
                 onImportYaml={handleImportYaml}
                 onAutoLayout={handleAutoLayout}
+                onToggleVariables={() => setShowVariables(true)}
                 onToggleHistory={() => setHistoryOpen(!historyOpen)}
                 onToggleLogs={() => setLogCollapsed(v => !v)}
+                onShowGuide={() => setShowGuide(true)}
                 onClearStatus={execution.clearStatus}
                 selectedNodeId={selectedNode?.id}
                 isDirty={isDirty}
@@ -499,6 +632,12 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     nodeStatuses={execution.nodeStatuses}
                 />
 
+                <ChainAiPrompt
+                    onGenerate={handleAiGenerate}
+                    loading={aiLoading}
+                    hasNodes={nodes.length > 0}
+                />
+
                 {selectedNode && (
                     <ChainNodeConfigPanel
                         node={selectedNode}
@@ -509,6 +648,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         onOpenFile={handleOpenFile}
                         sqlFiles={sqlFiles}
                         chainDefinition={serialize()}
+                        chainFile={filePath}
                     />
                 )}
 
@@ -522,6 +662,14 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         setHistoryOpen(false);
                     }}
                 />
+
+                {showVariables && (
+                    <ChainVariablesPanel
+                        variables={chainMeta.variables}
+                        onChange={(vars) => setChainMeta(m => ({ ...m, variables: vars }))}
+                        onClose={() => setShowVariables(false)}
+                    />
+                )}
             </div>
 
             {/* Log panel */}
@@ -564,9 +712,9 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                             )}
                         </>
                     )}
-                    {execution.runStatus === 'completed' && '✓ Chain completed'}
-                    {execution.runStatus === 'failed' && '✗ Chain failed — check logs'}
-                    {execution.runStatus === 'paused' && '⏸ Paused at checkpoint'}
+                    {execution.runStatus === 'completed' && <><LuCheck size={13} /> Chain completed</>}
+                    {execution.runStatus === 'failed' && <><LuX size={13} /> Chain failed — check logs</>}
+                    {execution.runStatus === 'paused' && <><LuPause size={13} /> Paused at checkpoint</>}
                     {execution.runStatus === 'cancelled' && 'Cancelled'}
                 </div>
             )}
@@ -580,6 +728,27 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     />
                 </div>
             )}
+
+            {/* "What is Data Flow?" reference drawer */}
+            {showGuide && (
+                <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '80vh', overflowY: 'auto', padding: '20px 22px' }}>
+                        <button onClick={() => setShowGuide(false)} title="Close" style={{ position: 'absolute', top: '12px', right: '12px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
+                            <LuX size={18} />
+                        </button>
+                        <h2 style={{ margin: '0 0 12px', fontSize: '15px', color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <LuInfo size={16} /> Data Flow
+                        </h2>
+                        <DataFlowGuide />
+                    </div>
+                </div>
+            )}
+
+            {/* First-run tour */}
+            <DataFlowTour
+                isOpen={showTour}
+                onClose={() => { setShowTour(false); try { localStorage.setItem('amoxsql-dataflow-tour-seen', '1'); } catch {} }}
+            />
         </div>
     );
 };

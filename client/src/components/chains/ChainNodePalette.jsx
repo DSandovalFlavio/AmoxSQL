@@ -1,13 +1,26 @@
 /**
  * ChainNodePalette — Draggable panel of node types grouped by category.
  * Users drag nodes from this palette onto the canvas to create new nodes.
+ * Each item has a "?" button that opens the node's documentation in a popover —
+ * an explicit action, so it never conflicts with the drag gesture.
  */
+import { useState } from 'react';
+import { LuCircleHelp, LuX } from 'react-icons/lu';
 import { NODE_TYPES, NODE_CATEGORIES } from './chainNodeTypes';
+import NodeDocView from './NodeDocView';
 
 const ChainNodePalette = ({ collapsed, onToggle }) => {
+    const [docsFor, setDocsFor] = useState(null);
+
     const onDragStart = (event, nodeType) => {
         event.dataTransfer.setData('application/chain-node-type', nodeType);
         event.dataTransfer.effectAllowed = 'move';
+    };
+
+    const openDocs = (event, nodeType) => {
+        event.stopPropagation();
+        event.preventDefault();
+        setDocsFor(nodeType);
     };
 
     return (
@@ -43,11 +56,32 @@ const ChainNodePalette = ({ collapsed, onToggle }) => {
                                         <div className="chain-palette-item-info">
                                             <span className="chain-palette-item-label">{nodeType.label}</span>
                                         </div>
+                                        <button
+                                            className="chain-palette-item-help"
+                                            onClick={(e) => openDocs(e, nodeType.id)}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            draggable={false}
+                                            title={`What does ${nodeType.label} do?`}
+                                            aria-label={`Documentation for ${nodeType.label}`}
+                                        >
+                                            <LuCircleHelp size={13} />
+                                        </button>
                                     </div>
                                 );
                             })}
                         </div>
                     ))}
+                </div>
+            )}
+
+            {docsFor && (
+                <div className="chain-doc-modal-backdrop" onClick={() => setDocsFor(null)}>
+                    <div className="chain-doc-modal" onClick={(e) => e.stopPropagation()}>
+                        <button className="chain-doc-modal-close" onClick={() => setDocsFor(null)} aria-label="Close">
+                            <LuX size={15} />
+                        </button>
+                        <NodeDocView typeId={docsFor} />
+                    </div>
                 </div>
             )}
         </div>
