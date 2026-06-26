@@ -136,6 +136,9 @@ release.md
 
 documentacion/
 
+# --- Auditorías comparativas internas (NUNCA subir a GitHub) ---
+auditorias vs/
+
 .claude/
 plan.md
 .claude/settings.local.json

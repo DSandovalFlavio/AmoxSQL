@@ -8,7 +8,8 @@ import {
     LuFilter, LuGroup, LuColumns3, LuCopyMinus, LuCalculator,
     LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle,
     LuTableProperties, LuArrowLeftRight, LuGalleryVerticalEnd, LuRows3,
-    LuGlobe, LuWandSparkles, LuLayoutList, LuBell, LuRadar
+    LuGlobe, LuWandSparkles, LuLayoutList, LuBell, LuRadar, LuCalendarClock, LuBraces,
+    LuCloud, LuSheet, LuSparkles
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -294,6 +295,45 @@ export const NODE_TYPES = {
         defaultConfig: { tableName: 'unpivoted_data', idColumns: [], valueColumns: [], nameColumn: 'variable', valueColumn: 'value' },
     },
 
+    bucket_read: {
+        id: 'bucket_read',
+        label: 'Cloud Bucket',
+        description: 'Read CSV/Parquet/JSON from an S3 or GCS bucket (credentials in Settings)',
+        icon: LuCloud,
+        color: {
+            bg: 'oklch(0.22 0.04 230)',
+            border: 'oklch(0.35 0.08 230)',
+            accent: 'oklch(0.65 0.15 230)',
+        },
+        defaultConfig: { uri: '', format: 'parquet', tableName: 'cloud_data', provider: 's3' },
+    },
+
+    gsheet_read: {
+        id: 'gsheet_read',
+        label: 'Google Sheet',
+        description: 'Read a Google Sheet tab into a table (service account in Settings)',
+        icon: LuSheet,
+        color: {
+            bg: 'oklch(0.22 0.04 150)',
+            border: 'oklch(0.35 0.08 150)',
+            accent: 'oklch(0.65 0.15 150)',
+        },
+        defaultConfig: { spreadsheetId: '', sheet: '', tableName: 'gsheet_data' },
+    },
+
+    ai_enrich: {
+        id: 'ai_enrich',
+        label: 'AI Enrich',
+        description: 'Apply an LLM per row: classify, extract, summarize, or redact PII',
+        icon: LuSparkles,
+        color: {
+            bg: 'oklch(0.22 0.05 300)',
+            border: 'oklch(0.35 0.1 300)',
+            accent: 'oklch(0.65 0.18 300)',
+        },
+        defaultConfig: { tableName: 'enriched_data', inputColumn: '', outputColumn: 'ai_result', task: 'classify', maxRows: 500, options: {} },
+    },
+
     http_fetch: {
         id: 'http_fetch',
         label: 'HTTP Fetch',
@@ -318,6 +358,32 @@ export const NODE_TYPES = {
             accent: 'oklch(0.65 0.15 70)',
         },
         defaultConfig: { tableName: 'cleaned_data', operations: [] },
+    },
+
+    date_ops: {
+        id: 'date_ops',
+        label: 'Date / Time',
+        description: 'Parse text→date, extract parts, truncate, format, and compute with dates',
+        icon: LuCalendarClock,
+        color: {
+            bg: 'oklch(0.22 0.04 45)',
+            border: 'oklch(0.35 0.08 45)',
+            accent: 'oklch(0.65 0.15 45)',
+        },
+        defaultConfig: { tableName: 'dated_data', operations: [] },
+    },
+
+    flatten: {
+        id: 'flatten',
+        label: 'Flatten / Unnest',
+        description: 'Extract nested JSON fields to columns, or explode an array into rows',
+        icon: LuBraces,
+        color: {
+            bg: 'oklch(0.22 0.04 25)',
+            border: 'oklch(0.35 0.08 25)',
+            accent: 'oklch(0.65 0.15 25)',
+        },
+        defaultConfig: { tableName: 'flattened_data', mode: 'fields', column: '', paths: [], alias: '' },
     },
 
     schema_validation: {
@@ -352,36 +418,54 @@ export const NODE_TYPE_LIST = Object.values(NODE_TYPES);
 /**
  * Node categories for grouping in the palette
  */
+// Intent-based grouping, ordered like a pipeline (top → bottom mirrors a DAG
+// left → right): ingest → SQL → rows → columns → clean → reshape/aggregate →
+// combine/enrich → output → quality. Keeps every group small and scannable.
 export const NODE_CATEGORIES = [
     {
         id: 'sources',
         label: 'Data Sources',
-        types: ['import_file', 'import_folder', 'table_ref', 'http_fetch'],
+        types: ['import_file', 'import_folder', 'table_ref', 'http_fetch', 'bucket_read', 'gsheet_read'],
     },
     {
         id: 'sql',
         label: 'SQL',
-        types: ['sql_file', 'sql_inline'],
+        types: ['sql_inline', 'sql_file'],
     },
     {
-        id: 'transform',
-        label: 'Transform',
-        types: ['filter', 'select_columns', 'add_column', 'group_aggregate', 'join_tables', 'sort', 'deduplicate', 'pivot', 'unpivot', 'sample', 'rename_table', 'type_cast', 'window_functions', 'clean'],
+        id: 'filter_order',
+        label: 'Filter & Order',
+        types: ['filter', 'deduplicate', 'sample', 'sort'],
     },
     {
-        id: 'combine',
-        label: 'Combine',
-        types: ['merge_tables'],
+        id: 'columns',
+        label: 'Columns',
+        types: ['select_columns', 'add_column', 'rename_table', 'type_cast'],
+    },
+    {
+        id: 'clean_format',
+        label: 'Clean & Format',
+        types: ['clean', 'date_ops', 'flatten'],
+    },
+    {
+        id: 'reshape_aggregate',
+        label: 'Reshape & Aggregate',
+        types: ['group_aggregate', 'window_functions', 'pivot', 'unpivot'],
+    },
+    {
+        id: 'combine_enrich',
+        label: 'Combine & Enrich',
+        types: ['join_tables', 'merge_tables', 'ai_enrich'],
     },
     {
         id: 'output',
         label: 'Output',
-        types: ['export_file', 'create_table'],
+        types: ['create_table', 'export_file'],
     },
     {
-        id: 'control',
-        label: 'Control Flow',
-        types: ['checkpoint', 'assert', 'schema_validation', 'notification'],
+        id: 'quality_control',
+        label: 'Quality & Control',
+        types: ['assert', 'schema_validation', 'checkpoint', 'notification'],
     },
 ];
 

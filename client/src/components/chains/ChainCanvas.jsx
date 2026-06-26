@@ -40,6 +40,11 @@ import WindowFunctionsNode from './nodes/WindowFunctionsNode';
 import UnpivotNode from './nodes/UnpivotNode';
 import HttpFetchNode from './nodes/HttpFetchNode';
 import CleanNode from './nodes/CleanNode';
+import DateOpsNode from './nodes/DateOpsNode';
+import FlattenNode from './nodes/FlattenNode';
+import BucketReadNode from './nodes/BucketReadNode';
+import GSheetReadNode from './nodes/GSheetReadNode';
+import AiEnrichNode from './nodes/AiEnrichNode';
 import SchemaValidationNode from './nodes/SchemaValidationNode';
 import NotificationNode from './nodes/NotificationNode';
 import { NODE_TYPES } from './chainNodeTypes';
@@ -71,6 +76,11 @@ const nodeTypes = {
     unpivot: UnpivotNode,
     http_fetch: HttpFetchNode,
     clean: CleanNode,
+    date_ops: DateOpsNode,
+    flatten: FlattenNode,
+    bucket_read: BucketReadNode,
+    gsheet_read: GSheetReadNode,
+    ai_enrich: AiEnrichNode,
     schema_validation: SchemaValidationNode,
     notification: NotificationNode,
 };

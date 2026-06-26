@@ -128,7 +128,7 @@ const BaseChainNode = ({ data, selected }) => {
                         </span>
                     )}
                     {resultSummary?.table && (
-                        <span className="chain-node-result-detail">→ {resultSummary.table}</span>
+                        <span className="chain-node-result-detail">→ {data.config?.tableName || resultSummary.table}</span>
                     )}
                     {resultSummary?.path && (
                         <span className="chain-node-result-detail">→ {resultSummary.path}</span>

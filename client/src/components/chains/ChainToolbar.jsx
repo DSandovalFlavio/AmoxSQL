@@ -5,7 +5,7 @@
 import {
     LuPlay, LuSquare, LuHistory, LuFileDown, LuFileUp,
     LuLayoutDashboard, LuSave, LuChevronRight, LuChevronLeft,
-    LuTrash2, LuTerminal, LuTriangleAlert, LuCircleAlert, LuFileCode2
+    LuTrash2, LuTerminal, LuTriangleAlert, LuCircleAlert, LuFileCode2, LuVariable, LuInfo
 } from 'react-icons/lu';
 
 const ChainToolbar = ({
@@ -18,10 +18,13 @@ const ChainToolbar = ({
     onCancel,
     onSave,
     onExportYaml,
+    onExportSql,
     onImportYaml,
     onAutoLayout,
+    onToggleVariables,
     onToggleHistory,
     onToggleLogs,
+    onShowGuide,
     onClearStatus,
     selectedNodeId,
     isDirty,
@@ -34,9 +37,21 @@ const ChainToolbar = ({
 
     return (
         <div className="chain-toolbar">
-            {/* Left: Chain identity + Save */}
+            {/* Left: studio brand / chain identity + Save */}
             <div className="chain-toolbar-left">
-                <span className="chain-toolbar-title">{chainName || 'Execution Chain'}</span>
+                <span className="chain-toolbar-studio" title="Data Flow — the visual studio where chains are built">Data Flow</span>
+                {onShowGuide && (
+                    <button
+                        className="chain-toolbar-studio-help"
+                        onClick={onShowGuide}
+                        title="What is Data Flow?"
+                        aria-label="What is Data Flow?"
+                    >
+                        <LuInfo size={13} />
+                    </button>
+                )}
+                <span className="chain-toolbar-divider">/</span>
+                <span className="chain-toolbar-title">{chainName || 'Untitled Chain'}</span>
                 {isDirty && <span className="chain-toolbar-dirty">*</span>}
                 <button
                     className={`chain-toolbar-btn chain-toolbar-btn-save ${isDirty ? 'chain-toolbar-btn-save-dirty' : ''}`}
@@ -119,12 +134,20 @@ const ChainToolbar = ({
                     <LuLayoutDashboard size={16} />
                     <span>Layout</span>
                 </button>
+                <button className="chain-toolbar-btn-tool" onClick={onToggleVariables} title="Define chain variables — reference as ${name} in any node">
+                    <LuVariable size={16} />
+                    <span>Variables</span>
+                </button>
 
                 <div className="chain-toolbar-separator" />
 
                 <button className="chain-toolbar-btn-tool" onClick={onExportYaml} title="Export chain as YAML file">
                     <LuFileDown size={16} />
                     <span>Export</span>
+                </button>
+                <button className="chain-toolbar-btn-tool" onClick={onExportSql} title="Compile chain to a runnable SQL script">
+                    <LuFileCode2 size={16} />
+                    <span>SQL</span>
                 </button>
                 <button className="chain-toolbar-btn-tool" onClick={onImportYaml} title="Import chain from YAML file">
                     <LuFileUp size={16} />

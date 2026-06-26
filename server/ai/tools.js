@@ -148,6 +148,7 @@ function createTools(context) {
                         FROM information_schema.tables t
                         WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains')
                         AND NOT (table_schema = 'main' AND table_name IN ('amox_query_history'))
+                        AND table_name NOT LIKE '\\_\\_chain\\_%' ESCAPE '\\'
                         AND table_type = 'BASE TABLE'
                         ORDER BY table_schema, table_name
                     `);
