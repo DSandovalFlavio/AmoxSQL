@@ -5,6 +5,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.1.0] — 2026-06-26
+
+### Data Flow — new nodes, clearer organization, in-app docs, and studio identity
+
+The visual pipeline studio gains new node types, a reorganized palette, per-node documentation, and a guide with a first-run tour. Documents are still chains (`.sqlchain`); the studio is now presented as **Data Flow**, parallel to Story Flow for visualizations.
+
+#### New nodes
+- **Date / Time** — parse, extract, truncate, format, add/subtract, diff and age in a single node.
+- **Flatten / Unnest** — JSON fields → columns, or arrays → rows.
+- **Cloud Bucket** — read CSV/Parquet/JSON from S3 or GCS storage.
+- **Google Sheet** — read a sheet (and optional tab) into a table.
+- **AI Enrich** — apply the active AI model per row: classify, extract, summarize, redact PII, or a custom instruction.
+
+#### Enhanced nodes
+- **Join** — composite keys (multiple `left = right` column pairs).
+- **Group & Aggregate** — `HAVING` plus `COUNT DISTINCT`, percentile, median, stddev, variance, `STRING_AGG`, `LIST`, first/last.
+- **Filter** `BETWEEN`, **Clean** regex-extract / split / normalize, **Sample** stratified.
+- **Add Column** — no-code expression builder (insert columns and function templates).
+- **Export** — write to S3/GCS destinations and partitioned output (`PARTITION_BY`).
+
+#### Organization & in-app documentation
+- Palette reorganized into 9 intent-based groups: Data Sources, SQL, Filter & Order, Columns, Clean & Format, Reshape & Aggregate, Combine & Enrich, Output, Quality & Control.
+- Every node carries built-in docs — a "?" on each palette item opens a reference popover, and a new **Info** tab in the node config panel shows the same documentation in context.
+
+#### Studio identity
+- The visual editor is presented as **Data Flow** (a breadcrumb `Data Flow / <document>` in the toolbar).
+- In-app **"What is Data Flow?"** guide + first-run tour, plus a **Settings → Data Flow** reference page — consistent with Story Flow.
+
+---
+
 ## [3.0.0] — 2026-06-25
 
 ### Deep Dive — full redesign + artifact reference layer
