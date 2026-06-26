@@ -1,0 +1,208 @@
+/* ═══════════════════════════════════════════════════════════════
+   Onboarding primitives — shared Tour carousel + Guide modal.
+   Single source of styling for every first-run tour and "?" guide,
+   so all studios (Story Flow, Data Flow, AI, Notebooks, …) feel
+   identical. Tokens only — motion via --duration-*/--ease-*, honored
+   by the global prefers-reduced-motion rule in index.css.
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes ob-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ob-panel-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);     }
+}
+
+.ob-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: color-mix(in oklch, var(--surface-base) 76%, transparent);
+  backdrop-filter: blur(3px);
+  animation: ob-overlay-in var(--duration-base) var(--ease-out);
+}
+
+.ob-panel {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+  animation: ob-panel-in var(--duration-slow) var(--ease-spring);
+}
+.ob-panel--guide {
+  max-width: 560px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* ── Header row: brand + step counter / close ── */
+.ob-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.ob-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.ob-badge {
+  background: var(--accent-subtle);
+  color: var(--accent-primary);
+  font-size: var(--text-mini);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+}
+.ob-counter {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.ob-close {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.ob-close:hover { background: var(--hover-bg); color: var(--text-secondary); }
+
+/* ── Step body ── */
+.ob-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.ob-headline {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: 6px;
+}
+.ob-desc {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-bottom: 12px;
+}
+.ob-points {
+  margin: 0 0 16px 0;
+  padding-left: 16px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.ob-points li { margin-bottom: 3px; }
+.ob-when {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.ob-when strong { color: var(--text-primary); font-weight: var(--weight-semibold); }
+.ob-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+.ob-chip {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  padding: 2px 9px;
+}
+
+/* ── Progress bars ── */
+.ob-progress {
+  display: flex;
+  gap: 6px;
+  margin: var(--space-4) 0;
+}
+.ob-progress-seg {
+  height: 6px;
+  flex: 1;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  transition: background var(--transition-base);
+  cursor: pointer;
+}
+.ob-progress-seg--active { background: var(--accent-primary); }
+
+/* ── Footer / actions ── */
+.ob-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ob-actions { display: flex; gap: 8px; }
+.ob-btn {
+  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background var(--transition-fast),
+              border-color var(--transition-fast),
+              color var(--transition-fast),
+              transform var(--duration-instant) var(--ease-out);
+}
+.ob-btn:active { transform: translateY(1px); }
+.ob-btn--ghost {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  padding: 6px 4px;
+}
+.ob-btn--ghost:hover { color: var(--text-secondary); }
+.ob-btn--secondary {
+  background: var(--surface-inset);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+.ob-btn--secondary:hover { background: var(--hover-bg); color: var(--text-primary); }
+.ob-btn--primary {
+  background: var(--accent-primary);
+  border: none;
+  color: var(--surface-base);
+  font-weight: var(--weight-medium);
+}
+.ob-btn--primary:hover { filter: brightness(1.06); }
+
+/* ── Reference guide (the "?" modal content) ── */
+.ob-guide-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.ob-guide-body {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+.ob-guide-body p:first-child { margin-top: 0; }

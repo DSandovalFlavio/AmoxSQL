@@ -189,8 +189,13 @@ function createTools(context) {
             }),
             execute: async ({ table_name }) => {
                 try {
-                    const columns = await dbManager.systemQuery(`DESCRIBE "${table_name}"`);
-                    const sample = await dbManager.systemQuery(`SELECT * FROM "${table_name}" LIMIT 5`);
+                    // Support the documented "schema.table" form → "schema"."table"
+                    const dot = table_name.indexOf('.');
+                    const ref = dot > 0
+                        ? `"${table_name.slice(0, dot)}"."${table_name.slice(dot + 1)}"`
+                        : `"${table_name}"`;
+                    const columns = await dbManager.systemQuery(`DESCRIBE ${ref}`);
+                    const sample = await dbManager.systemQuery(`SELECT * FROM ${ref} LIMIT 5`);
 
                     return {
                         table: table_name,

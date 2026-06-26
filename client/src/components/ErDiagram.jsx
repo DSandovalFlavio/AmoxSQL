@@ -12,7 +12,7 @@ const HEADER_H = 36;
 const ROW_H = 24;
 const GAP = 50;
 
-const ErDiagram = ({ onCreateTab }) => {
+const ErDiagram = ({ onCreateTab, schema }) => {
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -24,12 +24,14 @@ const ErDiagram = ({ onCreateTab }) => {
     const [copied, setCopied] = useState(false);
     const panStart = useRef({ x: 0, y: 0 });
     const positions = useRef(new Map());
+    const canvasRef = useRef(null);
 
     const fetchSchema = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API}/db/er-schema`);
+            const url = schema ? `${API}/db/er-schema?schema=${encodeURIComponent(schema)}` : `${API}/db/er-schema`;
+            const res = await fetch(url);
             const data = await res.json();
             if (data.error) {
                 setError(data.error);
@@ -42,7 +44,7 @@ const ErDiagram = ({ onCreateTab }) => {
             setError(err.message);
         }
         setLoading(false);
-    }, []);
+    }, [schema]);
 
     const computePositions = (tables) => {
         const cols = Math.max(1, Math.ceil(Math.sqrt(tables.length)));
@@ -100,11 +102,20 @@ const ErDiagram = ({ onCreateTab }) => {
         setIsPanning(false);
     };
 
-    const handleWheel = (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.05 : 0.05;
-        setZoom(z => Math.max(0.15, Math.min(3, z + delta)));
-    };
+    // Wheel zoom — attached natively as a NON-passive listener so preventDefault()
+    // actually works. React's onWheel is passive by default, which both warns and
+    // lets the page scroll while zooming.
+    useEffect(() => {
+        const el = canvasRef.current;
+        if (!el) return;
+        const onWheel = (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.05 : 0.05;
+            setZoom(z => Math.max(0.15, Math.min(3, z + delta)));
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+    }, []);
 
     const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); computePositions(tables); };
 
@@ -232,6 +243,7 @@ const ErDiagram = ({ onCreateTab }) => {
 
             {/* Canvas */}
             <div
+                ref={canvasRef}
                 style={{
                     flex: 1, overflow: 'hidden', position: 'relative',
                     cursor: isPanning ? 'grabbing' : dragging ? 'move' : 'grab',
@@ -240,7 +252,6 @@ const ErDiagram = ({ onCreateTab }) => {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                onWheel={handleWheel}
             >
                 <svg width="100%" height="100%" style={{ display: 'block' }}>
                     <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>

@@ -207,7 +207,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
             </div>
 
             {/* Chart Area */}
-            <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ flex: 1, overflow: 'hidden', position: 'relative', contain: 'layout paint', transform: 'translateZ(0)' }}>
                 
                 {/* Expanded Query Panel (Floating) */}
                 {queryExpanded && (
@@ -216,7 +216,6 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
                         padding: '12px 16px',
                         borderBottom: '1px solid var(--border-color)',
                         backgroundColor: 'var(--surface-overlay)',
-                        backdropFilter: 'blur(8px)',
                         boxShadow: 'var(--shadow-md)',
                         fontSize: '12px',
                         fontFamily: "'JetBrains Mono', monospace",

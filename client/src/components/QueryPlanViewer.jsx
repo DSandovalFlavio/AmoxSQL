@@ -142,28 +142,16 @@ const QueryPlanViewer = ({ plan }) => {
                 <h3 style={{ margin: 0, color: 'var(--text-active)', fontSize: '14px' }}>
                     Query Execution Plan
                 </h3>
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div className="seg">
                     <button
                         onClick={() => setViewMode('tree')}
-                        style={{
-                            padding: '4px 10px', fontSize: '12px', cursor: 'pointer', borderRadius: '4px',
-                            border: '1px solid var(--border-color)',
-                            background: viewMode === 'tree' ? 'var(--accent-primary, #00DDDD)' : 'var(--surface-overlay)',
-                            color: viewMode === 'tree' ? '#000' : 'var(--text-primary)',
-                            display: 'flex', alignItems: 'center', gap: '4px',
-                        }}
+                        className={`seg-item${viewMode === 'tree' ? ' seg-item--active' : ''}`}
                     >
                         <LuTreePine size={13} /> Tree
                     </button>
                     <button
                         onClick={() => setViewMode('map')}
-                        style={{
-                            padding: '4px 10px', fontSize: '12px', cursor: 'pointer', borderRadius: '4px',
-                            border: '1px solid var(--border-color)',
-                            background: viewMode === 'map' ? 'var(--accent-primary, #00DDDD)' : 'var(--surface-overlay)',
-                            color: viewMode === 'map' ? '#000' : 'var(--text-primary)',
-                            display: 'flex', alignItems: 'center', gap: '4px',
-                        }}
+                        className={`seg-item${viewMode === 'map' ? ' seg-item--active' : ''}`}
                     >
                         <LuMap size={13} /> Map
                     </button>

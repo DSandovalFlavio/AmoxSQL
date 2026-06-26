@@ -467,7 +467,7 @@ const ChartRenderer = memo(({
     }
 
     const wrapChart = (content) => (
-        <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', minWidth: 0 }}>
+        <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', minWidth: 0, contain: 'layout paint', transform: 'translateZ(0)' }}>
             {hasSize ? content : null}
         </div>
     );

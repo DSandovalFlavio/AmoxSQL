@@ -7,6 +7,7 @@ import {
 } from "react-icons/lu";
 import { useToast } from './ToastProvider';
 import FEATURED_EXTENSIONS from '../data/featuredExtensions';
+import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 
 // Core extensions known to ship with DuckDB — never need FROM community
 const KNOWN_CORE = new Set([
@@ -57,6 +58,11 @@ const ExtensionExplorer = () => {
     }, []);
 
     useEffect(() => { fetchExtensions(); }, [fetchExtensions]);
+
+    // First-run Extensions tour (rendered by the global OnboardingHost)
+    useEffect(() => {
+        if (!hasSeenTour('extensions')) openTour('extensions');
+    }, []);
 
     // Refresh when SQL editor triggers a LOAD externally
     useEffect(() => {
@@ -203,17 +209,19 @@ const ExtensionExplorer = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
             {/* Header */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="sidebar-header">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LuPackage size={12} /> EXTENSIONS
+                    <LuPackage size={14} /> EXTENSIONS
                 </span>
-                <button
-                    onClick={fetchExtensions}
-                    title="Refresh extensions"
-                    style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', padding: '2px', cursor: 'pointer', display: 'flex' }}
-                >
-                    <LuRefreshCw size={13} className={loading ? 'ext-spin' : ''} />
-                </button>
+                <div className="fe-header-actions">
+                    <button
+                        className="fe-header-btn"
+                        onClick={fetchExtensions}
+                        title="Refresh extensions"
+                    >
+                        <LuRefreshCw size={13} className={loading ? 'ext-spin' : ''} />
+                    </button>
+                </div>
             </div>
 
             {/* Search + install */}
@@ -250,24 +258,13 @@ const ExtensionExplorer = () => {
                 </div>
             </div>
 
-            {/* Filter chips */}
-            <div style={{ display: 'flex', gap: '4px', padding: '6px 10px', flexWrap: 'wrap', borderBottom: '1px solid var(--border-subtle)' }}>
+            {/* Filter chips — segmented language */}
+            <div className="seg-chips">
                 {FILTER_OPTIONS.map(f => (
                     <button
                         key={f}
                         onClick={() => setActiveFilter(f)}
-                        style={{
-                            padding: '2px 8px',
-                            fontSize: '10px',
-                            fontWeight: 'var(--weight-semibold)',
-                            borderRadius: '10px',
-                            border: '1px solid',
-                            cursor: 'pointer',
-                            transition: 'all 120ms ease',
-                            background: activeFilter === f ? 'var(--accent-primary)' : 'transparent',
-                            color: activeFilter === f ? 'var(--surface-base)' : 'var(--text-tertiary)',
-                            borderColor: activeFilter === f ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                        }}
+                        className={`seg-chip ${activeFilter === f ? 'seg-chip--active' : ''}`}
                     >
                         {f}
                     </button>

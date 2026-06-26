@@ -184,49 +184,31 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
             {/* Header */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                    Query History
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div className="sidebar-header">
+                <span>Query History</span>
+                <div className="fe-header-actions">
                     <button
+                        className="fe-header-btn"
                         onClick={() => { fetchHistory(); fetchBookmarks(); }}
                         title="Refresh"
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
                     >
-                        <LuRefreshCw size={12} />
+                        <LuRefreshCw size={13} />
                     </button>
                     {onClose && (
                         <button
+                            className="fe-header-btn"
                             onClick={onClose}
                             title="Close"
                             aria-label="Close history panel"
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
                         >
-                            <LuX size={12} />
+                            <LuX size={13} />
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Tab Switcher */}
-            <div className="qh-tabs">
-                <button
-                    onClick={() => setViewTab('history')}
-                    className={`qh-tab ${viewTab === 'history' ? 'qh-tab-active' : ''}`}
-                >
-                    Recent
-                </button>
-                <button
-                    onClick={() => setViewTab('bookmarks')}
-                    className={`qh-tab ${viewTab === 'bookmarks' ? 'qh-tab-active' : ''}`}
-                >
-                    ★ Saved ({bookmarks.length})
-                </button>
-            </div>
-
-            {/* Search */}
-            <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+            {/* Search — always directly under the header */}
+            <div style={{ padding: '14px 14px 8px' }}>
                 <div className="fe-search">
                     <LuSearch size={12} className="fe-search-icon" />
                     <input
@@ -239,8 +221,26 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
                 </div>
             </div>
 
+            {/* Tab Switcher — segmented control */}
+            <div className="seg-wrap">
+                <div className="seg seg--fill">
+                    <button
+                        onClick={() => setViewTab('history')}
+                        className={`seg-item ${viewTab === 'history' ? 'seg-item--active' : ''}`}
+                    >
+                        Recent
+                    </button>
+                    <button
+                        onClick={() => setViewTab('bookmarks')}
+                        className={`seg-item ${viewTab === 'bookmarks' ? 'seg-item--active' : ''}`}
+                    >
+                        <LuStar size={12} /> Saved ({bookmarks.length})
+                    </button>
+                </div>
+            </div>
+
             {/* Query List */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingTop: '6px' }}>
                 {loading && viewTab === 'history' && (
                     <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '11px' }}>Loading...</div>
                 )}

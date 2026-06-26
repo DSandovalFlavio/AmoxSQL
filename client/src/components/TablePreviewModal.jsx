@@ -2,7 +2,7 @@ import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuSearch, LuX } from "react-icons/lu";
 
-const TablePreviewModal = ({ tableName, onClose }) => {
+const TablePreviewModal = ({ tableName, schema, onClose }) => {
     const [data, setData] = useState([]);
     const [columns, setColumns] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -13,9 +13,9 @@ const TablePreviewModal = ({ tableName, onClose }) => {
             setLoading(true);
             setError(null);
             try {
-                // Determine quote style based on table name (simple check)
-                // usually simple query is fine, backend handles connection
-                const query = `SELECT * FROM "${tableName}" LIMIT 50;`;
+                // Schema-qualified reference — handles tables outside the default `main` schema
+                const ref = schema ? `"${schema}"."${tableName}"` : `"${tableName}"`;
+                const query = `SELECT * FROM ${ref} LIMIT 50;`;
                 const response = await fetch(`${API_BASE}/api/query`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -44,7 +44,7 @@ const TablePreviewModal = ({ tableName, onClose }) => {
         if (tableName) {
             fetchData();
         }
-    }, [tableName]);
+    }, [tableName, schema]);
 
     // Handle Escape key
     useEffect(() => {

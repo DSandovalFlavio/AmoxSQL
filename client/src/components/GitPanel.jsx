@@ -350,7 +350,7 @@ export default function GitPanel({ projectPath, onFileClick }) {
                         </button>
                     )}
                     <button className="git-icon-btn" onClick={refresh} title="Refresh" disabled={loading}>
-                        <LuRefreshCw size={13} style={loading ? { animation: 'git-spin 1s linear infinite' } : {}} />
+                        <LuRefreshCw size={13} className={loading ? 'amox-spin' : ''} />
                     </button>
                 </div>
             </div>

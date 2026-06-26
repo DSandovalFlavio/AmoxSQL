@@ -71,16 +71,21 @@ const MONACO_PALETTE = {
  * Uses a temporary DOM element so the browser resolves oklch(), rgba(), etc.
  * Falls back to the provided default if resolution fails.
  */
+let _cssProbeEl = null;
 const cssVarToHex = (varName, fallback) => {
     if (typeof document === 'undefined') return fallback;
     try {
-        // Use a temp element — the browser resolves ANY color format (oklch, rgba, etc.)
-        // to rgb() via getComputedStyle, which Canvas cannot do for oklch.
-        const el = document.createElement('div');
-        el.style.color = `var(${varName})`;
-        document.body.appendChild(el);
-        const resolved = getComputedStyle(el).color; // always returns rgb(r, g, b) or rgba(r, g, b, a)
-        document.body.removeChild(el);
+        // Reuse a single persistent hidden probe element. The browser resolves
+        // ANY color format (oklch, rgba, …) to rgb() via getComputedStyle, which
+        // Canvas can't do for oklch. Reusing the element avoids DOM churn when a
+        // theme build reads ~18 variables in a row.
+        if (!_cssProbeEl) {
+            _cssProbeEl = document.createElement('div');
+            _cssProbeEl.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;width:0;height:0';
+            document.body.appendChild(_cssProbeEl);
+        }
+        _cssProbeEl.style.color = `var(${varName})`;
+        const resolved = getComputedStyle(_cssProbeEl).color; // 'rgb(r, g, b)' or 'rgba(r, g, b, a)'
 
         if (!resolved || resolved === 'rgba(0, 0, 0, 0)') return fallback;
 
@@ -199,6 +204,19 @@ export const buildMonacoTheme = (isDark) => {
             'minimap.background':               `#${p.bg}`,
         }
     };
+};
+
+/**
+ * Cache built Monaco themes by theme id. buildMonacoTheme() reads ~18 live CSS
+ * variables (each a getComputedStyle), so re-toggling between already-seen
+ * themes should be instant rather than rebuilt every time.
+ */
+const _monacoThemeCache = new Map();
+export const getMonacoTheme = (themeId, isDark) => {
+    if (_monacoThemeCache.has(themeId)) return _monacoThemeCache.get(themeId);
+    const built = buildMonacoTheme(isDark);
+    _monacoThemeCache.set(themeId, built);
+    return built;
 };
 
 const globalViewStateCache = new Map();
@@ -970,7 +988,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // Defer reading CSS variables to ensure App.jsx has updated document.body classes
         requestAnimationFrame(() => {
             if (!monacoRef.current) return;
-            monacoRef.current.editor.defineTheme(themeName, buildMonacoTheme(isDark));
+            monacoRef.current.editor.defineTheme(themeName, getMonacoTheme(props.theme, isDark));
             monacoRef.current.editor.setTheme(themeName);
         });
     }, [props.theme]);

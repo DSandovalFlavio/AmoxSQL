@@ -92,12 +92,12 @@ const SchemaDiffModal = ({ isOpen, onClose, tables = [] }) => {
             }} onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface-raised)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <LuGitCompare size={18} color="var(--accent-primary)" />
-                        <h2 style={{ margin: 0, fontSize: '15px', color: 'var(--text-active)' }}>Schema Diff</h2>
-                    </div>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <div className="amox-modal-header">
+                    <h2 className="amox-modal-title">
+                        <LuGitCompare size={16} color="var(--accent-primary)" />
+                        Schema Diff
+                    </h2>
+                    <button className="amox-modal-close" onClick={onClose} title="Close">
                         <LuX size={18} />
                     </button>
                 </div>

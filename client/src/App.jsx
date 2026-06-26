@@ -39,6 +39,8 @@ const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
 import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
+import OnboardingHost from './components/onboarding/OnboardingHost';
+import { openTour, hasSeenTour } from './components/onboarding/tourRegistry';
 
 import './index.css';
 
@@ -492,6 +494,14 @@ function App() {
     ];
   }, [appPhase, showAiSidebar, theme, handleActivateSkill]);
 
+  // Global first-run onboarding: orient brand-new users on their first IDE
+  // session. Delayed slightly so the layout settles before the tour appears.
+  useEffect(() => {
+    if (appPhase !== PHASE.IDE || hasSeenTour('getting-started')) return;
+    const t = setTimeout(() => openTour('getting-started'), 500);
+    return () => clearTimeout(t);
+  }, [appPhase]);
+
   const startIdeSession = useCallback(async (dbPath, readOnly) => {
     // 1. Configure DB
     if (dbPath === ':memory:') {
@@ -625,7 +635,7 @@ function App() {
     }
   }, []);
 
-  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null) => {
+  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null, schema = null) => {
     try {
       const finalPath = overridePath || importTargetFile;
       const response = await fetch(`${API_BASE}/api/db/import`, {
@@ -634,13 +644,15 @@ function App() {
         body: JSON.stringify({
           filePath: finalPath,
           tableName: tableName,
-          cleanColumns: cleanColumns
+          cleanColumns: cleanColumns,
+          schema: schema
         })
       });
       const data = await response.json();
       if (response.ok) {
         setRefreshDbTrigger(prev => prev + 1);
-        return { success: true, summary: `Import successful! Table '${tableName}' created.` };
+        const where = schema && schema !== 'main' ? `${schema}.${tableName}` : tableName;
+        return { success: true, summary: `Import successful! Table '${where}' created.` };
       } else {
         return { success: false, error: data.error };
       }
@@ -896,7 +908,7 @@ function App() {
       )}
 
       {appPhase === PHASE.IDE && (
-        <div className="app-container" style={{ height: '100%', display: 'flex' }}>
+        <div className="app-container app-enter" style={{ height: '100%', display: 'flex' }}>
 
           {/* Left Panel Card — Activity Bar + Sidebar unified */}
           <div className="left-panel-card">
@@ -1011,7 +1023,7 @@ function App() {
             {/* Content Switcher — keep-alive: cada panel se monta en la primera visita
                 y permanece montado. display:none/flex controla visibilidad. */}
             {visitedSidebarTabs.has('files') && (
-              <div style={{ flex: 1, overflow: 'hidden', display: activeSidebarTab === 'files' ? 'flex' : 'none', flexDirection: 'column' }}>
+              <div className={activeSidebarTab === 'files' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, overflow: 'hidden', display: activeSidebarTab === 'files' ? 'flex' : 'none', flexDirection: 'column' }}>
                 <FileExplorer
                   editorSettings={editorSettings}
                   onFileClick={handleFileClick}
@@ -1029,45 +1041,45 @@ function App() {
             )}
 
             {visitedSidebarTabs.has('schema') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'schema' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'schema' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'schema' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <DatabaseExplorer
                   currentDb={currentDb}
                   onRefresh={refreshDbTrigger}
                   onTablesLoaded={setAvailableTables}
                   onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
                   onQualityCheck={(tableName) => setQualityCheckTable(tableName)}
-                  onOpenErDiagram={() => layoutRef.current?.createNew('er-diagram')}
+                  onOpenErDiagram={(schema) => layoutRef.current?.createNew('er-diagram', schema)}
                 />
               </div>
             )}
 
             {visitedSidebarTabs.has('extensions') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'extensions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'extensions' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'extensions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <ExtensionExplorer />
               </div>
             )}
 
 
             {visitedSidebarTabs.has('dbt') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'dbt' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={() => layoutRef.current?.createNew('dbt-lineage')} />
               </div>
             )}
 
             {visitedSidebarTabs.has('snippets') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'snippets' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'snippets' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'snippets' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <SnippetsPanel onInsert={(sql) => layoutRef.current?.createNew('sql', sql)} />
               </div>
             )}
 
             {visitedSidebarTabs.has('history') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'history' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'history' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'history' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <QueryHistoryPanel onSelect={(sql) => layoutRef.current?.createNew('sql', sql)} />
               </div>
             )}
 
             {visitedSidebarTabs.has('vault') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'vault' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'vault' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'vault' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>}>
                   <AnalysisVault
                     onOpenInEditor={(sql) => {
@@ -1080,12 +1092,12 @@ function App() {
             )}
 
             {visitedSidebarTabs.has('git') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'git' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'git' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'git' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <GitPanel projectPath={projectPath} />
               </div>
             )}
             {visitedSidebarTabs.has('deepdive') && (
-              <div style={{ flex: 1, display: activeSidebarTab === 'deepdive' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={activeSidebarTab === 'deepdive' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'deepdive' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <ConversationList
                   mode="diving"
                   activeId={null}
@@ -1320,7 +1332,8 @@ function App() {
         <DataQualityModal
           isOpen={!!qualityCheckTable}
           onClose={() => setQualityCheckTable(null)}
-          tableName={qualityCheckTable}
+          tableName={qualityCheckTable?.name}
+          schema={qualityCheckTable?.schema}
         />
 
         <SchemaDiffModal
@@ -1367,6 +1380,9 @@ function App() {
           refreshTrigger={refreshDbTrigger}
         />
       </Suspense>
+
+      {/* Global onboarding host — owns all first-run/replay tour rendering */}
+      <OnboardingHost />
 
     </div>
   );

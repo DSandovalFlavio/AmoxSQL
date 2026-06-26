@@ -8,6 +8,7 @@ import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 import { StoryFlowGuide } from './DataVisualizer/StoryFlowGuide';
 import { DataFlowGuide } from './chains/DataFlowGuide';
+import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
@@ -177,6 +178,11 @@ function AiContextTab() {
     const [loading, setLoading] = React.useState(false);
     const [creating, setCreating] = React.useState(false);
     const [selectedFiles, setSelectedFiles] = React.useState(['metrics', 'joins', 'glossary', 'examples']);
+
+    // First-run AI Context tour (rendered by the global OnboardingHost)
+    React.useEffect(() => {
+        if (!hasSeenTour('ai-context')) openTour('ai-context');
+    }, []);
 
     const reload = React.useCallback(async () => {
         setLoading(true);
@@ -1036,15 +1042,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         {/* ═══ EDITOR ═══ */}
                         {activeTab === 'editor' && (
                             <div className="stg-section">
-                                <TabWithSubTabs
-                                    tabs={[
-                                        { id: 'general',    label: 'General' },
-                                        { id: 'formatting', label: 'Formatting' },
-                                    ]}
-                                    activeTab={editorSubTab}
-                                    onChange={setEditorSubTab}
-                                />
-                                {editorSubTab === 'general' && <div className="stg-subtab-content">
+                                {<div className="stg-subtab-content">
                                 {/* Layout */}
                                 <div>
                                     <h3 className="stg-section-title">Layout</h3>
@@ -1365,8 +1363,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                 </div>
                                 </div>}
-                                {/* ── Formatting sub-tab (formerly Formatter) ── */}
-                                {editorSubTab === 'formatting' && <div className="stg-subtab-content">
+                                {/* ── Formatting (merged into the same section) ── */}
+                                {<div className="stg-subtab-content">
                                 <div>
                                     <h3 className="stg-section-title">SQL Formatter</h3>
                                     <p className="stg-row-desc stg-row-desc--mb14">
@@ -2217,7 +2215,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 <div className="stg-row stg-row--top">
                                     <div>
                                         <h3 className="stg-section-heading stg-section-heading--mb8">
-                                            <LuFileSpreadsheet size={14} style={{ color: '#34a853' }} /> Google Sheets
+                                            <LuFileSpreadsheet size={14} style={{ color: 'var(--color-success)' }} /> Google Sheets
                                         </h3>
                                         <p className="stg-row-desc stg-row-desc--maxw480">
                                             Connect Google Sheets as queryable data sources via DuckDB. Each spreadsheet appears as a virtual database in the File Explorer — every sheet tab is a table you can query with SQL.
@@ -2258,7 +2256,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                                 <div className="stg-card" style={{ marginTop: 12 }}>
                                     <div className="stg-card-header">
-                                        <h4 className="stg-card-title"><LuFileSpreadsheet size={14} style={{ color: '#34a853' }} /> Service Account Configuration</h4>
+                                        <h4 className="stg-card-title"><LuFileSpreadsheet size={14} style={{ color: 'var(--color-success)' }} /> Service Account Configuration</h4>
                                         <span style={{ fontSize: '11px', color: gsheetsStatus.isConfigured ? '#34a853' : 'var(--text-tertiary)' }}>
                                             {gsheetsStatus.isConfigured ? '● Connected' : '○ Not configured'}
                                         </span>

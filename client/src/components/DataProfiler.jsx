@@ -462,8 +462,10 @@ const CorrelationHeatmap = ({ correlations, variables }) => {
                             {v1}
                         </td>
                         {variables.map(v2 => {
-                            const val = matrix[v1][v2];
-                            const isAuto = val === 1.0;
+                            const raw = matrix[v1]?.[v2];
+                            const val = typeof raw === 'number' ? raw : Number(raw);
+                            const valid = Number.isFinite(val);
+                            const isAuto = valid && val === 1.0;
                             return (
                                 <td key={`${v1}-${v2}`} style={{
                                     padding: '0',
@@ -473,13 +475,13 @@ const CorrelationHeatmap = ({ correlations, variables }) => {
                                 }}>
                                     <div style={{
                                         width: '100%', height: '100%',
-                                        backgroundColor: getColorParams(val),
+                                        backgroundColor: valid ? getColorParams(val) : 'transparent',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: isAuto ? 'var(--text-tertiary)' : (Math.abs(val) > 0.5 ? '#fff' : 'var(--text-primary)'),
+                                        color: !valid ? 'var(--text-tertiary)' : (isAuto ? 'var(--text-tertiary)' : (Math.abs(val) > 0.5 ? '#fff' : 'var(--text-primary)')),
                                         fontWeight: 600,
                                         fontSize: '10px'
-                                    }} title={`${v1} x ${v2}: ${val.toFixed(3)}`}>
-                                        {isAuto ? '-' : val.toFixed(2)}
+                                    }} title={valid ? `${v1} x ${v2}: ${val.toFixed(3)}` : `${v1} x ${v2}: n/a`}>
+                                        {!valid ? '·' : (isAuto ? '-' : val.toFixed(2))}
                                     </div>
                                 </td>
                             );

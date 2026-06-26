@@ -220,7 +220,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
                 {/* Columns Node */}
                 {isExpanded && table.columns && (
-                    <div className="db-columns">
+                    <div className="db-columns tree-reveal">
                         {table.columns.map((col, idx) => {
                             const meta = getTypeMeta(col.data_type);
                             return (
@@ -264,34 +264,20 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             <div className="db-header">
                 <span className="db-header-title">Database Schema</span>
                 <div className="db-header-actions">
+                    {/* Single-schema DBs: ER is for that one schema, so expose it here.
+                        Multi-schema DBs get a per-schema ER button on each schema row. */}
+                    {!hasMultipleSchemas && schemas[0] && (
+                        <button
+                            className="db-header-btn"
+                            onClick={() => onOpenErDiagram && onOpenErDiagram(schemas[0].schema)}
+                            title={`ER Diagram (${schemas[0].schema})`}
+                        >
+                            <LuWorkflow size={14} />
+                        </button>
+                    )}
                     <button className="db-header-btn" onClick={fetchSchemas} title="Refresh">
                         <LuRefreshCw size={14} />
                     </button>
-                    <button
-                        className="db-header-btn"
-                        onClick={(e) => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); }}
-                        title="Options"
-                    >
-                        <LuEllipsisVertical size={14} />
-                    </button>
-
-                    {/* Header Menu */}
-                    {showHeaderMenu && (
-                        <div className="ctx-menu" style={{ position: 'absolute', top: '30px', right: '10px' }}>
-                            <div
-                                className="ctx-menu-item"
-                                onClick={() => { setShowHistory(true); setShowHeaderMenu(false); }}
-                            >
-                                <LuHistory size={14} /> <span>Query History</span>
-                            </div>
-                            <div
-                                className="ctx-menu-item"
-                                onClick={() => { if (onOpenErDiagram) onOpenErDiagram(); setShowHeaderMenu(false); }}
-                            >
-                                <LuWorkflow size={14} /> <span>ER Diagram</span>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -340,9 +326,16 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                         <LuDatabase size={13} className="db-schema-icon" />
                                         <span className="db-schema-name">{schemaGroup.schema}</span>
                                         <span className="db-schema-count">{schemaGroup.tables.length}</span>
+                                        <button
+                                            className="db-schema-er-btn"
+                                            title={`ER Diagram (${schemaGroup.schema})`}
+                                            onClick={(e) => { e.stopPropagation(); if (onOpenErDiagram) onOpenErDiagram(schemaGroup.schema); }}
+                                        >
+                                            <LuWorkflow size={13} />
+                                        </button>
                                     </div>
                                     {isSchemaExpanded && (
-                                        <div className="db-schema-children">
+                                        <div className="db-schema-children tree-reveal">
                                             {tablesToShow.map(table => renderTable(table, schemaGroup.schema))}
                                         </div>
                                     )}
@@ -361,7 +354,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             {/* Preview Modal (Simple) */}
             {previewTable && (
                 <TablePreviewModal
-                    tableName={previewTable}
+                    tableName={previewTable.name}
+                    schema={previewTable.schema}
                     onClose={() => setPreviewTable(null)}
                 />
             )}
@@ -369,7 +363,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             {/* Full Details Modal */}
             <TableDetailsModal
                 isOpen={!!detailsTable}
-                tableName={detailsTable}
+                tableName={detailsTable?.name}
+                schema={detailsTable?.schema}
                 onClose={() => setDetailsTable(null)}
             />
 
@@ -391,7 +386,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         <LuCode size={14} /> Select Top 100
                     </div>
                     <div className="ctx-menu-item" onClick={() => {
-                        setPreviewTable(contextMenu.tableName);
+                        setPreviewTable({ name: contextMenu.tableName, schema: contextMenu.schema });
                         setContextMenu(null);
                     }}>
                         <LuEye size={14} /> Preview Table
@@ -403,13 +398,13 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         <LuClipboard size={14} /> Copy Name
                     </div>
                     <div className="ctx-menu-item" onClick={() => {
-                        setDetailsTable(contextMenu.tableName);
+                        setDetailsTable({ name: contextMenu.tableName, schema: contextMenu.schema });
                         setContextMenu(null);
                     }}>
                         <LuInfo size={14} /> View Details
                     </div>
                     <div className="ctx-menu-item" onClick={() => {
-                        if (onQualityCheck) onQualityCheck(contextMenu.tableName);
+                        if (onQualityCheck) onQualityCheck({ name: contextMenu.tableName, schema: contextMenu.schema });
                         setContextMenu(null);
                     }}>
                         <LuShieldCheck size={14} /> Quality Check

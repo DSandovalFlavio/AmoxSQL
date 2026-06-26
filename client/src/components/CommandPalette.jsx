@@ -3,8 +3,9 @@ import {
     LuPlay, LuSave, LuFilePlus, LuSettings, LuMoon, LuSun,
     LuBot, LuDatabase, LuFolder, LuPuzzle, LuHistory,
     LuCode, LuBookOpen, LuSearch, LuActivity, LuCommand,
-    LuKeyboard, LuGitBranch, LuZap,
+    LuKeyboard, LuGitBranch, LuZap, LuLifeBuoy,
 } from 'react-icons/lu';
+import { TOURS, openTour } from './onboarding/tourRegistry';
 
 const CommandPalette = ({
     isOpen,
@@ -214,6 +215,15 @@ export function buildDefaultActions({
         // DBT
         { id: 'dbt-panel', label: 'Show DBT Studio', category: 'DBT', icon: LuFolder, action: () => setActiveSidebarTab('dbt') },
         { id: 'dbt-new-model', label: 'DBT: New Model', category: 'DBT', icon: LuFilePlus, action: () => { setActiveSidebarTab('dbt'); /* DbtPanel will handle */ } },
+
+        // Help & Tours — replay any onboarding tour from anywhere
+        ...TOURS.map((t) => ({
+            id: `tour-${t.id}`,
+            label: `Tour: ${t.brandLabel}`,
+            category: 'Help & Tours',
+            icon: LuLifeBuoy,
+            action: () => openTour(t.id),
+        })),
 
     ];
 }

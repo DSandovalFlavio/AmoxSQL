@@ -39,7 +39,8 @@ import ExportPanel from './panels/ExportPanel';
 // Renderers & Overlays
 import ChartRenderer from './renderers/ChartRenderer';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
-import { StoryFlowGuide, StoryFlowTour } from './StoryFlowGuide';
+import { StoryFlowGuide } from './StoryFlowGuide';
+import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const TABS = [
@@ -66,7 +67,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showGuide, setShowGuide] = useState(false);
-    const [showTour, setShowTour] = useState(false);
 
     const chartRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -127,15 +127,11 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         return () => window.removeEventListener('amox_update_chart_config', handler);
     }, [setFields]);
 
-    // First-run Story Flow tour + replay listener (editor only, not report mode)
+    // First-run Story Flow tour (editor only, not report mode). Rendering +
+    // replay are owned by the global OnboardingHost via the tour registry.
     useEffect(() => {
         if (isReportMode) return;
-        let seen = true;
-        try { seen = !!localStorage.getItem('amoxsql-storyflow-tour-seen'); } catch (e) { seen = true; }
-        if (!seen) setShowTour(true);
-        const replay = () => setShowTour(true);
-        window.addEventListener('amox_replay_storyflow_tour', replay);
-        return () => window.removeEventListener('amox_replay_storyflow_tour', replay);
+        if (!hasSeenTour('storyflow')) openTour('storyflow');
     }, [isReportMode]);
 
     // ── Font family resolution ──
@@ -277,22 +273,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         </button>
                     </div>
 
-                    {/* ── Tab Navigation ── */}
-                    <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '12px', gap: '2px' }}>
+                    {/* ── Tab Navigation — segmented control ── */}
+                    <div className="seg seg--fill" style={{ marginBottom: '12px' }}>
                         {TABS.map(tab => {
                             const IconComp = tab.icon;
                             return (
                                 <button key={tab.key}
                                     onClick={() => setActiveTab(tab.key)}
                                     title={tab.title}
-                                    style={{
-                                        flex: 1, padding: '6px 0', background: 'transparent', border: 'none',
-                                        borderBottom: activeTab === tab.key ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                                        color: activeTab === tab.key ? 'var(--text-active)' : 'var(--text-muted)',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    }}>
+                                    className={`seg-item${activeTab === tab.key ? ' seg-item--active' : ''}`}>
                                     <IconComp size={14} />
                                 </button>
                             );
@@ -519,11 +508,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     </div>
                 </div>
             )}
-
-            <StoryFlowTour
-                isOpen={showTour}
-                onClose={() => { setShowTour(false); try { localStorage.setItem('amoxsql-storyflow-tour-seen', '1'); } catch (e) {} }}
-            />
 
             <AlertDialog
                 isOpen={alertData.isOpen}
