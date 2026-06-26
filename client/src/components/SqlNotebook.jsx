@@ -7,6 +7,7 @@ import AlertDialog from './AlertDialog';
 import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
 import { parseNotebookContent, parseNotebookEnvironment, serializeNotebookContent } from '../utils/notebookParser';
+import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 
 const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, onToggleAi, showAiSidebar }) => {
     const [cells, setCells] = useState([]);
@@ -22,6 +23,11 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'report'
     const [hideCodeInReport, setHideCodeInReport] = useState(false);
     const [isFullView, setIsFullView] = useState(false);
+
+    // First-run Notebooks tour (rendered by the global OnboardingHost)
+    useEffect(() => {
+        if (!hasSeenTour('notebooks')) openTour('notebooks');
+    }, []);
 
     // Delete confirmation modal
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);

@@ -7,6 +7,7 @@ import {
 } from "react-icons/lu";
 import { useToast } from './ToastProvider';
 import FEATURED_EXTENSIONS from '../data/featuredExtensions';
+import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 
 // Core extensions known to ship with DuckDB — never need FROM community
 const KNOWN_CORE = new Set([
@@ -57,6 +58,11 @@ const ExtensionExplorer = () => {
     }, []);
 
     useEffect(() => { fetchExtensions(); }, [fetchExtensions]);
+
+    // First-run Extensions tour (rendered by the global OnboardingHost)
+    useEffect(() => {
+        if (!hasSeenTour('extensions')) openTour('extensions');
+    }, []);
 
     // Refresh when SQL editor triggers a LOAD externally
     useEffect(() => {

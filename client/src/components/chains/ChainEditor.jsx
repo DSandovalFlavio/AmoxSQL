@@ -34,7 +34,8 @@ import { validateChain, countErrors, countWarnings } from './chainValidation';
 import ChainLogPanel from './ChainLogPanel';
 import ChainDataPreview from './ChainDataPreview';
 import ChainTemplateGallery from './ChainTemplateGallery';
-import { DataFlowGuide, DataFlowTour } from './DataFlowGuide';
+import { DataFlowGuide } from './DataFlowGuide';
+import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 
 import { API_BASE } from '../../api.js';
 
@@ -96,20 +97,15 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [aiLoading, setAiLoading] = useState(false);
     const [showTemplateGallery, setShowTemplateGallery] = useState(() => initialNodes.length === 0);
     const [showGuide, setShowGuide] = useState(false);
-    const [showTour, setShowTour] = useState(false);
     const isDraggingRef = useRef(false);
 
     // Execution hook
     const execution = useChainExecution();
 
-    // First-run Data Flow tour + replay listener (mirrors Story Flow)
+    // First-run Data Flow tour. Rendering + replay are owned by the global
+    // OnboardingHost via the tour registry.
     useEffect(() => {
-        let seen = true;
-        try { seen = !!localStorage.getItem('amoxsql-dataflow-tour-seen'); } catch { seen = true; }
-        if (!seen) setShowTour(true);
-        const replay = () => setShowTour(true);
-        window.addEventListener('amox_replay_dataflow_tour', replay);
-        return () => window.removeEventListener('amox_replay_dataflow_tour', replay);
+        if (!hasSeenTour('dataflow')) openTour('dataflow');
     }, []);
 
     // Load SQL files from project
@@ -743,12 +739,6 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     </div>
                 </div>
             )}
-
-            {/* First-run tour */}
-            <DataFlowTour
-                isOpen={showTour}
-                onClose={() => { setShowTour(false); try { localStorage.setItem('amoxsql-dataflow-tour-seen', '1'); } catch {} }}
-            />
         </div>
     );
 };

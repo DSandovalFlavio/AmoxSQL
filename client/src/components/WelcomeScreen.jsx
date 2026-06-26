@@ -135,7 +135,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
     );
 
     return (
-        <div style={{
+        <div className="ws-root" style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -149,7 +149,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
             paddingTop: '8vh'
         }}>
             {/* Header: Logo + Title */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
+            <div className="ws-enter ws-enter-1" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
                 <div style={{ marginBottom: '-55px' }}>
                     <Logo width={250} height={250} />
                 </div>
@@ -162,7 +162,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
             </div>
 
             {/* Container for Steps */}
-            <div style={{
+            <div className="ws-enter ws-enter-2" style={{
                 width: '560px',
                 maxWidth: '90vw',
                 display: 'flex',

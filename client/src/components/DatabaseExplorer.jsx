@@ -220,7 +220,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
                 {/* Columns Node */}
                 {isExpanded && table.columns && (
-                    <div className="db-columns">
+                    <div className="db-columns tree-reveal">
                         {table.columns.map((col, idx) => {
                             const meta = getTypeMeta(col.data_type);
                             return (
@@ -342,7 +342,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                         <span className="db-schema-count">{schemaGroup.tables.length}</span>
                                     </div>
                                     {isSchemaExpanded && (
-                                        <div className="db-schema-children">
+                                        <div className="db-schema-children tree-reveal">
                                             {tablesToShow.map(table => renderTable(table, schemaGroup.schema))}
                                         </div>
                                     )}

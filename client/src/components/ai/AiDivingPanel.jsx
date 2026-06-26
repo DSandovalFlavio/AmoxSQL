@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
+import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
 import DeepDiveTranscript from './DeepDiveTranscript';
 import DeepDiveInspector from './DeepDiveInspector';
@@ -33,6 +34,11 @@ const AiDivingPanel = ({
     startConversationId,
     onConversationChange,
 }) => {
+    // First-run Deep Dive tour (rendered by the global OnboardingHost)
+    useEffect(() => {
+        if (!hasSeenTour('deep-dive')) openTour('deep-dive');
+    }, []);
+
     const {
         // Live-discovered cloud model list
         cloudModelsList,

@@ -39,7 +39,8 @@ import ExportPanel from './panels/ExportPanel';
 // Renderers & Overlays
 import ChartRenderer from './renderers/ChartRenderer';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
-import { StoryFlowGuide, StoryFlowTour } from './StoryFlowGuide';
+import { StoryFlowGuide } from './StoryFlowGuide';
+import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const TABS = [
@@ -66,7 +67,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showGuide, setShowGuide] = useState(false);
-    const [showTour, setShowTour] = useState(false);
 
     const chartRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -127,15 +127,11 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         return () => window.removeEventListener('amox_update_chart_config', handler);
     }, [setFields]);
 
-    // First-run Story Flow tour + replay listener (editor only, not report mode)
+    // First-run Story Flow tour (editor only, not report mode). Rendering +
+    // replay are owned by the global OnboardingHost via the tour registry.
     useEffect(() => {
         if (isReportMode) return;
-        let seen = true;
-        try { seen = !!localStorage.getItem('amoxsql-storyflow-tour-seen'); } catch (e) { seen = true; }
-        if (!seen) setShowTour(true);
-        const replay = () => setShowTour(true);
-        window.addEventListener('amox_replay_storyflow_tour', replay);
-        return () => window.removeEventListener('amox_replay_storyflow_tour', replay);
+        if (!hasSeenTour('storyflow')) openTour('storyflow');
     }, [isReportMode]);
 
     // ── Font family resolution ──
@@ -519,11 +515,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     </div>
                 </div>
             )}
-
-            <StoryFlowTour
-                isOpen={showTour}
-                onClose={() => { setShowTour(false); try { localStorage.setItem('amoxsql-storyflow-tour-seen', '1'); } catch (e) {} }}
-            />
 
             <AlertDialog
                 isOpen={alertData.isOpen}

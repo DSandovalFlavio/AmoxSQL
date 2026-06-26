@@ -376,7 +376,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     };
 
     return (
-        <div className="rt-container">
+        <div className="rt-container amox-fade-in">
             {/* Toolbar */}
             {!isReportMode && (
                 <div className="rt-toolbar">

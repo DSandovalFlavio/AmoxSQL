@@ -44,9 +44,23 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
 
-  /* ── Transitions ── */
-  --transition-fast: 120ms ease;
-  --transition-base: 200ms ease;
+  /* ── Motion System ──
+     Duration scale + easing curves. Single source of truth for all
+     transitions/animations. Desktop app: snappy by default, no librería.
+     Honored app-wide; neutralized under prefers-reduced-motion (see below). */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);    /* decelerate — enter/reveal */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);    /* symmetric — move/morph */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);     /* gentle overshoot — panels */
+
+  --duration-instant: 80ms;    /* hover/active feedback */
+  --duration-fast:    120ms;   /* most micro-interactions */
+  --duration-base:    200ms;   /* panels, dropdowns, tabs */
+  --duration-slow:    320ms;   /* phase changes, large reveals */
+
+  /* ── Transitions (composed motion tokens) ── */
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-base: var(--duration-base) var(--ease-out);
+  --transition-slow: var(--duration-slow) var(--ease-spring);
 
   /* ── Feedback Colors (oklch + color-mix derived) ── */
   --feedback-success:        oklch(0.72 0.19 155);
@@ -218,6 +232,72 @@
   --tooltip-bg: var(--surface-overlay);
   --table-header-bg: var(--surface-raised);
   --table-row-hover: var(--hover-bg);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Reduced Motion
+   Honor the OS "reduce motion" setting app-wide. We keep opacity
+   changes (instant) but strip movement and looping animation so the
+   UI stays calm. Looping spinners are slowed rather than frozen so
+   loading states still read as "working".
+   ═══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Keep loaders legible: slow, non-jarring rotation instead of frozen */
+  .amox-spin,
+  [class*="spin"] {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED SPINNER — single keyframe + utility class
+   Replaces the per-feature spin keyframes (ai-spin, ext-spin, …).
+   Usage: <LuLoader className="amox-spin" /> or compose the keyframe
+   with `animation: spin <dur> linear infinite`.
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.amox-spin {
+  animation: spin 0.9s linear infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOTION UTILITIES — reusable enter animations (tokens only)
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes amox-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes amox-fade-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* IDE shell fades in on mount — smooths the Welcome → IDE handoff */
+.app-enter { animation: amox-fade-in var(--duration-slow) var(--ease-out); }
+
+/* Generic helpers any component can opt into */
+.amox-fade-in { animation: amox-fade-in var(--duration-base) var(--ease-out); }
+.amox-fade-rise { animation: amox-fade-rise var(--duration-base) var(--ease-out); }
+
+/* Sidebar keep-alive panels fade in when they become the active tab.
+   Zero-cost otherwise — the panel stays mounted; only re-runs on switch. */
+.sidebar-keepalive--show { animation: amox-fade-in var(--duration-base) var(--ease-out); }
+
+/* Revealed tree children (table columns, schema tables) fade in on expand */
+.tree-reveal { animation: amox-fade-in var(--duration-fast) var(--ease-out); }
+
+/* ── B5: global keyboard-focus ring (accessible, token-driven) ──
+   :where() keeps specificity 0 so any component's own focus style wins;
+   :focus-visible scopes it to keyboard nav, never mouse clicks. */
+:where(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 /* ── Window Title Bar ── */
@@ -582,12 +662,7 @@
   margin: 4px 0;
 }
 
-/* ── Generic Spin Animation (for LuLoader icons) ── */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
+/* ── Generic spin class (keyframe `spin` defined once near :root) ── */
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -6512,14 +6587,9 @@ tr:hover .rt-td {
 .ai-plan-step--done    { color: var(--text-secondary); }
 .ai-plan-step--running { color: var(--text-primary); font-weight: var(--weight-medium); }
 
-@keyframes ai-spin {
-  from { transform: rotate(0deg);   }
-  to   { transform: rotate(360deg); }
-}
-
 .ai-plan-step--running .ai-plan-step-icon svg,
 .ai-plan-iter-spinner {
-  animation: ai-spin 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 .ai-plan-step-body {
@@ -9053,19 +9123,10 @@ tr:hover td {
   color: var(--accent-primary);
 }
 
-/* Spin animation for loading */
-@keyframes ext-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* Spin (keyframe `spin` consolidated near :root) */
 
 .ext-spin {
-  animation: ext-spin 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 /* Featured card highlight */
@@ -10809,19 +10870,13 @@ tr:hover td {
   margin-bottom: 14px;
 }
 
-/* ── Settings: Spin Animation ── */
-
-@keyframes stg-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
+/* ── Settings: Spin (keyframe `spin` consolidated near :root) ── */
 .stg-spin {
-  animation: stg-spin 2s linear infinite;
+  animation: spin 2s linear infinite;
 }
 
 .stg-spin--muted {
-  animation: stg-spin 2s linear infinite;
+  animation: spin 2s linear infinite;
   color: var(--text-tertiary);
 }
 
@@ -11433,19 +11488,10 @@ tr:hover td {
   }
 }
 
-/* Spinner */
-@keyframes dbt-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* Spinner (keyframe `spin` consolidated near :root) */
 
 .dbt-spin {
-  animation: dbt-spin 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 /* Empty State */
@@ -11860,7 +11906,7 @@ tr:hover td {
   border: 2px solid var(--border-default);
   border-top: 2px solid var(--accent-primary);
   border-radius: 50%;
-  animation: nb-spin 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 /* ── Cell Content Areas ── */
@@ -12062,10 +12108,6 @@ tr:hover td {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
-@keyframes nb-spin {
-  100% { transform: rotate(360deg); }
-}
-
 /* ==========================================================================
    ResultsTable Hard-Coded Performance Optimizations
    (Bypassing React Inline Styles entirely for large datagrid render speed)
@@ -12121,6 +12163,16 @@ tr:hover td {
   background-color: var(--hover-bg);
   color: var(--text-primary);
 }
+
+/* ── WelcomeScreen entrance (staggered) ── */
+@keyframes ws-enter-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ws-root { animation: ob-overlay-in var(--duration-base) var(--ease-out); }
+.ws-enter { opacity: 0; animation: ws-enter-in var(--duration-slow) var(--ease-spring) forwards; }
+.ws-enter-1 { animation-delay: 60ms; }
+.ws-enter-2 { animation-delay: 160ms; }
 
 /* ── WelcomeScreen hover classes ── */
 .ws-icon-btn:hover {
@@ -12542,12 +12594,7 @@ tr:hover td {
 
 /* Spin animation */
 .chain-node-spin {
-  animation: chain-spin 1s linear infinite;
-}
-
-@keyframes chain-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  animation: spin 1s linear infinite;
 }
 
 /* ── Node Palette ── */
@@ -15022,12 +15069,7 @@ tr:hover td {
 
 /* Spinning animation for refresh icon */
 .spinning {
-  animation: spin-gallery 1s linear infinite;
-}
-
-@keyframes spin-gallery {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  animation: spin 1s linear infinite;
 }
 
 /* ─────────────────────────────────────────
@@ -15756,11 +15798,7 @@ tr:hover td {
    git-* — GitPanel (Source Control sidebar)
 ═══════════════════════════════════════════════════════════════ */
 
-@keyframes git-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-.git-spin { animation: git-spin 1s linear infinite; }
+.git-spin { animation: spin 1s linear infinite; }
 
 .git-panel {
   display: flex;

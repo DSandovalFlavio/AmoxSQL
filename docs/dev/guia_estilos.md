@@ -356,19 +356,57 @@ Si se agrega un tema nuevo y el editor se ve mal, agregar la paleta correspondie
 ## 6. Variables de Espaciado y Radio
 
 ```css
---radius-sm:  6px;
---radius-md:  8px;
---radius-lg:  12px;
---radius-xl:  16px;
+--radius-sm:   4px;
+--radius-md:   6px;
+--radius-lg:   8px;
+--radius-xl:   12px;
+--radius-full: 9999px;
 ```
 
 Usar estas variables para border-radius. No inventar nuevos valores de radio.
 
-Para espaciado no hay variables fijas — usar múltiplos de 4px (4, 8, 12, 16, 20, 24...).
+Para espaciado hay una escala `--space-1`…`--space-12` (múltiplos de 4px: 4, 8, 12, 16, 20, 24, 32, 40, 48). Usarla; si no, múltiplos de 4px.
 
 ---
 
-## 7. Scrollbars Personalizadas
+## 7. Sistema de Motion (animaciones)
+
+AmoxSQL es app de escritorio: **sin librerías de animación**, solo CSS, snappy por defecto.
+Toda duración/curva sale de tokens en `:root` — **no hardcodear `200ms ease`**.
+
+```css
+/* Curvas */
+--ease-out:    cubic-bezier(0.22, 1, 0.36, 1);   /* enter/reveal */
+--ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);   /* move/morph */
+--ease-spring: cubic-bezier(0.16, 1, 0.3, 1);    /* paneles, overshoot suave */
+
+/* Duraciones */
+--duration-instant: 80ms;   --duration-fast: 120ms;
+--duration-base:    200ms;  --duration-slow: 320ms;
+
+/* Transiciones compuestas (úsalas en hover/focus) */
+--transition-fast: var(--duration-fast) var(--ease-out);
+--transition-base: var(--duration-base) var(--ease-out);
+--transition-slow: var(--duration-slow) var(--ease-spring);
+```
+
+**Reglas:**
+- Para una transición nueva: `transition: background var(--transition-fast);` — nunca `120ms ease` a mano.
+- Spinners: clase `.amox-spin` o `animation: spin <dur> linear infinite` (keyframe `spin` único, definido una vez).
+- Entradas reusables: `.amox-fade-in`, `.amox-fade-rise`, `.tree-reveal`.
+- **Accesibilidad:** el bloque global `@media (prefers-reduced-motion: reduce)` ya neutraliza el movimiento app-wide — no hace falta repetirlo por componente.
+- Foco de teclado: hay un anillo global `:focus-visible` (token `--focus-ring`). No re-inventar outlines salvo necesidad real.
+
+### 7.1 Onboarding / Tours
+
+Todo tour o guía "?" usa la **primitiva única** `components/onboarding/`:
+- `Tour.jsx` — carrusel (overlay + pasos + progreso + teclado). No crear carruseles a mano.
+- `GuideModal.jsx` — modal de la guía de referencia.
+- `tourRegistry.js` — catálogo central. **Para un tour nuevo:** crea el contenido en `onboarding/content/`, regístralo en `tourRegistry.js`, y dispáralo en first-run con `openTour('<id>')`. El `OnboardingHost` global (en `App.jsx`) lo renderiza y persiste el "visto"; aparece solo en el Command Palette ("Help & Tours").
+
+---
+
+## 8. Scrollbars Personalizadas
 
 AmoxSQL tiene scrollbars personalizadas en toda la app:
 

@@ -6,6 +6,7 @@ import {
 } from 'react-icons/lu';
 
 import { API_BASE } from '../../api.js';
+import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 const PAGE_SIZE = 50;
 
 /**
@@ -53,6 +54,11 @@ const AnalysisVault = ({ onOpenInEditor, onClose }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // First-run Analysis Vault tour (rendered by the global OnboardingHost)
+    useEffect(() => {
+        if (!hasSeenTour('vault')) openTour('vault');
+    }, []);
     const [searchText, setSearchText] = useState('');
     const [tagFilter, setTagFilter] = useState('');
     const [offset, setOffset] = useState(0);

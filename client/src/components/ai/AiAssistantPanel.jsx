@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign } from 'react-icons/lu';
-import { AiModesGuideModal, AiModesTour } from './AiModesGuide';
+import { AiModesGuideModal } from './AiModesGuide';
+import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
@@ -92,14 +93,13 @@ const AiAssistantPanel = ({
     // ─── View Mode: 'chat' or 'history' ───
     const [viewMode, setViewMode] = useState('chat');
 
-    // ─── AI modes guide + first-run tour ───
+    // ─── AI modes guide (the "?" modal) ───
     const [showModesGuide, setShowModesGuide] = useState(false);
-    const [showModesTour, setShowModesTour] = useState(() => {
-        try { return !localStorage.getItem('amox-ai-modes-tour-seen'); } catch { return false; }
-    });
-    const dismissModesTour = useCallback(() => {
-        setShowModesTour(false);
-        try { localStorage.setItem('amox-ai-modes-tour-seen', '1'); } catch { /* ignore */ }
+
+    // First-run AI modes tour. Rendering + replay are owned by the global
+    // OnboardingHost via the tour registry.
+    useEffect(() => {
+        if (!hasSeenTour('ai-modes')) openTour('ai-modes');
     }, []);
 
     // ─── Cache: filePath → last conversationId per session ───
@@ -358,7 +358,6 @@ const AiAssistantPanel = ({
             </div>
 
             <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
-            <AiModesTour isOpen={showModesTour} onClose={dismissModesTour} />
 
             {status === 'LOADING' && (
                 <div className="ai-loading">
