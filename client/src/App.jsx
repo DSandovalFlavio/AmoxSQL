@@ -635,7 +635,7 @@ function App() {
     }
   }, []);
 
-  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null) => {
+  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null, schema = null) => {
     try {
       const finalPath = overridePath || importTargetFile;
       const response = await fetch(`${API_BASE}/api/db/import`, {
@@ -644,13 +644,15 @@ function App() {
         body: JSON.stringify({
           filePath: finalPath,
           tableName: tableName,
-          cleanColumns: cleanColumns
+          cleanColumns: cleanColumns,
+          schema: schema
         })
       });
       const data = await response.json();
       if (response.ok) {
         setRefreshDbTrigger(prev => prev + 1);
-        return { success: true, summary: `Import successful! Table '${tableName}' created.` };
+        const where = schema && schema !== 'main' ? `${schema}.${tableName}` : tableName;
+        return { success: true, summary: `Import successful! Table '${where}' created.` };
       } else {
         return { success: false, error: data.error };
       }
@@ -1046,7 +1048,7 @@ function App() {
                   onTablesLoaded={setAvailableTables}
                   onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
                   onQualityCheck={(tableName) => setQualityCheckTable(tableName)}
-                  onOpenErDiagram={() => layoutRef.current?.createNew('er-diagram')}
+                  onOpenErDiagram={(schema) => layoutRef.current?.createNew('er-diagram', schema)}
                 />
               </div>
             )}
@@ -1330,7 +1332,8 @@ function App() {
         <DataQualityModal
           isOpen={!!qualityCheckTable}
           onClose={() => setQualityCheckTable(null)}
-          tableName={qualityCheckTable}
+          tableName={qualityCheckTable?.name}
+          schema={qualityCheckTable?.schema}
         />
 
         <SchemaDiffModal

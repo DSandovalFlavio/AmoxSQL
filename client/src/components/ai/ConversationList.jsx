@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuPencil, LuCheck } from 'react-icons/lu';
+import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuPencil, LuCheck, LuEllipsisVertical } from 'react-icons/lu';
 
 import { API_BASE as API } from '../../api.js';
 const PAGE_SIZE = 20;
@@ -15,7 +15,20 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
     const [hasMore, setHasMore] = useState(true);
     const [renamingId, setRenamingId] = useState(null);
     const [renameValue, setRenameValue] = useState('');
+    const [menu, setMenu] = useState(null); // { x, y, conv } — row options (kebab)
     const listRef = useRef(null);
+
+    // Close the kebab menu on any outside click or scroll
+    useEffect(() => {
+        if (!menu) return;
+        const close = () => setMenu(null);
+        window.addEventListener('click', close);
+        window.addEventListener('scroll', close, true);
+        return () => {
+            window.removeEventListener('click', close);
+            window.removeEventListener('scroll', close, true);
+        };
+    }, [menu]);
 
     const startRename = (e, conv) => {
         e.stopPropagation();
@@ -166,31 +179,22 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                                     title="Save name"
                                     className="ai-conv-action-btn"
                                 >
-                                    <LuCheck size={11} />
+                                    <LuCheck size={12} />
                                 </button>
                             ) : (
-                                <button
-                                    onClick={(e) => startRename(e, conv)}
-                                    title="Rename"
-                                    className="ai-conv-action-btn"
-                                >
-                                    <LuPencil size={11} />
-                                </button>
+                                <>
+                                    {conv.is_starred && (
+                                        <LuStar size={11} className="ai-conv-star-indicator" fill="currentColor" />
+                                    )}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setMenu({ x: Math.min(e.clientX, window.innerWidth - 190), y: e.clientY, conv }); }}
+                                        title="Options"
+                                        className="ai-conv-action-btn"
+                                    >
+                                        <LuEllipsisVertical size={14} />
+                                    </button>
+                                </>
                             )}
-                            <button
-                                onClick={(e) => handleToggleStar(e, conv.id)}
-                                title={conv.is_starred ? 'Unstar' : 'Star'}
-                                className={`ai-conv-action-btn${conv.is_starred ? ' ai-conv-action-btn--starred' : ''}`}
-                            >
-                                <LuStar size={11} fill={conv.is_starred ? 'currentColor' : 'none'} />
-                            </button>
-                            <button
-                                onClick={(e) => handleDelete(e, conv.id)}
-                                title="Delete"
-                                className="ai-conv-action-btn ai-conv-action-btn--delete"
-                            >
-                                <LuTrash2 size={11} />
-                            </button>
                         </div>
                     </div>
                 ))}
@@ -249,6 +253,28 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                     </>
                 )}
             </div>
+
+            {menu && (
+                <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                        position: 'fixed', top: menu.y, left: menu.x,
+                        backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
+                        borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 9999,
+                        minWidth: '170px', padding: '4px', backdropFilter: 'blur(12px)',
+                    }}
+                >
+                    <div className="context-menu-item" onClick={(e) => { startRename(e, menu.conv); setMenu(null); }}>
+                        <LuPencil size={14} /> Rename
+                    </div>
+                    <div className="context-menu-item" onClick={(e) => { handleToggleStar(e, menu.conv.id); setMenu(null); }}>
+                        <LuStar size={14} fill={menu.conv.is_starred ? 'currentColor' : 'none'} /> {menu.conv.is_starred ? 'Unstar' : 'Star'}
+                    </div>
+                    <div className="context-menu-item" style={{ color: 'var(--color-error-text)' }} onClick={(e) => { handleDelete(e, menu.conv.id); setMenu(null); }}>
+                        <LuTrash2 size={14} /> Delete
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = false }) => {
     const [tableName, setTableName] = useState('');
+    const [targetSchema, setTargetSchema] = useState('');
     const [cleanColumns, setCleanColumns] = useState(true);
     const [fileType, setFileType] = useState('csv'); // csv | parquet | json
     const [loading, setLoading] = useState(false);
@@ -14,6 +15,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
             setSuccessSummary(null);
             setError(null);
             setLoading(false);
+            setTargetSchema('');
 
             if (initialFile) {
                 // Suggest table name from folder/filename
@@ -40,7 +42,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
         setError(null);
 
         try {
-            const result = await onImport(tableName, cleanColumns, isFolder ? finalPath : null);
+            const result = await onImport(tableName, cleanColumns, isFolder ? finalPath : null, targetSchema.trim() || null);
 
             if (result && result.success) {
                 setSuccessSummary(result.summary || "Import completed successfully.");
@@ -108,6 +110,19 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                                         style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                         autoFocus
                                         required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+                                        Schema <span style={{ color: 'var(--text-muted)' }}>(optional — created if it doesn't exist)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={targetSchema}
+                                        onChange={(e) => setTargetSchema(e.target.value)}
+                                        placeholder="main"
+                                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
                                     />
                                 </div>
 

@@ -405,17 +405,17 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         <div className="snb-toolbar">
             {/* Left: Mode switcher + primary actions */}
             <div className="snb-toolbar-left">
-                {/* Mode switcher pill */}
-                <div className="snb-mode-switcher">
+                {/* Mode switcher — segmented control */}
+                <div className="seg">
                     <button
                         onClick={() => setViewMode('edit')}
-                        className={`snb-mode-btn ${viewMode === 'edit' ? 'snb-mode-btn--active' : ''}`}
+                        className={`seg-item${viewMode === 'edit' ? ' seg-item--active' : ''}`}
                     >
                         <LuPenLine size={13} /> Edit
                     </button>
                     <button
                         onClick={() => setViewMode('report')}
-                        className={`snb-mode-btn ${viewMode === 'report' ? 'snb-mode-btn--active' : ''}`}
+                        className={`seg-item${viewMode === 'report' ? ' seg-item--active' : ''}`}
                     >
                         <LuFileText size={13} /> Report
                     </button>

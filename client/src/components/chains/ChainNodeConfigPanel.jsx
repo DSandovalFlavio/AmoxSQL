@@ -175,23 +175,20 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                 </button>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, padding: '0 12px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
-                {['basic', 'schema', 'preview', 'validation', 'info'].map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setActiveTab(t)}
-                        style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            borderBottom: activeTab === t ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                            color: activeTab === t ? 'var(--text-active)' : 'var(--text-muted)',
-                            padding: '8px 6px', fontSize: 12, fontWeight: activeTab === t ? 600 : 400,
-                            textTransform: 'capitalize',
-                        }}
-                    >
-                        {t}
-                    </button>
-                ))}
+            {/* Tabs — segmented control */}
+            <div style={{ padding: '8px 12px', flexShrink: 0 }}>
+                <div className="seg">
+                    {['basic', 'schema', 'preview', 'validation', 'info'].map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setActiveTab(t)}
+                            className={`seg-item${activeTab === t ? ' seg-item--active' : ''}`}
+                            style={{ textTransform: 'capitalize' }}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             <div className="chain-config-body">

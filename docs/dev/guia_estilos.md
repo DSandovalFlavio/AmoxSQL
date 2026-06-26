@@ -406,6 +406,92 @@ Todo tour o guía "?" usa la **primitiva única** `components/onboarding/`:
 
 ---
 
+## 7.2 Patrón canónico de paneles del sidebar
+
+Todos los paneles del sidebar izquierdo (Files, DB Schema, Extensions, DBT,
+Snippets, History, Vault, Git, Conversations…) comparten una cabecera estándar.
+**No reinventar** tamaños/paddings por panel — reutilizar estas clases:
+
+```text
+.sidebar-header        cabecera: padding 8px 14px, título uppercase --text-xs,
+                       weight semibold, color --text-tertiary, flex space-between
+.fe-header-actions     contenedor de acciones (gap 2px) a la derecha
+.fe-header-btn         botón de acción de icono: 24×24, radius --radius-sm,
+                       hover bg --hover-bg
+.fe-search             wrapper relativo de búsqueda (dentro de una sección con
+                       padding 8px 14px y border-bottom)
+.fe-search-icon        icono de búsqueda (absolute, left 8px)
+.fe-search-input       input: padding 5px 8px 5px 26px, --text-xs, radius --radius-md,
+                       border --border-subtle, bg --surface-inset
+```
+
+Convenciones:
+- Icono del título: **14px**. Icono dentro de botón de acción: **13px**.
+- Si un panel tiene clases propias por razones históricas (`db-*`, `vault-*`,
+  `git-*`, `dbt-*`), sus valores deben **igualar** a los de arriba (ya alineados).
+- Sub-navegación opcional (DBT/History) va en una fila aparte bajo la cabecera.
+- **Contenido scrollable**: el contenedor de lista lleva `padding: 6px 0` para que el
+  primer elemento no quede pegado a la línea del buscador (igual en todos los paneles:
+  `file-list`, `db-tree`, `vault-list`, `ai-conv-list`, History, Snippets).
+
+### 7.3 Control segmentado (tabs y filtros)
+
+**Un solo lenguaje**, estilo Linear: fondo sutil en el activo, radio pequeño.
+**Nunca píldoras 999px** para tabs/filtros (el radio completo se reserva a badges,
+contadores y avatars).
+
+```text
+.seg-wrap          padding 8px 14px 0 (envoltorio)
+.seg               track: fondo --surface-inset, radio --radius-lg, padding 3px
+.seg--fill         items con flex:1 (p.ej. 2 tabs a ancho igual)
+.seg-item          tab: --text-xs, radio --radius-sm; activo = .seg-item--active
+.seg-item--active  fondo --accent-muted + texto --accent-primary
+.seg-chips         fila de filtros (gap 6px, wrap)
+.seg-chip          filtro: borde --border-subtle, radio --radius-md (NO píldora)
+.seg-chip--active  fondo --accent-muted + borde/texto acento
+```
+Tabs exclusivas (History, DBT) → `.seg`. Filtros independientes (Extensions) → `.seg-chip`.
+
+### 7.4 Cuándo va una línea divisoria
+
+**Solo el header** lleva `border-bottom` (separa el chrome del panel del contenido).
+La búsqueda, filtros, stats y tabs **NO** llevan borde propio — se separan con
+espacio y etiquetas de sección (`FOLDERS`, `YESTERDAY`). Esto mantiene los paneles
+limpios (referencia: Deep Dive / Conversations).
+
+**La búsqueda va SIEMPRE justo bajo el header** (antes que tabs/filtros). Orden
+canónico: header → búsqueda → tabs/filtros → contenido. Sección de búsqueda con
+`padding: 14px 14px 8px` para que el hueco con el divisor de arriba iguale al de
+abajo (el contenido aporta sus 6px de `padding-top`).
+
+### 7.5 Filas de lista y sus opciones
+
+Referencia: **File Explorer**. Fila: `padding 6px 8px; margin 1px 6px; radius --radius-md`.
+**Label primario del item: `--text-base` (13px)** en todos los paneles (Files, DB,
+Conversations, Vault, Extensions). Texto secundario (contadores, tipos, fechas,
+columnas anidadas, previews) puede ser menor — eso es jerarquía, no inconsistencia.
+Las opciones de cada objeto se exponen con un **kebab (3 puntos) SIEMPRE visible**
+(`LuEllipsisVertical`) que abre un menú contextual (clases globales `.context-menu-item`),
+no iconos ocultos tras el hover. Indicadores de estado (p.ej. estrella) van siempre visibles.
+
+### 7.6 Cabecera de modal canónica
+
+Referencia: **el modal de Settings** (proporciones que gustan). Para que los
+modales centrales/full-screen no se vean "con zoom", su cabecera usa:
+
+```text
+.amox-modal-header   altura fija 48px, padding 0 16px 0 20px, border-bottom
+.amox-modal-title    --text-md (14px) semibold, icono 16px, con ellipsis
+.amox-modal-close    botón 6px + radio --radius-sm, icono X de 18px, hover bg
+```
+
+Reglas: título a **--text-md** (no 18px+), icono del título **16px**, X **18px**
+dentro de un botón con hover (NO una X suelta de 24px). Diálogos compactos (p. ej.
+Execution Chain) no usan la barra de 48px pero sí `.amox-modal-close`.
+**Una sola cabecera por modal** (ojo con dobles títulos como tenía Chart Gallery).
+
+---
+
 ## 8. Scrollbars Personalizadas
 
 AmoxSQL tiene scrollbars personalizadas en toda la app:

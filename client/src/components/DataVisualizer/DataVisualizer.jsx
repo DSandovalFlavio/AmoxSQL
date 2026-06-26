@@ -273,22 +273,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         </button>
                     </div>
 
-                    {/* ── Tab Navigation ── */}
-                    <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '12px', gap: '2px' }}>
+                    {/* ── Tab Navigation — segmented control ── */}
+                    <div className="seg seg--fill" style={{ marginBottom: '12px' }}>
                         {TABS.map(tab => {
                             const IconComp = tab.icon;
                             return (
                                 <button key={tab.key}
                                     onClick={() => setActiveTab(tab.key)}
                                     title={tab.title}
-                                    style={{
-                                        flex: 1, padding: '6px 0', background: 'transparent', border: 'none',
-                                        borderBottom: activeTab === tab.key ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                                        color: activeTab === tab.key ? 'var(--text-active)' : 'var(--text-muted)',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    }}>
+                                    className={`seg-item${activeTab === tab.key ? ' seg-item--active' : ''}`}>
                                     <IconComp size={14} />
                                 </button>
                             );

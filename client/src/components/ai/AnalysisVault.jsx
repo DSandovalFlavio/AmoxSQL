@@ -161,11 +161,11 @@ const AnalysisVault = ({ onOpenInEditor, onClose }) => {
             {/* Header */}
             <div className="vault-header">
                 <div className="vault-header-title">
-                    <LuPackage size={18} />
+                    <LuPackage size={14} />
                     <span>Analysis Vault</span>
                 </div>
                 <button className="vault-close-btn" onClick={onClose} title="Close">
-                    <LuX size={16} />
+                    <LuX size={14} />
                 </button>
             </div>
 

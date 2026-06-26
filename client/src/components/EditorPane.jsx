@@ -426,7 +426,7 @@ const EditorPane = ({
                     </div>
                 ) : isErDiagram ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
-                        <ErDiagram onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                        <ErDiagram schema={activeTab.content || ''} onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
                     </div>
                 ) : isDbtLineage ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)', height: '100%' }}>

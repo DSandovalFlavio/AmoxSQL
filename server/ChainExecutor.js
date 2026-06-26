@@ -410,7 +410,11 @@ class ChainExecutor extends EventEmitter {
      */
     outputToQuery(output) {
         if (!output) return null;
-        if (output.table) return `SELECT * FROM "${output.table}"`;
+        if (output.table) {
+            // Honor an explicit schema (e.g. a Table Reference to a non-main table)
+            const ref = output.schema ? `"${output.schema}"."${output.table}"` : `"${output.table}"`;
+            return `SELECT * FROM ${ref}`;
+        }
         if (output.view) return `SELECT * FROM "${output.view}"`;
         if (output.query) return output.query;
         return null;
@@ -421,9 +425,9 @@ class ChainExecutor extends EventEmitter {
      * This is stored in nodeOutputs so downstream nodes can use it.
      */
     extractOutputRef(node, sql, resultType, resultSummary, upstreamOutputs = []) {
-        // For table_ref, the output is the referenced table
+        // For table_ref, the output is the referenced table (carry the resolved schema)
         if (node.type === 'table_ref') {
-            return { table: node.config?.tableName || null };
+            return { schema: resultSummary?.schema || null, table: resultSummary?.table || node.config?.tableName || null };
         }
 
         // Assert and checkpoint are pass-through: forward the upstream output
@@ -939,17 +943,28 @@ class ChainExecutor extends EventEmitter {
             case 'table_ref': {
                 const tableName = config.tableName || '';
                 if (!tableName) throw new Error('Table Reference node has no table selected');
-                // Validate table exists
-                const checkResult = await dbManager.query(
-                    `SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_name = '${tableName.replace(/'/g, "''")}'`
-                );
-                const exists = checkResult[0]?.cnt > 0;
-                if (!exists) throw new Error(`Table "${tableName}" does not exist`);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
+                // Resolve the schema (explicit config, "schema.table" form, or catalog
+                // lookup preferring main) so non-default schemas work, and validate.
+                let schema = config.schema || null;
+                let bare = tableName;
+                if (!schema && tableName.includes('.')) {
+                    const dot = tableName.indexOf('.');
+                    schema = tableName.slice(0, dot);
+                    bare = tableName.slice(dot + 1);
+                }
+                if (!schema) {
+                    const found = await dbManager.query(
+                        `SELECT table_schema FROM information_schema.tables WHERE table_name = '${bare.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
+                    );
+                    schema = found[0]?.table_schema || null;
+                }
+                if (!schema) throw new Error(`Table "${tableName}" does not exist`);
+                const ref = `"${schema}"."${bare}"`;
+                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM ${ref}`);
                 const rowCount = countResult[0]?.cnt || 0;
-                sql = `-- Table Reference: ${tableName}`;
+                sql = `-- Table Reference: ${schema}.${bare}`;
                 resultType = 'table_referenced';
-                resultSummary = { table: tableName, rowCount };
+                resultSummary = { table: bare, schema, rowCount };
                 break;
             }
 

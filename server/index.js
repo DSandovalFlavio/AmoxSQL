@@ -596,6 +596,9 @@ app.get('/api/db/schemas', async (req, res) => {
 // ER Diagram schema — enriched with constraints
 app.get('/api/db/er-schema', async (req, res) => {
     try {
+        // Optional: restrict the diagram to a single schema
+        const { schema } = req.query;
+        const schemaFilter = schema ? ` AND t.table_schema = '${String(schema).replace(/'/g, "''")}'` : '';
         // 1. Get tables + columns in a single JOIN query
         const rows = await dbManager.systemQuery(
             `SELECT t.table_schema, t.table_name, t.table_type,
@@ -603,7 +606,7 @@ app.get('/api/db/er-schema', async (req, res) => {
              FROM information_schema.tables t
              LEFT JOIN information_schema.columns c
                     ON c.table_schema = t.table_schema AND c.table_name = t.table_name
-             WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}
+             WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}${schemaFilter}
              ORDER BY t.table_schema, t.table_name, c.ordinal_position`
         );
 
@@ -701,36 +704,41 @@ app.get('/api/db/history', async (req, res) => {
 });
 
 app.post('/api/db/table-details', async (req, res) => {
-    const { tableName, limit = 100, offset = 0 } = req.body;
+    const { tableName, schema, limit = 100, offset = 0 } = req.body;
     if (!tableName) return res.status(400).json({ error: 'Table name required' });
+
+    // Schema-qualified reference — handles tables in non-default schemas (e.g. main_gold)
+    const ref = schema ? `"${schema}"."${tableName}"` : `"${tableName}"`;
 
     try {
         // 1. Schema & Metadata
         // DuckDB 'DESCRIBE' gives column_name, column_type, null, key, default, extra
-        const describe = await dbManager.systemQuery(`DESCRIBE "${tableName}"`);
+        const describe = await dbManager.systemQuery(`DESCRIBE ${ref}`);
 
         // 2. Row Count (Estimated or Exact)
-        const countRes = await dbManager.systemQuery(`SELECT COUNT(1) as count FROM "${tableName}"`);
+        const countRes = await dbManager.systemQuery(`SELECT COUNT(1) as count FROM ${ref}`);
         const totalRows = countRes[0].count; // Serialized as string or number
 
         // 3. Preview Data
-        const preview = await dbManager.systemQuery(`SELECT * FROM "${tableName}" LIMIT ${limit} OFFSET ${offset}`);
+        const preview = await dbManager.systemQuery(`SELECT * FROM ${ref} LIMIT ${limit} OFFSET ${offset}`);
 
-        // 4. DDL
+        // 4. DDL — reconstructed from the column schema.
+        // DuckDB has no `sqlite_master` and no `SHOW CREATE TABLE`, so we rebuild
+        // the CREATE statement from the DESCRIBE result we already fetched.
         let ddl = '';
         try {
-            const ddlRes = await dbManager.systemQuery(`SELECT sql FROM sqlite_master WHERE name = '${tableName}'`);
-            if (ddlRes.length > 0) ddl = ddlRes[0].sql;
+            const colDefs = describe.map(c => `    "${c.column_name}" ${c.column_type}`).join(',\n');
+            ddl = `CREATE TABLE ${ref} (\n${colDefs}\n);`;
         } catch (e) {
-            console.warn("DDL fetch fallback failed", e);
-            ddl = `-- Could not retrieve DDL for ${tableName}`;
+            console.warn("DDL reconstruction failed", e);
+            ddl = `-- Could not reconstruct DDL for ${tableName}`;
         }
 
         // 5. Data Profile (SUMMARIZE)
         // DuckDB SUMMARIZE returns: column_name, column_type, min, max, approx_unique, avg, std, q25, q50, q75, count, null_percentage
         let profile = [];
         try {
-            profile = await dbManager.systemQuery(`SUMMARIZE "${tableName}"`);
+            profile = await dbManager.systemQuery(`SUMMARIZE ${ref}`);
         } catch (e) {
             console.warn("Profile generation failed", e);
         }
@@ -751,9 +759,12 @@ app.post('/api/db/table-details', async (req, res) => {
 });
 
 app.post('/api/db/import', async (req, res) => {
-    const { filePath, tableName, cleanColumns } = req.body;
+    const { filePath, tableName, cleanColumns, schema } = req.body;
 
     if (!filePath || !tableName) return res.status(400).json({ error: 'File path and table name required' });
+
+    // Optional target schema — create it if needed and qualify the new table
+    const target = schema && schema !== 'main' ? `"${schema}"."${tableName}"` : `"${tableName}"`;
 
     let fullSourcePath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
     fullSourcePath = fullSourcePath.replace(/\\/g, '/');
@@ -765,6 +776,9 @@ app.post('/api/db/import', async (req, res) => {
     }
 
     try {
+        if (schema && schema !== 'main') {
+            await dbManager.systemQuery(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+        }
         if (cleanColumns) {
             const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
             const selectParts = describe.map(col => {
@@ -772,15 +786,15 @@ app.post('/api/db/import', async (req, res) => {
                 const newName = oldName.trim().replace(/\s+/g, '_');
                 return `"${oldName}" AS "${newName}"`;
             }).join(', ');
-            await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${tableName}" AS SELECT ${selectParts} FROM '${fullSourcePath}'`);
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT ${selectParts} FROM '${fullSourcePath}'`);
         } else {
-            await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM '${fullSourcePath}'`);
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT * FROM '${fullSourcePath}'`);
         }
 
         // Force flush of WAL file to avoid locks
         await dbManager.checkpoint();
 
-        res.json({ success: true, table: tableName });
+        res.json({ success: true, table: tableName, schema: schema || 'main' });
     } catch (err) {
         console.error("Import Error:", err);
         let errorMsg = err.message;
@@ -1731,8 +1745,10 @@ async function buildTableContext(contextTables = null) {
         const tableContexts = [];
         for (const t of tables.slice(0, 30)) {
             try {
-                const cols = await dbManager.systemQuery(`DESCRIBE "${t.table_name}"`);
-                const countRes = await dbManager.systemQuery(`SELECT COUNT(*) as cnt FROM "${t.table_name}"`);
+                // Schema-qualified — tables may live outside the default `main` schema
+                const qref = t.table_schema ? `"${t.table_schema}"."${t.table_name}"` : `"${t.table_name}"`;
+                const cols = await dbManager.systemQuery(`DESCRIBE ${qref}`);
+                const countRes = await dbManager.systemQuery(`SELECT COUNT(*) as cnt FROM ${qref}`);
                 tableContexts.push({
                     name: t.table_name,
                     schema: t.table_schema,
@@ -4434,9 +4450,22 @@ app.get('/api/chains/preview/:tableName', async (req, res) => {
     const { tableName } = req.params;
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     try {
-        const safeTable = tableName.replace(/[^a-zA-Z0-9_\-.]/g, '');
-        const rows = await dbManager.query(`SELECT * FROM "${safeTable}" LIMIT ${limit}`);
-        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${safeTable}"`);
+        let schema = req.query.schema || null;
+        let bare = tableName.replace(/[^a-zA-Z0-9_\-.]/g, '');
+        if (!schema && bare.includes('.')) {
+            const dot = bare.indexOf('.');
+            schema = bare.slice(0, dot);
+            bare = bare.slice(dot + 1);
+        }
+        if (!schema) {
+            const found = await dbManager.query(
+                `SELECT table_schema FROM information_schema.tables WHERE table_name = '${bare.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
+            );
+            schema = found[0]?.table_schema || 'main';
+        }
+        const qref = `"${schema}"."${bare}"`;
+        const rows = await dbManager.query(`SELECT * FROM ${qref} LIMIT ${limit}`);
+        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM ${qref}`);
         const totalRows = countResult[0]?.cnt || 0;
         const columns = rows.length > 0 ? Object.keys(rows[0]).map(k => ({
             name: k,
@@ -4460,12 +4489,18 @@ app.post('/api/chains/preview-node', async (req, res) => {
         const table = ref && ref.table;
         if (!table) return res.json({ available: false });
         const safeTable = table.replace(/[^a-zA-Z0-9_\-.]/g, '');
-        const exists = await dbManager.query(
-            `SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_name = '${safeTable.replace(/'/g, "''")}'`
-        );
-        if (!(exists[0]?.cnt > 0)) return res.json({ available: false, table });
-        const rows = await dbManager.query(`SELECT * FROM "${safeTable}" LIMIT ${limit}`);
-        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${safeTable}"`);
+        // Resolve schema (the output ref may carry it; else catalog lookup preferring main)
+        let schema = ref.schema || null;
+        if (!schema) {
+            const found = await dbManager.query(
+                `SELECT table_schema FROM information_schema.tables WHERE table_name = '${safeTable.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
+            );
+            schema = found[0]?.table_schema || null;
+        }
+        if (!schema) return res.json({ available: false, table });
+        const qref = `"${schema}"."${safeTable}"`;
+        const rows = await dbManager.query(`SELECT * FROM ${qref} LIMIT ${limit}`);
+        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM ${qref}`);
         const columns = rows.length > 0
             ? Object.keys(rows[0]).map(k => ({ name: k, type: typeof rows[0][k] === 'number' ? 'number' : 'string' }))
             : [];

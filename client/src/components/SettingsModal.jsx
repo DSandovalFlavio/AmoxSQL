@@ -1042,15 +1042,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         {/* ═══ EDITOR ═══ */}
                         {activeTab === 'editor' && (
                             <div className="stg-section">
-                                <TabWithSubTabs
-                                    tabs={[
-                                        { id: 'general',    label: 'General' },
-                                        { id: 'formatting', label: 'Formatting' },
-                                    ]}
-                                    activeTab={editorSubTab}
-                                    onChange={setEditorSubTab}
-                                />
-                                {editorSubTab === 'general' && <div className="stg-subtab-content">
+                                {<div className="stg-subtab-content">
                                 {/* Layout */}
                                 <div>
                                     <h3 className="stg-section-title">Layout</h3>
@@ -1371,8 +1363,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </div>
                                 </div>
                                 </div>}
-                                {/* ── Formatting sub-tab (formerly Formatter) ── */}
-                                {editorSubTab === 'formatting' && <div className="stg-subtab-content">
+                                {/* ── Formatting (merged into the same section) ── */}
+                                {<div className="stg-subtab-content">
                                 <div>
                                     <h3 className="stg-section-title">SQL Formatter</h3>
                                     <p className="stg-row-desc stg-row-desc--mb14">

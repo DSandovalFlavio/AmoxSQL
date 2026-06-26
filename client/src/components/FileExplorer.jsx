@@ -643,39 +643,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
             {/* Breadcrumb + Search */}
             <div className="fe-nav-section">
-                {/* Breadcrumbs */}
-                <div className="fe-breadcrumb">
-                    {currentPath && (
-                        <button onClick={handleUp} className="fe-breadcrumb-up" title="Go up">
-                            <LuArrowUp size={12} />
-                        </button>
-                    )}
-                    <span
-                        onClick={() => setCurrentPath('')}
-                        className="fe-breadcrumb-segment"
-                        style={{ fontWeight: currentPath ? '400' : '600', color: currentPath ? 'var(--accent-primary)' : 'var(--text-primary)' }}
-                    >
-                        /
-                    </span>
-                    {currentPath && currentPath.split('/').filter(Boolean).map((segment, idx, arr) => {
-                        const segmentPath = arr.slice(0, idx + 1).join('/');
-                        const isLast = idx === arr.length - 1;
-                        return (
-                            <span key={segmentPath} className="fe-breadcrumb-part">
-                                <span className="fe-breadcrumb-sep">/</span>
-                                <span
-                                    onClick={() => { if (!isLast) setCurrentPath(segmentPath); }}
-                                    className={`fe-breadcrumb-segment${isLast ? ' active' : ''}`}
-                                    title={segment}
-                                >
-                                    {segment}
-                                </span>
-                            </span>
-                        );
-                    })}
-                </div>
-
-                {/* Search */}
+                {/* Search — always directly under the header */}
                 <div className="fe-search">
                     <LuSearch size={12} className="fe-search-icon" />
                     <input
@@ -685,6 +653,40 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="fe-search-input"
                     />
+                </div>
+
+                {/* Breadcrumbs / path — depth shown by a color gradient (dim root → bright current) */}
+                <div className="fe-breadcrumb">
+                    {currentPath && (
+                        <button onClick={handleUp} className="fe-breadcrumb-up" title="Go up">
+                            <LuArrowUp size={12} />
+                        </button>
+                    )}
+                    {(() => {
+                        const parts = currentPath ? currentPath.split('/').filter(Boolean) : [];
+                        const crumbs = [{ label: '/', path: '' }, ...parts.map((seg, idx) => ({
+                            label: seg, path: parts.slice(0, idx + 1).join('/'),
+                        }))];
+                        const total = crumbs.length;
+                        return crumbs.map((c, i) => {
+                            const isLast = i === total - 1;
+                            const pct = total > 1 ? Math.round((i / (total - 1)) * 100) : 100;
+                            const color = `color-mix(in oklch, var(--text-primary) ${pct}%, var(--text-tertiary))`;
+                            return (
+                                <span key={c.path || 'root'} className="fe-breadcrumb-part">
+                                    {i > 0 && <span className="fe-breadcrumb-sep">/</span>}
+                                    <span
+                                        onClick={() => { if (!isLast) setCurrentPath(c.path); }}
+                                        className={`fe-breadcrumb-segment${isLast ? ' active' : ''}`}
+                                        style={{ color, fontWeight: isLast ? 600 : 400 }}
+                                        title={c.label}
+                                    >
+                                        {c.label}
+                                    </span>
+                                </span>
+                            );
+                        });
+                    })()}
                 </div>
             </div>
             <ul className="file-list">

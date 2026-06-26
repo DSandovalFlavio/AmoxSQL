@@ -6,7 +6,7 @@ import { LuX, LuShieldCheck, LuCircleAlert, LuCircleCheck, LuLoader } from 'reac
  * DataQualityModal — Runs automated quality checks on a table using DuckDB.
  * Checks: null%, duplicate rows, cardinality, data type consistency, outliers.
  */
-const DataQualityModal = ({ isOpen, onClose, tableName }) => {
+const DataQualityModal = ({ isOpen, onClose, tableName, schema }) => {
     const [loading, setLoading] = useState(false);
     const [report, setReport] = useState(null);
     const [error, setError] = useState(null);
@@ -15,19 +15,22 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
         if (isOpen && tableName) {
             runQualityChecks();
         }
-    }, [isOpen, tableName]);
+    }, [isOpen, tableName, schema]);
 
     const runQualityChecks = async () => {
         setLoading(true);
         setError(null);
         setReport(null);
 
+        // Schema-qualified reference — handles tables outside the default `main` schema
+        const ref = schema ? `"${schema}"."${tableName}"` : `"${tableName}"`;
+
         try {
             // Use SUMMARIZE for basic profile
             const summaryRes = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: `SUMMARIZE "${tableName}"` }),
+                body: JSON.stringify({ query: `SUMMARIZE ${ref}` }),
             });
             const summaryData = await summaryRes.json();
 
@@ -37,7 +40,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
             const countRes = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: `SELECT COUNT(*) AS total_rows FROM "${tableName}"` }),
+                body: JSON.stringify({ query: `SELECT COUNT(*) AS total_rows FROM ${ref}` }),
             });
             const countData = await countRes.json();
             const totalRows = countData.data?.[0]?.total_rows || 0;
@@ -46,7 +49,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
             const dupRes = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: `SELECT COUNT(*) AS dup_count FROM (SELECT *, COUNT(*) AS cnt FROM "${tableName}" GROUP BY ALL HAVING cnt > 1)` }),
+                body: JSON.stringify({ query: `SELECT COUNT(*) AS dup_count FROM (SELECT *, COUNT(*) AS cnt FROM ${ref} GROUP BY ALL HAVING cnt > 1)` }),
             });
             const dupData = await dupRes.json();
             const dupCount = dupData.data?.[0]?.dup_count || 0;
@@ -132,14 +135,12 @@ const DataQualityModal = ({ isOpen, onClose, tableName }) => {
             }} onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface-raised)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <LuShieldCheck size={18} color={scoreColor} />
-                        <h2 style={{ margin: 0, fontSize: '15px', color: 'var(--text-active)' }}>
-                            Quality Check: {tableName}
-                        </h2>
-                    </div>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <div className="amox-modal-header">
+                    <h2 className="amox-modal-title">
+                        <LuShieldCheck size={16} color={scoreColor} />
+                        Quality Check: {tableName}
+                    </h2>
+                    <button className="amox-modal-close" onClick={onClose} title="Close">
                         <LuX size={18} />
                     </button>
                 </div>

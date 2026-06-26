@@ -159,9 +159,6 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
             {/* Header */}
             <div className="chart-gallery-header">
                 <div className="chart-gallery-header__text">
-                    <h3 className="chart-gallery-header__title">
-                        <LuLayoutGrid size={18} /> Chart Gallery
-                    </h3>
                     <p className="chart-gallery-header__desc">
                         Explore all AmoxVis chart types with professional designs.
                         Click any chart to open it and inspect its full configuration.

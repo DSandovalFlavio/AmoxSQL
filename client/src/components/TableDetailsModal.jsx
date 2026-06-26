@@ -2,7 +2,7 @@ import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuTable, LuX } from "react-icons/lu";
 
-const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
+const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
     const [activeTab, setActiveTab] = useState('schema'); // schema, details, preview, ddl
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
             setActiveTab('schema');
             setPage(1);
         }
-    }, [isOpen, tableName]);
+    }, [isOpen, tableName, schema]);
 
     // Re-fetch preview when page changes if we implement server-side pagination per page
     // For now, let's fetch first 200 rows as requested (user said "preview of 200 rows with 100 per page")
@@ -34,7 +34,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
             const res = await fetch(`${API_BASE}/api/db/table-details`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tableName, limit: 200, offset: 0 })
+                body: JSON.stringify({ tableName, schema, limit: 200, offset: 0 })
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error);
@@ -250,44 +250,32 @@ const TableDetailsModal = ({ isOpen, onClose, tableName }) => {
                 border: '1px solid var(--border-default)'
             }}>
                 {/* Header */}
-                <div style={{
-                    padding: '15px 20px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-raised)',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                }}>
-                    <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-active)' }}>
-                        <LuTable size={20} color="var(--accent-color-user)" />
+                <div className="amox-modal-header">
+                    <h2 className="amox-modal-title">
+                        <LuTable size={16} color="var(--accent-primary)" />
                         {tableName}
                     </h2>
-                    <button
-                        onClick={onClose}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    ><LuX size={24} /></button>
+                    <button className="amox-modal-close" onClick={onClose} title="Close">
+                        <LuX size={18} />
+                    </button>
                 </div>
 
-                {/* Tabs */}
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-raised)' }}>
-                    {['Schema', 'Profile', 'Details', 'Preview', 'DDL'].map(tab => {
-                        const key = tab.toLowerCase();
-                        const isActive = activeTab === key;
-                        return (
-                            <button
-                                key={key}
-                                onClick={() => { setActiveTab(key); setPage(1); }}
-                                style={{
-                                    padding: '10px 20px',
-                                    background: isActive ? 'var(--sidebar-item-active-bg)' : 'transparent',
-                                    color: isActive ? 'var(--accent-color-user)' : '#888',
-                                    border: 'none',
-                                    borderBottom: isActive ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                                    cursor: 'pointer',
-                                    fontWeight: isActive ? '600' : 'normal',
-                                    fontSize: '13px'
-                                }}
-                            >
-                                {tab}
-                            </button>
-                        );
-                    })}
+                {/* Tabs — segmented control */}
+                <div style={{ padding: '10px 16px' }}>
+                    <div className="seg" style={{ display: 'inline-flex' }}>
+                        {['Schema', 'Profile', 'Details', 'Preview', 'DDL'].map(tab => {
+                            const key = tab.toLowerCase();
+                            return (
+                                <button
+                                    key={key}
+                                    onClick={() => { setActiveTab(key); setPage(1); }}
+                                    className={`seg-item${activeTab === key ? ' seg-item--active' : ''}`}
+                                >
+                                    {tab}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Content */}

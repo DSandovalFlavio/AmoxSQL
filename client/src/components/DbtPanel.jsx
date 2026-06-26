@@ -489,7 +489,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
         <div className="dbt-panel">
             {/* Panel Header */}
             <div className="dbt-panel-header">
-                <LuContainer size={16} style={{ color: 'var(--accent-primary)' }} />
+                <LuContainer size={14} style={{ color: 'var(--accent-primary)' }} />
                 <span>DBT Studio</span>
                 {activeSection === 'lineage' && onOpenDbtLineage && (
                     <button
@@ -505,11 +505,12 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
             </div>
 
             {/* Section Tabs */}
-            <div className="dbt-tabs">
+            <div className="seg-wrap">
+              <div className="seg">
                 {sectionTabs.map(tab => (
                     <button
                         key={tab.id}
-                        className={`dbt-tab ${activeSection === tab.id ? 'dbt-tab--active' : ''}`}
+                        className={`seg-item ${activeSection === tab.id ? 'seg-item--active' : ''}`}
                         onClick={() => {
                             if (tab.id === 'lineage' && onOpenDbtLineage) {
                                 onOpenDbtLineage();
@@ -523,6 +524,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                         <span>{tab.label}</span>
                     </button>
                 ))}
+              </div>
             </div>
 
             {/* Toast */}

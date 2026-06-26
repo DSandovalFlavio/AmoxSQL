@@ -114,22 +114,10 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
     const renderDbTabButton = (id, label, icon) => (
         <button
             onClick={() => setDbActiveTab(id)}
-            style={{
-                flex: 1,
-                padding: '10px',
-                background: dbActiveTab === id ? 'var(--sidebar-item-active-bg)' : 'transparent',
-                border: 'none',
-                borderBottom: dbActiveTab === id ? '2px solid var(--accent-color-user)' : '2px solid transparent',
-                color: dbActiveTab === id ? 'var(--text-active)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontWeight: dbActiveTab === id ? 'bold' : 'normal',
-                fontSize: '13px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                transition: 'all 0.2s ease'
-            }}
+            className={`seg-item${dbActiveTab === id ? ' seg-item--active' : ''}`}
             type="button"
         >
-            <span>{icon}</span>
+            <span style={{ display: 'inline-flex' }}>{icon}</span>
             <span>{label}</span>
         </button>
     );
@@ -368,9 +356,11 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
                     <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)' }}>
                         <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', padding: '0 16px', whiteSpace: 'nowrap' }}>Step 2</span>
                         <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
-                        {scannedDbs.length > 0 && renderDbTabButton('EXISTING', 'Open Existing', <LuFolderOpen size={14} />)}
-                        {renderDbTabButton('CREATE', 'Create New', <LuSparkles size={14} />)}
-                        {renderDbTabButton('MEMORY', 'In-Memory', <LuBrain size={14} />)}
+                        <div className="seg" style={{ display: 'inline-flex', margin: '6px 12px' }}>
+                            {scannedDbs.length > 0 && renderDbTabButton('EXISTING', 'Open Existing', <LuFolderOpen size={14} />)}
+                            {renderDbTabButton('CREATE', 'Create New', <LuSparkles size={14} />)}
+                            {renderDbTabButton('MEMORY', 'In-Memory', <LuBrain size={14} />)}
+                        </div>
                     </div>
 
                     {/* Content Area — Compact */}

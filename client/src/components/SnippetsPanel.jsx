@@ -130,32 +130,30 @@ const SnippetsPanel = ({ onInsert }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
             {/* Header */}
-            <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>SQL Snippets</span>
-                <button
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    title="Add Custom Snippet"
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-color)', display: 'flex', alignItems: 'center' }}
-                >
-                    <LuPlus size={14} />
-                </button>
+            <div className="sidebar-header">
+                <span>SQL Snippets</span>
+                <div className="fe-header-actions">
+                    <button
+                        className="fe-header-btn"
+                        onClick={() => setShowAddForm(!showAddForm)}
+                        title="Add Custom Snippet"
+                    >
+                        <LuPlus size={14} />
+                    </button>
+                </div>
             </div>
 
             {/* Search */}
-            <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div style={{ position: 'relative' }}>
+            <div style={{ padding: '14px 14px 8px' }}>
+                <div className="fe-search">
+                    <LuSearch size={13} className="fe-search-icon" />
                     <input
                         type="text"
+                        className="fe-search-input"
                         placeholder="Search snippets..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        style={{
-                            width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)',
-                            border: '1px solid var(--border-color)', borderRadius: '4px',
-                            padding: '4px 8px 4px 24px', fontSize: '11px', outline: 'none',
-                        }}
                     />
-                    <LuSearch size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }} />
                 </div>
             </div>
 
@@ -186,7 +184,7 @@ const SnippetsPanel = ({ onInsert }) => {
             )}
 
             {/* Snippet List */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingTop: '6px' }}>
                 {filteredCategories.map(cat => {
                     const isExpanded = expandedCategories[cat.category] !== false; // default expanded
                     return (

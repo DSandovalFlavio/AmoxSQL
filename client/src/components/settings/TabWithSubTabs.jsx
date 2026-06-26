@@ -1,34 +1,38 @@
 /**
- * TabWithSubTabs — reusable horizontal sub-tab bar for Settings panels.
- * Renders a compact pill-style tab strip + active child content below.
+ * TabWithSubTabs — reusable sub-tab bar for Settings panels.
+ * Renders the canonical segmented control (.seg) + active child content below.
  *
  * Usage:
  *   <TabWithSubTabs
  *     tabs={[
- *       { id: 'general', label: 'General' },
- *       { id: 'formatting', label: 'Formatting' },
+ *       { id: 'modes', label: 'Modes' },
+ *       { id: 'models', label: 'Models' },
  *     ]}
- *     activeTab={activeEditorSubTab}
- *     onChange={setActiveEditorSubTab}
+ *     activeTab={aiSubTab}
+ *     onChange={setAiSubTab}
  *   />
- *   {activeEditorSubTab === 'general' && <EditorGeneral ... />}
+ *   {aiSubTab === 'modes' && <Modes ... />}
  */
 import { memo } from 'react';
 
 const TabWithSubTabs = memo(function TabWithSubTabs({ tabs, activeTab, onChange }) {
     return (
-        <div className="stg-subtab-bar">
+        <div className="seg" style={{ display: 'inline-flex', marginBottom: '16px' }}>
             {tabs.map(tab => (
                 <button
                     key={tab.id}
-                    className={`stg-subtab-btn${activeTab === tab.id ? ' stg-subtab-btn--active' : ''}`}
+                    className={`seg-item${activeTab === tab.id ? ' seg-item--active' : ''}`}
                     onClick={() => onChange(tab.id)}
                     type="button"
                 >
-                    {tab.icon && <span className="stg-subtab-icon">{tab.icon}</span>}
+                    {tab.icon && <span style={{ display: 'inline-flex' }}>{tab.icon}</span>}
                     {tab.label}
                     {tab.badge != null && (
-                        <span className="stg-subtab-badge">{tab.badge}</span>
+                        <span style={{
+                            marginLeft: '4px', fontSize: 'var(--text-2xs)',
+                            background: 'var(--accent-muted)', color: 'var(--accent-primary)',
+                            borderRadius: 'var(--radius-full)', padding: '0 5px', lineHeight: '15px',
+                        }}>{tab.badge}</span>
                     )}
                 </button>
             ))}

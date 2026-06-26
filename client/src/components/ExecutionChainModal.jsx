@@ -120,7 +120,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                         <LuLink size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
                         Query Execution Chain
                     </h3>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <button className="amox-modal-close" onClick={onClose} title="Close">
                         <LuX size={18} />
                     </button>
                 </div>

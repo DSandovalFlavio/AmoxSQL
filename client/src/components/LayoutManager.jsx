@@ -419,7 +419,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb'
                 : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
                 : normalizedType === 'md' ? 'Untitled.md'
-                : normalizedType === 'er-diagram' ? 'ER Diagram'
+                : normalizedType === 'er-diagram' ? (initialContent ? `ER · ${initialContent}` : 'ER Diagram')
                 : normalizedType === 'datadiving' ? 'Deep Dive'
                 : normalizedType === 'dbt-lineage' ? 'DBT Lineage'
                 : 'Untitled.sql',
