@@ -1,6 +1,6 @@
 # Plan de implementación — Rendimiento de UI (cambio de pestaña/panel)
 
-> Deriva de `auditoria_rendimiento_vscode.md`. Objetivo: que cambiar de panel/pestaña en el
+> Objetivo: que cambiar de panel/pestaña en el
 > sidebar (Files↔DB, etc.) se sienta **instantáneo**, eliminando el re-render en cascada de React.
 > Causa raíz: `activeSidebarTab` vive en `App.jsx`; al cambiar, re-renderiza todo el IDE (árbol JSX
 > inline gigante) porque el área del editor y los paneles **no están aislados/memoizados** y reciben
@@ -74,7 +74,7 @@ que recibe en App.jsx con `useCallback`.
 ---
 
 ## Fase 2 — Lazy-on-visible: pausar trabajo en paneles ocultos (P3)
-Equivale a `onDidChangeBodyVisibility` de VS Code (`explorerView.ts:325`). "Vivo en DOM ≠ trabajando".
+Patrón "visible-then-work": "vivo en DOM ≠ trabajando".
 1. Derivar `isActive = activeSidebarTab === '<id>'` y pasarlo a cada panel.
 2. **Auditar panel por panel** qué trabajo corre estando oculto y gatearlo:
    - Fetch al cambiar `currentDb`/`refreshDbTrigger` (DatabaseExplorer) → si está oculto, marcar
@@ -85,7 +85,7 @@ Equivale a `onDidChangeBodyVisibility` de VS Code (`explorerView.ts:325`). "Vivo
 ---
 
 ## Fase 3 — rAF-batch al redimensionar (P4) · *solo si Profiler/observación muestran jank*
-Equivale a `measure`/`modify` de VS Code (`dom.ts:464-506`).
+Patrón medir-luego-mutar dentro de `requestAnimationFrame` para evitar layout thrashing.
 - Localizar handlers de resize: arrastre de split en `LayoutManager`, rebuild de tema de Monaco,
   `ResizeObserver` del chart.
 - Agrupar lecturas (getBoundingClientRect) y escrituras (estilos) en un `requestAnimationFrame`;
@@ -129,7 +129,6 @@ el flame graph al navegar, y el click se siente instantáneo.
 ---
 
 ## Referencias
-- Auditoría y técnicas VS Code: `docs/dev/auditoria_rendimiento_vscode.md`
 - Puntos AmoxSQL: App.jsx:111 (estado nav), App.jsx:182 (mergedEditorSettings), App.jsx:1235-1263
   (props LayoutManager), LayoutManager.jsx:15/1074 (forwardRef/export), EditorPane.jsx:659,
   DatabaseExplorer.jsx (sin memo).
