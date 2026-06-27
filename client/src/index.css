@@ -5065,7 +5065,8 @@ tr:hover .rt-td {
   border-radius: 0;
   padding: 10px 12px;
   min-height: 36px;
-  max-height: 120px;
+  max-height: 160px;
+  overflow-y: auto;
   color: var(--text-primary);
   font-size: var(--text-base);
   resize: none;

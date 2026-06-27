@@ -841,6 +841,16 @@ function App() {
     }
   }, [toast]);
 
+  // Create a new editable .amoxvis chart tab on request (e.g. "Plot" from the data profiler).
+  useEffect(() => {
+    const handler = (e) => {
+      const { title, query, config } = e.detail || {};
+      if (query) handleExportAmoxvis(title || 'chart', query, config || {});
+    };
+    window.addEventListener('amox_create_chart', handler);
+    return () => window.removeEventListener('amox_create_chart', handler);
+  }, [handleExportAmoxvis]);
+
 // Removed duplicated handleCloseProject
 
   const handleSidebarTabClick = (tabId) => {

@@ -191,6 +191,15 @@ const AiAssistantPanel = ({
         };
     }, [setInputText]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Auto-grow the composer to fit its content — covers both typing and programmatic
+    // prefills (Narrate / skills), where the textarea's onInput doesn't fire.
+    useEffect(() => {
+        const ta = inputRef.current;
+        if (!ta) return;
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+    }, [inputText]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // ─── Escalate current chat to Data Diving ───
     const handleEscalateToDataDiving = useCallback(async () => {
         if (!messages.length || !onOpenDataDiving) return;
