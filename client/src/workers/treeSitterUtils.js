@@ -293,6 +293,93 @@ export function isDotAccess(node, position, fullText) {
 }
 
 /**
+ * Scans from an opening '(' at openIdx and returns the index just AFTER its matching ')',
+ * skipping over single/double-quoted string literals. Returns text.length if unbalanced.
+ */
+function skipBalanced(text, openIdx) {
+    let depth = 0;
+    for (let j = openIdx; j < text.length; j++) {
+        const c = text[j];
+        if (c === "'" || c === '"') {
+            const q = c;
+            j++;
+            while (j < text.length && text[j] !== q) j++;
+            continue;
+        }
+        if (c === '(') depth++;
+        else if (c === ')') { depth--; if (depth === 0) return j + 1; }
+    }
+    return text.length;
+}
+
+/**
+ * Text-based extraction of derived relations (CTEs) from a statement. Used to build a probe
+ * query that DuckDB can DESCRIBE to resolve the relation's real output columns — something the
+ * AST can't compute (e.g. `WITH x AS (SELECT a+b AS total ...)`).
+ *
+ * Text-based on purpose: DuckDB file refs ('x.csv') routinely break the tree-sitter AST, and a
+ * balanced-paren scan over the statement text is robust to that.
+ *
+ * Returns { withClause, cteNames: ['a','b'], subqueries: [{ alias, sql }] }.
+ * `withClause` is the full prefix needed so inter-CTE dependencies resolve in the probe.
+ */
+export function extractDerivedRelations(stmtText) {
+    const result = { withClause: '', cteNames: [], subqueries: [] };
+    if (!stmtText) return result;
+
+    // --- CTEs: only when WITH is the leading keyword of the statement ---
+    const m = /\bWITH\b/i.exec(stmtText);
+    if (m && stmtText.slice(0, m.index).trim() === '') {
+        let i = m.index + 4; // past 'WITH'
+        const rec = /^\s+RECURSIVE\b/i.exec(stmtText.slice(i));
+        if (rec) i += rec[0].length;
+        while (i < stmtText.length) {
+            while (i < stmtText.length && /[\s,]/.test(stmtText[i])) i++;
+            const nameM = /^("[^"]+"|[a-zA-Z_]\w*)/.exec(stmtText.slice(i));
+            if (!nameM) break;
+            const name = nameM[1].replace(/"/g, '');
+            i += nameM[0].length;
+            while (i < stmtText.length && /\s/.test(stmtText[i])) i++;
+            // optional (col, col, …) projection list before AS
+            if (stmtText[i] === '(') i = skipBalanced(stmtText, i);
+            while (i < stmtText.length && /\s/.test(stmtText[i])) i++;
+            const asM = /^AS\b/i.exec(stmtText.slice(i));
+            if (asM) i += 2;
+            while (i < stmtText.length && /\s/.test(stmtText[i])) i++;
+            const matM = /^(NOT\s+)?MATERIALIZED\b/i.exec(stmtText.slice(i));
+            if (matM) { i += matM[0].length; while (i < stmtText.length && /\s/.test(stmtText[i])) i++; }
+            if (stmtText[i] !== '(') break; // malformed / mid-typing → stop
+            i = skipBalanced(stmtText, i);
+            result.cteNames.push(name);
+            while (i < stmtText.length && /\s/.test(stmtText[i])) i++;
+            if (stmtText[i] === ',') { i++; continue; }
+            break; // next token is the main query → WITH clause ends
+        }
+        if (result.cteNames.length > 0) result.withClause = stmtText.slice(m.index, i).trim();
+    }
+
+    // --- Subqueries with an alias in FROM/JOIN: `FROM ( <select> ) [AS] alias` ---
+    const STOP = /^(WHERE|GROUP|ORDER|HAVING|LIMIT|ON|USING|JOIN|LEFT|RIGHT|INNER|CROSS|FULL|UNION|EXCEPT|INTERSECT|QUALIFY|WINDOW)$/i;
+    const re = /\b(?:FROM|JOIN)\s*\(/gi;
+    let mm;
+    while ((mm = re.exec(stmtText)) !== null) {
+        const openIdx = stmtText.indexOf('(', mm.index);
+        if (openIdx === -1) break;
+        const closeIdx = skipBalanced(stmtText, openIdx); // index just after ')'
+        const inner = stmtText.slice(openIdx + 1, closeIdx - 1).trim();
+        re.lastIndex = closeIdx; // resume after this subquery (don't recurse into nested ones)
+        if (!/^(SELECT|WITH)\b/i.test(inner)) continue; // not a derived table (e.g. VALUES / fn args)
+        const aliasM = /^\s*(?:AS\s+)?("[^"]+"|[a-zA-Z_]\w*)/i.exec(stmtText.slice(closeIdx));
+        if (!aliasM) continue;
+        const alias = aliasM[1].replace(/"/g, '');
+        if (STOP.test(alias)) continue; // no real alias — skip (can't reference it)
+        result.subqueries.push({ alias, sql: inner });
+    }
+
+    return result;
+}
+
+/**
  * Quick Regex-based check to see if we are inside a Jinja {{ }} block
  */
 export function isJinjaContext(text, cursorOffset) {

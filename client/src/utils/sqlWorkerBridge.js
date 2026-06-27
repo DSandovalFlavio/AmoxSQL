@@ -64,16 +64,18 @@ export class SqlWorkerBridge {
     }
 
     async getCompletions(line, column, triggerChar) {
-        if (!this.isReady) return { suggestions: [], clause: 'ROOT' };
+        const emptyDerived = { relations: [], dotTarget: null };
+        if (!this.isReady) return { suggestions: [], clause: 'ROOT', derived: emptyDerived };
         try {
             const response = await this.sendMessage('requestCompletions', { line, column, triggerChar });
             return {
                 suggestions: response.suggestions || [],
-                clause: response.clause || 'ROOT'
+                clause: response.clause || 'ROOT',
+                derived: response.derived || emptyDerived
             };
         } catch (err) {
             console.error('[WorkerBridge] Failed to get completions:', err);
-            return { suggestions: [], clause: 'ROOT' };
+            return { suggestions: [], clause: 'ROOT', derived: emptyDerived };
         }
     }
 

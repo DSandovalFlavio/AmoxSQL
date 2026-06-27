@@ -2,6 +2,7 @@ import { Parser as TreeSitter, Language } from 'web-tree-sitter';
 import {
     determineClause,
     clauseFromText,
+    extractDerivedRelations,
     extractTablesAndAliases,
     extractFileReferences,
     findEnclosingStatement,
@@ -74,8 +75,8 @@ self.onmessage = async (e) => {
             dbtCache = payload;
         }
         else if (action === 'requestCompletions') {
-            const { suggestions, clause } = getCompletions(payload.line, payload.column, payload.triggerChar);
-            self.postMessage({ id, status: 'success', result: { suggestions, clause } });
+            const { suggestions, clause, derived } = getCompletions(payload.line, payload.column, payload.triggerChar);
+            self.postMessage({ id, status: 'success', result: { suggestions, clause, derived } });
         }
     } catch (err) {
         console.error('[SQL Worker Error]', err);
@@ -290,6 +291,26 @@ function getCompletions(line, column, triggerChar) {
         return name;
     }
 
+    // === Derived relations (CTEs + FROM-subqueries) ===
+    // Build a DESCRIBE-able probe per derived relation so the provider can ask DuckDB for its
+    // real output columns (which the AST can't compute). CTE probes carry the full WITH clause
+    // so inter-CTE dependencies resolve. `relations` = the derived relations in this scope.
+    const { withClause, cteNames, subqueries } = extractDerivedRelations(searchText);
+    const derivedProbe = {}; // name(lower) -> probe SQL
+    cteNames.forEach(n => {
+        derivedProbe[n.toLowerCase()] = `${withClause} SELECT * FROM ${formatIdentifier(n)}`.trim();
+    });
+    (subqueries || []).forEach(sq => {
+        derivedProbe[sq.alias.toLowerCase()] = `${withClause} SELECT * FROM (${sq.sql}) AS ${formatIdentifier(sq.alias)}`.trim();
+    });
+    const inScopeRelations = [
+        // CTEs actually referenced in this statement's FROM
+        ...cteNames.filter(n => referencedTables.has(n.toLowerCase()))
+            .map(n => ({ name: n, probeSql: derivedProbe[n.toLowerCase()] })),
+        // Subqueries are inherently in scope (they sit in the FROM of this statement)
+        ...(subqueries || []).map(sq => ({ name: sq.alias, probeSql: derivedProbe[sq.alias.toLowerCase()] })),
+    ];
+
     // === MODE: DOT_PROPERTY (e.g. u.id) ===
     if (dotAlias) {
         const resolvedTable = aliasMap[dotAlias] || Object.keys(schemaCache.tables).find(t => t.toLowerCase() === dotAlias) || dotAlias;
@@ -304,6 +325,14 @@ function getCompletions(line, column, triggerChar) {
                      sortText: '0_' + c.name
                  });
             });
+            return { suggestions, clause };
+        }
+        // No base-table columns: if the dot target is a derived relation (CTE/subquery),
+        // let the provider DESCRIBE it.
+        const derivedKey = derivedProbe[dotAlias] ? dotAlias
+            : (aliasMap[dotAlias] && derivedProbe[aliasMap[dotAlias]] ? aliasMap[dotAlias] : null);
+        if (derivedKey) {
+            return { suggestions: [], clause, derived: { relations: [], dotTarget: { name: derivedKey, probeSql: derivedProbe[derivedKey] } } };
         }
         return { suggestions, clause };
     }
@@ -404,5 +433,5 @@ function getCompletions(line, column, triggerChar) {
         });
     });
 
-    return { suggestions, clause };
+    return { suggestions, clause, derived: { relations: inScopeRelations, dotTarget: null } };
 }
