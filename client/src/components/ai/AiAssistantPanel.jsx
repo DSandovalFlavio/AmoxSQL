@@ -174,8 +174,21 @@ const AiAssistantPanel = ({
                 setTimeout(() => inputRef.current?.focus(), 50);
             }
         };
+        // Prefill the composer with a prompt sent from elsewhere (e.g. "Optimize with AI"
+        // from the query plan). The user reviews and sends it — we don't auto-send.
+        const promptHandler = (e) => {
+            const p = e.detail?.prompt;
+            if (p) {
+                setInputText(p);
+                setTimeout(() => inputRef.current?.focus(), 50);
+            }
+        };
         window.addEventListener('amox_activate_skill', handler);
-        return () => window.removeEventListener('amox_activate_skill', handler);
+        window.addEventListener('amox_ai_prompt', promptHandler);
+        return () => {
+            window.removeEventListener('amox_activate_skill', handler);
+            window.removeEventListener('amox_ai_prompt', promptHandler);
+        };
     }, [setInputText]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ─── Escalate current chat to Data Diving ───

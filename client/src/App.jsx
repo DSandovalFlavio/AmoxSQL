@@ -438,6 +438,14 @@ function App() {
     return () => window.removeEventListener('amox_open_workspace_wizard', handler);
   }, []);
 
+  // Open the AI panel when something requests a prompt (e.g. "Optimize with AI" from the
+  // query plan). The AiAssistantPanel prefills the composer from the same event.
+  useEffect(() => {
+    const handler = () => setShowAiSidebar(true);
+    window.addEventListener('amox_ai_prompt', handler);
+    return () => window.removeEventListener('amox_ai_prompt', handler);
+  }, []);
+
   /* --- Execution Chain Handler --- */
   const handleOpenChain = useCallback(async () => {
     try {
