@@ -24,6 +24,39 @@ function ensureDuckdbFunctionCatalog() {
         .catch(err => console.warn('[Monaco] Failed to load function catalog', err));
 }
 
+// Resolve the output columns of a probe query (e.g. a CTE) by asking DuckDB to DESCRIBE it.
+// Cached by probe SQL (the probe text changes when the query changes, so it self-invalidates).
+// Aborts after 300ms and returns [] on any failure → the editor falls back to its heuristics.
+const __describeCache = new Map();
+async function describeColumns(probeSql) {
+    if (!probeSql) return [];
+    if (__describeCache.has(probeSql)) return __describeCache.get(probeSql);
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 300);
+        const r = await fetch(`${API_BASE}/api/db/describe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sql: probeSql }),
+            signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+        const data = await r.json();
+        const cols = Array.isArray(data.columns) ? data.columns : [];
+        __describeCache.set(probeSql, cols);
+        return cols;
+    } catch {
+        return []; // timeout / network / invalid query → graceful fallback
+    }
+}
+
+// Drop cached DESCRIBE results when the base schema changes — a CTE/subquery's columns can
+// shift if a referenced base table is (re)loaded with a different schema while the derived
+// SQL text (the cache key) stays the same.
+function clearDescribeCache() {
+    __describeCache.clear();
+}
+
 /**
  * Monaco Editor Color Palettes — hex equivalents of CSS design tokens.
  *
@@ -656,6 +689,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                                 if (workerBridgeRef.current) {
                                     workerBridgeRef.current.updateSchema(window.__amoxSqlSchemaCache);
                                 }
+                                clearDescribeCache();
                             }
                         })
                         .catch(err => console.warn('[Monaco] File schema fetch failed:', err));
@@ -692,6 +726,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                                 allColumns: Array.from(allColumns)
                             };
                             workerBridgeRef.current.updateSchema(window.__amoxSqlSchemaCache);
+                            clearDescribeCache();
 
                             // CRITICAL: Scan initial text for file references IMMEDIATELY
                             // so pre-filled queries (Direct Query, loaded files) have their
@@ -785,8 +820,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             if (['{', "'"].includes(fullText[cursorOffset - 1])) {
                 triggerContent = fullText[cursorOffset - 1];
             }
-            const { suggestions: workerSuggestions, clause } = await workerBridgeRef.current.getCompletions(position.lineNumber, position.column, triggerContent);
-            
+            const { suggestions: workerSuggestions, clause, derived } = await workerBridgeRef.current.getCompletions(position.lineNumber, position.column, triggerContent);
+
             // Abort if the user kept typing while the worker was processing
             if (token && token.isCancellationRequested) {
                 return { suggestions: [] };
@@ -796,6 +831,37 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             const suggestions = workerSuggestions.map(s => {
                 return s;
             });
+
+            // --- Engine-resolved columns (CTEs/subqueries) via DuckDB DESCRIBE ---
+            // The worker can't compute a CTE's output columns (e.g. SELECT a+b AS total); ask the
+            // engine on-demand. Off the per-keystroke path (Monaco filters the cached list), cached,
+            // with graceful fallback. Skipped for templated (dbt/Jinja) files — raw Jinja isn't SQL.
+            const isTemplated = fullText.includes('{{') || fullText.includes('{%');
+            if (!isTemplated && derived) {
+                if (derived.dotTarget) {
+                    const cols = await describeColumns(derived.dotTarget.probeSql);
+                    if (token && token.isCancellationRequested) return { suggestions: [] };
+                    cols.forEach(c => suggestions.push({
+                        label: c.name, kind: monaco.languages.CompletionItemKind.Field,
+                        insertText: c.name, detail: `${c.type || 'Column'} (${derived.dotTarget.name})`,
+                        sortText: '0_' + c.name,
+                    }));
+                    // After `cte.` the user wants columns only — no snippets/functions.
+                    return { suggestions };
+                }
+                const isColumnClause = !['FROM', 'JOIN', 'ROOT', 'LIMIT', 'CTE'].includes(clause);
+                if (isColumnClause && derived.relations && derived.relations.length) {
+                    for (const rel of derived.relations) {
+                        const cols = await describeColumns(rel.probeSql);
+                        cols.forEach(c => suggestions.push({
+                            label: c.name, kind: monaco.languages.CompletionItemKind.Field,
+                            insertText: c.name, detail: `${c.type || 'Column'} (${rel.name})`,
+                            filterText: c.name, sortText: '1_b_' + c.name,
+                        }));
+                    }
+                    if (token && token.isCancellationRequested) return { suggestions: [] };
+                }
+            }
 
             // Smart Snippets
             const smartSnippets = [

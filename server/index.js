@@ -703,6 +703,48 @@ app.get('/api/db/history', async (req, res) => {
     }
 });
 
+// POST /api/db/describe — resolve the OUTPUT columns of an arbitrary SELECT/WITH query
+// without executing it. DuckDB's DESCRIBE only binds/plans the query, so this is cheap and
+// side-effect-free. The editor uses it to suggest columns of CTEs / subqueries that the
+// syntactic (tree-sitter) analyzer cannot compute (e.g. `SELECT a+b AS total`).
+app.post('/api/db/describe', async (req, res) => {
+    const { sql } = req.body || {};
+    if (!sql || typeof sql !== 'string') {
+        return res.status(400).json({ columns: [], error: 'sql required' });
+    }
+
+    // Read-only guard: a single SELECT / WITH…SELECT probe only. Strip comments, then reject
+    // DDL/DML and multi-statement payloads.
+    const stripped = sql
+        .replace(/--[^\n]*/g, ' ')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .trim()
+        .replace(/;\s*$/, '');
+    const head = (stripped.match(/^[a-zA-Z]+/) || [''])[0].toUpperCase();
+    if (head !== 'SELECT' && head !== 'WITH') {
+        return res.status(400).json({ columns: [], error: 'only SELECT/WITH allowed' });
+    }
+    if (stripped.includes(';')) {
+        return res.status(400).json({ columns: [], error: 'single statement only' });
+    }
+
+    // DESCRIBE never hangs in practice, but guard anyway so a pathological probe can't stall
+    // the editor's completion request.
+    const withTimeout = (p, ms) => Promise.race([
+        p,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('describe timeout')), ms)),
+    ]);
+
+    try {
+        const rows = await withTimeout(dbManager.systemQuery(`DESCRIBE ${stripped}`), 1500);
+        const columns = (rows || []).map(c => ({ name: c.column_name, type: c.column_type }));
+        res.json({ columns });
+    } catch (err) {
+        // Invalid / mid-typing query → empty result; the editor falls back to its heuristics.
+        res.json({ columns: [], error: err?.message || String(err) });
+    }
+});
+
 app.post('/api/db/table-details', async (req, res) => {
     const { tableName, schema, limit = 100, offset = 0 } = req.body;
     if (!tableName) return res.status(400).json({ error: 'Table name required' });
