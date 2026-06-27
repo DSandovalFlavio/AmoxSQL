@@ -1,5 +1,5 @@
 import { API_BASE } from '../api.js';
-import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, memo } from 'react';
 import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
@@ -1071,4 +1071,4 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     );
 });
 
-export default LayoutManager;
+export default memo(LayoutManager);

@@ -207,7 +207,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
             </div>
 
             {/* Chart Area */}
-            <div style={{ flex: 1, overflow: 'hidden', position: 'relative', contain: 'layout paint', transform: 'translateZ(0)' }}>
+            <div style={{ flex: 1, overflow: 'hidden', position: 'relative', contain: 'layout paint' }}>
                 
                 {/* Expanded Query Panel (Floating) */}
                 {queryExpanded && (

@@ -397,7 +397,7 @@ const ErDiagram = ({ onCreateTab, schema }) => {
                             position: 'absolute', bottom: '12px', left: '12px',
                             background: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
                             borderRadius: '8px', padding: '12px 16px', fontSize: '11px',
-                            color: 'var(--text-primary)', backdropFilter: 'blur(12px)',
+                            color: 'var(--text-primary)',
                             boxShadow: 'var(--shadow-lg)', maxWidth: '350px', zIndex: 10,
                         }}>
                             <div style={{ fontWeight: '600', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>

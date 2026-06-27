@@ -1,5 +1,5 @@
 import { API_BASE } from '../api.js';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { LuSearch, LuClipboardCopy, LuPlus, LuTrash2, LuCode, LuChevronRight, LuChevronDown } from 'react-icons/lu';
 
 const BUILT_IN_SNIPPETS = [
@@ -253,4 +253,4 @@ const SnippetsPanel = ({ onInsert }) => {
     );
 };
 
-export default SnippetsPanel;
+export default memo(SnippetsPanel);

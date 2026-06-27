@@ -33,7 +33,7 @@ const MenuBar = ({ onOpenProject, currentPath, onRunChain }) => {
                         boxShadow: 'var(--shadow-md)',
                         minWidth: '180px', zIndex: 1000,
                         padding: '4px',
-                        backdropFilter: 'blur(12px)'
+
                     }}>
                         <div
                             onClick={() => { onOpenProject(); setActiveMenu(null); }}

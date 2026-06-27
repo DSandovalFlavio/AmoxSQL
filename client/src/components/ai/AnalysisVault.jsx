@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import {
     LuPackage, LuSearch, LuX, LuTrash2,
     LuFileCode, LuHash, LuHistory, LuPencil,
@@ -392,4 +392,4 @@ const AnalysisVault = ({ onOpenInEditor, onClose }) => {
     );
 };
 
-export default AnalysisVault;
+export default memo(AnalysisVault);

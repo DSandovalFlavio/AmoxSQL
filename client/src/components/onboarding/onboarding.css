@@ -20,8 +20,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
-  background: color-mix(in oklch, var(--surface-base) 76%, transparent);
-  backdrop-filter: blur(3px);
+  background: color-mix(in oklch, var(--surface-base) 86%, transparent);
+
   animation: ob-overlay-in var(--duration-base) var(--ease-out);
 }
 

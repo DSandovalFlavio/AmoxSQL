@@ -1,5 +1,5 @@
 import { API_BASE } from '../api.js';
-import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense, memo } from 'react';
 import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
@@ -656,4 +656,4 @@ const EditorPane = ({
     );
 };
 
-export default EditorPane;
+export default memo(EditorPane);

@@ -40,8 +40,8 @@ const KeyboardShortcutsModal = ({ isOpen, onClose }) => {
             className="modal-overlay"
             style={{
                 position: 'fixed', inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                backdropFilter: 'blur(4px)',
+                backgroundColor: 'rgba(0, 0, 0, 0.62)',
+
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 zIndex: 9500,
             }}

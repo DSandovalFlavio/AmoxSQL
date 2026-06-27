@@ -2,7 +2,7 @@
  * GitPanel — Source Control sidebar panel.
  * MVP: status, stage/unstage, commit, branch display, log.
  */
-import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect, memo } from 'react';
 import {
     LuGitBranch, LuRefreshCw, LuPlus, LuMinus, LuCheck,
     LuGitMerge, LuCircleAlert, LuChevronDown,
@@ -75,7 +75,7 @@ function SectionHeader({ label, count, expanded, onToggle, action }) {
 }
 
 /* ── Main component ───────────────────────────────────────────── */
-export default function GitPanel({ projectPath, onFileClick }) {
+function GitPanel({ projectPath, onFileClick }) {
     const [gitAvailable, setGitAvailable]   = useState(null);
     const [isRepo,       setIsRepo]         = useState(false);
     const [status,       setStatus]         = useState(null);
@@ -554,3 +554,5 @@ export default function GitPanel({ projectPath, onFileClick }) {
         </div>
     );
 }
+
+export default memo(GitPanel);

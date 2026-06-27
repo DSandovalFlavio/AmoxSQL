@@ -81,8 +81,8 @@ const SchemaDiffModal = ({ isOpen, onClose, tables = [] }) => {
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
-            backdropFilter: 'blur(8px)'
+            backgroundColor: 'rgba(0, 0, 0, 0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+
         }} onClick={onClose}>
             <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)', width: '650px', maxHeight: '550px',

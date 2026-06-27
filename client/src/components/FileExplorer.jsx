@@ -847,7 +847,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     zIndex: 9999,
                     minWidth: '180px',
                     padding: '4px',
-                    backdropFilter: 'blur(12px)'
+
                 }}>
                     {/* ── Type-specific actions ── */}
                     {contextMenu.file.name.match(/\.(csv|parquet|json|xlsx|xls)$/i) && (

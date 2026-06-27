@@ -94,7 +94,7 @@ export function ToastProvider({ children }) {
                                 backgroundColor: colors.bg,
                                 border: `1px solid ${colors.border}`,
                                 borderRadius: '8px',
-                                backdropFilter: 'blur(16px)',
+
                                 boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
                                 pointerEvents: 'auto',
                                 animation: t.exiting

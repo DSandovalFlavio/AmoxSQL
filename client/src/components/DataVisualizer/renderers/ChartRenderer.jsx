@@ -467,7 +467,7 @@ const ChartRenderer = memo(({
     }
 
     const wrapChart = (content) => (
-        <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', minWidth: 0, contain: 'layout paint', transform: 'translateZ(0)' }}>
+        <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', minWidth: 0, contain: 'layout paint' }}>
             {hasSize ? content : null}
         </div>
     );
@@ -480,7 +480,7 @@ const ChartRenderer = memo(({
             const isStacked = chartType === 'area';
 
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <ChartComp data={chartData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <defs>
                             {finalSeriesKeys.map((key, index) => {
@@ -571,7 +571,7 @@ const ChartRenderer = memo(({
             else if (highlightConfig.type === 'min') hlVal = Math.min(...processedData.map(d => Number(d[pk]) || Infinity));
 
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <BarChart
                         layout={isHorizontal ? 'vertical' : 'horizontal'}
                         stackOffset={effectiveStack === 'expand' ? 'expand' : 'none'}
@@ -676,7 +676,7 @@ const ChartRenderer = memo(({
             }
 
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <ComposedChart data={processedData} margin={margin} barCategoryGap="18%" barGap={4} maxBarSize={56} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5} vertical={gridV} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
@@ -741,7 +741,7 @@ const ChartRenderer = memo(({
             const negColor = activeColors[1] || '#f87171';
 
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <BarChart data={wf} margin={margin} barCategoryGap="18%" maxBarSize={56} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5} vertical={false} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey} stroke="var(--border-color)"
@@ -780,7 +780,7 @@ const ChartRenderer = memo(({
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ SCATTER / BUBBLE ━━━
         if (chartType === 'scatter' || chartType === 'bubble') {
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <ScatterChart data={processedData} margin={margin} style={{ fontSize: `${fontSize}px` }}>
                         <CartesianGrid strokeDasharray="2 6" stroke="var(--grid-color)" strokeOpacity={0.5} vertical={gridV} horizontal={gridH} />
                         <XAxis {...axisCommonProps} dataKey={xAxisKey}
@@ -846,7 +846,7 @@ const ChartRenderer = memo(({
             }
 
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <PieChart>
                         {chartType === 'donut' && donutCenterKpi !== 'none' && donutThickness > 30 && (
                             <>
@@ -888,7 +888,7 @@ const ChartRenderer = memo(({
             })).sort((a, b) => b.value - a.value);
 
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <FunnelChart>
                         <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                         <Funnel dataKey="value" data={funnelData} isAnimationActive={false}>
@@ -1028,7 +1028,7 @@ const ChartRenderer = memo(({
             };
 
             return wrapChart(
-                <ResponsiveContainer width={rcWidth} height={rcHeight}>
+                <ResponsiveContainer width={rcWidth} height={rcHeight} debounce={120}>
                     <Treemap
                         data={treemapData}
                         dataKey="size"

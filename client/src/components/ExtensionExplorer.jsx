@@ -1,5 +1,5 @@
 import { API_BASE } from '../api.js';
-import { useState, useEffect, useRef, useCallback, forwardRef } from 'react';
+import { useState, useEffect, useRef, useCallback, forwardRef, memo } from 'react';
 import {
     LuRefreshCw, LuDownload, LuSearch, LuPackage, LuCheck, LuCircle,
     LuLoader, LuCircleAlert, LuShieldCheck, LuUsers, LuPlay, LuExternalLink,
@@ -651,4 +651,4 @@ const ContextMenu = forwardRef(({ x, y, ext, onLoad, onCopyName, onOpenDocs, onC
 });
 ContextMenu.displayName = 'ContextMenu';
 
-export default ExtensionExplorer;
+export default memo(ExtensionExplorer);
