@@ -3108,10 +3108,26 @@ app.post('/api/profile', async (req, res) => {
                 advancedSelects.push(`KURTOSIS(${safeCol}) as "${colName}_kurtosis"`);
                 advancedSelects.push(`COUNT(CASE WHEN ${safeCol} = 0 THEN 1 END) as "${colName}_zeros"`);
                 advancedSelects.push(`COUNT(CASE WHEN ${safeCol} < 0 THEN 1 END) as "${colName}_negatives"`);
+                // Outliers beyond the 1.5·IQR fences (SUMMARIZE quartiles injected as literals).
+                const q25n = parseFloat(col.q25);
+                const q75n = parseFloat(col.q75);
+                if (!Number.isNaN(q25n) && !Number.isNaN(q75n) && q75n > q25n) {
+                    const iqr = q75n - q25n;
+                    const lo = q25n - 1.5 * iqr;
+                    const hi = q75n + 1.5 * iqr;
+                    advancedSelects.push(`COUNT(CASE WHEN ${safeCol} < ${lo} OR ${safeCol} > ${hi} THEN 1 END) as "${colName}_outliers"`);
+                }
             } else {
                 advancedSelects.push(`MAX(LENGTH(CAST(${safeCol} AS VARCHAR))) as "${colName}_max_length"`);
                 advancedSelects.push(`MIN(LENGTH(CAST(${safeCol} AS VARCHAR))) as "${colName}_min_length"`);
                 advancedSelects.push(`AVG(LENGTH(CAST(${safeCol} AS VARCHAR))) as "${colName}_avg_length"`);
+                // Value-based semantic hint: how many values look like an email address.
+                advancedSelects.push(`COUNT(CASE WHEN CAST(${safeCol} AS VARCHAR) LIKE '%_@_%.__%' THEN 1 END) as "${colName}_emaillike"`);
+                // Date span + distinct dates → range and gap detection.
+                if (/DATE|TIMESTAMP/.test(col.column_type.toUpperCase())) {
+                    advancedSelects.push(`DATE_DIFF('day', MIN(${safeCol}), MAX(${safeCol})) as "${colName}_dayspan"`);
+                    advancedSelects.push(`COUNT(DISTINCT ${safeCol}) as "${colName}_distinctdates"`);
+                }
             }
         });
 
@@ -3196,6 +3212,22 @@ app.post('/api/profile', async (req, res) => {
         const duplicateRows = parallelResults[1][0]?.duplicate_rows || 0;
         const advancedStats = advancedQuery ? parallelResults[2][0] : {};
 
+        // Candidate composite key: if no single column is unique, test whether the two
+        // highest-cardinality columns together form a unique key (one cheap extra query).
+        let candidateKey = null;
+        try {
+            const tr = Number(totalRows);
+            const singleKey = profileData.some((c) => tr > 0 && parseInt(c.approx_unique) >= tr * 0.999);
+            if (!singleKey && Number(duplicateRows) === 0 && profileData.length >= 2 && tr > 0) {
+                const top2 = [...profileData].sort((a, b) => parseInt(b.approx_unique) - parseInt(a.approx_unique)).slice(0, 2);
+                const c1 = top2[0].column_name;
+                const c2 = top2[1].column_name;
+                const r = await dbManager.systemQuery(`SELECT (COUNT(*) = COUNT(DISTINCT (CAST("${c1}" AS VARCHAR), CAST("${c2}" AS VARCHAR)))) as is_key FROM (${cleanQuery}) __amox_ck`);
+                const v = r[0]?.is_key;
+                if (v === true || v === 1 || String(v).toLowerCase() === 'true') candidateKey = [c1, c2];
+            }
+        } catch (e) { /* candidate-key detection is best-effort */ }
+
         // Process Correlational Matrix
         let correlations = [];
         if (corrSelects.length > 0 && advancedStats) {
@@ -3221,6 +3253,7 @@ app.post('/api/profile', async (req, res) => {
                 totalRows: Number(totalRows),
                 duplicateRows: Number(duplicateRows)
             },
+            candidateKey: candidateKey,
             correlations: correlations,
             executionTime: (end - start).toFixed(2)
         });

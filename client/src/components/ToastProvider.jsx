@@ -30,9 +30,14 @@ export function ToastProvider({ children }) {
         }, 250);
     }, []);
 
-    const addToast = useCallback((message, type = 'info', duration = 4000) => {
+    const addToast = useCallback((message, type = 'info', opts) => {
         const id = ++toastId;
-        setToasts(prev => [...prev, { id, message, type, exiting: false }]);
+        // `opts` is either a duration (number, back-compat) or { duration, action }.
+        const action = (opts && typeof opts === 'object') ? opts.action : undefined;
+        const duration = typeof opts === 'number'
+            ? opts
+            : (opts?.duration ?? (action ? 12000 : (type === 'error' ? 6000 : 4000)));
+        setToasts(prev => [...prev, { id, message, type, action, exiting: false }]);
 
         if (duration > 0) {
             timersRef.current[id] = setTimeout(() => {
@@ -119,6 +124,7 @@ export function ToastProvider({ children }) {
                                 <Icon size={12} color="currentColor" />
                             </div>
                             <span style={{
+                                flex: 1,
                                 fontSize: '13px',
                                 fontWeight: '500',
                                 color: 'var(--text-active)',
@@ -127,6 +133,25 @@ export function ToastProvider({ children }) {
                             }}>
                                 {t.message}
                             </span>
+                            {t.action && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); try { t.action.onClick?.(); } catch (err) { /* noop */ } removeToast(t.id); }}
+                                    style={{
+                                        flexShrink: 0, background: 'transparent', border: `1px solid ${colors.border}`,
+                                        color: 'var(--text-active)', borderRadius: '6px', padding: '3px 10px',
+                                        fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                                    }}
+                                >
+                                    {t.action.label || 'Action'}
+                                </button>
+                            )}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); removeToast(t.id); }}
+                                aria-label="Dismiss"
+                                style={{ flexShrink: 0, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
+                            >
+                                <LuX size={14} />
+                            </button>
                         </div>
                     );
                 })}
