@@ -29,6 +29,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [showPlanModal, setShowPlanModal] = useState(false);
     const [planData, setPlanData] = useState(null);
     const [planQuery, setPlanQuery] = useState('');
+    const [planMetrics, setPlanMetrics] = useState(null);
+    const [planMode, setPlanMode] = useState('analyze');
+    const [planNote, setPlanNote] = useState(null);
+    const [planLoading, setPlanLoading] = useState(false);
 
     // Variables State (shared across session)
     const [queryVariables, setQueryVariables] = useState([]);
@@ -351,7 +355,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     };
 
-    const handleAnalyzeActive = async () => {
+    const handleAnalyzeActive = async (mode) => {
         const tab = getActiveTab();
         if (!tab || tab.type !== 'sql') {
             console.warn("Please select a SQL file to analyze.");
@@ -359,52 +363,42 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
 
         const query = tab.content;
-        // DuckDB specific syntax
-        const explainQuery = `EXPLAIN (FORMAT JSON) ${query}`;
+        // Default mode: ANALYZE (real timing) for read-only queries; otherwise EXPLAIN (estimated),
+        // since ANALYZE executes the query. The backend also guards this. The modal can switch modes.
+        const isReadOnly = /^\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/|\s)*(?:SELECT|WITH)\b/i.test(query);
+        // `mode` may be the click event when invoked from a button — only honor explicit strings.
+        const requestedMode = (mode === 'explain' || mode === 'analyze') ? mode : undefined;
+        const effectiveMode = requestedMode || (isReadOnly ? 'analyze' : 'explain');
+
+        setPlanQuery(query);
+        setShowPlanModal(true);
+        setPlanLoading(true);
+        setPlanNote(null);
 
         try {
-            const response = await fetch(`${API_BASE}/api/query`, {
+            const response = await fetch(`${API_BASE}/api/db/explain`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: explainQuery }),
+                body: JSON.stringify({ query, mode: effectiveMode }),
             });
             const data = await response.json();
 
-            if (response.ok && data.data && data.data.length > 0) {
-                // DuckDB returns the JSON in the explain_value column
-                const firstRow = data.data[0];
-
-                // Be robust: Check explain_value first, fallback to first value if not object
-                let planString = firstRow.explain_value;
-
-                if (!planString) {
-                    // Fallback logic: Find the value that looks like JSON array/object
-                    const values = Object.values(firstRow);
-                    planString = values.find(v => typeof v === 'string' && (v.trim().startsWith('[') || v.trim().startsWith('{')));
-
-                    if (!planString && values.length > 0) {
-                        planString = values[0]; // Desperate default
-                    }
-                }
-
-                let parsedPlan = null;
-                try {
-                    parsedPlan = typeof planString === 'string' ? JSON.parse(planString) : planString;
-                } catch (e) {
-                    console.error("Failed to parse JSON plan:", e);
-                    const snippet = String(planString).substring(0, 100);
-                    console.error(`Failed to parse execution plan.\nError: ${e.message}\nValue: ${snippet}...`);
-                    return;
-                }
-
-                setPlanData(parsedPlan);
-                setPlanQuery(query);
-                setShowPlanModal(true);
+            if (response.ok && data.plan) {
+                setPlanData(data.plan);
+                setPlanMetrics(data.metrics || null);
+                setPlanMode(data.mode || effectiveMode);
+                setPlanNote(data.note || null);
             } else {
-                console.error("Analysis failed: " + (data.error || "No data returned"));
+                setPlanData(null);
+                setPlanMetrics(null);
+                setPlanNote(data.error || 'Could not generate the execution plan.');
             }
         } catch (err) {
-            console.error("Analysis error: " + err.message);
+            setPlanData(null);
+            setPlanMetrics(null);
+            setPlanNote('Analyze error: ' + err.message);
+        } finally {
+            setPlanLoading(false);
         }
     };
 
@@ -1058,6 +1052,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 onClose={() => setShowPlanModal(false)}
                 plan={planData}
                 query={planQuery}
+                mode={planMode}
+                metrics={planMetrics}
+                note={planNote}
+                loading={planLoading}
+                onSetMode={(m) => handleAnalyzeActive(m)}
             />
 
             <AlertDialog
