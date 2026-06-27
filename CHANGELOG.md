@@ -5,6 +5,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.3.0] — 2026-06-27
+
+### A real execution-plan viewer and a profiler that tells the story
+
+Two analysis tools got a major upgrade: the query plan now shows what actually happened (not just estimates) with optimization tips, and the data profile reads like a guided report instead of a wall of numbers.
+
+#### Query execution plan
+- **Estimated vs. Actual** toggle — *Actual* runs `EXPLAIN ANALYZE` to show **real per-operator timing and row counts** (read-only queries only).
+- **Readable tree** — friendly operator names ("Read CSV", "Group & aggregate", "Sort"), the slowest step highlighted, and estimate-vs-actual mismatches flagged.
+- **Metrics & phase breakdown** — total latency, rows, peak memory, bytes read, plus a Planning · Execution · I/O bar that reveals whether a query is compute- or I/O-bound.
+- **Cost view** (operators sorted by time) and a **Graph view** (the plan as a DAG).
+- **Optimization hints** — plain-language suggestions (stale-stats estimates, full scans, filter pushdown, expensive sorts, cross products, disk spills, I/O-bound reads).
+- **Optimize with AI** — hand the query and its plan to the assistant for tailored advice.
+
+#### Data profile — storytelling redesign
+- **Headline verdict** in plain language, a **scorecard** (rows, columns, completeness, duplicates, findings), and a ranked **findings** list with *why it matters* + a suggested action.
+- **Compact columns overview** with semantic types (Identifier, Number, Category, Date, Email…), distribution sparklines, missing-value bars, and click-to-expand detail.
+- **Plot** a column → opens a new editable chart with a purpose-built query (top values, histogram, or time series). **Narrate with AI**, and **export** the report as HTML or PDF.
+- **Richer detection** — real outlier counts, email-by-value typing, date range and gap detection, and candidate composite keys.
+
+#### Fixes
+- Toasts now have a close button and always auto-dismiss (the "unsaved draft" prompt no longer gets stuck).
+- The AI composer grows as you type and when a prompt is inserted for you.
+
+---
+
 ## [3.2.0] — 2026-06-26
 
 ### Snappier UI and a smarter SQL editor
