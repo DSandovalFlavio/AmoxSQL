@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v3.2.0)
+# AmoxSQL (v3.3.0)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -40,10 +40,13 @@ AmoxSQL está diseñado para velocidad, privacidad y una experiencia de desarrol
 
 <img src="./images/02_main_ide.png" alt="Main IDE" width="100%" />
 
-### ✨ Lo Nuevo (v3.0 → v3.2)
+### ✨ Lo Nuevo (v3.0 → v3.3)
 
 Mucho ha pasado desde el último release. Lo más reciente:
 
+* **🔬 v3.3 — Plan de Ejecución real + Profiling con storytelling**
+    * **Plan de ejecución real**: toggle **Estimado / Real** — el modo *Real* corre `EXPLAIN ANALYZE` y muestra **tiempo y filas reales por operador**, con nombres amigables, el paso más lento resaltado, desglose por fases (Planning · Execution · I/O), vistas **Cost** y **Graph (DAG)**, **pistas de optimización** en lenguaje natural y un botón **"Optimize with AI"**.
+    * **Profiling rediseñado (storytelling)**: un **veredicto** en lenguaje natural, scorecard, **hallazgos rankeados** con el porqué y una acción sugerida, overview de columnas con tipos semánticos + detalle on-demand, **Plot** (abre un gráfico nuevo editable con su propia query), **narración con IA** y **exportación HTML/PDF**. Detección más rica: outliers reales, email por valores, rango/huecos de fechas y claves candidatas compuestas.
 * **⚡ v3.2 — Rendimiento e Inteligencia del Editor**
     * **Interfaz instantánea**: cambio de panel/pestaña sin saltos, scroll fluido incluso con un gráfico a pantalla completa detrás (se eliminaron todos los efectos de desenfoque que costaban compositing) y panel de IA que abre sin tirones.
     * **Autocompletado más rápido y mejor rankeado**: las sugerencias se filtran y re-ordenan en el momento; las columnas y alias en contexto rankean por encima de keywords, recuerda tu última elección por prefijo, y prioriza columnas ya usadas en la sentencia (p. ej. una columna del `SELECT` repetida en `GROUP BY`).
@@ -149,11 +152,11 @@ Mucho ha pasado desde el último release. Lo más reciente:
 
 ### 🐛 Herramientas Avanzadas de Depuración y Profiling
 *   **CTE Debugger**: Step-through interactivo para Common Table Expressions.
-*   **Plan de Ejecución**: Visualización en árbol jerárquico con detección de cuellos de botella.
+*   **Plan de Ejecución (real)**: Toggle **Estimado / Real** — el modo *Real* corre `EXPLAIN ANALYZE` (tiempo y filas reales por operador). Árbol legible con nombres amigables, paso más lento resaltado, desglose por fases (Planning · Execution · I/O), vistas **Cost** y **Graph (DAG)**, **pistas de optimización** en lenguaje natural y **"Optimize with AI"**.
 
 <img src="./images/11_query_plan.png" alt="Query Plan" width="100%" />
 
-*   **Data Profiler V2**: EDA automatizado con histogramas, distribuciones, alertas de calidad y heatmap de correlación.
+*   **Data Profile (storytelling)**: Reporte EDA que **comunica** — un veredicto en lenguaje natural, scorecard, **hallazgos rankeados** (con el porqué + acción sugerida), overview de columnas con tipos semánticos y detalle on-demand, **Plot** a un gráfico nuevo editable, **narración con IA** y export **HTML/PDF**. Detecta outliers reales, emails por valor, rango/huecos de fechas y claves candidatas compuestas.
 
 <img src="./images/12_data_profiler.png" alt="Data Profiler" width="100%" />
 
@@ -173,12 +176,12 @@ Mucho ha pasado desde el último release. Lo más reciente:
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v3.2.0 — Rendimiento e Inteligencia del Editor
+### 🎉 v3.3.0 — Plan de Ejecución real + Profiling con storytelling
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v3.2.0](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v3.3.0](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).
