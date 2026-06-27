@@ -50,6 +50,13 @@ async function describeColumns(probeSql) {
     }
 }
 
+// Drop cached DESCRIBE results when the base schema changes — a CTE/subquery's columns can
+// shift if a referenced base table is (re)loaded with a different schema while the derived
+// SQL text (the cache key) stays the same.
+function clearDescribeCache() {
+    __describeCache.clear();
+}
+
 /**
  * Monaco Editor Color Palettes — hex equivalents of CSS design tokens.
  *
@@ -682,6 +689,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                                 if (workerBridgeRef.current) {
                                     workerBridgeRef.current.updateSchema(window.__amoxSqlSchemaCache);
                                 }
+                                clearDescribeCache();
                             }
                         })
                         .catch(err => console.warn('[Monaco] File schema fetch failed:', err));
@@ -718,6 +726,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                                 allColumns: Array.from(allColumns)
                             };
                             workerBridgeRef.current.updateSchema(window.__amoxSqlSchemaCache);
+                            clearDescribeCache();
 
                             // CRITICAL: Scan initial text for file references IMMEDIATELY
                             // so pre-filled queries (Direct Query, loaded files) have their
