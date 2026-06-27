@@ -1,6 +1,7 @@
 import { Parser as TreeSitter, Language } from 'web-tree-sitter';
 import {
     determineClause,
+    clauseFromText,
     extractTablesAndAliases,
     extractFileReferences,
     findEnclosingStatement,
@@ -188,7 +189,7 @@ function getCompletions(line, column, triggerChar) {
     
     // Find enclosing statement to restrict scope (e.g., this avoids leaking parent scope into subqueries)
     const statementNode = findEnclosingStatement(cursorNode);
-    const clause = determineClause(cursorNode, statementNode);
+    let clause = determineClause(cursorNode, statementNode);
     
     // Fallback manual regex for Dot access (AST often marks `table.` as ERROR node)
     const dotAlias = isDotAccess(cursorNode, { row, column: col }, currentText);
@@ -211,15 +212,25 @@ function getCompletions(line, column, triggerChar) {
     // into smaller nodes (e.g., 'statement' only covers 'SELECT col', not the FROM clause).
     // Instead, find the full SQL statement by scanning between semicolons.
     let searchText;
+    let stmtStart = 0;
     {
         const beforeCursor = currentText.substring(0, offset);
         const afterCursor = currentText.substring(offset);
         const lastSemi = beforeCursor.lastIndexOf(';');
         const nextSemi = afterCursor.indexOf(';');
-        const stmtStart = lastSemi >= 0 ? lastSemi + 1 : 0;
+        stmtStart = lastSemi >= 0 ? lastSemi + 1 : 0;
         const stmtEnd = nextSemi >= 0 ? offset + nextSemi + 1 : currentText.length;
         searchText = currentText.substring(stmtStart, stmtEnd).trim();
     }
+
+    // Robust clause fallback: tree-sitter's AST clause detection returns null on DuckDB file
+    // refs ('data.csv' parses as a string → ERROR node). Scan the statement text up to the
+    // cursor for the last clause keyword so e.g. GROUP BY is recognised (and functions aren't
+    // wrongly offered there).
+    if (!clause) {
+        clause = clauseFromText(currentText.substring(stmtStart, offset)) || 'SELECT';
+    }
+
     const fileRefs = extractFileReferences(searchText);
 
     // Merge file references into scope maps
@@ -262,6 +273,12 @@ function getCompletions(line, column, triggerChar) {
             });
         }
     }
+
+    // Statement-aware locality: tokens already present in this statement are likely what the
+    // user wants again (e.g. a SELECT column repeated in GROUP BY / ORDER BY / HAVING). We
+    // boost those to the top bucket below. The statement is short, so this scan is trivial —
+    // no need for Monaco's editor-worker localityBonus (which would block the main thread here).
+    const usedTokens = new Set((searchText.toLowerCase().match(/[a-z_][a-z0-9_]*/g) || []));
 
     // ====== FORMATTING UTILS ======
     function formatIdentifier(name) {
@@ -308,11 +325,11 @@ function getCompletions(line, column, triggerChar) {
         // Aliases
         Object.entries(aliasMap).forEach(([alias, table]) => {
             suggestions.push({
-                label: alias, 
+                label: alias,
                 kind: 4, // Variable
-                insertText: alias, 
-                detail: `Alias → ${table}`, 
-                sortText: '1_a_' + alias
+                insertText: alias,
+                detail: `Alias → ${table}`,
+                sortText: (usedTokens.has(alias.toLowerCase()) ? '0_used_' : '1_a_') + alias
             });
         });
 
@@ -337,7 +354,12 @@ function getCompletions(line, column, triggerChar) {
                                 kind: 3, // Field
                                 insertText: needsPrefix ? `${alias}.${formattedCol}` : formattedCol,
                                 detail: `${c.type || 'Column'} (${alias || table})`,
-                                sortText: '1_b_' + c.name
+                                // Filter by the bare column name even when the label carries an
+                                // alias prefix, so typing the column (not "alias.col") matches cleanly.
+                                filterText: c.name,
+                                // Boost columns already used in the statement (e.g. a SELECT column
+                                // typed again in GROUP BY/ORDER BY) — the "reads my mind" ranking.
+                                sortText: (usedTokens.has(c.name.toLowerCase()) ? '0_used_' : '1_b_') + c.name
                             });
                         }
                     });
@@ -374,7 +396,10 @@ function getCompletions(line, column, triggerChar) {
             kind: 14, // Constant (bypasses editor.suggest.showKeywords: false)
             insertText: kw + ' ',
             detail: 'Keyword',
-            sortText: '0_k_' + kw, // Contextual Keywords ALWAYS get top priority over fuzzy columns
+            // Keywords rank BELOW in-scope columns/aliases (bucket 1_): when you're actively
+            // typing an identifier the column you want wins the tie; fuzzy score still lets a
+            // clearly-typed keyword (e.g. "wh" -> WHERE) float to the top on its own merit.
+            sortText: '2_k_' + kw,
             filterText: kw + ' ' + kw.toLowerCase()
         });
     });

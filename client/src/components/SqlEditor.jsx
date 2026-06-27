@@ -4,6 +4,26 @@ import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 import { SqlWorkerBridge } from '../utils/sqlWorkerBridge';
 
+// Lazily fetch the DuckDB function catalog once and cache it on window (shared by the
+// completion provider and the hover provider). Idempotent — safe to call repeatedly;
+// the first call wins and later calls no-op even while the fetch is still in flight.
+function ensureDuckdbFunctionCatalog() {
+    if (window.__duckdbFunctionCatalog) return;
+    window.__duckdbFunctionCatalog = [];
+    fetch(`${API_BASE}/api/functions/catalog`)
+        .then(r => r.json())
+        .then(data => {
+            window.__duckdbFunctionCatalog = (data.functions || []).map(fn => ({
+                name: fn.function_name,
+                insert: fn.snippet || `${fn.function_name}()`,
+                detail: fn.category ? `${fn.category}${fn.documented ? '' : ' · auto'}` : (fn.function_type || 'Function'),
+                doc: fn.doc || fn.description || '',
+                type: fn.function_type ? fn.function_type.toLowerCase() : 'scalar'
+            }));
+        })
+        .catch(err => console.warn('[Monaco] Failed to load function catalog', err));
+}
+
 /**
  * Monaco Editor Color Palettes — hex equivalents of CSS design tokens.
  *
@@ -402,6 +422,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
         disposablesRef.current = [];
 
+        // Prefetch the DuckDB function catalog so the very first completion already has
+        // functions (otherwise the first keystroke of a session shows none until it loads).
+        ensureDuckdbFunctionCatalog();
+
         // Restore view state if we have it cached (on mount)
         if (props.tabId && globalViewStateCache.has(props.tabId)) {
             setTimeout(() => {
@@ -489,7 +513,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // 4b. Format Code (Ctrl+Shift+F) — secondary keybinding
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, formatSql);
 
-        // 4c. Format Code (Shift+Alt+F) — VS Code style shortcut
+        // 4c. Format Code (Shift+Alt+F)
         editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, formatSql);
 
         // Query History (Ctrl+Shift+H)
@@ -792,22 +816,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             });
 
 
-            // DuckDB Functions (lazy-loaded on main thread)
-            if (!window.__duckdbFunctionCatalog) {
-                window.__duckdbFunctionCatalog = [];
-                fetch(`${API_BASE}/api/functions/catalog`)
-                    .then(r => r.json())
-                    .then(data => {
-                        window.__duckdbFunctionCatalog = (data.functions || []).map(fn => ({
-                            name: fn.function_name,
-                            insert: fn.snippet || `${fn.function_name}()`,
-                            detail: fn.category ? `${fn.category}${fn.documented ? '' : ' · auto'}` : (fn.function_type || 'Function'),
-                            doc: fn.doc || fn.description || '',
-                            type: fn.function_type ? fn.function_type.toLowerCase() : 'scalar'
-                        }));
-                    })
-                    .catch(err => console.warn('[Monaco] Failed to load function catalog', err));
-            }
+            // DuckDB Functions — catalog is prefetched on mount; this is a lazy fallback.
+            ensureDuckdbFunctionCatalog();
             // Determine allowed function types based on AST context
             let allowedFunctionTypes = ['scalar', 'macro'];
             if (clause === 'SELECT' || clause === 'ORDER BY' || clause === 'WINDOW') {
@@ -857,7 +867,9 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 { name: 'env_var', insert: "{{ env_var('${1:ENV_VARIABLE}') }}", doc: 'Access an environment variable' },
                 { name: 'macro', insert: '{% macro ${1:macro_name}(${2:args}) %}\n    ${3:-- logic}\n{% endmacro %}', doc: 'Define a reusable Jinja macro' }
             ];
-            dbtItems.forEach(item => {
+            // Only surface dbt/Jinja helpers in templated files — they're noise in plain SQL.
+            const isDbtContext = fullText.includes('{{') || fullText.includes('{%');
+            if (isDbtContext) dbtItems.forEach(item => {
                 suggestions.push({
                     label: `dbt: ${item.name}`, kind: monaco.languages.CompletionItemKind.Snippet,
                     insertText: item.insert, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
@@ -866,7 +878,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 });
             });
 
-            return { suggestions, incomplete: true };
+            // Return a COMPLETE list for the current clause context. Within a clause the
+            // candidate set is stable (same tables/columns/keywords) — only the typed prefix
+            // changes — so Monaco re-filters and re-ranks IN PLACE with its fuzzy scorer on
+            // each keystroke, with no worker round-trip and no list rebuild. Real re-scoping
+            // (after '.' or moving to another clause/word) is re-triggered by the trigger
+            // characters below and by word boundaries closing the suggest session.
+            // (Was `incomplete: true`, which re-invoked this provider on every keystroke.)
+            return { suggestions };
         };
 
         // Register Completion Provider
@@ -1028,8 +1047,19 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 fixedOverflowWidgets: true,
                 suggestLineHeight: 32,
                 suggestFontSize: 13,
+                // Pre-select the item last chosen for this prefix (selection memory).
+                suggestSelection: 'recentlyUsedByPrefix',
+                // Explicit auto-trigger timing. strings:true because AmoxSQL
+                // completes file paths and dbt ref('…') inside quotes.
+                quickSuggestions: { other: true, comments: false, strings: true },
+                quickSuggestionsDelay: 10,
+                suggestOnTriggerCharacters: true,
                 suggest: {
                     showKeywords: false, // We provide our own contextual keywords
+                    // NOTE: localityBonus intentionally OFF. It needs the Monaco editor worker
+                    // to compute word ranges; this Vite/Electron build doesn't configure that
+                    // worker, so it falls back to a SYNCHRONOUS main-thread document scan on
+                    // every keystroke → input lag. Revisit only if the editor worker is wired up.
                 }
             }}
             onMount={handleEditorDidMount}
