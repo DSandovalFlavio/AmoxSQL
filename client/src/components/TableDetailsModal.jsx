@@ -52,7 +52,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
     const renderSchema = () => {
         if (!data) return null;
         return (
-            <div style={{ padding: '0', height: '100%', overflowY: 'auto' }}>
+            <div style={{ padding: '0', height: '100%', overflowY: 'auto', transform: 'translateZ(0)', contain: 'layout paint' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead style={{ position: 'sticky', top: 0, background: 'var(--header-bg)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                         <tr>
@@ -110,7 +110,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
 
         return (
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1, overflow: 'auto' }}>
+                <div style={{ flex: 1, overflow: 'auto', transform: 'translateZ(0)', contain: 'layout paint' }}>
                     <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--header-bg)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                             <tr>
@@ -168,7 +168,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
         );
 
         return (
-            <div style={{ height: '100%', overflowY: 'auto' }}>
+            <div style={{ height: '100%', overflowY: 'auto', transform: 'translateZ(0)', contain: 'layout paint' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <thead style={{ position: 'sticky', top: 0, background: 'var(--header-bg)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                         <tr>
@@ -236,9 +236,8 @@ const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000,
+            backgroundColor: 'rgba(0, 0, 0, 0.62)', zIndex: 2000,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backdropFilter: 'blur(8px)'
         }}>
             <div className="modal-panel" style={{
                 width: '90%', height: '90%',

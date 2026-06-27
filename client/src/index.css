@@ -469,7 +469,7 @@
   border-radius: var(--radius-lg);
   padding: 4px;
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(12px);
+
   z-index: 10000;
   animation: dropdown-in 0.12s ease-out;
 }
@@ -637,7 +637,7 @@
   padding: 4px;
   min-width: 200px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  backdrop-filter: blur(12px);
+
   animation: dropdown-in 0.12s ease-out;
 }
 .column-context-menu-item {
@@ -1871,6 +1871,10 @@ body {
   list-style: none;
   padding: 6px 0;
   margin: 0;
+  /* Own compositor layer so scrolling here doesn't repaint adjacent heavy
+     content (e.g. a large chart in the editor). Mirrors VS Code's listView. */
+  transform: translateZ(0);
+  contain: layout paint;
 }
 
 /* Linear-style sidebar items */
@@ -1961,7 +1965,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(4px);
+
 }
 .fe-move-modal {
   background: var(--surface-overlay);
@@ -2349,7 +2353,7 @@ body {
   z-index: 999;
   padding: 4px;
   min-width: 160px;
-  backdrop-filter: blur(12px);
+
   animation: dropdown-in 0.12s ease-out;
 }
 
@@ -3637,7 +3641,7 @@ tr:hover .rt-td {
   flex-direction: column;
   padding: 4px;
   min-width: 140px;
-  backdrop-filter: blur(12px);
+
 }
 
 .ctx-menu-item {
@@ -4707,6 +4711,8 @@ tr:hover .rt-td {
   flex: 1;
   overflow-y: auto;
   padding: 6px 0;
+  transform: translateZ(0);
+  contain: layout paint;
 }
 
 .ai-conv-group {
@@ -7901,6 +7907,8 @@ tr:hover .rt-td {
   flex: 1;
   overflow-y: auto;
   padding: 6px 0;
+  transform: translateZ(0);
+  contain: layout paint;
 }
 
 .db-loading {
@@ -9369,7 +9377,7 @@ tr:hover td {
   position: fixed;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+
   display: flex;
   justify-content: center;
   padding-top: 15vh;
@@ -9528,7 +9536,7 @@ tr:hover td {
 }
 
 .notebook-fullview-overlay .report-toolbar-actions button {
-  backdrop-filter: blur(8px);
+
 }
 
 /* ═══════════════════════════════════════════════
@@ -9598,12 +9606,11 @@ tr:hover td {
 .stg-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.62);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 2000;
-  backdrop-filter: blur(8px);
   animation: modal-overlay-in 0.18s ease-out;
 }
 
@@ -9780,6 +9787,10 @@ tr:hover td {
   padding: 24px;
   flex: 1;
   overflow-y: auto;
+  /* Own compositor layer — scrolling settings shouldn't repaint the heavy
+     content behind the modal (e.g. a large chart). */
+  transform: translateZ(0);
+  contain: layout paint;
 }
 
 /* ── Shared: Section & Row ── */
@@ -14035,7 +14046,7 @@ tr:hover td {
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  backdrop-filter: blur(2px);
+
 }
 
 .chain-preview-modal {
@@ -14298,7 +14309,7 @@ tr:hover td {
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  backdrop-filter: blur(2px);
+
 }
 
 .chain-template-modal {
@@ -15064,7 +15075,7 @@ tr:hover td {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  backdrop-filter: blur(4px);
+
   transition: background 0.15s ease;
 }
 
@@ -15547,7 +15558,7 @@ tr:hover td {
   position: fixed;
   inset: 0;
   background: color-mix(in oklch, var(--surface-base) 60%, transparent);
-  backdrop-filter: blur(6px);
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15813,7 +15824,7 @@ tr:hover td {
   position: fixed;
   inset: 0;
   background: color-mix(in oklch, var(--surface-base) 55%, transparent);
-  backdrop-filter: blur(8px);
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -16302,7 +16313,7 @@ tr:hover td {
   position: absolute; top: 100%; right: 0; z-index: 9999;
   background: var(--surface-overlay); border: 1px solid var(--border-default);
   border-radius: 10px; padding: 10px; min-width: 200px;
-  box-shadow: var(--shadow-lg); backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg);
   display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
 }
 .git-ignore-popover-title {
@@ -16339,13 +16350,13 @@ tr:hover td {
   position: fixed; z-index: 9999; min-width: 180px;
   background: var(--surface-overlay); border: 1px solid var(--border-default);
   border-radius: 8px; padding: 4px; box-shadow: var(--shadow-md);
-  backdrop-filter: blur(12px);
+
 }
 
 /* Diff Modal */
 .git-diff-overlay {
   position: fixed; inset: 0; z-index: 10000;
-  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.5);
   display: flex; align-items: center; justify-content: center;
 }
 .git-diff-modal {

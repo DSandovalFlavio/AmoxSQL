@@ -432,4 +432,4 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     );
 };
 
-export default DatabaseExplorer;
+export default memo(DatabaseExplorer);

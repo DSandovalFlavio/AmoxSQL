@@ -43,7 +43,7 @@ const ChainDataPreview = ({ tableName, onClose }) => {
                 backgroundColor: 'rgba(0,0,0,0.6)',
                 zIndex: 2000,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backdropFilter: 'blur(6px)',
+
             }}
             onClick={onClose}
         >

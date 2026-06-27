@@ -310,7 +310,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                             position: 'absolute', bottom: '12px', left: '12px',
                             background: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
                             borderRadius: '8px', padding: '10px 14px', fontSize: '11px',
-                            color: 'var(--text-primary)', backdropFilter: 'blur(12px)',
+                            color: 'var(--text-primary)',
                             boxShadow: 'var(--shadow-lg)', maxWidth: '300px', zIndex: 10,
                             pointerEvents: 'none',
                         }}>

@@ -60,9 +60,9 @@ const FilePreviewModal = ({ filePath, onClose }) => {
             role="dialog" aria-modal="true"
             style={{
                 position: 'fixed', inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
+                backgroundColor: 'rgba(0, 0, 0, 0.62)',
                 display: 'flex', justifyContent: 'center', alignItems: 'center',
-                zIndex: 1100, backdropFilter: 'blur(8px)',
+                zIndex: 1100,
             }}
             onClick={onClose}
         >
@@ -112,7 +112,7 @@ const FilePreviewModal = ({ filePath, onClose }) => {
                 </div>
 
                 {/* Content */}
-                <div style={{ flex: 1, overflow: 'auto' }}>
+                <div style={{ flex: 1, overflow: 'auto', transform: 'translateZ(0)', contain: 'layout paint' }}>
                     {loading && (
                         <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', gap: '10px' }}>
                             <LuEye size={20} style={{ opacity: 0.5 }} />

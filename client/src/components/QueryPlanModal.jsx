@@ -49,12 +49,12 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query }) => {
         <div className="modal-overlay" style={{
             position: 'fixed',
             top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0, 0, 0, 0.62)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             zIndex: 1000,
-            backdropFilter: 'blur(8px)'
+
         }}>
             <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)',

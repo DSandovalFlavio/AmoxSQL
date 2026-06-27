@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuPencil, LuCheck, LuEllipsisVertical } from 'react-icons/lu';
 
 import { API_BASE as API } from '../../api.js';
@@ -261,7 +261,7 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                         position: 'fixed', top: menu.y, left: menu.x,
                         backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
                         borderRadius: '8px', boxShadow: 'var(--shadow-md)', zIndex: 9999,
-                        minWidth: '170px', padding: '4px', backdropFilter: 'blur(12px)',
+                        minWidth: '170px', padding: '4px',
                     }}
                 >
                     <div className="context-menu-item" onClick={(e) => { startRename(e, menu.conv); setMenu(null); }}>
@@ -279,4 +279,4 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
     );
 };
 
-export default ConversationList;
+export default memo(ConversationList);

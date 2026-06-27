@@ -124,8 +124,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName, schema }) => {
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
-            backdropFilter: 'blur(8px)'
+            backgroundColor: 'rgba(0, 0, 0, 0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
         }} onClick={onClose}>
             <div className="modal-panel" style={{
                 backgroundColor: 'var(--surface-overlay)', width: '700px', maxHeight: '600px',
@@ -146,7 +145,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName, schema }) => {
                 </div>
 
                 {/* Content */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', transform: 'translateZ(0)', contain: 'layout paint' }}>
                     {loading && (
                         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                             <LuLoader size={24} className="spin" />

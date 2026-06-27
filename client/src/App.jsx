@@ -179,7 +179,9 @@ function App() {
       return saved ? JSON.parse(saved) : {};
     } catch { return {}; }
   });
-  const mergedEditorSettings = {
+  // Memoized so its identity is stable across re-renders — otherwise a new object
+  // every render would re-render every consumer (LayoutManager/editor) on each nav.
+  const mergedEditorSettings = useMemo(() => ({
     fontSize: 14,
     fontFamily: "'JetBrains Mono', 'Consolas', monospace",
     minimap: false,
@@ -203,7 +205,7 @@ function App() {
     queryResultLimit: 10000,
     autoSaveInterval: 0,
     ...editorSettings,
-  };
+  }), [editorSettings]);
 
   // Implement Auto-Save
   useEffect(() => {
@@ -500,6 +502,15 @@ function App() {
     if (appPhase !== PHASE.IDE || hasSeenTour('getting-started')) return;
     const t = setTimeout(() => openTour('getting-started'), 500);
     return () => clearTimeout(t);
+  }, [appPhase]);
+
+  // Warm heavy lazy modals during idle so their first open is instant (not a
+  // chunk download). Cheap, non-blocking — deferred to requestIdleCallback.
+  useEffect(() => {
+    if (appPhase !== PHASE.IDE) return;
+    const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 200));
+    const id = idle(() => { import('./components/SettingsModal'); });
+    return () => { (window.cancelIdleCallback || clearTimeout)(id); };
   }, [appPhase]);
 
   const startIdeSession = useCallback(async (dbPath, readOnly) => {
@@ -838,6 +849,37 @@ function App() {
     }
   };
 
+  // ── Stable callbacks for LayoutManager (avoid re-rendering the editor on nav) ──
+  const handleDbChange = useCallback(() => setRefreshDbTrigger(p => p + 1), []);
+  const handleRequestSaveAs = useCallback((content, tab) => {
+    setPendingSaveContent(content);
+    setPendingSaveTab(tab);
+    setIsSaveModalOpen(true);
+  }, []);
+  const handleQueryResultNoop = useCallback(() => {}, []);
+  const handleToggleAi = useCallback(() => setShowAiSidebar(v => !v), []);
+  const handleTabsChange = useCallback((tabData) => {
+    setTitleBarTabs(tabData);
+    const info = layoutRef.current?.getActiveTabInfo();
+    setActiveTabInfo(info || null);
+  }, []);
+  const handleShowHistorySidebar = useCallback(() => {
+    setSidebarCollapsed(false);
+    setActiveSidebarTab('history');
+  }, []);
+
+  // ── Stable callbacks for sidebar panels (so their memo() is effective on nav) ──
+  const handleCreateSqlTab = useCallback((sql) => layoutRef.current?.createNew('sql', sql), []);
+  const handleQueryFileTab = useCallback((path) => layoutRef.current?.handleQueryFile(path), []);
+  const handleEditChartTab = useCallback((path) => layoutRef.current?.handleEditChart(path), []);
+  const handleEditChartWithSqlTab = useCallback((path) => layoutRef.current?.handleEditChartWithSql(path), []);
+  const handleOpenQualityCheck = useCallback((t) => setQualityCheckTable(t), []);
+  const handleOpenErDiagram = useCallback((schema) => layoutRef.current?.createNew('er-diagram', schema), []);
+  const handleOpenDbtLineage = useCallback(() => layoutRef.current?.createNew('dbt-lineage'), []);
+  const handleVaultClose = useCallback(() => setActiveSidebarTab('files'), []);
+  const handleOpenDataDiving = useCallback((convId) => layoutRef.current?.openDataDiving(convId), []);
+  const handleNewDataDiving = useCallback(() => layoutRef.current?.openDataDiving(null), []);
+
   // --- Main Render Logic ---
 
   if (appPhase === PHASE.WELCOME) {
@@ -1031,10 +1073,10 @@ function App() {
                   onNewFile={handleNewFile}
                   onNewFolder={handleNewFolder}
                   onImportFile={handleImportRequest}
-                  onQueryFile={(path) => layoutRef.current?.handleQueryFile(path)}
-                  onPreviewFile={(path) => layoutRef.current?.handleQueryFile(path)}
-                  onEditChart={(path) => layoutRef.current?.handleEditChart(path)}
-                  onEditChartWithSql={(path) => layoutRef.current?.handleEditChartWithSql(path)}
+                  onQueryFile={handleQueryFileTab}
+                  onPreviewFile={handleQueryFileTab}
+                  onEditChart={handleEditChartTab}
+                  onEditChartWithSql={handleEditChartWithSqlTab}
                   refreshTrigger={fileRefreshTrigger}
                 />
               </div>
@@ -1046,9 +1088,9 @@ function App() {
                   currentDb={currentDb}
                   onRefresh={refreshDbTrigger}
                   onTablesLoaded={setAvailableTables}
-                  onSelectQuery={(query) => layoutRef.current?.createNew('sql', query)}
-                  onQualityCheck={(tableName) => setQualityCheckTable(tableName)}
-                  onOpenErDiagram={(schema) => layoutRef.current?.createNew('er-diagram', schema)}
+                  onSelectQuery={handleCreateSqlTab}
+                  onQualityCheck={handleOpenQualityCheck}
+                  onOpenErDiagram={handleOpenErDiagram}
                 />
               </div>
             )}
@@ -1062,19 +1104,19 @@ function App() {
 
             {visitedSidebarTabs.has('dbt') && (
               <div className={activeSidebarTab === 'dbt' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={() => layoutRef.current?.createNew('dbt-lineage')} />
+                <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={handleOpenDbtLineage} />
               </div>
             )}
 
             {visitedSidebarTabs.has('snippets') && (
               <div className={activeSidebarTab === 'snippets' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'snippets' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <SnippetsPanel onInsert={(sql) => layoutRef.current?.createNew('sql', sql)} />
+                <SnippetsPanel onInsert={handleCreateSqlTab} />
               </div>
             )}
 
             {visitedSidebarTabs.has('history') && (
               <div className={activeSidebarTab === 'history' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'history' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <QueryHistoryPanel onSelect={(sql) => layoutRef.current?.createNew('sql', sql)} />
+                <QueryHistoryPanel onSelect={handleCreateSqlTab} />
               </div>
             )}
 
@@ -1082,10 +1124,8 @@ function App() {
               <div className={activeSidebarTab === 'vault' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'vault' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>}>
                   <AnalysisVault
-                    onOpenInEditor={(sql) => {
-                      layoutRef.current?.createNew('sql', sql);
-                    }}
-                    onClose={() => setActiveSidebarTab('files')}
+                    onOpenInEditor={handleCreateSqlTab}
+                    onClose={handleVaultClose}
                   />
                 </Suspense>
               </div>
@@ -1101,8 +1141,8 @@ function App() {
                 <ConversationList
                   mode="diving"
                   activeId={null}
-                  onSelect={(convId) => layoutRef.current?.openDataDiving(convId)}
-                  onNew={() => layoutRef.current?.openDataDiving(null)}
+                  onSelect={handleOpenDataDiving}
+                  onNew={handleNewDataDiving}
                 />
               </div>
             )}
@@ -1238,28 +1278,16 @@ function App() {
                   theme={theme}
                   editorLayout={editorLayout}
                   editorSettings={mergedEditorSettings}
-                  onDbChange={() => setRefreshDbTrigger(p => p + 1)}
-                  onRequestSaveAs={(content, tab) => {
-                    setPendingSaveContent(content);
-                    setPendingSaveTab(tab);
-                    setIsSaveModalOpen(true);
-                  }}
-                  onQueryResult={() => {}}
+                  onDbChange={handleDbChange}
+                  onRequestSaveAs={handleRequestSaveAs}
+                  onQueryResult={handleQueryResultNoop}
                   showAiSidebar={showAiSidebar}
-                  onToggleAi={() => setShowAiSidebar(v => !v)}
-                  onTabsChange={(tabData) => {
-                    setTitleBarTabs(tabData);
-                    // Update active tab info for AI assistant
-                    const info = layoutRef.current?.getActiveTabInfo();
-                    setActiveTabInfo(info || null);
-                  }}
+                  onToggleAi={handleToggleAi}
+                  onTabsChange={handleTabsChange}
                   availableTables={availableTables}
                   onExportNotebook={handleExportNotebook}
                   onExportAmoxvis={handleExportAmoxvis}
-                  onShowHistorySidebar={() => {
-                    setSidebarCollapsed(false);
-                    setActiveSidebarTab('history');
-                  }}
+                  onShowHistorySidebar={handleShowHistorySidebar}
                 />
               </div>
 
@@ -1271,6 +1299,7 @@ function App() {
                 flexBasis: 'auto',
                 opacity: showAiSidebar ? 1 : 0,
                 overflow: 'hidden',
+                contain: 'layout paint',
                 transition: 'width 0.2s ease, opacity 0.2s ease',
                 pointerEvents: showAiSidebar ? 'auto' : 'none',
                 margin: showAiSidebar ? '6px 8px 6px 0' : '0',
@@ -1279,6 +1308,10 @@ function App() {
                 boxShadow: 'none',
                 position: 'relative',
               }}>
+                {/* Fixed-width, right-anchored inner: the panel is laid out once at
+                    aiPanelWidth and the outer clip "reveals" it as width animates, so its
+                    heavy content (chat/markdown) never reflows frame-by-frame on open. */}
+                <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${aiPanelWidth}px`, display: 'flex' }}>
                 <AiAssistantPanel
                   activeFilePath={activeTabInfo?.path || null}
                   activeFileType={activeTabInfo?.type || null}
@@ -1296,6 +1329,7 @@ function App() {
                     panelWidth={aiPanelWidth}
                     onOpenDataDiving={(convId) => layoutRef.current?.createNew('datadiving', convId)}
                   />
+                </div>
               </div>
             </div>
 
