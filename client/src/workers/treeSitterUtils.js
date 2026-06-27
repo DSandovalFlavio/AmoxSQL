@@ -50,8 +50,47 @@ export function determineClause(node, statementNode) {
         current = current.parent;
     }
     
-    // If we're inside the statement but not in a specific clause, default to root or select
-    return 'SELECT'; 
+    // No specific clause node found. Common when the AST has errors — notably DuckDB file
+    // refs (FROM 'data.csv') parse as a string literal and break the tree. Return null so
+    // the caller can fall back to the robust lexical scan below.
+    return null;
+}
+
+/**
+ * Robust, lexical clause detector — fallback for when the tree-sitter AST can't find a clause
+ * node (e.g. DuckDB file refs). Scans the statement text up to the cursor and returns the LAST
+ * top-level clause keyword, ignoring keywords inside string literals.
+ */
+export function clauseFromText(textUpToCursor) {
+    if (!textUpToCursor) return null;
+    // Blank out string literals so keywords inside file paths / values don't false-match.
+    const t = textUpToCursor
+        .replace(/'[^']*'/g, m => ' '.repeat(m.length))
+        .replace(/"[^"]*"/g, m => ' '.repeat(m.length))
+        .toUpperCase();
+    const MARKERS = [
+        ['QUALIFY', 'QUALIFY'],
+        ['WINDOW', 'WINDOW'],
+        ['HAVING', 'HAVING'],
+        ['GROUP\\s+BY', 'GROUP BY'],
+        ['ORDER\\s+BY', 'ORDER BY'],
+        ['LIMIT', 'LIMIT'],
+        ['WHERE', 'WHERE'],
+        ['ON', 'WHERE'],   // a JOIN's ON condition wants columns, like WHERE
+        ['JOIN', 'JOIN'],
+        ['FROM', 'FROM'],
+        ['SELECT', 'SELECT'],
+    ];
+    let best = null;
+    let bestPos = -1;
+    for (const [pat, name] of MARKERS) {
+        const re = new RegExp('\\b' + pat + '\\b', 'g');
+        let m;
+        let last = -1;
+        while ((m = re.exec(t)) !== null) last = m.index;
+        if (last > bestPos) { bestPos = last; best = name; }
+    }
+    return best;
 }
 
 /**
