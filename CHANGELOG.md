@@ -5,6 +5,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.2.0] — 2026-06-26
+
+### Snappier UI and a smarter SQL editor
+
+A performance and editor pass: the interface feels instant even with heavy charts open, and SQL completion is faster, better ranked, and understands more of your query.
+
+#### Performance
+- **Instant panel switching** — the editor and sidebar panels are memoized, so changing activity-bar tabs no longer re-renders the whole IDE.
+- **Smooth scrolling over heavy charts** — sidebar and modal scrollers get their own compositor layer; scrolling no longer repaints a fullscreen chart behind them.
+- **No more blur cost** — every backdrop blur was removed in favor of a (slightly darker) dim, eliminating compositing jank on modals and overlays.
+- **Fluid AI panel** — the assistant panel now opens by revealing a fixed-width layer instead of reflowing its content frame-by-frame.
+- **Steadier charts** — chart redraws are debounced during sidebar animations, and the fullscreen chart no longer forces an oversized GPU layer (fixes scrollbar stutter).
+
+#### SQL completion
+- **Faster and better ranked** — completions are filtered and re-ranked in place as you type (no per-keystroke round-trip), so the right item surfaces sooner.
+- **Context-aware ranking** — columns and aliases in scope rank above keywords; the item you used last for a prefix is pre-selected; columns already used in the statement are boosted (e.g. a `SELECT` column repeated in `GROUP BY`).
+- **Robust clause detection** — recognizes the clause even on DuckDB file-based queries (`FROM 'data.csv'`), so functions no longer leak into `GROUP BY`.
+- **CTE & subquery columns** — the editor now resolves the real output columns of CTEs and `FROM`-subqueries through the engine, including derived columns like `SELECT a + b AS total`.
+- **Less noise** — dbt/Jinja helpers only appear in templated files; the DuckDB function catalog is prefetched so the first suggestion is complete.
+
+---
+
 ## [3.1.0] — 2026-06-26
 
 ### Data Flow — new nodes, clearer organization, in-app docs, and studio identity
