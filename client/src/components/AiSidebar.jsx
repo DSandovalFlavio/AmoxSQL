@@ -552,6 +552,10 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const modelToUse = selectedModel === 'custom' ? customModel : selectedModel;
 
     // ─── Chat messages area (shared between sidebar and diving) ───
+    // Sin AI usable: provider local (ollama) por defecto y sin modelos instalados.
+    // Es el caso típico de quien nunca configuró AI ni tiene API key.
+    const noAiConfigured = provider === 'ollama' && !isModelsLoading && installedModels.length === 0;
+
     const chatMessages = (
         <>
             {messages.length === 0 && !isGenerating && (
@@ -566,17 +570,48 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                         Ask anything about your data.
                         {!isDiving && <><br /><span>Drop tables/files above for context.</span></>}
                     </div>
-                    <div className="ai-quick-actions">
-                        <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
-                            Show all tables
-                        </button>
-                        <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
-                            Describe schema
-                        </button>
-                        <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
-                            Sample data
-                        </button>
-                    </div>
+                    {noAiConfigured ? (
+                        <div style={{
+                            marginTop: 16, padding: '14px 16px', textAlign: 'left',
+                            background: 'var(--input-bg)', border: '1px solid var(--border-color)',
+                            borderRadius: 10, maxWidth: 320,
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13, color: 'var(--text-active)', marginBottom: 6 }}>
+                                <LuSparkles size={14} /> Sin AI configurada
+                            </div>
+                            <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                                No tienes Ollama ni una API key, pero igual puedes usar AI con cualquier chat externo
+                                (el que uses en tu trabajo):
+                            </p>
+                            <ol style={{ margin: '0 0 12px', paddingLeft: 18, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                <li>Descarga una <strong>Skill</strong> y súbela a tu chat de AI.</li>
+                                <li>Usa <strong>Export for AI</strong> (en resultados o en el explorador de archivos) para copiar el contexto de tus datos.</li>
+                                <li>Pégalo en el chat y pide queries o gráficos.</li>
+                            </ol>
+                            <button
+                                onClick={() => { if (onOpenSettings) onOpenSettings('ai'); }}
+                                style={{
+                                    width: '100%', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12.5, fontWeight: 600,
+                                    background: 'var(--accent-primary)', color: 'var(--button-text-color)', border: '1px solid var(--accent-primary)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                }}
+                            >
+                                <LuSparkles size={13} /> Descargar Skill en Configuración
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="ai-quick-actions">
+                            <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
+                                Show all tables
+                            </button>
+                            <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
+                                Describe schema
+                            </button>
+                            <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
+                                Sample data
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 

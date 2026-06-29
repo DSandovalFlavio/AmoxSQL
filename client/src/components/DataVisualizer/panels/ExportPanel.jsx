@@ -4,7 +4,7 @@
  * (SVG / Clipboard / PPTX llegan en la fase 6; por ahora PNG + .amoxvis.)
  */
 import { memo } from 'react';
-import { LuDownload, LuSave, LuUpload, LuCopy } from 'react-icons/lu';
+import { LuDownload, LuSave, LuUpload, LuCopy, LuClipboardPaste } from 'react-icons/lu';
 import { Section } from './shared';
 import { EXPORT_PRESETS } from '../constants';
 
@@ -18,7 +18,7 @@ const btnStyle = {
 
 const iconStyle = { marginRight: 6, verticalAlign: 'middle' };
 
-const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, chartRef }) => {
+const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, onPasteJson, chartRef }) => {
     return (
         <>
             <Section title="Clipboard">
@@ -52,6 +52,9 @@ const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, chartRef }
                 </button>
                 <button onClick={onLoadFile} style={btnStyle} className="dv-export-item">
                     <span><LuUpload size={12} style={iconStyle} />Load configuration</span>
+                </button>
+                <button onClick={onPasteJson} style={btnStyle} className="dv-export-item">
+                    <span><LuClipboardPaste size={12} style={iconStyle} />Paste JSON from AI</span>
                 </button>
             </Section>
         </>
