@@ -5,6 +5,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.4.0] — 2026-06-29
+
+### Use AI without an API key — through any external AI chat
+
+Don't have an API key or Ollama? Take AmoxSQL's analysis knowledge to whatever AI chat you already use at work, and bring queries and charts back in.
+
+#### Downloadable Skills
+- **AmoxSQL Data Skill** (DuckDB SQL analyst) and **AmoxSQL Data & Viz Skill** (also designs Story Flow charts) — download from **Settings → AI → Skills** and upload to any external AI chat.
+- The advanced skill knows every chart type and **recommends the best one** for your data; its chart-config reference is auto-derived from the app so it never drifts.
+
+#### Export for AI
+- New **"Export for AI"** action generates a context document (schema + data sample + optional statistical profile) ready to paste into an external chat.
+- Available from the **results toolbar** and the **File Explorer** context menu for CSV, TSV, JSON, Parquet and Excel files. **Excel** files show a sheet selector.
+
+#### Charts back into Story Flow
+- Story Flow gains **"Paste JSON from AI"** — paste an AI-generated chart configuration and it renders against your loaded data, with light validation of the referenced columns.
+
+#### Discovery
+- When no AI is configured, the AI sidebar now explains the downloadable-Skill workflow and links to it.
+
+---
+
 ## [3.3.0] — 2026-06-27
 
 ### A real execution-plan viewer and a profiler that tells the story
