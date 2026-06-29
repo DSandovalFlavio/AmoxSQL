@@ -1,7 +1,7 @@
 {
   "name": "amoxsql",
   "license": "SEE LICENSE IN LICENSE",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "The Modern Codex for Local Data Analysis",
   "author": {
     "name": "Flavio Sandoval",
@@ -53,6 +53,12 @@
       "client/dist/**/*",
       "!**/*.map",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "agent/skills",
+        "to": "builtin-skills"
+      }
     ],
     "directories": {
       "output": "dist"

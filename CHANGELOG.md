@@ -5,6 +5,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.4.1] — 2026-06-29
+
+### Built-in AI skills now ship with the app
+
+#### Fixes
+- **Starter skills are now bundled.** The 14 built-in analysis skills (EDA, data quality, SQL optimization, time series, cohort comparison, metric investigation, data storytelling, and the engineering/pipeline set) are now packaged with the installer and **available in every project out of the box** — no setup wizard required. Previously they only existed in the source repo and never reached an installed copy. Project-level skills in `agent/skills/` still override the built-ins by id.
+
+---
+
 ## [3.4.0] — 2026-06-29
 
 ### Use AI without an API key — through any external AI chat
