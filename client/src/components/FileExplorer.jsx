@@ -7,11 +7,12 @@ import {
     LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
     LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader, LuBrain,
     LuFileCode2, LuPackage, LuBot,
-    LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles
+    LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles, LuSparkles
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
 import FilePreviewModal from './FilePreviewModal';
+import ExportAiContextModal from './ExportAiContextModal';
 import GSheetsSection from './GSheetsSection';
 
 const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
@@ -66,6 +67,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
     // File Preview State
     const [previewFilePath, setPreviewFilePath] = useState(null);
+    const [aiContextFile, setAiContextFile] = useState(null); // { path, name } for Export for AI
 
     // Column Copy Loading State
     const [copyingColumns, setCopyingColumns] = useState(false);
@@ -899,6 +901,14 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             {copyingColumns ? <LuLoader size={14} className="spin" /> : <LuColumns3 size={14} />} {copyingColumns ? 'Reading...' : 'Copy Column Names'}
                         </div>
                     )}
+                    {contextMenu.file.name.match(/\.(csv|tsv|txt|json|parquet|xlsx|xls)$/i) && (
+                        <div
+                            onClick={() => { setAiContextFile({ path: contextMenu.file.path, name: contextMenu.file.name }); setContextMenu(null); }}
+                            className="context-menu-item"
+                        >
+                            <LuSparkles size={14} /> Export for AI...
+                        </div>
+                    )}
                     {contextMenu.file.name.endsWith('.amoxvis') && (
                         <>
                             <div onClick={() => onEditChart && onEditChart(contextMenu.file.path)} className="context-menu-item">
@@ -1005,6 +1015,12 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     onClose={() => setPreviewFilePath(null)}
                 />
             )}
+
+            <ExportAiContextModal
+                isOpen={!!aiContextFile}
+                onClose={() => setAiContextFile(null)}
+                fileRef={aiContextFile}
+            />
 
             {/* Move To... Modal */}
             {moveToModal && (

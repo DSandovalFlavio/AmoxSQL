@@ -3315,6 +3315,112 @@ app.post('/api/export-data', async (req, res) => {
 
 // (Removed duplicate `/api/db/tables` endpoint from here to avoid conflicts)
 
+/* --- AI Context Export --- */
+
+/**
+ * POST /api/ai/export-context
+ * Generates an AI-ready context document (Markdown) from a DuckDB query result.
+ * Body: { query, sampleRows?, includeProfile? }
+ * Returns: { markdown, rowCount, columnCount, estimatedBytes }
+ */
+app.post('/api/ai/export-context', async (req, res) => {
+    const { query, sampleRows = 20, includeProfile = false } = req.body;
+    if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'query is required' });
+    }
+
+    const cleanQuery = query.trim().replace(/;+$/, '');
+    const clampedRows = Math.min(Math.max(Number(sampleRows) || 20, 1), 500);
+
+    try {
+        // 1. Schema via DESCRIBE
+        const descRows = await dbManager.systemQuery(`DESCRIBE (${cleanQuery})`);
+        const columns = descRows.map(r => ({ name: r.column_name, type: r.column_type }));
+
+        // 2. Row count
+        const countResult = await dbManager.systemQuery(
+            `SELECT COUNT(*) AS cnt FROM (${cleanQuery}) t`
+        );
+        const rowCount = Number(countResult[0]?.cnt ?? 0);
+
+        // 3. Sample rows
+        const sampleResult = await dbManager.query(
+            `SELECT * FROM (${cleanQuery}) LIMIT ${clampedRows}`
+        );
+
+        // 4. Optional rich profile
+        let profileSection = '';
+        if (includeProfile) {
+            const { profileTable } = require('./ai/profiling');
+            const profile = await profileTable(dbManager, `(${cleanQuery})`);
+            const profileLines = profile.columns.map(col => {
+                const parts = [`  - **${col.name}** (${col.type})`];
+                if (col.nulls_pct !== null) parts.push(`nulls ${col.nulls_pct}%`);
+                if (col.unique_approx !== null) parts.push(`~${col.unique_approx} únicos`);
+                if (col.min !== undefined && col.min !== null) parts.push(`min ${col.min}`);
+                if (col.max !== undefined && col.max !== null) parts.push(`max ${col.max}`);
+                if (col.avg !== undefined && col.avg !== null) parts.push(`avg ${col.avg}`);
+                if (col.top_values && col.top_values.length > 0) {
+                    const tops = col.top_values.map(v => `"${v.val}"(${v.count})`).join(', ');
+                    parts.push(`top: [${tops}]`);
+                }
+                return parts.join(' — ');
+            });
+            profileSection = `\n## Perfil estadístico\n${profileLines.join('\n')}\n`;
+        }
+
+        // 5. Build Markdown
+        const schemaLines = columns.map(c => `- \`${c.name}\` : ${c.type}`).join('\n');
+
+        // Build sample table
+        const colNames = columns.map(c => c.name);
+        const tableHeader = '| ' + colNames.join(' | ') + ' |';
+        const tableSep = '| ' + colNames.map(() => '---').join(' | ') + ' |';
+        const tableRows = sampleResult.slice(0, clampedRows).map(row => {
+            const cells = colNames.map(c => {
+                const v = row[c];
+                if (v === null || v === undefined) return '';
+                const s = String(v);
+                return s.length > 80 ? s.slice(0, 77) + '...' : s;
+            });
+            return '| ' + cells.join(' | ') + ' |';
+        });
+        const sampleTable = [tableHeader, tableSep, ...tableRows].join('\n');
+
+        const markdown = `# Contexto de datos — AmoxSQL Data Skill
+
+**Motor:** DuckDB (sintaxis SQL DuckDB). Los datos son locales.
+**Filas totales:** ${rowCount.toLocaleString()}
+**Columnas:** ${columns.length}
+
+**Query de origen:**
+\`\`\`sql
+${cleanQuery}
+\`\`\`
+
+## Schema
+
+${schemaLines}
+${profileSection}
+## Muestra (${sampleResult.length} de ${rowCount.toLocaleString()} filas)
+
+${sampleTable}
+
+---
+> Utiliza esta información para responder preguntas sobre los datos.
+> Devuelve SQL ejecutable en DuckDB (bloques \`\`\`sql\`\`\`) y/o JSON de configuración de gráfico (bloques \`\`\`json\`\`\`).
+> Usa exactamente los nombres de columna del schema anterior.
+`;
+
+        const estimatedBytes = Buffer.byteLength(markdown, 'utf8');
+        res.json({ markdown, rowCount, columnCount: columns.length, estimatedBytes });
+
+    } catch (err) {
+        console.error('[export-context]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 /* --- dbt Integration API --- */
 
 // GET /api/dbt/manifest — Read target/manifest.json from project root

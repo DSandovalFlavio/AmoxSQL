@@ -505,6 +505,76 @@ const LEGACY_TAB_MAP = {
     gallery:      { tab: 'appearance', sub: null },
 };
 
+// ─── External Skills Downloader ───────────────────────────────────────────────
+
+function ExternalSkillsSection() {
+    const downloadSkill = async (type) => {
+        // Lazy-import so the module (and its constants.js dep) only loads when needed
+        const { buildBasicSkill, buildAdvancedSkill } = await import('../skills/externalSkillTemplates.js');
+        const content = type === 'basic' ? buildBasicSkill() : buildAdvancedSkill();
+        const filename = type === 'basic' ? 'amoxsql-data-skill.md' : 'amoxsql-data-viz-skill.md';
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div style={{ marginTop: 28 }}>
+            <h3 className="stg-section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <LuSparkles size={14} /> External AI Skills
+            </h3>
+            <p className="stg-row-desc stg-row-desc--mb14">
+                Don't have API access or can't install Ollama? Upload one of these Skill files to any AI chat assistant you use at work. The skill teaches it to write DuckDB SQL and{' '}
+                — in the advanced version — to generate Story Flow chart configurations.
+            </p>
+            <p className="stg-row-desc stg-row-desc--mb14">
+                <strong>How to use:</strong> Download a Skill → upload it to your AI chat as a custom instruction or system prompt → use <em>Export for AI</em> in the results toolbar to copy your data context → paste it in the chat and ask questions.
+            </p>
+            <div className="stg-cloud-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginTop: 8 }}>
+                <div className="stg-card">
+                    <div className="stg-card-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <LuBrain size={13} /> AmoxSQL Data Skill
+                    </div>
+                    <p className="stg-card-desc" style={{ marginTop: 4 }}>
+                        DuckDB SQL expert. Responds with executable queries and insight summaries.
+                        Ideal for users who only need SQL answers.
+                    </p>
+                    <button
+                        className="stg-btn stg-btn--primary"
+                        style={{ marginTop: 10, width: '100%' }}
+                        onClick={() => downloadSkill('basic')}
+                    >
+                        <LuDownload size={12} style={{ marginRight: 6 }} />
+                        Download amoxsql-data-skill.md
+                    </button>
+                </div>
+                <div className="stg-card">
+                    <div className="stg-card-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <LuSparkles size={13} /> AmoxSQL Data &amp; Viz Skill
+                    </div>
+                    <p className="stg-card-desc" style={{ marginTop: 4 }}>
+                        SQL expert + Story Flow chart designer. Responds with SQL <em>and</em> a chart configuration JSON you can paste directly into Story Flow.
+                    </p>
+                    <button
+                        className="stg-btn stg-btn--primary"
+                        style={{ marginTop: 10, width: '100%' }}
+                        onClick={() => downloadSkill('advanced')}
+                    >
+                        <LuDownload size={12} style={{ marginRight: 6 }} />
+                        Download amoxsql-data-viz-skill.md
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Settings Modal ───────────────────────────────────────────────────────────
+
 const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentInterfaceFont = 'manrope', onInterfaceFontChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
     const [editorSubTab, setEditorSubTab]   = useState('general');
@@ -2112,6 +2182,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                     </p>
                                     <SkillsPanel />
                                 </div>
+                                <ExternalSkillsSection />
                                 </div>}
                             </div>
                         )}

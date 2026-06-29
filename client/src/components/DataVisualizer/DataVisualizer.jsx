@@ -17,7 +17,7 @@
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -35,6 +35,7 @@ import FormatPanel from './panels/FormatPanel';
 import ThemePanel from './panels/ThemePanel';
 import StoryPanel from './panels/StoryPanel';
 import ExportPanel from './panels/ExportPanel';
+import PasteJsonModal from './panels/PasteJsonModal';
 
 // Renderers & Overlays
 import ChartRenderer from './renderers/ChartRenderer';
@@ -65,6 +66,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
+    const [isPasteJsonOpen, setIsPasteJsonOpen] = useState(false);
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showGuide, setShowGuide] = useState(false);
 
@@ -367,6 +369,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 onOpenSave={() => setIsSaveModalOpen(true)}
                                 onLoadFile={() => fileInputRef.current.click()}
                                 onCopy={handleCopy}
+                                onPasteJson={() => setIsPasteJsonOpen(true)}
                                 chartRef={chartRef}
                             />
                         )}
@@ -512,6 +515,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                     </div>
                 </div>
             )}
+
+            <PasteJsonModal
+                isOpen={isPasteJsonOpen}
+                onClose={() => setIsPasteJsonOpen(false)}
+                onApply={(cfg) => { loadConfig(cfg); setAlertData({ isOpen: true, title: 'Config aplicada', type: 'success', message: 'La configuración del gráfico se aplicó correctamente.' }); }}
+                columns={columns}
+            />
 
             <AlertDialog
                 isOpen={alertData.isOpen}
