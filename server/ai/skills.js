@@ -21,10 +21,10 @@ function parseFrontMatter(content) {
 }
 
 /**
- * Load all skills from the project's agent/skills/ directory.
+ * Read and parse every skill in a directory.
  * Supports two formats:
- *   - Flat:   agent/skills/<id>.md
- *   - Folder: agent/skills/<id>/SKILL.md  (Anthropic Skills canon format)
+ *   - Flat:   <dir>/<id>.md
+ *   - Folder: <dir>/<id>/SKILL.md  (Anthropic Skills canon format)
  *
  * Frontmatter fields:
  *   name        — display name
@@ -32,73 +32,123 @@ function parseFrontMatter(content) {
  *   keywords    — comma-separated keywords for auto-activation scoring
  *   next        — comma-separated skill IDs to suggest after this one completes
  */
-async function loadSkills(projectPath) {
-    if (!projectPath) return [];
+async function readSkillsDir(skillsDir, builtin = false) {
+    if (!fs.existsSync(skillsDir)) return [];
 
-    const skillsDir = path.join(projectPath, 'agent', 'skills');
+    const entries = await fs.promises.readdir(skillsDir, { withFileTypes: true });
+    const skills = [];
 
-    try {
-        if (!fs.existsSync(skillsDir)) return [];
+    for (const entry of entries) {
+        try {
+            let raw, id, fileName;
 
-        const dirStat = await fs.promises.stat(skillsDir);
-        const cached = cache.get(projectPath);
-        if (cached && cached.mtime >= dirStat.mtimeMs) {
-            return cached.skills;
-        }
-
-        const entries = await fs.promises.readdir(skillsDir, { withFileTypes: true });
-        const skills = [];
-
-        for (const entry of entries) {
-            try {
-                let raw, id, fileName;
-
-                if (entry.isDirectory()) {
-                    // Folder format: agent/skills/<id>/SKILL.md
-                    const skillFile = path.join(skillsDir, entry.name, 'SKILL.md');
-                    if (!fs.existsSync(skillFile)) continue;
-                    raw = await fs.promises.readFile(skillFile, 'utf8');
-                    id = entry.name;
-                    fileName = `${entry.name}/SKILL.md`;
-                } else if (entry.name.endsWith('.md')) {
-                    // Flat format: agent/skills/<id>.md
-                    const filePath = path.join(skillsDir, entry.name);
-                    raw = await fs.promises.readFile(filePath, 'utf8');
-                    id = entry.name.replace(/\.md$/, '');
-                    fileName = entry.name;
-                } else {
-                    continue;
-                }
-
-                const { meta, body } = parseFrontMatter(raw);
-                skills.push({
-                    id,
-                    name: meta.name || id,
-                    description: meta.description || '',
-                    // Scope groups skills by use-case: 'analysis' (SQL/notebook, the default)
-                    // or 'engineering' (Chains data-pipeline building). Lets the UI surface
-                    // the right set per editor.
-                    scope: (meta.scope || 'analysis').toLowerCase(),
-                    keywords: meta.keywords
-                        ? meta.keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
-                        : [],
-                    next: meta.next
-                        ? meta.next.split(',').map(k => k.trim()).filter(Boolean)
-                        : [],
-                    content: body,
-                    fileName,
-                });
-            } catch (err) {
-                console.warn(`[AI Skills] Error reading skill ${entry.name}:`, err.message);
+            if (entry.isDirectory()) {
+                // Folder format: <dir>/<id>/SKILL.md
+                const skillFile = path.join(skillsDir, entry.name, 'SKILL.md');
+                if (!fs.existsSync(skillFile)) continue;
+                raw = await fs.promises.readFile(skillFile, 'utf8');
+                id = entry.name;
+                fileName = `${entry.name}/SKILL.md`;
+            } else if (entry.name.endsWith('.md')) {
+                // Flat format: <dir>/<id>.md
+                const filePath = path.join(skillsDir, entry.name);
+                raw = await fs.promises.readFile(filePath, 'utf8');
+                id = entry.name.replace(/\.md$/, '');
+                fileName = entry.name;
+            } else {
+                continue;
             }
-        }
 
-        cache.set(projectPath, { skills, mtime: dirStat.mtimeMs });
-        return skills;
-    } catch (err) {
-        console.warn('[AI Skills] Error loading skills:', err.message);
-        return [];
+            const { meta, body } = parseFrontMatter(raw);
+            skills.push({
+                id,
+                name: meta.name || id,
+                description: meta.description || '',
+                // Scope groups skills by use-case: 'analysis' (SQL/notebook, the default)
+                // or 'engineering' (Chains data-pipeline building). Lets the UI surface
+                // the right set per editor.
+                scope: (meta.scope || 'analysis').toLowerCase(),
+                keywords: meta.keywords
+                    ? meta.keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
+                    : [],
+                next: meta.next
+                    ? meta.next.split(',').map(k => k.trim()).filter(Boolean)
+                    : [],
+                content: body,
+                fileName,
+                builtin,
+            });
+        } catch (err) {
+            console.warn(`[AI Skills] Error reading skill ${entry.name}:`, err.message);
+        }
     }
+
+    return skills;
+}
+
+/**
+ * Resolve the directory that ships the built-in starter skills.
+ *   - Packaged app: <resources>/builtin-skills  (via electron-builder extraResources)
+ *   - Dev:          <repo root>/agent/skills
+ */
+function getBuiltinSkillsDir() {
+    if (process.resourcesPath) {
+        const packaged = path.join(process.resourcesPath, 'builtin-skills');
+        if (fs.existsSync(packaged)) return packaged;
+    }
+    // Dev fallback: skills.js lives in server/ai/, repo root is two levels up.
+    return path.join(__dirname, '..', '..', 'agent', 'skills');
+}
+
+let builtinCache = null;
+
+/**
+ * Load the built-in starter skills that ship with AmoxSQL. Cached for the
+ * process lifetime (they don't change at runtime).
+ */
+async function loadBuiltinSkills() {
+    if (builtinCache) return builtinCache;
+    try {
+        builtinCache = await readSkillsDir(getBuiltinSkillsDir(), true);
+    } catch (err) {
+        console.warn('[AI Skills] Error loading built-in skills:', err.message);
+        builtinCache = [];
+    }
+    return builtinCache;
+}
+
+/**
+ * Load all skills available for a project: the built-in starter set plus any
+ * skills in the project's own agent/skills/ directory. Project skills override
+ * built-ins with the same id.
+ */
+async function loadSkills(projectPath) {
+    const builtins = await loadBuiltinSkills();
+
+    let projectSkills = [];
+    if (projectPath) {
+        const skillsDir = path.join(projectPath, 'agent', 'skills');
+        try {
+            if (fs.existsSync(skillsDir)) {
+                const dirStat = await fs.promises.stat(skillsDir);
+                const cached = cache.get(projectPath);
+                if (cached && cached.mtime >= dirStat.mtimeMs) {
+                    projectSkills = cached.skills;
+                } else {
+                    projectSkills = await readSkillsDir(skillsDir, false);
+                    cache.set(projectPath, { skills: projectSkills, mtime: dirStat.mtimeMs });
+                }
+            }
+        } catch (err) {
+            console.warn('[AI Skills] Error loading project skills:', err.message);
+        }
+    }
+
+    // Merge: built-ins first, project skills override by id.
+    const byId = new Map();
+    for (const s of builtins) byId.set(s.id, s);
+    for (const s of projectSkills) byId.set(s.id, s);
+    return Array.from(byId.values());
 }
 
 /**
@@ -163,4 +213,4 @@ function invalidateCache(projectPath) {
     cache.delete(projectPath);
 }
 
-module.exports = { loadSkills, getSkill, matchSkillByIntent, invalidateCache };
+module.exports = { loadSkills, loadBuiltinSkills, getSkill, matchSkillByIntent, invalidateCache };

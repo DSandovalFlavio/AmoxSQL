@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 **AmoxSQL** is a desktop SQL IDE for local data analysis, built with Electron + React + Express + DuckDB.
-- **Version**: 3.3.0
+- **Version**: 3.4.1
 - **Author**: Flavio Sandoval (@dsandovalflavio)
 - **License**: AmoxSQL Community License (Source Available)
 - **Tagline**: "The Modern Codex for Local Data Analysis"
