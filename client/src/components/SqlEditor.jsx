@@ -954,22 +954,31 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             return { suggestions };
         };
 
-        // Register Completion Provider
+        // Register Completion Provider — GLOBAL and app-lifetime. Monaco invokes
+        // one provider for EVERY 'sql' model (each notebook cell is its own
+        // editor+worker), so the provider must route each request to the editor
+        // instance that owns that model: its worker holds THAT document's AST.
+        // Binding it to a single instance's ref (previous design) sent every
+        // other cell's completions to the wrong worker — cursor position from
+        // cell B against cell A's text → out-of-bounds → a console error per
+        // keystroke. The resolver map routes by model URI instead.
+        if (!window.__amoxSqlCompletionResolvers) {
+            window.__amoxSqlCompletionResolvers = new Map();
+        }
         if (!window.__monacoSqlProviderRegistered) {
             window.__monacoSqlProviderRegistered = true;
 
-            const providerDisposable = monaco.languages.registerCompletionItemProvider('sql', {
+            // Intentionally NOT tied to any component's disposables: it lives for
+            // the app's lifetime and routes via the resolver map. (Previously the
+            // first-mounted editor owned it, and unmounting that editor killed
+            // autocomplete for the whole app.)
+            monaco.languages.registerCompletionItemProvider('sql', {
                 triggerCharacters: ['.', '/', "'", '"', '{'],
                 provideCompletionItems: (model, position, context, token) => {
-                    if (completionProviderRef.current) {
-                        return completionProviderRef.current(model, position, token);
-                    }
-                    return { suggestions: [] };
+                    const resolver = window.__amoxSqlCompletionResolvers.get(model.uri.toString());
+                    return resolver ? resolver(model, position, token) : { suggestions: [] };
                 }
             });
-
-            // Store the provider disposable for cleanup
-            disposablesRef.current.push(providerDisposable);
 
             // --- HOVER PROVIDER: DuckDB Function Documentation ---
             // Build lookup lazily from same catalog used by autocomplete
@@ -1021,18 +1030,34 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     };
                 }
             });
-            disposablesRef.current.push(hoverDisposable);
+            // App-lifetime like the completion provider — not tied to this
+            // instance's disposables (hover reads a global function catalog,
+            // it does not depend on any particular editor).
+            void hoverDisposable;
+        }
+
+        // Route this editor's model to THIS instance's resolver (and worker).
+        const ownModelUri = editor.getModel()?.uri.toString();
+        if (ownModelUri) {
+            window.__amoxSqlCompletionResolvers.set(ownModelUri, (model, position, token) => (
+                completionProviderRef.current
+                    ? completionProviderRef.current(model, position, token)
+                    : { suggestions: [] }
+            ));
+            disposablesRef.current.push({
+                dispose: () => window.__amoxSqlCompletionResolvers.delete(ownModelUri),
+            });
         }
     };
 
-    // Cleanup on unmount
+    // Cleanup on unmount. The global completion/hover providers are app-lifetime
+    // (they route via the resolver map), so there is no flag reset here — this
+    // instance only removes its own resolver entry (pushed as a disposable) and
+    // its worker.
     useEffect(() => {
         return () => {
             disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
             if (workerBridgeRef.current) workerBridgeRef.current.dispose();
-            
-            // Reset the global flag so completion provider can be re-registered by a new instance
-            window.__monacoSqlProviderRegistered = false;
         };
     }, []);
 
