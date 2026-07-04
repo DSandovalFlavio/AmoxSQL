@@ -2758,11 +2758,26 @@ app.get('/api/files', (req, res) => {
 
 app.get('/api/file', (req, res) => {
     const filePath = req.query.path;
+    const binary = req.query.binary === '1' || req.query.binary === 'true';
     if (!filePath) return res.status(400).json({ error: 'Path is required' });
 
     let fullPath = filePath;
     if (!path.isAbsolute(filePath)) {
         fullPath = path.join(ROOT_DIR, filePath);
+    }
+
+    if (binary) {
+        // Base64 reads are confined to the project root — this mode returns raw
+        // bytes and must not become an arbitrary-file-read primitive.
+        const resolvedRoot = path.resolve(ROOT_DIR);
+        const resolvedPath = path.resolve(fullPath);
+        if (!resolvedPath.replace(/\\/g, '/').startsWith(resolvedRoot.replace(/\\/g, '/'))) {
+            return res.status(400).json({ error: 'Path must be within the project directory.' });
+        }
+        return fs.readFile(resolvedPath, (err, data) => {
+            if (err) return res.status(500).json({ error: 'Failed to read file', details: err.message });
+            res.json({ contentBase64: data.toString('base64') });
+        });
     }
 
     fs.readFile(fullPath, 'utf8', (err, data) => {
@@ -2984,6 +2999,43 @@ app.get('/api/folders', (req, res) => {
         const folders = getDirectories(ROOT_DIR);
         folders.unshift({ name: 'Root', path: '' });
         res.json(folders);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/** Recursively collects files whose name ends with `ext` under srcPath, same node_modules/.git skip as getDirectories(). */
+const findFilesByExtension = (srcPath, ext) => {
+    let matches = [];
+    let items;
+    try {
+        items = fs.readdirSync(srcPath, { withFileTypes: true });
+    } catch (err) {
+        return matches;
+    }
+    for (const item of items) {
+        const itemFullPath = path.join(srcPath, item.name);
+        if (item.isDirectory()) {
+            if (item.name === 'node_modules' || item.name === '.git') continue;
+            matches = matches.concat(findFilesByExtension(itemFullPath, ext));
+        } else if (item.name.toLowerCase().endsWith(ext)) {
+            const relativePath = path.relative(ROOT_DIR, itemFullPath).replace(/\\/g, '/');
+            matches.push({ name: item.name, path: relativePath });
+        }
+    }
+    return matches;
+};
+
+// Always walks from ROOT_DIR (no user-supplied path segment), so there is no
+// path-traversal surface here — same trust boundary as GET /api/folders.
+app.get('/api/files/find-by-extension', (req, res) => {
+    const ext = String(req.query.ext || '').toLowerCase();
+    if (!/^\.[a-z0-9]+$/.test(ext)) {
+        return res.status(400).json({ error: 'ext must look like ".ext" (letters/digits only)' });
+    }
+    try {
+        const files = findFilesByExtension(ROOT_DIR, ext);
+        res.json(files);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -3314,6 +3366,36 @@ app.post('/api/export-data', async (req, res) => {
 });
 
 // (Removed duplicate `/api/db/tables` endpoint from here to avoid conflicts)
+
+/* --- Binary asset write (e.g. pasted images in the Markdown editor) --- */
+
+/**
+ * POST /api/files/write-binary
+ * Writes a base64-encoded binary file inside the project root.
+ * Body: { path, dataBase64 }  → path is project-relative (e.g. "assets/img.png")
+ * Returns: { success, path }
+ */
+app.post('/api/files/write-binary', async (req, res) => {
+    const { path: relPath, dataBase64 } = req.body;
+    if (!relPath || !dataBase64) {
+        return res.status(400).json({ error: 'path and dataBase64 are required' });
+    }
+    // Confine the resolved path to the project root (prevents path traversal).
+    const resolvedRoot = path.resolve(ROOT_DIR);
+    const fullPath = path.resolve(path.join(ROOT_DIR, relPath));
+    if (!fullPath.replace(/\\/g, '/').startsWith(resolvedRoot.replace(/\\/g, '/'))) {
+        return res.status(400).json({ error: 'Path must be within the project directory.' });
+    }
+    try {
+        const b64 = dataBase64.replace(/^data:[^;]+;base64,/, '');
+        await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.promises.writeFile(fullPath, Buffer.from(b64, 'base64'));
+        res.json({ success: true, path: relPath.replace(/\\/g, '/') });
+    } catch (err) {
+        console.error('[write-binary]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 /* --- AI Context Export --- */
 

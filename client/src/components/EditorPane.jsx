@@ -10,6 +10,7 @@ import ErDiagram from './ErDiagram';
 import DbtLineageGraph from './DbtLineageGraph';
 import AmoxvisPane from './AmoxvisPane';
 import MarkdownEditor from './MarkdownEditor';
+import DeckEditor from './deck/DeckEditor';
 
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
@@ -294,6 +295,7 @@ const EditorPane = ({
     const isDataDiving = activeTab.type === 'datadiving';
     const isAmoxvis = activeTab.type === 'amoxvis';
     const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
+    const isDeck = activeTab.type === 'amoxdeck' || activeTab.name?.endsWith('.amoxdeck');
 
     // Track last edit time on content change
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -445,6 +447,22 @@ const EditorPane = ({
                             />
                         </Suspense>
                     </div>
+                ) : isDeck ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <DeckEditor
+                            key={activeTab.id}
+                            content={activeTab.content}
+                            onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                            onSave={onSave}
+                            onRequestSaveAs={onRequestSaveAs}
+                            theme={theme}
+                            editorSettings={editorSettings}
+                            onToggleAi={onToggleAi}
+                            showAiSidebar={showAiSidebar}
+                            isActive={isActive}
+                            onOpenFile={onOpenFile}
+                        />
+                    </div>
                 ) : isMarkdown ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <MarkdownEditor
@@ -458,6 +476,7 @@ const EditorPane = ({
                             onToggleAi={onToggleAi}
                             showAiSidebar={showAiSidebar}
                             isActive={isActive}
+                            onOpenFile={onOpenFile}
                         />
                     </div>
                 ) : isNotebook ? (
