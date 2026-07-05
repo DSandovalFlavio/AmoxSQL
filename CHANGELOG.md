@@ -5,6 +5,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.5.0] — 2026-07-04
+
+### Report Flow: editable Word/PowerPoint export + a visual deck studio
+
+Local analysis is meant to be shared. This release adds two ways out of AmoxSQL that stay editable in the tools people actually present with — and a richer Markdown editor underneath.
+
+#### Notebook → Word (.docx)
+- **Export any notebook to a native, editable `.docx`** — text cells become styled paragraphs (headings, lists, bold/italic/code, blockquotes, links), result tables become **native Word tables** (with real borders and column widths), and charts export as high-resolution images **forced to the light theme** and **sized to match how you resized the cell** in the notebook.
+
+#### Report Flow — `.amoxdeck` decks with refreshable charts → PowerPoint (.pptx)
+- **New `.amoxdeck` file type** — markdown-first "decks": slides separated by `---`, a few simple layouts (`title`, `content`, `content-chart`, `chart-full`, `two-col`), and charts embedded by referencing a saved `.amoxvis` — so the chart's **SQL travels with the deck**.
+- **Refresh all** re-runs every chart's query (with the deck's `{{variables}}`) against current data — a saved deck is never stale, without redoing the analysis.
+- **Export to PowerPoint** builds **native, editable charts** (bar/line/area/pie/donut/combo) from the query data — double-click them in PowerPoint to edit the data grid — with a toggle to export as an image for pixel-exact fidelity. Text → native text boxes, tables → native tables.
+- **Report Flow Studio** — a visual editor that lives inside the deck's own tab (not the global sidebar): edit **one slide at a time** with click-to-edit text, a **Layouts** gallery with previews, a **Charts** picker that inserts a chart into the active slide, and a **Slides** outline to navigate/reorder. The `.amoxdeck` markdown is just the storage format — you never edit it by hand.
+
+#### Richer Markdown editor
+- The `.md` editor gained a real preview: syntax-highlighted code with copy, callouts, KaTeX math, a table of contents with anchors and internal links, Mermaid diagrams with fullscreen, centered/width-toggle images, and paste-to-embed images.
+
+#### Fixes
+- **Autocomplete no longer floods the console (and lags typing) in multi-cell notebooks** — completions now route to the editor/worker that owns each cell's document, instead of the first-mounted cell answering with the wrong AST. Autocomplete also survives closing that first cell.
+- **Deep Dive no longer warns on duplicate React keys** when the agent revisits a step or re-creates its plan.
+
+---
+
 ## [3.4.1] — 2026-06-29
 
 ### Built-in AI skills now ship with the app

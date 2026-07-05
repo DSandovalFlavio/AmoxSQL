@@ -8,6 +8,7 @@ import { resolveVariables } from './VariablesBar';
 import AlertDialog from './AlertDialog';
 import { useDialog } from './dialogs/DialogProvider';
 import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
+import { DECK_STARTER_TEMPLATE } from '../utils/deckParser';
 import { invalidateSchema } from '../state/sidebarCache';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
@@ -413,6 +414,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb'
                 : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
                 : normalizedType === 'md' ? 'Untitled.md'
+                : normalizedType === 'amoxdeck' ? 'Untitled.amoxdeck'
                 : normalizedType === 'er-diagram' ? (initialContent ? `ER · ${initialContent}` : 'ER Diagram')
                 : normalizedType === 'datadiving' ? 'Deep Dive'
                 : normalizedType === 'dbt-lineage' ? 'DBT Lineage'
@@ -423,6 +425,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'sqlchain'
                 ? JSON.stringify({ version: '1.0', name: 'New Chain', description: '', nodes: [], edges: [], variables: {} }, null, 2)
                 : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...'
+                : normalizedType === 'amoxdeck' ? DECK_STARTER_TEMPLATE
                 : normalizedType === 'er-diagram' ? ''
                 : normalizedType === 'datadiving' ? ''
                 : normalizedType === 'dbt-lineage' ? ''

@@ -99,14 +99,21 @@ function getCompletions(line, column, triggerChar) {
     // Convert Monaco's 1-indexed line/column to tree-sitter's 0-indexed row/column
     const row = line - 1;
     const col = column - 1;
-    
+
     // We need the offset to check Jinja contexts easily
     const lines = currentText.split('\n');
+    // Editor and worker sync asynchronously — a completion request can name a
+    // position our snapshot doesn't have yet (stale text). Return quietly; the
+    // next syncDocument + request pair will be consistent. Never throw here:
+    // this runs on every keystroke and a console error per key freezes dev.
+    if (row < 0 || row >= lines.length) {
+        return { suggestions, clause: 'ROOT' };
+    }
     let offset = 0;
     for (let i = 0; i < row; i++) {
         offset += lines[i].length + 1;
     }
-    offset += col;
+    offset += Math.min(Math.max(col, 0), lines[row].length);
 
     // 1. Clean Start Detection (empty editor, after `;`)
     if (isCleanStart(currentText, offset)) {

@@ -139,7 +139,10 @@ export function buildStepGroups(turn) {
 
     const sections = [];
     let current = null;
-    const open = (key, label, stepId) => { current = { key, label, stepId, status: null, tools: [] }; sections.push(current); };
+    // React key = base + ordinal: the agent can legitimately revisit a step
+    // (retries, a re-created plan emits 'plan'/'s1' again), and duplicate keys
+    // make React warn on EVERY streaming render — enough volume to freeze dev.
+    const open = (key, label, stepId) => { current = { key: `${key}#${sections.length}`, label, stepId, status: null, tools: [] }; sections.push(current); };
 
     toolStream.forEach((tc, i) => {
         if (tc.toolName === 'create_plan') {

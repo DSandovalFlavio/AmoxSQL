@@ -113,7 +113,9 @@ export default function AgentPlanPanel({
                             const canSkip = isEditable && onSkipStep && step.status === 'pending' && !isUserSkipped;
 
                             return (
-                                <li key={step.id} className={`ai-plan-step ${cls}`}>
+                                // key includes the index: plan snapshots from the server can
+                                // transiently repeat a step id (plan re-created mid-stream).
+                                <li key={`${step.id}-${idx}`} className={`ai-plan-step ${cls}`}>
                                     <span className="ai-plan-step-icon">
                                         <Icon size={13} />
                                     </span>

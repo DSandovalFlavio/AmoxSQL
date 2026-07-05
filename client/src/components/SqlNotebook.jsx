@@ -4,8 +4,9 @@ import ReactDOM from 'react-dom';
 import NotebookCell from './NotebookCell';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuFileType2, LuLoaderCircle, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
+import { injectEnvironmentVariables as injectEnvVars } from '../utils/injectEnvironmentVariables';
 import { parseNotebookContent, parseNotebookEnvironment, serializeNotebookContent } from '../utils/notebookParser';
 import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 
@@ -23,6 +24,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'report'
     const [hideCodeInReport, setHideCodeInReport] = useState(false);
     const [isFullView, setIsFullView] = useState(false);
+    const [isExportingWord, setIsExportingWord] = useState(false);
 
     // First-run Notebooks tour (rendered by the global OnboardingHost)
     useEffect(() => {
@@ -265,16 +267,8 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         setDropTargetIndex(null);
     }, [draggedCellId, dropTargetIndex, cells, save]);
 
-    // Evaluate input variables in query (simple string replacement for now)
-    const injectEnvironmentVariables = useCallback((query, env) => {
-        let injectedQuery = query;
-        Object.entries(env).forEach(([key, value]) => {
-            const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
-            const formattedValue = typeof value === 'string' ? `'${value}'` : value;
-            injectedQuery = injectedQuery.replace(regex, formattedValue);
-        });
-        return injectedQuery;
-    }, []);
+    // Evaluate input variables in query — shared with Report Flow decks (see utils/injectEnvironmentVariables.js)
+    const injectEnvironmentVariables = useCallback((query, env) => injectEnvVars(query, env), []);
 
     const handleRun = useCallback(async (cellId, cellContent = null, currentEnv = environment) => {
         // Use ref for latest cells to avoid stale closure issues
@@ -479,6 +473,27 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                             title="Export as HTML Report"
                         >
                             <LuFileCode size={13} /> Export HTML
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (isExportingWord) return;
+                                setIsExportingWord(true);
+                                try {
+                                    const { generateWordReport } = await import('../utils/generateWordReport');
+                                    await generateWordReport(cells, results, hideCodeInReport, cellStates);
+                                } catch (err) {
+                                    console.error('Word export failed:', err);
+                                } finally {
+                                    setIsExportingWord(false);
+                                }
+                            }}
+                            className="snb-btn snb-btn--accent"
+                            title="Export as Word Document"
+                            disabled={isExportingWord}
+                            style={{ opacity: isExportingWord ? 0.6 : 1 }}
+                        >
+                            {isExportingWord ? <LuLoaderCircle size={13} className="spin" /> : <LuFileType2 size={13} />}
+                            {isExportingWord ? 'Exporting…' : 'Export Word'}
                         </button>
                     </>
                 )}
