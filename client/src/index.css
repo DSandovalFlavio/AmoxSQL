@@ -671,6 +671,51 @@
 }
 
 /* ═══════════════════════════════════════════════
+   MODE LAYER — light-vs-dark tokens shared by ALL themes of that mode.
+   :root already holds the DARK values (info/nodes/icons), inherited by every
+   dark theme. This block supplies the LIGHT versions to EVERY light theme —
+   including ivory/mist/snow, which have their own theme class (not
+   `.light-theme`) and previously inherited the dark info/nodes/icons
+   (black nodes, unreadable info text). Placed before the theme blocks so a
+   theme may still override a mode token if it truly needs a tinted variant.
+   ═══════════════════════════════════════════════ */
+.mode-light {
+  /* Info feedback — no light theme defined it; all inherited dark blue (~2.4:1) */
+  --feedback-info:        oklch(0.52 0.17 250);
+  --feedback-info-bg:     color-mix(in oklch, var(--feedback-info) 8%, transparent);
+  --feedback-info-border: color-mix(in oklch, var(--feedback-info) 20%, transparent);
+  --feedback-info-text:   oklch(0.48 0.17 250);
+  --color-info:      var(--feedback-info);
+  --color-info-bg:   var(--feedback-info-bg);
+  --color-info-text: var(--feedback-info-text);
+
+  /* Lineage / node type colors — light variants (bg pale, text dark) */
+  --node-source-bg:     oklch(0.95 0.03 155);
+  --node-source-border: oklch(0.55 0.18 150);
+  --node-source-text:   oklch(0.40 0.16 150);
+  --node-staging-bg:    oklch(0.95 0.03 85);
+  --node-staging-border:oklch(0.60 0.16 85);
+  --node-staging-text:  oklch(0.45 0.14 85);
+  --node-mart-bg:       oklch(0.95 0.03 250);
+  --node-mart-border:   oklch(0.55 0.16 250);
+  --node-mart-text:     oklch(0.40 0.14 250);
+  --node-other-bg:      oklch(0.95 0.03 310);
+  --node-other-border:  oklch(0.55 0.14 310);
+  --node-other-text:    oklch(0.40 0.12 310);
+
+  /* File icon colors — darker for legibility on light surfaces */
+  --icon-folder:   oklch(0.60 0.14 80);
+  --icon-sql:      oklch(0.55 0.14 250);
+  --icon-notebook: oklch(0.50 0.16 155);
+  --icon-csv:      oklch(0.50 0.14 155);
+  --icon-json:     oklch(0.60 0.14 80);
+  --icon-md:       oklch(0.50 0.10 250);
+  --icon-parquet:  oklch(0.55 0.12 330);
+  --icon-excel:    oklch(0.42 0.14 155);
+  --icon-default:  var(--text-tertiary);
+}
+
+/* ═══════════════════════════════════════════════
    ACCENT PRESETS (oklch — perceptually uniform)
    Each preset sets --accent-primary in oklch;
    muted/subtle/focus-ring auto-derived via color-mix.
@@ -913,13 +958,8 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
 
-  /* Nord frost accent (default) */
-  --accent-primary: #81a1c1;
-  --accent-muted:   rgba(129, 161, 193, 0.18);
-  --accent-subtle:  rgba(129, 161, 193, 0.08);
-  --focus-ring:     rgba(129, 161, 193, 0.35);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+  /* Nord frost accent lives in .theme-nord:not([class*="accent-"]) below so a
+     picked accent overrides it (was forced here, ignoring the chosen accent). */
 
   /* Nord-tuned feedback */
   --feedback-success:      #a3be8c;
@@ -981,13 +1021,8 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
 
-  /* Islands blue — built-in accent for this theme */
-  --accent-primary: #548af7;
-  --accent-muted:   rgba(84, 138, 247, 0.18);
-  --accent-subtle:  rgba(84, 138, 247, 0.08);
-  --focus-ring:     rgba(84, 138, 247, 0.35);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+  /* Islands blue lives in .theme-islands:not([class*="accent-"]) below so a
+     picked accent overrides it. */
 
   /* Feedback — Islands palette */
   --feedback-success:        #6aab73;
@@ -1091,6 +1126,30 @@
 }
 
 /* ═══════════════════════════════════════════════
+   THEME DEFAULT ACCENTS
+   nord/islands ship a built-in accent. It must apply ONLY when the user
+   hasn't picked one — otherwise (accent class present) the picked accent
+   wins. `:not([class*="accent-"])` scopes the default cleanly; before this,
+   the theme's accent-primary (later in the file) overrode every accent pick.
+   ═══════════════════════════════════════════════ */
+.theme-nord:not([class*="accent-"]) {
+  --accent-primary: #81a1c1;
+  --accent-muted:   rgba(129, 161, 193, 0.18);
+  --accent-subtle:  rgba(129, 161, 193, 0.08);
+  --focus-ring:     rgba(129, 161, 193, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+.theme-islands:not([class*="accent-"]) {
+  --accent-primary: #548af7;
+  --accent-muted:   rgba(84, 138, 247, 0.18);
+  --accent-subtle:  rgba(84, 138, 247, 0.08);
+  --focus-ring:     rgba(84, 138, 247, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+/* ═══════════════════════════════════════════════
    LIGHT THEME (oklch surfaces + inverted hierarchy)
    ═══════════════════════════════════════════════ */
 .light-theme {
@@ -1151,30 +1210,7 @@
   --color-destructive-bg: color-mix(in oklch, var(--color-destructive) 8%, transparent);
   --color-destructive-text: oklch(0.48 0.22 27);
 
-  /* ── Node Type Colors (lighter variants) ── */
-  --node-source-bg:     oklch(0.95 0.03 155);
-  --node-source-border: oklch(0.55 0.18 150);
-  --node-source-text:   oklch(0.40 0.16 150);
-  --node-staging-bg:    oklch(0.95 0.03 85);
-  --node-staging-border:oklch(0.60 0.16 85);
-  --node-staging-text:  oklch(0.45 0.14 85);
-  --node-mart-bg:       oklch(0.95 0.03 250);
-  --node-mart-border:   oklch(0.55 0.16 250);
-  --node-mart-text:     oklch(0.40 0.14 250);
-  --node-other-bg:      oklch(0.95 0.03 310);
-  --node-other-border:  oklch(0.55 0.14 310);
-  --node-other-text:    oklch(0.40 0.12 310);
-
-  /* ── File Icon Colors (light theme) ── */
-  --icon-folder:   oklch(0.60 0.14 80);
-  --icon-sql:      oklch(0.55 0.14 250);
-  --icon-notebook: oklch(0.50 0.16 155);
-  --icon-csv:      oklch(0.50 0.14 155);
-  --icon-json:     oklch(0.60 0.14 80);
-  --icon-md:       oklch(0.50 0.10 250);
-  --icon-parquet:  oklch(0.55 0.12 330);
-  --icon-excel:    oklch(0.42 0.14 155);
-  --icon-default:  var(--text-tertiary);
+  /* Node + icon colors now live in the shared .mode-light layer (all light themes) */
 
   /* ── Syntax (darker for light editor bg) ── */
   --syntax-keyword:   oklch(0.48 0.16 280);
@@ -1651,6 +1687,24 @@
   --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
+
+/* Sober + islands accents darkened for light backgrounds (≥4.5:1). Two-class
+   specificity (0,2,0) beats each light theme's default accent, so picking a
+   sober accent on a light theme now applies (was: silently ignored). */
+.light-theme.accent-islands, .theme-ivory.accent-islands,
+.theme-mist.accent-islands, .theme-snow.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
+.light-theme.accent-sage, .theme-ivory.accent-sage,
+.theme-mist.accent-sage, .theme-snow.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
+.light-theme.accent-amber, .theme-ivory.accent-amber,
+.theme-mist.accent-amber, .theme-snow.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
+.light-theme.accent-rose, .theme-ivory.accent-rose,
+.theme-mist.accent-rose, .theme-snow.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
+.light-theme.accent-lavender, .theme-ivory.accent-lavender,
+.theme-mist.accent-lavender, .theme-snow.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
+.light-theme.accent-steel, .theme-ivory.accent-steel,
+.theme-mist.accent-steel, .theme-snow.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
+.light-theme.accent-copper, .theme-ivory.accent-copper,
+.theme-mist.accent-copper, .theme-snow.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
 
 
 /* Form controls don't inherit font-family by default — force them to use the
