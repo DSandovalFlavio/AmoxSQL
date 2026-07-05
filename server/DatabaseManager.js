@@ -2,12 +2,36 @@ const { DuckDBInstance } = require('@duckdb/node-api');
 const path = require('path');
 const fs = require('fs');
 
+/**
+ * Connection lanes — one physical DuckDB connection per lane, all on the same
+ * DuckDBInstance (so they share the attached database and catalog):
+ *
+ *   - 'main': user-facing queries (/api/query, exports, chains). The default —
+ *             callers that don't pass a lane keep today's behavior.
+ *   - 'meta': autocomplete / schema probes (DESCRIBE, information_schema).
+ *             Keeps the editor responsive while a long user query runs.
+ *   - 'ai':   AI tool queries + amoxsql_ai persistence bookkeeping. Lets the
+ *             30s AI timeout interrupt ONLY its own query, and stops AI work
+ *             from queueing behind user queries.
+ *
+ * Per-connection semantics to keep in mind (DuckDB):
+ *   - ATTACH/DETACH are instance-wide (shared by all lanes).
+ *   - `USE`, `SET` (session scope), LOADed extensions, temp tables and
+ *     prepared statements are PER CONNECTION. The codebase uses no temp
+ *     tables or prepared statements (verified 2026-07); `USE` is replicated
+ *     to every lane on connect/close; session `SET s3_*` and explicit `LOAD`s
+ *     happen on 'main' only — other lanes rely on DuckDB's extension
+ *     autoloading (on by default) if they ever touch extension functions.
+ */
+const LANES = ['main', 'meta', 'ai'];
+
 class DatabaseManager {
     constructor() {
         this.instance = null;
-        this.connection = null;
+        this.connections = { main: null, meta: null, ai: null };
         this.attachedPath = null;
         this.alias = 'user_db';
+        this._laneFacades = {};
 
         // Initialize immediately
         this._initSystem();
@@ -22,31 +46,57 @@ class DatabaseManager {
     async _initSystem() {
         console.log("[DB Manager] _initSystem (Neo) called.");
         try {
-            // New API: explicit create
+            // New API: explicit create; every lane connects to the SAME instance
             this.instance = await DuckDBInstance.create(':memory:');
-            this.connection = await this.instance.connect();
+            for (const lane of LANES) {
+                this.connections[lane] = await this.instance.connect();
+            }
             this.attachedPath = null;
-            console.log("[DB Manager] System DB initialized (Neo Client).");
+            console.log("[DB Manager] System DB initialized (Neo Client, lanes: " + LANES.join(', ') + ").");
         } catch (e) {
             console.error("[DB Manager] FATAL: Could not init system DB", e);
         }
     }
 
-    async query(sql) {
-        if (!this.connection) await this._initSystem();
+    /** Resolve a lane name to its connection; unknown lanes fall back to 'main'. */
+    _conn(lane) {
+        return this.connections[LANES.includes(lane) ? lane : 'main'];
+    }
 
-        try {
-            // Neo API: run() returns a Reader, which is async iterable or has methods
-            const reader = await this.connection.run(sql);
-
-            // Neo API: run() returns a Reader. We want Objects for the API.
-            // getRowObjectsJson() handles BigInts safely (as strings) and maps headers.
-            const rows = await reader.getRowObjectsJson();
-            return rows;
-
-        } catch (err) {
-            throw new Error(err.message);
+    /** Ensure the instance and the requested lane's connection exist. */
+    async _ensureLane(lane) {
+        if (!this.instance || !this.connections.main) {
+            await this._initSystem();
         }
+        const key = LANES.includes(lane) ? lane : 'main';
+        if (!this.connections[key] && this.instance) {
+            // Lane lost (e.g. failed init) — reconnect it and restore context
+            this.connections[key] = await this.instance.connect();
+            if (this.attachedPath) {
+                try { await this.connections[key].run(`USE ${this.alias}`); } catch { /* best-effort */ }
+            }
+        }
+        return this._conn(key);
+    }
+
+    /**
+     * Returns a lightweight facade bound to a lane. It inherits everything
+     * from the manager but routes query/systemQuery/queryWithMetadata (and
+     * interruptQuery) to the given lane. Lets helpers that receive a
+     * "dbManager" (persistence, joinSanityCheck, profiling) run on a lane
+     * without changing their signatures.
+     */
+    lane(laneName) {
+        const key = LANES.includes(laneName) ? laneName : 'main';
+        if (this._laneFacades[key]) return this._laneFacades[key];
+        const mgr = this;
+        const facade = Object.create(this);
+        facade.query = (sql, options = {}) => mgr.query(sql, { ...options, lane: options.lane || key });
+        facade.systemQuery = (sql, options = {}) => mgr.systemQuery(sql, { ...options, lane: options.lane || key });
+        facade.queryWithMetadata = (sql, options = {}) => mgr.queryWithMetadata(sql, { ...options, lane: options.lane || key });
+        facade.interruptQuery = (l) => mgr.interruptQuery(l || key);
+        this._laneFacades[key] = facade;
+        return facade;
     }
 
     // Checkpointing in Neo might differ, but `CHECKPOINT` SQL command works universally
@@ -56,12 +106,9 @@ class DatabaseManager {
 
     async reinitializeSystem() {
         console.log("[DB Manager] HARD RESET REQUESTED.");
-        // Just create a new instance, old one gets GC'd or we effectively abandon it
-        // The Neo connection doesn't strictly need a close() if it goes out of scope, but let's be clean if possible.
-        // There is no explicit .close() on connection in some versions of node-api yet, but let's check basic usage.
 
         // PASO NUEVO: Intentar cerrar lo que estaba abierto antes de reiniciar
-        if (this.connection) {
+        if (this.connections.main) {
             try {
                 console.log("[DB Manager] Cleaning up previous connection...");
                 await this.close(); // Reutilizamos tu método close para hacer DETACH
@@ -70,12 +117,20 @@ class DatabaseManager {
             }
         }
 
+        // Disconnect every lane explicitly so the old instance releases its
+        // resources (the instance itself is abandoned to GC, as before —
+        // closeSync() could block on in-flight queries).
+        for (const lane of LANES) {
+            try { this.connections[lane]?.disconnectSync?.(); } catch { /* best-effort */ }
+            this.connections[lane] = null;
+        }
+        this._laneFacades = {};
+
         // Damos un pequeño respiro al sistema de archivos (IO) de Windows
         // Windows a veces tarda unos milisegundos en liberar el candado del archivo
         await new Promise(resolve => setTimeout(resolve, 200));
 
         this.instance = null;
-        this.connection = null;
 
         await this._initSystem();
         console.log("[DB Manager] Engine re-initialized.");
@@ -106,13 +161,20 @@ class DatabaseManager {
             const attachMode = options.readOnly ? '(READ_ONLY)' : '';
             console.log(`[DB Manager] Attaching: ${fullPath} AS ${this.alias} ${attachMode}`);
 
-            if (!this.connection) await this._initSystem();
+            if (!this.connections.main) await this._initSystem();
 
-            // Execute SQL ATTACH
+            // Execute SQL ATTACH — instance-wide, visible to every lane
             await this.query(`ATTACH '${fullPath}' AS ${this.alias} ${attachMode}`);
 
             this.attachedPath = fullPath;
-            await this.query(`USE ${this.alias}`);
+
+            // `USE` is per-connection: replicate it on every lane so unqualified
+            // names (and objects created by the AI, e.g. attach_file views)
+            // resolve to the same catalog everywhere.
+            for (const lane of LANES) {
+                await this._ensureLane(lane);
+                await this.connections[lane].run(`USE ${this.alias}`);
+            }
 
             console.log("[DB Manager] Attach successful.");
 
@@ -120,10 +182,6 @@ class DatabaseManager {
             if (!options.readOnly) {
                 await this._initHistory();
             }
-
-            // Log tables for debug
-            // const tables = await this.query("SHOW TABLES");
-            // console.log("Tables:", tables);
 
         } catch (e) {
             console.error("[DB Manager] Attach failed:", e);
@@ -193,20 +251,29 @@ class DatabaseManager {
         if (trimmed.includes('AMOX_QUERY_HISTORY')) return;
 
         const escapedSql = sql.replace(/'/g, "''");
-        this.query(`INSERT INTO amoxsql_ai.query_history (query) VALUES ('${escapedSql}')`).catch(e => {
+        // Bookkeeping insert rides the 'ai' lane so it never queues behind a
+        // long user query on 'main' (fire & forget either way).
+        this.query(`INSERT INTO amoxsql_ai.query_history (query) VALUES ('${escapedSql}')`, { lane: 'ai' }).catch(e => {
         });
     }
 
     /**
      * Execute a system/internal query that should NOT be logged to history.
      * Prefixes the SQL with a comment tag so _logQuery can identify and skip it.
+     * @param {string} sql
+     * @param {{lane?: 'main'|'meta'|'ai'}} [options]
      */
-    async systemQuery(sql) {
-        return this.query(`-- AMOX_SYSTEM\n${sql}`);
+    async systemQuery(sql, options = {}) {
+        return this.query(`-- AMOX_SYSTEM\n${sql}`, options);
     }
 
-    async query(sql) {
-        if (!this.connection) await this._initSystem();
+    /**
+     * Run SQL and return rows as JSON-safe objects.
+     * @param {string} sql
+     * @param {{lane?: 'main'|'meta'|'ai'}} [options] - lane defaults to 'main'
+     */
+    async query(sql, options = {}) {
+        const connection = await this._ensureLane(options.lane || 'main');
 
         // Log it (fire & forget logic inside)
         // Only log if we have an attached DB (implicit check in _logQuery)
@@ -216,10 +283,9 @@ class DatabaseManager {
         }
 
         try {
-            // Neo API: run() returns a Reader, which is async iterable or has methods
-            const reader = await this.connection.run(sql);
+            // Neo API: run() returns a result with reader-style methods.
+            const reader = await connection.run(sql);
 
-            // Neo API: run() returns a Reader. We want Objects for the API.
             // getRowObjectsJson() handles BigInts safely (as strings) and maps headers.
             const rows = await reader.getRowObjectsJson();
             return rows;
@@ -229,15 +295,20 @@ class DatabaseManager {
         }
     }
 
-    async queryWithMetadata(sql) {
-        if (!this.connection) await this._initSystem();
+    /**
+     * Run SQL and return { rows, types }.
+     * @param {string} sql
+     * @param {{lane?: 'main'|'meta'|'ai'}} [options] - lane defaults to 'main'
+     */
+    async queryWithMetadata(sql, options = {}) {
+        const connection = await this._ensureLane(options.lane || 'main');
 
         if (sql && !sql.includes('amox_query_history')) {
             this._logQuery(sql);
         }
 
         try {
-            const reader = await this.connection.run(sql);
+            const reader = await connection.run(sql);
 
             const types = {};
             if (reader.columnNames && reader.columnTypes) {
@@ -257,17 +328,23 @@ class DatabaseManager {
     }
 
     async close() {
-        if (!this.connection) return;
+        if (!this.connections.main) return;
 
         try {
             console.log("[DB Manager] Switching to system context before detaching...");
             // PASO CRÍTICO: "Bajarse de la escalera".
             // Cambiamos a la memoria interna antes de intentar soltar la base de datos externa.
-            try {
-                await this.systemQuery("USE memory");
-            } catch (e) {
-                // Si 'memory' falla, intentamos 'main' (depende de la versión de DuckDB)
-                try { await this.systemQuery("USE main"); } catch (e2) { }
+            // `USE` es por conexión: hay que bajarse en TODOS los carriles, o el
+            // DETACH fallará porque otro carril sigue "usando" user_db.
+            for (const lane of LANES) {
+                const conn = this.connections[lane];
+                if (!conn) continue;
+                try {
+                    await conn.run("USE memory");
+                } catch (e) {
+                    // Si 'memory' falla, intentamos 'main' (depende de la versión de DuckDB)
+                    try { await conn.run("USE main"); } catch (e2) { }
+                }
             }
 
             // Ahora que ya no estamos 'usando' user_db, podemos listarlas y desconectarlas
@@ -302,9 +379,15 @@ class DatabaseManager {
         return this.attachedPath || ':memory:';
     }
 
-    interruptQuery() {
-        if (this.connection && typeof this.connection.interrupt === 'function') {
-            this.connection.interrupt();
+    /**
+     * Interrupt whatever query is running on the given lane ONLY.
+     * User cancellation (/api/query/cancel, client disconnect) targets 'main';
+     * the AI tool timeout targets 'ai' — neither kills the other's work.
+     */
+    interruptQuery(lane = 'main') {
+        const connection = this._conn(lane);
+        if (connection && typeof connection.interrupt === 'function') {
+            connection.interrupt();
         }
     }
 }

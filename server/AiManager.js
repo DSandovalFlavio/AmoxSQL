@@ -23,6 +23,7 @@ const { loadMemoriesText, extractMemories } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
 const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo } = require('./ai/modelProfiles');
 const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
+const { applyRowLimit } = require('./_sqlUtils');
 const { agenticLoop } = require('./ai/agenticLoop');
 
 class AiManager {
@@ -576,21 +577,41 @@ ${schemaText}`;
                         args: { query: correctedSql },
                     };
 
-                    // Execute the corrected SQL
+                    // Execute the corrected SQL (same guards as the tool-loop
+                    // execute_sql: DB-side row cap + interrupting timeout on the
+                    // dedicated 'ai' lane so a runaway query neither floods JS
+                    // memory nor stays running as a zombie).
                     try {
                         const SQL_TIMEOUT = 30000;
-                        const resultPromise = dbManager.queryWithMetadata(correctedSql);
-                        const result = await Promise.race([
-                            resultPromise,
-                            new Promise((_, reject) =>
-                                setTimeout(() => reject(new Error('Query timeout (30s)')), SQL_TIMEOUT)
-                            ),
-                        ]);
+                        const POM_ROW_LIMIT = 500;
+                        const { sql: limitedSql, limited } = applyRowLimit(correctedSql, POM_ROW_LIMIT);
+                        const resultPromise = dbManager.queryWithMetadata(limitedSql, { lane: 'ai' });
+                        resultPromise.catch(() => {}); // handled: may reject after a timeout interrupt
+                        let pomTimer = null;
+                        let result;
+                        try {
+                            result = await Promise.race([
+                                resultPromise,
+                                new Promise((_, reject) => {
+                                    pomTimer = setTimeout(() => {
+                                        try { dbManager.interruptQuery('ai'); } catch { /* best-effort */ }
+                                        reject(new Error('Query timeout (30s)'));
+                                    }, SQL_TIMEOUT);
+                                }),
+                            ]);
+                        } finally {
+                            if (pomTimer) clearTimeout(pomTimer);
+                        }
+
+                        let pomRows = result.rows;
+                        if (limited && pomRows.length > POM_ROW_LIMIT) {
+                            pomRows = pomRows.slice(0, POM_ROW_LIMIT);
+                        }
 
                         const MAX_ROWS = 200;
-                        const data = result.rows.length > MAX_ROWS
-                            ? result.rows.slice(0, MAX_ROWS)
-                            : result.rows;
+                        const data = pomRows.length > MAX_ROWS
+                            ? pomRows.slice(0, MAX_ROWS)
+                            : pomRows;
 
                         const queryId = `qr_${Date.now()}_${attempt}_${i}`;
                         const toolResult = {
@@ -600,9 +621,9 @@ ${schemaText}`;
                                 ? Object.entries(result.types).map(([name, type]) => ({ name, type }))
                                 : [],
                             data,
-                            rowCount: result.rows.length,
+                            rowCount: pomRows.length,
                             executionTime: 0,
-                            truncated: result.rows.length > MAX_ROWS,
+                            truncated: pomRows.length > MAX_ROWS,
                         };
 
                         queryResults.push({ sql: correctedSql, result: toolResult });

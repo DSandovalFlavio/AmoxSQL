@@ -18,7 +18,7 @@ const { streamText } = require('ai');
 const { createTools } = require('./tools');
 const { buildSystemPrompt, buildSystemParts } = require('./systemPrompt');
 const { loadUserRules } = require('./userRules');
-const { compactContext } = require('./compaction');
+const { compactContext, needsCompaction } = require('./compaction');
 const { loadMemoriesText, extractMemories } = require('./memory');
 const { getSkill } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
@@ -258,6 +258,12 @@ async function* agenticLoop(options, getModelFn) {
         yield { type: 'step-start', iteration, maxIterations: effectiveMaxIterations };
 
         // ── Compact before each iteration ──
+        // Compaction can involve a full LLM summarization call that emits no
+        // stream events; warn the client first so the UI knows we're alive.
+        // (Unknown event types are ignored by older clients.)
+        if (needsCompaction(iterMessages, model)) {
+            yield { type: 'status', phase: 'compacting' };
+        }
         const compactedMessages = await compactContext(llmModel, iterMessages, null, model);
 
         // ── Build tools with shared state ──

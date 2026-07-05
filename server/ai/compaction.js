@@ -52,6 +52,31 @@ function cleanToolResults(messages) {
     });
 }
 
+/** Builds the older-messages transcript (everything but the last 4) and estimates its tokens. */
+function estimateOlderTokens(messages) {
+    const olderMessages = messages.slice(0, -4);
+    const olderTranscript = olderMessages.map(m => {
+        let text = `${m.role.toUpperCase()}: ${m.content || ''}`;
+        if (m.toolCalls && m.toolCalls.length > 0) {
+            text += `\n[Tool Calls]: ${JSON.stringify(m.toolCalls).substring(0, 500)}`;
+        }
+        return text;
+    }).join('\n\n');
+    return estimateTokens(olderTranscript);
+}
+
+/**
+ * Cheap predicate: would compactContext actually do work for these messages?
+ * Used by the agentic loop to emit a status heartbeat BEFORE the (potentially
+ * LLM-backed, silent) compaction runs — without paying for it when idle.
+ */
+function needsCompaction(messages, modelName, maxTokensOverride = null) {
+    if (!messages || messages.length <= 4) return false;
+    const contextWindow = maxTokensOverride || getModelContextWindow(modelName);
+    const threshold = Math.floor(contextWindow * 0.80);
+    return estimateOlderTokens(messages) >= threshold;
+}
+
 /**
  * Ensures the messages array fits within the model's context window.
  * If it's too large, it first cleans up tool results, then summarizes
@@ -74,16 +99,8 @@ async function compactContext(model, messages, maxTokensOverride, modelName) {
     const latestMessages = messages.slice(-4);
     const olderMessages = messages.slice(0, -4);
 
-    // Estimate total tokens of older messages
-    const olderTranscript = olderMessages.map(m => {
-        let text = `${m.role.toUpperCase()}: ${m.content || ''}`;
-        if (m.toolCalls && m.toolCalls.length > 0) {
-            text += `\n[Tool Calls]: ${JSON.stringify(m.toolCalls).substring(0, 500)}`;
-        }
-        return text;
-    }).join('\n\n');
-
-    const estimatedTokens = estimateTokens(olderTranscript);
+    // Estimate total tokens of older messages (same math as needsCompaction)
+    const estimatedTokens = estimateOlderTokens(messages);
 
     // If it fits comfortably, return as is
     if (estimatedTokens < threshold) {
@@ -148,6 +165,7 @@ ${cleanedTranscript}
 
 module.exports = {
     compactContext,
+    needsCompaction,
     estimateTokens,
     getModelContextWindow,
 };

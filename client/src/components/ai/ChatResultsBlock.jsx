@@ -1,4 +1,4 @@
-import { useMemo, useState, Component } from 'react';
+import { memo, useMemo, useState, Component } from 'react';
 import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote } from 'react-icons/lu';
 import html2canvas from 'html2canvas-pro';
 import ChartRenderer from '../DataVisualizer/renderers/ChartRenderer';
@@ -61,6 +61,19 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         return { data: null, sourceQuery: null, executionTime: null };
     }, [allMessages, chartConfig]);
 
+    // Memoized BEFORE the early return (hook order) and, critically, with
+    // stable identity: a fresh `columns` array every render used to break
+    // ChartRenderer's memo — every Recharts chart re-rendered on every stream
+    // token while its host re-rendered.
+    const columns = useMemo(
+        () => (data && data.length > 0 ? Object.keys(data[0]) : []),
+        [data]
+    );
+    const isDateCol = useMemo(
+        () => (data && data.length > 0 ? isDateColumn(data, chartConfig.xAxisKey) : false),
+        [data, chartConfig.xAxisKey]
+    );
+
     if (!data || data.length === 0) {
         return (
             <div className="ai-chart ai-chart--empty">
@@ -68,9 +81,6 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             </div>
         );
     }
-
-    const columns = data.length > 0 ? Object.keys(data[0]) : [];
-    const isDateCol = isDateColumn(data, chartConfig.xAxisKey);
 
     // Merge LLM config with defaults. AI-supplied values always win over defaults.
     const fullConfig = useMemo(() => {
@@ -311,4 +321,6 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
     );
 };
 
-export default ChatResultsBlock;
+// Memoized: hosts re-render on every stream flush; the chart only needs to
+// re-render when its config or the source messages actually change.
+export default memo(ChatResultsBlock);

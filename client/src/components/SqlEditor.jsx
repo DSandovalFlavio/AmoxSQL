@@ -458,6 +458,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
         disposablesRef.current = [];
 
+        // Monaco measures glyph widths at init; if the editor font finishes
+        // loading afterwards, cursor and selection are painted with stale
+        // widths (visually behind the real position). Re-measure once fonts
+        // are ready.
+        if (document.fonts?.ready) {
+            document.fonts.ready.then(() => monaco.editor.remeasureFonts());
+        }
+
         // Prefetch the DuckDB function catalog so the very first completion already has
         // functions (otherwise the first keystroke of a session shows none until it loads).
         ensureDuckdbFunctionCatalog();

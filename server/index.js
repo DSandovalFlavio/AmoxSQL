@@ -11,6 +11,7 @@ const yaml = require('js-yaml');
 const { exec, execSync } = require('child_process');
 const dbManager        = require('./DatabaseManager');
 const scaffolder       = require('./projectScaffolder');
+const { applyRowLimit } = require('./_sqlUtils');
 
 const app = express();
 const PORT = 3001;
@@ -537,13 +538,15 @@ app.get('/api/db/version', async (req, res) => {
 app.get('/api/db/tables', async (req, res) => {
     try {
         const tables = await dbManager.systemQuery(
-            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`,
+            { lane: 'meta' }
         );
 
         const result = [];
         for (const t of tables) {
             const columns = await dbManager.systemQuery(
-                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}'`
+                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}'`,
+                { lane: 'meta' }
             );
             result.push({ name: t.table_name, schema: t.table_schema, type: t.table_type, columns });
         }
@@ -565,7 +568,8 @@ app.get('/api/db/schemas', async (req, res) => {
              LEFT JOIN information_schema.columns c
                     ON c.table_schema = t.table_schema AND c.table_name = t.table_name
              WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}
-             ORDER BY t.table_schema, t.table_name, c.ordinal_position`
+             ORDER BY t.table_schema, t.table_name, c.ordinal_position`,
+            { lane: 'meta' }
         );
 
         const schemaMap = {};
@@ -736,7 +740,9 @@ app.post('/api/db/describe', async (req, res) => {
     ]);
 
     try {
-        const rows = await withTimeout(dbManager.systemQuery(`DESCRIBE ${stripped}`), 1500);
+        // 'meta' lane: keeps editor autocomplete responsive even while a long
+        // user query occupies the 'main' connection.
+        const rows = await withTimeout(dbManager.systemQuery(`DESCRIBE ${stripped}`, { lane: 'meta' }), 1500);
         const columns = (rows || []).map(c => ({ name: c.column_name, type: c.column_type }));
         res.json({ columns });
     } catch (err) {
@@ -1885,25 +1891,64 @@ async function buildTableContext(contextTables = null) {
 
         query += `\n            ORDER BY table_schema, table_name`;
 
-        const tables = await dbManager.systemQuery(query);
-
-        const tableContexts = [];
-        for (const t of tables.slice(0, 30)) {
-            try {
-                // Schema-qualified — tables may live outside the default `main` schema
-                const qref = t.table_schema ? `"${t.table_schema}"."${t.table_name}"` : `"${t.table_name}"`;
-                const cols = await dbManager.systemQuery(`DESCRIBE ${qref}`);
-                const countRes = await dbManager.systemQuery(`SELECT COUNT(*) as cnt FROM ${qref}`);
-                tableContexts.push({
-                    name: t.table_name,
-                    schema: t.table_schema,
-                    columns: cols.map(c => ({ name: c.column_name, type: c.column_type })),
-                    rows: countRes[0]?.cnt || 0,
-                });
-            } catch {
-                tableContexts.push({ name: t.table_name, schema: t.table_schema, columns: [], rows: '?' });
-            }
+        const tables = await dbManager.systemQuery(query, { lane: 'meta' });
+        const selected = tables.slice(0, 30);
+        if (selected.length === 0) {
+            _tableContextCache = [];
+            _tableContextCacheTime = now;
+            return [];
         }
+
+        // Single pass instead of DESCRIBE + COUNT(*) per table (up to 60 queries
+        // before the first stream token): one information_schema.columns scan for
+        // all selected tables + duckdb_tables() estimated_size for row counts.
+        const esc = (v) => String(v).replace(/'/g, "''");
+        const keyList = selected
+            .map(t => `'${esc(t.table_schema)}.${esc(t.table_name)}'`)
+            .join(',');
+
+        let colRows = [];
+        let sizeRows = [];
+        try {
+            [colRows, sizeRows] = await Promise.all([
+                dbManager.systemQuery(
+                    `SELECT table_schema, table_name, column_name, data_type
+                     FROM information_schema.columns
+                     WHERE table_schema || '.' || table_name IN (${keyList})
+                     ORDER BY table_schema, table_name, ordinal_position`,
+                    { lane: 'meta' }
+                ),
+                dbManager.systemQuery(
+                    `SELECT schema_name, table_name, estimated_size
+                     FROM duckdb_tables()
+                     WHERE schema_name || '.' || table_name IN (${keyList})`,
+                    { lane: 'meta' }
+                ),
+            ]);
+        } catch { /* fall through — tables render with empty columns / '?' rows */ }
+
+        const colMap = new Map();   // 'schema.table' → [{name, type}]
+        for (const c of colRows) {
+            const key = `${c.table_schema}.${c.table_name}`;
+            if (!colMap.has(key)) colMap.set(key, []);
+            colMap.get(key).push({ name: c.column_name, type: c.data_type });
+        }
+        const sizeMap = new Map();  // 'schema.table' → estimated row count
+        for (const r of sizeRows) {
+            const key = `${r.schema_name}.${r.table_name}`;
+            if (!sizeMap.has(key)) sizeMap.set(key, r.estimated_size);
+        }
+
+        const tableContexts = selected.map(t => {
+            const key = `${t.table_schema}.${t.table_name}`;
+            const rowsVal = sizeMap.get(key);
+            return {
+                name: t.table_name,
+                schema: t.table_schema,
+                columns: colMap.get(key) || [],
+                rows: (rowsVal !== undefined && rowsVal !== null) ? rowsVal : '?',
+            };
+        });
 
         _tableContextCache = tableContexts;
         _tableContextCacheTime = now;
@@ -2091,6 +2136,10 @@ app.post('/api/ai/chat/stream', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
+    // Ship headers immediately (context building below can take a while) and
+    // disable Nagle so small SSE frames aren't batched by the TCP stack.
+    res.flushHeaders();
+    res.socket?.setNoDelay?.(true);
 
     try {
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
@@ -3042,21 +3091,7 @@ app.get('/api/files/find-by-extension', (req, res) => {
     }
 });
 
-/** Wraps a SELECT/WITH query with LIMIT N to cap result rows.
- *  DDL, DML, and queries already containing a top-level LIMIT pass through unchanged. */
-function applyRowLimit(sql, limit) {
-    if (!limit || limit <= 0) return { sql, limited: false };
-    const stripped = sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
-    const upper = stripped.toUpperCase();
-    if (!upper.startsWith('SELECT') && !upper.startsWith('WITH')) return { sql, limited: false };
-    // Strip trailing semicolons so the subquery wrapping stays valid
-    const cleanSql = sql.trimEnd().replace(/;+$/, '');
-    return {
-        sql: `SELECT * FROM (\n${cleanSql}\n) __amox_rows LIMIT ${limit + 1}`,
-        limited: true,
-        limit,
-    };
-}
+// applyRowLimit lives in ./_sqlUtils (shared with ai/tools.js execute_sql).
 
 app.post('/api/query', async (req, res) => {
     const { query, queryId, limit } = req.body;
@@ -3067,13 +3102,14 @@ app.post('/api/query', async (req, res) => {
     const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, limit);
 
     const qid = queryId || require('crypto').randomUUID();
-    activeQueries.set(qid, { interrupt: () => dbManager.interruptQuery() });
+    // User cancellation targets ONLY the 'main' lane — AI/meta lanes keep running.
+    activeQueries.set(qid, { interrupt: () => dbManager.interruptQuery('main') });
 
     // If the client disconnects (AbortController / network drop), interrupt DuckDB
     // Only interrupt if we haven't already sent the response (avoid killing subsequent queries)
     req.on('close', () => {
         if (activeQueries.has(qid) && !res.headersSent) {
-            dbManager.interruptQuery();
+            dbManager.interruptQuery('main');
             activeQueries.delete(qid);
         }
     });

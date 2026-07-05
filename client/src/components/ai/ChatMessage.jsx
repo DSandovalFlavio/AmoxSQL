@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { API_BASE } from '../../api.js';
@@ -7,6 +7,62 @@ import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
 import EditProposalBlock from './EditProposalBlock';
+import StreamingMarkdown, { MarkdownChunk } from './StreamingMarkdown';
+
+/**
+ * Markdown renderers for chat prose. Module-level factory so the object can be
+ * memoized per message (stable identity keeps memoized markdown chunks alive).
+ */
+function makeMdComponents(setCiteQueryId) {
+    return {
+        p: ({ children }) => <p>{children}</p>,
+        a: ({ href, children }) => {
+            // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query
+            if (href && href.startsWith('cite:')) {
+                const [qid, column] = href.slice(5).split('#');
+                return (
+                    <button
+                        type="button"
+                        title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect`}
+                        onClick={() => setCiteQueryId(qid)}
+                        style={{
+                            font: 'inherit', color: 'var(--accent-primary)',
+                            background: 'none', border: 'none',
+                            borderBottom: '1px dotted var(--accent-primary)',
+                            padding: 0, cursor: 'pointer', whiteSpace: 'nowrap',
+                        }}
+                    >{children}</button>
+                );
+            }
+            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+        },
+        pre: ({ children, ...props }) => (
+            <pre className="ai-msg-code-block" {...props}>{children}</pre>
+        ),
+        code: ({ className, children, ...props }) => {
+            const match = /language-(\w+)/.exec(className || '');
+            return match ? (
+                <code className={className} {...props}>{children}</code>
+            ) : (
+                <code className="ai-msg-inline-code" {...props}>{children}</code>
+            );
+        },
+        ul: ({ children }) => <ul>{children}</ul>,
+        ol: ({ children }) => <ol>{children}</ol>,
+        li: ({ children }) => <li>{children}</li>,
+        strong: ({ children }) => <strong>{children}</strong>,
+        h1: ({ children }) => <h3>{children}</h3>,
+        h2: ({ children }) => <h3>{children}</h3>,
+        h3: ({ children }) => <h4>{children}</h4>,
+        table: ({ children }) => (
+            <div className="ai-msg-table-wrap">
+                <table>{children}</table>
+            </div>
+        ),
+        th: ({ children }) => <th>{children}</th>,
+        td: ({ children }) => <td>{children}</td>,
+    };
+}
 
 /**
  * Safely decodes URL-encoded strings (like %C3%AD) that some LLMs emit in JSON.
@@ -390,6 +446,10 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Inline citation → opens the query audit modal for the cited result
     const [citeQueryId, setCiteQueryId] = useState(null);
 
+    // Stable markdown renderers (setCiteQueryId is a stable setter). A fresh
+    // components object per render would defeat the memoized markdown chunks.
+    const mdComponents = useMemo(() => makeMdComponents(setCiteQueryId), []);
+
     // Parse follow-up suggestions from suggest_followups tool
     const followUps = toolCalls?.filter(tc => tc.toolName === 'suggest_followups')
         .flatMap(tc => tc.result?.suggestions || []) || [];
@@ -566,9 +626,12 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     </div>
                 )}
 
-                {/* Text content (markdown) — with thinking block support */}
+                {/* Text content (markdown) — with thinking block support.
+                    Closed parts render through memoized chunks (parse once);
+                    while streaming, only the growing tail re-parses per flush. */}
                 {content && (() => {
                     const parts = parseThinkingBlocks(content);
+                    const lastTextIdx = parts.map(p => p.type).lastIndexOf('text');
                     return (
                         <div className="ai-msg-text">
                             {citeQueryId && <QueryAuditModal queryId={citeQueryId} onClose={() => setCiteQueryId(null)} />}
@@ -579,62 +642,10 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 // Inspector mode: reasoning + activity only, hide the prose
                                 // (the prose already lives in the transcript card).
                                 if (activityOnly) return null;
-                                return (
-                                    <ReactMarkdown
-                                        key={idx}
-                                        remarkPlugins={[remarkGfm]}
-                                        components={{
-                                            p: ({ children }) => <p>{children}</p>,
-                                            a: ({ href, children }) => {
-                                                // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query
-                                                if (href && href.startsWith('cite:')) {
-                                                    const [qid, column] = href.slice(5).split('#');
-                                                    return (
-                                                        <button
-                                                            type="button"
-                                                            title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect`}
-                                                            onClick={() => setCiteQueryId(qid)}
-                                                            style={{
-                                                                font: 'inherit', color: 'var(--accent-primary)',
-                                                                background: 'none', border: 'none',
-                                                                borderBottom: '1px dotted var(--accent-primary)',
-                                                                padding: 0, cursor: 'pointer', whiteSpace: 'nowrap',
-                                                            }}
-                                                        >{children}</button>
-                                                    );
-                                                }
-                                                return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-                                            },
-                                            pre: ({ children, ...props }) => (
-                                                <pre className="ai-msg-code-block" {...props}>{children}</pre>
-                                            ),
-                                            code: ({ className, children, ...props }) => {
-                                                const match = /language-(\w+)/.exec(className || '');
-                                                return match ? (
-                                                    <code className={className} {...props}>{children}</code>
-                                                ) : (
-                                                    <code className="ai-msg-inline-code" {...props}>{children}</code>
-                                                );
-                                            },
-                                            ul: ({ children }) => <ul>{children}</ul>,
-                                            ol: ({ children }) => <ol>{children}</ol>,
-                                            li: ({ children }) => <li>{children}</li>,
-                                            strong: ({ children }) => <strong>{children}</strong>,
-                                            h1: ({ children }) => <h3>{children}</h3>,
-                                            h2: ({ children }) => <h3>{children}</h3>,
-                                            h3: ({ children }) => <h4>{children}</h4>,
-                                            table: ({ children }) => (
-                                                <div className="ai-msg-table-wrap">
-                                                    <table>{children}</table>
-                                                </div>
-                                            ),
-                                            th: ({ children }) => <th>{children}</th>,
-                                            td: ({ children }) => <td>{children}</td>,
-                                        }}
-                                    >
-                                        {part.content}
-                                    </ReactMarkdown>
-                                );
+                                if (isStreaming && idx === lastTextIdx) {
+                                    return <StreamingMarkdown key={idx} content={part.content} components={mdComponents} />;
+                                }
+                                return <MarkdownChunk key={idx} content={part.content} components={mdComponents} />;
                             })}
                             {isStreaming && (
                                 <span className="ai-msg-cursor" />

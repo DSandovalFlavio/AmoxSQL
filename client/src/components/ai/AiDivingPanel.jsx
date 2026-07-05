@@ -107,16 +107,26 @@ const AiDivingPanel = ({
     const [showModesGuide, setShowModesGuide] = useState(false);
 
     // ─── Turns (transcript) + selected turn (inspector) ───
+    // Historical turns derive ONLY from messages: their identity survives both
+    // stream flushes and composer keystrokes, so each memoized <TranscriptTurn>
+    // bails out and only the live turn re-renders while streaming.
+    const historicalTurns = useMemo(() => groupIntoTurns(messages), [messages]);
     const turns = useMemo(() => {
-        const base = groupIntoTurns(messages);
         if (isGenerating && (streamingText || activeToolCalls.length > 0)) {
-            base.push({
+            return [...historicalTurns, {
                 id: '__live__', type: 'ai', text: streamingText || '', inProgress: true,
                 messages: [{ id: '__live__', role: 'assistant', content: streamingText || '', toolCalls: activeToolCalls }],
-            });
+            }];
         }
-        return base;
-    }, [messages, isGenerating, streamingText, activeToolCalls]);
+        return historicalTurns;
+    }, [historicalTurns, isGenerating, streamingText, activeToolCalls]);
+
+    // handleSend's identity changes on every composer keystroke (depends on
+    // inputText). Children must receive a STABLE callback or their memo dies
+    // per keystroke — the transcript would re-parse all markdown while typing.
+    const handleSendRef = useRef(handleSend);
+    useEffect(() => { handleSendRef.current = handleSend; });
+    const sendFollowUp = useCallback((text) => handleSendRef.current(text), []);
 
     const [selectedTurnId, setSelectedTurnId] = useState(null);
 
@@ -596,7 +606,7 @@ const AiDivingPanel = ({
                                             turns={turns}
                                             selectedTurnId={selectedTurnId}
                                             onSelect={setSelectedTurnId}
-                                            onFollowUp={handleSend}
+                                            onFollowUp={sendFollowUp}
                                             onAskAbout={handleAskAbout}
                                             isGenerating={isGenerating}
                                         />
@@ -647,7 +657,7 @@ const AiDivingPanel = ({
                                 turn={selectedTurn}
                                 allMessages={messages}
                                 onRunSql={onRunSql}
-                                onFollowUp={handleSend}
+                                onFollowUp={sendFollowUp}
                                 onAskAbout={handleAskAbout}
                                 onExportNotebook={onExportNotebook}
                                 onExportAmoxvis={onExportAmoxvis}
