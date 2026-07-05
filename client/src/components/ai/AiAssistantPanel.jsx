@@ -19,9 +19,10 @@ import { API_BASE as API } from '../../api.js';
 const AiAssistantPanel = ({
     activeFilePath,
     activeFileType,
-    activeFileContent,
-    activeResult,
-    activeChartConfig,
+    // Stable getter — returns { path, name, type, content, results, chartConfig, ... }
+    // for the active tab, read on demand (at send time) instead of via reactive
+    // props, so typing in the editor never re-renders this panel (G8).
+    getActiveTabInfo,
     onEditFile,
     onUpdateChartConfig,
     onAppendToFile,
@@ -83,9 +84,7 @@ const AiAssistantPanel = ({
         mode: 'assistant',
         filePath: activeFilePath,
         fileType: activeFileType,
-        fileContent: activeFileContent,
-        fileResult: activeResult,
-        fileChartConfig: activeChartConfig,
+        getFileContext: getActiveTabInfo,
         onEditFile,
         onUpdateChartConfig,
     });
@@ -316,6 +315,9 @@ const AiAssistantPanel = ({
     // ═══════════════════════════════════════
     // VIEW: Chat (active conversation)
     // ═══════════════════════════════════════
+    // Sampled once per panel render (used for edit-proposal diffs). Fresh enough:
+    // any pending edit arriving re-renders the panel and re-reads it.
+    const currentFileContent = getActiveTabInfo ? (getActiveTabInfo()?.content || null) : null;
     return (
         <div className="ai-panel">
             {/* ─── Resize Handle (left edge) ─── */}
@@ -439,7 +441,7 @@ const AiAssistantPanel = ({
                                 pendingEdits={pendingEdits}
                                 acceptEdit={acceptEdit}
                                 rejectEdit={rejectEdit}
-                                currentFileContent={activeFileContent}
+                                currentFileContent={currentFileContent}
                             />
                         ))}
 

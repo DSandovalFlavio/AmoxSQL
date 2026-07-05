@@ -73,6 +73,9 @@ export const fetchCloudModels = async (provider) => {
  * @param {string|null} options.fileContent - Current file content (for assistant mode context)
  * @param {object|null} options.fileResult - Current query result (for assistant mode context)
  * @param {object|null} options.fileChartConfig - Current chart config (for assistant mode context)
+ * @param {Function|null} options.getFileContext - Stable getter returning { content, results, chartConfig }
+ *        for the active file, read at SEND time. When provided it takes precedence over
+ *        fileContent/fileResult/fileChartConfig, decoupling the chat from per-keystroke props.
  * @param {Function|null} options.onEditFile - Callback when AI produces an edit_file action
  * @param {Function|null} options.onUpdateChartConfig - Callback when AI produces an update_chart_config action
  */
@@ -83,6 +86,7 @@ export default function useAiChat({
     fileContent = null,
     fileResult = null,
     fileChartConfig = null,
+    getFileContext = null,
     onEditFile = null,
     onUpdateChartConfig = null,
 } = {}) {
@@ -417,6 +421,14 @@ export default function useAiChat({
         }
 
         try {
+            // File context is resolved NOW (at send time): with a getter we read the
+            // live content/result/chart config on demand instead of receiving them as
+            // reactive props that would tie the panel to the editor's keystroke cycle.
+            const liveCtx = getFileContext ? (getFileContext() || {}) : null;
+            const ctxContent = liveCtx ? (liveCtx.content ?? null) : fileContent;
+            const ctxResult = liveCtx ? (liveCtx.results ?? null) : fileResult;
+            const ctxChartConfig = liveCtx ? (liveCtx.chartConfig ?? null) : fileChartConfig;
+
             const requestBody = {
                 messages: apiMessages,
                 provider,
@@ -430,7 +442,7 @@ export default function useAiChat({
             };
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
-            if (fileContent) requestBody.currentQuery = fileContent;
+            if (ctxContent) requestBody.currentQuery = ctxContent;
             if (currentSkippedSteps.size > 0) {
                 requestBody.planStepOverrides = Array.from(currentSkippedSteps).map(id => ({ stepId: id, status: 'skipped', note: 'skipped by user' }));
             }
@@ -438,13 +450,13 @@ export default function useAiChat({
                 requestBody.continueMode = true;
             }
             // Send a lightweight summary of the result (not the full data)
-            if (fileResult) {
+            if (ctxResult) {
                 requestBody.currentResult = {
-                    rowCount: fileResult.rowCount ?? fileResult.data?.length ?? 0,
-                    columns: fileResult.columns || (fileResult.data?.[0] ? Object.keys(fileResult.data[0]).map(n => ({ name: n })) : []),
+                    rowCount: ctxResult.rowCount ?? ctxResult.data?.length ?? 0,
+                    columns: ctxResult.columns || (ctxResult.data?.[0] ? Object.keys(ctxResult.data[0]).map(n => ({ name: n })) : []),
                 };
             }
-            if (fileChartConfig) requestBody.currentChartConfig = fileChartConfig;
+            if (ctxChartConfig) requestBody.currentChartConfig = ctxChartConfig;
 
             const res = await fetch(`${API}/api/ai/chat/stream`, {
                 method: 'POST',
@@ -679,7 +691,7 @@ export default function useAiChat({
         }
     }, [
         inputText, isGenerating, messages, selectedModel, customModel, provider,
-        contextObjects, mode, filePath, fileType, fileContent, fileResult, fileChartConfig, activeSkillId,
+        contextObjects, mode, filePath, fileType, fileContent, fileResult, fileChartConfig, getFileContext, activeSkillId,
         pendingContinue,
         ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle,
         onEditFile, onUpdateChartConfig,

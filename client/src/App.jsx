@@ -879,10 +879,15 @@ function App() {
   const handleQueryResultNoop = useCallback(() => {}, []);
   const handleToggleAi = useCallback(() => setShowAiSidebar(v => !v), []);
   const handleTabsChange = useCallback((tabData) => {
+    // tabData now carries only lightweight tab metadata (id/name/dirty/path/type)
+    // and fires only when that metadata changes — never per keystroke (G1).
     setTitleBarTabs(tabData);
-    const info = layoutRef.current?.getActiveTabInfo();
-    setActiveTabInfo(info || null);
+    const active = (tabData.tabs || []).find(t => t.id === tabData.activeTabId) || null;
+    setActiveTabInfo(active ? { path: active.path || null, type: active.type || null, name: active.name } : null);
   }, []);
+  // On-demand reader for the AI panel (G8): content/results/chartConfig are read
+  // from the layout at send time instead of flowing as reactive props per keystroke.
+  const getActiveEditorInfo = useCallback(() => layoutRef.current?.getActiveTabInfo() || null, []);
   const handleShowHistorySidebar = useCallback(() => {
     setSidebarCollapsed(false);
     setActiveSidebarTab('history');
@@ -1335,9 +1340,7 @@ function App() {
                 <AiAssistantPanel
                   activeFilePath={activeTabInfo?.path || null}
                   activeFileType={activeTabInfo?.type || null}
-                  activeFileContent={activeTabInfo?.content || null}
-                  activeResult={activeTabInfo?.results || null}
-                  activeChartConfig={activeTabInfo?.chartConfig || null}
+                  getActiveTabInfo={getActiveEditorInfo}
                   onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
                     onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
                     onAppendToFile={(sql) => layoutRef.current?.appendToActiveContent(sql)}

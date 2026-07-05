@@ -1,5 +1,5 @@
 import { API_BASE } from '../api.js';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 import { SqlWorkerBridge } from '../utils/sqlWorkerBridge';
@@ -282,7 +282,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const workerBridgeRef = useRef(null);
     const activeTabIdRef = useRef(props.tabId);
 
-    const broadcastHistoryRef = useRef([]);
+    // Last value we emitted through onChange. While the parent's `value` prop
+    // lags behind this (debounced state, slow renders), any differing incoming
+    // value is a stale echo of our own edit — never a reason to rewrite the buffer.
+    const lastBroadcastRef = useRef(null);
 
     // Save view state on unmount
     useEffect(() => {
@@ -293,20 +296,23 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         };
     }, []);
 
-    // Intelligently sync external value changes (e.g., loading a new file, formatting, tab switch)
-    // without suffering from "React Controlled Component Cursor Jump" during fast typing.
+    // Sync external value changes (loading a file, formatting, tab switch).
+    // The editor model OWNS the text: `setValue()` resets the cursor to (1,1)
+    // and clears the undo stack, so it is applied only for genuine external
+    // replacements — never under the user's cursor, never for echoes.
     useEffect(() => {
         if (!editorRef.current) return;
-        
-        // If the active tab changed, swap the view state
+        const editor = editorRef.current;
+
+        // If the active tab changed, swap the buffer + view state
         if (props.tabId && props.tabId !== activeTabIdRef.current) {
             if (activeTabIdRef.current) {
-                globalViewStateCache.set(activeTabIdRef.current, editorRef.current.saveViewState());
+                globalViewStateCache.set(activeTabIdRef.current, editor.saveViewState());
             }
             activeTabIdRef.current = props.tabId;
-            editorRef.current.setValue(value || '');
-            broadcastHistoryRef.current = [];
-            
+            editor.setValue(value || '');
+            lastBroadcastRef.current = null;
+
             const savedState = globalViewStateCache.get(props.tabId);
             if (savedState) {
                 // Use a tiny timeout to ensure the model has updated before restoring state
@@ -315,30 +321,27 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             return;
         }
 
-        const currentModelValue = editorRef.current.getValue();
-        
-        // Exact match -> do nothing
-        if (value === currentModelValue) return;
-
-        // Detect if the incoming value is merely a stale echo of what we already typed
-        const historyIndex = broadcastHistoryRef.current.indexOf(value);
-        if (historyIndex !== -1) {
-            // It's an echo. Throw away older history to save memory and IGNORE the prop.
-            broadcastHistoryRef.current.splice(0, historyIndex + 1);
+        // Steady state: the parent reflects the buffer. From here on, a differing
+        // value is a genuine external change again.
+        if ((value ?? '') === editor.getValue()) {
+            lastBroadcastRef.current = null;
             return;
         }
 
-        // If we reach here, it's a completely new/external value on the same tab (e.g. formatted)
-        editorRef.current.setValue(value || '');
-        broadcastHistoryRef.current = []; // reset history array
+        // The user is typing here — the buffer is the source of truth.
+        if (editor.hasTextFocus()) return;
+
+        // The parent hasn't consumed our latest emission yet → stale echo.
+        if (lastBroadcastRef.current !== null && editor.getValue() === lastBroadcastRef.current) return;
+
+        // Genuine external replacement (file reload, format, AI edit applied).
+        const viewState = editor.saveViewState();
+        editor.setValue(value || '');
+        if (viewState) editor.restoreViewState(viewState);
     }, [value, props.tabId]);
 
     const handleEditorChange = (newValue, event) => {
-        broadcastHistoryRef.current.push(newValue);
-        // Cap history to last 50 edits to prevent runaway memory
-        if (broadcastHistoryRef.current.length > 50) {
-            broadcastHistoryRef.current.shift();
-        }
+        lastBroadcastRef.current = newValue;
 
         onChange(newValue);
         // Clear error markers when user edits the code
@@ -597,6 +600,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             document.head.appendChild(style);
         }
 
+        // Own decorations collection: cheaper than filtering getAllDecorations()
+        // and immune to other decoration owners.
+        const cteDecorations = editor.createDecorationsCollection([]);
+
         const updateCteDecorations = () => {
             const model = editor.getModel();
             if (!model) return;
@@ -618,17 +625,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 });
             }
 
-            const existing = model.getAllDecorations()
-                .filter(d => d.options.glyphMarginClassName === 'cte-debug-glyph')
-                .map(d => d.id);
-
-            editor.deltaDecorations(existing, newDecorations);
+            cteDecorations.set(newDecorations);
         };
 
-        // Initial run & Listener
+        // Initial run & debounced listener (full-document regex — not per keystroke)
         updateCteDecorations();
-        const contentChangeDisposable = editor.onDidChangeModelContent(updateCteDecorations);
+        let cteDebounceTimer = null;
+        const contentChangeDisposable = editor.onDidChangeModelContent(() => {
+            if (cteDebounceTimer) clearTimeout(cteDebounceTimer);
+            cteDebounceTimer = setTimeout(updateCteDecorations, 250);
+        });
         disposablesRef.current.push(contentChangeDisposable);
+        disposablesRef.current.push({ dispose: () => { if (cteDebounceTimer) clearTimeout(cteDebounceTimer); } });
 
         // Handle Click
         const mouseDownDisposable = editor.onMouseDown((e) => {
@@ -1103,17 +1111,11 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         });
     }, [props.theme]);
 
-    const es = props.editorSettings || {};
-
-    return (
-        <Editor
-            height="100%"
-            language={props.language || 'sql'}
-            defaultValue={value}
-            onChange={handleEditorChange}
-            theme={['light', 'ivory', 'mist', 'snow'].includes(props.theme) ? 'duckdb-light' : 'duckdb-dark'}
-            beforeMount={handleEditorWillMount}
-            options={{
+    // Stable identity: a fresh options object every render makes the <Editor>
+    // wrapper call updateOptions() on each reconciliation.
+    const editorOptions = useMemo(() => {
+        const es = props.editorSettings || {};
+        return {
                 minimap: { enabled: es.minimap ?? false },
                 fontSize: es.fontSize ?? 14,
                 fontFamily: es.fontFamily ?? "'JetBrains Mono', 'Consolas', monospace",
@@ -1152,7 +1154,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     // worker, so it falls back to a SYNCHRONOUS main-thread document scan on
                     // every keystroke → input lag. Revisit only if the editor worker is wired up.
                 }
-            }}
+        };
+    }, [props.editorSettings]);
+
+    return (
+        <Editor
+            height="100%"
+            language={props.language || 'sql'}
+            defaultValue={value}
+            onChange={handleEditorChange}
+            theme={['light', 'ivory', 'mist', 'snow'].includes(props.theme) ? 'duckdb-light' : 'duckdb-dark'}
+            beforeMount={handleEditorWillMount}
+            options={editorOptions}
             onMount={handleEditorDidMount}
         />
     );

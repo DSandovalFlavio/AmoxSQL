@@ -7,6 +7,9 @@ import ResultsTable from './ResultsTable';
 import DebugResultModal from './DebugResultModal';
 import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal, LuCode, LuType, LuSettings2, LuExternalLink, LuChevronsUp, LuChevronsDown } from "react-icons/lu";
 
+// Stable no-op: an inline `() => {}` would break ResultsTable's memo on every render.
+const noopDbChange = () => { };
+
 const NotebookCell = ({
     id,
     type,
@@ -37,8 +40,18 @@ const NotebookCell = ({
     isRunningBatch = false,
 }) => {
     const [isEditingMarkdown, setIsEditingMarkdown] = useState(false);
+    // localContent drives ONLY the markdown textarea/preview and the input cell
+    // value. Code cells never mirror the editor into React state: Monaco owns
+    // the buffer and typing must not re-render the cell (see contentRef below).
     const [localContent, setLocalContent] = useState(content);
     const [localMetadata, setLocalMetadata] = useState(metadata || {});
+
+    // Freshest content/metadata regardless of debounces — single source for
+    // flushes (blur, move, run) without stale closures.
+    const contentRef = useRef(content);
+    const localMetadataRef = useRef(metadata || {});
+    const onUpdateRef = useRef(onUpdate);
+    useEffect(() => { onUpdateRef.current = onUpdate; });
 
     // Debug State
     const [debugModalOpen, setDebugModalOpen] = useState(false);
@@ -63,7 +76,7 @@ const NotebookCell = ({
             data: result.data,
             types: result.types,
             executionTime: result.executionTime,
-            query: result.executedQuery || localContent,
+            query: result.executedQuery || contentRef.current,
             cellTitle: `Cell ${cellIndex + 1}`,
         };
         window.electronAPI?.openPopout(payload);
@@ -77,7 +90,7 @@ const NotebookCell = ({
             data: result.data,
             types: result.types,
             executionTime: result.executionTime,
-            query: result.executedQuery || localContent,
+            query: result.executedQuery || contentRef.current,
             cellTitle: `Cell ${cellIndex + 1}`,
         };
         window.electronAPI?.openPopout(payload);
@@ -85,6 +98,12 @@ const NotebookCell = ({
 
     const metadataStr = JSON.stringify(metadata || {});
     useEffect(() => {
+        // While a local edit is pending (debounce in flight), the cell owns the
+        // truth — an incoming prop here is an older echo; adopting it would
+        // revert the user's last keystrokes.
+        if (contentTimerRef.current) return;
+        contentRef.current = content;
+        localMetadataRef.current = metadata || {};
         setLocalContent(content);
         setLocalMetadata(metadata || {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,30 +152,42 @@ const NotebookCell = ({
         if (onStateChange) onStateChange(id, { viewMode: mode });
     }, [onStateChange, id]);
 
-    // Debounced propagation of content changes to parent
+    // Debounced propagation of content changes to parent. Note this is a plain
+    // timer over refs — NOT a state effect — so typing in a code cell causes
+    // zero React renders until the debounce delivers to the notebook.
     const contentTimerRef = useRef(null);
-    const localContentRef = useRef(localContent);
-    localContentRef.current = localContent;
+    const envTimerRef = useRef(null);
 
-    useEffect(() => {
-        // Skip the initial render (content comes from parent)
-        if (localContent === content) return;
-
+    const scheduleContentUpdate = useCallback(() => {
         if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
         contentTimerRef.current = setTimeout(() => {
-            onUpdate(id, localContentRef.current, localMetadata);
-        }, 300);
+            contentTimerRef.current = null;
+            onUpdateRef.current(id, contentRef.current, localMetadataRef.current);
+        }, 400);
+    }, [id]);
 
-        return () => {
-            if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [localContent]);
+    // Code cells: Monaco owns the buffer; we only mirror into the ref.
+    const handleCodeChange = useCallback((val) => {
+        contentRef.current = val;
+        scheduleContentUpdate();
+    }, [scheduleContentUpdate]);
+
+    const flushContent = useCallback(() => {
+        if (contentTimerRef.current) {
+            clearTimeout(contentTimerRef.current);
+            contentTimerRef.current = null;
+        }
+        onUpdateRef.current(id, contentRef.current, localMetadataRef.current);
+    }, [id]);
+
+    // Clear pending timers on unmount
+    useEffect(() => () => {
+        if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
+        if (envTimerRef.current) clearTimeout(envTimerRef.current);
+    }, []);
 
     const handleBlur = () => {
-        // Flush any pending debounce immediately on blur
-        if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
-        onUpdate(id, localContent, localMetadata);
+        flushContent();
         if (type === 'markdown') {
             setIsEditingMarkdown(false);
         }
@@ -164,29 +195,33 @@ const NotebookCell = ({
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && e.ctrlKey && type === 'code') {
-            onRun(id);
+            // Flush + pass fresh content: the debounced update may not have
+            // reached the notebook yet, and running must never use stale SQL.
+            flushContent();
+            onRun(id, contentRef.current);
         }
     };
 
-    const handleDebugCte = async (cteName) => {
+    const handleDebugCte = useCallback(async (cteName) => {
         setDebugCteName(cteName);
         setDebugModalOpen(true);
         setDebugResult(null);
 
+        const cellContent = contentRef.current || '';
         try {
             const cteStartRegex = new RegExp(`\\b${cteName}\\s+AS\\s*\\(`, 'i');
-            const match = cteStartRegex.exec(localContent);
+            const match = cteStartRegex.exec(cellContent);
             if (!match) throw new Error("Could not find CTE definition.");
 
             let parenCount = 0;
             let foundStart = false;
             let cutIndex = -1;
 
-            for (let i = match.index; i < localContent.length; i++) {
-                if (localContent[i] === '(') {
+            for (let i = match.index; i < cellContent.length; i++) {
+                if (cellContent[i] === '(') {
                     parenCount++;
                     foundStart = true;
-                } else if (localContent[i] === ')') {
+                } else if (cellContent[i] === ')') {
                     parenCount--;
                     if (foundStart && parenCount === 0) {
                         cutIndex = i + 1;
@@ -197,7 +232,7 @@ const NotebookCell = ({
 
             if (cutIndex === -1) throw new Error("Could not parse CTE bounds.");
 
-            const partialQuery = localContent.substring(0, cutIndex);
+            const partialQuery = cellContent.substring(0, cutIndex);
             const debugQ = `${partialQuery} SELECT * FROM ${cteName} LIMIT 100`;
 
             // Need to inject variables here too for debugging
@@ -227,14 +262,27 @@ const NotebookCell = ({
         } catch (e) {
             setDebugResult({ error: e.message });
         }
-    };
+    }, [environment]);
 
     const isEmptyInReport = isReportMode && type === 'code' && hideCodeInReport && !result;
+
+    // Adopt external environment changes into the input display when idle
+    // (while the user types, the debounced local value owns the field).
+    useEffect(() => {
+        if (type !== 'input') return;
+        if (envTimerRef.current) return;
+        const varName = localMetadataRef.current.varName;
+        if (varName && environment && environment[varName] !== undefined && environment[varName] !== contentRef.current) {
+            contentRef.current = environment[varName];
+            setLocalContent(environment[varName]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [environment, type]);
 
     const renderInputBlock = () => {
         const varName = localMetadata.varName || '';
         const inputType = localMetadata.inputType || 'text';
-        const currentVal = environment && environment[varName] !== undefined ? environment[varName] : localContent;
+        const currentVal = localContent;
 
         return (
             <div className="nb-input-block">
@@ -247,9 +295,10 @@ const NotebookCell = ({
                             placeholder="my_var"
                             value={varName}
                             onChange={(e) => {
-                                const newName = e.target.value;
-                                setLocalMetadata({ ...localMetadata, varName: newName });
-                                onUpdate(id, localContent, { ...localMetadata, varName: newName });
+                                const newMeta = { ...localMetadataRef.current, varName: e.target.value };
+                                localMetadataRef.current = newMeta;
+                                setLocalMetadata(newMeta);
+                                onUpdateRef.current(id, contentRef.current, newMeta);
                             }}
                             className="nb-input-field"
                         />
@@ -262,9 +311,10 @@ const NotebookCell = ({
                         <select
                             value={inputType}
                             onChange={(e) => {
-                                const newType = e.target.value;
-                                setLocalMetadata({ ...localMetadata, inputType: newType });
-                                onUpdate(id, localContent, { ...localMetadata, inputType: newType });
+                                const newMeta = { ...localMetadataRef.current, inputType: e.target.value };
+                                localMetadataRef.current = newMeta;
+                                setLocalMetadata(newMeta);
+                                onUpdateRef.current(id, contentRef.current, newMeta);
                             }}
                             className="nb-input-type-select"
                         >
@@ -276,16 +326,32 @@ const NotebookCell = ({
                     <input
                         type={inputType}
                         placeholder="Expected value..."
-                        value={currentVal || ''}
+                        value={currentVal ?? ''}
                         onChange={(e) => {
                             let val = e.target.value;
                             if (inputType === 'number') val = Number(val);
                             setLocalContent(val);
+                            contentRef.current = val;
+                            // Debounced: propagating per keystroke re-runs every
+                            // dependent SQL cell on each character typed.
                             if (varName && onEnvironmentChange) {
-                                onEnvironmentChange(varName, val);
+                                if (envTimerRef.current) clearTimeout(envTimerRef.current);
+                                envTimerRef.current = setTimeout(() => {
+                                    envTimerRef.current = null;
+                                    onEnvironmentChange(varName, val);
+                                }, 500);
                             }
                         }}
-                        onBlur={() => onUpdate(id, localContent, localMetadata)}
+                        onBlur={() => {
+                            if (envTimerRef.current) {
+                                clearTimeout(envTimerRef.current);
+                                envTimerRef.current = null;
+                                if (varName && onEnvironmentChange) {
+                                    onEnvironmentChange(varName, contentRef.current);
+                                }
+                            }
+                            onUpdateRef.current(id, contentRef.current, localMetadataRef.current);
+                        }}
                         className="nb-input-value"
                     />
                 </div>
@@ -354,7 +420,7 @@ const NotebookCell = ({
                         </span>
 
                         {type === 'code' && (
-                            <button onClick={() => onRun(id)} className="nb-btn--run" title="Run Cell (Ctrl+Enter)">
+                            <button onClick={() => { flushContent(); onRun(id, contentRef.current); }} className="nb-btn--run" title="Run Cell (Ctrl+Enter)">
                                 <LuPlay size={12} fill="currentColor" /> Run
                             </button>
                         )}
@@ -370,14 +436,14 @@ const NotebookCell = ({
 
                     <div className="nb-toolbar-right">
                         {type === 'code' && onRunAbove && (
-                            <button onClick={() => onRunAbove(id)} className="nb-btn" title="Run This & Above" disabled={isRunningBatch}><LuChevronsUp size={14} /></button>
+                            <button onClick={() => { flushContent(); onRunAbove(id); }} className="nb-btn" title="Run This & Above" disabled={isRunningBatch}><LuChevronsUp size={14} /></button>
                         )}
                         {type === 'code' && onRunBelow && (
-                            <button onClick={() => onRunBelow(id)} className="nb-btn" title="Run This & Below" disabled={isRunningBatch}><LuChevronsDown size={14} /></button>
+                            <button onClick={() => { flushContent(); onRunBelow(id); }} className="nb-btn" title="Run This & Below" disabled={isRunningBatch}><LuChevronsDown size={14} /></button>
                         )}
                         {type === 'code' && (onRunAbove || onRunBelow) && <div className="nb-separator" />}
-                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveUp(id); }} className="nb-btn" title="Move Up"><LuArrowUp size={14} /></button>
-                        <button onClick={() => { onUpdate(id, localContent, localMetadata); onMoveDown(id); }} className="nb-btn" title="Move Down"><LuArrowDown size={14} /></button>
+                        <button onClick={() => { flushContent(); onMoveUp(id); }} className="nb-btn" title="Move Up"><LuArrowUp size={14} /></button>
+                        <button onClick={() => { flushContent(); onMoveDown(id); }} className="nb-btn" title="Move Down"><LuArrowDown size={14} /></button>
                         <div className="nb-separator" />
                         <button onClick={() => onDelete(id)} className="nb-btn nb-btn--danger" title="Delete"><LuTrash2 size={13} /></button>
                     </div>
@@ -395,7 +461,11 @@ const NotebookCell = ({
                     isEditingMarkdown && !isReportMode ? (
                         <textarea
                             value={localContent}
-                            onChange={(e) => setLocalContent(e.target.value)}
+                            onChange={(e) => {
+                                setLocalContent(e.target.value);
+                                contentRef.current = e.target.value;
+                                scheduleContentUpdate();
+                            }}
                             onBlur={handleBlur}
                             autoFocus
                             className="nb-md-edit"
@@ -432,12 +502,10 @@ const NotebookCell = ({
                         {/* Editor Area */}
                         {!(isReportMode && hideCodeInReport) && (
                             <div className="nb-code-editor-wrap">
-                                <div style={{ height: `${Math.max(80, Math.min(400, ((localContent?.toString().split('\n').length) || 3) * 20 + 20))}px` }} onKeyDown={handleKeyDown}>
+                                <div style={{ height: `${Math.max(80, Math.min(400, ((content?.toString().split('\n').length) || 3) * 20 + 20))}px` }} onKeyDown={handleKeyDown}>
                                     <SqlEditor
-                                        value={typeof localContent === 'string' ? localContent : ''}
-                                        onChange={(val) => {
-                                            setLocalContent(val);
-                                        }}
+                                        value={typeof content === 'string' ? content : ''}
+                                        onChange={handleCodeChange}
                                         onDebugCte={handleDebugCte}
                                     />
                                 </div>
@@ -461,9 +529,9 @@ const NotebookCell = ({
                                                     data={result.data}
                                                     types={result.types}
                                                     executionTime={result.executionTime}
-                                                    query={result.executedQuery || localContent}
-                                                    currentEditorQuery={localContent}
-                                                    onDbChange={() => { }}
+                                                    query={result.executedQuery || content}
+                                                    currentEditorQuery={content}
+                                                    onDbChange={noopDbChange}
                                                     isReportMode={isReportMode}
                                                     initialChartConfig={initialCellState?.chartConfig || null}
                                                     initialViewMode={initialCellState?.viewMode || null}
@@ -510,4 +578,7 @@ const NotebookCell = ({
     );
 };
 
-export default NotebookCell;
+// Memoized: typing in one cell (or streaming results into it) must not
+// re-render its siblings with their tables, charts and Monaco instances.
+// Effective only while SqlNotebook passes identity-stable props.
+export default React.memo(NotebookCell);
