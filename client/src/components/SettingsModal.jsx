@@ -29,16 +29,15 @@ const RECOMMENDED_MODELS = [
 ];
 
 const THEMES = [
-    { id: 'dark',     label: 'Obsidian',  icon: <LuMoon size={14} />, sidebar: '#0e0f11', editor: '#141518', text: '#ccc', desc: 'Deepest dark' },
-    { id: 'onyx',     label: 'Onyx',      icon: <LuMoon size={14} />, sidebar: '#101113', editor: '#1a1c20', text: '#ccc', desc: 'Near-black blue' },
-    { id: 'carbon',   label: 'Carbon',    icon: <LuMoon size={14} />, sidebar: '#121315', editor: '#1c1f24', text: '#bbb', desc: 'Blue-grey dark' },
-    { id: 'graphite', label: 'Graphite',  icon: <LuMoon size={14} />, sidebar: '#141618', editor: '#222529', text: '#bbb', desc: 'Warm dark grey' },
-    { id: 'nord',     label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
-    { id: 'islands',  label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'JetBrains-inspired' },
-    { id: 'ivory',    label: 'Ivory',     icon: <LuSun size={14} />,  sidebar: '#f3ede4', editor: '#faf6ef', text: '#3b3228', desc: 'Warm paper' },
-    { id: 'mist',     label: 'Mist',      icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
-    { id: 'snow',     label: 'Snow',      icon: <LuSun size={14} />,  sidebar: '#e5e7eb', editor: '#ffffff', text: '#111827', desc: 'Clean & crisp' },
-    { id: 'light',    label: 'Light',     icon: <LuSun size={14} />,  sidebar: '#f2f3f5', editor: '#ffffff', text: '#333',    desc: 'Clean & bright' },
+    { id: 'amoxdark',  label: 'Amox Dark',    icon: <LuMoon size={14} />, sidebar: '#151b22', editor: '#0f141a', text: '#22d3ee', desc: 'Signature · cyan brand' },
+    { id: 'dark',      label: 'Obsidian',     icon: <LuMoon size={14} />, sidebar: '#191b1f', editor: '#0b0c0d', text: '#ccc',    desc: 'Deepest dark' },
+    { id: 'onyx',      label: 'Onyx',         icon: <LuMoon size={14} />, sidebar: '#131415', editor: '#111214', text: '#ccc',    desc: 'True black' },
+    { id: 'nord',      label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
+    { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'JetBrains-inspired' },
+    { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
+    { id: 'ivory',     label: 'Ivory',        icon: <LuSun size={14} />,  sidebar: '#f3ede4', editor: '#faf6ef', text: '#3b3228', desc: 'Warm paper' },
+    { id: 'mist',      label: 'Mist',         icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
+    { id: 'light',     label: 'Light',        icon: <LuSun size={14} />,  sidebar: '#f2f3f5', editor: '#ffffff', text: '#333',    desc: 'Clean & bright' },
 ];
 
 const VIBRANT_ACCENTS = [
@@ -1023,7 +1022,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         onChange={e => onInterfaceFontChange?.(e.target.value)}
                                         style={{
                                             width: '100%', maxWidth: 300, padding: '8px 10px',
-                                            background: 'var(--input-bg, var(--bg-secondary))',
+                                            background: 'var(--input-bg)',
                                             color: 'var(--text-primary)',
                                             border: '1px solid var(--border-color)',
                                             borderRadius: 6, fontSize: 13,

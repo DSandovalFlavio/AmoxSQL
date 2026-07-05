@@ -88,7 +88,7 @@ export function ToastProvider({ children }) {
                                 border: `1px solid ${colors.border}`,
                                 borderRadius: '8px',
 
-                                boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+                                boxShadow: 'var(--shadow-lg)',
                                 pointerEvents: 'auto',
                                 animation: t.exiting
                                     ? 'toast-exit 0.25s ease-in forwards'

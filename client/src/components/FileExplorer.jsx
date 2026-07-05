@@ -212,7 +212,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         notebooks: <LuBookOpen  size={14} color="var(--icon-notebook)" />,
         charts:    <LuChartBar  size={14} color="var(--icon-parquet)" />,
         chains:    <LuGitBranch size={14} color="var(--accent-primary)" />,
-        data:      <LuDatabase  size={14} color="var(--icon-db, var(--icon-default))" />,
+        data:      <LuDatabase  size={14} color="var(--icon-sql)" />,
         exports:   <LuPackage   size={14} color="var(--text-muted)" />,
         context:   <LuBrain     size={14} color="var(--accent-primary)" />,
         agent:     <LuBot       size={14} color="var(--accent-primary)" />,
@@ -781,7 +781,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                 const gitStatus = gitStatusMap[fileNorm]
                                     || gitStatusMap[file.name]
                                     || (Object.keys(gitStatusMap).find(k => k.endsWith('/' + file.name)) ? gitStatusMap[Object.keys(gitStatusMap).find(k => k.endsWith('/' + file.name))] : undefined);
-                                const GIT_BADGE_COLORS = { M: '#e8a838', A: '#4caf7d', D: '#e06c75', '?': undefined };
+                                const GIT_BADGE_COLORS = { M: 'var(--color-warning)', A: 'var(--color-success)', D: 'var(--color-error)', '?': undefined };
                                 return (
                                 <>
                                     <span style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>

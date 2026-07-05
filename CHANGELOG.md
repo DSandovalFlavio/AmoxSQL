@@ -5,6 +5,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.6.0] — 2026-07-05
+
+### Theme system overhaul + two signature brand themes
+
+A ground-up audit and rebuild of AmoxSQL's theming. Colors now react consistently to the active theme, the code editor matches the app, light themes are actually legible, and picking an accent works everywhere. Along the way the least-used, near-duplicate themes were retired and replaced with two designed-from-scratch brand themes.
+
+#### New signature themes
+- **Amox Dark** and **Amox Light** — two brand themes built around the AmoxSQL logo gradient (cyan → deep blue). Cool-neutral surfaces so data tables and chart series stay true, with the brand cyan/teal reserved as the single "action/focus" accent (never a data-series color). Designed after studying reference palettes (Tokyo Night, Rosé Pine, Ayu, Catppuccin Latte) and data-viz theming principles.
+- Retired the three least-used, near-duplicate themes (Carbon, Graphite, Snow). The theme picker is now **9 curated themes**: Amox Dark, Obsidian, Onyx, Nord Dark, Dark Islands (dark) + Amox Light, Ivory, Mist, Light (light).
+
+#### The code editor now follows the theme
+- **The Monaco editor re-themes live with the app** — previously it kept a stale snapshot: switching to another theme (or changing the accent) from a notebook/markdown/deck tab left the editor on the old colors, and opening the editor could even poison the opposite mode's palette. There is now one editor theme, rebuilt from the live design tokens whenever the theme or accent changes, applied from a single place. Notebook cells re-theme too, and cursor/selection follow the accent.
+- Obsidian and Onyx now differ where it matters for reading code: they **swap only the editor canvas background** (Obsidian gets the true-black canvas, Onyx the neutral one) while keeping their own app surfaces.
+
+#### Light themes are legible now
+- **Fixed washed-out text.** Ivory/Mist secondary/tertiary text sat around 2.5–3.0:1 (the "letters I can barely see" report); every theme now meets shared WCAG contrast floors, verified by a new checker (`scripts/checkThemeContrast.cjs`).
+- **Fixed dark artifacts bleeding into light themes** — Ivory, Mist and the rebuilt light themes no longer inherit dark-only values, so info text, lineage/ER nodes (were near-black), file icons and scrollbars are all correct.
+- **Data Flow (chains) nodes are readable in light mode** — node colors derive from the theme's surfaces instead of hardcoded dark values.
+
+#### Accents work on every theme
+- **Picking an accent now applies on Nord, Dark Islands, and the light themes** — previously the theme's built-in accent silently won and your pick did nothing. Each theme's default accent now yields to a user-picked one. Sober accents got proper light-mode ramps (≥4.5:1) so they're legible on light backgrounds.
+
+#### Under the hood
+- A **mode layer** (`.mode-light` / `.mode-dark`) supplies light-vs-dark values to every theme of that mode, so light themes without the `light-theme` class no longer fall through to dark defaults.
+- **Single source of truth** for accent derivation (one `color-mix` derivador per mode; accents set only their hue) and for Monaco theming (`client/src/monacoTheme.js`, `client/src/theme.js`). Removed ~35 phantom tokens (panels that rendered with no background/border), dead tokens, and the orphaned `update_css.cjs` generator.
+
+---
+
 ## [3.5.0] — 2026-07-04
 
 ### Report Flow: editable Word/PowerPoint export + a visual deck studio

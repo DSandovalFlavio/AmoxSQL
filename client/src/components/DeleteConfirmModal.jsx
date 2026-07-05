@@ -29,7 +29,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, itemName, itemType }) 
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            backgroundColor: 'var(--overlay-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
 
         }}>
             <div className="modal-panel" style={{
@@ -51,7 +51,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, itemName, itemType }) 
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                     <button type="button" onClick={onClose} disabled={loading} style={{
-                        backgroundColor: 'var(--button-bg-secondary)', padding: '6px 16px', borderRadius: '3px',
+                        backgroundColor: 'var(--surface-overlay)', padding: '6px 16px', borderRadius: '3px',
                         border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: loading ? 'default' : 'pointer', fontWeight: '500', opacity: loading ? 0.7 : 1
                     }}>
                         Cancel

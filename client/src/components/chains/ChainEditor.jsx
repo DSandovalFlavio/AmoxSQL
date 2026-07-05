@@ -28,6 +28,7 @@ import {
     yamlToChain,
     generateNodeId,
     generateEdgeId,
+    resolveThemeColor,
 } from './chainUtils';
 import { useChainExecution } from './useChainExecution';
 import { validateChain, countErrors, countWarnings } from './chainValidation';
@@ -75,7 +76,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             source: e.source,
             target: e.target,
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         })), [initialChain]);
 
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -178,7 +179,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             ...params,
             id: generateEdgeId(),
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         };
 
         // Check for cycles before adding
@@ -432,7 +433,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     source: e.source,
                     target: e.target,
                     type: 'smoothstep',
-                    style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+                    style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
                 })));
 
                 toast.success('Chain imported from YAML');
@@ -471,7 +472,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             source: e.source,
             target: e.target,
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         }));
         setNodes(newNodes);
         setEdges(newEdges);
@@ -576,7 +577,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             source: e.source,
             target: e.target,
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         })));
     }, []);
 
@@ -727,7 +728,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
 
             {/* "What is Data Flow?" reference drawer */}
             {showGuide && (
-                <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.62)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay-bg)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                     <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '80vh', overflowY: 'auto', padding: '20px 22px' }}>
                         <button onClick={() => setShowGuide(false)} title="Close" style={{ position: 'absolute', top: '12px', right: '12px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
                             <LuX size={18} />

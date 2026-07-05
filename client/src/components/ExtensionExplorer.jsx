@@ -319,7 +319,7 @@ const ExtensionExplorer = () => {
                                     }}
                                 >
                                     {featuredOpen ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
-                                    <LuStar size={9} style={{ color: 'oklch(0.78 0.18 80)' }} />
+                                    <LuStar size={9} style={{ color: 'var(--color-warning)' }} />
                                     Featured
                                     <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
                                     <span style={{ fontSize: '9px' }}>{featuredItems.length}</span>
@@ -591,7 +591,7 @@ const ContextMenu = forwardRef(({ x, y, ext, onLoad, onCopyName, onOpenDocs, onC
         background: 'var(--surface-raised)',
         border: '1px solid var(--border-default)',
         borderRadius: '8px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+        boxShadow: 'var(--shadow-md)',
         padding: '4px',
         minWidth: '160px',
     };

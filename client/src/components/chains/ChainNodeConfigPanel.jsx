@@ -445,17 +445,17 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                         <label>Validation</label>
                         {nodeValidation.errors.length === 0 && nodeValidation.warnings.length === 0 ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
-                                <LuCheck size={13} style={{ color: 'oklch(0.7 0.15 155)' }} /> No issues — this node is ready.
+                                <LuCheck size={13} style={{ color: 'var(--color-success)' }} /> No issues — this node is ready.
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
                                 {nodeValidation.errors.map((e, i) => (
-                                    <div key={`e${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'oklch(0.72 0.17 25)' }}>
+                                    <div key={`e${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--color-error)' }}>
                                         <LuCircleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> <span>{e}</span>
                                     </div>
                                 ))}
                                 {nodeValidation.warnings.map((w, i) => (
-                                    <div key={`w${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'oklch(0.75 0.15 85)' }}>
+                                    <div key={`w${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--color-warning)' }}>
                                         <LuTriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> <span>{w}</span>
                                     </div>
                                 ))}

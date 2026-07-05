@@ -14,12 +14,12 @@ import {
 const FOLDER_ICONS = {
     queries:   { icon: LuFileCode2,  color: 'var(--icon-sql)',          label: 'Queries' },
     notebooks: { icon: LuBookOpen,   color: 'var(--icon-notebook)',     label: 'Notebooks' },
-    charts:    { icon: LuChartBar,   color: 'var(--accent-blue, #38bdf8)', label: 'Charts' },
+    charts:    { icon: LuChartBar,   color: 'var(--color-info)', label: 'Charts' },
     chains:    { icon: LuGitBranch,  color: 'var(--accent-primary)',    label: 'Chains' },
-    data:      { icon: LuDatabase,   color: 'var(--icon-db)',           label: 'Data' },
+    data:      { icon: LuDatabase,   color: 'var(--icon-sql)',           label: 'Data' },
     exports:   { icon: LuPackage,    color: 'var(--text-tertiary)',     label: 'Exports' },
     context:   { icon: LuBrain,      color: 'var(--accent-primary)',    label: 'Context (AI)' },
-    agent:     { icon: LuBot,        color: 'var(--accent-secondary, var(--accent-primary))', label: 'Agent' },
+    agent:     { icon: LuBot,        color: 'var(--accent-muted)', label: 'Agent' },
 };
 
 // Folders selected by default on first run

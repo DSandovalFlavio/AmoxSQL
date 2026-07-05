@@ -18,6 +18,12 @@
   --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
   --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
 
+  /* Monaco code-editor canvas bg: left UNSET on purpose. Only Obsidian/Onyx set
+     it (below) to swap the editor bg; every other theme's editor falls back to
+     its own --surface-base — resolved in JS via var(--monaco-editor-bg,
+     var(--surface-base)) in monacoTheme.js. Defining it here as
+     var(--surface-base) would NOT re-resolve per theme through the probe. */
+
   /* ── Border System (opacity-based for consistency) ── */
   --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.10);
@@ -29,7 +35,12 @@
   --text-tertiary:  rgba(255, 255, 255, 0.36);
   --text-disabled:  rgba(255, 255, 255, 0.20);
 
-  /* ── Accent Color (oklch + color-mix derivation) ── */
+  /* ── Accent Color — SINGLE derivador (dark washes) ──
+     :root derives muted/subtle/focus-ring from --accent-primary via color-mix;
+     .mode-light overrides them with softer washes. Because the color-mix reads
+     var(--accent-primary), it re-resolves per element — so every accent preset
+     and every theme's default accent only needs to set --accent-primary, never
+     the derived tokens. Do NOT restate these inside .accent-* blocks. */
   --accent-primary: oklch(0.905 0.155 195);    /* Cyan default */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
@@ -43,6 +54,9 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+
+  /* ── Modal / dropdown scrim (single source; was ~28 rgba(0,0,0,0.6) copies) ── */
+  --overlay-bg: rgba(0, 0, 0, 0.6);
 
   /* ── Motion System ──
      Duration scale + easing curves. Single source of truth for all
@@ -202,35 +216,28 @@
 
   /* ── Window Title Bar (Electron) ── */
   --titlebar-height: 32px;
-  --titlebar-bg: oklch(0.125 0.005 270);      /* ≈ #0F1012 */
-  --titlebar-text: oklch(0.68 0.01 270);      /* ≈ #A0A0A0 */
 
   /* ═══════════════════════════════════════════════
      LEGACY ALIASES — backward compat with inline styles
      (will be removed as components migrate to tokens)
      ═══════════════════════════════════════════════ */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
   --text-muted: var(--text-tertiary);
   --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 
   --sidebar-item-active-bg: var(--active-bg);
   --border-color: var(--border-default);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: var(--surface-base);
-  --sidebar-item-active-text: var(--text-primary);
 
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: var(--border-default);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: var(--surface-raised);
   --table-row-hover: var(--hover-bg);
 }
 
@@ -600,8 +607,8 @@
 }
 
 .window-title-bar .control-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #FFFFFF;
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
 .window-title-bar .control-btn.close:hover {
@@ -668,120 +675,129 @@
 }
 
 /* ═══════════════════════════════════════════════
+   MODE LAYER — light-vs-dark tokens shared by ALL themes of that mode.
+   :root already holds the DARK values (info/nodes/icons), inherited by every
+   dark theme. This block supplies the LIGHT versions to EVERY light theme —
+   including ivory/mist/snow, which have their own theme class (not
+   `.light-theme`) and previously inherited the dark info/nodes/icons
+   (black nodes, unreadable info text). Placed before the theme blocks so a
+   theme may still override a mode token if it truly needs a tinted variant.
+   ═══════════════════════════════════════════════ */
+.mode-light {
+  /* Info feedback — no light theme defined it; all inherited dark blue (~2.4:1) */
+  --feedback-info:        oklch(0.52 0.17 250);
+  --feedback-info-bg:     color-mix(in oklch, var(--feedback-info) 8%, transparent);
+  --feedback-info-border: color-mix(in oklch, var(--feedback-info) 20%, transparent);
+  --feedback-info-text:   oklch(0.48 0.17 250);
+  --color-info:      var(--feedback-info);
+  --color-info-bg:   var(--feedback-info-bg);
+  --color-info-text: var(--feedback-info-text);
+
+  /* Lineage / node type colors — light variants (bg pale, text dark) */
+  --node-source-bg:     oklch(0.95 0.03 155);
+  --node-source-border: oklch(0.55 0.18 150);
+  --node-source-text:   oklch(0.40 0.16 150);
+  --node-staging-bg:    oklch(0.95 0.03 85);
+  --node-staging-border:oklch(0.60 0.16 85);
+  --node-staging-text:  oklch(0.45 0.14 85);
+  --node-mart-bg:       oklch(0.95 0.03 250);
+  --node-mart-border:   oklch(0.55 0.16 250);
+  --node-mart-text:     oklch(0.40 0.14 250);
+  --node-other-bg:      oklch(0.95 0.03 310);
+  --node-other-border:  oklch(0.55 0.14 310);
+  --node-other-text:    oklch(0.40 0.12 310);
+
+  /* File icon colors — darker for legibility on light surfaces */
+  --icon-folder:   oklch(0.60 0.14 80);
+  --icon-sql:      oklch(0.55 0.14 250);
+  --icon-notebook: oklch(0.50 0.16 155);
+  --icon-csv:      oklch(0.50 0.14 155);
+  --icon-json:     oklch(0.60 0.14 80);
+  --icon-md:       oklch(0.50 0.10 250);
+  --icon-parquet:  oklch(0.55 0.12 330);
+  --icon-excel:    oklch(0.42 0.14 155);
+  --icon-default:  var(--text-tertiary);
+
+  /* Accent derivation, light variant. :root derives the DARK washes (18/8/35);
+     light backgrounds need softer washes so the accent tints don't overpower.
+     Every accent (and every light theme's default accent) resolves through
+     these — accent classes only set --accent-primary, never the derived tokens.
+     var(--accent-primary) re-resolves per element, so a picked accent flows in. */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+}
+
+/* ═══════════════════════════════════════════════
    ACCENT PRESETS (oklch — perceptually uniform)
-   Each preset sets --accent-primary in oklch;
-   muted/subtle/focus-ring auto-derived via color-mix.
+   Each preset sets ONLY --accent-primary. muted/subtle/focus-ring/color-user are
+   derived ONCE in :root (dark washes) and .mode-light (softer light washes); the
+   color-mix reads var(--accent-primary), which re-resolves per element, so the
+   picked accent flows into every derived token automatically.
    Presets flow from bright cyan → deep blue.
    ═══════════════════════════════════════════════ */
 
 .accent-linear {
   --accent-primary: oklch(0.53 0.14 277);     /* Linear Blue */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 40%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-islands {
   --accent-primary: #548af7;                  /* Islands Blue — JetBrains Dark */
-  --accent-muted:   rgba(84, 138, 247, 0.18);
-  --accent-subtle:  rgba(84, 138, 247, 0.08);
-  --focus-ring:     rgba(84, 138, 247, 0.35);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-2 {
   --accent-primary: oklch(0.89 0.150 195);    /* ≈ #00F5FF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-3 {
   --accent-primary: oklch(0.88 0.145 197);    /* ≈ #00ECFF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-4 {
   --accent-primary: oklch(0.85 0.140 202);    /* ≈ #00DAFF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-5 {
   --accent-primary: oklch(0.82 0.135 212);    /* ≈ #00C8FF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-6 {
   --accent-primary: oklch(0.77 0.140 228);    /* ≈ #00B6FF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-7 {
   --accent-primary: oklch(0.72 0.155 245);    /* ≈ #00A3FF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-8 {
   --accent-primary: oklch(0.66 0.170 255);    /* ≈ #0090FF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-9 {
   --accent-primary: oklch(0.61 0.190 262);    /* ≈ #007CFF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amox-10 {
   --accent-primary: oklch(0.56 0.210 268);    /* ≈ #0068FF */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
+/* Obsidian ⇄ Onyx: swap ONLY the Monaco code-editor canvas background — each
+   theme keeps ALL its own app surfaces (sidebar, panels, tables). Obsidian's
+   editor shows Onyx's true-black; Onyx's editor shows Obsidian's neutral.
+   `body.mode-dark:not([class*="theme-"])` targets Obsidian (the default dark,
+   which has no theme class). */
+body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
+
 /* ═══════════════════════════════════════════════
-   DARK THEME: ONYX
-   Between Obsidian and Carbon — very dark with subtle blue undertone
+   DARK THEME: ONYX — true black
+   The deepest theme: pure-neutral near-black.
    ═══════════════════════════════════════════════ */
 .theme-onyx {
-  --surface-base:    #131517;
-  --surface-raised:  #1a1c20;
-  --surface-overlay: #1f2126;
-  --surface-inset:   #101113;
+  --surface-base:    #0b0c0d;
+  --surface-raised:  #131415;
+  --surface-overlay: #191a1c;
+  --surface-inset:   #08090a;
+  --monaco-editor-bg: #111214;   /* editor shows Obsidian's neutral (swapped) */
 
   --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.10);
@@ -799,89 +815,94 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #1c1e23;
   --table-row-hover: rgba(255, 255, 255, 0.03);
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: CARBON
-   Blue-grey undertone, still very dark
+   DARK THEME: AMOXDARK — signature brand theme
+   Cool-neutral near-black surfaces with a ~6% cyan tint (so data tables and
+   chart series pop, never tinted) + the AmoxSQL cyan as the ONE saturated
+   accent. Syntax is a cool, low-sat family (Tokyo-Night/Rosé-Pine lineage)
+   that leaves cyan as the exclusive "AmoxSQL action/focus" signature.
+   Elevation is by luminance (base→raised→overlay), not borders.
    ═══════════════════════════════════════════════ */
-.theme-carbon {
-  --surface-base:    #151719;
-  --surface-raised:  #1c1f24;
-  --surface-overlay: #22252b;
-  --surface-inset:   #121315;
+.theme-amoxdark {
+  --surface-base:    #0f141a;   /* cool-carbon, ~6% cyan tint */
+  --surface-raised:  #151b22;   /* +~4% L — panels, sidebar, table header */
+  --surface-overlay: #1c242d;   /* +~4% L — modals, popovers, row hover */
+  --surface-inset:   #0c1014;   /* wells: gutter, inputs, code blocks */
 
-  --border-subtle:  rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.10);
-  --border-strong:  rgba(255, 255, 255, 0.17);
+  /* Borders barely visible — separation comes from elevation, not lines */
+  --border-subtle:  rgba(190, 214, 232, 0.06);
+  --border-default: rgba(190, 214, 232, 0.10);
+  --border-strong:  rgba(190, 214, 232, 0.18);
 
-  --text-primary:   rgba(255, 255, 255, 0.90);
-  --text-secondary: rgba(255, 255, 255, 0.54);
-  --text-tertiary:  rgba(255, 255, 255, 0.34);
-  --text-disabled:  rgba(255, 255, 255, 0.19);
+  --text-primary:   #e6edf3;   /* cool off-white, ~15:1 */
+  --text-secondary: #9ba9b8;
+  --text-tertiary:  #6a7a8b;
+  --text-disabled:  #46525f;
 
-  --hover-bg:   rgba(255, 255, 255, 0.05);
-  --active-bg:  rgba(255, 255, 255, 0.09);
+  /* Brand cyan default lives in .theme-amoxdark:not([class*="accent-"]) below,
+     so a user-picked accent overrides it (consistent with Nord/Islands). */
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
+  --hover-bg:   rgba(190, 214, 232, 0.05);
+  --active-bg:  rgba(190, 214, 232, 0.09);
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+
+  /* Feedback — cool-leaning, tuned for the dark surfaces */
+  --feedback-success:        #4ade80;
+  --feedback-success-bg:     rgba(74, 222, 128, 0.10);
+  --feedback-success-border: rgba(74, 222, 128, 0.25);
+  --feedback-success-text:   #6ee79b;
+  --feedback-error:          #f87171;
+  --feedback-error-bg:       rgba(248, 113, 113, 0.10);
+  --feedback-error-border:   rgba(248, 113, 113, 0.25);
+  --feedback-error-text:     #fb9a9a;
+  --feedback-warning:        #fbbf24;
+  --feedback-warning-bg:     rgba(251, 191, 36, 0.10);
+  --feedback-warning-border: rgba(251, 191, 36, 0.25);
+  --feedback-warning-text:   #fcd34d;
+  --feedback-info:           #22d3ee;
+  --feedback-info-bg:        rgba(34, 211, 238, 0.10);
+  --feedback-info-border:    rgba(34, 211, 238, 0.25);
+  --feedback-info-text:      #67e8f9;
+
+  /* Syntax — cool & elegant; cyan is reserved for the accent, so tokens use
+     sky/teal/lavender/blue with a single warm amber for numeric literals. */
+  --syntax-keyword:   #7dd3fc;   /* sky — SELECT/FROM/WHERE (structure, calm) */
+  --syntax-string:    #7ee0c0;   /* teal-mint literals */
+  --syntax-number:    #f0a868;   /* warm amber — numeric literals leap out */
+  --syntax-function:  #c4b5fd;   /* lavender/iris — COUNT/SUM */
+  --syntax-comment:   #546475;   /* muted blue-grey, italic */
+  --syntax-type:      #5ea4e0;   /* medium blue — data types, CAST */
+  --syntax-operator:  #89b4c4;   /* teal-grey, low weight */
+  --syntax-variable:  #e6edf3;   /* = text: columns/identifiers stay neutral */
+  --syntax-constant:  #f0c674;   /* gold — TRUE/FALSE/NULL */
+
+  /* Database types (mirror the syntax family) */
+  --type-integer:  #5ea4e0;
+  --type-float:    #7ee0c0;
+  --type-text:     #f0a868;
+  --type-datetime: #c4b5fd;
+  --type-boolean:  #7dd3fc;
+  --type-default:  #f0c674;
+
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
+  --button-text-color: #04141a;   /* dark text on the bright cyan accent */
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #1e2127;
-  --table-row-hover: rgba(255, 255, 255, 0.03);
-}
-
-/* ═══════════════════════════════════════════════
-   DARK THEME: GRAPHITE
-   Mid-dark with warm grey, comfortable for long sessions
-   ═══════════════════════════════════════════════ */
-.theme-graphite {
-  --surface-base:    #191b1e;
-  --surface-raised:  #222529;
-  --surface-overlay: #292c32;
-  --surface-inset:   #141618;
-
-  --border-subtle:  rgba(255, 255, 255, 0.07);
-  --border-default: rgba(255, 255, 255, 0.11);
-  --border-strong:  rgba(255, 255, 255, 0.18);
-
-  --text-primary:   rgba(255, 255, 255, 0.90);
-  --text-secondary: rgba(255, 255, 255, 0.56);
-  --text-tertiary:  rgba(255, 255, 255, 0.36);
-  --text-disabled:  rgba(255, 255, 255, 0.20);
-
-  --hover-bg:   rgba(255, 255, 255, 0.05);
-  --active-bg:  rgba(255, 255, 255, 0.09);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.38);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.48);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.58);
-
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
-  --editor-bg: var(--surface-base);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #24272c;
-  --table-row-hover: rgba(255, 255, 255, 0.03);
+  --table-row-hover: rgba(190, 214, 232, 0.035);
 }
 
 /* ═══════════════════════════════════════════════
@@ -899,8 +920,8 @@
   --border-strong:  rgba(216, 222, 233, 0.18);
 
   --text-primary:   #d8dee9;
-  --text-secondary: #8d99a8;
-  --text-tertiary:  #5d6b7d;
+  --text-secondary: #98a4b3;   /* ≥5.5:1 (was 8d99a8 → 5.11 on raised) */
+  --text-tertiary:  #6f7d8f;   /* ≥3.0:1 dark baseline (was 5d6b7d → 2.72) */
   --text-disabled:  #434c5e;
 
   --hover-bg:   rgba(216, 222, 233, 0.05);
@@ -910,13 +931,8 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
 
-  /* Nord frost accent (default) */
-  --accent-primary: #81a1c1;
-  --accent-muted:   rgba(129, 161, 193, 0.18);
-  --accent-subtle:  rgba(129, 161, 193, 0.08);
-  --focus-ring:     rgba(129, 161, 193, 0.35);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+  /* Nord frost accent lives in .theme-nord:not([class*="accent-"]) below so a
+     picked accent overrides it (was forced here, ignoring the chosen accent). */
 
   /* Nord-tuned feedback */
   --feedback-success:      #a3be8c;
@@ -940,14 +956,11 @@
   --syntax-variable: #d8dee9;
   --syntax-constant: #b48ead;
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #2e3440;
   --table-row-hover: rgba(216, 222, 233, 0.03);
 }
 
@@ -966,10 +979,11 @@
   --border-default: rgba(188, 190, 196, 0.12);
   --border-strong:  rgba(188, 190, 196, 0.20);
 
-  --text-primary:   #bcbec4;
-  --text-secondary: #7a7e85;
-  --text-tertiary:  #4e5157;
-  --text-disabled:  #35383d;
+  /* Lifted to the Amox dark floors (was 8.8/4.0/2.1 — below the other darks). */
+  --text-primary:   #cdced4;
+  --text-secondary: #9a9ea6;
+  --text-tertiary:  #7e828a;
+  --text-disabled:  #4a4d53;
 
   --hover-bg:   rgba(188, 190, 196, 0.06);
   --active-bg:  rgba(188, 190, 196, 0.10);
@@ -978,13 +992,8 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
 
-  /* Islands blue — built-in accent for this theme */
-  --accent-primary: #548af7;
-  --accent-muted:   rgba(84, 138, 247, 0.18);
-  --accent-subtle:  rgba(84, 138, 247, 0.08);
-  --focus-ring:     rgba(84, 138, 247, 0.35);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+  /* Islands blue lives in .theme-islands:not([class*="accent-"]) below so a
+     picked accent overrides it. */
 
   /* Feedback — Islands palette */
   --feedback-success:        #6aab73;
@@ -1015,17 +1024,12 @@
   --syntax-variable: #bcbec4;  /* plain text */
   --syntax-constant: #e8a33e;  /* warm yellow */
 
-  --titlebar-bg:   #121216;
-  --titlebar-text: #7a7e85;
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #1e2024;
   --table-row-hover: rgba(188, 190, 196, 0.04);
 }
 
@@ -1035,56 +1039,48 @@
    ═══════════════════════════════════════════════ */
 .accent-sage {
   --accent-primary: oklch(0.72 0.10 155);     /* Muted sage green */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-amber {
   --accent-primary: oklch(0.78 0.12 75);      /* Warm amber/gold */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-rose {
   --accent-primary: oklch(0.68 0.14 15);      /* Muted rose/coral */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-lavender {
   --accent-primary: oklch(0.70 0.12 300);     /* Soft lavender/purple */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-steel {
   --accent-primary: oklch(0.68 0.06 250);     /* Cool steel blue-grey */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 }
 
 .accent-copper {
   --accent-primary: oklch(0.72 0.10 50);      /* Warm copper/terracotta */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+}
+
+/* ═══════════════════════════════════════════════
+   THEME DEFAULT ACCENTS
+   nord/islands ship a built-in accent. It must apply ONLY when the user
+   hasn't picked one — otherwise (accent class present) the picked accent
+   wins. `:not([class*="accent-"])` scopes the default cleanly; before this,
+   the theme's accent-primary (later in the file) overrode every accent pick.
+   ═══════════════════════════════════════════════ */
+.theme-nord:not([class*="accent-"]) {
+  --accent-primary: #81a1c1;
+}
+.theme-islands:not([class*="accent-"]) {
+  --accent-primary: #548af7;
+}
+/* Amox signature themes: their brand accent (cyan/teal) is the DEFAULT, but a
+   user-picked accent overrides it — same behavior as every other theme. */
+.theme-amoxdark:not([class*="accent-"]) {
+  --accent-primary: #22d3ee;
+}
+.theme-amoxlight:not([class*="accent-"]) {
+  --accent-primary: #0a7d8c;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1110,13 +1106,10 @@
 
   /* ── Accent (darker for contrast on light surfaces) ── */
   --accent-primary: oklch(0.49 0.220 265);     /* ≈ #0059ff */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
 
   /* ── Interaction states ── */
   --hover-bg:   rgba(0, 0, 0, 0.05);
   --active-bg:  rgba(0, 0, 0, 0.09);
-  --focus-ring: color-mix(in oklch, var(--accent-primary) 35%, transparent);
 
   /* ── Shadows (softer for light backgrounds) ── */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -1124,8 +1117,6 @@
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
 
   /* ── Titlebar ── */
-  --titlebar-bg: oklch(0.965 0.004 265);       /* match surface-raised */
-  --titlebar-text: oklch(0.45 0.01 265);
 
   /* ── Feedback (darker for light bg contrast) ── */
   --feedback-success:        oklch(0.55 0.18 152);
@@ -1148,30 +1139,7 @@
   --color-destructive-bg: color-mix(in oklch, var(--color-destructive) 8%, transparent);
   --color-destructive-text: oklch(0.48 0.22 27);
 
-  /* ── Node Type Colors (lighter variants) ── */
-  --node-source-bg:     oklch(0.95 0.03 155);
-  --node-source-border: oklch(0.55 0.18 150);
-  --node-source-text:   oklch(0.40 0.16 150);
-  --node-staging-bg:    oklch(0.95 0.03 85);
-  --node-staging-border:oklch(0.60 0.16 85);
-  --node-staging-text:  oklch(0.45 0.14 85);
-  --node-mart-bg:       oklch(0.95 0.03 250);
-  --node-mart-border:   oklch(0.55 0.16 250);
-  --node-mart-text:     oklch(0.40 0.14 250);
-  --node-other-bg:      oklch(0.95 0.03 310);
-  --node-other-border:  oklch(0.55 0.14 310);
-  --node-other-text:    oklch(0.40 0.12 310);
-
-  /* ── File Icon Colors (light theme) ── */
-  --icon-folder:   oklch(0.60 0.14 80);
-  --icon-sql:      oklch(0.55 0.14 250);
-  --icon-notebook: oklch(0.50 0.16 155);
-  --icon-csv:      oklch(0.50 0.14 155);
-  --icon-json:     oklch(0.60 0.14 80);
-  --icon-md:       oklch(0.50 0.10 250);
-  --icon-parquet:  oklch(0.55 0.12 330);
-  --icon-excel:    oklch(0.42 0.14 155);
-  --icon-default:  var(--text-tertiary);
+  /* Node + icon colors now live in the shared .mode-light layer (all light themes) */
 
   /* ── Syntax (darker for light editor bg) ── */
   --syntax-keyword:   oklch(0.48 0.16 280);
@@ -1193,28 +1161,22 @@
   --type-default:  oklch(0.50 0.08 95);
 
   /* ── Legacy aliases ── */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
   --text-muted: var(--text-tertiary);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 
   --sidebar-item-active-bg: var(--active-bg);
   --border-color: var(--border-default);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
 
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(0, 0, 0, 0.10);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: oklch(0.955 0.004 265);   /* ≈ #EFF0F3 */
   --table-row-hover: rgba(0, 0, 0, 0.04);
 }
 
@@ -1231,24 +1193,19 @@
   --surface-overlay: #ffffff;   /* modals/popups */
   --surface-inset:   #ede7dc;   /* inputs/recessed */
 
-  /* ── Borders: warm, low contrast ── */
-  --border-subtle:  rgba(120, 100, 70, 0.10);
-  --border-default: rgba(120, 100, 70, 0.16);
-  --border-strong:  rgba(120, 100, 70, 0.24);
+  /* ── Borders: warm (strong bumped into the canonical range) ── */
+  --border-subtle:  rgba(120, 100, 70, 0.12);
+  --border-default: rgba(120, 100, 70, 0.18);
+  --border-strong:  rgba(120, 100, 70, 0.32);
 
-  /* ── Text: warm dark, not pure black ── */
-  --text-primary:   #3b3228;   /* espresso — high readability, no harsh black */
-  --text-secondary: #6b5e50;   /* warm medium */
-  --text-tertiary:  #9a8d7e;   /* muted warm */
-  --text-disabled:  #c4b9aa;   /* faded parchment */
+  /* ── Text: warm dark, not pure black (calibrated ≥ AA floors) ── */
+  --text-primary:   #362d23;   /* espresso — high readability, no harsh black */
+  --text-secondary: #5c4f41;   /* warm medium — ≥5.5:1 on all surfaces */
+  --text-tertiary:  #7a6c5b;   /* muted warm — ≥4:1 on all surfaces */
+  --text-disabled:  #b3a897;   /* faded parchment */
 
   /* ── Accent: deep teal — pairs with warm backgrounds ── */
   --accent-primary: #2b7a78;
-  --accent-muted:   rgba(43, 122, 120, 0.15);
-  --accent-subtle:  rgba(43, 122, 120, 0.06);
-  --focus-ring:     rgba(43, 122, 120, 0.30);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 
   /* ── Interaction states ── */
   --hover-bg:   rgba(120, 100, 70, 0.06);
@@ -1260,8 +1217,6 @@
   --shadow-lg: 0 8px 30px rgba(100, 80, 50, 0.12);
 
   /* ── Titlebar ── */
-  --titlebar-bg: #f3ede4;
-  --titlebar-text: #6b5e50;
 
   /* ── Feedback: desaturated warm tones ── */
   --feedback-success:        #5a8a5c;
@@ -1300,8 +1255,6 @@
   --type-default:  #586e75;
 
   /* ── Legacy aliases ── */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
@@ -1311,13 +1264,11 @@
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(120, 100, 70, 0.10);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: #ede7dc;
   --table-row-hover: rgba(120, 100, 70, 0.04);
 }
 
@@ -1334,24 +1285,19 @@
   --surface-overlay: #ffffff;   /* modals */
   --surface-inset:   #dce1e9;   /* recessed areas */
 
-  /* ── Borders: cool grey ── */
-  --border-subtle:  rgba(70, 85, 110, 0.09);
-  --border-default: rgba(70, 85, 110, 0.15);
-  --border-strong:  rgba(70, 85, 110, 0.23);
+  /* ── Borders: cool grey (strong bumped into the canonical range) ── */
+  --border-subtle:  rgba(70, 85, 110, 0.11);
+  --border-default: rgba(70, 85, 110, 0.17);
+  --border-strong:  rgba(70, 85, 110, 0.31);
 
-  /* ── Text: slate tones, never pure black ── */
-  --text-primary:   #2c3444;   /* deep slate */
-  --text-secondary: #566178;   /* medium slate */
-  --text-tertiary:  #8590a2;   /* muted */
-  --text-disabled:  #b0b8c8;   /* faded */
+  /* ── Text: slate tones, never pure black (calibrated ≥ AA floors) ── */
+  --text-primary:   #262d3c;   /* deep slate — ≥10:1 on all surfaces */
+  --text-secondary: #495366;   /* medium slate — ≥5.5:1 */
+  --text-tertiary:  #5d6578;   /* muted — ≥4:1 */
+  --text-disabled:  #a3acbd;   /* faded */
 
   /* ── Accent: muted indigo — complements cool greys ── */
   --accent-primary: #5568a8;
-  --accent-muted:   rgba(85, 104, 168, 0.14);
-  --accent-subtle:  rgba(85, 104, 168, 0.06);
-  --focus-ring:     rgba(85, 104, 168, 0.30);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 
   /* ── Interaction states ── */
   --hover-bg:   rgba(70, 85, 110, 0.06);
@@ -1363,8 +1309,6 @@
   --shadow-lg: 0 8px 30px rgba(50, 60, 80, 0.12);
 
   /* ── Titlebar ── */
-  --titlebar-bg: #e8ecf2;
-  --titlebar-text: #566178;
 
   /* ── Feedback: desaturated cool tones ── */
   --feedback-success:        #4d8a5e;
@@ -1403,8 +1347,6 @@
   --type-default:  #566178;
 
   /* ── Legacy aliases ── */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
@@ -1414,88 +1356,92 @@
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(70, 85, 110, 0.10);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: #dce1e9;
   --table-row-hover: rgba(70, 85, 110, 0.04);
 }
 
 
 /* ═══════════════════════════════════════════════
-   LIGHT THEME: SNOW
-   Clean, crisp, high-contrast light theme.
+   LIGHT THEME: AMOXLIGHT — signature brand theme (light)
+   Cool-neutral off-white paper with a micro cyan tint (rhymes with the brand,
+   never competes with data), elevation rising toward white, alpha borders, and
+   a dark brand TEAL accent (the cyan logo can't read on light, so it darkens to
+   a legible teal). Syntax is darkened into a narrow lightness band; the brand
+   teal reappears as the data-type color so identity shows up in the SQL itself.
    ═══════════════════════════════════════════════ */
-.theme-snow {
-  --surface-base:    #ffffff;
-  --surface-raised:  #e5e7eb;   /* Darker gray for sidebar */
-  --surface-overlay: #ffffff;
-  --surface-inset:   #d1d5db;   /* Even darker for inset/inputs */
+.theme-amoxlight {
+  /* Elevation rises toward white (light-mode logic) */
+  --surface-base:    #f1f4f7;   /* the "paper" — cool off-white, micro cyan tint */
+  --surface-raised:  #f8fafb;   /* panels/sidebar/editor/cards */
+  --surface-overlay: #ffffff;   /* modals/popovers/menus */
+  --surface-inset:   #e7ebef;   /* wells: gutter, inputs, empty cells */
 
-  --border-subtle:  #d1d5db;
-  --border-default: #9ca3af;
-  --border-strong:  #6b7280;
+  /* Borders by alpha over the ink color — integrate on any surface */
+  --border-subtle:  rgba(28, 37, 48, 0.07);
+  --border-default: rgba(28, 37, 48, 0.12);
+  --border-strong:  rgba(28, 37, 48, 0.20);
 
-  --text-primary:   #111827;
-  --text-secondary: #374151;
-  --text-tertiary:  #4b5563;
-  --text-disabled:  #9ca3af;
+  /* Cool blue-grey ink, three real tiers (≥10 / ≥5.5 / ≥4 :1) */
+  --text-primary:   #1c2530;
+  --text-secondary: #41505e;
+  --text-tertiary:  #5e6f7d;
+  --text-disabled:  #9aa6b1;
 
-  --accent-primary: #2563eb;
-  --accent-muted:   rgba(37, 99, 235, 0.15);
-  --accent-subtle:  rgba(37, 99, 235, 0.06);
-  --focus-ring:     rgba(37, 99, 235, 0.3);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+  /* Brand teal default lives in .theme-amoxlight:not([class*="accent-"]) below,
+     so a user-picked accent (via the light ramps) overrides it. */
 
-  --hover-bg:   #d1d5db;
-  --active-bg:  #9ca3af;
+  --hover-bg:   rgba(28, 37, 48, 0.05);
+  --active-bg:  rgba(28, 37, 48, 0.09);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  /* Soft, cool shadows */
+  --shadow-sm: 0 1px 2px rgba(20, 40, 60, 0.06);
+  --shadow-md: 0 4px 12px rgba(20, 40, 60, 0.09);
+  --shadow-lg: 0 8px 30px rgba(20, 40, 60, 0.13);
 
-  --titlebar-bg: #f9fafb;
-  --titlebar-text: #4b5563;
 
-  --feedback-success:        #059669;
-  --feedback-success-bg:     #d1fae5;
-  --feedback-success-border: #a7f3d0;
-  --feedback-success-text:   #047857;
-  --feedback-error:          #dc2626;
-  --feedback-error-bg:       #fee2e2;
-  --feedback-error-border:   #fecaca;
-  --feedback-error-text:     #b91c1c;
-  --feedback-warning:        #d97706;
-  --feedback-warning-bg:     #fef3c7;
-  --feedback-warning-border: #fde68a;
-  --feedback-warning-text:   #b45309;
-  --color-destructive:       #dc2626;
-  --color-destructive-bg:    #fee2e2;
-  --color-destructive-text:  #b91c1c;
+  /* Feedback — darkened for light bg (AA) */
+  --feedback-success:        #1f7a48;
+  --feedback-success-bg:     rgba(31, 122, 72, 0.10);
+  --feedback-success-border: rgba(31, 122, 72, 0.22);
+  --feedback-success-text:   #196a3d;
+  --feedback-error:          #c0392b;
+  --feedback-error-bg:       rgba(192, 57, 43, 0.10);
+  --feedback-error-border:   rgba(192, 57, 43, 0.22);
+  --feedback-error-text:     #a5291c;
+  --feedback-warning:        #b06f10;
+  --feedback-warning-bg:     rgba(176, 111, 16, 0.10);
+  --feedback-warning-border: rgba(176, 111, 16, 0.22);
+  --feedback-warning-text:   #915a08;
+  --feedback-info:           #0a7d8c;
+  --feedback-info-bg:        rgba(10, 125, 140, 0.10);
+  --feedback-info-border:    rgba(10, 125, 140, 0.22);
+  --feedback-info-text:      #086573;
+  --color-destructive:       #c0392b;
+  --color-destructive-bg:    rgba(192, 57, 43, 0.10);
+  --color-destructive-text:  #a5291c;
 
-  --syntax-keyword:   #2563eb;
-  --syntax-string:    #059669;
-  --syntax-number:    #d97706;
-  --syntax-function:  #7c3aed;
-  --syntax-comment:   #9ca3af;
-  --syntax-type:      #0891b2;
-  --syntax-operator:  #4b5563;
-  --syntax-variable:  #111827;
-  --syntax-constant:  #059669;
+  /* Syntax — darkened, medium-sat, narrow lightness band; brand teal on types */
+  --syntax-keyword:   #b03a9e;   /* magenta — SELECT/FROM/WHERE, max separation */
+  --syntax-string:    #3f7a1f;   /* olive green literals */
+  --syntax-number:    #8a5a00;   /* dark amber — numerics */
+  --syntax-function:  #1e66c7;   /* blue — COUNT/SUM */
+  --syntax-comment:   #7a8896;   /* desaturated grey, recedes */
+  --syntax-type:      #0a7d8c;   /* BRAND TEAL — types/tables show the identity */
+  --syntax-operator:  #41505e;   /* ink-grey, sober */
+  --syntax-variable:  #1c2530;   /* = text: columns/identifiers neutral */
+  --syntax-constant:  #8a5a00;   /* dark amber — TRUE/FALSE/NULL */
 
-  --type-integer:  #2563eb;
-  --type-float:    #0891b2;
-  --type-text:     #d97706;
-  --type-datetime: #7c3aed;
-  --type-boolean:  #059669;
-  --type-default:  #4b5563;
+  --type-integer:  #1e66c7;
+  --type-float:    #0a7d8c;
+  --type-text:     #8a5a00;
+  --type-datetime: #6d3fc4;
+  --type-boolean:  #3f7a1f;
+  --type-default:  #41505e;
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
@@ -1505,13 +1451,11 @@
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(0, 0, 0, 0.05);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: #f3f4f6;
   --table-row-hover: #f9fafb;
 }
 
@@ -1522,132 +1466,99 @@
 .light-theme.accent-linear,
 .theme-ivory.accent-linear,
 .theme-mist.accent-linear,
-.theme-snow.accent-linear {
+.theme-amoxlight.accent-linear {
   --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
-  --sidebar-item-active-text: var(--accent-primary);
 }
 
 .light-theme.accent-amox-2,
 .theme-ivory.accent-amox-2,
 .theme-mist.accent-amox-2,
-.theme-snow.accent-amox-2 {
+.theme-amoxlight.accent-amox-2 {
   --accent-primary: oklch(0.62 0.13 195);      /* ≈ #00CFDA */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-3,
 .theme-ivory.accent-amox-3,
 .theme-mist.accent-amox-3,
-.theme-snow.accent-amox-3 {
+.theme-amoxlight.accent-amox-3 {
   --accent-primary: oklch(0.61 0.125 197);     /* ≈ #00C4D9 */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-4,
 .theme-ivory.accent-amox-4,
 .theme-mist.accent-amox-4,
-.theme-snow.accent-amox-4 {
+.theme-amoxlight.accent-amox-4 {
   --accent-primary: oklch(0.59 0.12 202);      /* ≈ #00B5D6 */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-5,
 .theme-ivory.accent-amox-5,
 .theme-mist.accent-amox-5,
-.theme-snow.accent-amox-5 {
+.theme-amoxlight.accent-amox-5 {
   --accent-primary: oklch(0.57 0.12 212);      /* ≈ #00A5D4 */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-6,
 .theme-ivory.accent-amox-6,
 .theme-mist.accent-amox-6,
-.theme-snow.accent-amox-6 {
+.theme-amoxlight.accent-amox-6 {
   --accent-primary: oklch(0.55 0.13 228);      /* ≈ #0097D1 */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-7,
 .theme-ivory.accent-amox-7,
 .theme-mist.accent-amox-7,
-.theme-snow.accent-amox-7 {
+.theme-amoxlight.accent-amox-7 {
   --accent-primary: oklch(0.53 0.14 245);      /* ≈ #0088CC */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-8,
 .theme-ivory.accent-amox-8,
 .theme-mist.accent-amox-8,
-.theme-snow.accent-amox-8 {
+.theme-amoxlight.accent-amox-8 {
   --accent-primary: oklch(0.51 0.16 255);      /* ≈ #0078C8 */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-9,
 .theme-ivory.accent-amox-9,
 .theme-mist.accent-amox-9,
-.theme-snow.accent-amox-9 {
+.theme-amoxlight.accent-amox-9 {
   --accent-primary: oklch(0.49 0.18 262);      /* ≈ #006AC2 */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
 
 .light-theme.accent-amox-10,
 .theme-ivory.accent-amox-10,
 .theme-mist.accent-amox-10,
-.theme-snow.accent-amox-10 {
+.theme-amoxlight.accent-amox-10 {
   --accent-primary: oklch(0.47 0.20 268);      /* ≈ #005ABB */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
-  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
   --button-text-color: #ffffff;
 }
+
+/* Sober + islands accents darkened for light backgrounds (≥4.5:1). Two-class
+   specificity (0,2,0) beats each light theme's default accent, so picking a
+   sober accent on a light theme now applies (was: silently ignored). */
+.light-theme.accent-islands, .theme-ivory.accent-islands,
+.theme-mist.accent-islands, .theme-amoxlight.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
+.light-theme.accent-sage, .theme-ivory.accent-sage,
+.theme-mist.accent-sage, .theme-amoxlight.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
+.light-theme.accent-amber, .theme-ivory.accent-amber,
+.theme-mist.accent-amber, .theme-amoxlight.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
+.light-theme.accent-rose, .theme-ivory.accent-rose,
+.theme-mist.accent-rose, .theme-amoxlight.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
+.light-theme.accent-lavender, .theme-ivory.accent-lavender,
+.theme-mist.accent-lavender, .theme-amoxlight.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
+.light-theme.accent-steel, .theme-ivory.accent-steel,
+.theme-mist.accent-steel, .theme-amoxlight.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
+.light-theme.accent-copper, .theme-ivory.accent-copper,
+.theme-mist.accent-copper, .theme-amoxlight.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
 
 
 /* Form controls don't inherit font-family by default — force them to use the
@@ -1960,7 +1871,7 @@ body {
 .fe-move-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay-bg);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -3561,7 +3472,7 @@ tr:hover .rt-td {
   position: absolute;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3908,7 +3819,7 @@ tr:hover .rt-td {
 
 .ai-skill-select {
   flex: 1;
-  background: var(--bg-secondary);
+  background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
   border-radius: 4px;
@@ -4513,14 +4424,14 @@ tr:hover .rt-td {
   border-radius: var(--radius-md, 6px);
   overflow: hidden;
   margin-top: 8px;
-  background: var(--surface-primary);
+  background: var(--surface-base);
 }
 
 .ai-edit-proposal__header {
   display: flex;
   align-items: center;
   padding: 7px 10px;
-  background: var(--surface-secondary);
+  background: var(--surface-raised);
   border-bottom: 1px solid var(--border-subtle);
   gap: 6px;
 }
@@ -4548,11 +4459,11 @@ tr:hover .rt-td {
 
 .ai-edit-proposal__btn--accept {
   background: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
 }
 
 .ai-edit-proposal__btn--reject {
-  background: var(--surface-elevated, var(--surface-tertiary));
+  background: var(--surface-overlay);
   color: var(--text-secondary);
   border-color: var(--border-subtle);
 }
@@ -4573,7 +4484,7 @@ tr:hover .rt-td {
 }
 
 .ai-edit-proposal__line--added {
-  background: rgba(74, 222, 128, 0.08);
+  background: var(--color-success-bg);
 }
 
 .ai-edit-proposal__line-num {
@@ -4587,12 +4498,12 @@ tr:hover .rt-td {
 
 .ai-edit-proposal__line-marker {
   min-width: 14px;
-  color: #4ade80;
+  color: var(--color-success-text);
   font-weight: 700;
   user-select: none;
 }
 
-.ai-edit-proposal__line--added .ai-edit-proposal__line-marker { color: #4ade80; }
+.ai-edit-proposal__line--added .ai-edit-proposal__line-marker { color: var(--color-success-text); }
 
 .ai-edit-proposal__line-content {
   white-space: pre;
@@ -5427,7 +5338,7 @@ tr:hover .rt-td {
 .ai-tool-pre {
   margin: 0;
   padding: 8px 10px;
-  background-color: var(--surface-sunken, var(--input-bg));
+  background-color: var(--surface-inset);
   border-radius: var(--radius-sm, 4px);
   border: 1px solid var(--border-subtle);
   font-size: var(--text-mini, 11px);
@@ -5861,7 +5772,7 @@ tr:hover .rt-td {
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--accent-primary); color: var(--button-text-color, #fff);
   border: none; border-radius: 7px; padding: 5px 10px; cursor: pointer;
-  font-size: var(--text-mini); box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  font-size: var(--text-mini); box-shadow: var(--shadow-md);
 }
 .ai-sel-ask:hover { filter: brightness(1.08); }
 /* Quick-actions over a referenced artifact */
@@ -5878,7 +5789,7 @@ tr:hover .rt-td {
   position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
   max-height: 240px; overflow-y: auto; z-index: 30;
   background: var(--panel-bg); border: 1px solid var(--border-subtle);
-  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); padding: 4px;
+  border-radius: 10px; box-shadow: var(--shadow-lg); padding: 4px;
 }
 .ai-mention-popup-head {
   font-size: var(--text-mini); color: var(--text-tertiary);
@@ -6358,7 +6269,7 @@ tr:hover .rt-td {
 }
 
 .ai-history-item:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .ai-history-item--active {
@@ -6503,7 +6414,7 @@ tr:hover .rt-td {
 }
 
 .ai-ctx-artifact:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -6537,7 +6448,7 @@ tr:hover .rt-td {
 }
 
 .ai-ctx-artifact-delete:hover {
-  color: var(--error-color);
+  color: var(--color-error);
   background: var(--surface-raised);
 }
 
@@ -6613,7 +6524,7 @@ tr:hover .rt-td {
 }
 
 .ai-plan-progress-fill--done {
-  background: var(--success-color, #22c55e);
+  background: var(--color-success);
 }
 
 /* Goal text */
@@ -6651,7 +6562,7 @@ tr:hover .rt-td {
 }
 
 .ai-plan-step:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .ai-plan-step-icon {
@@ -6661,8 +6572,8 @@ tr:hover .rt-td {
   align-items: center;
 }
 
-.ai-plan-step--done    .ai-plan-step-icon { color: var(--success-color, #22c55e); }
-.ai-plan-step--failed  .ai-plan-step-icon { color: var(--error-color, #ef4444); }
+.ai-plan-step--done    .ai-plan-step-icon { color: var(--color-success); }
+.ai-plan-step--failed  .ai-plan-step-icon { color: var(--color-error); }
 .ai-plan-step--skipped .ai-plan-step-icon { color: var(--text-muted); }
 .ai-plan-step--pending .ai-plan-step-icon { color: var(--border-subtle); }
 .ai-plan-step--running .ai-plan-step-icon { color: var(--accent-primary); }
@@ -6747,9 +6658,9 @@ tr:hover .rt-td {
 }
 
 .ai-plan-step-skip:hover {
-  color: var(--error-color, #ef4444);
-  border-color: var(--error-color, #ef4444);
-  background: color-mix(in srgb, var(--error-color, #ef4444) 8%, transparent);
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
 }
 
 /* Iteration indicator */
@@ -6827,7 +6738,7 @@ tr:hover .rt-td {
   justify-content: space-between;
   gap: 8px;
   padding: 4px 8px;
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
 }
@@ -6907,7 +6818,7 @@ tr:hover .rt-td {
 .query-audit-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -6924,7 +6835,7 @@ tr:hover .rt-td {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .query-audit-header {
@@ -6964,7 +6875,7 @@ tr:hover .rt-td {
   color: var(--text-muted);
 }
 
-.query-audit-error { color: var(--error); }
+.query-audit-error { color: var(--color-error); }
 
 .query-audit-sql {
   margin: 0;
@@ -6972,7 +6883,7 @@ tr:hover .rt-td {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  background: var(--bg-base);
+  background: var(--surface-base);
   border-bottom: 1px solid var(--border-subtle);
   white-space: pre-wrap;
   word-break: break-all;
@@ -7018,7 +6929,7 @@ tr:hover .rt-td {
   white-space: nowrap;
 }
 
-.query-audit-table tr:hover td { background: var(--sidebar-item-hover-bg); }
+.query-audit-table tr:hover td { background: var(--hover-bg); }
 
 .query-audit-truncated {
   padding: 6px 14px;
@@ -7055,7 +6966,7 @@ tr:hover .rt-td {
 .ai-narrative-caveats-icon {
   flex-shrink: 0;
   margin-top: 1px;
-  color: var(--warning-color, #f59e0b);
+  color: var(--color-warning);
 }
 
 /* ── Ask-user banner (Fase 1) ── */
@@ -7094,7 +7005,7 @@ tr:hover .rt-td {
 }
 
 .ai-ask-user-option:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   border-color: var(--accent-primary);
 }
 
@@ -7267,8 +7178,8 @@ tr:hover .rt-td {
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: rgba(220, 60, 60, 0.08);
-  color: var(--error-color, #dc3c3c);
+  background: var(--color-error-bg);
+  color: var(--color-error);
   font-size: var(--text-xs);
   flex-shrink: 0;
 }
@@ -7311,7 +7222,7 @@ tr:hover .rt-td {
 }
 
 .gsheets-header:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -7430,7 +7341,7 @@ tr:hover .rt-td {
 
 .gsheets-error {
   padding: 4px 10px 8px;
-  color: var(--error-color, #ef4444);
+  color: var(--color-error);
   font-size: 10px;
   line-height: 1.3;
 }
@@ -7453,7 +7364,7 @@ tr:hover .rt-td {
 }
 
 .gsheets-item:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .gsheets-item-left {
@@ -7504,8 +7415,8 @@ tr:hover .rt-td {
 }
 
 .gsheets-action-btn--danger:hover {
-  color: var(--error-color, #ef4444);
-  background: color-mix(in srgb, var(--error-color, #ef4444) 15%, transparent);
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
 }
 
 /* Tabs / Sub-tables */
@@ -7528,7 +7439,7 @@ tr:hover .rt-td {
 }
 
 .gsheets-tab-item:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .gsheets-tab-link {
@@ -7594,7 +7505,7 @@ tr:hover .rt-td {
 }
 
 .vault-entry:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .vault-entry-header {
@@ -7700,7 +7611,7 @@ tr:hover .rt-td {
 }
 
 .vault-btn:hover:not(:disabled) {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -7732,11 +7643,11 @@ tr:hover .rt-td {
 
 .vault-icon-btn:hover {
   color: var(--text-primary);
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .vault-delete-btn:hover {
-  color: var(--error-color, #dc3c3c);
+  color: var(--color-error);
 }
 
 .vault-save-btn:hover {
@@ -7753,12 +7664,12 @@ tr:hover .rt-td {
 
 .vault-delete-label {
   font-size: 10px;
-  color: var(--error-color, #dc3c3c);
+  color: var(--color-error);
   font-weight: var(--weight-medium);
 }
 
 .vault-delete-yes {
-  color: var(--error-color, #dc3c3c) !important;
+  color: var(--color-error) !important;
 }
 
 /* Inline editing */
@@ -7806,7 +7717,7 @@ tr:hover .rt-td {
 }
 
 .vault-load-more:hover:not(:disabled) {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -7962,7 +7873,7 @@ tr:hover .rt-td {
 }
 
 .db-schema-row:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .db-schema-icon {
@@ -8374,25 +8285,20 @@ tr:hover td {
   background: transparent;
 }
 
+/* Border tokens already flip per theme (white-alpha on dark, black-alpha on
+   light), so the thumb adapts to every theme — including ivory/mist/snow —
+   with no per-mode override. */
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
+  background: var(--border-default);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--border-strong);
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
-}
-
-.light-theme ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.10);
-}
-
-.light-theme ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.18);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -8485,26 +8391,26 @@ tr:hover td {
   color: #D4A76A !important;
 }
 /* Light theme icon adjustments */
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-function,
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-method {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-function,
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-method {
   background: rgba(30, 138, 158, 0.12) !important;
   color: #1E8A9E !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-field,
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-property {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-field,
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-property {
   background: rgba(26, 142, 96, 0.12) !important;
   color: #1A8E60 !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-keyword {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-keyword {
   background: rgba(94, 106, 210, 0.12) !important;
   color: #5E6AD2 !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-snippet {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-snippet {
   background: rgba(196, 109, 26, 0.12) !important;
   color: #C46D1A !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-class,
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-struct {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-class,
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-struct {
   background: rgba(26, 142, 128, 0.12) !important;
   color: #1A8E80 !important;
 }
@@ -9243,7 +9149,7 @@ tr:hover td {
 
 /* Featured card highlight */
 .ext-card-featured {
-  border-left: 2px solid oklch(0.78 0.18 80);
+  border-left: 2px solid var(--color-warning);
 }
 
 /* Load action button (green) */
@@ -9377,7 +9283,7 @@ tr:hover td {
 .command-palette-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay-bg);
 
   display: flex;
   justify-content: center;
@@ -9607,7 +9513,7 @@ tr:hover td {
 .stg-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.62);
+  background-color: var(--overlay-bg);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -9917,16 +9823,16 @@ tr:hover td {
 .stg-code {
   font-family: var(--font-mono);
   font-size: 11px;
-  background: var(--bg-base);
+  background: var(--surface-base);
   padding: 1px 5px;
-  border-radius: var(--radius-xs, 3px);
+  border-radius: var(--radius-sm);
   color: var(--accent-primary);
   border: 1px solid var(--border-subtle);
 }
 
 /* Required field asterisk */
 .stg-required {
-  color: var(--error, #e05252);
+  color: var(--color-error);
   margin-left: 2px;
 }
 
@@ -10015,7 +9921,7 @@ tr:hover td {
   top: 3px;
   left: 3px;
   transition: left 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .stg-toggle--on .stg-toggle-knob {
@@ -10329,13 +10235,13 @@ tr:hover td {
   cursor: grab;
   user-select: none;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .stg-model-chip:hover {
   border-color: var(--border-strong);
   transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .stg-model-chip:active {
@@ -10418,7 +10324,7 @@ tr:hover td {
 
 .stg-tier-title--low { color: var(--color-warning, #f59e0b); }
 .stg-tier-title--medium { color: var(--color-info, #3b82f6); }
-.stg-tier-title--high { color: var(--color-danger, #ef4444); }
+.stg-tier-title--high { color: var(--color-error); }
 
 .stg-tier-desc {
   font-size: var(--text-mini);
@@ -10475,9 +10381,9 @@ tr:hover td {
   border-radius: 10px;
   font-weight: var(--weight-medium);
 }
-.stg-badge--new { background: #fee2e2; color: #ef4444; }
-.stg-badge--medium { background: #dbeafe; color: #3b82f6; }
-.stg-badge--high { background: #f3e8ff; color: #a855f7; }
+.stg-badge--new { background: var(--color-error-bg); color: var(--color-error-text); }
+.stg-badge--medium { background: var(--color-info-bg); color: var(--color-info-text); }
+.stg-badge--high { background: var(--accent-subtle); color: var(--accent-primary); }
 
 .stg-model-card-desc {
   font-size: var(--text-xs);
@@ -11355,13 +11261,13 @@ tr:hover td {
 }
 
 .dbt-env-dot--ok {
-  background: #4ade80;
-  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+  background: var(--color-success);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--color-success) 40%, transparent);
 }
 
 .dbt-env-dot--fail {
-  background: #ff6b6b;
-  box-shadow: 0 0 6px rgba(255, 107, 107, 0.4);
+  background: var(--color-error);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--color-error) 40%, transparent);
 }
 
 .dbt-env-version {
@@ -11385,7 +11291,7 @@ tr:hover td {
 }
 
 .dbt-hint code {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-inset);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: var(--text-xs);
@@ -11959,7 +11865,7 @@ tr:hover td {
 }
 .nb-cell:hover .nb-accent { opacity: 1; }
 .nb-accent--code   { background-color: var(--accent-primary); }
-.nb-accent--input  { background-color: #4ade80; }
+.nb-accent--input  { background-color: var(--color-success); }
 .nb-accent--text   { background-color: var(--border-default); }
 
 /* ── Cell Toolbar (header) ── */
@@ -12000,7 +11906,7 @@ tr:hover td {
   font-size: var(--text-mini);
 }
 .nb-type-badge--code  { color: var(--accent-primary); }
-.nb-type-badge--input { color: #4ade80; }
+.nb-type-badge--input { color: var(--color-success-text); }
 .nb-type-badge--text  { color: var(--text-primary); }
 
 /* ── Toolbar Buttons ── */
@@ -12058,8 +11964,8 @@ tr:hover td {
   font-size: var(--text-xs);
 }
 .nb-status--running { color: var(--accent-primary); }
-.nb-status--error   { color: var(--feedback-error, #ff6b6b); }
-.nb-status--success { color: #20c997; }
+.nb-status--error   { color: var(--feedback-error-text); }
+.nb-status--success { color: var(--color-success-text); }
 
 .nb-spinner {
   width: 10px; height: 10px;
@@ -12216,9 +12122,9 @@ tr:hover td {
 
 .nb-error-msg {
   padding: 12px 16px;
-  color: var(--feedback-error, #ff6b6b);
-  background-color: color-mix(in oklch, var(--feedback-error, #ff6b6b) 5%, transparent);
-  border-left: 3px solid var(--feedback-error, #ff6b6b);
+  color: var(--feedback-error-text);
+  background-color: var(--feedback-error-bg);
+  border-left: 3px solid var(--feedback-error);
   font-family: var(--font-mono);
   font-size: var(--text-base);
   margin: 16px;
@@ -12275,7 +12181,7 @@ tr:hover td {
 
 /* Hardware Accelerated Zebra Striping */
 .results-table-root tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--table-row-hover);
 }
 
 .results-table-root tbody tr:hover {
@@ -12539,25 +12445,25 @@ tr:hover td {
 
 .chain-toolbar-btn-primary {
   background: var(--accent-primary);
-  color: #000;
+  color: var(--button-text-color);
   border-color: var(--accent-primary);
   font-weight: 600;
 }
 
 .chain-toolbar-btn-primary:hover {
   opacity: 0.9;
-  color: #000;
+  color: var(--button-text-color);
 }
 
 .chain-toolbar-btn-danger {
-  background: oklch(0.55 0.15 25);
-  color: #fff;
-  border-color: oklch(0.55 0.15 25);
+  background: var(--color-destructive);
+  color: var(--button-text-color);
+  border-color: var(--color-destructive);
 }
 
 .chain-toolbar-btn-danger:hover {
   opacity: 0.9;
-  color: #fff;
+  color: var(--button-text-color);
 }
 
 /* ── Save button (next to chain name) ── */
@@ -12614,10 +12520,13 @@ tr:hover td {
   margin: 0 4px;
 }
 
-/* ── Chain Node (Base) ── */
+/* ── Chain Node (Base) ──
+   Nodes expose only --node-accent (category color, mode-neutral) and
+   optionally --node-border-override (states/errors). Background and border
+   are DERIVED from the accent + theme surfaces so they react to dark/light. */
 .chain-node {
-  background: var(--node-bg, var(--surface-overlay));
-  border: 2px solid var(--node-border, var(--border-default));
+  background: color-mix(in oklch, var(--node-accent, var(--accent-primary)) 7%, var(--surface-raised));
+  border: 1px solid var(--node-border-override, color-mix(in oklch, var(--node-accent, var(--accent-primary)) 30%, var(--border-default)));
   border-radius: 10px;
   padding: 8px 12px;
   min-width: 180px;
@@ -12628,7 +12537,7 @@ tr:hover td {
 }
 
 .chain-node:hover {
-  box-shadow: 0 0 0 1px var(--node-border, var(--border-strong)), var(--shadow-md);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--node-accent, var(--accent-primary)) 45%, var(--border-strong)), var(--shadow-md);
 }
 
 .chain-node-selected {
@@ -12650,7 +12559,7 @@ tr:hover td {
   border-radius: 4px;
   font-size: 9px;
   font-weight: 600;
-  color: #000;
+  color: var(--button-text-color);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -12695,7 +12604,7 @@ tr:hover td {
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 3px 6px;
-  background: oklch(0 0 0 / 0.15);
+  background: var(--surface-inset);
   border-radius: 4px;
   margin-top: 4px;
 }
@@ -12706,13 +12615,13 @@ tr:hover td {
   gap: 4px;
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid oklch(1 0 0 / 0.08);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .chain-node-result-type {
   font-size: 9px;
   font-weight: 600;
-  color: oklch(0.75 0.15 155);
+  color: var(--color-success-text);
   text-transform: uppercase;
 }
 
@@ -12728,10 +12637,10 @@ tr:hover td {
   gap: 4px;
   margin-top: 6px;
   padding: 4px 6px;
-  background: oklch(0.3 0.06 25 / 0.3);
+  background: var(--color-error-bg);
   border-radius: 4px;
   font-size: 9px;
-  color: oklch(0.8 0.1 25);
+  color: var(--color-error-text);
 }
 
 .chain-node-error span {
@@ -12744,8 +12653,8 @@ tr:hover td {
 .chain-handle {
   width: 8px !important;
   height: 8px !important;
-  background: var(--node-border, var(--border-strong)) !important;
-  border: 2px solid var(--node-bg, var(--surface-overlay)) !important;
+  background: color-mix(in oklch, var(--node-accent, var(--accent-primary)) 55%, var(--border-strong)) !important;
+  border: 2px solid var(--surface-raised) !important;
 }
 
 .chain-handle:hover {
@@ -12892,7 +12801,7 @@ tr:hover td {
 .chain-doc-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12909,7 +12818,7 @@ tr:hover td {
   border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .chain-doc-modal-close {
@@ -13002,8 +12911,8 @@ tr:hover td {
   gap: 6px;
 }
 
-.node-doc-io-in { color: oklch(0.7 0.13 230); flex-shrink: 0; }
-.node-doc-io-out { color: oklch(0.72 0.15 145); flex-shrink: 0; }
+.node-doc-io-in { color: var(--color-info-text); flex-shrink: 0; }
+.node-doc-io-out { color: var(--color-success-text); flex-shrink: 0; }
 
 .node-doc-io-label {
   font-size: 10px;
@@ -13074,7 +12983,7 @@ tr:hover td {
 }
 
 .node-doc-tip-icon {
-  color: oklch(0.75 0.15 85);
+  color: var(--color-warning-text);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -13260,11 +13169,11 @@ tr:hover td {
 }
 
 .chain-config-hint-info {
-  color: oklch(0.7 0.1 250);
-  background: oklch(0.25 0.04 250 / 0.3);
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
   padding: 6px 8px;
   border-radius: 4px;
-  border-left: 2px solid oklch(0.6 0.12 250);
+  border-left: 2px solid var(--feedback-info-border);
   margin-top: 4px;
 }
 
@@ -13397,9 +13306,9 @@ tr:hover td {
 }
 
 .chain-config-remove-btn:hover {
-  background: oklch(0.3 0.06 25 / 0.3);
-  border-color: oklch(0.5 0.1 25);
-  color: oklch(0.7 0.12 25);
+  background: var(--color-error-bg);
+  border-color: var(--feedback-error-border);
+  color: var(--color-error-text);
 }
 
 .chain-config-delete {
@@ -13408,16 +13317,16 @@ tr:hover td {
   gap: 6px;
   padding: 6px 10px;
   background: transparent;
-  border: 1px solid oklch(0.5 0.1 25);
+  border: 1px solid var(--feedback-error-border);
   border-radius: 6px;
-  color: oklch(0.7 0.12 25);
+  color: var(--color-error-text);
   font-size: 11px;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-config-delete:hover {
-  background: oklch(0.3 0.06 25 / 0.3);
+  background: var(--color-error-bg);
 }
 
 /* ── SQL Preview ── */
@@ -13473,8 +13382,8 @@ tr:hover td {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 10px;
   line-height: 1.5;
-  color: oklch(0.8 0.08 250);
-  background: oklch(0.14 0.01 250);
+  color: var(--text-secondary);
+  background: var(--surface-base);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 200px;
@@ -13589,8 +13498,8 @@ tr:hover td {
 }
 
 .chain-history-run-delete:hover {
-  color: oklch(0.7 0.12 25);
-  background: oklch(0.3 0.06 25 / 0.2);
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
 }
 
 .chain-history-nodes {
@@ -13634,12 +13543,12 @@ tr:hover td {
 }
 
 .chain-history-node-result {
-  color: oklch(0.7 0.12 155);
+  color: var(--color-success-text);
   font-size: 9px;
 }
 
 .chain-history-node-error {
-  color: oklch(0.7 0.12 25);
+  color: var(--color-error-text);
   font-size: 9px;
   max-width: 120px;
   overflow: hidden;
@@ -13655,7 +13564,7 @@ tr:hover td {
   margin: 6px 8px 8px;
   padding: 6px;
   background: var(--accent-primary);
-  color: #000;
+  color: var(--button-text-color);
   border: none;
   border-radius: 6px;
   font-size: 11px;
@@ -13676,33 +13585,33 @@ tr:hover td {
 }
 
 .chain-status-running {
-  background: oklch(0.25 0.06 250 / 0.5);
-  color: oklch(0.8 0.1 250);
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .chain-status-completed {
-  background: oklch(0.25 0.06 155 / 0.5);
-  color: oklch(0.8 0.1 155);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .chain-status-failed {
-  background: oklch(0.25 0.06 25 / 0.5);
-  color: oklch(0.8 0.1 25);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .chain-status-paused {
-  background: oklch(0.25 0.06 85 / 0.5);
-  color: oklch(0.8 0.1 85);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .chain-status-cancelled {
-  background: oklch(0.2 0 0 / 0.5);
-  color: oklch(0.6 0 0);
+  background: var(--surface-inset);
+  color: var(--text-tertiary);
 }
 
 /* ── React Flow Edge Animations ── */
 .chain-canvas-container .react-flow__edge-path {
-  stroke: oklch(0.45 0.02 250);
+  stroke: var(--border-strong);
   stroke-width: 2;
 }
 
@@ -13734,15 +13643,15 @@ tr:hover td {
 }
 
 .chain-toolbar-validation-error {
-  background: oklch(0.25 0.08 25);
-  color: oklch(0.75 0.18 25);
-  border: 1px solid oklch(0.35 0.12 25);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--feedback-error-border);
 }
 
 .chain-toolbar-validation-warn {
-  background: oklch(0.25 0.08 85);
-  color: oklch(0.78 0.15 85);
-  border: 1px solid oklch(0.35 0.1 85);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid var(--feedback-warning-border);
 }
 
 /* ── Chain: Node validation indicators ── */
@@ -13769,13 +13678,13 @@ tr:hover td {
   top: 100%;
   right: 0;
   z-index: 100;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   min-width: 200px;
   max-width: 280px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  box-shadow: var(--shadow-md);
   margin-top: 4px;
 }
 
@@ -13797,8 +13706,8 @@ tr:hover td {
   margin-bottom: 3px;
 }
 
-.chain-node-validation-error-item { color: oklch(0.72 0.18 25); }
-.chain-node-validation-warn-item { color: oklch(0.78 0.15 85); }
+.chain-node-validation-error-item { color: var(--color-error-text); }
+.chain-node-validation-warn-item { color: var(--color-warning-text); }
 
 /* ── Chain: Node preview button ── */
 .chain-node-preview-btn {
@@ -13808,10 +13717,10 @@ tr:hover td {
   width: 20px;
   height: 20px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
   cursor: pointer;
   padding: 0;
-  background: var(--surface-1);
+  background: var(--surface-inset);
   color: var(--text-secondary);
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
@@ -13827,8 +13736,8 @@ tr:hover td {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--border);
-  background: var(--surface-1);
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-inset);
   height: 200px;
   min-height: 120px;
   max-height: 400px;
@@ -13861,7 +13770,7 @@ tr:hover td {
   align-items: center;
   justify-content: space-between;
   padding: 4px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -13882,7 +13791,7 @@ tr:hover td {
 
 .chain-log-count {
   font-size: 10px;
-  background: var(--surface-3);
+  background: var(--surface-overlay);
   color: var(--text-muted);
   padding: 1px 5px;
   border-radius: 8px;
@@ -13894,7 +13803,7 @@ tr:hover td {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: oklch(0.75 0.18 142);
+  background: var(--color-success);
   animation: chain-log-pulse 1s ease-in-out infinite;
 }
 
@@ -13928,11 +13837,11 @@ tr:hover td {
   top: 34px;
   right: 80px;
   z-index: 100;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .chain-log-filter-option {
@@ -14022,19 +13931,19 @@ tr:hover td {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  background: var(--surface-3);
-  border: 1px solid var(--border);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-md);
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-log-scroll-bottom:hover {
   background: var(--accent-primary);
-  color: white;
+  color: var(--button-text-color);
   border-color: var(--accent-primary);
 }
 
@@ -14042,7 +13951,7 @@ tr:hover td {
 .chain-preview-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14051,14 +13960,14 @@ tr:hover td {
 }
 
 .chain-preview-modal {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   width: min(90vw, 900px);
   max-height: 70vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-lg);
 }
 
 .chain-preview-header {
@@ -14066,7 +13975,7 @@ tr:hover td {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -14122,10 +14031,10 @@ tr:hover td {
 
 .chain-preview-error {
   padding: 20px;
-  color: oklch(0.72 0.18 25);
+  color: var(--color-error-text);
   font-size: 13px;
-  background: oklch(0.15 0.05 25 / 0.3);
-  border-radius: var(--radius);
+  background: var(--color-error-bg);
+  border-radius: var(--radius-md);
   margin: 8px;
 }
 
@@ -14143,8 +14052,8 @@ tr:hover td {
 .chain-preview-th {
   position: sticky;
   top: 0;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
   padding: 5px 8px;
   text-align: left;
   white-space: nowrap;
@@ -14171,7 +14080,7 @@ tr:hover td {
 }
 
 .chain-preview-td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
   padding: 4px 8px;
   color: var(--text-secondary);
   max-width: 200px;
@@ -14183,12 +14092,12 @@ tr:hover td {
 .chain-preview-td-row {
   color: var(--text-muted);
   text-align: center;
-  background: var(--surface-2);
+  background: var(--surface-raised);
   width: 40px;
 }
 
 .chain-preview-tr-even td {
-  background: oklch(from var(--surface-1) calc(l + 0.015) c h);
+  background: oklch(from var(--surface-inset) calc(l + 0.015) c h);
 }
 
 .chain-preview-null {
@@ -14201,7 +14110,7 @@ tr:hover td {
   padding: 6px 12px;
   font-size: 11px;
   color: var(--text-muted);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-default);
   font-family: var(--font-sans);
 }
 
@@ -14222,9 +14131,9 @@ tr:hover td {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: var(--surface-raised);
   color: var(--text-secondary);
   cursor: pointer;
   flex-shrink: 0;
@@ -14248,8 +14157,8 @@ tr:hover td {
   flex-direction: column;
   gap: 4px;
   padding: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
@@ -14260,8 +14169,8 @@ tr:hover td {
   flex-direction: column;
   gap: 4px;
   padding: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
@@ -14269,7 +14178,7 @@ tr:hover td {
 /* ── Chain: Progress bar ── */
 .chain-progress-bar {
   height: 3px;
-  background: var(--border);
+  background: var(--border-default);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -14291,7 +14200,7 @@ tr:hover td {
 }
 
 .chain-status-dot-running {
-  background: oklch(0.75 0.18 142);
+  background: var(--color-success);
   animation: chain-log-pulse 1s ease-in-out infinite;
 }
 
@@ -14305,7 +14214,7 @@ tr:hover td {
 .chain-template-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14314,14 +14223,14 @@ tr:hover td {
 }
 
 .chain-template-modal {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   width: min(92vw, 700px);
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -14330,7 +14239,7 @@ tr:hover td {
   align-items: flex-start;
   justify-content: space-between;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -14384,9 +14293,9 @@ tr:hover td {
   align-items: center;
   gap: 14px;
   padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
   cursor: pointer;
   text-align: left;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
@@ -14404,7 +14313,7 @@ tr:hover td {
   justify-content: center;
   width: 42px;
   height: 42px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
@@ -14437,7 +14346,7 @@ tr:hover td {
 .chain-template-card-nodes {
   font-size: 10px;
   color: var(--text-muted);
-  background: var(--surface-3);
+  background: var(--surface-overlay);
   padding: 2px 6px;
   border-radius: 8px;
 }
@@ -14447,7 +14356,7 @@ tr:hover td {
   color: var(--text-muted);
   padding: 2px 6px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
 }
 
 .chain-template-card-arrow {
@@ -14463,7 +14372,7 @@ tr:hover td {
 
 .chain-template-footer {
   padding: 12px 20px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-default);
   display: flex;
   justify-content: center;
   flex-shrink: 0;
@@ -14471,8 +14380,8 @@ tr:hover td {
 
 .chain-template-blank-btn {
   padding: 6px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   font-size: 12px;
@@ -14534,7 +14443,7 @@ tr:hover td {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md, 6px);
   overflow: hidden;
-  background: var(--surface-secondary);
+  background: var(--surface-raised);
 }
 
 .mem-item__view {
@@ -14595,17 +14504,17 @@ tr:hover td {
 }
 
 .mem-item__action-btn--delete:hover {
-  color: #f87171;
-  border-color: #f87171;
+  color: var(--color-error-text);
+  border-color: var(--feedback-error-border);
 }
 
 .mem-item__action-btn--save {
-  color: #4ade80;
-  border-color: #4ade8044;
+  color: var(--color-success-text);
+  border-color: var(--feedback-success-border);
 }
 
 .mem-item__action-btn--save:hover {
-  background: #4ade8022;
+  background: var(--color-success-bg);
 }
 
 .mem-item__action-btn--cancel {
@@ -14664,7 +14573,7 @@ tr:hover td {
   z-index: 200;
   background: var(--surface-raised);
   border-left: 1px solid var(--border-color);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -14687,7 +14596,7 @@ tr:hover td {
 
 .rt-action-btn--accent:hover {
   background: var(--accent-primary) !important;
-  color: #000 !important;
+  color: var(--button-text-color) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -14698,7 +14607,7 @@ tr:hover td {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14715,7 +14624,7 @@ tr:hover td {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .cr-header {
@@ -14868,11 +14777,11 @@ tr:hover td {
 }
 
 .cr-mini-row.cr-added td {
-  background: rgba(76, 175, 80, 0.08);
+  background: var(--color-success-bg);
 }
 
 .cr-mini-row.cr-removed td {
-  background: rgba(224, 108, 117, 0.08);
+  background: var(--color-error-bg);
 }
 
 .cr-mini-row.cr-unchanged td {
@@ -14901,7 +14810,7 @@ tr:hover td {
   gap: 6px;
   padding: 7px 16px;
   background: var(--accent-primary);
-  color: #000;
+  color: var(--button-text-color);
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -15022,7 +14931,7 @@ tr:hover td {
 
 .chart-gallery-card:hover {
   border-color: var(--accent-primary);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -15070,7 +14979,7 @@ tr:hover td {
   height: 32px;
   border-radius: 6px;
   border: none;
-  background: rgba(0,0,0,0.6);
+  background: var(--overlay-bg);
   color: #fff;
   display: flex;
   align-items: center;
@@ -15278,7 +15187,7 @@ tr:hover td {
 }
 
 .stg-ctx-status-ok {
-  color: #22c55e;
+  color: var(--color-success-text);
   flex-shrink: 0;
 }
 
@@ -15293,7 +15202,7 @@ tr:hover td {
   font-size: 11px;
   font-family: monospace;
   color: var(--text-muted);
-  background: var(--bg-tertiary, var(--bg-secondary));
+  background: var(--surface-overlay);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   padding: 2px 6px;
@@ -15325,7 +15234,7 @@ tr:hover td {
 }
 
 .stg-ctx-file--exists .stg-ctx-file-dot {
-  background: #22c55e;
+  background: var(--color-success);
 }
 
 .stg-ctx-file--missing .stg-ctx-file-dot {
@@ -15347,7 +15256,7 @@ tr:hover td {
 }
 
 .stg-ctx-file--exists .stg-ctx-file-status {
-  color: #22c55e;
+  color: var(--color-success-text);
 }
 
 .stg-ctx-empty {
@@ -15397,7 +15306,7 @@ tr:hover td {
 }
 
 .stg-ctx-check-row:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .stg-ctx-check-row--on {
@@ -15421,7 +15330,7 @@ tr:hover td {
 .stg-ctx-check-row--on .stg-ctx-check-box {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
 }
 
 .stg-ctx-check-body {
@@ -15454,7 +15363,7 @@ tr:hover td {
   border-radius: var(--radius-sm, 6px);
   border: none;
   background: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -15503,7 +15412,7 @@ tr:hover td {
   height: 22px;
   border-radius: 50%;
   background: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -16031,7 +15940,7 @@ tr:hover td {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--git-modified, #e8a838);
+  background: var(--color-warning);
   display: inline-block;
 }
 
@@ -16041,8 +15950,8 @@ tr:hover td {
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  background: color-mix(in oklch, var(--git-deleted, #e06c75) 15%, transparent);
-  color: var(--git-deleted, #e06c75);
+  background: color-mix(in oklch, var(--color-error) 15%, transparent);
+  color: var(--color-error);
   font-size: 11px;
   flex-shrink: 0;
 }
@@ -16287,9 +16196,9 @@ tr:hover td {
   border-radius: 3px;
   line-height: 14px;
 }
-.fe-git-badge--M { color: var(--git-modified, #e8a838); }
-.fe-git-badge--A { color: var(--git-added,    #4caf7d); }
-.fe-git-badge--D { color: var(--git-deleted,  #e06c75); }
+.fe-git-badge--M { color: var(--color-warning); }
+.fe-git-badge--A { color: var(--color-success); }
+.fe-git-badge--D { color: var(--color-error); }
 .fe-git-badge--\? { color: var(--text-muted); }
 
 /* ── Git Panel — New Features ── */
@@ -16328,7 +16237,7 @@ tr:hover td {
   color: var(--text-secondary); cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .git-ignore-pill:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); border-color: var(--accent-primary); }
-.git-ignore-pill--active { opacity: 0.5; cursor: default; color: var(--git-added, #4caf7d); border-color: var(--git-added, #4caf7d); }
+.git-ignore-pill--active { opacity: 0.5; cursor: default; color: var(--color-success); border-color: var(--color-success); }
 
 /* New Branch Input */
 .git-new-branch-row {
@@ -16357,7 +16266,7 @@ tr:hover td {
 /* Diff Modal */
 .git-diff-overlay {
   position: fixed; inset: 0; z-index: 10000;
-  background: rgba(0,0,0,0.5);
+  background: var(--overlay-bg);
   display: flex; align-items: center; justify-content: center;
 }
 .git-diff-modal {
@@ -16375,6 +16284,6 @@ tr:hover td {
   font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.6;
 }
 .git-diff-line { padding: 0 16px; white-space: pre-wrap; word-break: break-all; }
-.git-diff-add  { background: rgba(76, 175, 80, 0.12); color: var(--git-added, #4caf7d); }
-.git-diff-del  { background: rgba(224, 108, 117, 0.12); color: var(--git-deleted, #e06c75); }
-.git-diff-hunk { background: rgba(97, 175, 239, 0.08); color: var(--accent-primary); font-weight: 600; }
+.git-diff-add  { background: var(--color-success-bg); color: var(--color-success); }
+.git-diff-del  { background: var(--color-error-bg); color: var(--color-error); }
+.git-diff-hunk { background: var(--accent-subtle); color: var(--accent-primary); font-weight: 600; }

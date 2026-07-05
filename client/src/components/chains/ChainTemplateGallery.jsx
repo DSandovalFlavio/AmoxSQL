@@ -58,7 +58,7 @@ const ChainTemplateGallery = ({ onSelect, onClose }) => {
             className="modal-overlay"
             style={{
                 position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.6)',
+                backgroundColor: 'var(--overlay-bg)',
                 zIndex: 2000,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
 
@@ -147,7 +147,7 @@ const ChainTemplateGallery = ({ onSelect, onClose }) => {
                                         {tpl.description}
                                     </div>
                                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 8 }}>
+                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--hover-bg)', padding: '2px 6px', borderRadius: 8 }}>
                                             {tpl.nodeCount} nodes
                                         </span>
                                         {tpl.tags.map(t => (

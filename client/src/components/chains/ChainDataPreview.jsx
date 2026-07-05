@@ -40,7 +40,7 @@ const ChainDataPreview = ({ tableName, onClose }) => {
             className="modal-overlay"
             style={{
                 position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.6)',
+                backgroundColor: 'var(--overlay-bg)',
                 zIndex: 2000,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
 
@@ -101,7 +101,7 @@ const ChainDataPreview = ({ tableName, onClose }) => {
                     )}
 
                     {error && (
-                        <div style={{ margin: 16, padding: '12px 16px', borderRadius: 8, background: 'rgba(224,108,117,0.1)', color: '#e06c75', fontSize: 13 }}>
+                        <div style={{ margin: 16, padding: '12px 16px', borderRadius: 8, background: 'var(--color-error-bg)', color: 'var(--color-error)', fontSize: 13 }}>
                             Table "{tableName}" is not available for preview.<br />
                             <small style={{ opacity: 0.7 }}>{error}</small>
                         </div>
@@ -122,7 +122,7 @@ const ChainDataPreview = ({ tableName, onClose }) => {
                             </thead>
                             <tbody>
                                 {data.rows.map((row, ri) => (
-                                    <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                                    <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'var(--hover-bg)' }}>
                                         <td style={{ border: '1px solid var(--border-default)', padding: '4px 8px', color: 'var(--text-muted)', textAlign: 'center', background: 'var(--surface-raised)' }}>{ri + 1}</td>
                                         {data.columns.map(col => (
                                             <td key={col.name} style={{ border: '1px solid var(--border-default)', padding: '4px 8px', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

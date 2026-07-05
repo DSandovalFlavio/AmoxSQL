@@ -1025,7 +1025,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                 <code>{selectedCondaEnv !== 'none' ? `conda run -n ${selectedCondaEnv} ${generatedCmd}` : generatedCmd}</code>
                                 <div className="dbt-command-actions">
                                     <button className="dbt-icon-btn" onClick={handleCopyCmd} title="Copy to clipboard">
-                                        {cmdCopied ? <LuCheck size={14} style={{ color: 'var(--success)' }} /> : <LuClipboardCopy size={14} />}
+                                        {cmdCopied ? <LuCheck size={14} style={{ color: 'var(--color-success)' }} /> : <LuClipboardCopy size={14} />}
                                     </button>
                                     <button
                                         className="dbt-btn dbt-btn--execute"

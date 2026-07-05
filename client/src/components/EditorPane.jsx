@@ -438,7 +438,7 @@ const EditorPane = ({
 
                 {/* Content Area */}
                 {isAmoxvis ? (
-                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-base)' }}>
                         <Suspense fallback={<PaneLoading />}>
                             <AmoxvisPane
                                 tab={activeTab}
@@ -450,7 +450,7 @@ const EditorPane = ({
                         </Suspense>
                     </div>
                 ) : isDataDiving ? (
-                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-base)' }}>
                         <AiDivingPanel
                             key={activeTab.id}
                             width="100%"
@@ -464,13 +464,13 @@ const EditorPane = ({
                         />
                     </div>
                 ) : isErDiagram ? (
-                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-base)' }}>
                         <Suspense fallback={<PaneLoading />}>
                             <ErDiagram schema={activeTab.content || ''} onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
                         </Suspense>
                     </div>
                 ) : isDbtLineage ? (
-                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)', height: '100%' }}>
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-base)', height: '100%' }}>
                         <Suspense fallback={<PaneLoading />}>
                             <DbtLineageGraph onFileOpen={onOpenFile} />
                         </Suspense>

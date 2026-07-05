@@ -178,6 +178,26 @@ export function yamlToChain(yamlStr) {
 }
 
 /**
+ * Resolve a CSS custom property to a concrete color at runtime.
+ *
+ * React Flow paints edges, the minimap and the background grid as SVG and does
+ * not resolve `var(--token)` strings inside those props. Read the computed value
+ * off the document root so the color reacts to the active theme. Falls back to a
+ * mid-lightness color that reads acceptably in both light and dark modes.
+ */
+export function resolveThemeColor(token, fallback = 'oklch(0.5 0.02 250)') {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return fallback;
+    try {
+        const value = getComputedStyle(document.documentElement)
+            .getPropertyValue(token)
+            .trim();
+        return value || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+/**
  * Generate a unique node ID
  */
 export function generateNodeId() {

@@ -50,7 +50,7 @@ const ChainAiPrompt = ({ onGenerate, loading, hasNodes }) => {
                     title="Generate pipeline (Enter)"
                     style={{
                         display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-                        background: 'var(--accent-color-user)', color: '#fff', border: 'none',
+                        background: 'var(--accent-color-user)', color: 'var(--button-text-color)', border: 'none',
                         borderRadius: 7, padding: '6px 11px', fontSize: 12,
                         cursor: (loading || !text.trim()) ? 'default' : 'pointer',
                         opacity: (loading || !text.trim()) ? 0.6 : 1,

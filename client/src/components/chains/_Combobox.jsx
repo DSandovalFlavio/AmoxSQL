@@ -77,7 +77,7 @@ const Combobox = ({ value = '', onChange, options = [], placeholder, className, 
                             color: 'var(--text-active)',
                             background: selected ? 'var(--surface-raised)' : 'transparent',
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-hover, var(--surface-raised))'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--hover-bg)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = selected ? 'var(--surface-raised)' : 'transparent'; }}
                     >
                         <span style={{

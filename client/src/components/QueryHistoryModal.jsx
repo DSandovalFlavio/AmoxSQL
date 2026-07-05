@@ -98,7 +98,7 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+            backgroundColor: 'var(--overlay-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
 
         }} onClick={onClose}>
             <div className="modal-panel" style={{
@@ -181,17 +181,17 @@ const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
                                             <button
                                                 onClick={(e) => toggleBookmark(query, e)}
                                                 title={starred ? "Remove Bookmark" : "Bookmark this query"}
-                                                style={{ background: 'transparent', border: 'none', color: starred ? '#f59e0b' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 120ms ease' }}
+                                                style={{ background: 'transparent', border: 'none', color: starred ? 'var(--color-warning)' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 120ms ease' }}
                                             >
-                                                <LuStar size={14} fill={starred ? '#f59e0b' : 'none'} />
+                                                <LuStar size={14} fill={starred ? 'var(--color-warning)' : 'none'} />
                                             </button>
                                         ) : (
                                             <button
                                                 onClick={(e) => removeBookmark(query, e)}
                                                 title="Remove Bookmark"
-                                                style={{ background: 'transparent', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                style={{ background: 'transparent', border: 'none', color: 'var(--color-warning)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                             >
-                                                <LuStar size={14} fill="#f59e0b" />
+                                                <LuStar size={14} fill="var(--color-warning)" />
                                             </button>
                                         )}
                                         <button

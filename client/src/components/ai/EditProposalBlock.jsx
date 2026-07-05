@@ -31,8 +31,8 @@ const EditProposalBlock = ({ currentContent, proposedContent, description, onAcc
                     )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-tertiary)', marginRight: 8 }}>
-                    <span style={{ color: '#4ade80' }}>+{addedCount}</span>
-                    <span style={{ color: '#f87171' }}>-{removedCount}</span>
+                    <span style={{ color: 'var(--color-success)' }}>+{addedCount}</span>
+                    <span style={{ color: 'var(--color-error)' }}>-{removedCount}</span>
                 </div>
                 <div className="ai-edit-proposal__actions">
                     <button

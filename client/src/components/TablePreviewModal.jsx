@@ -62,7 +62,7 @@ const TablePreviewModal = ({ tableName, schema, onClose }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.62)',
+            backgroundColor: 'var(--overlay-bg)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -140,7 +140,7 @@ const TablePreviewModal = ({ tableName, schema, onClose }) => {
 
                     {!loading && !error && data.length > 0 && (
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', fontFamily: 'Consolas, Monaco, monospace' }}>
-                            <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--header-bg)', zIndex: 1, boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                            <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--header-bg)', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
                                 <tr>
                                     {columns.map(col => (
                                         <th key={col} style={{

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
+import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 
 // Per-editor-instance document id inside the SHARED SQL worker (one worker +
 // one WASM pair for the whole app; documents keyed by this id).
@@ -78,220 +79,7 @@ function clearDescribeCache() {
     __describeCache.clear();
 }
 
-/**
- * Monaco Editor Color Palettes — hex equivalents of CSS design tokens.
- *
- * These mirror the oklch / rgba values defined in index.css (:root and .light-theme).
- * Monaco requires bare hex strings and can't read CSS variables, so we maintain
- * this JS mapping. Keep in sync when updating design tokens in index.css.
- *
- * Hex values are derived from the oklch() approximations noted in CSS comments.
- * rgba text colors are flattened: rgba(255,255,255,a) → rgb(a*255) on dark,
- * rgba(0,0,0,a) → rgb(255 - a*255) on light.
- */
-const MONACO_PALETTE = {
-    dark: {
-        // Surfaces (from oklch values in :root)
-        bg:         '141517',  // --surface-base    oklch(0.145 0.006 270)
-        raised:     '191B1F',  // --surface-raised  oklch(0.175 0.008 270)
-        overlay:    '1F2125',  // --surface-overlay oklch(0.195 0.008 270)
-        // Text (rgba flattened against dark bg)
-        fg:         'EBEBEB',  // --text-primary    rgba(255,255,255,0.92)
-        fgMuted:    '8F9099',  // --text-secondary  rgba(255,255,255,0.56)
-        fgDim:      '5C5E66',  // --text-tertiary   rgba(255,255,255,0.36)
-        fgDisabled: '333538',  // --text-disabled   rgba(255,255,255,0.20)
-        // Accent
-        accent:     '00DDDD',  // --accent-primary  oklch(0.905 0.155 195)
-        // Syntax highlighting
-        keyword:    '9B8FF2',  // --syntax-keyword  oklch(0.72 0.12 280)
-        string:     'D4A76A',  // --syntax-string   oklch(0.76 0.10 70)
-        number:     'E0A86E',  // --syntax-number   oklch(0.78 0.11 60)
-        fn:         '6EC5D4',  // --syntax-function oklch(0.80 0.09 200)
-        comment:    '5C5F66',  // --syntax-comment  oklch(0.46 0.01 270)
-        type:       '4FC1FF',  // --syntax-type     oklch(0.79 0.12 235)
-        operator:   'C4B99A',  // --syntax-operator oklch(0.78 0.06 60)
-        variable:   'D1D3D8',  // --syntax-variable oklch(0.85 0.04 265)
-        constant:   '5EC9A0',  // --syntax-constant oklch(0.80 0.10 150)
-        error:      'E06C75',  // --feedback-error
-    },
-    light: {
-        // Surfaces
-        bg:         'FAFBFC',  // --surface-base    oklch(0.985 0.003 265)
-        raised:     'F2F3F5',  // --surface-raised  oklch(0.965 0.004 265)
-        overlay:    'FFFFFF',  // --surface-overlay oklch(1.000 0 0)
-        // Text (rgba flattened against light bg)
-        fg:         '141414',  // --text-primary    rgba(0,0,0,0.92)
-        fgMuted:    '474747',  // --text-secondary  rgba(0,0,0,0.72)
-        fgDim:      '737373',  // --text-tertiary   rgba(0,0,0,0.55)
-        fgDisabled: 'A6A6A6',  // --text-disabled   rgba(0,0,0,0.35)
-        // Accent
-        accent:     '0059FF',  // --accent-primary  oklch(0.49 0.220 265)
-        // Syntax highlighting (darker for light bg)
-        keyword:    '5E6AD2',  // --syntax-keyword  oklch(0.48 0.16 280)
-        string:     'B35E1A',  // --syntax-string   oklch(0.52 0.12 45)
-        number:     'C46D1A',  // --syntax-number   oklch(0.55 0.13 55)
-        fn:         '1E8A9E',  // --syntax-function oklch(0.50 0.12 200)
-        comment:    'A0A3AA',  // --syntax-comment  oklch(0.55 0.02 270)
-        type:       '1A8E80',  // --syntax-type     oklch(0.48 0.14 235)
-        operator:   '6B6E76',  // --syntax-operator oklch(0.55 0.08 50)
-        variable:   '3B3D42',  // --syntax-variable oklch(0.35 0.03 265)
-        constant:   '1A8E60',  // --syntax-constant oklch(0.48 0.14 150)
-        error:      'C13A3A',  // --feedback-error (light)
-    },
-};
-
-/**
- * Resolve a CSS variable to a 6-digit hex color (without #).
- * Uses a temporary DOM element so the browser resolves oklch(), rgba(), etc.
- * Falls back to the provided default if resolution fails.
- */
-let _cssProbeEl = null;
-const cssVarToHex = (varName, fallback) => {
-    if (typeof document === 'undefined') return fallback;
-    try {
-        // Reuse a single persistent hidden probe element. The browser resolves
-        // ANY color format (oklch, rgba, …) to rgb() via getComputedStyle, which
-        // Canvas can't do for oklch. Reusing the element avoids DOM churn when a
-        // theme build reads ~18 variables in a row.
-        if (!_cssProbeEl) {
-            _cssProbeEl = document.createElement('div');
-            _cssProbeEl.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;width:0;height:0';
-            document.body.appendChild(_cssProbeEl);
-        }
-        _cssProbeEl.style.color = `var(${varName})`;
-        const resolved = getComputedStyle(_cssProbeEl).color; // 'rgb(r, g, b)' or 'rgba(r, g, b, a)'
-
-        if (!resolved || resolved === 'rgba(0, 0, 0, 0)') return fallback;
-
-        // Parse rgb(r, g, b) or rgba(r, g, b, a)
-        const match = resolved.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
-        if (match) {
-            const [, r, g, b] = match;
-            return [r, g, b].map(c => Number(c).toString(16).padStart(2, '0')).join('');
-        }
-
-        return fallback;
-    } catch {
-        return fallback;
-    }
-};
-
-/**
- * Build Monaco theme by reading live CSS variables from the active theme.
- * Falls back to MONACO_PALETTE when CSS variables aren't available (SSR, initial mount).
- */
-export const buildMonacoTheme = (isDark) => {
-    const fallback = isDark ? MONACO_PALETTE.dark : MONACO_PALETTE.light;
-
-    // Read surface/text/accent from live CSS variables
-    const p = {
-        bg:         cssVarToHex('--surface-base', fallback.bg),
-        raised:     cssVarToHex('--surface-raised', fallback.raised),
-        overlay:    cssVarToHex('--surface-overlay', fallback.overlay),
-        fg:         cssVarToHex('--text-primary', fallback.fg),
-        fgMuted:    cssVarToHex('--text-secondary', fallback.fgMuted),
-        fgDim:      cssVarToHex('--text-tertiary', fallback.fgDim),
-        fgDisabled: cssVarToHex('--text-disabled', fallback.fgDisabled),
-        accent:     cssVarToHex('--accent-primary', fallback.accent),
-        // Syntax colors — read from CSS variables, fall back to palette
-        keyword:    cssVarToHex('--syntax-keyword', fallback.keyword),
-        string:     cssVarToHex('--syntax-string', fallback.string),
-        number:     cssVarToHex('--syntax-number', fallback.number),
-        fn:         cssVarToHex('--syntax-function', fallback.fn),
-        comment:    cssVarToHex('--syntax-comment', fallback.comment),
-        type:       cssVarToHex('--syntax-type', fallback.type),
-        operator:   cssVarToHex('--syntax-operator', fallback.operator),
-        variable:   cssVarToHex('--syntax-variable', fallback.variable),
-        constant:   cssVarToHex('--syntax-constant', fallback.constant),
-        error:      cssVarToHex('--feedback-error', fallback.error),
-    };
-
-    // Derive selection highlight from raised surface
-    const selBg = isDark
-        ? `#${p.raised}` // use raised surface for selected row
-        : `#${p.raised}`;
-
-    return {
-        base: isDark ? 'vs-dark' : 'vs',
-        inherit: false,
-        rules: [
-            { token: '', foreground: p.fg, background: p.bg },
-            { token: 'comment', foreground: p.comment, fontStyle: 'italic' },
-            { token: 'comment.sql', foreground: p.comment, fontStyle: 'italic' },
-            { token: 'keyword', foreground: p.keyword, fontStyle: 'bold' },
-            { token: 'keyword.sql', foreground: p.keyword, fontStyle: 'bold' },
-            { token: 'operator', foreground: p.operator },
-            { token: 'operator.sql', foreground: p.operator },
-            { token: 'delimiter', foreground: p.operator },
-            { token: 'string', foreground: p.string },
-            { token: 'string.sql', foreground: p.string },
-            { token: 'number', foreground: p.number },
-            { token: 'number.sql', foreground: p.number },
-            { token: 'identifier', foreground: p.variable },
-            { token: 'identifier.sql', foreground: p.variable },
-            { token: 'identifier.quote', foreground: p.variable },
-            { token: 'type', foreground: p.type },
-            { token: 'type.sql', foreground: p.type },
-            { token: 'predefined', foreground: p.fn },
-            { token: 'predefined.sql', foreground: p.fn },
-            { token: 'tag', foreground: p.keyword },
-            { token: 'attribute.name', foreground: p.type },
-            // Jinja / DBT
-            { token: 'jinja.block', foreground: p.error, fontStyle: 'bold' },
-            { token: 'jinja.tag', foreground: p.constant },
-            { token: 'jinja.variable', foreground: p.fn },
-            { token: 'jinja.comment', foreground: p.comment, fontStyle: 'italic' },
-        ],
-        colors: {
-            'editor.background':                `#${p.bg}`,
-            'editor.foreground':                `#${p.fg}`,
-            'editor.lineHighlightBackground':   `#${p.raised}`,
-            'editor.lineHighlightBorder':       '#00000000',
-            'editorGutter.background':          `#${p.bg}`,
-            'editorLineNumber.foreground':      `#${p.fgDisabled}`,
-            'editorLineNumber.activeForeground': `#${p.fgDim}`,
-            'editorCursor.foreground':          `#${p.accent}`,
-            'editor.selectionBackground':       `#${p.keyword}30`,
-            'editor.inactiveSelectionBackground': `#${p.keyword}18`,
-            'editor.selectionHighlightBackground': `#${p.keyword}15`,
-            'editor.findMatchBackground':       `#${p.string}40`,
-            'editor.findMatchHighlightBackground': `#${p.string}25`,
-            'editorIndentGuide.background':     `#${p.overlay}`,
-            'editorIndentGuide.activeBackground': `#${p.overlay}`,
-            'editorBracketMatch.background':    `#${p.keyword}20`,
-            'editorBracketMatch.border':        `#${p.keyword}80`,
-            'editorWidget.background':          `#${p.overlay}`,
-            'editorWidget.border':              '#00000000',
-            'editorSuggestWidget.background':   `#${p.overlay}`,
-            'editorSuggestWidget.border':       '#00000000',
-            'editorSuggestWidget.foreground':   `#${p.fg}`,
-            'editorSuggestWidget.selectedBackground': selBg,
-            'editorSuggestWidget.selectedForeground': `#${p.fg}`,
-            'editorSuggestWidget.highlightForeground': `#${p.accent}`,
-            'editorSuggestWidget.focusHighlightForeground': `#${p.accent}`,
-            'editorHoverWidget.background':     `#${p.overlay}`,
-            'editorHoverWidget.border':         '#00000000',
-            'scrollbar.shadow':                 '#00000000',
-            'scrollbarSlider.background':       isDark ? '#ffffff12' : '#00000010',
-            'scrollbarSlider.hoverBackground':  isDark ? '#ffffff20' : '#00000020',
-            'scrollbarSlider.activeBackground': isDark ? '#ffffff30' : '#00000030',
-            'minimap.background':               `#${p.bg}`,
-        }
-    };
-};
-
-/**
- * Cache built Monaco themes by theme id. buildMonacoTheme() reads ~18 live CSS
- * variables (each a getComputedStyle), so re-toggling between already-seen
- * themes should be instant rather than rebuilt every time.
- */
-const _monacoThemeCache = new Map();
-export const getMonacoTheme = (themeId, isDark) => {
-    if (_monacoThemeCache.has(themeId)) return _monacoThemeCache.get(themeId);
-    const built = buildMonacoTheme(isDark);
-    _monacoThemeCache.set(themeId, built);
-    return built;
-};
+/* Monaco theming lives in ../monacoTheme.js (single amox theme, App-driven sync). */
 
 const globalViewStateCache = new Map();
 
@@ -373,9 +161,9 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     };
 
     const handleEditorWillMount = (monaco) => {
-        // ── Build themes from CSS design tokens (single source of truth) ──
-        monaco.editor.defineTheme('duckdb-dark', buildMonacoTheme(true));
-        monaco.editor.defineTheme('duckdb-light', buildMonacoTheme(false));
+        // Register the monaco instance and define/activate the single `amox`
+        // theme from the live tokens (App re-syncs it on theme/accent change).
+        registerMonaco(monaco);
 
         // Register custom Monarch tokenizer so JOIN modifiers and DuckDB keywords highlight correctly
         monaco.languages.setMonarchTokensProvider('sql', {
@@ -1134,18 +922,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         }
     }, [props.errorMarker]);
 
-    // ── Re-sync Monaco theme when app theme or accent changes ──
-    useEffect(() => {
-        if (!monacoRef.current) return;
-        const isDark = !['light', 'ivory', 'mist', 'snow'].includes(props.theme);
-        const themeName = isDark ? 'duckdb-dark' : 'duckdb-light';
-        // Defer reading CSS variables to ensure App.jsx has updated document.body classes
-        requestAnimationFrame(() => {
-            if (!monacoRef.current) return;
-            monacoRef.current.editor.defineTheme(themeName, getMonacoTheme(props.theme, isDark));
-            monacoRef.current.editor.setTheme(themeName);
-        });
-    }, [props.theme]);
+    // Monaco theme is now global (`amox`) and re-applied centrally from App.jsx
+    // whenever the app theme or accent changes — no per-editor theme effect.
 
     // Stable identity: a fresh options object every render makes the <Editor>
     // wrapper call updateOptions() on each reconciliation.
@@ -1199,7 +977,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             language={props.language || 'sql'}
             defaultValue={value}
             onChange={handleEditorChange}
-            theme={['light', 'ivory', 'mist', 'snow'].includes(props.theme) ? 'duckdb-light' : 'duckdb-dark'}
+            theme={MONACO_THEME_NAME}
             beforeMount={handleEditorWillMount}
             options={editorOptions}
             onMount={handleEditorDidMount}

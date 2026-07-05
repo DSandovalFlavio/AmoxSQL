@@ -29,7 +29,7 @@ import {
     LuPencilLine, LuPresentation, LuRefreshCw, LuSave, LuChevronDown, LuBot, LuX,
     LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode,
 } from 'react-icons/lu';
-import { buildMonacoTheme } from '../SqlEditor';
+import { registerMonaco, MONACO_THEME_NAME } from '../../monacoTheme.js';
 import { parseDeck, serializeDeck } from '../../utils/deckParser';
 import { buildSlideSnippet, buildSlideRaw, splitSlideContent } from '../../utils/deckTemplates';
 import DeckSidePanel from './DeckSidePanel';
@@ -38,7 +38,6 @@ import SlidePreview from './SlidePreview';
 import '../MarkdownEditor.css';
 import './deck.css';
 
-const LIGHT_THEMES = ['ivory', 'mist', 'light', 'snow'];
 const ASPECT_MAP = { '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1' };
 const VALID_VIEWS = ['design', 'present', 'source'];
 
@@ -72,7 +71,6 @@ const DeckEditor = ({
     const editorRef = useRef(null);
     const slideCardRefs = useRef(new Map());
 
-    const monacoTheme = LIGHT_THEMES.includes(theme) ? 'duckdb-light' : 'duckdb-dark';
     const deck = useMemo(() => parseDeck(content || ''), [content]);
     const aspectRatio = ASPECT_MAP[deck.frontMatter?.aspect] || '16 / 9';
 
@@ -205,8 +203,7 @@ const DeckEditor = ({
     const requestAddChart = useCallback(() => { changePanel('charts'); setSidePanelCollapsed(false); }, []);
 
     const handleEditorWillMount = useCallback((monaco) => {
-        monaco.editor.defineTheme('duckdb-dark', buildMonacoTheme(true));
-        monaco.editor.defineTheme('duckdb-light', buildMonacoTheme(false));
+        registerMonaco(monaco);
     }, []);
 
     const handleEditorMount = useCallback((editor, monaco) => {
@@ -366,7 +363,7 @@ const DeckEditor = ({
                                 <Editor
                                     value={content}
                                     language="markdown"
-                                    theme={monacoTheme}
+                                    theme={MONACO_THEME_NAME}
                                     onChange={onChange}
                                     beforeMount={handleEditorWillMount}
                                     onMount={handleEditorMount}

@@ -123,12 +123,12 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     // Helper: Map SQL Types to Icons/Colors
     const getTypeMeta = (type) => {
         const t = type.toUpperCase();
-        if (t.includes('INT')) return { icon: <LuHash size={12} />, color: '#9cdcfe', label: 'Integer' };
-        if (t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('DECIMAL')) return { icon: <LuHash size={12} />, color: '#b5cea8', label: 'Number' };
-        if (t.includes('CHAR') || t.includes('TEXT') || t.includes('STRING')) return { icon: <LuType size={12} />, color: '#ce9178', label: 'Text' };
-        if (t.includes('DATE') || t.includes('TIME')) return { icon: <LuCalendar size={12} />, color: '#569cd6', label: 'Date/Time' };
-        if (t.includes('BOOL')) return { icon: <LuSquareCheck size={12} />, color: '#c586c0', label: 'Boolean' };
-        return { icon: <LuCode size={12} />, color: '#dcdcaa', label: type };
+        if (t.includes('INT')) return { icon: <LuHash size={12} />, color: 'var(--type-integer)', label: 'Integer' };
+        if (t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('DECIMAL')) return { icon: <LuHash size={12} />, color: 'var(--type-float)', label: 'Number' };
+        if (t.includes('CHAR') || t.includes('TEXT') || t.includes('STRING')) return { icon: <LuType size={12} />, color: 'var(--type-text)', label: 'Text' };
+        if (t.includes('DATE') || t.includes('TIME')) return { icon: <LuCalendar size={12} />, color: 'var(--type-datetime)', label: 'Date/Time' };
+        if (t.includes('BOOL')) return { icon: <LuSquareCheck size={12} />, color: 'var(--type-boolean)', label: 'Boolean' };
+        return { icon: <LuCode size={12} />, color: 'var(--type-default)', label: type };
     };
 
     const handleCopy = (e, text) => {

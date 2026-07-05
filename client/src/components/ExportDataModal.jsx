@@ -83,7 +83,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', inset: 0, zIndex: 10000,
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            backgroundColor: 'var(--overlay-bg)',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
         }} onClick={onClose}>
             <div className="modal-panel" style={{
@@ -251,7 +251,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                     disabled={exporting || !query}
                     style={{
                         width: '100%', padding: '10px', borderRadius: '8px', cursor: exporting ? 'wait' : 'pointer',
-                        backgroundColor: exporting ? 'var(--accent-secondary)' : 'var(--accent-primary)',
+                        backgroundColor: exporting ? 'var(--accent-muted)' : 'var(--accent-primary)',
                         color: 'var(--button-text-color)', border: 'none', fontSize: '13px', fontWeight: 600,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                         opacity: !query ? 0.5 : 1,

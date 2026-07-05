@@ -81,10 +81,10 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
                                     top: '100%',
                                     right: 0,
                                     marginTop: 2,
-                                    background: 'var(--surface-elevated, var(--surface-secondary))',
+                                    background: 'var(--surface-overlay)',
                                     border: '1px solid var(--border-subtle)',
                                     borderRadius: 6,
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                    boxShadow: 'var(--shadow-md)',
                                     zIndex: 100,
                                     minWidth: 160,
                                     overflow: 'hidden',
@@ -92,7 +92,7 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
                                     {onApplyToFile && (
                                         <button
                                             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', textAlign: 'left' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                             onClick={() => { onApplyToFile(sql); setShowApplyMenu(false); }}
                                         >
@@ -103,7 +103,7 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
                                     {onAppendToFile && (
                                         <button
                                             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', textAlign: 'left' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                             onClick={() => { onAppendToFile(sql); setShowApplyMenu(false); }}
                                         >

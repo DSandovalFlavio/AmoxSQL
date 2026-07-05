@@ -40,9 +40,9 @@ const PhaseBar = ({ plan, metrics }) => {
     const execution = sumTimings(planRoot(plan));
     const other = Math.max(0, metrics.latency - planning - execution);
     const segs = [
-        { label: 'Planning', v: planning, c: '#7aa2ff' },
-        { label: 'Execution', v: execution, c: '#00bbaa' },
-        { label: 'I/O & setup', v: other, c: '#9aa0a6' },
+        { label: 'Planning', v: planning, c: 'var(--color-info)' },
+        { label: 'Execution', v: execution, c: 'var(--accent-primary)' },
+        { label: 'I/O & setup', v: other, c: 'var(--text-tertiary)' },
     ].filter((s) => s.v > 0);
     const tot = segs.reduce((a, s) => a + s.v, 0) || 1;
     return (
@@ -132,7 +132,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metric
         <div className="modal-overlay" style={{
             position: 'fixed',
             top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.62)',
+            backgroundColor: 'var(--overlay-bg)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -208,7 +208,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metric
                 {note && (
                     <div style={{
                         padding: '6px 14px', fontSize: '11px', flexShrink: 0,
-                        color: 'var(--accent-warning, #d2a106)',
+                        color: 'var(--color-warning)',
                         backgroundColor: 'var(--surface-raised)',
                         borderBottom: '1px solid var(--border-subtle)'
                     }}>

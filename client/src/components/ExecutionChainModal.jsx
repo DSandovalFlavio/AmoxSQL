@@ -105,7 +105,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', inset: 0, zIndex: 10000,
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            backgroundColor: 'var(--overlay-bg)',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
         }} onClick={onClose}>
             <div className="modal-panel" style={{
@@ -150,7 +150,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                         onClick={addStep}
                         disabled={!selectedFile || running}
                         style={{
-                            backgroundColor: 'var(--accent-primary)', color: '#fff', border: 'none',
+                            backgroundColor: 'var(--accent-primary)', color: 'var(--button-text-color)', border: 'none',
                             borderRadius: '6px', padding: '7px 12px', cursor: 'pointer', fontSize: '12px',
                             display: 'flex', alignItems: 'center', gap: '4px', opacity: !selectedFile ? 0.5 : 1,
                         }}
@@ -233,8 +233,8 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                     disabled={running || chain.length === 0}
                     style={{
                         width: '100%', padding: '10px', borderRadius: '8px', cursor: running ? 'wait' : 'pointer',
-                        backgroundColor: running ? 'var(--accent-secondary)' : 'var(--accent-primary)',
-                        color: '#fff', border: 'none', fontSize: '13px', fontWeight: 600,
+                        backgroundColor: running ? 'var(--accent-muted)' : 'var(--accent-primary)',
+                        color: 'var(--button-text-color)', border: 'none', fontSize: '13px', fontWeight: 600,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                         opacity: chain.length === 0 ? 0.5 : 1,
                     }}

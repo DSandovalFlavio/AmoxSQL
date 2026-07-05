@@ -96,7 +96,7 @@ export function DialogProvider({ children }) {
                         position: 'fixed',
                         inset: 0,
                         zIndex: 10000,
-                        background: 'rgba(0,0,0,0.55)',
+                        background: 'var(--overlay-bg)',
 
                         display: 'flex',
                         alignItems: 'center',
@@ -111,7 +111,7 @@ export function DialogProvider({ children }) {
                             background: 'var(--surface-raised, #1f1f26)',
                             border: '1px solid var(--border-subtle, #33333c)',
                             borderRadius: '10px',
-                            boxShadow: '0 12px 48px rgba(0,0,0,0.5)',
+                            boxShadow: 'var(--shadow-lg)',
                             padding: '20px 22px 18px',
                             fontFamily: 'inherit',
                         }}
@@ -193,7 +193,7 @@ export function DialogProvider({ children }) {
                                         : 'var(--accent-primary, #22d3ee)',
                                     border: 'none',
                                     borderRadius: '6px',
-                                    color: dialog.destructive ? '#fff' : 'var(--surface-base, #141418)',
+                                    color: dialog.destructive ? 'var(--button-text-color, #fff)' : 'var(--surface-base, #141418)',
                                     fontSize: '13px',
                                     fontWeight: 600,
                                     cursor: 'pointer',

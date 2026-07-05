@@ -60,7 +60,7 @@ const FilePreviewModal = ({ filePath, onClose }) => {
             role="dialog" aria-modal="true"
             style={{
                 position: 'fixed', inset: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.62)',
+                backgroundColor: 'var(--overlay-bg)',
                 display: 'flex', justifyContent: 'center', alignItems: 'center',
                 zIndex: 1100,
             }}
