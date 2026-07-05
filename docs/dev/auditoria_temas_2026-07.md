@@ -208,7 +208,17 @@ cambio de acento actualiza cursor/highlight, cambio dark→dark se refleja. Buil
 3. Islands: recalibrar secondary/tertiary al piso dark (hoy 4.28/2.19).
 4. Verificación: script de contraste (Node) que valide los pisos de §7.3 sobre los 10 temas.
 
-### Fase 5 — Consolidación y limpieza
+### Fase 5 — Consolidación y limpieza · **HECHA (commits `631511f` + cierre)**
+> **Decisión del usuario: DIFERENCIAR los dark clones** (no eliminar): Onyx → negro puro
+> `#0b0c0d`, Carbon → azul-gris genuino `#12161d`, Graphite → gris lápiz cálido y más claro
+> `#21201c`; Obsidian intacto como referencia. Ivory/Mist se quedan como par cálido/frío; Snow
+> reconstruido en F4. Swatches del picker actualizados; los 10 temas pasan el verificador.
+> `update_css.cjs` borrado; `guia_estilos.md` actualizada (10 temas con identidad, arquitectura
+> de 4 capas con `.mode-light`, pisos de contraste + script, Monaco vía `monacoTheme.js`).
+> **Diferido como pulido opcional** (bajo valor/alto churn, sin impacto funcional): migración de
+> aliases legacy (700+ usos — son punteros `var()` funcionales), borrado de tokens muertos,
+> bloque derivador único `[class*="accent-"]` estilo biblia, y subir la capa de modo/norma
+> cuantitativa a la amox-design-bible.
 1. **Presentar al usuario los temas corregidos** → decide cuáles eliminar/fusionar
    (candidatos: onyx≈carbon; evaluar onyx vs graphite; snow si no convence reconstruido).
 2. Migración de aliases legacy (700+ usos) → vocabulario v2, borrar aliases.

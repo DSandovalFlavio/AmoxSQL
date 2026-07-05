@@ -72,54 +72,52 @@ color: var(--accent-primary);
 
 ## 2. Sistema de Theming
 
-### 2.1 Temas Disponibles (9)
+### 2.1 Temas Disponibles (10)
 
-| ID | Nombre UI | Tipo |
-|----|-----------|------|
-| `dark` (default) | Obsidian | Dark |
-| `onyx` | Onyx | Dark |
-| `carbon` | Carbon | Dark |
-| `graphite` | Graphite | Dark |
-| `nord` | Nord Dark | Dark |
-| `ivory` | Ivory | Light |
-| `mist` | Mist | Light |
-| `snow` | Snow | Light |
-| `light` | Light | Light |
+| ID | Nombre UI | Tipo | Identidad |
+|----|-----------|------|-----------|
+| `dark` (default) | Obsidian | Dark | Frío neutro profundo (referencia) |
+| `onyx` | Onyx | Dark | Negro puro (el más profundo) |
+| `carbon` | Carbon | Dark | Matiz azul-gris genuino |
+| `graphite` | Graphite | Dark | Gris lápiz, cálido y más claro |
+| `nord` | Nord Dark | Dark | Polar night (paleta propia) |
+| `islands` | Dark Islands | Dark | Paleta propia (síntaxis cálida) |
+| `light` | Light | Light | Neutro frío (referencia light) |
+| `ivory` | Ivory | Light | Papel cálido |
+| `mist` | Mist | Light | Azul-gris frío |
+| `snow` | Snow | Light | Blanco puro, alto brillo |
 
-### 2.2 Cómo se Aplican
+### 2.2 Cómo se Aplican (arquitectura post-auditoría 2026-07)
 
-Los temas se aplican como clases en `<body>` desde `App.jsx`:
+`App.jsx` aplica **dos clases** en `<body>` vía `client/src/theme.js` (fuente única de
+`isLightTheme`/`themeClassFor`/`modeClassFor` — no dupliques la lista de temas light):
 
 ```javascript
-// App.jsx
-if (theme === 'light') {
-  document.body.classList.add('light-theme');
-} else if (theme !== 'dark') {
-  document.body.classList.add(`theme-${theme}`);
-}
-// 'dark' es el default (sin clase extra)
+// App.jsx (simplificado)
+const themeClass = themeClassFor(theme);      // 'light-theme' | 'theme-x' | null (obsidian)
+if (themeClass) document.body.classList.add(themeClass);
+document.body.classList.add(modeClassFor(theme)); // 'mode-light' | 'mode-dark'
 ```
 
-En `index.css`, cada tema sobrescribe las variables CSS:
+**Capas de override en `index.css` (en este orden):**
+1. `:root` — contrato completo de tokens (valores dark por defecto).
+2. `.mode-light` — todo lo que depende SOLO de light-vs-dark y aplica a los 4 temas
+   light: `--feedback-info*`, `--node-*`, `--icon-*`, chrome del suggest de Monaco.
+   **Regla:** si escribes CSS que necesita variante light, usa `.mode-light .foo`,
+   NUNCA `.light-theme .foo` (esa clase solo la lleva el tema "Light", no ivory/mist/snow).
+3. `.theme-*` / `.light-theme` — cada tema toca solo: superficies, textos, bordes,
+   hover/active, sombras, titlebar (y opcionalmente syntax/feedback si tiene paleta
+   propia, como Nord/Islands).
+4. Acentos — cada `.accent-*` fija `--accent-primary` y derivadas. El acento propio de
+   Nord/Islands vive en `.theme-nord:not([class*="accent-"])` para que el acento
+   elegido por el usuario SIEMPRE gane.
 
-```css
-.theme-carbon {
-  --surface-base:   oklch(0.148 0.008 260);
-  --surface-raised: oklch(0.178 0.009 260);
-  --text-primary:   rgba(255, 255, 255, 0.94);
-  /* ... solo las variables que difieren del dark default */
-}
-
-.light-theme {
-  --surface-base:   oklch(0.985 0.003 265);
-  --surface-raised: oklch(0.965 0.004 265);
-  --text-primary:   rgba(0, 0, 0, 0.92);
-  --border-subtle:  rgba(0, 0, 0, 0.07);
-  /* ... */
-}
-```
-
-**Al agregar un tema nuevo:** crear una clase `.theme-{nombre}` en `index.css` que sobrescriba solo las variables que cambian. El resto hereda del `:root`.
+**Al agregar un tema nuevo:** clase `.theme-{nombre}` que sobrescriba solo superficies/
+texto/bordes/estados; añadirlo a `theme.js` (LIGHT_THEMES si es light) y al picker de
+SettingsModal; correr `node scripts/checkThemeContrast.cjs --all` — debe pasar los pisos
+(texto: primary ≥10:1, secondary ≥5.5:1, tertiary ≥4:1 en light / ≥3:1 en dark; bordes
+subtle 1.08-1.30, default 1.20-1.55, strong 1.45-2.10 vs base). Bordes SIEMPRE con alpha,
+nunca opacos; en light: sombras suaves (α ≤ 0.15) y hover/active como lavados alfa.
 
 ### 2.3 Acentos (13)
 
@@ -312,44 +310,26 @@ transition: background 0.15s, opacity 0.15s;
 
 ## 5. Monaco Editor Theming
 
-Monaco Editor tiene su propio sistema de temas que no acepta variables CSS. La solución es resolverlas en runtime.
+Monaco no acepta variables CSS, así que se resuelven en runtime. Desde la auditoría
+2026-07, TODO el theming de Monaco vive en **`client/src/monacoTheme.js`** (fuente única
+— SqlEditor/MarkdownEditor/DeckEditor ya no definen temas propios):
 
-### 5.1 Paleta y Resolución
-
-En `client/src/components/SqlEditor.jsx`:
-
-```javascript
-const MONACO_PALETTE = {
-  dark:  { bg: '141517', accent: '00DDDD', keyword: '9B8FF2', ... },
-  light: { bg: 'FFFFFF', accent: '0066CC', keyword: '7B4FD0', ... }
-};
-
-// Resuelve variables CSS a hex en runtime
-function cssVarToHex(varName, fallback) {
-  const el = document.createElement('div');
-  el.style.color = `var(${varName})`;
-  document.body.appendChild(el);
-  const resolved = getComputedStyle(el).color; // oklch → rgb()
-  document.body.removeChild(el);
-  const match = resolved.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
-  if (!match) return fallback;
-  const [, r, g, b] = match;
-  return [r, g, b].map(c => parseInt(c).toString(16).padStart(2, '0')).join('');
-}
-
-export const buildMonacoTheme = (isDark) => {
-  const p = {
-    bg:      cssVarToHex('--surface-base', isDark ? '141517' : 'FFFFFF'),
-    accent:  cssVarToHex('--accent-primary', isDark ? '00DDDD' : '0066CC'),
-    // ...
-  };
-  return { base: isDark ? 'vs-dark' : 'vs', rules: [...] };
-};
-```
+- Hay **UN solo tema Monaco** llamado `amox`, reconstruido siempre desde las CSS vars
+  vivas del tema + acento activos (`buildAmoxMonacoTheme` → `cssVarToHex` con un probe
+  en `document.body`).
+- **`App.jsx` lo re-sincroniza** llamando `syncMonacoTheme()` en los MISMOS effects que
+  aplican las clases de tema y acento al body. `setTheme` de Monaco es global: un tema
+  de app ⇒ un tema de Monaco, en todos los editores montados a la vez.
+- Los editores solo hacen `registerMonaco(monaco)` en su `beforeMount` y usan
+  `theme={MONACO_THEME_NAME}` en el `<Editor>`.
+- El `FALLBACK` hex del módulo es SOLO para el primer paint si una var no resuelve —
+  no es fuente de verdad; los colores reales salen siempre de `index.css`.
 
 ### 5.2 Cuándo Actualizar
 
-Si se agrega un tema nuevo y el editor se ve mal, agregar la paleta correspondiente en `MONACO_PALETTE` o verificar que `cssVarToHex` resuelva correctamente las variables del nuevo tema.
+Al agregar un tema nuevo NO hay que tocar `monacoTheme.js`: el editor toma los tokens
+(`--surface-*`, `--syntax-*`, `--accent-primary`) automáticamente. Si el editor se ve
+mal en un tema, el bug está en los tokens de ese tema en `index.css`, no en Monaco.
 
 ---
 
