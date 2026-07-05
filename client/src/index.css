@@ -18,9 +18,11 @@
   --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
   --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
 
-  /* Monaco code-editor canvas bg — defaults to the theme's base; a couple of
-     themes override it below to give the editor a bg distinct from the app. */
-  --monaco-editor-bg: var(--surface-base);
+  /* Monaco code-editor canvas bg: left UNSET on purpose. Only Obsidian/Onyx set
+     it (below) to swap the editor bg; every other theme's editor falls back to
+     its own --surface-base — resolved in JS via var(--monaco-editor-bg,
+     var(--surface-base)) in monacoTheme.js. Defining it here as
+     var(--surface-base) would NOT re-resolve per theme through the probe. */
 
   /* ── Border System (opacity-based for consistency) ── */
   --border-subtle:  rgba(255, 255, 255, 0.06);

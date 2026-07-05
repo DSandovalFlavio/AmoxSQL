@@ -33,6 +33,15 @@ const FALLBACK = {
  */
 let _cssProbeEl = null;
 function cssVarToHex(varName, fallback) {
+    return cssExprToHex(`var(${varName})`, fallback);
+}
+/**
+ * Like cssVarToHex but takes a full CSS color expression, so callers can use a
+ * `var(--x, var(--y))` fallback CHAIN. Resolving the fallback inside the
+ * expression is reliable, whereas defining `--x: var(--y)` in :root and reading
+ * `--x` does NOT re-resolve `--y` against the active theme through this probe.
+ */
+function cssExprToHex(expr, fallback) {
     if (typeof document === 'undefined') return fallback;
     try {
         if (!_cssProbeEl) {
@@ -40,7 +49,7 @@ function cssVarToHex(varName, fallback) {
             _cssProbeEl.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;width:0;height:0';
             document.body.appendChild(_cssProbeEl);
         }
-        _cssProbeEl.style.color = `var(${varName})`;
+        _cssProbeEl.style.color = expr;
         const resolved = getComputedStyle(_cssProbeEl).color;
         if (!resolved || resolved === 'rgba(0, 0, 0, 0)') return fallback;
         const match = resolved.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
@@ -71,10 +80,11 @@ export function buildAmoxMonacoTheme() {
     const fb = isDark ? FALLBACK.dark : FALLBACK.light;
 
     const p = {
-        // The editor canvas reads --monaco-editor-bg (defined in :root as
-        // var(--surface-base), so it tracks each theme's base by default; a
-        // couple of themes override it to give the code editor its own bg).
-        bg:         cssVarToHex('--monaco-editor-bg', fb.bg),
+        // The editor canvas reads --monaco-editor-bg, falling back to the theme's
+        // --surface-base. Only a couple of themes (Obsidian/Onyx) set
+        // --monaco-editor-bg to give the code editor a bg distinct from the app;
+        // everyone else resolves through the fallback to their own base.
+        bg:         cssExprToHex('var(--monaco-editor-bg, var(--surface-base))', fb.bg),
         raised:     cssVarToHex('--surface-raised', fb.raised),
         overlay:    cssVarToHex('--surface-overlay', fb.overlay),
         fg:         cssVarToHex('--text-primary', fb.fg),
