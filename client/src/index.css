@@ -216,35 +216,28 @@
 
   /* ── Window Title Bar (Electron) ── */
   --titlebar-height: 32px;
-  --titlebar-bg: oklch(0.125 0.005 270);      /* ≈ #0F1012 */
-  --titlebar-text: oklch(0.68 0.01 270);      /* ≈ #A0A0A0 */
 
   /* ═══════════════════════════════════════════════
      LEGACY ALIASES — backward compat with inline styles
      (will be removed as components migrate to tokens)
      ═══════════════════════════════════════════════ */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
   --text-muted: var(--text-tertiary);
   --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
 
   --sidebar-item-active-bg: var(--active-bg);
   --border-color: var(--border-default);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: var(--surface-base);
-  --sidebar-item-active-text: var(--text-primary);
 
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: var(--border-default);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: var(--surface-raised);
   --table-row-hover: var(--hover-bg);
 }
 
@@ -822,14 +815,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #151617;
   --table-row-hover: rgba(255, 255, 255, 0.03);
 }
 
@@ -867,8 +857,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
 
-  --titlebar-bg:   #0b0f14;
-  --titlebar-text: #6a7a8b;
 
   /* Feedback — cool-leaning, tuned for the dark surfaces */
   --feedback-success:        #4ade80;
@@ -908,15 +896,12 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --type-boolean:  #7dd3fc;
   --type-default:  #f0c674;
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #04141a;   /* dark text on the bright cyan accent */
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #131a21;
   --table-row-hover: rgba(190, 214, 232, 0.035);
 }
 
@@ -971,14 +956,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --syntax-variable: #d8dee9;
   --syntax-constant: #b48ead;
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #2e3440;
   --table-row-hover: rgba(216, 222, 233, 0.03);
 }
 
@@ -1042,17 +1024,12 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --syntax-variable: #bcbec4;  /* plain text */
   --syntax-constant: #e8a33e;  /* warm yellow */
 
-  --titlebar-bg:   #121216;
-  --titlebar-text: #7a7e85;
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #1e2024;
   --table-row-hover: rgba(188, 190, 196, 0.04);
 }
 
@@ -1140,8 +1117,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
 
   /* ── Titlebar ── */
-  --titlebar-bg: oklch(0.965 0.004 265);       /* match surface-raised */
-  --titlebar-text: oklch(0.45 0.01 265);
 
   /* ── Feedback (darker for light bg contrast) ── */
   --feedback-success:        oklch(0.55 0.18 152);
@@ -1186,8 +1161,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --type-default:  oklch(0.50 0.08 95);
 
   /* ── Legacy aliases ── */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
@@ -1198,14 +1171,12 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
 
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(0, 0, 0, 0.10);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: oklch(0.955 0.004 265);   /* ≈ #EFF0F3 */
   --table-row-hover: rgba(0, 0, 0, 0.04);
 }
 
@@ -1246,8 +1217,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --shadow-lg: 0 8px 30px rgba(100, 80, 50, 0.12);
 
   /* ── Titlebar ── */
-  --titlebar-bg: #f3ede4;
-  --titlebar-text: #6b5e50;
 
   /* ── Feedback: desaturated warm tones ── */
   --feedback-success:        #5a8a5c;
@@ -1286,8 +1255,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --type-default:  #586e75;
 
   /* ── Legacy aliases ── */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
@@ -1297,13 +1264,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(120, 100, 70, 0.10);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: #ede7dc;
   --table-row-hover: rgba(120, 100, 70, 0.04);
 }
 
@@ -1344,8 +1309,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --shadow-lg: 0 8px 30px rgba(50, 60, 80, 0.12);
 
   /* ── Titlebar ── */
-  --titlebar-bg: #e8ecf2;
-  --titlebar-text: #566178;
 
   /* ── Feedback: desaturated cool tones ── */
   --feedback-success:        #4d8a5e;
@@ -1384,8 +1347,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --type-default:  #566178;
 
   /* ── Legacy aliases ── */
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
@@ -1395,13 +1356,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(70, 85, 110, 0.10);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: #dce1e9;
   --table-row-hover: rgba(70, 85, 110, 0.04);
 }
 
@@ -1443,8 +1402,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --shadow-md: 0 4px 12px rgba(20, 40, 60, 0.09);
   --shadow-lg: 0 8px 30px rgba(20, 40, 60, 0.13);
 
-  --titlebar-bg: #eef2f5;
-  --titlebar-text: #41505e;
 
   /* Feedback — darkened for light bg (AA) */
   --feedback-success:        #1f7a48;
@@ -1485,8 +1442,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --type-boolean:  #3f7a1f;
   --type-default:  #41505e;
 
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
@@ -1496,13 +1451,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --button-text-color: #ffffff;
-  --sidebar-item-active-text: var(--accent-primary);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --chart-bg: var(--surface-base);
   --grid-color: rgba(0, 0, 0, 0.05);
   --tooltip-bg: var(--surface-overlay);
-  --table-header-bg: #f3f4f6;
   --table-row-hover: #f9fafb;
 }
 
@@ -1515,7 +1468,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .theme-mist.accent-linear,
 .theme-amoxlight.accent-linear {
   --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
-  --sidebar-item-active-text: var(--accent-primary);
 }
 
 .light-theme.accent-amox-2,
