@@ -44,6 +44,9 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
 
+  /* ── Modal / dropdown scrim (single source; was ~28 rgba(0,0,0,0.6) copies) ── */
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+
   /* ── Motion System ──
      Duration scale + easing curves. Single source of truth for all
      transitions/animations. Desktop app: snappy by default, no librería.
@@ -3561,7 +3564,7 @@ tr:hover .rt-td {
   position: absolute;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3908,7 +3911,7 @@ tr:hover .rt-td {
 
 .ai-skill-select {
   flex: 1;
-  background: var(--bg-secondary);
+  background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
   border-radius: 4px;
@@ -4513,14 +4516,14 @@ tr:hover .rt-td {
   border-radius: var(--radius-md, 6px);
   overflow: hidden;
   margin-top: 8px;
-  background: var(--surface-primary);
+  background: var(--surface-base);
 }
 
 .ai-edit-proposal__header {
   display: flex;
   align-items: center;
   padding: 7px 10px;
-  background: var(--surface-secondary);
+  background: var(--surface-raised);
   border-bottom: 1px solid var(--border-subtle);
   gap: 6px;
 }
@@ -4552,7 +4555,7 @@ tr:hover .rt-td {
 }
 
 .ai-edit-proposal__btn--reject {
-  background: var(--surface-elevated, var(--surface-tertiary));
+  background: var(--surface-overlay);
   color: var(--text-secondary);
   border-color: var(--border-subtle);
 }
@@ -5427,7 +5430,7 @@ tr:hover .rt-td {
 .ai-tool-pre {
   margin: 0;
   padding: 8px 10px;
-  background-color: var(--surface-sunken, var(--input-bg));
+  background-color: var(--surface-inset);
   border-radius: var(--radius-sm, 4px);
   border: 1px solid var(--border-subtle);
   font-size: var(--text-mini, 11px);
@@ -6358,7 +6361,7 @@ tr:hover .rt-td {
 }
 
 .ai-history-item:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .ai-history-item--active {
@@ -6503,7 +6506,7 @@ tr:hover .rt-td {
 }
 
 .ai-ctx-artifact:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -6537,7 +6540,7 @@ tr:hover .rt-td {
 }
 
 .ai-ctx-artifact-delete:hover {
-  color: var(--error-color);
+  color: var(--color-error);
   background: var(--surface-raised);
 }
 
@@ -6613,7 +6616,7 @@ tr:hover .rt-td {
 }
 
 .ai-plan-progress-fill--done {
-  background: var(--success-color, #22c55e);
+  background: var(--color-success);
 }
 
 /* Goal text */
@@ -6651,7 +6654,7 @@ tr:hover .rt-td {
 }
 
 .ai-plan-step:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .ai-plan-step-icon {
@@ -6661,8 +6664,8 @@ tr:hover .rt-td {
   align-items: center;
 }
 
-.ai-plan-step--done    .ai-plan-step-icon { color: var(--success-color, #22c55e); }
-.ai-plan-step--failed  .ai-plan-step-icon { color: var(--error-color, #ef4444); }
+.ai-plan-step--done    .ai-plan-step-icon { color: var(--color-success); }
+.ai-plan-step--failed  .ai-plan-step-icon { color: var(--color-error); }
 .ai-plan-step--skipped .ai-plan-step-icon { color: var(--text-muted); }
 .ai-plan-step--pending .ai-plan-step-icon { color: var(--border-subtle); }
 .ai-plan-step--running .ai-plan-step-icon { color: var(--accent-primary); }
@@ -6747,9 +6750,9 @@ tr:hover .rt-td {
 }
 
 .ai-plan-step-skip:hover {
-  color: var(--error-color, #ef4444);
-  border-color: var(--error-color, #ef4444);
-  background: color-mix(in srgb, var(--error-color, #ef4444) 8%, transparent);
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
 }
 
 /* Iteration indicator */
@@ -6827,7 +6830,7 @@ tr:hover .rt-td {
   justify-content: space-between;
   gap: 8px;
   padding: 4px 8px;
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
 }
@@ -6964,7 +6967,7 @@ tr:hover .rt-td {
   color: var(--text-muted);
 }
 
-.query-audit-error { color: var(--error); }
+.query-audit-error { color: var(--color-error); }
 
 .query-audit-sql {
   margin: 0;
@@ -6972,7 +6975,7 @@ tr:hover .rt-td {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  background: var(--bg-base);
+  background: var(--surface-base);
   border-bottom: 1px solid var(--border-subtle);
   white-space: pre-wrap;
   word-break: break-all;
@@ -7018,7 +7021,7 @@ tr:hover .rt-td {
   white-space: nowrap;
 }
 
-.query-audit-table tr:hover td { background: var(--sidebar-item-hover-bg); }
+.query-audit-table tr:hover td { background: var(--hover-bg); }
 
 .query-audit-truncated {
   padding: 6px 14px;
@@ -7055,7 +7058,7 @@ tr:hover .rt-td {
 .ai-narrative-caveats-icon {
   flex-shrink: 0;
   margin-top: 1px;
-  color: var(--warning-color, #f59e0b);
+  color: var(--color-warning);
 }
 
 /* ── Ask-user banner (Fase 1) ── */
@@ -7094,7 +7097,7 @@ tr:hover .rt-td {
 }
 
 .ai-ask-user-option:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   border-color: var(--accent-primary);
 }
 
@@ -7268,7 +7271,7 @@ tr:hover .rt-td {
   gap: 6px;
   padding: 6px 14px;
   background: rgba(220, 60, 60, 0.08);
-  color: var(--error-color, #dc3c3c);
+  color: var(--color-error);
   font-size: var(--text-xs);
   flex-shrink: 0;
 }
@@ -7311,7 +7314,7 @@ tr:hover .rt-td {
 }
 
 .gsheets-header:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -7430,7 +7433,7 @@ tr:hover .rt-td {
 
 .gsheets-error {
   padding: 4px 10px 8px;
-  color: var(--error-color, #ef4444);
+  color: var(--color-error);
   font-size: 10px;
   line-height: 1.3;
 }
@@ -7453,7 +7456,7 @@ tr:hover .rt-td {
 }
 
 .gsheets-item:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .gsheets-item-left {
@@ -7504,8 +7507,8 @@ tr:hover .rt-td {
 }
 
 .gsheets-action-btn--danger:hover {
-  color: var(--error-color, #ef4444);
-  background: color-mix(in srgb, var(--error-color, #ef4444) 15%, transparent);
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
 }
 
 /* Tabs / Sub-tables */
@@ -7528,7 +7531,7 @@ tr:hover .rt-td {
 }
 
 .gsheets-tab-item:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .gsheets-tab-link {
@@ -7594,7 +7597,7 @@ tr:hover .rt-td {
 }
 
 .vault-entry:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .vault-entry-header {
@@ -7700,7 +7703,7 @@ tr:hover .rt-td {
 }
 
 .vault-btn:hover:not(:disabled) {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -7732,11 +7735,11 @@ tr:hover .rt-td {
 
 .vault-icon-btn:hover {
   color: var(--text-primary);
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .vault-delete-btn:hover {
-  color: var(--error-color, #dc3c3c);
+  color: var(--color-error);
 }
 
 .vault-save-btn:hover {
@@ -7753,12 +7756,12 @@ tr:hover .rt-td {
 
 .vault-delete-label {
   font-size: 10px;
-  color: var(--error-color, #dc3c3c);
+  color: var(--color-error);
   font-weight: var(--weight-medium);
 }
 
 .vault-delete-yes {
-  color: var(--error-color, #dc3c3c) !important;
+  color: var(--color-error) !important;
 }
 
 /* Inline editing */
@@ -7806,7 +7809,7 @@ tr:hover .rt-td {
 }
 
 .vault-load-more:hover:not(:disabled) {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -7962,7 +7965,7 @@ tr:hover .rt-td {
 }
 
 .db-schema-row:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .db-schema-icon {
@@ -8374,25 +8377,20 @@ tr:hover td {
   background: transparent;
 }
 
+/* Border tokens already flip per theme (white-alpha on dark, black-alpha on
+   light), so the thumb adapts to every theme — including ivory/mist/snow —
+   with no per-mode override. */
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
+  background: var(--border-default);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--border-strong);
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
-}
-
-.light-theme ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.10);
-}
-
-.light-theme ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.18);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -8485,26 +8483,26 @@ tr:hover td {
   color: #D4A76A !important;
 }
 /* Light theme icon adjustments */
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-function,
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-method {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-function,
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-method {
   background: rgba(30, 138, 158, 0.12) !important;
   color: #1E8A9E !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-field,
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-property {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-field,
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-property {
   background: rgba(26, 142, 96, 0.12) !important;
   color: #1A8E60 !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-keyword {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-keyword {
   background: rgba(94, 106, 210, 0.12) !important;
   color: #5E6AD2 !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-snippet {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-snippet {
   background: rgba(196, 109, 26, 0.12) !important;
   color: #C46D1A !important;
 }
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-class,
-.light-theme .monaco-editor .suggest-widget .codicon-symbol-struct {
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-class,
+.mode-light .monaco-editor .suggest-widget .codicon-symbol-struct {
   background: rgba(26, 142, 128, 0.12) !important;
   color: #1A8E80 !important;
 }
@@ -9607,7 +9605,7 @@ tr:hover td {
 .stg-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.62);
+  background-color: var(--overlay-bg);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -9917,16 +9915,16 @@ tr:hover td {
 .stg-code {
   font-family: var(--font-mono);
   font-size: 11px;
-  background: var(--bg-base);
+  background: var(--surface-base);
   padding: 1px 5px;
-  border-radius: var(--radius-xs, 3px);
+  border-radius: var(--radius-sm);
   color: var(--accent-primary);
   border: 1px solid var(--border-subtle);
 }
 
 /* Required field asterisk */
 .stg-required {
-  color: var(--error, #e05252);
+  color: var(--color-error);
   margin-left: 2px;
 }
 
@@ -10418,7 +10416,7 @@ tr:hover td {
 
 .stg-tier-title--low { color: var(--color-warning, #f59e0b); }
 .stg-tier-title--medium { color: var(--color-info, #3b82f6); }
-.stg-tier-title--high { color: var(--color-danger, #ef4444); }
+.stg-tier-title--high { color: var(--color-error); }
 
 .stg-tier-desc {
   font-size: var(--text-mini);
@@ -13769,9 +13767,9 @@ tr:hover td {
   top: 100%;
   right: 0;
   z-index: 100;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   min-width: 200px;
   max-width: 280px;
@@ -13808,10 +13806,10 @@ tr:hover td {
   width: 20px;
   height: 20px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
   cursor: pointer;
   padding: 0;
-  background: var(--surface-1);
+  background: var(--surface-inset);
   color: var(--text-secondary);
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
@@ -13827,8 +13825,8 @@ tr:hover td {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--border);
-  background: var(--surface-1);
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-inset);
   height: 200px;
   min-height: 120px;
   max-height: 400px;
@@ -13861,7 +13859,7 @@ tr:hover td {
   align-items: center;
   justify-content: space-between;
   padding: 4px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -13882,7 +13880,7 @@ tr:hover td {
 
 .chain-log-count {
   font-size: 10px;
-  background: var(--surface-3);
+  background: var(--surface-overlay);
   color: var(--text-muted);
   padding: 1px 5px;
   border-radius: 8px;
@@ -13928,9 +13926,9 @@ tr:hover td {
   top: 34px;
   right: 80px;
   z-index: 100;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
@@ -14022,8 +14020,8 @@ tr:hover td {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  background: var(--surface-3);
-  border: 1px solid var(--border);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   color: var(--text-secondary);
   font-size: 11px;
@@ -14051,8 +14049,8 @@ tr:hover td {
 }
 
 .chain-preview-modal {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   width: min(90vw, 900px);
   max-height: 70vh;
@@ -14066,7 +14064,7 @@ tr:hover td {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -14125,7 +14123,7 @@ tr:hover td {
   color: oklch(0.72 0.18 25);
   font-size: 13px;
   background: oklch(0.15 0.05 25 / 0.3);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   margin: 8px;
 }
 
@@ -14143,8 +14141,8 @@ tr:hover td {
 .chain-preview-th {
   position: sticky;
   top: 0;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
   padding: 5px 8px;
   text-align: left;
   white-space: nowrap;
@@ -14171,7 +14169,7 @@ tr:hover td {
 }
 
 .chain-preview-td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
   padding: 4px 8px;
   color: var(--text-secondary);
   max-width: 200px;
@@ -14183,12 +14181,12 @@ tr:hover td {
 .chain-preview-td-row {
   color: var(--text-muted);
   text-align: center;
-  background: var(--surface-2);
+  background: var(--surface-raised);
   width: 40px;
 }
 
 .chain-preview-tr-even td {
-  background: oklch(from var(--surface-1) calc(l + 0.015) c h);
+  background: oklch(from var(--surface-inset) calc(l + 0.015) c h);
 }
 
 .chain-preview-null {
@@ -14201,7 +14199,7 @@ tr:hover td {
   padding: 6px 12px;
   font-size: 11px;
   color: var(--text-muted);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-default);
   font-family: var(--font-sans);
 }
 
@@ -14222,9 +14220,9 @@ tr:hover td {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: var(--surface-raised);
   color: var(--text-secondary);
   cursor: pointer;
   flex-shrink: 0;
@@ -14248,8 +14246,8 @@ tr:hover td {
   flex-direction: column;
   gap: 4px;
   padding: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
@@ -14260,8 +14258,8 @@ tr:hover td {
   flex-direction: column;
   gap: 4px;
   padding: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
@@ -14269,7 +14267,7 @@ tr:hover td {
 /* ── Chain: Progress bar ── */
 .chain-progress-bar {
   height: 3px;
-  background: var(--border);
+  background: var(--border-default);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -14314,8 +14312,8 @@ tr:hover td {
 }
 
 .chain-template-modal {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   width: min(92vw, 700px);
   max-height: 80vh;
@@ -14330,7 +14328,7 @@ tr:hover td {
   align-items: flex-start;
   justify-content: space-between;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -14384,9 +14382,9 @@ tr:hover td {
   align-items: center;
   gap: 14px;
   padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
   cursor: pointer;
   text-align: left;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
@@ -14404,7 +14402,7 @@ tr:hover td {
   justify-content: center;
   width: 42px;
   height: 42px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
@@ -14437,7 +14435,7 @@ tr:hover td {
 .chain-template-card-nodes {
   font-size: 10px;
   color: var(--text-muted);
-  background: var(--surface-3);
+  background: var(--surface-overlay);
   padding: 2px 6px;
   border-radius: 8px;
 }
@@ -14447,7 +14445,7 @@ tr:hover td {
   color: var(--text-muted);
   padding: 2px 6px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
 }
 
 .chain-template-card-arrow {
@@ -14463,7 +14461,7 @@ tr:hover td {
 
 .chain-template-footer {
   padding: 12px 20px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-default);
   display: flex;
   justify-content: center;
   flex-shrink: 0;
@@ -14471,8 +14469,8 @@ tr:hover td {
 
 .chain-template-blank-btn {
   padding: 6px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   font-size: 12px;
@@ -14534,7 +14532,7 @@ tr:hover td {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md, 6px);
   overflow: hidden;
-  background: var(--surface-secondary);
+  background: var(--surface-raised);
 }
 
 .mem-item__view {
@@ -14698,7 +14696,7 @@ tr:hover td {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15293,7 +15291,7 @@ tr:hover td {
   font-size: 11px;
   font-family: monospace;
   color: var(--text-muted);
-  background: var(--bg-tertiary, var(--bg-secondary));
+  background: var(--surface-overlay);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   padding: 2px 6px;
@@ -15397,7 +15395,7 @@ tr:hover td {
 }
 
 .stg-ctx-check-row:hover {
-  background: var(--sidebar-item-hover-bg);
+  background: var(--hover-bg);
 }
 
 .stg-ctx-check-row--on {
@@ -16031,7 +16029,7 @@ tr:hover td {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--git-modified, #e8a838);
+  background: var(--color-warning);
   display: inline-block;
 }
 
@@ -16041,8 +16039,8 @@ tr:hover td {
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  background: color-mix(in oklch, var(--git-deleted, #e06c75) 15%, transparent);
-  color: var(--git-deleted, #e06c75);
+  background: color-mix(in oklch, var(--color-error) 15%, transparent);
+  color: var(--color-error);
   font-size: 11px;
   flex-shrink: 0;
 }
@@ -16287,9 +16285,9 @@ tr:hover td {
   border-radius: 3px;
   line-height: 14px;
 }
-.fe-git-badge--M { color: var(--git-modified, #e8a838); }
-.fe-git-badge--A { color: var(--git-added,    #4caf7d); }
-.fe-git-badge--D { color: var(--git-deleted,  #e06c75); }
+.fe-git-badge--M { color: var(--color-warning); }
+.fe-git-badge--A { color: var(--color-success); }
+.fe-git-badge--D { color: var(--color-error); }
 .fe-git-badge--\? { color: var(--text-muted); }
 
 /* ── Git Panel — New Features ── */
@@ -16328,7 +16326,7 @@ tr:hover td {
   color: var(--text-secondary); cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .git-ignore-pill:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); border-color: var(--accent-primary); }
-.git-ignore-pill--active { opacity: 0.5; cursor: default; color: var(--git-added, #4caf7d); border-color: var(--git-added, #4caf7d); }
+.git-ignore-pill--active { opacity: 0.5; cursor: default; color: var(--color-success); border-color: var(--color-success); }
 
 /* New Branch Input */
 .git-new-branch-row {
@@ -16375,6 +16373,6 @@ tr:hover td {
   font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.6;
 }
 .git-diff-line { padding: 0 16px; white-space: pre-wrap; word-break: break-all; }
-.git-diff-add  { background: rgba(76, 175, 80, 0.12); color: var(--git-added, #4caf7d); }
-.git-diff-del  { background: rgba(224, 108, 117, 0.12); color: var(--git-deleted, #e06c75); }
+.git-diff-add  { background: rgba(76, 175, 80, 0.12); color: var(--color-success); }
+.git-diff-del  { background: rgba(224, 108, 117, 0.12); color: var(--color-error); }
 .git-diff-hunk { background: rgba(97, 175, 239, 0.08); color: var(--accent-primary); font-weight: 600; }

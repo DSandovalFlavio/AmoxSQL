@@ -50,7 +50,7 @@ export const AiModesGuide = memo(() => (
             const Icon = m.icon;
             return (
                 <div key={m.key} style={{ display: 'flex', gap: '12px', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid var(--border-color)' }}>
-                    <div style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '7px', background: 'var(--panel-section-bg, var(--bg-tertiary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-active)' }}>
+                    <div style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '7px', background: 'var(--panel-section-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-active)' }}>
                         <Icon size={15} />
                     </div>
                     <div>

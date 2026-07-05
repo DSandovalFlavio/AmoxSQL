@@ -1023,7 +1023,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         onChange={e => onInterfaceFontChange?.(e.target.value)}
                                         style={{
                                             width: '100%', maxWidth: 300, padding: '8px 10px',
-                                            background: 'var(--input-bg, var(--bg-secondary))',
+                                            background: 'var(--input-bg)',
                                             color: 'var(--text-primary)',
                                             border: '1px solid var(--border-color)',
                                             borderRadius: 6, fontSize: 13,

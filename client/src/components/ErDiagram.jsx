@@ -190,7 +190,7 @@ const ErDiagram = ({ onCreateTab, schema }) => {
     if (error) {
         return (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                <LuCircleAlert size={24} style={{ marginBottom: '8px', color: 'var(--warning)' }} />
+                <LuCircleAlert size={24} style={{ marginBottom: '8px', color: 'var(--color-warning)' }} />
                 <p style={{ fontSize: '12px', marginBottom: '12px' }}>{error}</p>
                 <button className="dbt-btn dbt-btn--ghost" onClick={fetchSchema}>
                     <LuRefreshCw size={13} /> Retry
@@ -229,7 +229,7 @@ const ErDiagram = ({ onCreateTab, schema }) => {
                 {selectedTable && (
                     <>
                         <button className="dbt-icon-btn" onClick={handleCopyDDL} title="Copy DDL">
-                            {copied ? <LuCheck size={13} style={{ color: 'var(--success)' }} /> : <LuCopy size={13} />}
+                            {copied ? <LuCheck size={13} style={{ color: 'var(--color-success)' }} /> : <LuCopy size={13} />}
                         </button>
                         {onCreateTab && (
                             <button className="dbt-icon-btn" onClick={handleOpenDDL} title="Open DDL in Editor">
@@ -311,8 +311,8 @@ const ErDiagram = ({ onCreateTab, schema }) => {
 
                                     {/* Card body */}
                                     <rect x={0} y={0} width={TABLE_W} height={tableH} rx={8}
-                                        fill="var(--surface-elevated)"
-                                        stroke={isSelected ? 'var(--accent-primary)' : isHovered ? 'var(--border-hover)' : 'var(--border-subtle)'}
+                                        fill="var(--surface-overlay)"
+                                        stroke={isSelected ? 'var(--accent-primary)' : isHovered ? 'var(--border-strong)' : 'var(--border-subtle)'}
                                         strokeWidth={isSelected ? 2 : 1} />
 
                                     {/* Header */}

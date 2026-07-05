@@ -96,7 +96,7 @@ export function DialogProvider({ children }) {
                         position: 'fixed',
                         inset: 0,
                         zIndex: 10000,
-                        background: 'rgba(0,0,0,0.55)',
+                        background: 'var(--overlay-bg)',
 
                         display: 'flex',
                         alignItems: 'center',

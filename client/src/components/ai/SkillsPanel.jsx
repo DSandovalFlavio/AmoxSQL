@@ -118,7 +118,7 @@ const SkillsPanel = () => {
                                                         fontSize: 10,
                                                         padding: '1px 6px',
                                                         borderRadius: 3,
-                                                        background: 'var(--bg-tertiary)',
+                                                        background: 'var(--surface-overlay)',
                                                         color: 'var(--text-muted)',
                                                         border: '1px solid var(--border-subtle)',
                                                     }}
@@ -139,7 +139,7 @@ const SkillsPanel = () => {
                                     <div style={{
                                         marginTop: 8,
                                         padding: '10px 12px',
-                                        background: 'var(--bg-secondary)',
+                                        background: 'var(--surface-raised)',
                                         borderRadius: 4,
                                         border: '1px solid var(--border-subtle)',
                                     }}>

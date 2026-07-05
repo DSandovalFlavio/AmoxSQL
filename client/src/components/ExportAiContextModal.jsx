@@ -144,7 +144,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
             className="modal-overlay"
             style={{
                 position: 'fixed', inset: 0, zIndex: 10000,
-                backgroundColor: 'rgba(0,0,0,0.6)',
+                backgroundColor: 'var(--overlay-bg)',
                 display: 'flex', justifyContent: 'center', alignItems: 'center',
             }}
             onClick={onClose}

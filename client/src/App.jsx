@@ -4,6 +4,7 @@
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
 import { API_BASE } from './api.js';
+import { themeClassFor, modeClassFor } from './theme.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -230,21 +231,20 @@ function App() {
     return () => clearInterval(interval);
   }, [mergedEditorSettings.autoSaveInterval]);
 
-  // Apply Theme & Accent Classes
+  // Apply Theme & Mode Classes
   useEffect(() => {
     localStorage.setItem('amoxsql-theme', theme);
     // Remove all theme classes first
     const themeClasses = ['light-theme', 'theme-onyx', 'theme-carbon', 'theme-graphite', 'theme-nord', 'theme-islands', 'theme-ivory', 'theme-mist', 'theme-snow'];
     themeClasses.forEach(c => document.body.classList.remove(c));
-    // Apply the selected theme class (dark/obsidian = default, no class)
-    if (theme === 'light') {
-      document.body.classList.add('light-theme');
-    } else if (theme === 'ivory' || theme === 'mist' || theme === 'snow') {
-      // Light variant themes get their own class (they define their own light surfaces)
-      document.body.classList.add(`theme-${theme}`);
-    } else if (theme !== 'dark') {
-      document.body.classList.add(`theme-${theme}`);
-    }
+    document.body.classList.remove('mode-light', 'mode-dark');
+    // Theme class carries per-theme surfaces (dark/obsidian = default, no class)
+    const themeClass = themeClassFor(theme);
+    if (themeClass) document.body.classList.add(themeClass);
+    // Mode class carries everything that only depends on light-vs-dark, so that
+    // ivory/mist/snow (which have their OWN theme class, not `.light-theme`)
+    // still receive the light scrollbars, editor chrome, feedback ramps, etc.
+    document.body.classList.add(modeClassFor(theme));
   }, [theme]);
 
   useEffect(() => {

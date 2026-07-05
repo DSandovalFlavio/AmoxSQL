@@ -64,7 +64,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            backgroundColor: 'var(--overlay-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
 
         }}>
             <div className="modal-panel" style={{
@@ -171,7 +171,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                                    <button type="button" onClick={handleClose} style={{ backgroundColor: 'var(--button-bg-secondary)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
+                                    <button type="button" onClick={handleClose} style={{ backgroundColor: 'var(--surface-overlay)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
                                     <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>Import</button>
                                 </div>
                             </form>

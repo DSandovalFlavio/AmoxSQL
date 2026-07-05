@@ -221,7 +221,7 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true, total = 0, slowest = nu
                 </div>
 
                 {badEstimate && (
-                    <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--accent-warning, #d2a106)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <LuTriangleAlert size={11} />
                         Off estimate: the optimizer expected ~{fmtRows(estRows)} rows, got {fmtRows(realRows)}.
                     </div>

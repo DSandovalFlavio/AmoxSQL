@@ -148,7 +148,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
     if (error) {
         return (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                <LuCircleAlert size={24} style={{ marginBottom: '8px', color: 'var(--warning)' }} />
+                <LuCircleAlert size={24} style={{ marginBottom: '8px', color: 'var(--color-warning)' }} />
                 <p style={{ fontSize: '12px', marginBottom: '12px' }}>{error}</p>
                 <button className="dbt-btn dbt-btn--ghost" onClick={fetchManifest}>
                     <LuRefreshCw size={13} /> Retry

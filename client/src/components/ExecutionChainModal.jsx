@@ -105,7 +105,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
     return (
         <div className="modal-overlay" style={{
             position: 'fixed', inset: 0, zIndex: 10000,
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            backgroundColor: 'var(--overlay-bg)',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
         }} onClick={onClose}>
             <div className="modal-panel" style={{
@@ -233,7 +233,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                     disabled={running || chain.length === 0}
                     style={{
                         width: '100%', padding: '10px', borderRadius: '8px', cursor: running ? 'wait' : 'pointer',
-                        backgroundColor: running ? 'var(--accent-secondary)' : 'var(--accent-primary)',
+                        backgroundColor: running ? 'var(--accent-muted)' : 'var(--accent-primary)',
                         color: '#fff', border: 'none', fontSize: '13px', fontWeight: 600,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                         opacity: chain.length === 0 ? 0.5 : 1,

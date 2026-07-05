@@ -502,7 +502,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
             </div>
 
             {showGuide && (
-                <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.62)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay-bg)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                     <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: 'var(--panel-bg)', border: '1px solid var(--border-color)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '80vh', overflowY: 'auto', padding: '20px 22px' }}>
                         <button onClick={() => setShowGuide(false)} title="Close"
                             style={{ position: 'absolute', top: '12px', right: '12px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>

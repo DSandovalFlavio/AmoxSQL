@@ -66,7 +66,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
         }
     };
 
-    const addBtnStyle = { flex: 1, padding: '6px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 };
+    const addBtnStyle = { flex: 1, padding: '6px', background: 'var(--surface-overlay)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 };
     const addAnnotation = (type) => {
         const base = { id: 'ann_' + Date.now(), type, x: xValues[0] ?? '', text: type === 'box' ? 'Region' : 'Note', color: '#fbbf24' };
         if (type === 'box') { base.x2 = xValues[xValues.length - 1] ?? base.x; base.y = ''; base.y2 = ''; }
@@ -185,7 +185,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                             title="Generate story from chart data using AI"
                             style={{
                                 flex: 1, padding: '6px',
-                                background: isGenerating ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
+                                background: isGenerating ? 'var(--surface-raised)' : 'var(--surface-overlay)',
                                 color: isGenerating ? 'var(--text-muted)' : 'var(--text-primary)',
                                 border: '1px solid var(--border-color)',
                                 borderRadius: '4px',
@@ -199,7 +199,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 </div>
 
                 {storyError && (
-                    <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--color-error, #e05555)', padding: '4px 6px', background: 'var(--bg-secondary)', borderRadius: '3px' }}>
+                    <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--color-error, #e05555)', padding: '4px 6px', background: 'var(--surface-raised)', borderRadius: '3px' }}>
                         {storyError}
                     </div>
                 )}

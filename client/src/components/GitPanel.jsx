@@ -15,11 +15,11 @@ import { API_BASE as API } from '../api.js';
 
 /* ── Status badge helpers ─────────────────────────────────────── */
 const STATUS_META = {
-    M: { label: 'M', title: 'Modified',  color: 'var(--git-modified, #e8a838)',  Icon: LuFilePen  },
-    A: { label: 'A', title: 'Added',     color: 'var(--git-added,    #4caf7d)',  Icon: LuFilePlus },
-    D: { label: 'D', title: 'Deleted',   color: 'var(--git-deleted,  #e06c75)',  Icon: LuFile     },
-    R: { label: 'R', title: 'Renamed',   color: 'var(--git-modified, #e8a838)',  Icon: LuFilePen  },
-    C: { label: 'C', title: 'Copied',    color: 'var(--git-added,    #4caf7d)',  Icon: LuFilePlus },
+    M: { label: 'M', title: 'Modified',  color: 'var(--color-warning)',  Icon: LuFilePen  },
+    A: { label: 'A', title: 'Added',     color: 'var(--color-success)',  Icon: LuFilePlus },
+    D: { label: 'D', title: 'Deleted',   color: 'var(--color-error)',  Icon: LuFile     },
+    R: { label: 'R', title: 'Renamed',   color: 'var(--color-warning)',  Icon: LuFilePen  },
+    C: { label: 'C', title: 'Copied',    color: 'var(--color-success)',  Icon: LuFilePlus },
     '?': { label: '?', title: 'Untracked', color: 'var(--text-muted)',           Icon: LuFile     },
 };
 function statusMeta(s) { return STATUS_META[s] || STATUS_META['?']; }
