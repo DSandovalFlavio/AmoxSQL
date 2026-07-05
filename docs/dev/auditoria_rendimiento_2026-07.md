@@ -290,7 +290,7 @@ Clone sparse en `%LOCALAPPDATA%\Temp\vsc-src\vscode` (`src/vs/base`, `src/vs/edi
 8. **S7**: tool-result a ~50 filas en el SSE; rehidratar por `queryId` bajo demanda.
 9. **E7**: `flushHeaders()` + heartbeat durante compaction (S8).
 
-### Fase 3 — Fondo y pulido
+### Fase 3 — Fondo y pulido · **PARCIAL (commit `9bc9361`)**: hechos N8 (worker SQL singleton + lazy-mount por visibilidad con `LazyVisible`), N9 (caché DESCRIBE LRU + Promise.all) y G10 (lazy imports: chunk principal 3.593→2.064 kB, −43%). **Pendientes**: G6 (drags rAF), G7 (memo TabBar/WindowTitleBar/CommandPalette/AiAssistantPanel), G11 (`transition: all` + borrar App.css), E5 (fs síncrono del server), E8 (batch historial), `manualChunks` de vite y el typewriter adaptativo.
 1. **N8**: worker SQL singleton compartido, documentos por `model.uri` (la infra de ruteo ya existe); lazy-mount de Monaco por celda (visible/enfocada; resto HTML coloreado).
 2. **G10**: `lazy()` para DataVisualizer, DataProfiler, mermaid (dynamic import como QueryPlanViewer), DeckEditor, ErDiagram, DbtLineageGraph; `manualChunks` para recharts/monaco/markdown-stack.
 3. **G6**: drags con mutación directa de DOM + un setState en mouseup (o rAF como ResultsTable).
