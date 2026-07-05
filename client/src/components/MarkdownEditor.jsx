@@ -10,7 +10,7 @@ import {
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import './MarkdownEditor.css';
-import { buildMonacoTheme } from './SqlEditor';
+import { registerMonaco, MONACO_THEME_NAME, isLightTheme } from '../monacoTheme.js';
 import MarkdownPreview from './markdown/MarkdownPreview';
 import { extractToc } from './markdown/markdownUtils';
 
@@ -70,8 +70,6 @@ const VIEW_MODES = [
     { id: 'preview', Icon: LuEye, title: 'Preview only' },
 ];
 
-const LIGHT_THEMES = ['ivory', 'mist', 'light', 'snow'];
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const MarkdownEditor = ({
@@ -113,7 +111,6 @@ const MarkdownEditor = ({
     const [showToc, setShowToc] = useState(false);
 
     const toolbarVisible = editorSettings?.markdownToolbarVisible ?? true;
-    const monacoTheme = LIGHT_THEMES.includes(theme) ? 'duckdb-light' : 'duckdb-dark';
 
     const toc = useMemo(() => extractToc(content), [content]);
 
@@ -124,7 +121,7 @@ const MarkdownEditor = ({
         try {
             const previewBody = containerRef.current.querySelector('.mde-preview-body');
             if (!previewBody) return;
-            const canvas = await html2canvas(previewBody, { scale: 2, useCORS: true, backgroundColor: LIGHT_THEMES.includes(theme) ? '#ffffff' : '#1e1e1e' });
+            const canvas = await html2canvas(previewBody, { scale: 2, useCORS: true, backgroundColor: isLightTheme(theme) ? '#ffffff' : '#1e1e1e' });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -207,8 +204,7 @@ const MarkdownEditor = ({
     // ── Monaco mount ─────────────────────────────────────────────────────────
 
     const handleEditorWillMount = useCallback((monaco) => {
-        monaco.editor.defineTheme('duckdb-dark', buildMonacoTheme(true));
-        monaco.editor.defineTheme('duckdb-light', buildMonacoTheme(false));
+        registerMonaco(monaco);
 
         if (!monaco.languages._mdAutocompleteRegistered) {
             monaco.languages._mdAutocompleteRegistered = true;
@@ -640,7 +636,7 @@ const MarkdownEditor = ({
                             <Editor
                                 value={content}
                                 language="markdown"
-                                theme={monacoTheme}
+                                theme={MONACO_THEME_NAME}
                                 onChange={onChange}
                                 beforeMount={handleEditorWillMount}
                                 onMount={handleEditorMount}

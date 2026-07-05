@@ -14,8 +14,7 @@ import {
     LuOctagonAlert, LuCircleAlert, LuZoomIn, LuZoomOut, LuRotateCcw, LuFileCode2, LuEye,
 } from 'react-icons/lu';
 import { nodeToText, remarkAlerts, isExternalHref, cleanRelPath, INTERNAL_LINK_RE } from './markdownUtils';
-
-const LIGHT_THEMES = ['ivory', 'mist', 'light', 'snow'];
+import { isLightTheme } from '../../theme.js';
 
 // ── Fullscreen zoom/pan viewer (portal) ─────────────────────────────────────
 function FullscreenViewer({ onClose, children }) {
@@ -78,7 +77,7 @@ function MermaidDiagram({ code, theme }) {
     const [fs, setFs] = useState(false);
 
     useEffect(() => {
-        const mermaidTheme = LIGHT_THEMES.includes(theme) ? 'default' : 'dark';
+        const mermaidTheme = isLightTheme(theme) ? 'default' : 'dark';
         if (lastMermaidTheme !== mermaidTheme) {
             mermaid.initialize({ startOnLoad: false, theme: mermaidTheme, securityLevel: 'loose' });
             lastMermaidTheme = mermaidTheme;

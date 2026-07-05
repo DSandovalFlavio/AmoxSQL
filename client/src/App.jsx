@@ -5,6 +5,7 @@
  */
 import { API_BASE } from './api.js';
 import { themeClassFor, modeClassFor } from './theme.js';
+import { syncMonacoTheme } from './monacoTheme.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -245,6 +246,8 @@ function App() {
     // ivory/mist/snow (which have their OWN theme class, not `.light-theme`)
     // still receive the light scrollbars, editor chrome, feedback ramps, etc.
     document.body.classList.add(modeClassFor(theme));
+    // Re-theme Monaco from the now-current tokens (single `amox` theme, global).
+    syncMonacoTheme();
   }, [theme]);
 
   useEffect(() => {
@@ -256,6 +259,8 @@ function App() {
     if (accentColor !== 'cyan') {
       document.body.classList.add(`accent-${accentColor}`);
     }
+    // The accent changes --accent-primary → re-theme Monaco (cursor/highlight).
+    syncMonacoTheme();
   }, [accentColor]);
 
   useEffect(() => {
