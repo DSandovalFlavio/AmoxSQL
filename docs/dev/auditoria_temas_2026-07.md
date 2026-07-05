@@ -152,7 +152,10 @@ temas ya corregidos para elegir cuáles se quedan).
 
 ## 8. Plan de corrección por fases
 
-### Fase 0 — Bugs activos (funcionalidad rota hoy, independiente de estética)
+### Fase 0 — Bugs activos (funcionalidad rota hoy, independiente de estética) · **HECHA (commit `c68cd64`)**
+> Capa de modo (`mode-light`/`mode-dark` en body vía nuevo `client/src/theme.js`), scrollbars y
+> codicons de Monaco arreglados para los 4 temas light, 0 tokens fantasma residuales en toda la app,
+> token `--overlay-bg` consolidando ~29 scrims. Build OK.
 1. Tokens fantasma: mapear los ~35 nombres a los tokens reales (migrar usos; NO crear aliases
    nuevos salvo `--overlay-bg`). Prioridad: CSS de chains (`--surface-1/2/3`, `--border`,
    `--radius`), `--sidebar-item-hover-bg`, `--button-bg-*`, EditorPane/ai-edit-proposal.
