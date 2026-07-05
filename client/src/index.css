@@ -822,14 +822,15 @@
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: ONYX
-   Between Obsidian and Carbon — very dark with subtle blue undertone
+   DARK THEME: ONYX — true black
+   The deepest theme: pure-neutral near-black (was an imperceptible clone of
+   Obsidian/Carbon, Δ≈2 RGB points; now it owns the "blackest" slot).
    ═══════════════════════════════════════════════ */
 .theme-onyx {
-  --surface-base:    #131517;
-  --surface-raised:  #1a1c20;
-  --surface-overlay: #1f2126;
-  --surface-inset:   #101113;
+  --surface-base:    #0b0c0d;
+  --surface-raised:  #131415;
+  --surface-overlay: #191a1c;
+  --surface-inset:   #08090a;
 
   --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.10);
@@ -854,19 +855,20 @@
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #1c1e23;
+  --table-header-bg: #151617;
   --table-row-hover: rgba(255, 255, 255, 0.03);
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: CARBON
-   Blue-grey undertone, still very dark
+   DARK THEME: CARBON — blue-grey
+   A REAL blue undertone at last (the old values were a neutral clone of
+   Onyx). Greyer and darker than Nord, so both keep their own identity.
    ═══════════════════════════════════════════════ */
 .theme-carbon {
-  --surface-base:    #151719;
-  --surface-raised:  #1c1f24;
-  --surface-overlay: #22252b;
-  --surface-inset:   #121315;
+  --surface-base:    #12161d;
+  --surface-raised:  #1a1f28;
+  --surface-overlay: #202631;
+  --surface-inset:   #0e1218;
 
   --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.10);
@@ -891,19 +893,20 @@
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #1e2127;
+  --table-header-bg: #1c222c;
   --table-row-hover: rgba(255, 255, 255, 0.03);
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: GRAPHITE
-   Mid-dark with warm grey, comfortable for long sessions
+   DARK THEME: GRAPHITE — warm pencil grey
+   Noticeably lighter AND genuinely warm (the old base was still cold and
+   only ~4 RGB points from Carbon). The comfortable long-session theme.
    ═══════════════════════════════════════════════ */
 .theme-graphite {
-  --surface-base:    #191b1e;
-  --surface-raised:  #222529;
-  --surface-overlay: #292c32;
-  --surface-inset:   #141618;
+  --surface-base:    #21201c;
+  --surface-raised:  #2b2a25;
+  --surface-overlay: #33312b;
+  --surface-inset:   #1b1a17;
 
   --border-subtle:  rgba(255, 255, 255, 0.07);
   --border-default: rgba(255, 255, 255, 0.11);
@@ -928,7 +931,7 @@
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #24272c;
+  --table-header-bg: #2d2c27;
   --table-row-hover: rgba(255, 255, 255, 0.03);
 }
 
