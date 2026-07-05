@@ -220,7 +220,9 @@ export default function useAiChat({
     // restores its remembered scroll position instead (see AiDivingPanel).
     useEffect(() => {
         if (!isGenerating && !streamingText) return;
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // While streaming, a smooth scroll animation restarts on every flush and
+        // competes with renders — jump instantly; animate only on the final settle.
+        chatEndRef.current?.scrollIntoView({ behavior: isGenerating ? 'auto' : 'smooth' });
     }, [messages, streamingText, activeToolCalls, isGenerating]);
 
     // ─── Drag & Drop ───
@@ -404,6 +406,7 @@ export default function useAiChat({
         // Persistence: ensure conversation exists and persist user message
         let activeConvId = null;
         const isFirstMessage = messages.length === 0;
+        let cancelStreamFlush = () => {};
 
         activeConvId = await ensureConversation(currentModel, { mode, filePath });
         if (activeConvId) {
@@ -462,6 +465,32 @@ export default function useAiChat({
             let toolResults = [];
             let buffer = '';
 
+            // Text deltas arrive one per token; rendering the transcript once per
+            // token saturates the main thread. Accumulate in fullText and flush to
+            // React at most every STREAM_FLUSH_MS.
+            const STREAM_FLUSH_MS = 80;
+            let streamFlushTimer = null;
+            let lastStreamFlush = 0;
+            const flushStream = () => {
+                streamFlushTimer = null;
+                lastStreamFlush = performance.now();
+                setStreamingText(fullText);
+                const openCount = (fullText.match(/<think>/g) || []).length;
+                const closeCount = (fullText.match(/<\/think>/g) || []).length;
+                setIsThinking(openCount > closeCount);
+            };
+            const scheduleStreamFlush = () => {
+                if (streamFlushTimer !== null) return;
+                const wait = Math.max(0, STREAM_FLUSH_MS - (performance.now() - lastStreamFlush));
+                streamFlushTimer = setTimeout(flushStream, wait);
+            };
+            cancelStreamFlush = () => {
+                if (streamFlushTimer !== null) {
+                    clearTimeout(streamFlushTimer);
+                    streamFlushTimer = null;
+                }
+            };
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -480,12 +509,7 @@ export default function useAiChat({
 
                         if (event.type === 'text-delta') {
                             fullText += event.text;
-                            setStreamingText(fullText);
-
-                            // Detect if we are inside a <think> block
-                            const openCount = (fullText.match(/<think>/g) || []).length;
-                            const closeCount = (fullText.match(/<\/think>/g) || []).length;
-                            setIsThinking(openCount > closeCount);
+                            scheduleStreamFlush();
 
                         } else if (event.type === 'tool-call') {
                             const newActiveCall = {
@@ -525,7 +549,8 @@ export default function useAiChat({
                         } else if (event.type === 'step-finish') {
                             // Step finished — no-op
                         } else if (event.type === 'finish') {
-                            // finish event carries usage and queryResults — handled after stream ends
+                            // finish carries usage only; query rows are rehydrated
+                            // on demand via /api/ai/query-cache/:queryId
                         } else if (event.type === 'plan-created') {
                             const p = event.plan || {};
                             setPlanState({
@@ -574,6 +599,9 @@ export default function useAiChat({
                     }
                 }
             }
+
+            cancelStreamFlush();
+            flushStream();
 
             const mergedToolCalls = activeToolCallsRef.current.map(tc => {
                 const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
@@ -637,6 +665,7 @@ export default function useAiChat({
             }).catch(() => {});
 
         } catch (e) {
+            cancelStreamFlush();
             if (e.name === 'AbortError') {
                 setErrorMsg('Generation cancelled.');
             } else {

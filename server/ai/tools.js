@@ -72,10 +72,17 @@ function createTools(context) {
                         ? Object.entries(result.types).map(([name, type]) => ({ name, type }))
                         : [];
 
+                    // Cap cached rows: an uncapped SELECT * can hold millions of rows
+                    // in memory per entry (×50 entries). Consumers (display_chart,
+                    // chart story, /api/ai/query-cache) already fall back to the DB
+                    // cache, which stores at most this many rows too.
+                    const CACHE_MAX_ROWS = 500;
                     const cacheEntry = {
                         query,
                         columns,
-                        data: result.rows,
+                        data: result.rows.length > CACHE_MAX_ROWS
+                            ? result.rows.slice(0, CACHE_MAX_ROWS)
+                            : result.rows,
                         rowCount: result.rows.length,
                         executionTime,
                     };
@@ -91,7 +98,7 @@ function createTools(context) {
                             conversationId,
                             sqlQuery: query,
                             columns,
-                            data: result.rows,
+                            data: cacheEntry.data,
                             rowCount: result.rows.length,
                             execMs: executionTime,
                         }).then(() => {

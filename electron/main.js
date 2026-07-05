@@ -152,7 +152,11 @@ const createWindow = () => {
     // Load the App
     if (!app.isPackaged) {
         mainWindow.loadURL('http://localhost:5173');
-        mainWindow.webContents.openDevTools();
+        // DevTools degrades typing/rendering noticeably; opt in with AMOX_DEVTOOLS=1
+        // (or open manually with Ctrl+Shift+I).
+        if (process.env.AMOX_DEVTOOLS === '1') {
+            mainWindow.webContents.openDevTools();
+        }
     } else {
         console.log(`[Main] Loading content from http://localhost:${actualServerPort}`);
         mainWindow.loadURL(`http://localhost:${actualServerPort}`)

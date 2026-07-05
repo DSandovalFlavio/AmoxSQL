@@ -2200,8 +2200,9 @@ app.post('/api/ai/chat/stream', async (req, res) => {
                 } else if (part.type === 'step-finish') {
                     res.write(`data: ${JSON.stringify({ type: 'step-finish' })}\n\n`);
                 } else if (part.type === 'finish') {
-                    const queryResults = result._queryResults ? Object.fromEntries(result._queryResults) : {};
-                    res.write(`data: ${JSON.stringify({ type: 'finish', usage: part.usage, queryResults })}\n\n`);
+                    // No queryResults here: the payload can be huge and the client
+                    // rehydrates rows on demand via /api/ai/query-cache/:queryId.
+                    res.write(`data: ${JSON.stringify({ type: 'finish', usage: part.usage })}\n\n`);
                 } else if (part.type === 'error') {
                     res.write(`data: ${JSON.stringify({ type: 'error', error: part.error?.message || String(part.error) })}\n\n`);
                 }

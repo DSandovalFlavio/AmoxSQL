@@ -509,7 +509,6 @@ class AiManager {
 
         // Build virtual table mapping
         const { virtualMap, schemaText } = buildVirtualMapping(files, tables);
-        console.log(`\n[AI Schema Context Generated]:\n${schemaText}\n-------------------------\n`);
 
         // Build compact system prompt with virtual schema
         const systemPrompt = `You are a DuckDB SQL expert. Generate valid DuckDB SQL to answer user questions.

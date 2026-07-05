@@ -643,11 +643,13 @@ async function* agenticLoop(options, getModelFn) {
         );
     }
 
-    // Final finish event with accumulated usage and queryResults
+    // Final finish event with accumulated usage. Query results are deliberately
+    // NOT included: they can be arbitrarily large (freezes both event loops
+    // serializing/parsing one giant SSE line) and the client never consumed
+    // them — rows are rehydrated on demand via /api/ai/query-cache/:queryId.
     yield {
-        type:         'finish',
-        usage:        totalUsage,
-        queryResults: Object.fromEntries(queryResults),
+        type:  'finish',
+        usage: totalUsage,
     };
 }
 
