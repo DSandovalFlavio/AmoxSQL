@@ -1,5 +1,10 @@
 # Pendiente — Rendimiento con múltiples visualizaciones (para sesión de optimización)
 
+> **⚠️ SUPERADO (2026-07-04):** la auditoría a fondo confirmó y amplió las 4 hipótesis de este doc
+> con evidencia `file:line` y un plan de corrección por fases. Usar
+> [auditoria_rendimiento_2026-07.md](auditoria_rendimiento_2026-07.md) como fuente única para la
+> sesión de optimización; este doc queda como contexto histórico.
+
 > Contexto para una **sesión dedicada a rendimiento**. En la sesión del 2026-07-04 (rama Report Flow) el usuario reportó que la interfaz se **traba y la escritura se pone muy lenta** cuando hay **varias visualizaciones montadas a la vez** (notebook con muchas celdas de gráfico, y Deep Dive con muchos gráficos). Se arreglaron dos *floods* de consola que **amplificaban** el problema, pero **la causa de fondo (costo de montar muchos gráficos) sigue pendiente**. Este doc separa lo ya resuelto de lo que falta y deja hipótesis priorizadas para investigar.
 
 ---

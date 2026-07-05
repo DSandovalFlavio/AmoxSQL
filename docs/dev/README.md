@@ -12,6 +12,8 @@
 | Documento | Propósito | Actualizar cuando... |
 |-----------|-----------|----------------------|
 | [arquitectura.md](arquitectura.md) | Los 3 procesos, IPC, flujo dev vs prod, debugging | Cambies la topología de procesos o el IPC bridge |
+| [mapa_aplicacion.md](mapa_aplicacion.md) | Mapa completo: features, componentes, endpoints, flujos, estado, formatos | Agregues features, endpoints o formatos de archivo |
+| [auditoria_rendimiento_2026-07.md](auditoria_rendimiento_2026-07.md) | Auditoría a fondo de rendimiento (tecleo, streaming, server) + plan de corrección por fases | Cierres hallazgos del plan de corrección |
 | [guia_estilos.md](guia_estilos.md) | CSS tokens, theming, acentos, convenciones de clases, DO/DON'T | Agregues tokens, temas, acentos o patrones CSS nuevos |
 | [patrones_react.md](patrones_react.md) | State management, lazy loading, keep-alive, refs, RAF | Introduzcas un nuevo patrón de componente |
 | [decisiones_tecnicas.md](decisiones_tecnicas.md) | ADRs: qué se decidió, por qué y consecuencias | Tomes una decisión técnica significativa |
