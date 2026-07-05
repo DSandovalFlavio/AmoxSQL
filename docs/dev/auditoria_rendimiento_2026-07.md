@@ -264,7 +264,7 @@ Clone sparse en `%LOCALAPPDATA%\Temp\vsc-src\vscode` (`src/vs/base`, `src/vs/edi
 6. **S9**: quitar el `console.log` del schema (`AiManager.js:512`).
 7. **G5** (proceso): no auto-abrir DevTools; medir siempre contra build empaquetado.
 
-### Fase 1 — Tecleo (Síntoma A de raíz)
+### Fase 1 — Tecleo (Síntoma A de raíz) · **HECHA (commit `0378427`), salvo G9 (pendiente: decisión de producto — sacar resultados embebidos del `.sqlnb` revierte parte del diseño v3.0 autocontenido)**
 1. **N1/N2**: un solo dueño del texto — eliminar anti-eco y `localContent`; `setValue` solo por señal explícita (epoch) y nunca con `hasTextFocus()`.
 2. **N3**: functional updates + `useCallback` en todos los mutadores de `cells`.
 3. **N4/N5**: `memo(NotebookCell)` + callbacks estables; `currentEditorQuery` muestreado al ejecutar (no por tecla); memoizar `options` de Monaco.
