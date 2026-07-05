@@ -81,9 +81,9 @@ function contrast(fg, bg) {
 // ── Parse theme blocks from index.css ───────────────────────────────────────
 const THEME_SELECTORS = {
     obsidian: ':root',
-    onyx: '.theme-onyx', carbon: '.theme-carbon', graphite: '.theme-graphite',
+    onyx: '.theme-onyx', amoxdark: '.theme-amoxdark',
     nord: '.theme-nord', islands: '.theme-islands',
-    light: '.light-theme', ivory: '.theme-ivory', mist: '.theme-mist', snow: '.theme-snow',
+    light: '.light-theme', ivory: '.theme-ivory', mist: '.theme-mist', amoxlight: '.theme-amoxlight',
 };
 
 function extractBlock(selector) {
@@ -109,7 +109,7 @@ function tok(theme, name) { return themes[theme][name] ?? root[name]; }
 // text-tertiary is mode-aware: light backgrounds need ≥4:1 (the reported "invisible
 // letters" bug), while the established, user-approved dark baseline sits at ~3.1 and
 // reads fine on dark surfaces (the eye adapts differently). primary/secondary uniform.
-const LIGHT = new Set(['light', 'ivory', 'mist', 'snow']);
+const LIGHT = new Set(['light', 'ivory', 'mist', 'amoxlight']);
 const floorsFor = (theme) => ({ 'text-primary': 10, 'text-secondary': 5.5, 'text-tertiary': LIGHT.has(theme) ? 4.0 : 3.0 });
 // Border contrast targets (border vs surface-base): subtle 1.10–1.22, default 1.25–1.40, strong 1.50–1.80
 const BORDER_RANGE = { 'border-subtle': [1.08, 1.30], 'border-default': [1.20, 1.55], 'border-strong': [1.45, 2.10] };
@@ -118,7 +118,7 @@ const surfaces = ['--surface-base', '--surface-raised', '--surface-inset'];
 const texts = ['text-primary', 'text-secondary', 'text-tertiary'];
 
 const all = process.argv.includes('--all');
-const list = all ? Object.keys(themes) : ['light', 'ivory', 'mist', 'snow', 'islands'];
+const list = all ? Object.keys(themes) : ['amoxdark', 'amoxlight', 'light', 'ivory', 'mist', 'islands'];
 
 let failures = 0;
 for (const theme of list) {

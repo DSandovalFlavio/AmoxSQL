@@ -236,7 +236,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem('amoxsql-theme', theme);
     // Remove all theme classes first
-    const themeClasses = ['light-theme', 'theme-onyx', 'theme-carbon', 'theme-graphite', 'theme-nord', 'theme-islands', 'theme-ivory', 'theme-mist', 'theme-snow'];
+    const themeClasses = ['light-theme', 'theme-onyx', 'theme-amoxdark', 'theme-nord', 'theme-islands', 'theme-ivory', 'theme-mist', 'theme-amoxlight'];
     themeClasses.forEach(c => document.body.classList.remove(c));
     document.body.classList.remove('mode-light', 'mode-dark');
     // Theme class carries per-theme surfaces (dark/obsidian = default, no class)

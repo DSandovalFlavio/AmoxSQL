@@ -860,79 +860,95 @@
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: CARBON — blue-grey
-   A REAL blue undertone at last (the old values were a neutral clone of
-   Onyx). Greyer and darker than Nord, so both keep their own identity.
+   DARK THEME: AMOXDARK — signature brand theme
+   Cool-neutral near-black surfaces with a ~6% cyan tint (so data tables and
+   chart series pop, never tinted) + the AmoxSQL cyan as the ONE saturated
+   accent. Syntax is a cool, low-sat family (Tokyo-Night/Rosé-Pine lineage)
+   that leaves cyan as the exclusive "AmoxSQL action/focus" signature.
+   Elevation is by luminance (base→raised→overlay), not borders.
    ═══════════════════════════════════════════════ */
-.theme-carbon {
-  --surface-base:    #12161d;
-  --surface-raised:  #1a1f28;
-  --surface-overlay: #202631;
-  --surface-inset:   #0e1218;
+.theme-amoxdark {
+  --surface-base:    #0f141a;   /* cool-carbon, ~6% cyan tint */
+  --surface-raised:  #151b22;   /* +~4% L — panels, sidebar, table header */
+  --surface-overlay: #1c242d;   /* +~4% L — modals, popovers, row hover */
+  --surface-inset:   #0c1014;   /* wells: gutter, inputs, code blocks */
 
-  --border-subtle:  rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.10);
-  --border-strong:  rgba(255, 255, 255, 0.17);
+  /* Borders barely visible — separation comes from elevation, not lines */
+  --border-subtle:  rgba(190, 214, 232, 0.06);
+  --border-default: rgba(190, 214, 232, 0.10);
+  --border-strong:  rgba(190, 214, 232, 0.18);
 
-  --text-primary:   rgba(255, 255, 255, 0.90);
-  --text-secondary: rgba(255, 255, 255, 0.54);
-  --text-tertiary:  rgba(255, 255, 255, 0.34);
-  --text-disabled:  rgba(255, 255, 255, 0.19);
+  --text-primary:   #e6edf3;   /* cool off-white, ~15:1 */
+  --text-secondary: #9ba9b8;
+  --text-tertiary:  #6a7a8b;
+  --text-disabled:  #46525f;
 
-  --hover-bg:   rgba(255, 255, 255, 0.05);
-  --active-bg:  rgba(255, 255, 255, 0.09);
+  /* Brand cyan — the single saturated accent (mid of the #00ECFF→#0068FF logo) */
+  --accent-primary: #22d3ee;
+  --accent-muted:   rgba(34, 211, 238, 0.16);
+  --accent-subtle:  rgba(34, 211, 238, 0.07);
+  --focus-ring:     rgba(34, 211, 238, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
+  --hover-bg:   rgba(190, 214, 232, 0.05);
+  --active-bg:  rgba(190, 214, 232, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  --titlebar-bg:   #0b0f14;
+  --titlebar-text: #6a7a8b;
+
+  /* Feedback — cool-leaning, tuned for the dark surfaces */
+  --feedback-success:        #4ade80;
+  --feedback-success-bg:     rgba(74, 222, 128, 0.10);
+  --feedback-success-border: rgba(74, 222, 128, 0.25);
+  --feedback-success-text:   #6ee79b;
+  --feedback-error:          #f87171;
+  --feedback-error-bg:       rgba(248, 113, 113, 0.10);
+  --feedback-error-border:   rgba(248, 113, 113, 0.25);
+  --feedback-error-text:     #fb9a9a;
+  --feedback-warning:        #fbbf24;
+  --feedback-warning-bg:     rgba(251, 191, 36, 0.10);
+  --feedback-warning-border: rgba(251, 191, 36, 0.25);
+  --feedback-warning-text:   #fcd34d;
+  --feedback-info:           #22d3ee;
+  --feedback-info-bg:        rgba(34, 211, 238, 0.10);
+  --feedback-info-border:    rgba(34, 211, 238, 0.25);
+  --feedback-info-text:      #67e8f9;
+
+  /* Syntax — cool & elegant; cyan is reserved for the accent, so tokens use
+     sky/teal/lavender/blue with a single warm amber for numeric literals. */
+  --syntax-keyword:   #7dd3fc;   /* sky — SELECT/FROM/WHERE (structure, calm) */
+  --syntax-string:    #7ee0c0;   /* teal-mint literals */
+  --syntax-number:    #f0a868;   /* warm amber — numeric literals leap out */
+  --syntax-function:  #c4b5fd;   /* lavender/iris — COUNT/SUM */
+  --syntax-comment:   #546475;   /* muted blue-grey, italic */
+  --syntax-type:      #5ea4e0;   /* medium blue — data types, CAST */
+  --syntax-operator:  #89b4c4;   /* teal-grey, low weight */
+  --syntax-variable:  #e6edf3;   /* = text: columns/identifiers stay neutral */
+  --syntax-constant:  #f0c674;   /* gold — TRUE/FALSE/NULL */
+
+  /* Database types (mirror the syntax family) */
+  --type-integer:  #5ea4e0;
+  --type-float:    #7ee0c0;
+  --type-text:     #f0a868;
+  --type-datetime: #c4b5fd;
+  --type-boolean:  #7dd3fc;
+  --type-default:  #f0c674;
 
   --bg-color: var(--surface-base);
   --sidebar-bg: var(--surface-raised);
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
+  --button-text-color: #04141a;   /* dark text on the bright cyan accent */
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #1c222c;
-  --table-row-hover: rgba(255, 255, 255, 0.03);
-}
-
-/* ═══════════════════════════════════════════════
-   DARK THEME: GRAPHITE — warm pencil grey
-   Noticeably lighter AND genuinely warm (the old base was still cold and
-   only ~4 RGB points from Carbon). The comfortable long-session theme.
-   ═══════════════════════════════════════════════ */
-.theme-graphite {
-  --surface-base:    #21201c;
-  --surface-raised:  #2b2a25;
-  --surface-overlay: #33312b;
-  --surface-inset:   #1b1a17;
-
-  --border-subtle:  rgba(255, 255, 255, 0.07);
-  --border-default: rgba(255, 255, 255, 0.11);
-  --border-strong:  rgba(255, 255, 255, 0.18);
-
-  --text-primary:   rgba(255, 255, 255, 0.90);
-  --text-secondary: rgba(255, 255, 255, 0.56);
-  --text-tertiary:  rgba(255, 255, 255, 0.36);
-  --text-disabled:  rgba(255, 255, 255, 0.20);
-
-  --hover-bg:   rgba(255, 255, 255, 0.05);
-  --active-bg:  rgba(255, 255, 255, 0.09);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.38);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.48);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.58);
-
-  --bg-color: var(--surface-base);
-  --sidebar-bg: var(--surface-raised);
-  --editor-bg: var(--surface-base);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --table-header-bg: #2d2c27;
-  --table-row-hover: rgba(255, 255, 255, 0.03);
+  --table-header-bg: #131a21;
+  --table-row-hover: rgba(190, 214, 232, 0.035);
 }
 
 /* ═══════════════════════════════════════════════
@@ -1469,78 +1485,88 @@
 
 
 /* ═══════════════════════════════════════════════
-   LIGHT THEME: SNOW
-   Clean, crisp, high-contrast light theme.
+   LIGHT THEME: AMOXLIGHT — signature brand theme (light)
+   Cool-neutral off-white paper with a micro cyan tint (rhymes with the brand,
+   never competes with data), elevation rising toward white, alpha borders, and
+   a dark brand TEAL accent (the cyan logo can't read on light, so it darkens to
+   a legible teal). Syntax is darkened into a narrow lightness band; the brand
+   teal reappears as the data-type color so identity shows up in the SQL itself.
    ═══════════════════════════════════════════════ */
-.theme-snow {
-  /* Crisp pure-white base; raised/inset only a hair darker (soft elevation, not
-     the old −0.07L gray slabs) so the sidebar doesn't look like another product. */
-  --surface-base:    #ffffff;
-  --surface-raised:  #f4f6f9;   /* barely-off-white sidebar/cards */
-  --surface-overlay: #ffffff;
-  --surface-inset:   #eaeef3;   /* recessed inputs */
+.theme-amoxlight {
+  /* Elevation rises toward white (light-mode logic) */
+  --surface-base:    #f1f4f7;   /* the "paper" — cool off-white, micro cyan tint */
+  --surface-raised:  #f8fafb;   /* panels/sidebar/editor/cards */
+  --surface-overlay: #ffffff;   /* modals/popovers/menus */
+  --surface-inset:   #e7ebef;   /* wells: gutter, inputs, empty cells */
 
-  /* Alpha borders (slate) in the canonical range — was opaque #d1d5db/#9ca3af/#6b7280 (2.5–4.8:1). */
-  --border-subtle:  rgba(30, 41, 59, 0.10);
-  --border-default: rgba(30, 41, 59, 0.16);
-  --border-strong:  rgba(30, 41, 59, 0.26);
+  /* Borders by alpha over the ink color — integrate on any surface */
+  --border-subtle:  rgba(28, 37, 48, 0.07);
+  --border-default: rgba(28, 37, 48, 0.12);
+  --border-strong:  rgba(28, 37, 48, 0.20);
 
-  /* Cool slate text with a real hierarchy (was 17.7/10.3/7.6 — top-heavy & flat). */
-  --text-primary:   #1e2634;
-  --text-secondary: #47516a;
-  --text-tertiary:  #667083;
-  --text-disabled:  #a6adba;
+  /* Cool blue-grey ink, three real tiers (≥10 / ≥5.5 / ≥4 :1) */
+  --text-primary:   #1c2530;
+  --text-secondary: #41505e;
+  --text-tertiary:  #5e6f7d;
+  --text-disabled:  #9aa6b1;
 
-  --accent-primary: #2563eb;
-  --accent-muted:   rgba(37, 99, 235, 0.15);
-  --accent-subtle:  rgba(37, 99, 235, 0.06);
-  --focus-ring:     rgba(37, 99, 235, 0.3);
+  /* Brand teal — the cyan logo darkened until it reads on light (AA) */
+  --accent-primary: #0a7d8c;
+  --accent-muted:   rgba(10, 125, 140, 0.14);
+  --accent-subtle:  rgba(10, 125, 140, 0.06);
+  --focus-ring:     rgba(10, 125, 140, 0.30);
   --accent-color-user: var(--accent-primary);
   --accent-color-user-transparent: var(--accent-subtle);
 
-  /* Washes, not opaque gray slabs (was #d1d5db/#9ca3af). */
-  --hover-bg:   rgba(30, 41, 59, 0.05);
-  --active-bg:  rgba(30, 41, 59, 0.09);
+  --hover-bg:   rgba(28, 37, 48, 0.05);
+  --active-bg:  rgba(28, 37, 48, 0.09);
 
-  --shadow-sm: 0 1px 2px rgba(30, 41, 59, 0.06);
-  --shadow-md: 0 4px 12px rgba(30, 41, 59, 0.10);
-  --shadow-lg: 0 8px 30px rgba(30, 41, 59, 0.15);
+  /* Soft, cool shadows */
+  --shadow-sm: 0 1px 2px rgba(20, 40, 60, 0.06);
+  --shadow-md: 0 4px 12px rgba(20, 40, 60, 0.09);
+  --shadow-lg: 0 8px 30px rgba(20, 40, 60, 0.13);
 
-  --titlebar-bg: #f9fafb;
-  --titlebar-text: #4b5563;
+  --titlebar-bg: #eef2f5;
+  --titlebar-text: #41505e;
 
-  --feedback-success:        #059669;
-  --feedback-success-bg:     #d1fae5;
-  --feedback-success-border: #a7f3d0;
-  --feedback-success-text:   #047857;
-  --feedback-error:          #dc2626;
-  --feedback-error-bg:       #fee2e2;
-  --feedback-error-border:   #fecaca;
-  --feedback-error-text:     #b91c1c;
-  --feedback-warning:        #d97706;
-  --feedback-warning-bg:     #fef3c7;
-  --feedback-warning-border: #fde68a;
-  --feedback-warning-text:   #b45309;
-  --color-destructive:       #dc2626;
-  --color-destructive-bg:    #fee2e2;
-  --color-destructive-text:  #b91c1c;
+  /* Feedback — darkened for light bg (AA) */
+  --feedback-success:        #1f7a48;
+  --feedback-success-bg:     rgba(31, 122, 72, 0.10);
+  --feedback-success-border: rgba(31, 122, 72, 0.22);
+  --feedback-success-text:   #196a3d;
+  --feedback-error:          #c0392b;
+  --feedback-error-bg:       rgba(192, 57, 43, 0.10);
+  --feedback-error-border:   rgba(192, 57, 43, 0.22);
+  --feedback-error-text:     #a5291c;
+  --feedback-warning:        #b06f10;
+  --feedback-warning-bg:     rgba(176, 111, 16, 0.10);
+  --feedback-warning-border: rgba(176, 111, 16, 0.22);
+  --feedback-warning-text:   #915a08;
+  --feedback-info:           #0a7d8c;
+  --feedback-info-bg:        rgba(10, 125, 140, 0.10);
+  --feedback-info-border:    rgba(10, 125, 140, 0.22);
+  --feedback-info-text:      #086573;
+  --color-destructive:       #c0392b;
+  --color-destructive-bg:    rgba(192, 57, 43, 0.10);
+  --color-destructive-text:  #a5291c;
 
-  --syntax-keyword:   #2563eb;
-  --syntax-string:    #059669;
-  --syntax-number:    #d97706;
-  --syntax-function:  #7c3aed;
-  --syntax-comment:   #9ca3af;
-  --syntax-type:      #0891b2;
-  --syntax-operator:  #4b5563;
-  --syntax-variable:  #111827;
-  --syntax-constant:  #059669;
+  /* Syntax — darkened, medium-sat, narrow lightness band; brand teal on types */
+  --syntax-keyword:   #b03a9e;   /* magenta — SELECT/FROM/WHERE, max separation */
+  --syntax-string:    #3f7a1f;   /* olive green literals */
+  --syntax-number:    #8a5a00;   /* dark amber — numerics */
+  --syntax-function:  #1e66c7;   /* blue — COUNT/SUM */
+  --syntax-comment:   #7a8896;   /* desaturated grey, recedes */
+  --syntax-type:      #0a7d8c;   /* BRAND TEAL — types/tables show the identity */
+  --syntax-operator:  #41505e;   /* ink-grey, sober */
+  --syntax-variable:  #1c2530;   /* = text: columns/identifiers neutral */
+  --syntax-constant:  #8a5a00;   /* dark amber — TRUE/FALSE/NULL */
 
-  --type-integer:  #2563eb;
-  --type-float:    #0891b2;
-  --type-text:     #d97706;
-  --type-datetime: #7c3aed;
-  --type-boolean:  #059669;
-  --type-default:  #4b5563;
+  --type-integer:  #1e66c7;
+  --type-float:    #0a7d8c;
+  --type-text:     #8a5a00;
+  --type-datetime: #6d3fc4;
+  --type-boolean:  #3f7a1f;
+  --type-default:  #41505e;
 
   --bg-color: var(--surface-base);
   --sidebar-bg: var(--surface-raised);
@@ -1570,7 +1596,7 @@
 .light-theme.accent-linear,
 .theme-ivory.accent-linear,
 .theme-mist.accent-linear,
-.theme-snow.accent-linear {
+.theme-amoxlight.accent-linear {
   --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1583,7 +1609,7 @@
 .light-theme.accent-amox-2,
 .theme-ivory.accent-amox-2,
 .theme-mist.accent-amox-2,
-.theme-snow.accent-amox-2 {
+.theme-amoxlight.accent-amox-2 {
   --accent-primary: oklch(0.62 0.13 195);      /* ≈ #00CFDA */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1596,7 +1622,7 @@
 .light-theme.accent-amox-3,
 .theme-ivory.accent-amox-3,
 .theme-mist.accent-amox-3,
-.theme-snow.accent-amox-3 {
+.theme-amoxlight.accent-amox-3 {
   --accent-primary: oklch(0.61 0.125 197);     /* ≈ #00C4D9 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1609,7 +1635,7 @@
 .light-theme.accent-amox-4,
 .theme-ivory.accent-amox-4,
 .theme-mist.accent-amox-4,
-.theme-snow.accent-amox-4 {
+.theme-amoxlight.accent-amox-4 {
   --accent-primary: oklch(0.59 0.12 202);      /* ≈ #00B5D6 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1622,7 +1648,7 @@
 .light-theme.accent-amox-5,
 .theme-ivory.accent-amox-5,
 .theme-mist.accent-amox-5,
-.theme-snow.accent-amox-5 {
+.theme-amoxlight.accent-amox-5 {
   --accent-primary: oklch(0.57 0.12 212);      /* ≈ #00A5D4 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1635,7 +1661,7 @@
 .light-theme.accent-amox-6,
 .theme-ivory.accent-amox-6,
 .theme-mist.accent-amox-6,
-.theme-snow.accent-amox-6 {
+.theme-amoxlight.accent-amox-6 {
   --accent-primary: oklch(0.55 0.13 228);      /* ≈ #0097D1 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1648,7 +1674,7 @@
 .light-theme.accent-amox-7,
 .theme-ivory.accent-amox-7,
 .theme-mist.accent-amox-7,
-.theme-snow.accent-amox-7 {
+.theme-amoxlight.accent-amox-7 {
   --accent-primary: oklch(0.53 0.14 245);      /* ≈ #0088CC */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1661,7 +1687,7 @@
 .light-theme.accent-amox-8,
 .theme-ivory.accent-amox-8,
 .theme-mist.accent-amox-8,
-.theme-snow.accent-amox-8 {
+.theme-amoxlight.accent-amox-8 {
   --accent-primary: oklch(0.51 0.16 255);      /* ≈ #0078C8 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1674,7 +1700,7 @@
 .light-theme.accent-amox-9,
 .theme-ivory.accent-amox-9,
 .theme-mist.accent-amox-9,
-.theme-snow.accent-amox-9 {
+.theme-amoxlight.accent-amox-9 {
   --accent-primary: oklch(0.49 0.18 262);      /* ≈ #006AC2 */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1687,7 +1713,7 @@
 .light-theme.accent-amox-10,
 .theme-ivory.accent-amox-10,
 .theme-mist.accent-amox-10,
-.theme-snow.accent-amox-10 {
+.theme-amoxlight.accent-amox-10 {
   --accent-primary: oklch(0.47 0.20 268);      /* ≈ #005ABB */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
@@ -1701,19 +1727,19 @@
    specificity (0,2,0) beats each light theme's default accent, so picking a
    sober accent on a light theme now applies (was: silently ignored). */
 .light-theme.accent-islands, .theme-ivory.accent-islands,
-.theme-mist.accent-islands, .theme-snow.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
+.theme-mist.accent-islands, .theme-amoxlight.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
 .light-theme.accent-sage, .theme-ivory.accent-sage,
-.theme-mist.accent-sage, .theme-snow.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
+.theme-mist.accent-sage, .theme-amoxlight.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
 .light-theme.accent-amber, .theme-ivory.accent-amber,
-.theme-mist.accent-amber, .theme-snow.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
+.theme-mist.accent-amber, .theme-amoxlight.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
 .light-theme.accent-rose, .theme-ivory.accent-rose,
-.theme-mist.accent-rose, .theme-snow.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
+.theme-mist.accent-rose, .theme-amoxlight.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
 .light-theme.accent-lavender, .theme-ivory.accent-lavender,
-.theme-mist.accent-lavender, .theme-snow.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
+.theme-mist.accent-lavender, .theme-amoxlight.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
 .light-theme.accent-steel, .theme-ivory.accent-steel,
-.theme-mist.accent-steel, .theme-snow.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
+.theme-mist.accent-steel, .theme-amoxlight.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
 .light-theme.accent-copper, .theme-ivory.accent-copper,
-.theme-mist.accent-copper, .theme-snow.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
+.theme-mist.accent-copper, .theme-amoxlight.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
 
 
 /* Form controls don't inherit font-family by default — force them to use the

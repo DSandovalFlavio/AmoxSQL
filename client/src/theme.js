@@ -10,7 +10,7 @@
  *   - a THEME class (`light-theme`, `theme-ivory`, `theme-nord`, …; the default
  *     dark "obsidian" theme has none) — carries per-theme surfaces/text/borders.
  */
-export const LIGHT_THEMES = ['light', 'ivory', 'mist', 'snow'];
+export const LIGHT_THEMES = ['light', 'ivory', 'mist', 'amoxlight'];
 
 export const isLightTheme = (theme) => LIGHT_THEMES.includes(theme);
 
