@@ -947,8 +947,8 @@
   --border-strong:  rgba(216, 222, 233, 0.18);
 
   --text-primary:   #d8dee9;
-  --text-secondary: #8d99a8;
-  --text-tertiary:  #5d6b7d;
+  --text-secondary: #98a4b3;   /* ≥5.5:1 (was 8d99a8 → 5.11 on raised) */
+  --text-tertiary:  #6f7d8f;   /* ≥3.0:1 dark baseline (was 5d6b7d → 2.72) */
   --text-disabled:  #434c5e;
 
   --hover-bg:   rgba(216, 222, 233, 0.05);
@@ -1009,10 +1009,11 @@
   --border-default: rgba(188, 190, 196, 0.12);
   --border-strong:  rgba(188, 190, 196, 0.20);
 
-  --text-primary:   #bcbec4;
-  --text-secondary: #7a7e85;
-  --text-tertiary:  #4e5157;
-  --text-disabled:  #35383d;
+  /* Lifted to the Amox dark floors (was 8.8/4.0/2.1 — below the other darks). */
+  --text-primary:   #cdced4;
+  --text-secondary: #9a9ea6;
+  --text-tertiary:  #7e828a;
+  --text-disabled:  #4a4d53;
 
   --hover-bg:   rgba(188, 190, 196, 0.06);
   --active-bg:  rgba(188, 190, 196, 0.10);
@@ -1270,16 +1271,16 @@
   --surface-overlay: #ffffff;   /* modals/popups */
   --surface-inset:   #ede7dc;   /* inputs/recessed */
 
-  /* ── Borders: warm, low contrast ── */
-  --border-subtle:  rgba(120, 100, 70, 0.10);
-  --border-default: rgba(120, 100, 70, 0.16);
-  --border-strong:  rgba(120, 100, 70, 0.24);
+  /* ── Borders: warm (strong bumped into the canonical range) ── */
+  --border-subtle:  rgba(120, 100, 70, 0.12);
+  --border-default: rgba(120, 100, 70, 0.18);
+  --border-strong:  rgba(120, 100, 70, 0.32);
 
-  /* ── Text: warm dark, not pure black ── */
-  --text-primary:   #3b3228;   /* espresso — high readability, no harsh black */
-  --text-secondary: #6b5e50;   /* warm medium */
-  --text-tertiary:  #9a8d7e;   /* muted warm */
-  --text-disabled:  #c4b9aa;   /* faded parchment */
+  /* ── Text: warm dark, not pure black (calibrated ≥ AA floors) ── */
+  --text-primary:   #362d23;   /* espresso — high readability, no harsh black */
+  --text-secondary: #5c4f41;   /* warm medium — ≥5.5:1 on all surfaces */
+  --text-tertiary:  #7a6c5b;   /* muted warm — ≥4:1 on all surfaces */
+  --text-disabled:  #b3a897;   /* faded parchment */
 
   /* ── Accent: deep teal — pairs with warm backgrounds ── */
   --accent-primary: #2b7a78;
@@ -1373,16 +1374,16 @@
   --surface-overlay: #ffffff;   /* modals */
   --surface-inset:   #dce1e9;   /* recessed areas */
 
-  /* ── Borders: cool grey ── */
-  --border-subtle:  rgba(70, 85, 110, 0.09);
-  --border-default: rgba(70, 85, 110, 0.15);
-  --border-strong:  rgba(70, 85, 110, 0.23);
+  /* ── Borders: cool grey (strong bumped into the canonical range) ── */
+  --border-subtle:  rgba(70, 85, 110, 0.11);
+  --border-default: rgba(70, 85, 110, 0.17);
+  --border-strong:  rgba(70, 85, 110, 0.31);
 
-  /* ── Text: slate tones, never pure black ── */
-  --text-primary:   #2c3444;   /* deep slate */
-  --text-secondary: #566178;   /* medium slate */
-  --text-tertiary:  #8590a2;   /* muted */
-  --text-disabled:  #b0b8c8;   /* faded */
+  /* ── Text: slate tones, never pure black (calibrated ≥ AA floors) ── */
+  --text-primary:   #262d3c;   /* deep slate — ≥10:1 on all surfaces */
+  --text-secondary: #495366;   /* medium slate — ≥5.5:1 */
+  --text-tertiary:  #5d6578;   /* muted — ≥4:1 */
+  --text-disabled:  #a3acbd;   /* faded */
 
   /* ── Accent: muted indigo — complements cool greys ── */
   --accent-primary: #5568a8;
@@ -1469,19 +1470,23 @@
    Clean, crisp, high-contrast light theme.
    ═══════════════════════════════════════════════ */
 .theme-snow {
+  /* Crisp pure-white base; raised/inset only a hair darker (soft elevation, not
+     the old −0.07L gray slabs) so the sidebar doesn't look like another product. */
   --surface-base:    #ffffff;
-  --surface-raised:  #e5e7eb;   /* Darker gray for sidebar */
+  --surface-raised:  #f4f6f9;   /* barely-off-white sidebar/cards */
   --surface-overlay: #ffffff;
-  --surface-inset:   #d1d5db;   /* Even darker for inset/inputs */
+  --surface-inset:   #eaeef3;   /* recessed inputs */
 
-  --border-subtle:  #d1d5db;
-  --border-default: #9ca3af;
-  --border-strong:  #6b7280;
+  /* Alpha borders (slate) in the canonical range — was opaque #d1d5db/#9ca3af/#6b7280 (2.5–4.8:1). */
+  --border-subtle:  rgba(30, 41, 59, 0.10);
+  --border-default: rgba(30, 41, 59, 0.16);
+  --border-strong:  rgba(30, 41, 59, 0.26);
 
-  --text-primary:   #111827;
-  --text-secondary: #374151;
-  --text-tertiary:  #4b5563;
-  --text-disabled:  #9ca3af;
+  /* Cool slate text with a real hierarchy (was 17.7/10.3/7.6 — top-heavy & flat). */
+  --text-primary:   #1e2634;
+  --text-secondary: #47516a;
+  --text-tertiary:  #667083;
+  --text-disabled:  #a6adba;
 
   --accent-primary: #2563eb;
   --accent-muted:   rgba(37, 99, 235, 0.15);
@@ -1490,12 +1495,13 @@
   --accent-color-user: var(--accent-primary);
   --accent-color-user-transparent: var(--accent-subtle);
 
-  --hover-bg:   #d1d5db;
-  --active-bg:  #9ca3af;
+  /* Washes, not opaque gray slabs (was #d1d5db/#9ca3af). */
+  --hover-bg:   rgba(30, 41, 59, 0.05);
+  --active-bg:  rgba(30, 41, 59, 0.09);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 2px rgba(30, 41, 59, 0.06);
+  --shadow-md: 0 4px 12px rgba(30, 41, 59, 0.10);
+  --shadow-lg: 0 8px 30px rgba(30, 41, 59, 0.15);
 
   --titlebar-bg: #f9fafb;
   --titlebar-text: #4b5563;
