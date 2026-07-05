@@ -291,13 +291,30 @@ class DatabaseManager {
         return this.query(`-- AMOX_SYSTEM\n${sql}`, options);
     }
 
+    // ─── Running-query tracking (per lane) ─────────────────────────────────
+    // DuckDB's interrupt() cancels whatever runs on the connection — and if
+    // nothing runs, the flag can cancel the NEXT statement. Callers that may
+    // interrupt (cancel endpoint, client-disconnect) must first check that the
+    // query they intend to kill is actually the one running on the lane.
+    _setRunning(lane, trackId) {
+        if (!this._running) this._running = {};
+        this._running[lane] = trackId;
+    }
+    _clearRunning(lane, trackId) {
+        if (this._running && this._running[lane] === trackId) this._running[lane] = null;
+    }
+    isRunning(lane, trackId) {
+        return !!(this._running && this._running[lane] === trackId);
+    }
+
     /**
      * Run SQL and return rows as JSON-safe objects.
      * @param {string} sql
-     * @param {{lane?: 'main'|'meta'|'ai'}} [options] - lane defaults to 'main'
+     * @param {{lane?: 'main'|'meta'|'ai', trackId?: string}} [options] - lane defaults to 'main'
      */
     async query(sql, options = {}) {
-        const connection = await this._ensureLane(options.lane || 'main');
+        const lane = options.lane || 'main';
+        const connection = await this._ensureLane(lane);
 
         // Log it (fire & forget logic inside)
         // Only log if we have an attached DB (implicit check in _logQuery)
@@ -307,6 +324,7 @@ class DatabaseManager {
         }
 
         try {
+            if (options.trackId) this._setRunning(lane, options.trackId);
             // Neo API: run() returns a result with reader-style methods.
             const reader = await connection.run(sql);
 
@@ -316,6 +334,8 @@ class DatabaseManager {
 
         } catch (err) {
             throw new Error(err?.message || String(err));
+        } finally {
+            if (options.trackId) this._clearRunning(lane, options.trackId);
         }
     }
 
@@ -325,13 +345,15 @@ class DatabaseManager {
      * @param {{lane?: 'main'|'meta'|'ai'}} [options] - lane defaults to 'main'
      */
     async queryWithMetadata(sql, options = {}) {
-        const connection = await this._ensureLane(options.lane || 'main');
+        const lane = options.lane || 'main';
+        const connection = await this._ensureLane(lane);
 
         if (sql && !sql.includes('amox_query_history')) {
             this._logQuery(sql);
         }
 
         try {
+            if (options.trackId) this._setRunning(lane, options.trackId);
             const reader = await connection.run(sql);
 
             const types = {};
@@ -348,6 +370,8 @@ class DatabaseManager {
 
         } catch (err) {
             throw new Error(err?.message || String(err));
+        } finally {
+            if (options.trackId) this._clearRunning(lane, options.trackId);
         }
     }
 

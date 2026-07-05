@@ -585,7 +585,8 @@ ${schemaText}`;
                         const SQL_TIMEOUT = 30000;
                         const POM_ROW_LIMIT = 500;
                         const { sql: limitedSql, limited } = applyRowLimit(correctedSql, POM_ROW_LIMIT);
-                        const resultPromise = dbManager.queryWithMetadata(limitedSql, { lane: 'ai' });
+                        const pomTrackId = `pom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                        const resultPromise = dbManager.queryWithMetadata(limitedSql, { lane: 'ai', trackId: pomTrackId });
                         resultPromise.catch(() => {}); // handled: may reject after a timeout interrupt
                         let pomTimer = null;
                         let result;
@@ -594,7 +595,11 @@ ${schemaText}`;
                                 resultPromise,
                                 new Promise((_, reject) => {
                                     pomTimer = setTimeout(() => {
-                                        try { dbManager.interruptQuery('ai'); } catch { /* best-effort */ }
+                                        // Interrupt only if OUR query still runs on 'ai'
+                                        // (the sticky flag would kill the next statement)
+                                        try {
+                                            if (!dbManager.isRunning || dbManager.isRunning('ai', pomTrackId)) dbManager.interruptQuery('ai');
+                                        } catch { /* best-effort */ }
                                         reject(new Error('Query timeout (30s)'));
                                     }, SQL_TIMEOUT);
                                 }),

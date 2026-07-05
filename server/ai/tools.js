@@ -76,17 +76,21 @@ function createTools(context) {
                     // Keep a handled reference: after a timeout+interrupt the losing
                     // promise still rejects later — without this it would surface as
                     // an unhandledRejection.
-                    const queryPromise = db.queryWithMetadata(limitedSql);
+                    const trackId = `aiq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    const queryPromise = db.queryWithMetadata(limitedSql, { trackId });
                     queryPromise.catch(() => {});
                     try {
                         result = await Promise.race([
                             queryPromise,
                             new Promise((_, reject) => {
                                 timeoutTimer = setTimeout(() => {
-                                    // Actually cancel the running query on the AI lane —
-                                    // otherwise it keeps running as a zombie, holding the
-                                    // connection busy for every later tool call.
-                                    try { db.interruptQuery('ai'); } catch { /* best-effort */ }
+                                    // Cancel the running query on the AI lane — but only
+                                    // if OUR query is still the one executing there:
+                                    // DuckDB's interrupt flag is sticky and would kill
+                                    // the next statement (e.g. a persistence write).
+                                    try {
+                                        if (!db.isRunning || db.isRunning('ai', trackId)) db.interruptQuery('ai');
+                                    } catch { /* best-effort */ }
                                     reject(new Error(`Query exceeded timeout of ${SQL_TIMEOUT_MS / 1000}s`));
                                 }, SQL_TIMEOUT_MS);
                             }),

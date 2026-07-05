@@ -198,6 +198,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const { leftTabs, rightTabs } = stateRef.current;
         const inLeft = leftTabs.some(t => t.id === tabId);
         const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+        // Editors (Story Flow, notebook, chains) re-emit their serialized
+        // content on mount/config normalization even when NOTHING changed.
+        // Marking dirty unconditionally made freshly opened (or just-saved)
+        // tabs show the ● forever. Identical content → no-op.
+        if (tab && tab.content === newContent) return;
         updateTab(inLeft ? 'left' : 'right', tabId, { content: newContent, dirty: true });
         // Auto-save draft to localStorage for crash recovery
         if (tab?.path) {

@@ -3108,21 +3108,28 @@ app.post('/api/query', async (req, res) => {
     const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, limit);
 
     const qid = queryId || require('crypto').randomUUID();
-    // User cancellation targets ONLY the 'main' lane — AI/meta lanes keep running.
-    activeQueries.set(qid, { interrupt: () => dbManager.interruptQuery('main') });
+    // User cancellation targets ONLY the 'main' lane, and ONLY if THIS query is
+    // the one currently executing there. DuckDB's interrupt flag is sticky: an
+    // interrupt with nothing running kills the NEXT statement — which is why
+    // opening a chart used to fail with "Interrupted!" when a previous fetch
+    // had been aborted client-side (e.g. dev double-mount).
+    activeQueries.set(qid, {
+        interrupt: () => {
+            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
+        },
+    });
 
     // If the client disconnects (AbortController / network drop), interrupt DuckDB
-    // Only interrupt if we haven't already sent the response (avoid killing subsequent queries)
     req.on('close', () => {
-        if (activeQueries.has(qid) && !res.headersSent) {
+        if (activeQueries.has(qid) && !res.headersSent && dbManager.isRunning('main', qid)) {
             dbManager.interruptQuery('main');
-            activeQueries.delete(qid);
         }
+        activeQueries.delete(qid);
     });
 
     try {
         const start = performance.now();
-        const result = await dbManager.queryWithMetadata(limitedSql);
+        const result = await dbManager.queryWithMetadata(limitedSql, { trackId: qid });
         const end = performance.now();
 
         // Detect truncation: we fetched limit+1 rows, if we got them all it means there are more
