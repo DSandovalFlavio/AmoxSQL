@@ -164,7 +164,11 @@ temas ya corregidos para elegir cuáles se quedan).
 3. Fallbacks disfrazados (`--accent-warning`, `--error-color`, `--git-*`): migrar al token real.
 4. Nuevo token `--overlay-bg` y reemplazo de las ~28 copias de `rgba(0,0,0,0.6)`.
 
-### Fase 1 — Estructura (capa de modo completa + acentos)
+### Fase 1 — Estructura (capa de modo completa + acentos) · **HECHA (commit `2c33a1f`)**
+> `.mode-light` da feedback-info/nodes/icons a los 4 temas light (fin de nodos negros e info
+> ilegible en ivory/mist/snow). Acento de nord/islands acotado a `:not([class*="accent-"])` (elegir
+> acento ahora funciona ahí). Rampas light para los 6 acentos sobrios + islands (≥4.5:1). La reorg
+> completa estilo biblia (bloque derivador único) queda como pulido opcional de Fase 5. Build OK.
 1. Mover a `.mode-light`/`.mode-dark` todo lo copiado/olvidado por tema: `--feedback-*` (incl.
    info), `--icon-*`, `--node-*`, sombras, `--button-text-color`.
 2. Reordenar acentos al FINAL + bloque derivador único `[class*="accent-"]` (patrón biblia).
