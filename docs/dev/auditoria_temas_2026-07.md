@@ -175,9 +175,12 @@ temas ya corregidos para elegir cuáles se quedan).
    Deshabilitar en el picker los acentos sin rampa light cuando el tema es light (o darles rampa).
 3. `isLightTheme()` como única fuente de verdad (módulo compartido), usada por App/editores/CSS.
 
-### Fase 2 — Monaco
-Implementar el rediseño de §3: `monacoTheme.js`, tema único `'amox'`, sync desde App (tema +
-acento), sin cache, MONACO_PALETTE mínimo, NotebookCell sin prop theme, borrar las 5 listas.
+### Fase 2 — Monaco · **HECHA (commit `062e7c9`)**
+Rediseño de §3 implementado: nuevo `client/src/monacoTheme.js` (fuente única), tema único `'amox'`
+reconstruido de las CSS vars vivas, sync desde App en los effects de tema+acento, cache eliminado,
+`MONACO_PALETTE` reducido a fallback mínimo, editores solo registran monaco en beforeMount, 5 copias
+de `LIGHT_THEMES` consolidadas vía `theme.js`. Arreglado gratis: celdas de notebook siguen el tema,
+cambio de acento actualiza cursor/highlight, cambio dark→dark se refleja. Build OK, arranca sin errores.
 
 ### Fase 3 — Hardcodes (inventario del barrido)
 1. **Chains**: `chainNodeTypes.js` guarda solo hue/accent por categoría; bg/border derivados con
