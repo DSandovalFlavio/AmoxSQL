@@ -196,7 +196,12 @@ cambio de acento actualiza cursor/highlight, cambio dark→dark se refleja. Buil
 3. MarkdownEditor.css: paleta hljs/alerts con variante por modo. DatabaseExplorer: tokens
    `--dtype-*`. QueryPlan heatmap → semánticos. Exports html2canvas según tema activo.
 
-### Fase 4 — Calibración light (+ islands)
+### Fase 4 — Calibración light (+ islands) · **HECHA (commit `fffcce8`)**
+> Nuevo `scripts/checkThemeContrast.cjs` (parsea index.css, convierte hex/rgba/oklch, valida pisos
+> WCAG; `node scripts/checkThemeContrast.cjs [--all]`). Ivory/Mist con texto y bordes calibrados;
+> Snow reconstruido (superficies suaves, bordes alpha, hover/active lavados); Islands subido al piso
+> dark; Nord (único outlier dark) corregido. Piso de tertiary mode-aware (light ≥4, dark ≥3 = base
+> aprobada). **Los 10 temas pasan.** obsidian/onyx/carbon/graphite intactos. Build OK.
 1. Ivory/Mist: subir `text-tertiary` a ≥4:1 (≈`#7d7060` / `#6b7488`) y bordes al rango canónico.
 2. Snow: reconstruir sobre el patrón ivory/mist (la versión ORIGINAL suave está en
    `update_css.cjs` como referencia); bordes alpha, hover/active como lavados, raised −0.02.
