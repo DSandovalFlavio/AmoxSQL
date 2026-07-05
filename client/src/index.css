@@ -12,11 +12,11 @@
      • New: syntax, type, typography, spacing, radius tokens
      ═══════════════════════════════════════════════════════════════ */
 
-  /* ── Surface Hierarchy (oklch — lowest → highest elevation) ── */
-  --surface-base:    oklch(0.145 0.006 270);   /* ≈ #111214 */
-  --surface-raised:  oklch(0.175 0.008 270);   /* ≈ #191B1F */
-  --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
-  --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
+  /* ── Surface Hierarchy (Obsidian default — swapped with Onyx: now the true-black slot) ── */
+  --surface-base:    #0b0c0d;
+  --surface-raised:  #131415;
+  --surface-overlay: #191a1c;
+  --surface-inset:   #08090a;
 
   /* ── Border System (opacity-based for consistency) ── */
   --border-subtle:  rgba(255, 255, 255, 0.06);
@@ -822,15 +822,15 @@
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: ONYX — true black
-   The deepest theme: pure-neutral near-black (was an imperceptible clone of
-   Obsidian/Carbon, Δ≈2 RGB points; now it owns the "blackest" slot).
+   DARK THEME: ONYX — soft near-black
+   Neutral near-black, a hair lighter than Obsidian (surfaces swapped with the
+   default so Obsidian owns the deepest/true-black slot).
    ═══════════════════════════════════════════════ */
 .theme-onyx {
-  --surface-base:    #0b0c0d;
-  --surface-raised:  #131415;
-  --surface-overlay: #191a1c;
-  --surface-inset:   #08090a;
+  --surface-base:    oklch(0.145 0.006 270);   /* ≈ #111214 */
+  --surface-raised:  oklch(0.175 0.008 270);   /* ≈ #191B1F */
+  --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
+  --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
 
   --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.10);
