@@ -250,11 +250,35 @@ class DatabaseManager {
         if (trimmed.includes('AMOXSQL_CHAINS')) return;
         if (trimmed.includes('AMOX_QUERY_HISTORY')) return;
 
-        const escapedSql = sql.replace(/'/g, "''");
-        // Bookkeeping insert rides the 'ai' lane so it never queues behind a
-        // long user query on 'main' (fire & forget either way).
-        this.query(`INSERT INTO amoxsql_ai.query_history (query) VALUES ('${escapedSql}')`, { lane: 'ai' }).catch(e => {
-        });
+        // Batched: one multi-VALUES INSERT every ~3s / 20 entries instead of a
+        // bookkeeping INSERT per user query. Rides the 'ai' lane either way.
+        if (!this._historyBuffer) this._historyBuffer = [];
+        this._historyBuffer.push(sql);
+        if (this._historyBuffer.length >= 20) {
+            this.flushQueryHistory();
+        } else if (!this._historyFlushTimer) {
+            this._historyFlushTimer = setTimeout(() => this.flushQueryHistory(), 3000);
+            if (this._historyFlushTimer.unref) this._historyFlushTimer.unref();
+        }
+    }
+
+    /**
+     * Flush the pending query-history batch. Called on timer/size, before the
+     * history endpoint reads, and on close() so nothing recent is lost.
+     */
+    async flushQueryHistory() {
+        if (this._historyFlushTimer) {
+            clearTimeout(this._historyFlushTimer);
+            this._historyFlushTimer = null;
+        }
+        if (!this._historyBuffer || this._historyBuffer.length === 0) return;
+        const batch = this._historyBuffer.splice(0);
+        const values = batch.map(q => `('${q.replace(/'/g, "''")}')`).join(',');
+        try {
+            await this.query(`INSERT INTO amoxsql_ai.query_history (query) VALUES ${values}`, { lane: 'ai' });
+        } catch (e) {
+            // History is best-effort bookkeeping — never surface to the caller
+        }
     }
 
     /**
@@ -329,6 +353,9 @@ class DatabaseManager {
 
     async close() {
         if (!this.connections.main) return;
+
+        // Persist any batched history entries before the DB goes away
+        await this.flushQueryHistory().catch(() => {});
 
         try {
             console.log("[DB Manager] Switching to system context before detaching...");

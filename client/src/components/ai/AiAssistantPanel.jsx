@@ -31,6 +31,7 @@ const AiAssistantPanel = ({
     availableTables,
     onOpenSettings,
     onResize,
+    onResizePreview,
     panelWidth,
     onOpenDataDiving,
 }) => {
@@ -243,11 +244,15 @@ const AiAssistantPanel = ({
         const startX = e.clientX;
         const startWidth = panelWidth;
 
+        let lastWidth = startWidth;
         const handleMouseMove = (moveEvent) => {
             if (!isResizing.current) return;
             const delta = startX - moveEvent.clientX;
-            const newWidth = Math.min(600, Math.max(300, startWidth + delta));
-            onResize?.(newWidth);
+            lastWidth = Math.min(600, Math.max(300, startWidth + delta));
+            // Live preview via direct DOM mutation (no App re-render per pixel);
+            // falls back to committing state if the host didn't pass a preview.
+            if (onResizePreview) onResizePreview(lastWidth);
+            else onResize?.(lastWidth);
         };
 
         const handleMouseUp = () => {
@@ -256,11 +261,12 @@ const AiAssistantPanel = ({
             document.body.style.userSelect = '';
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
+            onResize?.(lastWidth); // single state commit
         };
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, [panelWidth, onResize]);
+    }, [panelWidth, onResize, onResizePreview]);
 
     // ─── No file open placeholder ───
     if (!activeFilePath) {

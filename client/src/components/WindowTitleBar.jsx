@@ -190,4 +190,5 @@ const WindowTitleBar = ({ projectPath, currentDb, readOnly, onCloseProject, onSw
   );
 };
 
-export default WindowTitleBar;
+// Memoized: App re-renders must not reconcile the window chrome when props are stable.
+export default React.memo(WindowTitleBar);

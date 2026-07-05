@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { memo, useState, useEffect, useRef, useMemo } from 'react';
 import {
     LuPlay, LuSave, LuFilePlus, LuSettings, LuMoon, LuSun,
     LuBot, LuDatabase, LuFolder, LuPuzzle, LuHistory,
@@ -228,4 +228,5 @@ export function buildDefaultActions({
     ];
 }
 
-export default CommandPalette;
+// Memoized: closed palette must not reconcile on every App render.
+export default memo(CommandPalette);

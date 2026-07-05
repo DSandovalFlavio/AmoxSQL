@@ -8,7 +8,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
-const { exec, execSync } = require('child_process');
+const { exec } = require('child_process');
 const dbManager        = require('./DatabaseManager');
 const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
@@ -693,6 +693,8 @@ app.get('/api/db/file-schema', async (req, res) => {
 
 app.get('/api/db/history', async (req, res) => {
     try {
+        // Deliver any batched-but-unflushed entries so the panel is never stale
+        await dbManager.flushQueryHistory?.();
         // Check if history table exists first to avoid error
         const check = await dbManager.systemQuery("SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema = 'amoxsql_ai' AND table_name = 'query_history'");
         if (check[0].cnt == 0) {
@@ -1024,7 +1026,7 @@ app.post('/api/db/extensions/load', async (req, res) => {
 /* --- Excel Import APIs --- */
 const xlsx = require('xlsx');
 
-app.get('/api/files/inspect-excel', (req, res) => {
+app.get('/api/files/inspect-excel', async (req, res) => {
     const filePath = req.query.path;
     if (!filePath) return res.status(400).json({ error: 'Path is required' });
 
@@ -1033,7 +1035,11 @@ app.get('/api/files/inspect-excel', (req, res) => {
     if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
 
     try {
-        const workbook = xlsx.read(fs.readFileSync(fullPath), { type: 'buffer', bookSheets: true });
+        // Async read: workbooks can be hundreds of MB and this shares the
+        // event loop with the AI SSE stream. (xlsx.read parse itself is still
+        // sync CPU — a worker_thread is the remaining follow-up.)
+        const buf = await fs.promises.readFile(fullPath);
+        const workbook = xlsx.read(buf, { type: 'buffer', bookSheets: true });
         res.json({ sheets: workbook.SheetNames });
     } catch (err) {
         res.status(500).json({ error: 'Failed to read Excel file', details: err.message });
@@ -1060,8 +1066,8 @@ app.get('/api/files/inspect-columns', async (req, res) => {
 
     try {
         if (ext === '.xlsx' || ext === '.xls') {
-            // Get sheet names first
-            const workbook = xlsx.read(fs.readFileSync(fullPath), { type: 'buffer', bookSheets: true });
+            // Get sheet names first (async read — see /api/files/inspect-excel)
+            const workbook = xlsx.read(await fs.promises.readFile(fullPath), { type: 'buffer', bookSheets: true });
             const sheets = workbook.SheetNames;
 
             // Get columns for the requested sheet (or first sheet)
@@ -1182,7 +1188,7 @@ app.get('/api/settings/config', (req, res) => {
     }
 });
 
-app.post('/api/settings/config', (req, res) => {
+app.post('/api/settings/config', async (req, res) => {
     const { geminiApiKey, anthropicApiKey, minimaxApiKey, gcpProject, gcpLocation, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
     try {
         const config = aiManager.getConfig();
@@ -1208,7 +1214,7 @@ app.post('/api/settings/config', (req, res) => {
             config.geminiModels = geminiModels;
         }
 
-        fs.writeFileSync(aiManager.configPath, JSON.stringify(config, null, 2));
+        await fs.promises.writeFile(aiManager.configPath, JSON.stringify(config, null, 2));
         res.json({ success: true, config });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -3899,7 +3905,7 @@ app.get('/api/notebook-state', (req, res) => {
     }
 });
 
-app.post('/api/notebook-state', (req, res) => {
+app.post('/api/notebook-state', async (req, res) => {
     const { path: filePath, state } = req.body;
     if (!filePath || !state) return res.status(400).json({ error: 'Path and state are required' });
 
@@ -3907,7 +3913,8 @@ app.post('/api/notebook-state', (req, res) => {
     const statePath = fullPath + '.state.json';
 
     try {
-        fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
+        // Async write: sidecar state can carry MBs of cached results
+        await fs.promises.writeFile(statePath, JSON.stringify(state, null, 2), 'utf8');
         res.json({ success: true });
     } catch (err) {
         console.error('Failed to write notebook state:', err.message);
@@ -4034,10 +4041,17 @@ app.get('/api/dbt/validate-env', async (req, res) => {
 });
 
 // List conda environments and check for dbt in each
-app.get('/api/dbt/conda-envs', (req, res) => {
+app.get('/api/dbt/conda-envs', async (req, res) => {
     const condaCmd = req.query.condaPath || 'conda';
     try {
-        const output = execSync(`"${condaCmd}" env list --json`, { encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] });
+        // exec async: execSync here froze the WHOLE server (including the AI
+        // SSE stream) for up to 10s whenever the DBT panel opened.
+        const output = await new Promise((resolve, reject) => {
+            exec(`"${condaCmd}" env list --json`, { encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+                if (err) reject(err);
+                else resolve(stdout || '');
+            });
+        });
         const parsed = JSON.parse(output);
         const envPaths = parsed.envs || [];
 
