@@ -15,6 +15,7 @@
 | [mapa_aplicacion.md](mapa_aplicacion.md) | Mapa completo: features, componentes, endpoints, flujos, estado, formatos | Agregues features, endpoints o formatos de archivo |
 | [auditoria_rendimiento_2026-07.md](auditoria_rendimiento_2026-07.md) | Auditoría a fondo de rendimiento (tecleo, streaming, server) + plan de corrección por fases | Cierres hallazgos del plan de corrección |
 | [guia_estilos.md](guia_estilos.md) | CSS tokens, theming, acentos, convenciones de clases, DO/DON'T | Agregues tokens, temas, acentos o patrones CSS nuevos |
+| [auditoria_temas_2026-07.md](auditoria_temas_2026-07.md) | Auditoría del sistema de temas (hardcodes, Monaco, capa de modo, light vs dark, consolidación) + plan por fases | Cierres hallazgos del plan o rediseñes temas/acentos |
 | [patrones_react.md](patrones_react.md) | State management, lazy loading, keep-alive, refs, RAF | Introduzcas un nuevo patrón de componente |
 | [decisiones_tecnicas.md](decisiones_tecnicas.md) | ADRs: qué se decidió, por qué y consecuencias | Tomes una decisión técnica significativa |
 | [auditoria_visualizaciones.md](auditoria_visualizaciones.md) · [plan_story_flow.md](plan_story_flow.md) | **Story Flow** (la sección de visualización): auditoría de capacidades + plan/estado de implementación por fases | Toques el visualizador / Story Flow |
