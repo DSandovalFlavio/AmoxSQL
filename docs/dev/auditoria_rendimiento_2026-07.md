@@ -255,7 +255,7 @@ Clone sparse en `%LOCALAPPDATA%\Temp\vsc-src\vscode` (`src/vs/base`, `src/vs/edi
 
 ## 7. Plan de corrección priorizado (impacto/esfuerzo)
 
-### Fase 0 — Quick wins (1 sesión; desbloquean todo lo demás)
+### Fase 0 — Quick wins (1 sesión; desbloquean todo lo demás) · **HECHA (commit `f985f67`)**
 1. **G2**: `useToast` estable (2 líneas) — reactiva de golpe memo(LayoutManager/FileExplorer/DbtPanel).
 2. **S4**: eliminar `queryResults` del evento `finish` (nadie lo consume) + recortar `cacheEntry.data` a ≤500 filas.
 3. **G3/N6**: debounce real (5-10s por path + flush en `beforeunload`) en `draftSaver`, excluyendo resultados.
