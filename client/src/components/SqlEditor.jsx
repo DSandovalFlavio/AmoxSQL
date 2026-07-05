@@ -2,7 +2,11 @@ import { API_BASE } from '../api.js';
 import React, { useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
-import { SqlWorkerBridge } from '../utils/sqlWorkerBridge';
+import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
+
+// Per-editor-instance document id inside the SHARED SQL worker (one worker +
+// one WASM pair for the whole app; documents keyed by this id).
+let __sqlDocSeq = 0;
 
 // Lazily fetch the DuckDB function catalog once and cache it on window (shared by the
 // completion provider and the hover provider). Idempotent — safe to call repeatedly;
@@ -28,9 +32,23 @@ function ensureDuckdbFunctionCatalog() {
 // Cached by probe SQL (the probe text changes when the query changes, so it self-invalidates).
 // Aborts after 300ms and returns [] on any failure → the editor falls back to its heuristics.
 const __describeCache = new Map();
+const DESCRIBE_CACHE_MAX = 200;
+// Whitespace-insensitive key: while typing, the probe SQL changes by spacing/
+// newlines constantly — without normalization almost every suggest session
+// was a cache miss (a fresh HTTP DESCRIBE mid-typing).
+function describeCacheKey(probeSql) {
+    return probeSql.replace(/\s+/g, ' ').trim();
+}
 async function describeColumns(probeSql) {
     if (!probeSql) return [];
-    if (__describeCache.has(probeSql)) return __describeCache.get(probeSql);
+    const key = describeCacheKey(probeSql);
+    if (__describeCache.has(key)) {
+        const hit = __describeCache.get(key);
+        // LRU touch (Map keeps insertion order)
+        __describeCache.delete(key);
+        __describeCache.set(key, hit);
+        return hit;
+    }
     try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 300);
@@ -43,7 +61,10 @@ async function describeColumns(probeSql) {
         clearTimeout(timer);
         const data = await r.json();
         const cols = Array.isArray(data.columns) ? data.columns : [];
-        __describeCache.set(probeSql, cols);
+        __describeCache.set(key, cols);
+        if (__describeCache.size > DESCRIBE_CACHE_MAX) {
+            __describeCache.delete(__describeCache.keys().next().value);
+        }
         return cols;
     } catch {
         return []; // timeout / network / invalid query → graceful fallback
@@ -280,6 +301,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const monacoRef = useRef(null);
     const completionProviderRef = useRef(null);
     const workerBridgeRef = useRef(null);
+    const docIdRef = useRef(`sqldoc_${++__sqlDocSeq}`);
     const activeTabIdRef = useRef(props.tabId);
 
     // Last value we emitted through onChange. While the parent's `value` prop
@@ -713,14 +735,15 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }
         }
 
-        // Initialize Web Worker Bridge
+        // Attach to the SHARED Web Worker bridge (one worker for all editors;
+        // this instance's buffer lives under docIdRef inside it)
         if (!workerBridgeRef.current) {
-            workerBridgeRef.current = new SqlWorkerBridge();
-            workerBridgeRef.current.init().then(() => {
+            workerBridgeRef.current = getSharedSqlWorkerBridge();
+            initSharedSqlWorkerBridge().then(() => {
                 // CRITICAL: Sync initial document so Worker has the AST before first Ctrl+Space
                 const initialText = editor.getValue();
                 if (initialText) {
-                    workerBridgeRef.current.syncDocument(initialText);
+                    workerBridgeRef.current.syncDocument(docIdRef.current, initialText);
                 }
 
                 // Fetch Full Schema (Tables + Columns)
@@ -774,7 +797,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         const changeModelDisposable = editor.onDidChangeModelContent(() => {
             const text = editor.getValue();
             if (workerBridgeRef.current) {
-                workerBridgeRef.current.syncDocument(text);
+                workerBridgeRef.current.syncDocument(docIdRef.current, text);
             }
 
             if (fileScanTimeout) clearTimeout(fileScanTimeout);
@@ -836,7 +859,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             if (['{', "'"].includes(fullText[cursorOffset - 1])) {
                 triggerContent = fullText[cursorOffset - 1];
             }
-            const { suggestions: workerSuggestions, clause, derived } = await workerBridgeRef.current.getCompletions(position.lineNumber, position.column, triggerContent);
+            const { suggestions: workerSuggestions, clause, derived } = await workerBridgeRef.current.getCompletions(docIdRef.current, position.lineNumber, position.column, triggerContent);
 
             // Abort if the user kept typing while the worker was processing
             if (token && token.isCancellationRequested) {
@@ -867,15 +890,19 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 }
                 const isColumnClause = !['FROM', 'JOIN', 'ROOT', 'LIMIT', 'CTE'].includes(clause);
                 if (isColumnClause && derived.relations && derived.relations.length) {
-                    for (const rel of derived.relations) {
-                        const cols = await describeColumns(rel.probeSql);
-                        cols.forEach(c => suggestions.push({
+                    // Probe all relations concurrently — serial awaits stacked
+                    // up to N×300ms before the suggest list could resolve.
+                    const colsPerRelation = await Promise.all(
+                        derived.relations.map(rel => describeColumns(rel.probeSql))
+                    );
+                    if (token && token.isCancellationRequested) return { suggestions: [] };
+                    derived.relations.forEach((rel, i) => {
+                        colsPerRelation[i].forEach(c => suggestions.push({
                             label: c.name, kind: monaco.languages.CompletionItemKind.Field,
                             insertText: c.name, detail: `${c.type || 'Column'} (${rel.name})`,
                             filterText: c.name, sortText: '1_b_' + c.name,
                         }));
-                    }
-                    if (token && token.isCancellationRequested) return { suggestions: [] };
+                    });
                 }
             }
 
@@ -1073,7 +1100,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     useEffect(() => {
         return () => {
             disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
-            if (workerBridgeRef.current) workerBridgeRef.current.dispose();
+            // Shared worker: release only OUR document — never terminate it.
+            if (workerBridgeRef.current) workerBridgeRef.current.removeDocument(docIdRef.current);
         };
     }, []);
 

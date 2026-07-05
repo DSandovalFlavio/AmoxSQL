@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
+import LazyVisible from './LazyVisible';
 import DebugResultModal from './DebugResultModal';
 import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal, LuCode, LuType, LuSettings2, LuExternalLink, LuChevronsUp, LuChevronsDown } from "react-icons/lu";
 
@@ -503,11 +504,14 @@ const NotebookCell = ({
                         {!(isReportMode && hideCodeInReport) && (
                             <div className="nb-code-editor-wrap">
                                 <div style={{ height: `${Math.max(80, Math.min(400, ((content?.toString().split('\n').length) || 3) * 20 + 20))}px` }} onKeyDown={handleKeyDown}>
-                                    <SqlEditor
-                                        value={typeof content === 'string' ? content : ''}
-                                        onChange={handleCodeChange}
-                                        onDebugCte={handleDebugCte}
-                                    />
+                                    {/* Offscreen cells don't pay a Monaco mount until scrolled near */}
+                                    <LazyVisible height="100%" force={isReportMode}>
+                                        <SqlEditor
+                                            value={typeof content === 'string' ? content : ''}
+                                            onChange={handleCodeChange}
+                                            onDebugCte={handleDebugCte}
+                                        />
+                                    </LazyVisible>
                                 </div>
                             </div>
                         )}
@@ -525,6 +529,8 @@ const NotebookCell = ({
                                                 className={isReportMode ? 'nb-results-height--report' : 'nb-results-height'}
                                                 style={!isReportMode ? { height: `${resultHeight}px` } : undefined}
                                             >
+                                                {/* Result tables + charts mount only near the viewport */}
+                                                <LazyVisible height="100%" force={isReportMode}>
                                                 <ResultsTable
                                                     data={result.data}
                                                     types={result.types}
@@ -539,6 +545,7 @@ const NotebookCell = ({
                                                     onViewModeChange={handleViewModeChange}
                                                     onPopout={handlePopout}
                                                 />
+                                                </LazyVisible>
                                             </div>
                                         )}
 

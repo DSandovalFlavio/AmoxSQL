@@ -3,17 +3,25 @@ import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo }
 import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
-import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
 import { VariablesToggle, VariablesPanel } from './VariablesBar';
-import ErDiagram from './ErDiagram';
-import DbtLineageGraph from './DbtLineageGraph';
-import AmoxvisPane from './AmoxvisPane';
-import MarkdownEditor from './MarkdownEditor';
-import DeckEditor from './deck/DeckEditor';
 
+// Lazy pane types (G10): each of these pulls a heavy dependency tree
+// (Recharts, mermaid/katex/highlight via MarkdownPreview, @xyflow/react…).
+// SqlEditor + ResultsTable stay eager — they are the default editor path.
+const SqlNotebook = lazy(() => import('./SqlNotebook'));
+const ErDiagram = lazy(() => import('./ErDiagram'));
+const DbtLineageGraph = lazy(() => import('./DbtLineageGraph'));
+const AmoxvisPane = lazy(() => import('./AmoxvisPane'));
+const MarkdownEditor = lazy(() => import('./MarkdownEditor'));
+const DeckEditor = lazy(() => import('./deck/DeckEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
+
+// Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
+const PaneLoading = ({ label = 'Loading…' }) => (
+    <div style={{ padding: 24, color: 'var(--text-tertiary)' }}>{label}</div>
+);
 
 const formatTimeAgo = (date) => {
     if (!date) return '—';
@@ -431,13 +439,15 @@ const EditorPane = ({
                 {/* Content Area */}
                 {isAmoxvis ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
-                        <AmoxvisPane
-                            tab={activeTab}
-                            onRunQuery={onRunQuery}
-                            onSave={onSave}
-                            onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
-                            onConfigChange={(config) => onContentChange(activeTab.id, JSON.stringify(config, null, 2))}
-                        />
+                        <Suspense fallback={<PaneLoading />}>
+                            <AmoxvisPane
+                                tab={activeTab}
+                                onRunQuery={onRunQuery}
+                                onSave={onSave}
+                                onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
+                                onConfigChange={(config) => onContentChange(activeTab.id, JSON.stringify(config, null, 2))}
+                            />
+                        </Suspense>
                     </div>
                 ) : isDataDiving ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
@@ -455,11 +465,15 @@ const EditorPane = ({
                     </div>
                 ) : isErDiagram ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
-                        <ErDiagram schema={activeTab.content || ''} onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                        <Suspense fallback={<PaneLoading />}>
+                            <ErDiagram schema={activeTab.content || ''} onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                        </Suspense>
                     </div>
                 ) : isDbtLineage ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)', height: '100%' }}>
-                        <DbtLineageGraph onFileOpen={onOpenFile} />
+                        <Suspense fallback={<PaneLoading />}>
+                            <DbtLineageGraph onFileOpen={onOpenFile} />
+                        </Suspense>
                     </div>
                 ) : isChain ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
@@ -476,6 +490,7 @@ const EditorPane = ({
                     </div>
                 ) : isDeck ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
                         <DeckEditor
                             key={activeTab.id}
                             content={activeTab.content}
@@ -489,9 +504,11 @@ const EditorPane = ({
                             isActive={isActive}
                             onOpenFile={onOpenFile}
                         />
+                        </Suspense>
                     </div>
                 ) : isMarkdown ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
                         <MarkdownEditor
                             key={activeTab.id}
                             content={activeTab.content}
@@ -505,9 +522,11 @@ const EditorPane = ({
                             isActive={isActive}
                             onOpenFile={onOpenFile}
                         />
+                        </Suspense>
                     </div>
                 ) : isNotebook ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
                         <SqlNotebook
                             key={activeTab.id}
                             content={activeTab.content}
@@ -518,6 +537,7 @@ const EditorPane = ({
                             onToggleAi={onToggleAi}
                             showAiSidebar={showAiSidebar}
                         />
+                        </Suspense>
                     </div>
                 ) : (
                     <div className={`ep-editor-area${isVertical ? ' vertical' : ''}`}>
