@@ -279,7 +279,7 @@ Clone sparse en `%LOCALAPPDATA%\Temp\vsc-src\vscode` (`src/vs/base`, `src/vs/edi
 7. **G9**: resultados del notebook al sidecar `.sqlnb.state.json`, nunca dentro de `tab.content`.
 8. **N10**: debounce 400-600ms en la propagación de celdas Input.
 
-### Fase 2 — Streaming (Síntoma B de raíz)
+### Fase 2 — Streaming (Síntoma B de raíz) · **HECHA (commit `86d1df2`)** — S7 verificado sin cambio (el evento tool-result comparte el objeto de 200 filas del modelo); el typewriter adaptativo (punto 3) queda como pulido opcional de Fase 3
 1. **S2/S3**: `<TranscriptTurn>` memoizado por turno (turnos históricos derivan solo de `messages`); el turno vivo aparte; markdown del mensaje vivo como texto plano o parseando solo el bloque final (bloques cerrados memoizados) — patrón VS Code §6.5.
 2. **S5**: `columns`/`isDateCol` a `useMemo([data])`; `memo(ChatResultsBlock)`; turno vivo sin recrear objeto cuando solo cambió texto.
 3. Typewriter con tasa adaptativa y drenado a ≥80 w/s al completar (§6.4) — opcional pero es el acabado "VS Code".
