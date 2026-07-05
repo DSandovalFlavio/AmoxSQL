@@ -12,11 +12,15 @@
      • New: syntax, type, typography, spacing, radius tokens
      ═══════════════════════════════════════════════════════════════ */
 
-  /* ── Surface Hierarchy (Obsidian default — swapped with Onyx: now the true-black slot) ── */
-  --surface-base:    #0b0c0d;
-  --surface-raised:  #131415;
-  --surface-overlay: #191a1c;
-  --surface-inset:   #08090a;
+  /* ── Surface Hierarchy (oklch — lowest → highest elevation) ── */
+  --surface-base:    oklch(0.145 0.006 270);   /* ≈ #111214 */
+  --surface-raised:  oklch(0.175 0.008 270);   /* ≈ #191B1F */
+  --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
+  --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
+
+  /* Monaco code-editor canvas bg — defaults to the theme's base; a couple of
+     themes override it below to give the editor a bg distinct from the app. */
+  --monaco-editor-bg: var(--surface-base);
 
   /* ── Border System (opacity-based for consistency) ── */
   --border-subtle:  rgba(255, 255, 255, 0.06);
@@ -821,16 +825,23 @@
   --accent-color-user-transparent: var(--accent-subtle);
 }
 
+/* Obsidian ⇄ Onyx: swap ONLY the Monaco code-editor canvas background — each
+   theme keeps ALL its own app surfaces (sidebar, panels, tables). Obsidian's
+   editor shows Onyx's true-black; Onyx's editor shows Obsidian's neutral.
+   `body.mode-dark:not([class*="theme-"])` targets Obsidian (the default dark,
+   which has no theme class). */
+body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
+
 /* ═══════════════════════════════════════════════
-   DARK THEME: ONYX — soft near-black
-   Neutral near-black, a hair lighter than Obsidian (surfaces swapped with the
-   default so Obsidian owns the deepest/true-black slot).
+   DARK THEME: ONYX — true black
+   The deepest theme: pure-neutral near-black.
    ═══════════════════════════════════════════════ */
 .theme-onyx {
-  --surface-base:    oklch(0.145 0.006 270);   /* ≈ #111214 */
-  --surface-raised:  oklch(0.175 0.008 270);   /* ≈ #191B1F */
-  --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
-  --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
+  --surface-base:    #0b0c0d;
+  --surface-raised:  #131415;
+  --surface-overlay: #191a1c;
+  --surface-inset:   #08090a;
+  --monaco-editor-bg: #111214;   /* editor shows Obsidian's neutral (swapped) */
 
   --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.10);

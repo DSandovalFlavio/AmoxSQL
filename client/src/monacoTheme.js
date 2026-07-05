@@ -71,7 +71,10 @@ export function buildAmoxMonacoTheme() {
     const fb = isDark ? FALLBACK.dark : FALLBACK.light;
 
     const p = {
-        bg:         cssVarToHex('--surface-base', fb.bg),
+        // The editor canvas reads --monaco-editor-bg (defined in :root as
+        // var(--surface-base), so it tracks each theme's base by default; a
+        // couple of themes override it to give the code editor its own bg).
+        bg:         cssVarToHex('--monaco-editor-bg', fb.bg),
         raised:     cssVarToHex('--surface-raised', fb.raised),
         overlay:    cssVarToHex('--surface-overlay', fb.overlay),
         fg:         cssVarToHex('--text-primary', fb.fg),

@@ -30,8 +30,8 @@ const RECOMMENDED_MODELS = [
 
 const THEMES = [
     { id: 'amoxdark',  label: 'Amox Dark',    icon: <LuMoon size={14} />, sidebar: '#151b22', editor: '#0f141a', text: '#22d3ee', desc: 'Signature · cyan brand' },
-    { id: 'dark',      label: 'Obsidian',     icon: <LuMoon size={14} />, sidebar: '#131415', editor: '#0b0c0d', text: '#ccc',    desc: 'Deepest · true black' },
-    { id: 'onyx',      label: 'Onyx',         icon: <LuMoon size={14} />, sidebar: '#191b1f', editor: '#111214', text: '#ccc',    desc: 'Soft near-black' },
+    { id: 'dark',      label: 'Obsidian',     icon: <LuMoon size={14} />, sidebar: '#191b1f', editor: '#0b0c0d', text: '#ccc',    desc: 'Deepest dark' },
+    { id: 'onyx',      label: 'Onyx',         icon: <LuMoon size={14} />, sidebar: '#131415', editor: '#111214', text: '#ccc',    desc: 'True black' },
     { id: 'nord',      label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
     { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'JetBrains-inspired' },
     { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
