@@ -49,15 +49,6 @@ export function ToastProvider({ children }) {
         return id;
     }, [removeToast]);
 
-    const toast = useCallback({
-        success: (msg, duration) => addToast(msg, 'success', duration),
-        error: (msg, duration) => addToast(msg, 'error', duration ?? 6000),
-        warning: (msg, duration) => addToast(msg, 'warning', duration),
-        info: (msg, duration) => addToast(msg, 'info', duration),
-    }, [addToast]);
-
-    // Fix: toast needs to be an object with methods, not useCallback
-    // We'll use useMemo-like approach
     const toastApi = useRef(null);
     if (!toastApi.current) {
         toastApi.current = {
@@ -67,9 +58,6 @@ export function ToastProvider({ children }) {
             info: (msg, duration) => addToast(msg, 'info', duration),
         };
     }
-    // Keep addToast in sync
-    toastApi.current._addToast = addToast;
-
     return (
         <ToastContext.Provider value={toastApi.current}>
             {children}
@@ -163,13 +151,10 @@ export function ToastProvider({ children }) {
 export function useToast() {
     const ctx = useContext(ToastContext);
     if (!ctx) throw new Error('useToast must be used within <ToastProvider>');
-    // Redirect calls through current addToast reference
-    return {
-        success: (msg, dur) => ctx._addToast(msg, 'success', dur),
-        error: (msg, dur) => ctx._addToast(msg, 'error', dur ?? 6000),
-        warning: (msg, dur) => ctx._addToast(msg, 'warning', dur),
-        info: (msg, dur) => ctx._addToast(msg, 'info', dur),
-    };
+    // The context value IS the stable API object (identity never changes).
+    // Returning a fresh object here would invalidate every useCallback that
+    // depends on `toast` and, in cascade, every memoized component below App.
+    return ctx;
 }
 
 export default ToastProvider;

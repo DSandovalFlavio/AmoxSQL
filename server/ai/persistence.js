@@ -15,6 +15,16 @@
 const crypto = require('crypto');
 const { s, j, n } = require('./_sqlHelpers');
 
+/**
+ * Route persistence queries through the dedicated 'ai' connection lane so
+ * conversation/message/query-cache bookkeeping never queues behind (or blocks)
+ * user queries running on the 'main' lane. Falls back to the manager itself
+ * when lanes are unavailable (e.g. test doubles).
+ */
+function aiLane(dbManager) {
+    return (dbManager && typeof dbManager.lane === 'function') ? dbManager.lane('ai') : dbManager;
+}
+
 function generateId() {
     return crypto.randomUUID();
 }
@@ -28,9 +38,9 @@ class AiPersistence {
      */
     async initSchema(dbManager) {
         try {
-            await dbManager.systemQuery(`CREATE SCHEMA IF NOT EXISTS amoxsql_ai`);
+            await aiLane(dbManager).systemQuery(`CREATE SCHEMA IF NOT EXISTS amoxsql_ai`);
 
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.conversations (
                     id              VARCHAR PRIMARY KEY,
                     title           VARCHAR DEFAULT 'New Conversation',
@@ -43,7 +53,7 @@ class AiPersistence {
                 )
             `);
 
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.messages (
                     id              VARCHAR PRIMARY KEY,
                     conversation_id VARCHAR NOT NULL,
@@ -55,7 +65,7 @@ class AiPersistence {
                 )
             `);
 
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.query_results (
                     id              VARCHAR PRIMARY KEY,
                     message_id      VARCHAR NOT NULL,
@@ -69,7 +79,7 @@ class AiPersistence {
                 )
             `);
 
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.chart_configs (
                     id              VARCHAR PRIMARY KEY,
                     query_result_id VARCHAR NOT NULL,
@@ -79,7 +89,7 @@ class AiPersistence {
                 )
             `);
 
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.memories (
                     id              VARCHAR PRIMARY KEY,
                     category        VARCHAR NOT NULL,
@@ -103,13 +113,13 @@ class AiPersistence {
             ];
             for (const col of migrationColumns) {
                 try {
-                    await dbManager.systemQuery(`BEGIN`);
-                    await dbManager.systemQuery(
+                    await aiLane(dbManager).systemQuery(`BEGIN`);
+                    await aiLane(dbManager).systemQuery(
                         `ALTER TABLE amoxsql_ai.conversations ADD COLUMN ${col.name} ${col.type}`
                     );
-                    await dbManager.systemQuery(`COMMIT`);
+                    await aiLane(dbManager).systemQuery(`COMMIT`);
                 } catch (err) {
-                    try { await dbManager.systemQuery(`ROLLBACK`); } catch {}
+                    try { await aiLane(dbManager).systemQuery(`ROLLBACK`); } catch {}
                     // Column already exists — safe to ignore
                     if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
                         console.error(`[AI Persistence] Migration warning for column ${col.name}:`, err.message);
@@ -118,7 +128,7 @@ class AiPersistence {
             }
 
             // ─── Session Artifacts (Data Diving) ───
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.session_artifacts (
                     id              VARCHAR PRIMARY KEY,
                     conversation_id VARCHAR NOT NULL,
@@ -134,7 +144,7 @@ class AiPersistence {
             `);
 
             // ─── Analysis Vault ───
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.analysis_vault (
                     id              VARCHAR PRIMARY KEY,
                     conversation_id VARCHAR,
@@ -153,7 +163,7 @@ class AiPersistence {
             // ─── Query Cache (replaces in-memory LRU Map) ───
             // Survives restarts and long sessions; queryId references remain valid
             // across turns and after context compaction.
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.query_cache (
                     id              VARCHAR PRIMARY KEY,
                     conversation_id VARCHAR,
@@ -167,7 +177,7 @@ class AiPersistence {
             `);
 
             // ─── Agent Plans (Fase 1: Planner-Executor) ───
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.plans (
                     id              VARCHAR PRIMARY KEY,
                     conversation_id VARCHAR NOT NULL,
@@ -180,7 +190,7 @@ class AiPersistence {
             `);
 
             // ─── Conversation Metrics (observability) ───
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.conversation_metrics (
                     id              VARCHAR PRIMARY KEY,
                     conversation_id VARCHAR NOT NULL,
@@ -196,7 +206,7 @@ class AiPersistence {
 
             // ─── Agent Scratchpad (Fase 2) ───
             // Per-conversation key/value store for intermediate agent notes.
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 CREATE TABLE IF NOT EXISTS amoxsql_ai.scratchpad (
                     id              VARCHAR PRIMARY KEY,
                     conversation_id VARCHAR NOT NULL,
@@ -222,7 +232,7 @@ class AiPersistence {
         const id = generateId();
         const resolvedTitle = title || 'New Conversation';
 
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.conversations
                 (id, title, mode, provider, model, file_path, session_name, description)
             VALUES
@@ -263,20 +273,20 @@ class AiPersistence {
                 LIMIT ${n(limit)}
             `;
             if (offset > 0) query += ` OFFSET ${n(offset)}`;
-            return dbManager.systemQuery(query);
+            return aiLane(dbManager).systemQuery(query);
         }
 
         let query = `SELECT * FROM amoxsql_ai.conversations c WHERE 1=1 ${modeClause}`;
         query += ` ORDER BY c.updated_at DESC LIMIT ${n(limit)}`;
         if (offset > 0) query += ` OFFSET ${n(offset)}`;
-        return dbManager.systemQuery(query);
+        return aiLane(dbManager).systemQuery(query);
     }
 
     /**
      * Get conversations associated with a specific file (assistant mode).
      */
     async getConversationsByFile(dbManager, filePath) {
-        return dbManager.systemQuery(`
+        return aiLane(dbManager).systemQuery(`
             SELECT * FROM amoxsql_ai.conversations
             WHERE file_path = ${s(filePath)} AND mode = 'assistant'
             ORDER BY updated_at DESC
@@ -287,7 +297,7 @@ class AiPersistence {
      * Get a single conversation with all messages, query results, and chart configs.
      */
     async getConversation(dbManager, id) {
-        const conversations = await dbManager.systemQuery(
+        const conversations = await aiLane(dbManager).systemQuery(
             `SELECT * FROM amoxsql_ai.conversations WHERE id = ${s(id)}`
         );
         if (conversations.length === 0) return null;
@@ -295,7 +305,7 @@ class AiPersistence {
         const conversation = conversations[0];
 
         // Get messages
-        conversation.messages = await dbManager.systemQuery(
+        conversation.messages = await aiLane(dbManager).systemQuery(
             `SELECT * FROM amoxsql_ai.messages WHERE conversation_id = ${s(id)} ORDER BY created_at ASC`
         );
 
@@ -309,7 +319,7 @@ class AiPersistence {
         // Get query results for all messages
         const messageIds = conversation.messages.map(m => s(m.id)).join(',');
         if (messageIds) {
-            const queryResults = await dbManager.systemQuery(
+            const queryResults = await aiLane(dbManager).systemQuery(
                 `SELECT * FROM amoxsql_ai.query_results WHERE message_id IN (${messageIds}) ORDER BY created_at ASC`
             );
             for (const qr of queryResults) {
@@ -321,7 +331,7 @@ class AiPersistence {
             // Get chart configs
             const qrIds = queryResults.map(q => s(q.id)).join(',');
             if (qrIds) {
-                const chartConfigs = await dbManager.systemQuery(
+                const chartConfigs = await aiLane(dbManager).systemQuery(
                     `SELECT * FROM amoxsql_ai.chart_configs WHERE query_result_id IN (${qrIds}) ORDER BY created_at ASC`
                 );
                 for (const cc of chartConfigs) {
@@ -352,26 +362,26 @@ class AiPersistence {
      */
     async deleteConversation(dbManager, id) {
         // Get message IDs for cascading deletes
-        const messages = await dbManager.systemQuery(
+        const messages = await aiLane(dbManager).systemQuery(
             `SELECT id FROM amoxsql_ai.messages WHERE conversation_id = ${s(id)}`
         );
         const messageIds = messages.map(m => s(m.id)).join(',');
 
         if (messageIds) {
-            const queryResults = await dbManager.systemQuery(
+            const queryResults = await aiLane(dbManager).systemQuery(
                 `SELECT id FROM amoxsql_ai.query_results WHERE message_id IN (${messageIds})`
             );
             const qrIds = queryResults.map(q => s(q.id)).join(',');
 
             if (qrIds) {
-                await dbManager.systemQuery(`DELETE FROM amoxsql_ai.chart_configs WHERE query_result_id IN (${qrIds})`);
+                await aiLane(dbManager).systemQuery(`DELETE FROM amoxsql_ai.chart_configs WHERE query_result_id IN (${qrIds})`);
             }
-            await dbManager.systemQuery(`DELETE FROM amoxsql_ai.query_results WHERE message_id IN (${messageIds})`);
-            await dbManager.systemQuery(`DELETE FROM amoxsql_ai.messages WHERE conversation_id = ${s(id)}`);
+            await aiLane(dbManager).systemQuery(`DELETE FROM amoxsql_ai.query_results WHERE message_id IN (${messageIds})`);
+            await aiLane(dbManager).systemQuery(`DELETE FROM amoxsql_ai.messages WHERE conversation_id = ${s(id)}`);
         }
 
-        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.session_artifacts WHERE conversation_id = ${s(id)}`);
-        await dbManager.systemQuery(`DELETE FROM amoxsql_ai.conversations WHERE id = ${s(id)}`);
+        await aiLane(dbManager).systemQuery(`DELETE FROM amoxsql_ai.session_artifacts WHERE conversation_id = ${s(id)}`);
+        await aiLane(dbManager).systemQuery(`DELETE FROM amoxsql_ai.conversations WHERE id = ${s(id)}`);
         return { success: true };
     }
 
@@ -379,7 +389,7 @@ class AiPersistence {
      * Update session name for a diving conversation.
      */
     async updateSessionName(dbManager, id, sessionName) {
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             UPDATE amoxsql_ai.conversations
             SET session_name = ${s(sessionName)}, updated_at = current_timestamp
             WHERE id = ${s(id)}
@@ -392,7 +402,7 @@ class AiPersistence {
      * @param {Array} contextObjects - Array of {type, name, path?} objects
      */
     async updateContextObjects(dbManager, id, contextObjects) {
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             UPDATE amoxsql_ai.conversations
             SET context_objects = ${j(contextObjects)}, updated_at = current_timestamp
             WHERE id = ${s(id)}
@@ -404,12 +414,12 @@ class AiPersistence {
      * Toggle the starred status of a conversation.
      */
     async toggleStar(dbManager, id) {
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             UPDATE amoxsql_ai.conversations
             SET is_starred = NOT is_starred, updated_at = current_timestamp
             WHERE id = ${s(id)}
         `);
-        const result = await dbManager.systemQuery(
+        const result = await aiLane(dbManager).systemQuery(
             `SELECT is_starred FROM amoxsql_ai.conversations WHERE id = ${s(id)}`
         );
         return { is_starred: result[0]?.is_starred };
@@ -419,7 +429,7 @@ class AiPersistence {
      * Update conversation title.
      */
     async updateTitle(dbManager, id, title) {
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             UPDATE amoxsql_ai.conversations
             SET title = ${s(title)}, updated_at = current_timestamp
             WHERE id = ${s(id)}
@@ -436,7 +446,7 @@ class AiPersistence {
     async addMessage(dbManager, { conversationId, role, content, toolCalls, tokenCount }) {
         const id = generateId();
 
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.messages
                 (id, conversation_id, role, content, tool_calls, token_count)
             VALUES
@@ -445,7 +455,7 @@ class AiPersistence {
         `);
 
         // Keep conversation's updated_at current
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             UPDATE amoxsql_ai.conversations
             SET updated_at = current_timestamp
             WHERE id = ${s(conversationId)}
@@ -464,7 +474,7 @@ class AiPersistence {
         // Limit stored data to 500 rows to cap blob size
         const limitedData = data ? data.slice(0, 500) : null;
 
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.query_results
                 (id, message_id, sql_query, columns_info, data, row_count, execution_time, error)
             VALUES
@@ -484,7 +494,7 @@ class AiPersistence {
     async saveChartConfig(dbManager, { queryResultId, chartType, config }) {
         const id = generateId();
 
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.chart_configs (id, query_result_id, chart_type, config)
             VALUES (${s(id)}, ${s(queryResultId)}, ${s(chartType || '')}, ${j(config)})
         `);
@@ -496,7 +506,7 @@ class AiPersistence {
 
     async getMemories(dbManager) {
         try {
-            return await dbManager.systemQuery(
+            return await aiLane(dbManager).systemQuery(
                 `SELECT * FROM amoxsql_ai.memories WHERE superseded_by IS NULL ORDER BY created_at DESC`
             );
         } catch {
@@ -506,7 +516,7 @@ class AiPersistence {
 
     async addMemory(dbManager, { category, content }) {
         const id = generateId();
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.memories (id, category, content)
             VALUES (${s(id)}, ${s(category)}, ${s(content)})
         `);
@@ -514,14 +524,14 @@ class AiPersistence {
     }
 
     async deleteMemory(dbManager, id) {
-        await dbManager.systemQuery(
+        await aiLane(dbManager).systemQuery(
             `DELETE FROM amoxsql_ai.memories WHERE id = ${s(id)}`
         );
         return { success: true };
     }
 
     async updateMemory(dbManager, id, { content, category }) {
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             UPDATE amoxsql_ai.memories
             SET content = ${s(content)}, category = ${s(category || '')}
             WHERE id = ${s(id)}
@@ -537,7 +547,7 @@ class AiPersistence {
     async createArtifact(dbManager, { conversationId, artifactType, filePath, fileName, createdBy = 'ai', sqlSnapshot, metadata, saveLocation = 'session' }) {
         const id = generateId();
 
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.session_artifacts
                 (id, conversation_id, artifact_type, file_path, file_name,
                  created_by, sql_snapshot, metadata, save_location)
@@ -554,7 +564,7 @@ class AiPersistence {
      * Get all artifacts for a session.
      */
     async getArtifacts(dbManager, conversationId) {
-        const artifacts = await dbManager.systemQuery(`
+        const artifacts = await aiLane(dbManager).systemQuery(`
             SELECT * FROM amoxsql_ai.session_artifacts
             WHERE conversation_id = ${s(conversationId)}
             ORDER BY created_at ASC
@@ -569,7 +579,7 @@ class AiPersistence {
      * Delete an artifact.
      */
     async deleteArtifact(dbManager, id) {
-        await dbManager.systemQuery(
+        await aiLane(dbManager).systemQuery(
             `DELETE FROM amoxsql_ai.session_artifacts WHERE id = ${s(id)}`
         );
         return { success: true };
@@ -596,7 +606,7 @@ class AiPersistence {
             ORDER BY c.updated_at DESC
             LIMIT ${n(limit)}${offset > 0 ? ` OFFSET ${n(offset)}` : ''}
         `;
-        return dbManager.systemQuery(query);
+        return aiLane(dbManager).systemQuery(query);
     }
 
     // ─── Query Cache ──────────────────────────────────────────────────────────
@@ -608,7 +618,7 @@ class AiPersistence {
      */
     async saveQueryCache(dbManager, { queryId, conversationId, sqlQuery, columns, data, rowCount, execMs }) {
         const limitedData = data ? data.slice(0, 500) : null;
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.query_cache
                 (id, conversation_id, sql_query, columns_info, data, row_count, exec_ms)
             VALUES
@@ -624,7 +634,7 @@ class AiPersistence {
      */
     async getQueryCache(dbManager, queryId) {
         try {
-            const rows = await dbManager.systemQuery(
+            const rows = await aiLane(dbManager).systemQuery(
                 `SELECT * FROM amoxsql_ai.query_cache WHERE id = ${s(queryId)}`
             );
             if (rows.length === 0) return null;
@@ -644,7 +654,7 @@ class AiPersistence {
     async pruneQueryCache(dbManager, conversationId, keepLatest = 100) {
         if (!conversationId) return;
         try {
-            await dbManager.systemQuery(`
+            await aiLane(dbManager).systemQuery(`
                 DELETE FROM amoxsql_ai.query_cache
                 WHERE conversation_id = ${s(conversationId)}
                 AND id NOT IN (
@@ -660,7 +670,7 @@ class AiPersistence {
     // ─── Plans ────────────────────────────────────────────────────────────────
 
     async savePlan(dbManager, { id, conversationId, goal, steps }) {
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.plans (id, conversation_id, goal, steps_json, status)
             VALUES (${s(id)}, ${s(conversationId)}, ${s(goal)}, ${j(steps)}, 'pending')
         `);
@@ -671,7 +681,7 @@ class AiPersistence {
         const sets = [`updated_at = current_timestamp`];
         if (status !== undefined) sets.push(`status = ${s(status)}`);
         if (steps  !== undefined) sets.push(`steps_json = ${j(steps)}`);
-        await dbManager.systemQuery(
+        await aiLane(dbManager).systemQuery(
             `UPDATE amoxsql_ai.plans SET ${sets.join(', ')} WHERE id = ${s(id)}`
         );
         return { success: true };
@@ -679,7 +689,7 @@ class AiPersistence {
 
     async getActivePlan(dbManager, conversationId) {
         try {
-            const rows = await dbManager.systemQuery(`
+            const rows = await aiLane(dbManager).systemQuery(`
                 SELECT * FROM amoxsql_ai.plans
                 WHERE conversation_id = ${s(conversationId)}
                 AND status NOT IN ('completed', 'cancelled')
@@ -696,7 +706,7 @@ class AiPersistence {
 
     async saveMetrics(dbManager, { conversationId, turnIdx, promptTokens, completionTokens, toolCalls, latencyMs, error }) {
         const id = generateId();
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.conversation_metrics
                 (id, conversation_id, turn_idx, prompt_tokens, completion_tokens, tool_calls_json, latency_ms, error)
             VALUES
@@ -715,7 +725,7 @@ class AiPersistence {
     async saveToVault(dbManager, { conversationId, title, description, sqlContent, resultSnapshot, chartConfig, tags, sourceFile }) {
         const id = generateId();
 
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.analysis_vault
                 (id, conversation_id, title, description, sql_content,
                  result_snapshot, chart_config, tags, source_file)
@@ -746,7 +756,7 @@ class AiPersistence {
         query += ` ORDER BY updated_at DESC LIMIT ${n(limit)}`;
         if (offset > 0) query += ` OFFSET ${n(offset)}`;
 
-        const entries = await dbManager.systemQuery(query);
+        const entries = await aiLane(dbManager).systemQuery(query);
         for (const e of entries) {
             if (e.result_snapshot) { try { e.result_snapshot = JSON.parse(e.result_snapshot); } catch {} }
             if (e.chart_config)    { try { e.chart_config    = JSON.parse(e.chart_config);    } catch {} }
@@ -765,7 +775,7 @@ class AiPersistence {
         if (sets.length === 0) return { success: true };
 
         sets.push(`updated_at = current_timestamp`);
-        await dbManager.systemQuery(
+        await aiLane(dbManager).systemQuery(
             `UPDATE amoxsql_ai.analysis_vault SET ${sets.join(', ')} WHERE id = ${s(id)}`
         );
         return { success: true };
@@ -775,7 +785,7 @@ class AiPersistence {
      * Delete a vault entry.
      */
     async deleteVaultEntry(dbManager, id) {
-        await dbManager.systemQuery(
+        await aiLane(dbManager).systemQuery(
             `DELETE FROM amoxsql_ai.analysis_vault WHERE id = ${s(id)}`
         );
         return { success: true };
@@ -789,12 +799,12 @@ class AiPersistence {
      */
     async saveScratchpad(dbManager, conversationId, key, value) {
         // DELETE + INSERT (DuckDB doesn't support ON CONFLICT UPDATE yet on all versions)
-        await dbManager.systemQuery(
+        await aiLane(dbManager).systemQuery(
             `DELETE FROM amoxsql_ai.scratchpad
              WHERE conversation_id = ${s(conversationId)} AND key = ${s(key)}`
         );
         const id = generateId();
-        await dbManager.systemQuery(`
+        await aiLane(dbManager).systemQuery(`
             INSERT INTO amoxsql_ai.scratchpad (id, conversation_id, key, value, updated_at)
             VALUES (${s(id)}, ${s(conversationId)}, ${s(key)}, ${s(value)}, current_timestamp)
         `);
@@ -807,7 +817,7 @@ class AiPersistence {
      */
     async getScratchpad(dbManager, conversationId, key = null) {
         const keyFilter = key ? `AND key = ${s(key)}` : '';
-        const rows = await dbManager.systemQuery(`
+        const rows = await aiLane(dbManager).systemQuery(`
             SELECT key, value, updated_at
             FROM amoxsql_ai.scratchpad
             WHERE conversation_id = ${s(conversationId)} ${keyFilter}

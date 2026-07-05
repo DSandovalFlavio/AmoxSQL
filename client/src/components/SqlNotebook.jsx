@@ -52,12 +52,21 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     const cellStatesRef = useRef({});
     const resultsRef = useRef({});
     const cellsRef = useRef([]);
+    const environmentRef = useRef({});
     const saveStateTimer = useRef(null);
 
     // Keep refs in sync
     useEffect(() => { cellStatesRef.current = cellStates; }, [cellStates]);
     useEffect(() => { resultsRef.current = results; }, [results]);
     useEffect(() => { cellsRef.current = cells; }, [cells]);
+    useEffect(() => { environmentRef.current = environment; }, [environment]);
+
+    // Latest props via refs so every handler below can be identity-stable —
+    // memo(NotebookCell) only works if the props we pass never change identity.
+    const onChangeRef = useRef(onChange);
+    const onRunQueryRef = useRef(onRunQuery);
+    useEffect(() => { onChangeRef.current = onChange; });
+    useEffect(() => { onRunQueryRef.current = onRunQuery; });
 
     // 1. Initial Parse — extract cells, environment, and embedded state from v3.0
     useEffect(() => {
@@ -137,9 +146,10 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         }
     };
 
-    // 2. Serialize and save to file — merges cell state into cells before writing
+    // 2. Serialize and save to file — merges cell state into cells before writing.
+    // Reads everything through refs so its identity never changes.
     const save = useCallback((updatedCells, updatedEnvironment = undefined) => {
-        const env = updatedEnvironment !== undefined ? updatedEnvironment : environment;
+        const env = updatedEnvironment !== undefined ? updatedEnvironment : environmentRef.current;
         const cellsWithState = updatedCells.map(cell => {
             const stateData = cellStatesRef.current[cell.id] || {};
             const resultData = resultsRef.current[cell.id];
@@ -157,8 +167,8 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         });
 
         const fileContent = serializeNotebookContent(cellsWithState, env);
-        onChange(fileContent);
-    }, [onChange, environment]);
+        onChangeRef.current(fileContent);
+    }, []);
 
     // Debounced save for state-only changes (chart config, view mode, result height)
     const saveStateOnly = useCallback(() => {
@@ -168,38 +178,38 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         }, 1000);
     }, [save]);
 
-    // Debounced save for content edits (typing in editor or renaming cells)
+    // Debounced save for content edits (typing in editor or renaming cells).
+    // Reads cellsRef at fire time, so callers just schedule after setCells.
     const contentSaveTimer = useRef(null);
-    const saveDebouncedContent = useCallback((updatedCells) => {
+    const saveDebouncedContent = useCallback(() => {
         if (contentSaveTimer.current) clearTimeout(contentSaveTimer.current);
         contentSaveTimer.current = setTimeout(() => {
-            save(updatedCells);
+            save(cellsRef.current);
         }, 500);
     }, [save]);
 
-    // Cell Handlers
-    const updateCell = (id, newContent, newMetadata = {}) => {
-        const updated = cells.map(c => c.id === id ? { ...c, content: newContent, ...newMetadata } : c);
-        setCells(updated);
-        saveDebouncedContent(updated);
-    };
+    // Cell Handlers — all functional updates over `prev`: these fire from
+    // debounced timers holding old closures, so mapping over a captured
+    // `cells` array would revert other cells' edits (lost-update bug).
+    const updateCell = useCallback((id, newContent, newMetadata = {}) => {
+        setCells(prev => prev.map(c => c.id === id ? { ...c, content: newContent, ...newMetadata } : c));
+        saveDebouncedContent();
+    }, [saveDebouncedContent]);
 
-    const addCell = (type) => {
+    const addCell = useCallback((type) => {
         const newCell = { id: (Date.now() + Math.random()).toString(), type, content: '' };
-        const updated = [...cells, newCell];
-        setCells(updated);
-        save(updated);
-    };
+        setCells(prev => [...prev, newCell]);
+        saveDebouncedContent();
+    }, [saveDebouncedContent]);
 
-    const deleteCell = (id) => {
+    const deleteCell = useCallback((id) => {
         setCellToDelete(id);
         setDeleteModalOpen(true);
-    };
+    }, []);
 
     const confirmDeleteCell = async () => {
         if (!cellToDelete) return;
-        const updated = cells.filter(c => c.id !== cellToDelete);
-        setCells(updated);
+        setCells(prev => prev.filter(c => c.id !== cellToDelete));
         // Clean up state for deleted cell
         setCellStates(prev => {
             const next = { ...prev };
@@ -211,21 +221,26 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
             delete next[cellToDelete];
             return next;
         });
-        save(updated);
+        saveDebouncedContent();
         setCellToDelete(null);
     };
 
-    const moveCell = (id, direction) => {
-        const index = cells.findIndex(c => c.id === id);
-        if (index < 0) return;
-        const targetIndex = index + direction;
-        if (targetIndex < 0 || targetIndex >= cells.length) return;
+    const moveCell = useCallback((id, direction) => {
+        setCells(prev => {
+            const index = prev.findIndex(c => c.id === id);
+            if (index < 0) return prev;
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= prev.length) return prev;
 
-        const updated = [...cells];
-        [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
-        setCells(updated);
-        save(updated);
-    };
+            const updated = [...prev];
+            [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+            return updated;
+        });
+        saveDebouncedContent();
+    }, [saveDebouncedContent]);
+
+    const moveCellUp = useCallback((id) => moveCell(id, -1), [moveCell]);
+    const moveCellDown = useCallback((id) => moveCell(id, 1), [moveCell]);
 
     // Drag & Drop handlers
     const handleCellDragStart = useCallback((cellId) => {
@@ -244,45 +259,42 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     const handleCellDrop = useCallback(() => {
         if (draggedCellId == null || dropTargetIndex == null) return;
 
-        const fromIndex = cells.findIndex(c => c.id === draggedCellId);
-        if (fromIndex < 0) return;
+        setCells(prev => {
+            const fromIndex = prev.findIndex(c => c.id === draggedCellId);
+            if (fromIndex < 0) return prev;
 
-        // Calculate the effective insertion index
-        let toIndex = dropTargetIndex;
-        if (toIndex > fromIndex) toIndex -= 1; // Adjust because removing shifts indices
+            // Calculate the effective insertion index
+            let toIndex = dropTargetIndex;
+            if (toIndex > fromIndex) toIndex -= 1; // Adjust because removing shifts indices
+            if (fromIndex === toIndex) return prev;
 
-        if (fromIndex === toIndex) {
-            setDraggedCellId(null);
-            setDropTargetIndex(null);
-            return;
-        }
-
-        const updated = [...cells];
-        const [moved] = updated.splice(fromIndex, 1);
-        updated.splice(toIndex, 0, moved);
-
-        setCells(updated);
-        save(updated);
+            const updated = [...prev];
+            const [moved] = updated.splice(fromIndex, 1);
+            updated.splice(toIndex, 0, moved);
+            return updated;
+        });
+        saveDebouncedContent();
         setDraggedCellId(null);
         setDropTargetIndex(null);
-    }, [draggedCellId, dropTargetIndex, cells, save]);
+    }, [draggedCellId, dropTargetIndex, saveDebouncedContent]);
 
     // Evaluate input variables in query — shared with Report Flow decks (see utils/injectEnvironmentVariables.js)
     const injectEnvironmentVariables = useCallback((query, env) => injectEnvVars(query, env), []);
 
-    const handleRun = useCallback(async (cellId, cellContent = null, currentEnv = environment) => {
-        // Use ref for latest cells to avoid stale closure issues
+    const handleRun = useCallback(async (cellId, cellContent = null, currentEnv = null) => {
+        // Use refs for latest cells/env to stay identity-stable and closure-safe
         const currentCells = cellsRef.current;
+        const env = currentEnv || environmentRef.current;
 
         // If no content passed, read from the latest cells ref
         const resolvedContent = cellContent || currentCells.find(c => c.id === cellId)?.content || '';
 
         setResults(prev => ({ ...prev, [cellId]: { loading: true } }));
 
-        let queryToRun = injectEnvironmentVariables(resolvedContent, currentEnv);
+        let queryToRun = injectEnvironmentVariables(resolvedContent, env);
 
         // Execute the query
-        const result = await onRunQuery(queryToRun);
+        const result = await onRunQueryRef.current(queryToRun);
 
         setResults(prev => {
             const nextResults = { ...prev, [cellId]: { ...result, executedQuery: queryToRun } };
@@ -291,12 +303,16 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
 
         // Debounced save to persist the new result
         saveStateOnly();
-    }, [environment, injectEnvironmentVariables, onRunQuery, saveStateOnly]);
+    }, [injectEnvironmentVariables, saveStateOnly]);
 
     // Batch execution engine
     const runCellsSequentially = useCallback(async (cellIds) => {
+        // Yield one tick so a just-flushed cell edit (setCells from flushContent)
+        // commits and cellsRef syncs before we read contents.
+        await new Promise(r => setTimeout(r, 0));
+        const currentCells = cellsRef.current;
         const codeCells = cellIds.filter(cid => {
-            const cell = cells.find(c => c.id === cid);
+            const cell = currentCells.find(c => c.id === cid);
             return cell && cell.type === 'code' && cell.content?.trim();
         });
 
@@ -309,7 +325,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
             if (abortBatchRef.current) break;
 
             setBatchProgress({ current: i + 1, total: codeCells.length });
-            const cell = cells.find(c => c.id === codeCells[i]);
+            const cell = cellsRef.current.find(c => c.id === codeCells[i]);
             if (!cell) continue;
 
             await handleRun(cell.id);
@@ -322,23 +338,25 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         setIsRunningBatch(false);
         setBatchProgress(null);
         abortBatchRef.current = false;
-    }, [cells, handleRun]);
+    }, [handleRun]);
 
     const runAll = useCallback(() => {
-        runCellsSequentially(cells.map(c => c.id));
-    }, [cells, runCellsSequentially]);
+        runCellsSequentially(cellsRef.current.map(c => c.id));
+    }, [runCellsSequentially]);
 
     const runAbove = useCallback((cellId) => {
-        const index = cells.findIndex(c => c.id === cellId);
+        const currentCells = cellsRef.current;
+        const index = currentCells.findIndex(c => c.id === cellId);
         if (index < 0) return;
-        runCellsSequentially(cells.slice(0, index + 1).map(c => c.id));
-    }, [cells, runCellsSequentially]);
+        runCellsSequentially(currentCells.slice(0, index + 1).map(c => c.id));
+    }, [runCellsSequentially]);
 
     const runBelow = useCallback((cellId) => {
-        const index = cells.findIndex(c => c.id === cellId);
+        const currentCells = cellsRef.current;
+        const index = currentCells.findIndex(c => c.id === cellId);
         if (index < 0) return;
-        runCellsSequentially(cells.slice(index).map(c => c.id));
-    }, [cells, runCellsSequentially]);
+        runCellsSequentially(currentCells.slice(index).map(c => c.id));
+    }, [runCellsSequentially]);
 
     const stopBatch = useCallback(() => {
         abortBatchRef.current = true;
@@ -348,12 +366,13 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         window.print();
     };
 
-    const handleEnvironmentChange = (key, value) => {
-        const newEnv = { ...environment, [key]: value };
+    const handleEnvironmentChange = useCallback((key, value) => {
+        const newEnv = { ...environmentRef.current, [key]: value };
+        environmentRef.current = newEnv; // eager: dependent runs below need it now
         setEnvironment(newEnv);
 
         // Reactive Execution (DAG): Auto-run dependent cells
-        cells.forEach(cell => {
+        cellsRef.current.forEach(cell => {
             if (cell.type === 'code' && typeof cell.content === 'string') {
                 const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
                 if (regex.test(cell.content)) {
@@ -362,8 +381,8 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
             }
         });
 
-        save(cells, newEnv);
-    };
+        save(cellsRef.current, newEnv);
+    }, [handleRun, save]);
 
     const handleCellStateChange = useCallback((cellId, stateUpdate) => {
         setCellStates(prev => {
@@ -552,10 +571,10 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                             result={results[cell.id]}
                             environment={environment}
                             onUpdate={updateCell}
-                            onRun={(id) => handleRun(id)}
+                            onRun={handleRun}
                             onDelete={deleteCell}
-                            onMoveUp={() => moveCell(cell.id, -1)}
-                            onMoveDown={() => moveCell(cell.id, 1)}
+                            onMoveUp={moveCellUp}
+                            onMoveDown={moveCellDown}
                             onEnvironmentChange={handleEnvironmentChange}
                             isReportMode={isReportActive}
                             hideCodeInReport={hideCodeInReport}

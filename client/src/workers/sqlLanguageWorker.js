@@ -12,8 +12,34 @@ import {
 } from './treeSitterUtils.js';
 
 let parser = null;
+// "Active document" registers used by the completion logic below. The worker
+// is shared by all editors: each keeps its own entry in `docs` (keyed by
+// docId) and requestCompletions loads the right one into these registers.
 let currentTree = null;
 let currentText = '';
+
+const DEFAULT_DOC = '__default__';
+const MAX_DOCS = 32;
+const docs = new Map(); // docId -> { text, tree }
+
+function freeTree(entry) {
+    try { entry?.tree?.delete?.(); } catch { /* wasm tree already gone */ }
+}
+
+function setDoc(docId, text) {
+    const key = docId || DEFAULT_DOC;
+    const prev = docs.get(key);
+    if (prev) {
+        freeTree(prev);
+        docs.delete(key); // re-insert to refresh recency (Map keeps insertion order)
+    }
+    docs.set(key, { text, tree: parser ? parser.parse(text) : null });
+    if (docs.size > MAX_DOCS) {
+        const oldestKey = docs.keys().next().value;
+        freeTree(docs.get(oldestKey));
+        docs.delete(oldestKey);
+    }
+}
 
 let schemaCache = { tables: {}, allColumns: [] };
 let dbtCache = { available: false, models: [], sources: [] };
@@ -61,12 +87,13 @@ self.onmessage = async (e) => {
             self.postMessage({ id, status: 'success', result: { ready: true } });
         }
         else if (action === 'syncDocument') {
-            currentText = payload.text;
-            if (parser) {
-                // If we implemented incremental parsing we would use old tree + edits,
-                // but for SQL queries full re-parse is typically < 5ms.
-                currentTree = parser.parse(currentText);
-            }
+            // Full re-parse per sync: tree-sitter on a SQL doc is typically <5ms.
+            setDoc(payload.docId, payload.text);
+        }
+        else if (action === 'removeDocument') {
+            const key = payload.docId || DEFAULT_DOC;
+            freeTree(docs.get(key));
+            docs.delete(key);
         }
         else if (action === 'updateSchema') {
             schemaCache = payload;
@@ -75,6 +102,10 @@ self.onmessage = async (e) => {
             dbtCache = payload;
         }
         else if (action === 'requestCompletions') {
+            // Load the requesting editor's document into the active registers
+            const doc = docs.get(payload.docId || DEFAULT_DOC);
+            currentText = doc ? doc.text : '';
+            currentTree = doc ? doc.tree : null;
             const { suggestions, clause, derived } = getCompletions(payload.line, payload.column, payload.triggerChar);
             self.postMessage({ id, status: 'success', result: { suggestions, clause, derived } });
         }

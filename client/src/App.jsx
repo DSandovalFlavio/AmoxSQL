@@ -120,6 +120,16 @@ function App() {
     () => parseInt(localStorage.getItem('amoxsql-sidebar-width')) || 280
   );
   const isResizingSidebar = useRef(false);
+  // Live drag preview mutates these elements' style.width directly; React
+  // state commits ONCE on mouseup (a setState per mousemove re-rendered App
+  // — and with it the whole IDE — on every pixel of drag).
+  const sidebarElRef = useRef(null);
+  const aiPanelOuterRef = useRef(null);
+  const aiPanelInnerRef = useRef(null);
+  const previewAiPanelWidth = useCallback((w) => {
+    if (aiPanelOuterRef.current) aiPanelOuterRef.current.style.width = `${w}px`;
+    if (aiPanelInnerRef.current) aiPanelInnerRef.current.style.width = `${w}px`;
+  }, []);
 
   // Command Palette State
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -485,6 +495,42 @@ function App() {
   }, [setShowAiSidebar]);
 
   // Command Palette actions
+  // Stable TabBar handler sets (per pane): inline arrows here re-created on
+  // every App render would defeat memo(TabBar). All of them delegate to the
+  // imperative LayoutManager API via layoutRef, so they can be identity-stable.
+  const makeTabBarHandlers = useCallback((pane) => ({
+    onTabClick: (id) => {
+      const p = layoutRef.current?.getTabBarProps(pane);
+      if (p) p.onTabClick(id);
+    },
+    onTabClose: (id) => {
+      const p = layoutRef.current?.getTabBarProps(pane);
+      if (p) p.onTabClose(id);
+    },
+    onDragStart: (e, tabId, paneId) => {
+      const p = layoutRef.current?.getTabBarProps(pane);
+      if (p?.onDragStart) p.onDragStart(e, tabId, pane ?? paneId);
+    },
+    onReorder: (src, target, paneId) => {
+      const p = layoutRef.current?.getTabBarProps(pane);
+      if (p?.onReorder) p.onReorder(src, target, pane ?? paneId);
+    },
+    onCreateNew: (type) => {
+      const p = layoutRef.current?.getTabBarProps(pane);
+      if (p?.onCreateNew) p.onCreateNew(type);
+    },
+  }), []);
+  const leftTabBarHandlers = useMemo(() => makeTabBarHandlers('left'), [makeTabBarHandlers]);
+  const rightTabBarHandlers = useMemo(() => makeTabBarHandlers('right'), [makeTabBarHandlers]);
+  const singleTabBarHandlers = useMemo(() => makeTabBarHandlers(undefined), [makeTabBarHandlers]);
+
+  const handleSwitchProject = useCallback((path) => {
+    setProjectPath(path);
+    setAppPhase(PHASE.WELCOME);
+  }, []);
+
+  const handleCloseCommandPalette = useCallback(() => setIsCommandPaletteOpen(false), []);
+
   const commandPaletteActions = useMemo(() => {
     if (appPhase !== PHASE.IDE) return [];
     return [
@@ -879,10 +925,15 @@ function App() {
   const handleQueryResultNoop = useCallback(() => {}, []);
   const handleToggleAi = useCallback(() => setShowAiSidebar(v => !v), []);
   const handleTabsChange = useCallback((tabData) => {
+    // tabData now carries only lightweight tab metadata (id/name/dirty/path/type)
+    // and fires only when that metadata changes — never per keystroke (G1).
     setTitleBarTabs(tabData);
-    const info = layoutRef.current?.getActiveTabInfo();
-    setActiveTabInfo(info || null);
+    const active = (tabData.tabs || []).find(t => t.id === tabData.activeTabId) || null;
+    setActiveTabInfo(active ? { path: active.path || null, type: active.type || null, name: active.name } : null);
   }, []);
+  // On-demand reader for the AI panel (G8): content/results/chartConfig are read
+  // from the layout at send time instead of flowing as reactive props per keystroke.
+  const getActiveEditorInfo = useCallback(() => layoutRef.current?.getActiveTabInfo() || null, []);
   const handleShowHistorySidebar = useCallback(() => {
     setSidebarCollapsed(false);
     setActiveSidebarTab('history');
@@ -943,13 +994,13 @@ function App() {
         currentDb={currentDb}
         readOnly={dbReadOnly}
         onCloseProject={handleCloseProject}
-        onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
+        onSwitchProject={handleSwitchProject}
       />
 
       {/* Command Palette — Global */}
       <CommandPalette
         isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
+        onClose={handleCloseCommandPalette}
         actions={commandPaletteActions}
       />
 
@@ -1080,7 +1131,7 @@ function App() {
               </button>
             </div>
 
-            <div className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
+            <div ref={sidebarElRef} className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
 
             {/* Content Switcher — keep-alive: cada panel se monta en la primera visita
                 y permanece montado. display:none/flex controla visibilidad. */}
@@ -1177,15 +1228,18 @@ function App() {
                   isResizingSidebar.current = true;
                   const startX = e.clientX;
                   const startWidth = sidebarWidth;
+                  let lastWidth = startWidth;
                   const onMouseMove = (ev) => {
                     const delta = ev.clientX - startX;
-                    const newWidth = Math.min(480, Math.max(200, startWidth + delta));
-                    setSidebarWidth(newWidth);
+                    lastWidth = Math.min(480, Math.max(200, startWidth + delta));
+                    // Direct DOM mutation during drag — no App re-render per pixel
+                    if (sidebarElRef.current) sidebarElRef.current.style.width = `${lastWidth}px`;
                   };
                   const onMouseUp = () => {
                     isResizingSidebar.current = false;
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
+                    setSidebarWidth(lastWidth); // single commit (also persists via effect)
                   };
                   document.addEventListener('mousemove', onMouseMove);
                   document.addEventListener('mouseup', onMouseUp);
@@ -1205,54 +1259,16 @@ function App() {
                       <TabBar
                         tabs={titleBarTabs.left?.tabs || []}
                         activeTabId={titleBarTabs.left?.activeTabId}
-                        onTabClick={(id) => {
-                          const props = layoutRef.current?.getTabBarProps('left');
-                          if (props) props.onTabClick(id);
-                        }}
-                        onTabClose={(id) => {
-                          const props = layoutRef.current?.getTabBarProps('left');
-                          if (props) props.onTabClose(id);
-                        }}
                         paneId="left"
-                        onDragStart={(e, tabId) => {
-                          const props = layoutRef.current?.getTabBarProps('left');
-                          if (props?.onDragStart) props.onDragStart(e, tabId, 'left');
-                        }}
-                        onReorder={(src, target) => {
-                          const props = layoutRef.current?.getTabBarProps('left');
-                          if (props?.onReorder) props.onReorder(src, target, 'left');
-                        }}
-                        onCreateNew={(type) => {
-                          const props = layoutRef.current?.getTabBarProps('left');
-                          if (props?.onCreateNew) props.onCreateNew(type);
-                        }}
+                        {...leftTabBarHandlers}
                       />
                     </div>
                     <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
                       <TabBar
                         tabs={titleBarTabs.right?.tabs || []}
                         activeTabId={titleBarTabs.right?.activeTabId}
-                        onTabClick={(id) => {
-                          const props = layoutRef.current?.getTabBarProps('right');
-                          if (props) props.onTabClick(id);
-                        }}
-                        onTabClose={(id) => {
-                          const props = layoutRef.current?.getTabBarProps('right');
-                          if (props) props.onTabClose(id);
-                        }}
                         paneId="right"
-                        onDragStart={(e, tabId) => {
-                          const props = layoutRef.current?.getTabBarProps('right');
-                          if (props?.onDragStart) props.onDragStart(e, tabId, 'right');
-                        }}
-                        onReorder={(src, target) => {
-                          const props = layoutRef.current?.getTabBarProps('right');
-                          if (props?.onReorder) props.onReorder(src, target, 'right');
-                        }}
-                        onCreateNew={(type) => {
-                          const props = layoutRef.current?.getTabBarProps('right');
-                          if (props?.onCreateNew) props.onCreateNew(type);
-                        }}
+                        {...rightTabBarHandlers}
                       />
                     </div>
                   </>
@@ -1261,27 +1277,8 @@ function App() {
                     <TabBar
                       tabs={titleBarTabs.tabs}
                       activeTabId={titleBarTabs.activeTabId}
-                      onTabClick={(id) => {
-                        const props = layoutRef.current?.getTabBarProps();
-                        if (props) props.onTabClick(id);
-                      }}
-                      onTabClose={(id) => {
-                        const props = layoutRef.current?.getTabBarProps();
-                        if (props) props.onTabClose(id);
-                      }}
                       paneId={titleBarTabs.paneId}
-                      onDragStart={(e, tabId, paneId) => {
-                        const props = layoutRef.current?.getTabBarProps();
-                        if (props?.onDragStart) props.onDragStart(e, tabId, paneId);
-                      }}
-                      onReorder={(src, target, paneId) => {
-                        const props = layoutRef.current?.getTabBarProps();
-                        if (props?.onReorder) props.onReorder(src, target, paneId);
-                      }}
-                      onCreateNew={(type) => {
-                        const props = layoutRef.current?.getTabBarProps();
-                        if (props?.onCreateNew) props.onCreateNew(type);
-                      }}
+                      {...singleTabBarHandlers}
                     />
                   </div>
                 )}
@@ -1312,7 +1309,7 @@ function App() {
               </div>
 
               {/* Right Panel: AI Assistant (sidebar) or Data Diving (full screen) */}
-              <div style={{
+              <div ref={aiPanelOuterRef} style={{
                 width: showAiSidebar ? `${aiPanelWidth}px` : '0px',
                 flexGrow: 0,
                 flexShrink: 0,
@@ -1331,13 +1328,11 @@ function App() {
                 {/* Fixed-width, right-anchored inner: the panel is laid out once at
                     aiPanelWidth and the outer clip "reveals" it as width animates, so its
                     heavy content (chat/markdown) never reflows frame-by-frame on open. */}
-                <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${aiPanelWidth}px`, display: 'flex' }}>
+                <div ref={aiPanelInnerRef} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${aiPanelWidth}px`, display: 'flex' }}>
                 <AiAssistantPanel
                   activeFilePath={activeTabInfo?.path || null}
                   activeFileType={activeTabInfo?.type || null}
-                  activeFileContent={activeTabInfo?.content || null}
-                  activeResult={activeTabInfo?.results || null}
-                  activeChartConfig={activeTabInfo?.chartConfig || null}
+                  getActiveTabInfo={getActiveEditorInfo}
                   onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
                     onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
                     onAppendToFile={(sql) => layoutRef.current?.appendToActiveContent(sql)}
@@ -1346,6 +1341,7 @@ function App() {
                     availableTables={availableTables}
                     onOpenSettings={() => setIsSettingsOpen(true)}
                     onResize={setAiPanelWidth}
+                    onResizePreview={previewAiPanelWidth}
                     panelWidth={aiPanelWidth}
                     onOpenDataDiving={(convId) => layoutRef.current?.createNew('datadiving', convId)}
                   />

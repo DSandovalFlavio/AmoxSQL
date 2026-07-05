@@ -12,6 +12,9 @@ import { useToast } from './ToastProvider';
 
 const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null }) => {
     const toast = useToast();
+    // currentEditorQuery may be a string (notebook cells) or a getter function
+    // (EditorPane passes a stable getter so typing doesn't break this memo).
+    const resolveEditorQuery = () => (typeof currentEditorQuery === 'function' ? currentEditorQuery() : currentEditorQuery);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
@@ -276,7 +279,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         if (!vaultTitle.trim()) return;
         setVaultSaving(true);
         try {
-            const sqlContent = query || currentEditorQuery || '';
+            const sqlContent = query || resolveEditorQuery() || '';
             const res = await fetch(`${API_BASE}/api/ai/vault`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -663,13 +666,13 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
             <ExportDataModal
                 isOpen={isExportDataOpen}
                 onClose={() => setIsExportDataOpen(false)}
-                query={currentEditorQuery || query}
+                query={resolveEditorQuery() || query}
             />
 
             <ExportAiContextModal
                 isOpen={isExportAiContextOpen}
                 onClose={() => setIsExportAiContextOpen(false)}
-                query={currentEditorQuery || query}
+                query={resolveEditorQuery() || query}
             />
 
             {/* Compare Results Modal */}

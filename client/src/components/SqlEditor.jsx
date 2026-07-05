@@ -1,8 +1,12 @@
 import { API_BASE } from '../api.js';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
-import { SqlWorkerBridge } from '../utils/sqlWorkerBridge';
+import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
+
+// Per-editor-instance document id inside the SHARED SQL worker (one worker +
+// one WASM pair for the whole app; documents keyed by this id).
+let __sqlDocSeq = 0;
 
 // Lazily fetch the DuckDB function catalog once and cache it on window (shared by the
 // completion provider and the hover provider). Idempotent — safe to call repeatedly;
@@ -28,9 +32,23 @@ function ensureDuckdbFunctionCatalog() {
 // Cached by probe SQL (the probe text changes when the query changes, so it self-invalidates).
 // Aborts after 300ms and returns [] on any failure → the editor falls back to its heuristics.
 const __describeCache = new Map();
+const DESCRIBE_CACHE_MAX = 200;
+// Whitespace-insensitive key: while typing, the probe SQL changes by spacing/
+// newlines constantly — without normalization almost every suggest session
+// was a cache miss (a fresh HTTP DESCRIBE mid-typing).
+function describeCacheKey(probeSql) {
+    return probeSql.replace(/\s+/g, ' ').trim();
+}
 async function describeColumns(probeSql) {
     if (!probeSql) return [];
-    if (__describeCache.has(probeSql)) return __describeCache.get(probeSql);
+    const key = describeCacheKey(probeSql);
+    if (__describeCache.has(key)) {
+        const hit = __describeCache.get(key);
+        // LRU touch (Map keeps insertion order)
+        __describeCache.delete(key);
+        __describeCache.set(key, hit);
+        return hit;
+    }
     try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 300);
@@ -43,7 +61,10 @@ async function describeColumns(probeSql) {
         clearTimeout(timer);
         const data = await r.json();
         const cols = Array.isArray(data.columns) ? data.columns : [];
-        __describeCache.set(probeSql, cols);
+        __describeCache.set(key, cols);
+        if (__describeCache.size > DESCRIBE_CACHE_MAX) {
+            __describeCache.delete(__describeCache.keys().next().value);
+        }
         return cols;
     } catch {
         return []; // timeout / network / invalid query → graceful fallback
@@ -280,9 +301,13 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const monacoRef = useRef(null);
     const completionProviderRef = useRef(null);
     const workerBridgeRef = useRef(null);
+    const docIdRef = useRef(`sqldoc_${++__sqlDocSeq}`);
     const activeTabIdRef = useRef(props.tabId);
 
-    const broadcastHistoryRef = useRef([]);
+    // Last value we emitted through onChange. While the parent's `value` prop
+    // lags behind this (debounced state, slow renders), any differing incoming
+    // value is a stale echo of our own edit — never a reason to rewrite the buffer.
+    const lastBroadcastRef = useRef(null);
 
     // Save view state on unmount
     useEffect(() => {
@@ -293,20 +318,23 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         };
     }, []);
 
-    // Intelligently sync external value changes (e.g., loading a new file, formatting, tab switch)
-    // without suffering from "React Controlled Component Cursor Jump" during fast typing.
+    // Sync external value changes (loading a file, formatting, tab switch).
+    // The editor model OWNS the text: `setValue()` resets the cursor to (1,1)
+    // and clears the undo stack, so it is applied only for genuine external
+    // replacements — never under the user's cursor, never for echoes.
     useEffect(() => {
         if (!editorRef.current) return;
-        
-        // If the active tab changed, swap the view state
+        const editor = editorRef.current;
+
+        // If the active tab changed, swap the buffer + view state
         if (props.tabId && props.tabId !== activeTabIdRef.current) {
             if (activeTabIdRef.current) {
-                globalViewStateCache.set(activeTabIdRef.current, editorRef.current.saveViewState());
+                globalViewStateCache.set(activeTabIdRef.current, editor.saveViewState());
             }
             activeTabIdRef.current = props.tabId;
-            editorRef.current.setValue(value || '');
-            broadcastHistoryRef.current = [];
-            
+            editor.setValue(value || '');
+            lastBroadcastRef.current = null;
+
             const savedState = globalViewStateCache.get(props.tabId);
             if (savedState) {
                 // Use a tiny timeout to ensure the model has updated before restoring state
@@ -315,30 +343,27 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             return;
         }
 
-        const currentModelValue = editorRef.current.getValue();
-        
-        // Exact match -> do nothing
-        if (value === currentModelValue) return;
-
-        // Detect if the incoming value is merely a stale echo of what we already typed
-        const historyIndex = broadcastHistoryRef.current.indexOf(value);
-        if (historyIndex !== -1) {
-            // It's an echo. Throw away older history to save memory and IGNORE the prop.
-            broadcastHistoryRef.current.splice(0, historyIndex + 1);
+        // Steady state: the parent reflects the buffer. From here on, a differing
+        // value is a genuine external change again.
+        if ((value ?? '') === editor.getValue()) {
+            lastBroadcastRef.current = null;
             return;
         }
 
-        // If we reach here, it's a completely new/external value on the same tab (e.g. formatted)
-        editorRef.current.setValue(value || '');
-        broadcastHistoryRef.current = []; // reset history array
+        // The user is typing here — the buffer is the source of truth.
+        if (editor.hasTextFocus()) return;
+
+        // The parent hasn't consumed our latest emission yet → stale echo.
+        if (lastBroadcastRef.current !== null && editor.getValue() === lastBroadcastRef.current) return;
+
+        // Genuine external replacement (file reload, format, AI edit applied).
+        const viewState = editor.saveViewState();
+        editor.setValue(value || '');
+        if (viewState) editor.restoreViewState(viewState);
     }, [value, props.tabId]);
 
     const handleEditorChange = (newValue, event) => {
-        broadcastHistoryRef.current.push(newValue);
-        // Cap history to last 50 edits to prevent runaway memory
-        if (broadcastHistoryRef.current.length > 50) {
-            broadcastHistoryRef.current.shift();
-        }
+        lastBroadcastRef.current = newValue;
 
         onChange(newValue);
         // Clear error markers when user edits the code
@@ -454,6 +479,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // Clear any previous disposables (safety for re-mount scenarios)
         disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
         disposablesRef.current = [];
+
+        // Monaco measures glyph widths at init; if the editor font finishes
+        // loading afterwards, cursor and selection are painted with stale
+        // widths (visually behind the real position). Re-measure once fonts
+        // are ready.
+        if (document.fonts?.ready) {
+            document.fonts.ready.then(() => monaco.editor.remeasureFonts());
+        }
 
         // Prefetch the DuckDB function catalog so the very first completion already has
         // functions (otherwise the first keystroke of a session shows none until it loads).
@@ -597,6 +630,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             document.head.appendChild(style);
         }
 
+        // Own decorations collection: cheaper than filtering getAllDecorations()
+        // and immune to other decoration owners.
+        const cteDecorations = editor.createDecorationsCollection([]);
+
         const updateCteDecorations = () => {
             const model = editor.getModel();
             if (!model) return;
@@ -618,17 +655,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 });
             }
 
-            const existing = model.getAllDecorations()
-                .filter(d => d.options.glyphMarginClassName === 'cte-debug-glyph')
-                .map(d => d.id);
-
-            editor.deltaDecorations(existing, newDecorations);
+            cteDecorations.set(newDecorations);
         };
 
-        // Initial run & Listener
+        // Initial run & debounced listener (full-document regex — not per keystroke)
         updateCteDecorations();
-        const contentChangeDisposable = editor.onDidChangeModelContent(updateCteDecorations);
+        let cteDebounceTimer = null;
+        const contentChangeDisposable = editor.onDidChangeModelContent(() => {
+            if (cteDebounceTimer) clearTimeout(cteDebounceTimer);
+            cteDebounceTimer = setTimeout(updateCteDecorations, 250);
+        });
         disposablesRef.current.push(contentChangeDisposable);
+        disposablesRef.current.push({ dispose: () => { if (cteDebounceTimer) clearTimeout(cteDebounceTimer); } });
 
         // Handle Click
         const mouseDownDisposable = editor.onMouseDown((e) => {
@@ -697,14 +735,15 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }
         }
 
-        // Initialize Web Worker Bridge
+        // Attach to the SHARED Web Worker bridge (one worker for all editors;
+        // this instance's buffer lives under docIdRef inside it)
         if (!workerBridgeRef.current) {
-            workerBridgeRef.current = new SqlWorkerBridge();
-            workerBridgeRef.current.init().then(() => {
+            workerBridgeRef.current = getSharedSqlWorkerBridge();
+            initSharedSqlWorkerBridge().then(() => {
                 // CRITICAL: Sync initial document so Worker has the AST before first Ctrl+Space
                 const initialText = editor.getValue();
                 if (initialText) {
-                    workerBridgeRef.current.syncDocument(initialText);
+                    workerBridgeRef.current.syncDocument(docIdRef.current, initialText);
                 }
 
                 // Fetch Full Schema (Tables + Columns)
@@ -758,7 +797,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         const changeModelDisposable = editor.onDidChangeModelContent(() => {
             const text = editor.getValue();
             if (workerBridgeRef.current) {
-                workerBridgeRef.current.syncDocument(text);
+                workerBridgeRef.current.syncDocument(docIdRef.current, text);
             }
 
             if (fileScanTimeout) clearTimeout(fileScanTimeout);
@@ -820,7 +859,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             if (['{', "'"].includes(fullText[cursorOffset - 1])) {
                 triggerContent = fullText[cursorOffset - 1];
             }
-            const { suggestions: workerSuggestions, clause, derived } = await workerBridgeRef.current.getCompletions(position.lineNumber, position.column, triggerContent);
+            const { suggestions: workerSuggestions, clause, derived } = await workerBridgeRef.current.getCompletions(docIdRef.current, position.lineNumber, position.column, triggerContent);
 
             // Abort if the user kept typing while the worker was processing
             if (token && token.isCancellationRequested) {
@@ -851,15 +890,19 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 }
                 const isColumnClause = !['FROM', 'JOIN', 'ROOT', 'LIMIT', 'CTE'].includes(clause);
                 if (isColumnClause && derived.relations && derived.relations.length) {
-                    for (const rel of derived.relations) {
-                        const cols = await describeColumns(rel.probeSql);
-                        cols.forEach(c => suggestions.push({
+                    // Probe all relations concurrently — serial awaits stacked
+                    // up to N×300ms before the suggest list could resolve.
+                    const colsPerRelation = await Promise.all(
+                        derived.relations.map(rel => describeColumns(rel.probeSql))
+                    );
+                    if (token && token.isCancellationRequested) return { suggestions: [] };
+                    derived.relations.forEach((rel, i) => {
+                        colsPerRelation[i].forEach(c => suggestions.push({
                             label: c.name, kind: monaco.languages.CompletionItemKind.Field,
                             insertText: c.name, detail: `${c.type || 'Column'} (${rel.name})`,
                             filterText: c.name, sortText: '1_b_' + c.name,
                         }));
-                    }
-                    if (token && token.isCancellationRequested) return { suggestions: [] };
+                    });
                 }
             }
 
@@ -1057,7 +1100,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     useEffect(() => {
         return () => {
             disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
-            if (workerBridgeRef.current) workerBridgeRef.current.dispose();
+            // Shared worker: release only OUR document — never terminate it.
+            if (workerBridgeRef.current) workerBridgeRef.current.removeDocument(docIdRef.current);
         };
     }, []);
 
@@ -1103,17 +1147,11 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         });
     }, [props.theme]);
 
-    const es = props.editorSettings || {};
-
-    return (
-        <Editor
-            height="100%"
-            language={props.language || 'sql'}
-            defaultValue={value}
-            onChange={handleEditorChange}
-            theme={['light', 'ivory', 'mist', 'snow'].includes(props.theme) ? 'duckdb-light' : 'duckdb-dark'}
-            beforeMount={handleEditorWillMount}
-            options={{
+    // Stable identity: a fresh options object every render makes the <Editor>
+    // wrapper call updateOptions() on each reconciliation.
+    const editorOptions = useMemo(() => {
+        const es = props.editorSettings || {};
+        return {
                 minimap: { enabled: es.minimap ?? false },
                 fontSize: es.fontSize ?? 14,
                 fontFamily: es.fontFamily ?? "'JetBrains Mono', 'Consolas', monospace",
@@ -1152,7 +1190,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     // worker, so it falls back to a SYNCHRONOUS main-thread document scan on
                     // every keystroke → input lag. Revisit only if the editor worker is wired up.
                 }
-            }}
+        };
+    }, [props.editorSettings]);
+
+    return (
+        <Editor
+            height="100%"
+            language={props.language || 'sql'}
+            defaultValue={value}
+            onChange={handleEditorChange}
+            theme={['light', 'ivory', 'mist', 'snow'].includes(props.theme) ? 'duckdb-light' : 'duckdb-dark'}
+            beforeMount={handleEditorWillMount}
+            options={editorOptions}
             onMount={handleEditorDidMount}
         />
     );

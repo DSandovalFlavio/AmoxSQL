@@ -1,19 +1,53 @@
 import { API_BASE } from '../api.js';
-import React, { useState, useRef, useEffect, lazy, Suspense, memo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
 import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
-import SqlNotebook from './SqlNotebook';
 import ResultsTable from './ResultsTable';
 import { VariablesToggle, VariablesPanel } from './VariablesBar';
-import ErDiagram from './ErDiagram';
-import DbtLineageGraph from './DbtLineageGraph';
-import AmoxvisPane from './AmoxvisPane';
-import MarkdownEditor from './MarkdownEditor';
-import DeckEditor from './deck/DeckEditor';
 
+// Lazy pane types (G10): each of these pulls a heavy dependency tree
+// (Recharts, mermaid/katex/highlight via MarkdownPreview, @xyflow/react…).
+// SqlEditor + ResultsTable stay eager — they are the default editor path.
+const SqlNotebook = lazy(() => import('./SqlNotebook'));
+const ErDiagram = lazy(() => import('./ErDiagram'));
+const DbtLineageGraph = lazy(() => import('./DbtLineageGraph'));
+const AmoxvisPane = lazy(() => import('./AmoxvisPane'));
+const MarkdownEditor = lazy(() => import('./MarkdownEditor'));
+const DeckEditor = lazy(() => import('./deck/DeckEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
+
+// Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
+const PaneLoading = ({ label = 'Loading…' }) => (
+    <div style={{ padding: 24, color: 'var(--text-tertiary)' }}>{label}</div>
+);
+
+const formatTimeAgo = (date) => {
+    if (!date) return '—';
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    if (diff < 5) return 'just now';
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// "Edited Xs ago · Ran Xs ago" label. Timestamps live in refs (updated in the
+// edit/run handlers, no setState per keystroke); this tiny memoized component
+// owns a low-frequency tick so only IT re-renders to refresh the label.
+const PaneTimestamps = memo(({ lastEditRef, lastRunRef }) => {
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 10000);
+        return () => clearInterval(id);
+    }, []);
+    return (
+        <span className="ep-action-timestamps">
+            Edited {formatTimeAgo(lastEditRef.current)} · Ran {formatTimeAgo(lastRunRef.current)}
+        </span>
+    );
+});
 
 const EditorPane = ({
     paneId,
@@ -79,12 +113,18 @@ const EditorPane = ({
     }, []);
 
     const activeTab = tabs.find(t => t.id === activeTabId);
+    // Latest active tab, readable from stable callbacks/getters without
+    // changing their identity per keystroke (G4).
+    const activeTabRef = useRef(null);
+    activeTabRef.current = activeTab;
 
     // Action bar state (must be before any early return)
     const [showSaveMenu, setShowSaveMenu] = useState(false);
     const saveMenuRef = useRef(null);
-    const [lastEditTime, setLastEditTime] = useState(null);
-    const [lastRunTime, setLastRunTime] = useState(null);
+    // Edit/run timestamps as refs — updating them must NOT re-render the pane
+    // on every keystroke; PaneTimestamps refreshes the label on its own tick.
+    const lastEditTimeRef = useRef(null);
+    const lastRunTimeRef = useRef(null);
     const [varsExpanded, setVarsExpanded] = useState(false);
 
     // Close save dropdown on outside click
@@ -97,18 +137,23 @@ const EditorPane = ({
         return () => document.removeEventListener('mousedown', handler);
     }, [showSaveMenu]);
 
-    const handlePopout = () => {
-        if (!activeTab?.results) return;
+    const handlePopout = useCallback(() => {
+        const tab = activeTabRef.current;
+        if (!tab?.results) return;
         const payload = {
-            data: activeTab.results.data,
-            types: activeTab.results.types,
-            executionTime: activeTab.results.executionTime,
-            query: activeTab.resultsQuery || activeTab.content,
-            cellTitle: activeTab.name,
+            data: tab.results.data,
+            types: tab.results.types,
+            executionTime: tab.results.executionTime,
+            query: tab.resultsQuery || tab.content,
+            cellTitle: tab.name,
         };
         window.electronAPI?.openPopout(payload);
         setIsPoppedOut(true);
-    };
+    }, []);
+
+    // Stable getter for the live editor content — passed to ResultsTable instead
+    // of the content string itself, so its memo survives keystrokes (G4).
+    const getCurrentEditorQuery = useCallback(() => activeTabRef.current?.content || '', []);
 
     // Auto-update the pop-out window when results change
     useEffect(() => {
@@ -297,26 +342,16 @@ const EditorPane = ({
     const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
     const isDeck = activeTab.type === 'amoxdeck' || activeTab.name?.endsWith('.amoxdeck');
 
-    // Track last edit time on content change
+    // Track last edit time on content change — ref only, no setState per keystroke
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
-        setLastEditTime(new Date());
+        lastEditTimeRef.current = new Date();
         onContentChange(tabId, newContent);
     };
 
     // Track last run time
     const handleRunWithTimestamp = async (tabId, query) => {
-        setLastRunTime(new Date());
+        lastRunTimeRef.current = new Date();
         return onRunQuery(tabId, query);
-    };
-
-    const formatTimeAgo = (date) => {
-        if (!date) return '—';
-        const now = new Date();
-        const diff = Math.floor((now - date) / 1000);
-        if (diff < 5) return 'just now';
-        if (diff < 60) return `${diff}s ago`;
-        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     // Results panel content (shared between both layouts)
@@ -332,7 +367,7 @@ const EditorPane = ({
                             types={activeTab.results.types}
                             executionTime={activeTab.results.executionTime}
                             query={activeTab.resultsQuery || activeTab.content}
-                            currentEditorQuery={activeTab.content}
+                            currentEditorQuery={getCurrentEditorQuery}
                             onDbChange={onDbChange}
                             initialChartConfig={activeTab.initialChartConfig}
                             editorSettings={editorSettings}
@@ -404,13 +439,15 @@ const EditorPane = ({
                 {/* Content Area */}
                 {isAmoxvis ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
-                        <AmoxvisPane
-                            tab={activeTab}
-                            onRunQuery={onRunQuery}
-                            onSave={onSave}
-                            onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
-                            onConfigChange={(config) => onContentChange(activeTab.id, JSON.stringify(config, null, 2))}
-                        />
+                        <Suspense fallback={<PaneLoading />}>
+                            <AmoxvisPane
+                                tab={activeTab}
+                                onRunQuery={onRunQuery}
+                                onSave={onSave}
+                                onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
+                                onConfigChange={(config) => onContentChange(activeTab.id, JSON.stringify(config, null, 2))}
+                            />
+                        </Suspense>
                     </div>
                 ) : isDataDiving ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-primary)' }}>
@@ -428,11 +465,15 @@ const EditorPane = ({
                     </div>
                 ) : isErDiagram ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)' }}>
-                        <ErDiagram schema={activeTab.content || ''} onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                        <Suspense fallback={<PaneLoading />}>
+                            <ErDiagram schema={activeTab.content || ''} onCreateTab={(ddl) => onCreateNew('sql', ddl)} />
+                        </Suspense>
                     </div>
                 ) : isDbtLineage ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-default)', height: '100%' }}>
-                        <DbtLineageGraph onFileOpen={onOpenFile} />
+                        <Suspense fallback={<PaneLoading />}>
+                            <DbtLineageGraph onFileOpen={onOpenFile} />
+                        </Suspense>
                     </div>
                 ) : isChain ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
@@ -449,6 +490,7 @@ const EditorPane = ({
                     </div>
                 ) : isDeck ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
                         <DeckEditor
                             key={activeTab.id}
                             content={activeTab.content}
@@ -462,9 +504,11 @@ const EditorPane = ({
                             isActive={isActive}
                             onOpenFile={onOpenFile}
                         />
+                        </Suspense>
                     </div>
                 ) : isMarkdown ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
                         <MarkdownEditor
                             key={activeTab.id}
                             content={activeTab.content}
@@ -478,9 +522,11 @@ const EditorPane = ({
                             isActive={isActive}
                             onOpenFile={onOpenFile}
                         />
+                        </Suspense>
                     </div>
                 ) : isNotebook ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
                         <SqlNotebook
                             key={activeTab.id}
                             content={activeTab.content}
@@ -491,6 +537,7 @@ const EditorPane = ({
                             onToggleAi={onToggleAi}
                             showAiSidebar={showAiSidebar}
                         />
+                        </Suspense>
                     </div>
                 ) : (
                     <div className={`ep-editor-area${isVertical ? ' vertical' : ''}`}>
@@ -587,9 +634,7 @@ const EditorPane = ({
                                 </div>
 
                                 <div className="ep-action-right">
-                                    <span className="ep-action-timestamps">
-                                        Edited {formatTimeAgo(lastEditTime)} · Ran {formatTimeAgo(lastRunTime)}
-                                    </span>
+                                    <PaneTimestamps lastEditRef={lastEditTimeRef} lastRunRef={lastRunTimeRef} />
 
                                     {/* AI Toggle per editor */}
                                     {onToggleAi && (

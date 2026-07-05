@@ -12,9 +12,14 @@ const fs = require('fs');
 const path = require('path');
 
 const { analyzeJoin } = require('./joinSanityCheck');
+const { applyRowLimit } = require('../_sqlUtils');
 
 const SQL_TIMEOUT_MS = 30000;
 const MAX_FILE_SIZE = 50 * 1024;
+/** Hard cap applied INSIDE DuckDB (via LIMIT N+1) before materializing rows in JS.
+ *  Without it, a SELECT * over millions of rows freezes the event loop (and the SSE)
+ *  converting the full result to JS objects just to throw most of it away. */
+const TOOL_ROW_LIMIT = 500;
 
 /**
  * Creates the complete set of agent tools, filtered by mode.
@@ -37,6 +42,14 @@ function createTools(context) {
         enablePlanner = false,
     } = context;
 
+    // All AI tool queries ride the dedicated 'ai' connection lane: they don't
+    // queue behind user queries on 'main', and the tool timeout can interrupt
+    // them without killing the user's running query. Falls back to the plain
+    // manager if lanes are unavailable (e.g. test doubles).
+    const db = (dbManager && typeof dbManager.lane === 'function')
+        ? dbManager.lane('ai')
+        : dbManager;
+
     // ─── Universal tools (all modes) ──────────────────────────────────────────
 
     const allTools = {
@@ -51,20 +64,56 @@ function createTools(context) {
                     if (!query || typeof query !== 'string') {
                         return { error: 'Invalid query parameter. Expected a SQL string.' };
                     }
+                    // Cap the result INSIDE DuckDB (LIMIT 501 probe) instead of
+                    // materializing millions of rows in JS and slicing after.
+                    // Queries with their own inner LIMIT are unaffected (the
+                    // outer LIMIT only caps); DDL/DML pass through unchanged.
+                    const { sql: limitedSql, limited } = applyRowLimit(query, TOOL_ROW_LIMIT);
+
                     const start = performance.now();
-                    const result = await Promise.race([
-                        dbManager.queryWithMetadata(query),
-                        new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error(`Query exceeded timeout of ${SQL_TIMEOUT_MS / 1000}s`)), SQL_TIMEOUT_MS)
-                        ),
-                    ]);
+                    let timeoutTimer = null;
+                    let result;
+                    // Keep a handled reference: after a timeout+interrupt the losing
+                    // promise still rejects later — without this it would surface as
+                    // an unhandledRejection.
+                    const trackId = `aiq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    const queryPromise = db.queryWithMetadata(limitedSql, { trackId });
+                    queryPromise.catch(() => {});
+                    try {
+                        result = await Promise.race([
+                            queryPromise,
+                            new Promise((_, reject) => {
+                                timeoutTimer = setTimeout(() => {
+                                    // Cancel the running query on the AI lane — but only
+                                    // if OUR query is still the one executing there:
+                                    // DuckDB's interrupt flag is sticky and would kill
+                                    // the next statement (e.g. a persistence write).
+                                    try {
+                                        if (!db.isRunning || db.isRunning('ai', trackId)) db.interruptQuery('ai');
+                                    } catch { /* best-effort */ }
+                                    reject(new Error(`Query exceeded timeout of ${SQL_TIMEOUT_MS / 1000}s`));
+                                }, SQL_TIMEOUT_MS);
+                            }),
+                        ]);
+                    } finally {
+                        if (timeoutTimer) clearTimeout(timeoutTimer);
+                    }
                     const end = performance.now();
                     const executionTime = Math.round(end - start);
 
+                    // We fetched TOOL_ROW_LIMIT + 1 rows: the extra row only signals
+                    // that the full result has more rows than the cap.
+                    let allRows = result.rows;
+                    let dbTruncated = false;
+                    if (limited && allRows.length > TOOL_ROW_LIMIT) {
+                        allRows = allRows.slice(0, TOOL_ROW_LIMIT);
+                        dbTruncated = true;
+                    }
+
                     const MAX_ROWS = 200;
-                    const data = result.rows.length > MAX_ROWS
-                        ? result.rows.slice(0, MAX_ROWS)
-                        : result.rows;
+                    const data = allRows.length > MAX_ROWS
+                        ? allRows.slice(0, MAX_ROWS)
+                        : allRows;
 
                     const queryId = `qr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
@@ -72,11 +121,15 @@ function createTools(context) {
                         ? Object.entries(result.types).map(([name, type]) => ({ name, type }))
                         : [];
 
+                    // Cached rows are already capped at TOOL_ROW_LIMIT (500) by the
+                    // DB-side LIMIT above, so the whole set is safe to keep per entry.
+                    // Consumers (display_chart, chart story, /api/ai/query-cache)
+                    // fall back to the DB cache, which stores the same rows.
                     const cacheEntry = {
                         query,
                         columns,
-                        data: result.rows,
-                        rowCount: result.rows.length,
+                        data: allRows,
+                        rowCount: allRows.length,
                         executionTime,
                     };
 
@@ -91,8 +144,8 @@ function createTools(context) {
                             conversationId,
                             sqlQuery: query,
                             columns,
-                            data: result.rows,
-                            rowCount: result.rows.length,
+                            data: cacheEntry.data,
+                            rowCount: allRows.length,
                             execMs: executionTime,
                         }).then(() => {
                             if (conversationId) {
@@ -101,15 +154,22 @@ function createTools(context) {
                         }).catch(e => console.warn('[Tools] query_cache write failed:', e.message));
                     }
 
-                    const joinWarning = await analyzeJoin(query, result.rows.length, dbManager);
+                    const joinWarning = await analyzeJoin(query, allRows.length, db);
 
                     return {
                         queryId,
                         columns,
                         data,
-                        rowCount: result.rows.length,
+                        rowCount: allRows.length,
                         executionTime,
-                        truncated: result.rows.length > MAX_ROWS,
+                        truncated: dbTruncated || allRows.length > MAX_ROWS,
+                        // Honest reporting: with the DB-side cap we never know the true
+                        // total. Tell the model rowCount is a lower bound so it uses
+                        // COUNT(*)/GROUP BY instead of trusting 500 as exact.
+                        ...(dbTruncated ? {
+                            rowCountIsLowerBound: true,
+                            note: `Result capped at ${TOOL_ROW_LIMIT} rows by a server-side LIMIT (the full result has more). Use aggregations (COUNT(*), GROUP BY) or add your own LIMIT for exact figures.`,
+                        } : {}),
                         ...(joinWarning ? { warnings: [joinWarning] } : {}),
                     };
                 } catch (err) {
@@ -139,7 +199,7 @@ function createTools(context) {
             inputSchema: z.object({}),
             execute: async () => {
                 try {
-                    const tables = await dbManager.systemQuery(`
+                    const tables = await db.systemQuery(`
                         SELECT
                             table_schema,
                             table_name,
@@ -156,7 +216,7 @@ function createTools(context) {
                     const tablesWithCounts = [];
                     for (const t of tables.slice(0, 50)) {
                         try {
-                            const countRes = await dbManager.systemQuery(
+                            const countRes = await db.systemQuery(
                                 `SELECT COUNT(*) as cnt FROM "${t.table_schema}"."${t.table_name}"`
                             );
                             tablesWithCounts.push({
@@ -194,8 +254,8 @@ function createTools(context) {
                     const ref = dot > 0
                         ? `"${table_name.slice(0, dot)}"."${table_name.slice(dot + 1)}"`
                         : `"${table_name}"`;
-                    const columns = await dbManager.systemQuery(`DESCRIBE ${ref}`);
-                    const sample = await dbManager.systemQuery(`SELECT * FROM ${ref} LIMIT 5`);
+                    const columns = await db.systemQuery(`DESCRIBE ${ref}`);
+                    const sample = await db.systemQuery(`SELECT * FROM ${ref} LIMIT 5`);
 
                     return {
                         table: table_name,
@@ -721,12 +781,12 @@ function createTools(context) {
                             readerExpr = `read_csv_auto('${safePath}')`;
                     }
 
-                    try { await dbManager.systemQuery(`DROP TABLE IF EXISTS "${viewName}"`); } catch (_) {}
-                    try { await dbManager.systemQuery(`DROP VIEW IF EXISTS "${viewName}"`); } catch (_) {}
-                    await dbManager.systemQuery(`CREATE VIEW "${viewName}" AS SELECT * FROM ${readerExpr}`);
+                    try { await db.systemQuery(`DROP TABLE IF EXISTS "${viewName}"`); } catch (_) {}
+                    try { await db.systemQuery(`DROP VIEW IF EXISTS "${viewName}"`); } catch (_) {}
+                    await db.systemQuery(`CREATE VIEW "${viewName}" AS SELECT * FROM ${readerExpr}`);
 
-                    const columns = await dbManager.systemQuery(`DESCRIBE "${viewName}"`);
-                    const countRes = await dbManager.systemQuery(`SELECT COUNT(*) AS cnt FROM "${viewName}"`);
+                    const columns = await db.systemQuery(`DESCRIBE "${viewName}"`);
+                    const countRes = await db.systemQuery(`SELECT COUNT(*) AS cnt FROM "${viewName}"`);
                     const rowCount = Number(countRes[0]?.cnt ?? 0);
 
                     return {
@@ -752,7 +812,7 @@ function createTools(context) {
                 try {
                     const { profileTable } = require('./profiling');
                     const tableExpr = `"${table_name.replace(/"/g, '""')}"`;
-                    return await profileTable(dbManager, tableExpr, columns || null);
+                    return await profileTable(db, tableExpr, columns || null);
                 } catch (err) {
                     return { error: err?.message || String(err) };
                 }
@@ -772,7 +832,7 @@ function createTools(context) {
                 }
                 try {
                     const explainSql = detailed ? `EXPLAIN (FORMAT JSON) ${query}` : `EXPLAIN ${query}`;
-                    const plan = await dbManager.systemQuery(explainSql);
+                    const plan = await db.systemQuery(explainSql);
                     const planText = plan.map(r => Object.values(r).join('\t')).join('\n');
                     return {
                         valid: true,

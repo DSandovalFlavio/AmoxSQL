@@ -8,9 +8,10 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
-const { exec, execSync } = require('child_process');
+const { exec } = require('child_process');
 const dbManager        = require('./DatabaseManager');
 const scaffolder       = require('./projectScaffolder');
+const { applyRowLimit } = require('./_sqlUtils');
 
 const app = express();
 const PORT = 3001;
@@ -537,13 +538,15 @@ app.get('/api/db/version', async (req, res) => {
 app.get('/api/db/tables', async (req, res) => {
     try {
         const tables = await dbManager.systemQuery(
-            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`,
+            { lane: 'meta' }
         );
 
         const result = [];
         for (const t of tables) {
             const columns = await dbManager.systemQuery(
-                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}'`
+                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}'`,
+                { lane: 'meta' }
             );
             result.push({ name: t.table_name, schema: t.table_schema, type: t.table_type, columns });
         }
@@ -565,7 +568,8 @@ app.get('/api/db/schemas', async (req, res) => {
              LEFT JOIN information_schema.columns c
                     ON c.table_schema = t.table_schema AND c.table_name = t.table_name
              WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}
-             ORDER BY t.table_schema, t.table_name, c.ordinal_position`
+             ORDER BY t.table_schema, t.table_name, c.ordinal_position`,
+            { lane: 'meta' }
         );
 
         const schemaMap = {};
@@ -689,6 +693,8 @@ app.get('/api/db/file-schema', async (req, res) => {
 
 app.get('/api/db/history', async (req, res) => {
     try {
+        // Deliver any batched-but-unflushed entries so the panel is never stale
+        await dbManager.flushQueryHistory?.();
         // Check if history table exists first to avoid error
         const check = await dbManager.systemQuery("SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema = 'amoxsql_ai' AND table_name = 'query_history'");
         if (check[0].cnt == 0) {
@@ -736,7 +742,9 @@ app.post('/api/db/describe', async (req, res) => {
     ]);
 
     try {
-        const rows = await withTimeout(dbManager.systemQuery(`DESCRIBE ${stripped}`), 1500);
+        // 'meta' lane: keeps editor autocomplete responsive even while a long
+        // user query occupies the 'main' connection.
+        const rows = await withTimeout(dbManager.systemQuery(`DESCRIBE ${stripped}`, { lane: 'meta' }), 1500);
         const columns = (rows || []).map(c => ({ name: c.column_name, type: c.column_type }));
         res.json({ columns });
     } catch (err) {
@@ -1018,7 +1026,7 @@ app.post('/api/db/extensions/load', async (req, res) => {
 /* --- Excel Import APIs --- */
 const xlsx = require('xlsx');
 
-app.get('/api/files/inspect-excel', (req, res) => {
+app.get('/api/files/inspect-excel', async (req, res) => {
     const filePath = req.query.path;
     if (!filePath) return res.status(400).json({ error: 'Path is required' });
 
@@ -1027,7 +1035,11 @@ app.get('/api/files/inspect-excel', (req, res) => {
     if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
 
     try {
-        const workbook = xlsx.read(fs.readFileSync(fullPath), { type: 'buffer', bookSheets: true });
+        // Async read: workbooks can be hundreds of MB and this shares the
+        // event loop with the AI SSE stream. (xlsx.read parse itself is still
+        // sync CPU — a worker_thread is the remaining follow-up.)
+        const buf = await fs.promises.readFile(fullPath);
+        const workbook = xlsx.read(buf, { type: 'buffer', bookSheets: true });
         res.json({ sheets: workbook.SheetNames });
     } catch (err) {
         res.status(500).json({ error: 'Failed to read Excel file', details: err.message });
@@ -1054,8 +1066,8 @@ app.get('/api/files/inspect-columns', async (req, res) => {
 
     try {
         if (ext === '.xlsx' || ext === '.xls') {
-            // Get sheet names first
-            const workbook = xlsx.read(fs.readFileSync(fullPath), { type: 'buffer', bookSheets: true });
+            // Get sheet names first (async read — see /api/files/inspect-excel)
+            const workbook = xlsx.read(await fs.promises.readFile(fullPath), { type: 'buffer', bookSheets: true });
             const sheets = workbook.SheetNames;
 
             // Get columns for the requested sheet (or first sheet)
@@ -1176,7 +1188,7 @@ app.get('/api/settings/config', (req, res) => {
     }
 });
 
-app.post('/api/settings/config', (req, res) => {
+app.post('/api/settings/config', async (req, res) => {
     const { geminiApiKey, anthropicApiKey, minimaxApiKey, gcpProject, gcpLocation, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
     try {
         const config = aiManager.getConfig();
@@ -1202,7 +1214,7 @@ app.post('/api/settings/config', (req, res) => {
             config.geminiModels = geminiModels;
         }
 
-        fs.writeFileSync(aiManager.configPath, JSON.stringify(config, null, 2));
+        await fs.promises.writeFile(aiManager.configPath, JSON.stringify(config, null, 2));
         res.json({ success: true, config });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -1885,25 +1897,64 @@ async function buildTableContext(contextTables = null) {
 
         query += `\n            ORDER BY table_schema, table_name`;
 
-        const tables = await dbManager.systemQuery(query);
-
-        const tableContexts = [];
-        for (const t of tables.slice(0, 30)) {
-            try {
-                // Schema-qualified — tables may live outside the default `main` schema
-                const qref = t.table_schema ? `"${t.table_schema}"."${t.table_name}"` : `"${t.table_name}"`;
-                const cols = await dbManager.systemQuery(`DESCRIBE ${qref}`);
-                const countRes = await dbManager.systemQuery(`SELECT COUNT(*) as cnt FROM ${qref}`);
-                tableContexts.push({
-                    name: t.table_name,
-                    schema: t.table_schema,
-                    columns: cols.map(c => ({ name: c.column_name, type: c.column_type })),
-                    rows: countRes[0]?.cnt || 0,
-                });
-            } catch {
-                tableContexts.push({ name: t.table_name, schema: t.table_schema, columns: [], rows: '?' });
-            }
+        const tables = await dbManager.systemQuery(query, { lane: 'meta' });
+        const selected = tables.slice(0, 30);
+        if (selected.length === 0) {
+            _tableContextCache = [];
+            _tableContextCacheTime = now;
+            return [];
         }
+
+        // Single pass instead of DESCRIBE + COUNT(*) per table (up to 60 queries
+        // before the first stream token): one information_schema.columns scan for
+        // all selected tables + duckdb_tables() estimated_size for row counts.
+        const esc = (v) => String(v).replace(/'/g, "''");
+        const keyList = selected
+            .map(t => `'${esc(t.table_schema)}.${esc(t.table_name)}'`)
+            .join(',');
+
+        let colRows = [];
+        let sizeRows = [];
+        try {
+            [colRows, sizeRows] = await Promise.all([
+                dbManager.systemQuery(
+                    `SELECT table_schema, table_name, column_name, data_type
+                     FROM information_schema.columns
+                     WHERE table_schema || '.' || table_name IN (${keyList})
+                     ORDER BY table_schema, table_name, ordinal_position`,
+                    { lane: 'meta' }
+                ),
+                dbManager.systemQuery(
+                    `SELECT schema_name, table_name, estimated_size
+                     FROM duckdb_tables()
+                     WHERE schema_name || '.' || table_name IN (${keyList})`,
+                    { lane: 'meta' }
+                ),
+            ]);
+        } catch { /* fall through — tables render with empty columns / '?' rows */ }
+
+        const colMap = new Map();   // 'schema.table' → [{name, type}]
+        for (const c of colRows) {
+            const key = `${c.table_schema}.${c.table_name}`;
+            if (!colMap.has(key)) colMap.set(key, []);
+            colMap.get(key).push({ name: c.column_name, type: c.data_type });
+        }
+        const sizeMap = new Map();  // 'schema.table' → estimated row count
+        for (const r of sizeRows) {
+            const key = `${r.schema_name}.${r.table_name}`;
+            if (!sizeMap.has(key)) sizeMap.set(key, r.estimated_size);
+        }
+
+        const tableContexts = selected.map(t => {
+            const key = `${t.table_schema}.${t.table_name}`;
+            const rowsVal = sizeMap.get(key);
+            return {
+                name: t.table_name,
+                schema: t.table_schema,
+                columns: colMap.get(key) || [],
+                rows: (rowsVal !== undefined && rowsVal !== null) ? rowsVal : '?',
+            };
+        });
 
         _tableContextCache = tableContexts;
         _tableContextCacheTime = now;
@@ -2091,6 +2142,10 @@ app.post('/api/ai/chat/stream', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
+    // Ship headers immediately (context building below can take a while) and
+    // disable Nagle so small SSE frames aren't batched by the TCP stack.
+    res.flushHeaders();
+    res.socket?.setNoDelay?.(true);
 
     try {
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
@@ -2200,8 +2255,9 @@ app.post('/api/ai/chat/stream', async (req, res) => {
                 } else if (part.type === 'step-finish') {
                     res.write(`data: ${JSON.stringify({ type: 'step-finish' })}\n\n`);
                 } else if (part.type === 'finish') {
-                    const queryResults = result._queryResults ? Object.fromEntries(result._queryResults) : {};
-                    res.write(`data: ${JSON.stringify({ type: 'finish', usage: part.usage, queryResults })}\n\n`);
+                    // No queryResults here: the payload can be huge and the client
+                    // rehydrates rows on demand via /api/ai/query-cache/:queryId.
+                    res.write(`data: ${JSON.stringify({ type: 'finish', usage: part.usage })}\n\n`);
                 } else if (part.type === 'error') {
                     res.write(`data: ${JSON.stringify({ type: 'error', error: part.error?.message || String(part.error) })}\n\n`);
                 }
@@ -3041,21 +3097,7 @@ app.get('/api/files/find-by-extension', (req, res) => {
     }
 });
 
-/** Wraps a SELECT/WITH query with LIMIT N to cap result rows.
- *  DDL, DML, and queries already containing a top-level LIMIT pass through unchanged. */
-function applyRowLimit(sql, limit) {
-    if (!limit || limit <= 0) return { sql, limited: false };
-    const stripped = sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
-    const upper = stripped.toUpperCase();
-    if (!upper.startsWith('SELECT') && !upper.startsWith('WITH')) return { sql, limited: false };
-    // Strip trailing semicolons so the subquery wrapping stays valid
-    const cleanSql = sql.trimEnd().replace(/;+$/, '');
-    return {
-        sql: `SELECT * FROM (\n${cleanSql}\n) __amox_rows LIMIT ${limit + 1}`,
-        limited: true,
-        limit,
-    };
-}
+// applyRowLimit lives in ./_sqlUtils (shared with ai/tools.js execute_sql).
 
 app.post('/api/query', async (req, res) => {
     const { query, queryId, limit } = req.body;
@@ -3066,20 +3108,28 @@ app.post('/api/query', async (req, res) => {
     const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, limit);
 
     const qid = queryId || require('crypto').randomUUID();
-    activeQueries.set(qid, { interrupt: () => dbManager.interruptQuery() });
+    // User cancellation targets ONLY the 'main' lane, and ONLY if THIS query is
+    // the one currently executing there. DuckDB's interrupt flag is sticky: an
+    // interrupt with nothing running kills the NEXT statement — which is why
+    // opening a chart used to fail with "Interrupted!" when a previous fetch
+    // had been aborted client-side (e.g. dev double-mount).
+    activeQueries.set(qid, {
+        interrupt: () => {
+            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
+        },
+    });
 
     // If the client disconnects (AbortController / network drop), interrupt DuckDB
-    // Only interrupt if we haven't already sent the response (avoid killing subsequent queries)
     req.on('close', () => {
-        if (activeQueries.has(qid) && !res.headersSent) {
-            dbManager.interruptQuery();
-            activeQueries.delete(qid);
+        if (activeQueries.has(qid) && !res.headersSent && dbManager.isRunning('main', qid)) {
+            dbManager.interruptQuery('main');
         }
+        activeQueries.delete(qid);
     });
 
     try {
         const start = performance.now();
-        const result = await dbManager.queryWithMetadata(limitedSql);
+        const result = await dbManager.queryWithMetadata(limitedSql, { trackId: qid });
         const end = performance.now();
 
         // Detect truncation: we fetched limit+1 rows, if we got them all it means there are more
@@ -3862,7 +3912,7 @@ app.get('/api/notebook-state', (req, res) => {
     }
 });
 
-app.post('/api/notebook-state', (req, res) => {
+app.post('/api/notebook-state', async (req, res) => {
     const { path: filePath, state } = req.body;
     if (!filePath || !state) return res.status(400).json({ error: 'Path and state are required' });
 
@@ -3870,7 +3920,8 @@ app.post('/api/notebook-state', (req, res) => {
     const statePath = fullPath + '.state.json';
 
     try {
-        fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
+        // Async write: sidecar state can carry MBs of cached results
+        await fs.promises.writeFile(statePath, JSON.stringify(state, null, 2), 'utf8');
         res.json({ success: true });
     } catch (err) {
         console.error('Failed to write notebook state:', err.message);
@@ -3997,10 +4048,17 @@ app.get('/api/dbt/validate-env', async (req, res) => {
 });
 
 // List conda environments and check for dbt in each
-app.get('/api/dbt/conda-envs', (req, res) => {
+app.get('/api/dbt/conda-envs', async (req, res) => {
     const condaCmd = req.query.condaPath || 'conda';
     try {
-        const output = execSync(`"${condaCmd}" env list --json`, { encoding: 'utf8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] });
+        // exec async: execSync here froze the WHOLE server (including the AI
+        // SSE stream) for up to 10s whenever the DBT panel opened.
+        const output = await new Promise((resolve, reject) => {
+            exec(`"${condaCmd}" env list --json`, { encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+                if (err) reject(err);
+                else resolve(stdout || '');
+            });
+        });
         const parsed = JSON.parse(output);
         const envPaths = parsed.envs || [];
 

@@ -131,7 +131,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
     // ─── Auto-scroll ───
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Instant jump while streaming (smooth restarts its animation on every
+        // flush and competes with renders); animate only when idle.
+        chatEndRef.current?.scrollIntoView({ behavior: streamingText ? 'auto' : 'smooth' });
     }, [messages, streamingText, activeToolCalls]);
 
     // ─── Drag & Drop ───
@@ -268,6 +270,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
         // Persistence: ensure conversation exists and persist user message (diving only)
         let activeConvId = null;
         const isFirstMessage = messages.length === 0;
+        let cancelStreamFlush = () => {};
         if (isDiving) {
             activeConvId = await ensureConversation(modelToUse);
             if (activeConvId) {
@@ -306,6 +309,32 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             let toolResults = [];
             let buffer = '';
 
+            // Text deltas arrive one per token; flush to React at most every
+            // STREAM_FLUSH_MS instead of re-rendering the chat once per token.
+            const STREAM_FLUSH_MS = 80;
+            let streamFlushTimer = null;
+            let lastStreamFlush = 0;
+            const flushStream = () => {
+                streamFlushTimer = null;
+                lastStreamFlush = performance.now();
+                if (!isMountedRef.current) return;
+                setStreamingText(fullText);
+                const openCount = (fullText.match(/<think>/g) || []).length;
+                const closeCount = (fullText.match(/<\/think>/g) || []).length;
+                setIsThinking(openCount > closeCount);
+            };
+            const scheduleStreamFlush = () => {
+                if (streamFlushTimer !== null) return;
+                const wait = Math.max(0, STREAM_FLUSH_MS - (performance.now() - lastStreamFlush));
+                streamFlushTimer = setTimeout(flushStream, wait);
+            };
+            cancelStreamFlush = () => {
+                if (streamFlushTimer !== null) {
+                    clearTimeout(streamFlushTimer);
+                    streamFlushTimer = null;
+                }
+            };
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -326,12 +355,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
 
                         if (event.type === 'text-delta') {
                             fullText += event.text;
-                            setStreamingText(fullText);
-
-                            // Detect if we are inside a <think> block
-                            const openCount = (fullText.match(/<think>/g) || []).length;
-                            const closeCount = (fullText.match(/<\/think>/g) || []).length;
-                            setIsThinking(openCount > closeCount);
+                            scheduleStreamFlush();
 
                         } else if (event.type === 'tool-call') {
                             const newActiveCall = {
@@ -364,6 +388,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     }
                 }
             }
+
+            cancelStreamFlush();
+            flushStream();
 
             const mergedToolCalls = activeToolCallsRef.current.map(tc => {
                 const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
@@ -426,6 +453,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             }).catch(() => { });
 
         } catch (e) {
+            cancelStreamFlush();
             if (!isMountedRef.current) return;
             if (e.name === 'AbortError') {
                 setErrorMsg("Generation cancelled.");

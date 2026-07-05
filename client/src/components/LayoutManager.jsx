@@ -1,5 +1,5 @@
 import { API_BASE } from '../api.js';
-import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback, memo } from 'react';
 import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
@@ -45,7 +45,25 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [runningQueryId, setRunningQueryId] = useState(null);
     const queryAbortControllerRef = useRef(null);
 
-    // --- Tab Persistence: Save to sessionStorage ---
+    // Drag & Drop State (declared here so stateRef below can reference it)
+    const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
+    const [dragOverZone, setDragOverZone] = useState(null); // 'left-edge', 'right-edge', 'left-pane', 'right-pane'
+
+    // --- Latest-state ref (G4): stable useCallback([]) handlers read the current
+    // state/props here at call time, so their identity never changes and the
+    // memoized EditorPanes can bail out when the *other* pane changes. ---
+    const stateRef = useRef({});
+    stateRef.current = {
+        leftTabs, rightTabs, leftActiveId, rightActiveId, activePane, splitEnabled,
+        queryVariables, draggedTab, runningQueryId,
+        editorSettings, onRequestSaveAs, onQueryResult, onDbChange,
+        toast, dialog,
+    };
+
+    // --- Tab Persistence (G1): debounced write to localStorage instead of a
+    // synchronous setItem per keystroke. Flushed on beforeunload/unmount. ---
+    const persistTabsRef = useRef(null);
+    const restoreAttemptedRef = useRef(false);
     useEffect(() => {
         const tabMeta = {
             leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
@@ -54,24 +72,57 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             rightActiveId,
             splitEnabled
         };
-        try {
-            localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabMeta));
-        } catch { /* ignore */ }
+        persistTabsRef.current = tabMeta;
+        // Never persist before the restore attempt finishes: the initial empty
+        // state would clobber the previously saved tabs.
+        if (!restoreAttemptedRef.current) return;
+        const timer = setTimeout(() => {
+            try {
+                localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabMeta));
+            } catch { /* ignore */ }
+        }, 600);
+        return () => clearTimeout(timer);
+    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled]);
 
-        // Notify parent of tab changes for rendering in WindowTitleBar
-        if (onTabsChange) {
-            onTabsChange({
-                // Active pane data (backward compat)
-                tabs: activePane === 'left' ? leftTabs : rightTabs,
-                activeTabId: activePane === 'left' ? leftActiveId : rightActiveId,
-                paneId: activePane,
-                // Split-view data
-                splitEnabled,
-                left: { tabs: leftTabs, activeTabId: leftActiveId },
-                right: { tabs: rightTabs, activeTabId: rightActiveId },
-            });
-        }
-    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane]);
+    useEffect(() => {
+        const flush = () => {
+            if (!restoreAttemptedRef.current || !persistTabsRef.current) return;
+            try {
+                localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(persistTabsRef.current));
+            } catch { /* ignore */ }
+        };
+        window.addEventListener('beforeunload', flush);
+        return () => {
+            window.removeEventListener('beforeunload', flush);
+            flush();
+        };
+    }, []);
+
+    // --- Parent notification (G1): only lightweight tab METADATA (no content,
+    // no results), and only when that metadata actually changes. Typing flips
+    // `dirty` once; the following keystrokes produce identical metadata and are
+    // skipped, so App no longer re-renders per key. ---
+    const lastNotifiedMetaRef = useRef('');
+    useEffect(() => {
+        if (!onTabsChange) return;
+        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type });
+        const leftMeta = leftTabs.map(metaOf);
+        const rightMeta = rightTabs.map(metaOf);
+        const payload = {
+            // Active pane data (backward compat)
+            tabs: activePane === 'left' ? leftMeta : rightMeta,
+            activeTabId: activePane === 'left' ? leftActiveId : rightActiveId,
+            paneId: activePane,
+            // Split-view data
+            splitEnabled,
+            left: { tabs: leftMeta, activeTabId: leftActiveId },
+            right: { tabs: rightMeta, activeTabId: rightActiveId },
+        };
+        const serialized = JSON.stringify(payload);
+        if (serialized === lastNotifiedMetaRef.current) return;
+        lastNotifiedMetaRef.current = serialized;
+        onTabsChange(payload);
+    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane, onTabsChange]);
 
     // --- Tab Persistence: Restore on mount ---
     useEffect(() => {
@@ -116,76 +167,78 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 console.warn('[TabPersistence] Restore failed:', e);
             }
         };
-        restoreTabs();
+        restoreTabs().finally(() => {
+            // Persisting is allowed only after the restore attempt so the initial
+            // empty tab state never overwrites the saved layout.
+            restoreAttemptedRef.current = true;
+        });
     }, []); // Only on mount
 
-    // Helpers
-    const getActiveTab = () => {
+    // Helpers — stable identities (read current state via stateRef)
+    const getActiveTab = useCallback(() => {
+        const { activePane, leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
         if (activePane === 'left') {
             return leftTabs.find(t => t.id === leftActiveId);
         } else {
             return rightTabs.find(t => t.id === rightActiveId);
         }
-    };
+    }, []);
 
-    const updateTab = (pane, tabId, updates) => {
+    const updateTab = useCallback((pane, tabId, updates) => {
         if (pane === 'left') {
             setLeftTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...updates } : t));
         } else {
             setRightTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...updates } : t));
         }
-    };
+    }, []);
 
     // Actions
-    const handleContentChange = (tabId, newContent) => {
+    const handleContentChange = useCallback((tabId, newContent) => {
         // Need to find which pane has this tab
+        const { leftTabs, rightTabs } = stateRef.current;
+        const inLeft = leftTabs.some(t => t.id === tabId);
         const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
-        if (leftTabs.find(t => t.id === tabId)) {
-            updateTab('left', tabId, { content: newContent, dirty: true });
-        } else {
-            updateTab('right', tabId, { content: newContent, dirty: true });
-        }
+        // Editors (Story Flow, notebook, chains) re-emit their serialized
+        // content on mount/config normalization even when NOTHING changed.
+        // Marking dirty unconditionally made freshly opened (or just-saved)
+        // tabs show the ● forever. Identical content → no-op.
+        if (tab && tab.content === newContent) return;
+        updateTab(inLeft ? 'left' : 'right', tabId, { content: newContent, dirty: true });
         // Auto-save draft to localStorage for crash recovery
         if (tab?.path) {
             saveDraft(tab.path, newContent);
         }
-    };
+    }, [updateTab]);
 
     // A Deep Dive tab remembers its conversation in `content` (used as
     // startConversationId). Update it WITHOUT marking the tab dirty.
-    const handleConversationChange = (tabId, convId) => {
+    const handleConversationChange = useCallback((tabId, convId) => {
         if (!convId) return;
+        const { leftTabs, rightTabs } = stateRef.current;
         if (leftTabs.find(t => t.id === tabId)) updateTab('left', tabId, { content: convId });
         else if (rightTabs.find(t => t.id === tabId)) updateTab('right', tabId, { content: convId });
-    };
+    }, [updateTab]);
 
-    const handleTabClose = (tabId) => {
-        if (leftTabs.find(t => t.id === tabId)) {
-            const index = leftTabs.findIndex(t => t.id === tabId);
-            const newTabs = leftTabs.filter(t => t.id !== tabId);
-            setLeftTabs(newTabs);
-            if (leftActiveId === tabId) {
-                if (newTabs.length > 0) {
-                    const newIdx = Math.max(0, index - 1);
-                    setLeftActiveId(newTabs[newIdx].id);
-                } else {
-                    setLeftActiveId(null);
-                }
-            }
-        } else {
-            const index = rightTabs.findIndex(t => t.id === tabId);
-            const newTabs = rightTabs.filter(t => t.id !== tabId);
-            setRightTabs(newTabs);
-            if (rightActiveId === tabId) {
-                if (newTabs.length > 0) {
-                    const newIdx = Math.max(0, index - 1);
-                    setRightActiveId(newTabs[newIdx].id);
-                } else {
-                    setRightActiveId(null);
-                }
+    const handleTabClose = useCallback((tabId) => {
+        const { leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
+        const inLeft = leftTabs.some(t => t.id === tabId);
+        const tabs = inLeft ? leftTabs : rightTabs;
+        const activeId = inLeft ? leftActiveId : rightActiveId;
+        const setTabs = inLeft ? setLeftTabs : setRightTabs;
+        const setActiveId = inLeft ? setLeftActiveId : setRightActiveId;
+
+        const index = tabs.findIndex(t => t.id === tabId);
+        const newTabs = tabs.filter(t => t.id !== tabId);
+        setTabs(newTabs);
+        if (activeId === tabId) {
+            if (newTabs.length > 0) {
+                const newIdx = Math.max(0, index - 1);
+                setActiveId(newTabs[newIdx].id);
+            } else {
+                setActiveId(null);
             }
         }
-    };
+    }, []);
 
     // Parse DuckDB error messages to extract line/column for inline highlighting
     const parseDuckDBError = (errorMsg) => {
@@ -220,7 +273,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         return { line, column: column || 1, message };
     };
 
-    const cancelQuery = async () => {
+    const cancelQuery = useCallback(async () => {
+        const { runningQueryId } = stateRef.current;
         if (!runningQueryId) return;
         // Abort the in-flight fetch immediately so the UI unblocks
         queryAbortControllerRef.current?.abort();
@@ -229,9 +283,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             await fetch(`${API_BASE}/api/query/cancel/${runningQueryId}`, { method: 'POST' });
         } catch {}
         setRunningQueryId(null);
-    };
+    }, []);
 
-    const executeQuery = async (tabId, query) => {
+    const executeQuery = useCallback(async (tabId, query) => {
+        const { leftTabs, queryVariables, editorSettings, dialog, onQueryResult, onDbChange } = stateRef.current;
         const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
@@ -305,17 +360,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             setRunningQueryId(null);
             queryAbortControllerRef.current = null;
         }
-    };
+    }, [updateTab]); // reads the rest via stateRef; createNew (stable) resolved by closure
 
-    const handleRunActive = async () => {
+    const handleRunActive = useCallback(async () => {
         const tab = getActiveTab();
         if (!tab) return;
         if (tab.type === 'sql') {
             await executeQuery(tab.id, tab.content);
         }
-    };
+    }, [getActiveTab, executeQuery]);
 
-    const handleSaveActive = async (isSilent = false) => {
+    const handleSaveActive = useCallback(async (isSilent = false) => {
+        const { onRequestSaveAs, activePane, toast } = stateRef.current;
         const tab = getActiveTab();
         if (!tab || !tab.dirty) return;
 
@@ -354,9 +410,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             console.error("Error saving: " + e.message);
             if (!isSilent) toast.error("Error saving: " + e.message);
         }
-    };
+    }, [getActiveTab, updateTab]);
 
-    const handleAnalyzeActive = async (mode) => {
+    const handleAnalyzeActive = useCallback(async (mode) => {
         const tab = getActiveTab();
         if (!tab || tab.type !== 'sql') {
             console.warn("Please select a SQL file to analyze.");
@@ -401,10 +457,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         } finally {
             setPlanLoading(false);
         }
-    };
+    }, [getActiveTab]);
 
     // Extracted createNew so it can be passed to EditorPanes + exposed via ref
-    const createNew = (type, initialContent) => {
+    const createNew = useCallback((type, initialContent) => {
         const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb'
             : (type === 'chain' || type === 'sqlchain') ? 'sqlchain'
             : type;
@@ -433,14 +489,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             results: null,
             dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving' && normalizedType !== 'dbt-lineage'
         };
-        if (activePane === 'left') {
+        if (stateRef.current.activePane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
             setLeftActiveId(newTab.id);
         } else {
             setRightTabs(prev => [...prev, newTab]);
             setRightActiveId(newTab.id);
         }
-    };
+    }, []);
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
@@ -711,7 +767,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     }));
 
     // Standalone helper: open an amoxvis tab in SQL editor mode
-    const openAmoxvisAsSql = (tab) => {
+    const openAmoxvisAsSql = useCallback((tab) => {
         const config = tab.chartConfig || tab.initialChartConfig || {};
         const query = config.query || 'SELECT * FROM ... LIMIT 100;';
 
@@ -726,7 +782,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             initialChartConfig: config
         };
 
-        const pane = activePane;
+        const pane = stateRef.current.activePane;
         if (pane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
             setLeftActiveId(newTab.id);
@@ -736,14 +792,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
 
         executeQuery(newTab.id, query);
-    };
+    }, [executeQuery]);
 
     // --- handleQueryFile: Standalone function for DnD + imperative handle ---
-    const handleQueryFile = async (filePath) => {
+    const handleQueryFile = useCallback(async (filePath) => {
         if (!filePath || typeof filePath !== 'string') {
             console.warn('[handleQueryFile] Called with invalid path:', filePath);
             return;
         }
+        const { leftTabs, rightTabs, activePane } = stateRef.current;
         const fileName = filePath.split(/[/\\]/).pop();
         const normalizedPath = filePath.replace(/\\/g, '/');
         const lowerName = fileName.toLowerCase();
@@ -819,22 +876,19 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 executeQuery(newTab.id, previewQuery);
             }, 100);
         }
-    };
+    }, [executeQuery]);
 
-    // Drag & Drop State
-    const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
-    const [dragOverZone, setDragOverZone] = useState(null); // 'left-edge', 'right-edge', 'left-pane', 'right-pane'
-
-    const handleDragStart = (e, tabId, paneId) => {
+    // Drag & Drop handlers (state declared at the top so stateRef can see it)
+    const handleDragStart = useCallback((e, tabId, paneId) => {
         setDraggedTab({ tabId, sourcePane: paneId });
         e.dataTransfer.effectAllowed = 'move';
         // Create a ghost image if needed, or default
-    };
+    }, []);
 
-    const handleDragEnd = () => {
+    const handleDragEnd = useCallback(() => {
         setDraggedTab(null);
         setDragOverZone(null);
-    };
+    }, []);
 
     // Auto-merge split if right pane becomes empty
     useEffect(() => {
@@ -941,8 +995,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     };
 
     // Tab Reordering (Intra-pane)
-    const handleReorder = (dragTabId, targetTabId, paneId) => {
-        const sourceId = dragTabId || draggedTab?.tabId;
+    const handleReorder = useCallback((dragTabId, targetTabId, paneId) => {
+        const sourceId = dragTabId || stateRef.current.draggedTab?.tabId;
         if (!sourceId || sourceId === targetTabId) return;
 
         const setTabs = paneId === 'left' ? setLeftTabs : setRightTabs;
@@ -958,9 +1012,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             tabs.splice(targetIdx, 0, removed);
             return tabs;
         });
-    };
+    }, []);
 
     /* const toggleSplit = ... REMOVED (Toolbar removed) */
+
+    // Stable per-pane callbacks (G4): keep EditorPane props referentially equal
+    // across renders so memo(EditorPane) can bail out.
+    const handleLeftTabClick = useCallback((id) => { setLeftActiveId(id); setActivePane('left'); }, []);
+    const handleRightTabClick = useCallback((id) => { setRightActiveId(id); setActivePane('right'); }, []);
+    const handlePaneRequestSaveAs = useCallback(() => {
+        const { onRequestSaveAs } = stateRef.current;
+        if (onRequestSaveAs) onRequestSaveAs('', getActiveTab());
+    }, [getActiveTab]);
 
     return (
         <div
@@ -983,7 +1046,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     isActive={activePane === 'left'}
                     tabs={leftTabs}
                     activeTabId={leftActiveId}
-                    onTabClick={(id) => { setLeftActiveId(id); setActivePane('left'); }}
+                    onTabClick={handleLeftTabClick}
                     onTabClose={handleTabClose}
                     onContentChange={handleContentChange}
                     onConversationChange={handleConversationChange}
@@ -1000,7 +1063,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onReorder={handleReorder}
                     onFileDrop={handleQueryFile}
                     onCreateNew={createNew}
-                    onRequestSaveAs={() => onRequestSaveAs && onRequestSaveAs('', getActiveTab())}
+                    onRequestSaveAs={handlePaneRequestSaveAs}
                     showAiSidebar={showAiSidebar}
                     onToggleAi={onToggleAi}
                     onOpenFile={handleQueryFile}
@@ -1019,7 +1082,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         isActive={activePane === 'right'}
                         tabs={rightTabs}
                         activeTabId={rightActiveId}
-                        onTabClick={(id) => { setRightActiveId(id); setActivePane('right'); }}
+                        onTabClick={handleRightTabClick}
                         onTabClose={handleTabClose}
                         onContentChange={handleContentChange}
                     onConversationChange={handleConversationChange}
@@ -1036,7 +1099,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onReorder={handleReorder}
                         onFileDrop={handleQueryFile}
                         onCreateNew={createNew}
-                        onRequestSaveAs={() => onRequestSaveAs && onRequestSaveAs('', getActiveTab())}
+                        onRequestSaveAs={handlePaneRequestSaveAs}
                         showAiSidebar={showAiSidebar}
                         onToggleAi={onToggleAi}
                         onOpenFile={handleQueryFile}

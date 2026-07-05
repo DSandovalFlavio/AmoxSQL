@@ -2066,7 +2066,7 @@ body {
   border-radius: var(--radius-sm);
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .fe-breadcrumb-up:hover {
@@ -2311,7 +2311,7 @@ body {
   padding: 4px 10px;
   font-size: var(--text-sm);
   border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .toolbar-btn-toggle:hover {
@@ -2670,7 +2670,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .rt-view-btn:hover {
@@ -2740,7 +2740,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .rt-action-btn:hover {
@@ -2785,7 +2785,7 @@ body {
   cursor: pointer;
   font-size: var(--text-xs);
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .rt-pagination-btn:hover:not(:disabled) {
@@ -3332,7 +3332,7 @@ tr:hover .rt-td {
   font-size: var(--text-sm);
   cursor: pointer;
   height: 24px;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ep-action-ai:hover {
@@ -3953,7 +3953,7 @@ tr:hover .rt-td {
   background-color: transparent;
   border-radius: var(--radius-sm);
   padding: 6px;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -4040,7 +4040,7 @@ tr:hover .rt-td {
   border-radius: var(--radius-full, 999px);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   font-family: inherit;
 }
 
@@ -4329,7 +4329,7 @@ tr:hover .rt-td {
   font-weight: var(--weight-semibold);
   font-family: inherit;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -4393,7 +4393,7 @@ tr:hover .rt-td {
   color: var(--text-secondary);
   cursor: pointer;
   font-family: inherit;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   line-height: 1.3;
 }
 
@@ -4469,7 +4469,7 @@ tr:hover .rt-td {
   font-size: var(--text-mini);
   font-family: inherit;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   line-height: 1;
 }
 
@@ -4657,7 +4657,7 @@ tr:hover .rt-td {
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ai-conv-header-btn:hover {
@@ -4697,7 +4697,7 @@ tr:hover .rt-td {
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ai-conv-new-btn:hover {
@@ -4945,7 +4945,7 @@ tr:hover .rt-td {
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .ai-send-btn.ready {
@@ -5123,7 +5123,7 @@ tr:hover .rt-td {
   color: var(--text-secondary);
   cursor: pointer;
   flex-shrink: 0;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ai-composer-add-btn:hover {
@@ -5149,7 +5149,7 @@ tr:hover .rt-td {
   border-radius: var(--radius-sm);
   background: transparent;
   border: 1px solid transparent;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   cursor: pointer;
 }
 
@@ -5246,7 +5246,7 @@ tr:hover .rt-td {
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ai-composer-send svg {
@@ -5543,7 +5543,7 @@ tr:hover .rt-td {
   font-size: var(--text-xs);
   font-family: inherit;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   line-height: 1;
 }
 
@@ -5993,7 +5993,7 @@ tr:hover .rt-td {
   padding: 6px;
   border-radius: var(--radius-sm);
   display: flex;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ai-ctx-expand-btn:hover {
@@ -6025,7 +6025,7 @@ tr:hover .rt-td {
   padding: 4px;
   border-radius: var(--radius-sm);
   display: flex;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ai-ctx-header-btn:hover {
@@ -6108,7 +6108,7 @@ tr:hover .rt-td {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ai-ctx-drop--active {
@@ -6208,7 +6208,7 @@ tr:hover .rt-td {
   font-size: var(--text-xs);
   font-family: inherit;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   text-align: left;
 }
 
@@ -6310,7 +6310,7 @@ tr:hover .rt-td {
   border: 1px solid var(--accent-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   font-weight: var(--weight-medium);
 }
 
@@ -6414,7 +6414,7 @@ tr:hover .rt-td {
   border-radius: var(--radius-sm);
   flex-shrink: 0;
   margin-top: 1px;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, opacity 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .ai-history-item:hover .ai-history-item-delete {
@@ -6529,7 +6529,7 @@ tr:hover .rt-td {
   display: flex;
   align-items: center;
   opacity: 0;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, opacity 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .ai-ctx-artifact:hover .ai-ctx-artifact-delete {
@@ -7696,7 +7696,7 @@ tr:hover .rt-td {
   color: var(--text-secondary);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .vault-btn:hover:not(:disabled) {
@@ -7727,7 +7727,7 @@ tr:hover .rt-td {
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .vault-icon-btn:hover {
@@ -7802,7 +7802,7 @@ tr:hover .rt-td {
   font-size: var(--text-xs);
   cursor: pointer;
   text-align: center;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .vault-load-more:hover:not(:disabled) {
@@ -9673,7 +9673,7 @@ tr:hover td {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   border-left: 3px solid transparent;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .stg-tab:hover {
@@ -9731,7 +9731,7 @@ tr:hover td {
   cursor: pointer;
   display: flex;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .stg-close-btn:hover {
@@ -10031,7 +10031,7 @@ tr:hover td {
   font-family: inherit;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
   background-color: var(--surface-inset);
   color: var(--text-secondary);
   border: 1px solid var(--border-default);
@@ -10055,7 +10055,7 @@ tr:hover td {
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
   border: 1px solid var(--border-default);
   background-color: var(--surface-inset);
   color: var(--text-primary);
@@ -10131,7 +10131,7 @@ tr:hover td {
   border-radius: var(--radius-md);
   padding: 12px;
   opacity: 0.6;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 .stg-theme-card:hover {
@@ -10201,7 +10201,7 @@ tr:hover td {
   border-radius: 8px;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -10232,7 +10232,7 @@ tr:hover td {
   border-radius: var(--radius-md);
   padding: 14px;
   opacity: 0.6;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
   background-color: var(--surface-inset);
 }
 
@@ -10328,7 +10328,7 @@ tr:hover td {
   color: var(--text-primary);
   cursor: grab;
   user-select: none;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
@@ -10391,7 +10391,7 @@ tr:hover td {
   border-radius: var(--radius-md);
   padding: 12px;
   min-height: 80px;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 .stg-tier-zone.drag-over {
@@ -10625,7 +10625,7 @@ tr:hover td {
   background-color: var(--surface-inset);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   cursor: pointer;
 }
 
@@ -11252,7 +11252,7 @@ tr:hover td {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   border: 1px solid var(--border-default);
   background: var(--surface-overlay);
   color: var(--text-primary);
@@ -11317,7 +11317,7 @@ tr:hover td {
   cursor: pointer;
   border-radius: 4px;
   padding: 0;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .dbt-icon-btn:hover {
@@ -11429,7 +11429,7 @@ tr:hover td {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .dbt-template-btn:hover {
@@ -11502,7 +11502,7 @@ tr:hover td {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .dbt-quick-btn:hover {
@@ -11801,7 +11801,7 @@ tr:hover td {
   font-size: var(--text-xs);
   background: transparent;
   color: var(--text-tertiary);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .snb-mode-btn:hover {
@@ -11828,7 +11828,7 @@ tr:hover td {
   cursor: pointer;
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   white-space: nowrap;
   border: 1px solid transparent;
 }
@@ -12527,7 +12527,7 @@ tr:hover td {
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   white-space: nowrap;
 }
 
@@ -12592,7 +12592,7 @@ tr:hover td {
   color: var(--text-tertiary);
   font-size: 11px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   white-space: nowrap;
 }
 
@@ -12623,7 +12623,7 @@ tr:hover td {
   min-width: 180px;
   max-width: 260px;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease, box-shadow 150ms ease;
   font-family: inherit;
 }
 
@@ -12815,7 +12815,7 @@ tr:hover td {
   padding: 8px;
   border-radius: 8px;
   cursor: grab;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   border: 1px solid transparent;
 }
 
@@ -12926,7 +12926,7 @@ tr:hover td {
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-doc-modal-close:hover {
@@ -13243,7 +13243,7 @@ tr:hover td {
   color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-config-action-btn:hover {
@@ -13333,7 +13333,7 @@ tr:hover td {
   font-size: 10px;
   font-family: var(--font-mono, monospace);
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-config-chip-btn:hover {
@@ -13368,7 +13368,7 @@ tr:hover td {
   color: var(--text-secondary);
   font-size: 10px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   margin-top: 4px;
   width: 100%;
   justify-content: center;
@@ -13393,7 +13393,7 @@ tr:hover td {
   border-radius: 3px;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-config-remove-btn:hover {
@@ -13413,7 +13413,7 @@ tr:hover td {
   color: oklch(0.7 0.12 25);
   font-size: 11px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-config-delete:hover {
@@ -13458,7 +13458,7 @@ tr:hover td {
   color: var(--text-tertiary);
   font-size: 10px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-config-sql-copy:hover {
@@ -13813,7 +13813,7 @@ tr:hover td {
   padding: 0;
   background: var(--surface-1);
   color: var(--text-secondary);
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-node-preview-btn:hover {
@@ -13915,7 +13915,7 @@ tr:hover td {
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-log-btn:hover {
@@ -14029,7 +14029,7 @@ tr:hover td {
   font-size: 11px;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-log-scroll-bottom:hover {
@@ -14228,7 +14228,7 @@ tr:hover td {
   color: var(--text-secondary);
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-config-browse-btn:hover {
@@ -14362,7 +14362,7 @@ tr:hover td {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-template-close:hover {
@@ -14389,7 +14389,7 @@ tr:hover td {
   background: var(--surface-2);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
   width: 100%;
 }
 
@@ -14477,7 +14477,7 @@ tr:hover td {
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-template-blank-btn:hover {
@@ -14963,7 +14963,7 @@ tr:hover td {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .chart-gallery-regen-btn:hover {
@@ -14988,7 +14988,7 @@ tr:hover td {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .chart-gallery-filter-pill:hover {
@@ -15017,7 +15017,7 @@ tr:hover td {
   overflow: hidden;
   cursor: pointer;
   position: relative;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .chart-gallery-card:hover {
@@ -16325,7 +16325,7 @@ tr:hover td {
   display: flex; align-items: center; gap: 4px;
   padding: 4px 8px; border-radius: 6px; font-size: 11px;
   background: var(--surface-inset); border: 1px solid var(--border-default);
-  color: var(--text-secondary); cursor: pointer; transition: all 0.15s;
+  color: var(--text-secondary); cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .git-ignore-pill:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); border-color: var(--accent-primary); }
 .git-ignore-pill--active { opacity: 0.5; cursor: default; color: var(--git-added, #4caf7d); border-color: var(--git-added, #4caf7d); }

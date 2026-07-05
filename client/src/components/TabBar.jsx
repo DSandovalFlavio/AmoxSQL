@@ -96,4 +96,5 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
     );
 };
 
-export default TabBar;
+// Memoized: App re-renders must not reconcile the tab chrome when props are stable.
+export default React.memo(TabBar);

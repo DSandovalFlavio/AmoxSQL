@@ -1,5 +1,13 @@
 import SqlLanguageWorker from '../workers/sqlLanguageWorker.js?worker';
 
+/**
+ * Bridge to the tree-sitter SQL language worker.
+ *
+ * The worker is a SINGLETON shared by every mounted editor (use
+ * getSharedSqlWorkerBridge / initSharedSqlWorkerBridge): documents are keyed
+ * by docId inside the worker. One worker + one pair of WASM binaries per app —
+ * not per notebook cell, which used to cost N workers × ~4MB of WASM each.
+ */
 export class SqlWorkerBridge {
     constructor() {
         this.worker = new SqlLanguageWorker();
@@ -23,9 +31,6 @@ export class SqlWorkerBridge {
         this.worker.onerror = (err) => {
             console.error('[WorkerBridge] Critical Worker Error:', err);
         };
-        
-        // Setup debouncing for document sync
-        this.syncTimeout = null;
     }
 
     async init() {
@@ -46,11 +51,16 @@ export class SqlWorkerBridge {
         });
     }
 
-    syncDocument(text) {
+    syncDocument(docId, text) {
         if (!this.isReady) return;
         // Send document to worker immediately. Tree-sitter parses in <3ms.
         // Sync latency here causes AST out-of-bounds errors on fast typing!
-        this.worker.postMessage({ action: 'syncDocument', id: 0, payload: { text } });
+        this.worker.postMessage({ action: 'syncDocument', id: 0, payload: { docId, text } });
+    }
+
+    removeDocument(docId) {
+        if (!this.worker) return;
+        this.worker.postMessage({ action: 'removeDocument', id: 0, payload: { docId } });
     }
 
     updateSchema(schemaCache) {
@@ -63,11 +73,11 @@ export class SqlWorkerBridge {
         this.worker.postMessage({ action: 'updateDbtManifest', id: 0, payload: dbtCache });
     }
 
-    async getCompletions(line, column, triggerChar) {
+    async getCompletions(docId, line, column, triggerChar) {
         const emptyDerived = { relations: [], dotTarget: null };
         if (!this.isReady) return { suggestions: [], clause: 'ROOT', derived: emptyDerived };
         try {
-            const response = await this.sendMessage('requestCompletions', { line, column, triggerChar });
+            const response = await this.sendMessage('requestCompletions', { docId, line, column, triggerChar });
             return {
                 suggestions: response.suggestions || [],
                 clause: response.clause || 'ROOT',
@@ -80,9 +90,30 @@ export class SqlWorkerBridge {
     }
 
     dispose() {
-        if (this.syncTimeout) clearTimeout(this.syncTimeout);
         if (this.worker) this.worker.terminate();
         this.isReady = false;
         this.pendingRequests.clear();
     }
+}
+
+// ─── Shared instance (app lifetime) ─────────────────────────────────────────
+let sharedBridge = null;
+let sharedInitPromise = null;
+
+export function getSharedSqlWorkerBridge() {
+    if (!sharedBridge) sharedBridge = new SqlWorkerBridge();
+    return sharedBridge;
+}
+
+/** Idempotent init: many editors mount concurrently; only one 'init' message is sent. */
+export function initSharedSqlWorkerBridge() {
+    const bridge = getSharedSqlWorkerBridge();
+    if (!sharedInitPromise) {
+        sharedInitPromise = bridge.init().catch(err => {
+            // Allow a retry on the next mount instead of caching the failure forever
+            sharedInitPromise = null;
+            throw err;
+        });
+    }
+    return sharedInitPromise;
 }
