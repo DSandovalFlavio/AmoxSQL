@@ -208,22 +208,31 @@ cambio de acento actualiza cursor/highlight, cambio dark→dark se refleja. Buil
 3. Islands: recalibrar secondary/tertiary al piso dark (hoy 4.28/2.19).
 4. Verificación: script de contraste (Node) que valide los pisos de §7.3 sobre los 10 temas.
 
-### Fase 5 — Consolidación y limpieza · **HECHA (commits `631511f` + cierre)**
-> **Decisión del usuario: DIFERENCIAR los dark clones** (no eliminar): Onyx → negro puro
-> `#0b0c0d`, Carbon → azul-gris genuino `#12161d`, Graphite → gris lápiz cálido y más claro
-> `#21201c`; Obsidian intacto como referencia. Ivory/Mist se quedan como par cálido/frío; Snow
-> reconstruido en F4. Swatches del picker actualizados; los 10 temas pasan el verificador.
-> `update_css.cjs` borrado; `guia_estilos.md` actualizada (10 temas con identidad, arquitectura
-> de 4 capas con `.mode-light`, pisos de contraste + script, Monaco vía `monacoTheme.js`).
-> **Diferido como pulido opcional** (bajo valor/alto churn, sin impacto funcional): migración de
-> aliases legacy (700+ usos — son punteros `var()` funcionales), borrado de tokens muertos,
-> bloque derivador único `[class*="accent-"]` estilo biblia, y subir la capa de modo/norma
-> cuantitativa a la amox-design-bible.
-1. **Presentar al usuario los temas corregidos** → decide cuáles eliminar/fusionar
-   (candidatos: onyx≈carbon; evaluar onyx vs graphite; snow si no convence reconstruido).
-2. Migración de aliases legacy (700+ usos) → vocabulario v2, borrar aliases.
-3. Borrar tokens muertos y `update_css.cjs`; actualizar `guia_estilos.md` al estándar de §7;
-   subir a la amox-design-bible lo que le falta (capa de modo, norma cuantitativa).
+### Fase 5 — Consolidación y limpieza · **HECHA**
+> **Consolidación (sub-tarea 1) — SUPERADA por rediseño de marca.** La primera decisión (diferenciar
+> los dark clones Carbon/Graphite) fue reemplazada por una decisión posterior del usuario: **eliminar
+> los 3 temas menos usados (Carbon, Graphite, Snow) y sustituirlos por dos temas insignia diseñados
+> desde cero — `amoxdark` (cyan de marca #22d3ee) y `amoxlight` (teal #0a7d8c)** — tras investigar
+> Dracula/Tokyo Night/Rosé Pine/Ayu/Catppuccin. Set final de 10 temas: dark = Obsidian, Onyx, **Amox
+> Dark**, Nord, Islands; light = **Amox Light**, Ivory, Mist, Light. Obsidian⇄Onyx intercambian solo
+> el fondo del editor Monaco (token `--monaco-editor-bg`). Todos pasan el verificador de contraste.
+>
+> **Limpieza (sub-tareas 2-3) — parcialmente HECHA:**
+> - `update_css.cjs` borrado; `guia_estilos.md` actualizada (10 temas, arquitectura de 4 capas con
+>   `.mode-light`, pisos de contraste + script, Monaco vía `monacoTheme.js`). *(en el cierre inicial)*
+> - **Bloque derivador único de acentos** (commit `de35904`): la derivación muted/subtle/focus-ring
+>   vive en UN sitio por modo — `:root` (washes dark 18/8/35) y `.mode-light` (light 15/6/35); el
+>   `color-mix` lee `var(--accent-primary)` y re-resuelve por elemento, así cada `.accent-*` y cada
+>   default de tema solo fija `--accent-primary`. −173 líneas derivadas redundantes (31 bloques de
+>   acento + los 3 bloques de tema light que las hardcodeaban a su acento por defecto).
+> - **Tokens muertos** (commit `220b85e`): borrados `--titlebar-bg/text`, `--bg-color`, `--sidebar-bg`,
+>   `--table-header-bg`, `--sidebar-item-active-text`, `--accent-color-user-transparent` (48 defs, 0
+>   usos). Conservadas a propósito las escalas de diseño con escalones sin uso (`--space-*`, `--text-3xl`,
+>   `--font-display`, `--transition-slow`, `--ease-in-out`) — API, no cruft.
+>
+> **Diferido a propósito** (decisión del usuario / bajo valor · alto churn · sin impacto funcional):
+> migración de los aliases legacy en uso (700+ usos — son punteros `var()` funcionales) y subir la
+> capa de modo + norma cuantitativa a la amox-design-bible (repo separado).
 
 ---
 
