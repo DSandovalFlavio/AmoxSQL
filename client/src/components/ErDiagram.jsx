@@ -352,7 +352,7 @@ const ErDiagram = ({ onCreateTab, schema }) => {
                                                 {col.isPK && (
                                                     <foreignObject x={8} y={y + 5} width={12} height={12}>
                                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                                                            <LuKey size={10} color="#eab308" />
+                                                            <LuKey size={10} color="var(--color-warning)" />
                                                         </div>
                                                     </foreignObject>
                                                 )}
@@ -367,7 +367,7 @@ const ErDiagram = ({ onCreateTab, schema }) => {
 
                                                 {/* Column name */}
                                                 <text x={col.isPK || col.fk ? 24 : 12} y={y + 16}
-                                                    fill={col.isPK ? '#eab308' : col.fk ? 'var(--accent-primary)' : 'var(--text-secondary)'}
+                                                    fill={col.isPK ? 'var(--color-warning)' : col.fk ? 'var(--accent-primary)' : 'var(--text-secondary)'}
                                                     fontSize={10.5} fontFamily="'JetBrains Mono', monospace"
                                                     fontWeight={col.isPK ? '600' : '400'}>
                                                     {col.name.length > 18 ? col.name.slice(0, 16) + '…' : col.name}

@@ -97,7 +97,7 @@ function GSheetsSection({ onQuerySheet }) {
             <div className="gsheets-header" onClick={() => setIsOpen(!isOpen)}>
                 <span className="gsheets-header-left">
                     {isOpen ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
-                    <LuFileSpreadsheet size={13} style={{ color: '#34a853' }} />
+                    <LuFileSpreadsheet size={13} style={{ color: 'var(--color-success)' }} />
                     <span className="gsheets-header-title">Google Sheets</span>
                     {sheets.length > 0 && <span className="gsheets-badge">{sheets.length}</span>}
                 </span>
@@ -163,7 +163,7 @@ function GSheetsSection({ onQuerySheet }) {
                             >
                                 <span className="gsheets-item-left">
                                     {expandedSheet === sheet.id ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
-                                    <LuFileSpreadsheet size={13} style={{ color: '#34a853', flexShrink: 0 }} />
+                                    <LuFileSpreadsheet size={13} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
                                     <span className="gsheets-item-name" title={sheet.name}>{sheet.name}</span>
                                 </span>
                                 <span className="gsheets-item-actions" onClick={e => e.stopPropagation()}>

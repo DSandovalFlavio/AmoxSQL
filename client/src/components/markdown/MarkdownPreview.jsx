@@ -206,7 +206,7 @@ function FileLink({ href, children, onOpenFile }) {
                 <span className="mde-link-popover" style={{
                     position: 'absolute', bottom: '100%', left: 0, marginBottom: 8, padding: 12,
                     background: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
-                    borderRadius: 8, zIndex: 1000, width: 350, boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                    borderRadius: 8, zIndex: 1000, width: 350, boxShadow: 'var(--shadow-md)',
                     fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-color)', textAlign: 'left', display: 'block',
                 }}>
                     <span style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -226,7 +226,7 @@ function FileLink({ href, children, onOpenFile }) {
                             </span>
                         </span>
                     ) : (
-                        <span style={{ color: '#ef4444', display: 'block' }}>{previewContent?.error || 'Error loading preview'}</span>
+                        <span style={{ color: 'var(--color-error)', display: 'block' }}>{previewContent?.error || 'Error loading preview'}</span>
                     )}
                 </span>
             )}

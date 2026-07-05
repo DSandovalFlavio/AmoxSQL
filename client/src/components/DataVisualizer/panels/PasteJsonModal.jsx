@@ -116,7 +116,7 @@ const PasteJsonModal = ({ isOpen, onClose, onApply, columns = [] }) => {
                             lineHeight: 1.5,
                             padding: '10px 12px',
                             background: 'var(--input-bg)',
-                            border: `1px solid ${error ? 'rgba(239,68,68,0.5)' : 'var(--border-color)'}`,
+                            border: `1px solid ${error ? 'color-mix(in srgb, var(--color-error) 50%, transparent)' : 'var(--border-color)'}`,
                             borderRadius: 6,
                             color: 'var(--text-active)',
                             resize: 'vertical',
@@ -126,14 +126,14 @@ const PasteJsonModal = ({ isOpen, onClose, onApply, columns = [] }) => {
 
                     {/* Error */}
                     {error && (
-                        <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, fontSize: 12, color: '#ef4444', lineHeight: 1.4 }}>
+                        <div style={{ padding: '8px 12px', background: 'var(--color-error-bg)', border: '1px solid color-mix(in srgb, var(--color-error) 30%, transparent)', borderRadius: 6, fontSize: 12, color: 'var(--color-error)', lineHeight: 1.4 }}>
                             {error}
                         </div>
                     )}
 
                     {/* Column warnings (non-blocking) */}
                     {warnings.length > 0 && (
-                        <div style={{ padding: '8px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, fontSize: 12, color: '#f59e0b', lineHeight: 1.5 }}>
+                        <div style={{ padding: '8px 12px', background: 'var(--color-warning-bg)', border: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)', borderRadius: 6, fontSize: 12, color: 'var(--color-warning)', lineHeight: 1.5 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontWeight: 600 }}>
                                 <LuTriangleAlert size={13} /> Columnas no encontradas en los datos actuales
                             </div>

@@ -603,8 +603,8 @@
 }
 
 .window-title-bar .control-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #FFFFFF;
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
 .window-title-bar .control-btn.close:hover {
@@ -2017,7 +2017,7 @@ body {
 .fe-move-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay-bg);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -4605,7 +4605,7 @@ tr:hover .rt-td {
 
 .ai-edit-proposal__btn--accept {
   background: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
 }
 
 .ai-edit-proposal__btn--reject {
@@ -4630,7 +4630,7 @@ tr:hover .rt-td {
 }
 
 .ai-edit-proposal__line--added {
-  background: rgba(74, 222, 128, 0.08);
+  background: var(--color-success-bg);
 }
 
 .ai-edit-proposal__line-num {
@@ -4644,12 +4644,12 @@ tr:hover .rt-td {
 
 .ai-edit-proposal__line-marker {
   min-width: 14px;
-  color: #4ade80;
+  color: var(--color-success-text);
   font-weight: 700;
   user-select: none;
 }
 
-.ai-edit-proposal__line--added .ai-edit-proposal__line-marker { color: #4ade80; }
+.ai-edit-proposal__line--added .ai-edit-proposal__line-marker { color: var(--color-success-text); }
 
 .ai-edit-proposal__line-content {
   white-space: pre;
@@ -5918,7 +5918,7 @@ tr:hover .rt-td {
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--accent-primary); color: var(--button-text-color, #fff);
   border: none; border-radius: 7px; padding: 5px 10px; cursor: pointer;
-  font-size: var(--text-mini); box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  font-size: var(--text-mini); box-shadow: var(--shadow-md);
 }
 .ai-sel-ask:hover { filter: brightness(1.08); }
 /* Quick-actions over a referenced artifact */
@@ -5935,7 +5935,7 @@ tr:hover .rt-td {
   position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
   max-height: 240px; overflow-y: auto; z-index: 30;
   background: var(--panel-bg); border: 1px solid var(--border-subtle);
-  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); padding: 4px;
+  border-radius: 10px; box-shadow: var(--shadow-lg); padding: 4px;
 }
 .ai-mention-popup-head {
   font-size: var(--text-mini); color: var(--text-tertiary);
@@ -6964,7 +6964,7 @@ tr:hover .rt-td {
 .query-audit-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -6981,7 +6981,7 @@ tr:hover .rt-td {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .query-audit-header {
@@ -7324,7 +7324,7 @@ tr:hover .rt-td {
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: rgba(220, 60, 60, 0.08);
+  background: var(--color-error-bg);
   color: var(--color-error);
   font-size: var(--text-xs);
   flex-shrink: 0;
@@ -9295,7 +9295,7 @@ tr:hover td {
 
 /* Featured card highlight */
 .ext-card-featured {
-  border-left: 2px solid oklch(0.78 0.18 80);
+  border-left: 2px solid var(--color-warning);
 }
 
 /* Load action button (green) */
@@ -9429,7 +9429,7 @@ tr:hover td {
 .command-palette-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay-bg);
 
   display: flex;
   justify-content: center;
@@ -10067,7 +10067,7 @@ tr:hover td {
   top: 3px;
   left: 3px;
   transition: left 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .stg-toggle--on .stg-toggle-knob {
@@ -10381,13 +10381,13 @@ tr:hover td {
   cursor: grab;
   user-select: none;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .stg-model-chip:hover {
   border-color: var(--border-strong);
   transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .stg-model-chip:active {
@@ -10527,9 +10527,9 @@ tr:hover td {
   border-radius: 10px;
   font-weight: var(--weight-medium);
 }
-.stg-badge--new { background: #fee2e2; color: #ef4444; }
-.stg-badge--medium { background: #dbeafe; color: #3b82f6; }
-.stg-badge--high { background: #f3e8ff; color: #a855f7; }
+.stg-badge--new { background: var(--color-error-bg); color: var(--color-error-text); }
+.stg-badge--medium { background: var(--color-info-bg); color: var(--color-info-text); }
+.stg-badge--high { background: var(--accent-subtle); color: var(--accent-primary); }
 
 .stg-model-card-desc {
   font-size: var(--text-xs);
@@ -11407,13 +11407,13 @@ tr:hover td {
 }
 
 .dbt-env-dot--ok {
-  background: #4ade80;
-  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+  background: var(--color-success);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--color-success) 40%, transparent);
 }
 
 .dbt-env-dot--fail {
-  background: #ff6b6b;
-  box-shadow: 0 0 6px rgba(255, 107, 107, 0.4);
+  background: var(--color-error);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--color-error) 40%, transparent);
 }
 
 .dbt-env-version {
@@ -11437,7 +11437,7 @@ tr:hover td {
 }
 
 .dbt-hint code {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-inset);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: var(--text-xs);
@@ -12011,7 +12011,7 @@ tr:hover td {
 }
 .nb-cell:hover .nb-accent { opacity: 1; }
 .nb-accent--code   { background-color: var(--accent-primary); }
-.nb-accent--input  { background-color: #4ade80; }
+.nb-accent--input  { background-color: var(--color-success); }
 .nb-accent--text   { background-color: var(--border-default); }
 
 /* ── Cell Toolbar (header) ── */
@@ -12052,7 +12052,7 @@ tr:hover td {
   font-size: var(--text-mini);
 }
 .nb-type-badge--code  { color: var(--accent-primary); }
-.nb-type-badge--input { color: #4ade80; }
+.nb-type-badge--input { color: var(--color-success-text); }
 .nb-type-badge--text  { color: var(--text-primary); }
 
 /* ── Toolbar Buttons ── */
@@ -12110,8 +12110,8 @@ tr:hover td {
   font-size: var(--text-xs);
 }
 .nb-status--running { color: var(--accent-primary); }
-.nb-status--error   { color: var(--feedback-error, #ff6b6b); }
-.nb-status--success { color: #20c997; }
+.nb-status--error   { color: var(--feedback-error-text); }
+.nb-status--success { color: var(--color-success-text); }
 
 .nb-spinner {
   width: 10px; height: 10px;
@@ -12268,9 +12268,9 @@ tr:hover td {
 
 .nb-error-msg {
   padding: 12px 16px;
-  color: var(--feedback-error, #ff6b6b);
-  background-color: color-mix(in oklch, var(--feedback-error, #ff6b6b) 5%, transparent);
-  border-left: 3px solid var(--feedback-error, #ff6b6b);
+  color: var(--feedback-error-text);
+  background-color: var(--feedback-error-bg);
+  border-left: 3px solid var(--feedback-error);
   font-family: var(--font-mono);
   font-size: var(--text-base);
   margin: 16px;
@@ -12327,7 +12327,7 @@ tr:hover td {
 
 /* Hardware Accelerated Zebra Striping */
 .results-table-root tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--table-row-hover);
 }
 
 .results-table-root tbody tr:hover {
@@ -12591,25 +12591,25 @@ tr:hover td {
 
 .chain-toolbar-btn-primary {
   background: var(--accent-primary);
-  color: #000;
+  color: var(--button-text-color);
   border-color: var(--accent-primary);
   font-weight: 600;
 }
 
 .chain-toolbar-btn-primary:hover {
   opacity: 0.9;
-  color: #000;
+  color: var(--button-text-color);
 }
 
 .chain-toolbar-btn-danger {
-  background: oklch(0.55 0.15 25);
-  color: #fff;
-  border-color: oklch(0.55 0.15 25);
+  background: var(--color-destructive);
+  color: var(--button-text-color);
+  border-color: var(--color-destructive);
 }
 
 .chain-toolbar-btn-danger:hover {
   opacity: 0.9;
-  color: #fff;
+  color: var(--button-text-color);
 }
 
 /* ── Save button (next to chain name) ── */
@@ -12666,10 +12666,13 @@ tr:hover td {
   margin: 0 4px;
 }
 
-/* ── Chain Node (Base) ── */
+/* ── Chain Node (Base) ──
+   Nodes expose only --node-accent (category color, mode-neutral) and
+   optionally --node-border-override (states/errors). Background and border
+   are DERIVED from the accent + theme surfaces so they react to dark/light. */
 .chain-node {
-  background: var(--node-bg, var(--surface-overlay));
-  border: 2px solid var(--node-border, var(--border-default));
+  background: color-mix(in oklch, var(--node-accent, var(--accent-primary)) 7%, var(--surface-raised));
+  border: 1px solid var(--node-border-override, color-mix(in oklch, var(--node-accent, var(--accent-primary)) 30%, var(--border-default)));
   border-radius: 10px;
   padding: 8px 12px;
   min-width: 180px;
@@ -12680,7 +12683,7 @@ tr:hover td {
 }
 
 .chain-node:hover {
-  box-shadow: 0 0 0 1px var(--node-border, var(--border-strong)), var(--shadow-md);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--node-accent, var(--accent-primary)) 45%, var(--border-strong)), var(--shadow-md);
 }
 
 .chain-node-selected {
@@ -12702,7 +12705,7 @@ tr:hover td {
   border-radius: 4px;
   font-size: 9px;
   font-weight: 600;
-  color: #000;
+  color: var(--button-text-color);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -12747,7 +12750,7 @@ tr:hover td {
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 3px 6px;
-  background: oklch(0 0 0 / 0.15);
+  background: var(--surface-inset);
   border-radius: 4px;
   margin-top: 4px;
 }
@@ -12758,13 +12761,13 @@ tr:hover td {
   gap: 4px;
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid oklch(1 0 0 / 0.08);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .chain-node-result-type {
   font-size: 9px;
   font-weight: 600;
-  color: oklch(0.75 0.15 155);
+  color: var(--color-success-text);
   text-transform: uppercase;
 }
 
@@ -12780,10 +12783,10 @@ tr:hover td {
   gap: 4px;
   margin-top: 6px;
   padding: 4px 6px;
-  background: oklch(0.3 0.06 25 / 0.3);
+  background: var(--color-error-bg);
   border-radius: 4px;
   font-size: 9px;
-  color: oklch(0.8 0.1 25);
+  color: var(--color-error-text);
 }
 
 .chain-node-error span {
@@ -12796,8 +12799,8 @@ tr:hover td {
 .chain-handle {
   width: 8px !important;
   height: 8px !important;
-  background: var(--node-border, var(--border-strong)) !important;
-  border: 2px solid var(--node-bg, var(--surface-overlay)) !important;
+  background: color-mix(in oklch, var(--node-accent, var(--accent-primary)) 55%, var(--border-strong)) !important;
+  border: 2px solid var(--surface-raised) !important;
 }
 
 .chain-handle:hover {
@@ -12944,7 +12947,7 @@ tr:hover td {
 .chain-doc-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12961,7 +12964,7 @@ tr:hover td {
   border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .chain-doc-modal-close {
@@ -13054,8 +13057,8 @@ tr:hover td {
   gap: 6px;
 }
 
-.node-doc-io-in { color: oklch(0.7 0.13 230); flex-shrink: 0; }
-.node-doc-io-out { color: oklch(0.72 0.15 145); flex-shrink: 0; }
+.node-doc-io-in { color: var(--color-info-text); flex-shrink: 0; }
+.node-doc-io-out { color: var(--color-success-text); flex-shrink: 0; }
 
 .node-doc-io-label {
   font-size: 10px;
@@ -13126,7 +13129,7 @@ tr:hover td {
 }
 
 .node-doc-tip-icon {
-  color: oklch(0.75 0.15 85);
+  color: var(--color-warning-text);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -13312,11 +13315,11 @@ tr:hover td {
 }
 
 .chain-config-hint-info {
-  color: oklch(0.7 0.1 250);
-  background: oklch(0.25 0.04 250 / 0.3);
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
   padding: 6px 8px;
   border-radius: 4px;
-  border-left: 2px solid oklch(0.6 0.12 250);
+  border-left: 2px solid var(--feedback-info-border);
   margin-top: 4px;
 }
 
@@ -13449,9 +13452,9 @@ tr:hover td {
 }
 
 .chain-config-remove-btn:hover {
-  background: oklch(0.3 0.06 25 / 0.3);
-  border-color: oklch(0.5 0.1 25);
-  color: oklch(0.7 0.12 25);
+  background: var(--color-error-bg);
+  border-color: var(--feedback-error-border);
+  color: var(--color-error-text);
 }
 
 .chain-config-delete {
@@ -13460,16 +13463,16 @@ tr:hover td {
   gap: 6px;
   padding: 6px 10px;
   background: transparent;
-  border: 1px solid oklch(0.5 0.1 25);
+  border: 1px solid var(--feedback-error-border);
   border-radius: 6px;
-  color: oklch(0.7 0.12 25);
+  color: var(--color-error-text);
   font-size: 11px;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .chain-config-delete:hover {
-  background: oklch(0.3 0.06 25 / 0.3);
+  background: var(--color-error-bg);
 }
 
 /* ── SQL Preview ── */
@@ -13525,8 +13528,8 @@ tr:hover td {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 10px;
   line-height: 1.5;
-  color: oklch(0.8 0.08 250);
-  background: oklch(0.14 0.01 250);
+  color: var(--text-secondary);
+  background: var(--surface-base);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 200px;
@@ -13641,8 +13644,8 @@ tr:hover td {
 }
 
 .chain-history-run-delete:hover {
-  color: oklch(0.7 0.12 25);
-  background: oklch(0.3 0.06 25 / 0.2);
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
 }
 
 .chain-history-nodes {
@@ -13686,12 +13689,12 @@ tr:hover td {
 }
 
 .chain-history-node-result {
-  color: oklch(0.7 0.12 155);
+  color: var(--color-success-text);
   font-size: 9px;
 }
 
 .chain-history-node-error {
-  color: oklch(0.7 0.12 25);
+  color: var(--color-error-text);
   font-size: 9px;
   max-width: 120px;
   overflow: hidden;
@@ -13707,7 +13710,7 @@ tr:hover td {
   margin: 6px 8px 8px;
   padding: 6px;
   background: var(--accent-primary);
-  color: #000;
+  color: var(--button-text-color);
   border: none;
   border-radius: 6px;
   font-size: 11px;
@@ -13728,33 +13731,33 @@ tr:hover td {
 }
 
 .chain-status-running {
-  background: oklch(0.25 0.06 250 / 0.5);
-  color: oklch(0.8 0.1 250);
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .chain-status-completed {
-  background: oklch(0.25 0.06 155 / 0.5);
-  color: oklch(0.8 0.1 155);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .chain-status-failed {
-  background: oklch(0.25 0.06 25 / 0.5);
-  color: oklch(0.8 0.1 25);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .chain-status-paused {
-  background: oklch(0.25 0.06 85 / 0.5);
-  color: oklch(0.8 0.1 85);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .chain-status-cancelled {
-  background: oklch(0.2 0 0 / 0.5);
-  color: oklch(0.6 0 0);
+  background: var(--surface-inset);
+  color: var(--text-tertiary);
 }
 
 /* ── React Flow Edge Animations ── */
 .chain-canvas-container .react-flow__edge-path {
-  stroke: oklch(0.45 0.02 250);
+  stroke: var(--border-strong);
   stroke-width: 2;
 }
 
@@ -13786,15 +13789,15 @@ tr:hover td {
 }
 
 .chain-toolbar-validation-error {
-  background: oklch(0.25 0.08 25);
-  color: oklch(0.75 0.18 25);
-  border: 1px solid oklch(0.35 0.12 25);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--feedback-error-border);
 }
 
 .chain-toolbar-validation-warn {
-  background: oklch(0.25 0.08 85);
-  color: oklch(0.78 0.15 85);
-  border: 1px solid oklch(0.35 0.1 85);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid var(--feedback-warning-border);
 }
 
 /* ── Chain: Node validation indicators ── */
@@ -13827,7 +13830,7 @@ tr:hover td {
   padding: 8px 10px;
   min-width: 200px;
   max-width: 280px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  box-shadow: var(--shadow-md);
   margin-top: 4px;
 }
 
@@ -13849,8 +13852,8 @@ tr:hover td {
   margin-bottom: 3px;
 }
 
-.chain-node-validation-error-item { color: oklch(0.72 0.18 25); }
-.chain-node-validation-warn-item { color: oklch(0.78 0.15 85); }
+.chain-node-validation-error-item { color: var(--color-error-text); }
+.chain-node-validation-warn-item { color: var(--color-warning-text); }
 
 /* ── Chain: Node preview button ── */
 .chain-node-preview-btn {
@@ -13946,7 +13949,7 @@ tr:hover td {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: oklch(0.75 0.18 142);
+  background: var(--color-success);
   animation: chain-log-pulse 1s ease-in-out infinite;
 }
 
@@ -13984,7 +13987,7 @@ tr:hover td {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .chain-log-filter-option {
@@ -14080,13 +14083,13 @@ tr:hover td {
   color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-md);
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chain-log-scroll-bottom:hover {
   background: var(--accent-primary);
-  color: white;
+  color: var(--button-text-color);
   border-color: var(--accent-primary);
 }
 
@@ -14094,7 +14097,7 @@ tr:hover td {
 .chain-preview-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14110,7 +14113,7 @@ tr:hover td {
   max-height: 70vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-lg);
 }
 
 .chain-preview-header {
@@ -14174,9 +14177,9 @@ tr:hover td {
 
 .chain-preview-error {
   padding: 20px;
-  color: oklch(0.72 0.18 25);
+  color: var(--color-error-text);
   font-size: 13px;
-  background: oklch(0.15 0.05 25 / 0.3);
+  background: var(--color-error-bg);
   border-radius: var(--radius-md);
   margin: 8px;
 }
@@ -14343,7 +14346,7 @@ tr:hover td {
 }
 
 .chain-status-dot-running {
-  background: oklch(0.75 0.18 142);
+  background: var(--color-success);
   animation: chain-log-pulse 1s ease-in-out infinite;
 }
 
@@ -14357,7 +14360,7 @@ tr:hover td {
 .chain-template-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14373,7 +14376,7 @@ tr:hover td {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -14647,17 +14650,17 @@ tr:hover td {
 }
 
 .mem-item__action-btn--delete:hover {
-  color: #f87171;
-  border-color: #f87171;
+  color: var(--color-error-text);
+  border-color: var(--feedback-error-border);
 }
 
 .mem-item__action-btn--save {
-  color: #4ade80;
-  border-color: #4ade8044;
+  color: var(--color-success-text);
+  border-color: var(--feedback-success-border);
 }
 
 .mem-item__action-btn--save:hover {
-  background: #4ade8022;
+  background: var(--color-success-bg);
 }
 
 .mem-item__action-btn--cancel {
@@ -14716,7 +14719,7 @@ tr:hover td {
   z-index: 200;
   background: var(--surface-raised);
   border-left: 1px solid var(--border-color);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -14739,7 +14742,7 @@ tr:hover td {
 
 .rt-action-btn--accent:hover {
   background: var(--accent-primary) !important;
-  color: #000 !important;
+  color: var(--button-text-color) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -14767,7 +14770,7 @@ tr:hover td {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .cr-header {
@@ -14920,11 +14923,11 @@ tr:hover td {
 }
 
 .cr-mini-row.cr-added td {
-  background: rgba(76, 175, 80, 0.08);
+  background: var(--color-success-bg);
 }
 
 .cr-mini-row.cr-removed td {
-  background: rgba(224, 108, 117, 0.08);
+  background: var(--color-error-bg);
 }
 
 .cr-mini-row.cr-unchanged td {
@@ -14953,7 +14956,7 @@ tr:hover td {
   gap: 6px;
   padding: 7px 16px;
   background: var(--accent-primary);
-  color: #000;
+  color: var(--button-text-color);
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -15074,7 +15077,7 @@ tr:hover td {
 
 .chart-gallery-card:hover {
   border-color: var(--accent-primary);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -15122,7 +15125,7 @@ tr:hover td {
   height: 32px;
   border-radius: 6px;
   border: none;
-  background: rgba(0,0,0,0.6);
+  background: var(--overlay-bg);
   color: #fff;
   display: flex;
   align-items: center;
@@ -15330,7 +15333,7 @@ tr:hover td {
 }
 
 .stg-ctx-status-ok {
-  color: #22c55e;
+  color: var(--color-success-text);
   flex-shrink: 0;
 }
 
@@ -15377,7 +15380,7 @@ tr:hover td {
 }
 
 .stg-ctx-file--exists .stg-ctx-file-dot {
-  background: #22c55e;
+  background: var(--color-success);
 }
 
 .stg-ctx-file--missing .stg-ctx-file-dot {
@@ -15399,7 +15402,7 @@ tr:hover td {
 }
 
 .stg-ctx-file--exists .stg-ctx-file-status {
-  color: #22c55e;
+  color: var(--color-success-text);
 }
 
 .stg-ctx-empty {
@@ -15473,7 +15476,7 @@ tr:hover td {
 .stg-ctx-check-row--on .stg-ctx-check-box {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
 }
 
 .stg-ctx-check-body {
@@ -15506,7 +15509,7 @@ tr:hover td {
   border-radius: var(--radius-sm, 6px);
   border: none;
   background: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -15555,7 +15558,7 @@ tr:hover td {
   height: 22px;
   border-radius: 50%;
   background: var(--accent-primary);
-  color: #fff;
+  color: var(--button-text-color);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -16409,7 +16412,7 @@ tr:hover td {
 /* Diff Modal */
 .git-diff-overlay {
   position: fixed; inset: 0; z-index: 10000;
-  background: rgba(0,0,0,0.5);
+  background: var(--overlay-bg);
   display: flex; align-items: center; justify-content: center;
 }
 .git-diff-modal {
@@ -16427,6 +16430,6 @@ tr:hover td {
   font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.6;
 }
 .git-diff-line { padding: 0 16px; white-space: pre-wrap; word-break: break-all; }
-.git-diff-add  { background: rgba(76, 175, 80, 0.12); color: var(--color-success); }
-.git-diff-del  { background: rgba(224, 108, 117, 0.12); color: var(--color-error); }
-.git-diff-hunk { background: rgba(97, 175, 239, 0.08); color: var(--accent-primary); font-weight: 600; }
+.git-diff-add  { background: var(--color-success-bg); color: var(--color-success); }
+.git-diff-del  { background: var(--color-error-bg); color: var(--color-error); }
+.git-diff-hunk { background: var(--accent-subtle); color: var(--accent-primary); font-weight: 600; }

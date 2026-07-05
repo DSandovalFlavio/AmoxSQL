@@ -281,7 +281,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                                     {/* Materialization badge */}
                                     {node.materialized && (
                                         <>
-                                            <rect x={58} y={6} width={38} height={16} rx={3} fill="rgba(255,255,255,0.06)" />
+                                            <rect x={58} y={6} width={38} height={16} rx={3} fill="var(--hover-bg)" />
                                             <text x={77} y={17} textAnchor="middle"
                                                 fill="var(--text-tertiary)" fontSize={7} fontFamily="'JetBrains Mono', monospace"
                                             >
@@ -290,7 +290,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                                         </>
                                     )}
                                     {/* Name */}
-                                    <text x={10} y={42} fill={isHovered ? '#fff' : 'var(--text-primary)'}
+                                    <text x={10} y={42} fill={isHovered ? 'var(--text-active)' : 'var(--text-primary)'}
                                         fontSize={11} fontWeight="500" fontFamily="'Inter', sans-serif"
                                     >
                                         {node.name.length > 22 ? node.name.slice(0, 20) + '…' : node.name}

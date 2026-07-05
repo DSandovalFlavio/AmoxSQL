@@ -84,7 +84,7 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
                                     background: 'var(--surface-overlay)',
                                     border: '1px solid var(--border-subtle)',
                                     borderRadius: 6,
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                    boxShadow: 'var(--shadow-md)',
                                     zIndex: 100,
                                     minWidth: 160,
                                     overflow: 'hidden',

@@ -196,7 +196,8 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         const chartEl = document.getElementById(`${chartDOMId}-area`);
         if (!chartEl) return;
         try {
-            const canvas = await html2canvas(chartEl, { backgroundColor: '#1e1e1e' });
+            const isLight = document.body.classList.contains('mode-light');
+            const canvas = await html2canvas(chartEl, { backgroundColor: isLight ? '#ffffff' : '#1e1e1e' });
             const link = document.createElement('a');
             link.download = `chart_${chartConfig.queryId || 'export'}.png`;
             link.href = canvas.toDataURL('image/png');

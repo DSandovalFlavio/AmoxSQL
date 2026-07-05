@@ -168,8 +168,8 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true, total = 0, slowest = nu
         && Math.abs(estRows - realRows) >= 1000;
 
     const heat = pct >= 0.4 ? 'high' : pct >= 0.15 ? 'mid' : 'none';
-    const heatBg = heat === 'high' ? 'rgba(255,90,90,0.13)' : heat === 'mid' ? 'rgba(245,170,70,0.11)' : 'var(--panel-bg)';
-    const heatBorder = heat === 'high' ? 'rgba(255,90,90,0.65)' : heat === 'mid' ? 'rgba(245,170,70,0.55)' : 'var(--border-color)';
+    const heatBg = heat === 'high' ? 'color-mix(in srgb, var(--color-error) 13%, transparent)' : heat === 'mid' ? 'color-mix(in srgb, var(--color-warning) 11%, transparent)' : 'var(--panel-bg)';
+    const heatBorder = heat === 'high' ? 'color-mix(in srgb, var(--color-error) 65%, transparent)' : heat === 'mid' ? 'color-mix(in srgb, var(--color-warning) 55%, transparent)' : 'var(--border-color)';
 
     // Clean extra_info: drop keys we surface elsewhere; keep the informative ones.
     const SKIP = new Set(['function', 'estimated cardinality', '__timing', '__cardinality']);
@@ -205,13 +205,13 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true, total = 0, slowest = nu
                         )}
                     </div>
                     {isBottleneck && (
-                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#ff7a7a', border: '1px solid rgba(255,90,90,0.5)', borderRadius: '4px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-error)', border: '1px solid color-mix(in srgb, var(--color-error) 50%, transparent)', borderRadius: '4px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             slowest
                         </span>
                     )}
                     <div style={{ flex: 1 }} />
                     {hasTiming && (
-                        <span style={{ fontSize: '11px', color: heat === 'high' ? '#ff7a7a' : 'var(--accent-color-user)', fontVariantNumeric: 'tabular-nums', fontWeight: heat !== 'none' ? 600 : 400, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '11px', color: heat === 'high' ? 'var(--color-error)' : 'var(--accent-color-user)', fontVariantNumeric: 'tabular-nums', fontWeight: heat !== 'none' ? 600 : 400, whiteSpace: 'nowrap' }}>
                             {fmtMs(node.timing)}{pctLabel}
                         </span>
                     )}
@@ -271,7 +271,7 @@ const CostView = ({ root, total }) => {
                             {friendly(op.name)}
                         </div>
                         <div style={{ flex: 1, background: 'var(--surface-inset, rgba(255,255,255,0.04))', borderRadius: '4px', height: '20px', position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ width: `${w}%`, height: '100%', background: strong ? 'rgba(255,90,90,0.55)' : 'var(--accent-primary, #00bbaa)', opacity: strong ? 1 : 0.65, borderRadius: '4px' }} />
+                            <div style={{ width: `${w}%`, height: '100%', background: strong ? 'color-mix(in srgb, var(--color-error) 55%, transparent)' : 'var(--accent-primary, #00bbaa)', opacity: strong ? 1 : 0.65, borderRadius: '4px' }} />
                         </div>
                         <div style={{ width: '120px', flexShrink: 0, fontSize: '11px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                             {fmtMs(op.timing)} · {pct.toFixed(0)}%
@@ -284,7 +284,7 @@ const CostView = ({ root, total }) => {
 };
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
-const SEV_COLOR = { high: '#ff7a7a', mid: '#d2a106', info: 'var(--accent-color-user, #00bbaa)' };
+const SEV_COLOR = { high: 'var(--color-error)', mid: 'var(--color-warning)', info: 'var(--accent-color-user, #00bbaa)' };
 
 const QueryPlanViewer = ({ plan, mode = 'analyze', metrics = null }) => {
     const [viewMode, setViewMode] = useState('tree');
@@ -328,8 +328,8 @@ const QueryPlanViewer = ({ plan, mode = 'analyze', metrics = null }) => {
 
             {/* Bottleneck banner (analyze only) */}
             {mode === 'analyze' && slowest && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-color)', backgroundColor: 'rgba(255,90,90,0.08)', border: '1px solid rgba(255,90,90,0.3)', borderRadius: '6px', padding: '7px 10px', marginBottom: '14px' }}>
-                    <LuGauge size={14} style={{ color: '#ff7a7a' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-color)', backgroundColor: 'color-mix(in srgb, var(--color-error) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-error) 30%, transparent)', borderRadius: '6px', padding: '7px 10px', marginBottom: '14px' }}>
+                    <LuGauge size={14} style={{ color: 'var(--color-error)' }} />
                     <span>Slowest step: <strong>{friendly(slowest.name)}</strong> — {fmtMs(slowest.timing)}{total > 0 ? ` (${((slowest.timing / total) * 100).toFixed(0)}% of operator time)` : ''}</span>
                 </div>
             )}

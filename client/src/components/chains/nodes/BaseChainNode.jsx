@@ -32,11 +32,12 @@ const BaseChainNode = ({ data, selected }) => {
 
     const [showValidation, setShowValidation] = useState(false);
 
-    // Compute border: status overrides validation, which overrides default
-    let borderColor = nodeType.color.border;
-    if (status !== 'pending') borderColor = statusColor.border;
-    else if (hasErrors) borderColor = 'oklch(0.6 0.2 25)';
-    else if (hasWarnings) borderColor = 'oklch(0.6 0.18 85)';
+    // The default node bg/border derive from --node-accent + the theme surfaces
+    // in CSS (legible in both light and dark). These states override the border.
+    let borderOverride = null;
+    if (status !== 'pending') borderOverride = statusColor.border;
+    else if (hasErrors) borderOverride = 'var(--color-error)';
+    else if (hasWarnings) borderOverride = 'var(--color-warning)';
 
     const canPreview = status === 'success' && resultSummary?.table;
 
@@ -44,9 +45,8 @@ const BaseChainNode = ({ data, selected }) => {
         <div
             className={`chain-node ${selected ? 'chain-node-selected' : ''} ${hasErrors ? 'chain-node-invalid' : ''}`}
             style={{
-                '--node-bg': nodeType.color.bg,
-                '--node-border': borderColor,
                 '--node-accent': nodeType.color.accent,
+                ...(borderOverride ? { '--node-border-override': borderOverride } : {}),
                 '--status-bg': statusColor.bg,
             }}
         >

@@ -195,9 +195,9 @@ const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
                                     <td style={{ padding: '8px 10px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <div style={{ width: '60px', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                <div style={{ width: `${Math.min(nullPct, 100)}%`, height: '100%', background: nullPct > 0 ? '#ff6b6b' : 'var(--border-color)' }}></div>
+                                                <div style={{ width: `${Math.min(nullPct, 100)}%`, height: '100%', background: nullPct > 0 ? 'var(--color-error)' : 'var(--border-color)' }}></div>
                                             </div>
-                                            <span style={{ color: nullPct > 0 ? '#ff6b6b' : 'var(--text-muted)' }}>{nullPct.toFixed(1)}%</span>
+                                            <span style={{ color: nullPct > 0 ? 'var(--color-error)' : 'var(--text-muted)' }}>{nullPct.toFixed(1)}%</span>
                                         </div>
                                     </td>
 
@@ -280,7 +280,7 @@ const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
                 {/* Content */}
                 <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
                     {loading && (
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(30,31,34,0.8)', zIndex: 10 }}>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'color-mix(in srgb, var(--surface-base) 80%, transparent)', zIndex: 10 }}>
                             Loading details...
                         </div>
                     )}

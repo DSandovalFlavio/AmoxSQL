@@ -75,7 +75,7 @@ const SchemaDiffModal = ({ isOpen, onClose, tables = [] }) => {
         unchanged: diffRows.filter(d => d.status === 'unchanged').length,
     };
 
-    const statusColors = { added: '#10b981', removed: '#ef4444', modified: '#f59e0b', unchanged: 'var(--text-tertiary)' };
+    const statusColors = { added: 'var(--color-success)', removed: 'var(--color-error)', modified: 'var(--color-warning)', unchanged: 'var(--text-tertiary)' };
     const statusIcons = { added: <LuPlus size={12} />, removed: <LuMinus size={12} />, modified: <LuPencil size={12} />, unchanged: null };
 
     return (

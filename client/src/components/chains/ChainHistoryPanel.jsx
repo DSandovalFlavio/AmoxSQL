@@ -13,14 +13,14 @@ import { API_BASE as _API } from '../../api.js';
 const API_BASE = `${_API}/api/chains`;
 
 const statusIcons = {
-    running: <LuLoader size={12} className="chain-node-spin" style={{ color: 'oklch(0.7 0.15 250)' }} />,
-    completed: <LuCheck size={12} style={{ color: 'oklch(0.7 0.15 155)' }} />,
-    failed: <LuCircleAlert size={12} style={{ color: 'oklch(0.7 0.15 25)' }} />,
-    cancelled: <LuMinus size={12} style={{ color: 'oklch(0.5 0 0)' }} />,
-    paused: <LuClock size={12} style={{ color: 'oklch(0.7 0.15 85)' }} />,
-    success: <LuCheck size={12} style={{ color: 'oklch(0.7 0.15 155)' }} />,
-    skipped: <LuMinus size={12} style={{ color: 'oklch(0.5 0 0)' }} />,
-    pending: <LuClock size={12} style={{ color: 'oklch(0.5 0 0)' }} />,
+    running: <LuLoader size={12} className="chain-node-spin" style={{ color: 'var(--color-info)' }} />,
+    completed: <LuCheck size={12} style={{ color: 'var(--color-success)' }} />,
+    failed: <LuCircleAlert size={12} style={{ color: 'var(--color-error)' }} />,
+    cancelled: <LuMinus size={12} style={{ color: 'var(--text-tertiary)' }} />,
+    paused: <LuClock size={12} style={{ color: 'var(--color-warning)' }} />,
+    success: <LuCheck size={12} style={{ color: 'var(--color-success)' }} />,
+    skipped: <LuMinus size={12} style={{ color: 'var(--text-tertiary)' }} />,
+    pending: <LuClock size={12} style={{ color: 'var(--text-tertiary)' }} />,
 };
 
 const ChainHistoryPanel = ({ chainFile, isOpen, onClose, onResumeRun }) => {

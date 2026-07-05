@@ -150,7 +150,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                         onClick={addStep}
                         disabled={!selectedFile || running}
                         style={{
-                            backgroundColor: 'var(--accent-primary)', color: '#fff', border: 'none',
+                            backgroundColor: 'var(--accent-primary)', color: 'var(--button-text-color)', border: 'none',
                             borderRadius: '6px', padding: '7px 12px', cursor: 'pointer', fontSize: '12px',
                             display: 'flex', alignItems: 'center', gap: '4px', opacity: !selectedFile ? 0.5 : 1,
                         }}
@@ -234,7 +234,7 @@ const ExecutionChainModal = ({ isOpen, onClose, sqlFiles = [] }) => {
                     style={{
                         width: '100%', padding: '10px', borderRadius: '8px', cursor: running ? 'wait' : 'pointer',
                         backgroundColor: running ? 'var(--accent-muted)' : 'var(--accent-primary)',
-                        color: '#fff', border: 'none', fontSize: '13px', fontWeight: 600,
+                        color: 'var(--button-text-color)', border: 'none', fontSize: '13px', fontWeight: 600,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                         opacity: chain.length === 0 ? 0.5 : 1,
                     }}

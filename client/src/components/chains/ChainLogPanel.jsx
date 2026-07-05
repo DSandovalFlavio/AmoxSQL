@@ -10,10 +10,10 @@ import {
 
 const LOG_TYPE_STYLES = {
     info: { color: 'var(--text-secondary)', Icon: LuInfo },
-    success: { color: 'oklch(0.75 0.15 155)', Icon: LuCheck },
-    error: { color: 'oklch(0.7 0.18 25)', Icon: LuX },
-    sql: { color: 'oklch(0.65 0.08 260)', Icon: LuChevronRight },
-    warn: { color: 'oklch(0.75 0.15 85)', Icon: LuTriangleAlert },
+    success: { color: 'var(--color-success)', Icon: LuCheck },
+    error: { color: 'var(--color-error)', Icon: LuX },
+    sql: { color: 'var(--color-info)', Icon: LuChevronRight },
+    warn: { color: 'var(--color-warning)', Icon: LuTriangleAlert },
 };
 
 const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleCollapse }) => {
@@ -84,7 +84,7 @@ const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleColla
                         className="chain-log-btn"
                         onClick={() => setShowFilter(v => !v)}
                         title="Filter by type"
-                        style={{ color: filterType !== 'all' ? 'oklch(0.65 0.15 250)' : undefined }}
+                        style={{ color: filterType !== 'all' ? 'var(--color-info)' : undefined }}
                     >
                         <LuFilter size={13} />
                     </button>

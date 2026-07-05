@@ -28,6 +28,7 @@ import {
     yamlToChain,
     generateNodeId,
     generateEdgeId,
+    resolveThemeColor,
 } from './chainUtils';
 import { useChainExecution } from './useChainExecution';
 import { validateChain, countErrors, countWarnings } from './chainValidation';
@@ -75,7 +76,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             source: e.source,
             target: e.target,
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         })), [initialChain]);
 
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -178,7 +179,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             ...params,
             id: generateEdgeId(),
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         };
 
         // Check for cycles before adding
@@ -432,7 +433,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     source: e.source,
                     target: e.target,
                     type: 'smoothstep',
-                    style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+                    style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
                 })));
 
                 toast.success('Chain imported from YAML');
@@ -471,7 +472,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             source: e.source,
             target: e.target,
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         }));
         setNodes(newNodes);
         setEdges(newEdges);
@@ -576,7 +577,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             source: e.source,
             target: e.target,
             type: 'smoothstep',
-            style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
         })));
     }, []);
 

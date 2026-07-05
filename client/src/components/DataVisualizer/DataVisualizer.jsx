@@ -168,7 +168,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         const c = state.cardStyle || {};
         const s = {};
         if (c.radius != null) s.borderRadius = `${c.radius}px`;
-        if (c.shadow) s.boxShadow = '0 8px 30px rgba(0,0,0,0.35)';
+        if (c.shadow) s.boxShadow = 'var(--shadow-lg)';
         if (c.gradient) s.background = `linear-gradient(160deg, ${c.gradientFrom || '#1e1f29'}, ${c.gradientTo || '#0f1015'})`;
         return s;
     }, [state.cardStyle]);

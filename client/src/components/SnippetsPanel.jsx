@@ -228,7 +228,7 @@ const SnippetsPanel = ({ onInsert }) => {
                                                 <span
                                                     onClick={e => { e.stopPropagation(); handleDeleteCustom(idx); }}
                                                     title="Delete"
-                                                    style={{ opacity: 0.5, display: 'flex', alignItems: 'center', color: '#e06c75' }}
+                                                    style={{ opacity: 0.5, display: 'flex', alignItems: 'center', color: 'var(--color-error)' }}
                                                 >
                                                     <LuTrash2 size={12} />
                                                 </span>

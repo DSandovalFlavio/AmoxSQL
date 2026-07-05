@@ -2,7 +2,7 @@
  * ChainCanvas — React Flow wrapper for the chain DAG builder.
  * Handles node/edge rendering, drag-and-drop from palette, connection validation.
  */
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 import {
     ReactFlow,
     Controls,
@@ -48,7 +48,7 @@ import AiEnrichNode from './nodes/AiEnrichNode';
 import SchemaValidationNode from './nodes/SchemaValidationNode';
 import NotificationNode from './nodes/NotificationNode';
 import { NODE_TYPES } from './chainNodeTypes';
-import { hasCycle, generateNodeId, generateEdgeId } from './chainUtils';
+import { hasCycle, generateNodeId, generateEdgeId, resolveThemeColor } from './chainUtils';
 
 const nodeTypes = {
     sql_file: SqlFileNode,
@@ -85,12 +85,6 @@ const nodeTypes = {
     notification: NotificationNode,
 };
 
-const defaultEdgeOptions = {
-    type: 'smoothstep',
-    animated: false,
-    style: { stroke: 'oklch(0.5 0.02 250)', strokeWidth: 2 },
-};
-
 const ChainCanvas = ({
     nodes,
     edges,
@@ -104,6 +98,25 @@ const ChainCanvas = ({
     onNodeDragStart,
     onNodeDragStop,
 }) => {
+    // React Flow paints edges / minimap / background as SVG and won't resolve
+    // `var(--token)` in those props, so resolve the theme tokens to concrete
+    // colors here. Recomputes on each mount; theme swaps re-render the tree.
+    const theme = useMemo(() => ({
+        edge: resolveThemeColor('--border-strong'),
+        dots: resolveThemeColor('--border-default', 'oklch(0.3 0 0 / 0.3)'),
+        mask: resolveThemeColor('--overlay-bg', 'oklch(0.1 0 0 / 0.7)'),
+        success: resolveThemeColor('--color-success', 'oklch(0.65 0.15 155)'),
+        error: resolveThemeColor('--color-error', 'oklch(0.65 0.15 25)'),
+        info: resolveThemeColor('--color-info', 'oklch(0.65 0.15 250)'),
+        fallbackNode: resolveThemeColor('--border-default', 'oklch(0.4 0 0)'),
+    }), []);
+
+    const defaultEdgeOptions = useMemo(() => ({
+        type: 'smoothstep',
+        animated: false,
+        style: { stroke: theme.edge, strokeWidth: 2 },
+    }), [theme.edge]);
+
     return (
         <div className="chain-canvas-container">
             <ReactFlow
@@ -134,7 +147,7 @@ const ChainCanvas = ({
                     variant={BackgroundVariant.Dots}
                     gap={20}
                     size={1}
-                    color="oklch(0.3 0 0 / 0.3)"
+                    color={theme.dots}
                 />
                 <Controls
                     position="bottom-right"
@@ -145,13 +158,13 @@ const ChainCanvas = ({
                     position="bottom-left"
                     nodeColor={(node) => {
                         const status = node.data?.status;
-                        if (status === 'success') return 'oklch(0.65 0.15 155)';
-                        if (status === 'failed') return 'oklch(0.65 0.15 25)';
-                        if (status === 'running') return 'oklch(0.65 0.15 250)';
+                        if (status === 'success') return theme.success;
+                        if (status === 'failed') return theme.error;
+                        if (status === 'running') return theme.info;
                         const nt = NODE_TYPES[node.type];
-                        return nt?.color?.accent || 'oklch(0.4 0 0)';
+                        return nt?.color?.accent || theme.fallbackNode;
                     }}
-                    maskColor="oklch(0.1 0 0 / 0.7)"
+                    maskColor={theme.mask}
                     className="chain-minimap"
                 />
             </ReactFlow>

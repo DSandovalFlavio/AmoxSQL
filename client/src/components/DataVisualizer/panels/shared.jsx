@@ -166,7 +166,7 @@ export const SimpleColorPicker = memo(({ color, onChange, swatches }) => {
                     position: 'absolute', top: '100%', left: 0, zIndex: 1000,
                     backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--border-color)',
                     padding: '10px', borderRadius: '6px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                    boxShadow: 'var(--shadow-md)',
                     width: '260px', marginTop: '4px',
                     display: 'flex', flexDirection: 'column', gap: '8px'
                 }}>

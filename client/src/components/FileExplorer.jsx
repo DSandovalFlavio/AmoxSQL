@@ -781,7 +781,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                 const gitStatus = gitStatusMap[fileNorm]
                                     || gitStatusMap[file.name]
                                     || (Object.keys(gitStatusMap).find(k => k.endsWith('/' + file.name)) ? gitStatusMap[Object.keys(gitStatusMap).find(k => k.endsWith('/' + file.name))] : undefined);
-                                const GIT_BADGE_COLORS = { M: '#e8a838', A: '#4caf7d', D: '#e06c75', '?': undefined };
+                                const GIT_BADGE_COLORS = { M: 'var(--color-warning)', A: 'var(--color-success)', D: 'var(--color-error)', '?': undefined };
                                 return (
                                 <>
                                     <span style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>

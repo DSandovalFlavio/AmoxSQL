@@ -246,7 +246,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
 
                 {/* Error */}
                 {error && (
-                    <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, fontSize: 13, color: '#ef4444' }}>
+                    <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--color-error-bg)', border: '1px solid color-mix(in srgb, var(--color-error) 30%, transparent)', borderRadius: 6, fontSize: 13, color: 'var(--color-error)' }}>
                         {error}
                     </div>
                 )}
@@ -260,7 +260,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                             <span>·</span>
                             <span>{Number(result.rowCount).toLocaleString()} filas totales</span>
                             <span>·</span>
-                            <span style={{ color: sizeWarn ? '#f59e0b' : 'inherit' }}>
+                            <span style={{ color: sizeWarn ? 'var(--color-warning)' : 'inherit' }}>
                                 {sizeWarn && <LuTriangleAlert size={12} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
                                 ≈ {sizeKb} KB
                                 {sizeWarn && ' — puede exceder el límite de algunos chats'}

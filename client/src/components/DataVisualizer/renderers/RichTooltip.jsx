@@ -16,7 +16,7 @@ const RichTooltip = memo(({ active, payload, label, numberFormat, decimalPlaces,
         <div style={{
             background: 'var(--tooltip-bg)', border: '1px solid var(--border-color)',
             borderRadius: '8px', padding: '8px 10px', minWidth: '130px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--shadow-md)',
         }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>{label}</div>
             {payload.map((entry, i) => {

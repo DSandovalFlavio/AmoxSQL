@@ -19,8 +19,6 @@ export const NODE_TYPES = {
         description: 'Execute a .sql file from the project',
         icon: LuFileCode2,
         color: {
-            bg: 'oklch(0.22 0.04 250)',
-            border: 'oklch(0.35 0.08 250)',
             accent: 'oklch(0.65 0.15 250)',
         },
         defaultConfig: { filePath: '' },
@@ -31,8 +29,6 @@ export const NODE_TYPES = {
         description: 'Write and execute SQL directly',
         icon: LuCode,
         color: {
-            bg: 'oklch(0.22 0.04 270)',
-            border: 'oklch(0.35 0.08 270)',
             accent: 'oklch(0.65 0.15 270)',
         },
         defaultConfig: { query: '' },
@@ -43,8 +39,6 @@ export const NODE_TYPES = {
         description: 'Import a CSV, Parquet, JSON, or Excel file into a table',
         icon: LuFileInput,
         color: {
-            bg: 'oklch(0.22 0.04 155)',
-            border: 'oklch(0.35 0.08 155)',
             accent: 'oklch(0.65 0.15 155)',
         },
         defaultConfig: { sourcePath: '', tableName: '', fileType: 'csv', cleanColumns: true },
@@ -55,8 +49,6 @@ export const NODE_TYPES = {
         description: 'Load all matching files from a folder into one table',
         icon: LuFolderInput,
         color: {
-            bg: 'oklch(0.22 0.04 140)',
-            border: 'oklch(0.35 0.08 140)',
             accent: 'oklch(0.65 0.15 140)',
         },
         defaultConfig: { folderPath: '', filePattern: '*.csv', tableName: '' },
@@ -67,8 +59,6 @@ export const NODE_TYPES = {
         description: 'Export query results to CSV, Parquet, or Excel',
         icon: LuFileOutput,
         color: {
-            bg: 'oklch(0.22 0.04 50)',
-            border: 'oklch(0.35 0.08 50)',
             accent: 'oklch(0.65 0.15 50)',
         },
         defaultConfig: { query: '', format: 'csv', outputPath: '' },
@@ -79,8 +69,6 @@ export const NODE_TYPES = {
         description: 'Create a new table from upstream data or a custom query',
         icon: LuTableProperties,
         color: {
-            bg: 'oklch(0.22 0.04 190)',
-            border: 'oklch(0.35 0.08 190)',
             accent: 'oklch(0.65 0.15 190)',
         },
         defaultConfig: { tableName: '', query: '' },
@@ -91,8 +79,6 @@ export const NODE_TYPES = {
         description: 'Pause execution here — useful for team handoffs',
         icon: LuPause,
         color: {
-            bg: 'oklch(0.22 0.04 85)',
-            border: 'oklch(0.35 0.08 85)',
             accent: 'oklch(0.65 0.15 85)',
         },
         defaultConfig: { resumeLabel: '' },
@@ -103,8 +89,6 @@ export const NODE_TYPES = {
         description: 'Reference an existing table or view as a data source',
         icon: LuTable2,
         color: {
-            bg: 'oklch(0.22 0.04 200)',
-            border: 'oklch(0.35 0.08 200)',
             accent: 'oklch(0.65 0.15 200)',
         },
         defaultConfig: { tableName: '' },
@@ -115,8 +99,6 @@ export const NODE_TYPES = {
         description: 'Combine data from multiple upstream nodes into one table',
         icon: LuMerge,
         color: {
-            bg: 'oklch(0.22 0.04 310)',
-            border: 'oklch(0.35 0.08 310)',
             accent: 'oklch(0.65 0.15 310)',
         },
         defaultConfig: { tableName: 'merged_data', mergeMode: 'union_all' },
@@ -127,8 +109,6 @@ export const NODE_TYPES = {
         description: 'Validate data quality — stops the chain if the check fails',
         icon: LuShieldCheck,
         color: {
-            bg: 'oklch(0.22 0.04 120)',
-            border: 'oklch(0.35 0.08 120)',
             accent: 'oklch(0.65 0.15 120)',
         },
         defaultConfig: { assertType: 'not_empty', tableName: '', column: '', threshold: '0', query: '' },
@@ -139,8 +119,6 @@ export const NODE_TYPES = {
         description: 'Combine two tables using a key column (LEFT, INNER, etc.)',
         icon: LuShuffle,
         color: {
-            bg: 'oklch(0.22 0.04 330)',
-            border: 'oklch(0.35 0.08 330)',
             accent: 'oklch(0.65 0.15 330)',
         },
         defaultConfig: { tableName: 'joined_data', joinType: 'LEFT', leftKey: '', rightKey: '' },
@@ -151,8 +129,6 @@ export const NODE_TYPES = {
         description: 'Keep only rows matching your conditions (no SQL needed)',
         icon: LuFilter,
         color: {
-            bg: 'oklch(0.22 0.04 35)',
-            border: 'oklch(0.35 0.08 35)',
             accent: 'oklch(0.65 0.15 35)',
         },
         defaultConfig: { tableName: 'filtered_data', conditions: [], connector: 'AND' },
@@ -163,8 +139,6 @@ export const NODE_TYPES = {
         description: 'Summarize data with SUM, COUNT, AVG grouped by columns',
         icon: LuGroup,
         color: {
-            bg: 'oklch(0.22 0.04 290)',
-            border: 'oklch(0.35 0.08 290)',
             accent: 'oklch(0.65 0.15 290)',
         },
         defaultConfig: { tableName: 'aggregated_data', groupColumns: [], aggregations: [] },
@@ -175,8 +149,6 @@ export const NODE_TYPES = {
         description: 'Pick and rename columns to keep',
         icon: LuColumns3,
         color: {
-            bg: 'oklch(0.22 0.04 180)',
-            border: 'oklch(0.35 0.08 180)',
             accent: 'oklch(0.65 0.15 180)',
         },
         defaultConfig: { tableName: 'selected_columns', columns: [] },
@@ -187,8 +159,6 @@ export const NODE_TYPES = {
         description: 'Remove duplicate rows based on key columns',
         icon: LuCopyMinus,
         color: {
-            bg: 'oklch(0.22 0.04 60)',
-            border: 'oklch(0.35 0.08 60)',
             accent: 'oklch(0.65 0.15 60)',
         },
         defaultConfig: { tableName: 'deduplicated', keyColumns: [], keep: 'first' },
@@ -199,8 +169,6 @@ export const NODE_TYPES = {
         description: 'Create computed columns with expressions',
         icon: LuCalculator,
         color: {
-            bg: 'oklch(0.22 0.04 220)',
-            border: 'oklch(0.35 0.08 220)',
             accent: 'oklch(0.65 0.15 220)',
         },
         defaultConfig: { tableName: 'with_column', newColumns: [] },
@@ -211,8 +179,6 @@ export const NODE_TYPES = {
         description: 'Order rows by one or more columns',
         icon: LuArrowUpDown,
         color: {
-            bg: 'oklch(0.22 0.04 170)',
-            border: 'oklch(0.35 0.08 170)',
             accent: 'oklch(0.65 0.15 170)',
         },
         defaultConfig: { tableName: 'sorted_data', sortColumns: [] },
@@ -223,8 +189,6 @@ export const NODE_TYPES = {
         description: 'Take a subset of rows (first N or random %)',
         icon: LuDices,
         color: {
-            bg: 'oklch(0.22 0.04 100)',
-            border: 'oklch(0.35 0.08 100)',
             accent: 'oklch(0.65 0.15 100)',
         },
         defaultConfig: { tableName: 'sample_data', sampleType: 'rows', sampleValue: '100' },
@@ -235,8 +199,6 @@ export const NODE_TYPES = {
         description: 'Transform rows into columns (pivot table)',
         icon: LuFlipHorizontal2,
         color: {
-            bg: 'oklch(0.22 0.04 5)',
-            border: 'oklch(0.35 0.08 5)',
             accent: 'oklch(0.65 0.15 5)',
         },
         defaultConfig: { tableName: 'pivoted_data', groupColumn: '', pivotColumn: '', valueColumn: '', aggFunc: 'SUM' },
@@ -247,8 +209,6 @@ export const NODE_TYPES = {
         description: 'Rename the upstream table to a new name',
         icon: LuPencilLine,
         color: {
-            bg: 'oklch(0.22 0.04 240)',
-            border: 'oklch(0.35 0.08 240)',
             accent: 'oklch(0.65 0.15 240)',
         },
         defaultConfig: { newName: '' },
@@ -262,8 +222,6 @@ export const NODE_TYPES = {
         description: 'Cast columns to different data types (VARCHAR, INTEGER, DATE, etc.)',
         icon: LuArrowLeftRight,
         color: {
-            bg: 'oklch(0.22 0.04 210)',
-            border: 'oklch(0.35 0.08 210)',
             accent: 'oklch(0.65 0.15 210)',
         },
         defaultConfig: { tableName: 'casted_data', casts: [] },
@@ -275,8 +233,6 @@ export const NODE_TYPES = {
         description: 'Apply ROW_NUMBER, RANK, LAG, running totals over partitions',
         icon: LuGalleryVerticalEnd,
         color: {
-            bg: 'oklch(0.22 0.04 280)',
-            border: 'oklch(0.35 0.08 280)',
             accent: 'oklch(0.65 0.15 280)',
         },
         defaultConfig: { tableName: 'with_window', windows: [] },
@@ -288,8 +244,6 @@ export const NODE_TYPES = {
         description: 'Transform columns into rows (inverse of pivot)',
         icon: LuRows3,
         color: {
-            bg: 'oklch(0.22 0.04 15)',
-            border: 'oklch(0.35 0.08 15)',
             accent: 'oklch(0.65 0.15 15)',
         },
         defaultConfig: { tableName: 'unpivoted_data', idColumns: [], valueColumns: [], nameColumn: 'variable', valueColumn: 'value' },
@@ -301,8 +255,6 @@ export const NODE_TYPES = {
         description: 'Read CSV/Parquet/JSON from an S3 or GCS bucket (credentials in Settings)',
         icon: LuCloud,
         color: {
-            bg: 'oklch(0.22 0.04 230)',
-            border: 'oklch(0.35 0.08 230)',
             accent: 'oklch(0.65 0.15 230)',
         },
         defaultConfig: { uri: '', format: 'parquet', tableName: 'cloud_data', provider: 's3' },
@@ -314,8 +266,6 @@ export const NODE_TYPES = {
         description: 'Read a Google Sheet tab into a table (service account in Settings)',
         icon: LuSheet,
         color: {
-            bg: 'oklch(0.22 0.04 150)',
-            border: 'oklch(0.35 0.08 150)',
             accent: 'oklch(0.65 0.15 150)',
         },
         defaultConfig: { spreadsheetId: '', sheet: '', tableName: 'gsheet_data' },
@@ -327,8 +277,6 @@ export const NODE_TYPES = {
         description: 'Apply an LLM per row: classify, extract, summarize, or redact PII',
         icon: LuSparkles,
         color: {
-            bg: 'oklch(0.22 0.05 300)',
-            border: 'oklch(0.35 0.1 300)',
             accent: 'oklch(0.65 0.18 300)',
         },
         defaultConfig: { tableName: 'enriched_data', inputColumn: '', outputColumn: 'ai_result', task: 'classify', maxRows: 500, options: {} },
@@ -340,8 +288,6 @@ export const NODE_TYPES = {
         description: 'Load data from a URL (CSV, JSON, Parquet)',
         icon: LuGlobe,
         color: {
-            bg: 'oklch(0.22 0.04 145)',
-            border: 'oklch(0.35 0.08 145)',
             accent: 'oklch(0.65 0.15 145)',
         },
         defaultConfig: { url: '', tableName: 'fetched_data', format: 'csv' },
@@ -353,8 +299,6 @@ export const NODE_TYPES = {
         description: 'Apply cleaning ops: trim, lower/upper, replace, fill nulls',
         icon: LuWandSparkles,
         color: {
-            bg: 'oklch(0.22 0.04 70)',
-            border: 'oklch(0.35 0.08 70)',
             accent: 'oklch(0.65 0.15 70)',
         },
         defaultConfig: { tableName: 'cleaned_data', operations: [] },
@@ -366,8 +310,6 @@ export const NODE_TYPES = {
         description: 'Parse text→date, extract parts, truncate, format, and compute with dates',
         icon: LuCalendarClock,
         color: {
-            bg: 'oklch(0.22 0.04 45)',
-            border: 'oklch(0.35 0.08 45)',
             accent: 'oklch(0.65 0.15 45)',
         },
         defaultConfig: { tableName: 'dated_data', operations: [] },
@@ -379,8 +321,6 @@ export const NODE_TYPES = {
         description: 'Extract nested JSON fields to columns, or explode an array into rows',
         icon: LuBraces,
         color: {
-            bg: 'oklch(0.22 0.04 25)',
-            border: 'oklch(0.35 0.08 25)',
             accent: 'oklch(0.65 0.15 25)',
         },
         defaultConfig: { tableName: 'flattened_data', mode: 'fields', column: '', paths: [], alias: '' },
@@ -392,8 +332,6 @@ export const NODE_TYPES = {
         description: 'Assert that upstream data has expected columns and types',
         icon: LuLayoutList,
         color: {
-            bg: 'oklch(0.22 0.04 110)',
-            border: 'oklch(0.35 0.08 110)',
             accent: 'oklch(0.65 0.15 110)',
         },
         defaultConfig: { expectedColumns: [], strict: false },
@@ -405,8 +343,6 @@ export const NODE_TYPES = {
         description: 'Send a notification or log entry when this step runs',
         icon: LuBell,
         color: {
-            bg: 'oklch(0.22 0.04 80)',
-            border: 'oklch(0.35 0.08 80)',
             accent: 'oklch(0.65 0.15 80)',
         },
         defaultConfig: { notifType: 'toast', message: '', logFilePath: '', webhookUrl: '' },
@@ -474,10 +410,10 @@ export const NODE_CATEGORIES = [
  */
 export const STATUS_COLORS = {
     pending: { bg: 'transparent', border: 'var(--border-default)', text: 'var(--text-tertiary)' },
-    running: { bg: 'oklch(0.25 0.06 250 / 0.3)', border: 'oklch(0.6 0.15 250)', text: 'oklch(0.8 0.1 250)' },
-    success: { bg: 'oklch(0.25 0.06 155 / 0.3)', border: 'oklch(0.6 0.15 155)', text: 'oklch(0.8 0.1 155)' },
-    failed: { bg: 'oklch(0.25 0.06 25 / 0.3)', border: 'oklch(0.6 0.15 25)', text: 'oklch(0.8 0.1 25)' },
-    skipped: { bg: 'oklch(0.2 0 0 / 0.3)', border: 'oklch(0.4 0 0)', text: 'oklch(0.5 0 0)' },
+    running: { bg: 'var(--color-info-bg)', border: 'var(--color-info)', text: 'var(--color-info-text)' },
+    success: { bg: 'var(--color-success-bg)', border: 'var(--color-success)', text: 'var(--color-success-text)' },
+    failed: { bg: 'var(--color-error-bg)', border: 'var(--color-error)', text: 'var(--color-error-text)' },
+    skipped: { bg: 'transparent', border: 'var(--border-default)', text: 'var(--text-tertiary)' },
 };
 
 export const RESULT_TYPE_LABELS = {

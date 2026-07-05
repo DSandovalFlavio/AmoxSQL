@@ -31,7 +31,7 @@ const CustomizedDot = (props) => {
     }
 
     if (!props.showDots) return null;
-    return <circle cx={cx} cy={cy} r={3} stroke={stroke} strokeWidth={2} fill="#fff" />;
+    return <circle cx={cx} cy={cy} r={3} stroke={stroke} strokeWidth={2} fill="var(--surface-base)" />;
 };
 
 // ─── Main Renderer ───────────────────────────────────────────
@@ -139,7 +139,7 @@ const ChartRenderer = memo(({
     const tooltipStyle = {
         backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--border-color)',
         borderRadius: '6px', color: 'var(--text-primary)', fontSize: `${fontSize}px`,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        boxShadow: 'var(--shadow-md)',
     };
 
     // ── Custom Legend Renderer ──
@@ -304,7 +304,7 @@ const ChartRenderer = memo(({
         }
 
         return (
-            <text x={x} y={y} fill={isOutside ? 'var(--text-secondary)' : '#fff'}
+            <text x={x} y={y} fill={isOutside ? 'var(--text-secondary)' : 'var(--button-text-color)'}
                 textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central"
                 fontSize={fontSize - 1}>
                 {text}
@@ -367,7 +367,7 @@ const ChartRenderer = memo(({
     // axis, so we swap the mapping and target the default (0) y-axis id.
     const annotationElements = useMemo(() => {
         if (!annotations || annotations.length === 0) return [];
-        const accent = '#fbbf24';
+        const accent = 'var(--color-warning)';
         const annYAxisId = isHorizontal ? 0 : 'left';
         return annotations.map((a, i) => {
             if (a.type === 'box') {
@@ -398,7 +398,7 @@ const ChartRenderer = memo(({
                 <ReferenceDot
                     key={a.id || `ann-${i}`} yAxisId={annYAxisId}
                     {...dotProps} r={4}
-                    fill={a.color || accent} stroke="#fff" strokeWidth={1.5}
+                    fill={a.color || accent} stroke="var(--surface-base)" strokeWidth={1.5}
                     label={{ value: a.text, position: 'top', fill: a.color || accent, fontSize, fontWeight: 600 }}
                 />
             );
@@ -509,7 +509,7 @@ const ChartRenderer = memo(({
                                 tick={axisTick} tickFormatter={fmt}
                                 domain={rightYDomain} scale={yScale} allowDataOverflow />
                         )}
-                        <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'rgba(255,255,255,0.2)' }}
+                        <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'color-mix(in srgb, var(--text-primary) 20%, transparent)' }}
                             {...tooltipExtra} />
                         {legendPosition !== 'none' && <Legend {...legendProps} />}
                         {refElements}
@@ -614,7 +614,7 @@ const ChartRenderer = memo(({
                             </>
                         )}
 
-                        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'color-mix(in srgb, var(--text-primary) 6%, transparent)' }}
                             {...tooltipExtra} />
                         {legendPosition !== 'none' && <Legend {...legendProps} />}
                         {refElements}
@@ -705,7 +705,7 @@ const ChartRenderer = memo(({
                                 return (
                                     <Line key={key} yAxisId={key === rightYAxisKey ? 'right' : 'left'}
                                         type={lineType} dataKey={key} stroke={color} strokeWidth={2}
-                                        dot={{ r: 3, fill: '#fff', stroke: color }}
+                                        dot={{ r: 3, fill: 'var(--surface-base)', stroke: color }}
                                         name={String(key)} isAnimationActive={false} />
                                 );
                             }
@@ -751,7 +751,7 @@ const ChartRenderer = memo(({
                             tick={axisTick} tickFormatter={fmt} domain={yDomain} scale={yScale}
                             label={showYAxisTitle ? { value: YLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-primary)', fillOpacity: axisLabelOpacity, fontSize: titleFontSize } : undefined} />
                         <Tooltip
-                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                            cursor={{ fill: 'color-mix(in srgb, var(--text-primary) 6%, transparent)' }}
                             content={({ active, payload, label }) => {
                                 if (!active || !payload || !payload.length) return null;
                                 const row = payload[0]?.payload;
@@ -892,7 +892,7 @@ const ChartRenderer = memo(({
                     <FunnelChart>
                         <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                         <Funnel dataKey="value" data={funnelData} isAnimationActive={false}>
-                            {showLabels && <LabelList position="center" fill="#fff" fontSize={fontSize}
+                            {showLabels && <LabelList position="center" fill="var(--button-text-color)" fontSize={fontSize}
                                 formatter={(v) => fmt(v)} />}
                         </Funnel>
                         {legendPosition !== 'none' && <Legend {...legendProps} />}
@@ -976,7 +976,7 @@ const ChartRenderer = memo(({
                                                 backgroundColor: bg, color: textColor(bg),
                                                 fontWeight: '600', fontSize: `${fontSize - 1}px`,
                                                 minWidth: `${cellSize}px`, borderRadius: '2px',
-                                                border: '1px solid rgba(0,0,0,0.1)',
+                                                border: '1px solid var(--border-subtle)',
                                             }} title={`${row[xAxisKey]} × ${k}: ${val}`}>
                                                 {showLabels ? fmt(val) : ''}
                                             </td>
@@ -1048,7 +1048,7 @@ const ChartRenderer = memo(({
 
     } catch (err) {
         console.error('Chart Render Error:', err);
-        return <div style={{ color: '#ef4444', padding: 20 }}>Error rendering chart: {err.message}</div>;
+        return <div style={{ color: 'var(--color-error)', padding: 20 }}>Error rendering chart: {err.message}</div>;
     }
 });
 
