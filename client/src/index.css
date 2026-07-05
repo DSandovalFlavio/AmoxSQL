@@ -883,13 +883,8 @@
   --text-tertiary:  #6a7a8b;
   --text-disabled:  #46525f;
 
-  /* Brand cyan — the single saturated accent (mid of the #00ECFF→#0068FF logo) */
-  --accent-primary: #22d3ee;
-  --accent-muted:   rgba(34, 211, 238, 0.16);
-  --accent-subtle:  rgba(34, 211, 238, 0.07);
-  --focus-ring:     rgba(34, 211, 238, 0.35);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+  /* Brand cyan default lives in .theme-amoxdark:not([class*="accent-"]) below,
+     so a user-picked accent overrides it (consistent with Nord/Islands). */
 
   --hover-bg:   rgba(190, 214, 232, 0.05);
   --active-bg:  rgba(190, 214, 232, 0.09);
@@ -1165,6 +1160,24 @@
   --accent-muted:   rgba(84, 138, 247, 0.18);
   --accent-subtle:  rgba(84, 138, 247, 0.08);
   --focus-ring:     rgba(84, 138, 247, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+/* Amox signature themes: their brand accent (cyan/teal) is the DEFAULT, but a
+   user-picked accent overrides it — same behavior as every other theme. */
+.theme-amoxdark:not([class*="accent-"]) {
+  --accent-primary: #22d3ee;
+  --accent-muted:   rgba(34, 211, 238, 0.16);
+  --accent-subtle:  rgba(34, 211, 238, 0.07);
+  --focus-ring:     rgba(34, 211, 238, 0.35);
+  --accent-color-user: var(--accent-primary);
+  --accent-color-user-transparent: var(--accent-subtle);
+}
+.theme-amoxlight:not([class*="accent-"]) {
+  --accent-primary: #0a7d8c;
+  --accent-muted:   rgba(10, 125, 140, 0.14);
+  --accent-subtle:  rgba(10, 125, 140, 0.06);
+  --focus-ring:     rgba(10, 125, 140, 0.30);
   --accent-color-user: var(--accent-primary);
   --accent-color-user-transparent: var(--accent-subtle);
 }
@@ -1510,13 +1523,8 @@
   --text-tertiary:  #5e6f7d;
   --text-disabled:  #9aa6b1;
 
-  /* Brand teal — the cyan logo darkened until it reads on light (AA) */
-  --accent-primary: #0a7d8c;
-  --accent-muted:   rgba(10, 125, 140, 0.14);
-  --accent-subtle:  rgba(10, 125, 140, 0.06);
-  --focus-ring:     rgba(10, 125, 140, 0.30);
-  --accent-color-user: var(--accent-primary);
-  --accent-color-user-transparent: var(--accent-subtle);
+  /* Brand teal default lives in .theme-amoxlight:not([class*="accent-"]) below,
+     so a user-picked accent (via the light ramps) overrides it. */
 
   --hover-bg:   rgba(28, 37, 48, 0.05);
   --active-bg:  rgba(28, 37, 48, 0.09);
