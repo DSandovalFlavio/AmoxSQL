@@ -182,7 +182,12 @@ reconstruido de las CSS vars vivas, sync desde App en los effects de tema+acento
 de `LIGHT_THEMES` consolidadas vía `theme.js`. Arreglado gratis: celdas de notebook siguen el tema,
 cambio de acento actualiza cursor/highlight, cambio dark→dark se refleja. Build OK, arranca sin errores.
 
-### Fase 3 — Hardcodes (inventario del barrido)
+### Fase 3 — Hardcodes (inventario del barrido) · **HECHA (commit `3886729`)**
+> ~200 literales migrados a tokens mode-aware. Nodos de chains: `chainNodeTypes.js` guarda solo el
+> acento de categoría; `.chain-node` deriva fondo/borde con `color-mix` sobre las superficies del
+> tema (fin de los nodos negros en light). Migración en 3 frentes (index.css, chains/*.jsx con
+> resolución runtime para SVG de react-flow, resto del JSX + MarkdownEditor.css con hljs por modo).
+> `--color-*-border` no existe → se usó `--feedback-*-border`. Build OK.
 1. **Chains**: `chainNodeTypes.js` guarda solo hue/accent por categoría; bg/border derivados con
    `color-mix(... var(--surface-overlay))` → nodos legibles en ambos modos. Estados, logs,
    validación, SQL preview → tokens semánticos. Edges/minimap/dots del canvas resueltos de vars.
