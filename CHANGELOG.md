@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.6.1] — 2026-07-05
+
+### Fixes
+
+- **The accent color now applies everywhere again.** After the 3.6.0 theming rework, picking a non-default accent (Settings → Appearance → Accent) left many surfaces — the Story Flow chart-type buttons, the active Settings item, the active sidebar icon, action buttons — stuck on the default cyan, most visibly on dark themes. Root cause: the derived accent tokens (`--accent-color-user`, `--accent-muted`, etc.) had been consolidated onto `:root`, but a CSS custom property whose value references `var(--accent-primary)` resolves at its **declaring element** — and the accent class lives on `<body>`, not `:root` (`<html>`). So those tokens froze on the default hue. Moved the accent derivation onto `body` (where the accent class lives, exactly as each theme already redeclares its own tokens), so every derived token now follows the picked accent across all 9 themes and both light/dark modes. Amox Dark's brand cyan stays a *default* that a user pick overrides.
+
+---
+
 ## [3.6.0] — 2026-07-05
 
 ### Theme system overhaul + two signature brand themes
