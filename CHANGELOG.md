@@ -5,6 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.7.1] — 2026-07-06
+
+### Story Flow (visualization)
+
+- **Added: "Label Intensity" control.** A new slider under Style → Typography (and mirrored in the Axis panel) sets how strong the chart's text labels are — axis ticks, axis titles, and the legend — as an opacity over the theme's `--text-primary`, so it reads well in **both light and dark modes**. The default was raised from 0.6 to 0.8 so labels are legible out of the box, and the legend now follows the same control (it was previously a fixed muted grey).
+
+### Fixes
+
+- **The chart no longer shows "No data" after running a new query.** With keep-alive result tabs, the chart panel persists across query runs, so an axis key derived from a *previous* query could keep pointing at a column that no longer exists — making the chart render "No data to display" even though the table had rows (only a full app restart cleared it). The axis keys are now re-validated against the result's actual columns on every data change, re-deriving only the ones that became invalid (a manual pick is preserved as long as its column still exists).
+
+---
+
 ## [3.7.0] — 2026-07-06
 
 ### Added
