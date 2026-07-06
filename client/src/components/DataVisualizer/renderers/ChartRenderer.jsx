@@ -168,7 +168,8 @@ const ChartRenderer = memo(({
                         border: '1px solid var(--border-color)',
                         background: 'var(--panel-section-bg, var(--hover-bg))',
                         fontSize: `${fontSize}px`,
-                        color: 'var(--text-secondary)',
+                        color: 'var(--text-primary)',
+                        opacity: axisLabelOpacity,
                         lineHeight: 1.3,
                         whiteSpace: 'nowrap',
                         cursor: 'default',
@@ -185,7 +186,7 @@ const ChartRenderer = memo(({
                 ))}
             </div>
         );
-    }, [legendPosition, fontSize]);
+    }, [legendPosition, fontSize, axisLabelOpacity]);
 
     // ── Legend props ──
     const legendProps = useMemo(() => {
