@@ -34,6 +34,7 @@ const THEMES = [
     { id: 'onyx',      label: 'Onyx',         icon: <LuMoon size={14} />, sidebar: '#131415', editor: '#111214', text: '#ccc',    desc: 'True black' },
     { id: 'nord',      label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
     { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'JetBrains-inspired' },
+    { id: 'ayu',       label: 'Ayu Dark',     icon: <LuMoon size={14} />, sidebar: '#141821', editor: '#0d1017', text: '#e6b450', desc: 'Ink blue · gold accent' },
     { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
     { id: 'ivory',     label: 'Ivory',        icon: <LuSun size={14} />,  sidebar: '#f3ede4', editor: '#faf6ef', text: '#3b3228', desc: 'Warm paper' },
     { id: 'mist',      label: 'Mist',         icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },

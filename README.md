@@ -58,7 +58,7 @@ Mucho ha pasado desde el último release. Lo más reciente:
 > Historial completo en [CHANGELOG.md](./CHANGELOG.md).
 
 ### 🎨 Sistema de Diseño Linear UI
-* **9 Temas de Color:** **Amox Dark**, Obsidian, Onyx, Nord Dark, Dark Islands (oscuros) + **Amox Light**, Ivory, Mist, Light (claros). Amox Dark/Light son los temas insignia de marca (cyan/teal). El editor de código Monaco sigue el tema y el acento en vivo, y todos los temas están calibrados a los mismos pisos de contraste WCAG.
+* **10 Temas de Color:** **Amox Dark**, Obsidian, Onyx, **Ayu Dark**, Nord Dark, Dark Islands (oscuros) + **Amox Light**, Ivory, Mist, Light (claros). Amox Dark/Light son los temas insignia de marca (cyan/teal) y Ayu Dark es una adaptación fiel de la paleta de [ayu-colors](https://github.com/ayu-theme/ayu-colors). El editor de código Monaco sigue el tema y el acento en vivo, y todos los temas están calibrados a los mismos pisos de contraste WCAG.
 * **13 Colores de Acento:** 7 vibrantes (Cyan, Aqua, Sky, Azure, Blue, Cobalt, Linear Blue) + 6 sobrios (Sage, Amber, Rose, Lavender, Steel, Copper).
 * **Layout Flexible:** Horizontal (default) o Vertical para monitores ultrawide.
 * **Card-Based Layout:** Interfaz flotante con bordes sutiles y superficies elevadas.

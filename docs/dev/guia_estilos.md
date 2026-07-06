@@ -76,16 +76,16 @@ color: var(--accent-primary);
 
 | ID | Nombre UI | Tipo | Identidad |
 |----|-----------|------|-----------|
+| `amoxdark` | Amox Dark | Dark | Insignia de marca — casi-negro frío + acento cyan `#22d3ee` |
 | `dark` (default) | Obsidian | Dark | Frío neutro profundo (referencia) |
 | `onyx` | Onyx | Dark | Negro puro (el más profundo) |
-| `carbon` | Carbon | Dark | Matiz azul-gris genuino |
-| `graphite` | Graphite | Dark | Gris lápiz, cálido y más claro |
+| `ayu` | Ayu Dark | Dark | Adaptación fiel de [ayu-colors](https://github.com/ayu-theme/ayu-colors) — ink `#0D1017` + oro `#E6B450`, sintaxis cálida |
 | `nord` | Nord Dark | Dark | Polar night (paleta propia) |
-| `islands` | Dark Islands | Dark | Paleta propia (síntaxis cálida) |
-| `light` | Light | Light | Neutro frío (referencia light) |
+| `islands` | Dark Islands | Dark | Paleta propia (sintaxis cálida) |
+| `amoxlight` | Amox Light | Light | Insignia de marca — off-white frío + acento teal `#0a7d8c` |
 | `ivory` | Ivory | Light | Papel cálido |
 | `mist` | Mist | Light | Azul-gris frío |
-| `snow` | Snow | Light | Blanco puro, alto brillo |
+| `light` | Light | Light | Neutro frío (referencia light) |
 
 ### 2.2 Cómo se Aplican (arquitectura post-auditoría 2026-07)
 

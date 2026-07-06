@@ -81,7 +81,7 @@ function contrast(fg, bg) {
 // ── Parse theme blocks from index.css ───────────────────────────────────────
 const THEME_SELECTORS = {
     obsidian: ':root',
-    onyx: '.theme-onyx', amoxdark: '.theme-amoxdark',
+    onyx: '.theme-onyx', amoxdark: '.theme-amoxdark', ayu: '.theme-ayu',
     nord: '.theme-nord', islands: '.theme-islands',
     light: '.light-theme', ivory: '.theme-ivory', mist: '.theme-mist', amoxlight: '.theme-amoxlight',
 };
