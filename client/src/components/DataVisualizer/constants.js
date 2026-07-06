@@ -157,7 +157,7 @@ export const DEFAULT_CONFIG = {
     // Grid & Axes
     gridMode: 'horizontal',
     showAxisLines: true,
-    axisLabelOpacity: 0.6, // intensity of axis tick labels (0.2–1, over text-primary)
+    axisLabelOpacity: 0.8, // "Label Intensity" — ticks + axis titles + legend, over --text-primary (mode-aware). 0.2–1
     axisLabelSize: 11,     // axis tick label font size (px)
     axisLabelGap: 5,       // gap between tick labels and the axis (tickMargin)
     axisLabelMaxChars: 0,  // 0 = auto truncation; >0 = truncate long labels to N chars

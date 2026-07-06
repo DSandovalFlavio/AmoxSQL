@@ -30,7 +30,7 @@ PalettePreview.displayName = 'PalettePreview';
 
 const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData }) => {
     const { colorTheme, backgroundTone, customBgColor, borderStyle, borderColor,
-        fontFamily, textScale, seriesConfig, chartType,
+        fontFamily, textScale, seriesConfig, chartType, axisLabelOpacity = 0.8,
         fillStyle = 'gradient', cardStyle = {} } = state;
 
     const isDonut = chartType === 'donut';
@@ -173,6 +173,13 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                     value={textScale * 100}
                     min={75} max={200}
                     onChange={v => setField('textScale', v / 100)}
+                    suffix="%"
+                />
+                <SliderField
+                    label="Label Intensity"
+                    value={Math.round(axisLabelOpacity * 100)}
+                    min={20} max={100}
+                    onChange={v => setField('axisLabelOpacity', v / 100)}
                     suffix="%"
                 />
             </Section>
