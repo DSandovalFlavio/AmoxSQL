@@ -76,15 +76,30 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     // ── Columns ──
     const columns = useMemo(() => data && data.length > 0 ? Object.keys(data[0]) : [], [data]);
 
-    // ── Initialize x/y keys on first load ──
-    useMemo(() => {
-        if (columns.length > 0 && !state.xAxisKey) {
-            const numericCols = columns.filter(c => !isNaN(Number(data[0][c])));
-            setFields({
-                xAxisKey: columns[0],
-                yAxisKeys: numericCols.length > 0 ? [numericCols[0]] : [columns[Math.min(1, columns.length - 1)]],
-            });
-        }
+    // ── Auto-derive x/y keys, re-validating against the data's actual columns ──
+    // Runs on mount AND whenever the result columns change (a new query with a
+    // different schema). Only fills in axes that are missing or no longer valid,
+    // so a user's manual pick survives as long as its column still exists.
+    // This MUST be a real effect (not a useMemo side-effect) and MUST re-validate:
+    // with keep-alive tabs the DataVisualizer persists across query runs, so a
+    // stale axis from a previous query would keep pointing at a column that no
+    // longer exists → processChartData returns nothing → the chart shows
+    // "No data" until a full app restart. (Reported bug.)
+    useEffect(() => {
+        if (columns.length === 0) return;
+        const xValid = state.xAxisKey && columns.includes(state.xAxisKey);
+        const yValid = state.yAxisKeys?.length > 0 && state.yAxisKeys.every(k => columns.includes(k));
+        const spInvalid = state.splitByKey && !columns.includes(state.splitByKey);
+        if (xValid && yValid && !spInvalid) return;
+        const numericCols = columns.filter(c => !isNaN(Number(data[0][c])));
+        const fallbackY = numericCols.length > 0 ? [numericCols[0]] : [columns[Math.min(1, columns.length - 1)]];
+        const patch = {
+            xAxisKey:  xValid ? state.xAxisKey  : columns[0],
+            yAxisKeys: yValid ? state.yAxisKeys : fallbackY,
+        };
+        if (spInvalid) patch.splitByKey = '';
+        setFields(patch);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [columns]);
 
     // ── Derived data ──
