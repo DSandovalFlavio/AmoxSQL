@@ -35,20 +35,19 @@
   --text-tertiary:  rgba(255, 255, 255, 0.36);
   --text-disabled:  rgba(255, 255, 255, 0.20);
 
-  /* ── Accent Color — SINGLE derivador (dark washes) ──
-     :root derives muted/subtle/focus-ring from --accent-primary via color-mix;
-     .mode-light overrides them with softer washes. Because the color-mix reads
-     var(--accent-primary), it re-resolves per element — so every accent preset
-     and every theme's default accent only needs to set --accent-primary, never
-     the derived tokens. Do NOT restate these inside .accent-* blocks. */
+  /* ── Accent Color ──
+     Only --accent-primary lives here (the default hue). The DERIVED accent tokens
+     (muted/subtle/focus-ring/color-user) are NOT declared on :root on purpose:
+     a custom property whose value is `var(--accent-primary)` resolves at its
+     DECLARING element, and :root is <html> — the accent class lives on <body>,
+     so a :root-declared derivation would freeze on the default hue and never
+     follow a picked accent. The single derivador lives on `body`/`.mode-light`
+     (see the `body` block below) which DO carry the accent class. */
   --accent-primary: oklch(0.905 0.155 195);    /* Cyan default */
-  --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
-  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
 
   /* ── Interaction States ── */
   --hover-bg:   rgba(255, 255, 255, 0.06);
   --active-bg:  rgba(255, 255, 255, 0.10);
-  --focus-ring: color-mix(in oklch, var(--accent-primary) 35%, transparent);
 
   /* ── Shadows (elevation depth) ── */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -225,7 +224,9 @@
   --text-color: var(--text-secondary);
   --text-active: var(--text-primary);
   --text-muted: var(--text-tertiary);
-  --accent-color-user: var(--accent-primary);
+  /* --accent-color-user lives on `body` (below), NOT here: it aliases
+     var(--accent-primary), which freezes at its declaring element — on :root
+     (html) it would ignore the accent class (which sits on <body>). */
 
   --sidebar-item-active-bg: var(--active-bg);
   --border-color: var(--border-default);
@@ -239,6 +240,23 @@
   --grid-color: var(--border-default);
   --tooltip-bg: var(--surface-overlay);
   --table-row-hover: var(--hover-bg);
+}
+
+/* ═══════════════════════════════════════════════
+   ACCENT DERIVADOR — the single source for the derived accent tokens.
+   MUST live on `body` (not :root): a custom property whose value references
+   var(--accent-primary) resolves at its DECLARING element. The accent class
+   (.accent-*) and each theme's default-accent rule both sit on <body>, so
+   declaring the derivador on `body` makes it compute against the ACTIVE accent
+   and follow a user's pick. On :root (html) it would freeze on the default hue
+   — the exact bug that made every accent look cyan. `.mode-light` (also on
+   <body>) overrides the washes with softer light values.
+   ═══════════════════════════════════════════════ */
+body {
+  --accent-muted:      color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:     color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:        color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -718,11 +736,11 @@
   --icon-excel:    oklch(0.42 0.14 155);
   --icon-default:  var(--text-tertiary);
 
-  /* Accent derivation, light variant. :root derives the DARK washes (18/8/35);
-     light backgrounds need softer washes so the accent tints don't overpower.
-     Every accent (and every light theme's default accent) resolves through
-     these — accent classes only set --accent-primary, never the derived tokens.
-     var(--accent-primary) re-resolves per element, so a picked accent flows in. */
+  /* Accent derivation, light variant. The `body` block derives the DARK washes
+     (18/8/35); light backgrounds need softer washes so the accent tints don't
+     overpower. `.mode-light` also sits on <body>, so it resolves against the
+     active accent just like the base `body` derivador. Accent classes only set
+     --accent-primary; these are the only place the derived washes are declared. */
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
   --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
