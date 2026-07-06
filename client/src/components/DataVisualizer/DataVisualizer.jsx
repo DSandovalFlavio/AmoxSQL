@@ -54,7 +54,7 @@ const TABS = [
 ];
 
 // ─── Component ───────────────────────────────────────────────
-const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialChartConfig = null, onConfigChange = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialChartConfig = null, onConfigChange = null, isActive = true }) => {
     // ── State ──
     const {
         state, setField, setFields, loadConfig, resetConfig,
@@ -471,17 +471,26 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         }}>{renderRichText(state.chartSubtitle)}</h3>
                     )}
 
-                    {/* Chart */}
+                    {/* Chart — only mount the ResponsiveContainer when this view is
+                        actually visible. With keep-alive result tabs the whole
+                        DataVisualizer stays mounted even while the chart panel is
+                        display:none; if Recharts' ResponsiveContainer mounts in a
+                        0×0 (hidden) box it measures 0 and doesn't reliably re-size
+                        when shown → a blank chart. Gating the mount on isActive means
+                        it always measures the real, visible size. (Config state lives
+                        on DataVisualizer, which stays mounted — nothing is lost.) */}
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '10px', minWidth: '10px', width: '100%', height: '100%' }}>
-                        <ChartRenderer
-                            config={state}
-                            processedData={processedData}
-                            finalSeriesKeys={finalSeriesKeys}
-                            activeColors={activeColors}
-                            columns={columns}
-                            isDateColumn={isDateCol}
-                            textScale={state.textScale}
-                        />
+                        {(isActive || isReportMode) && (
+                            <ChartRenderer
+                                config={state}
+                                processedData={processedData}
+                                finalSeriesKeys={finalSeriesKeys}
+                                activeColors={activeColors}
+                                columns={columns}
+                                isDateColumn={isDateCol}
+                                textScale={state.textScale}
+                            />
+                        )}
                     </div>
 
                     {/* Takeaway */}
