@@ -924,6 +924,84 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
+   DARK THEME: AYU DARK — faithful to ayu-theme/ayu-colors (themes/dark.yaml)
+   Ink-blue near-black (#0D1017) with the signature Ayu gold accent (#E6B450)
+   and warm, readable syntax: orange keywords, gold functions, blue types,
+   green strings, purple constants. Elevation by luminance, not borders.
+   ═══════════════════════════════════════════════ */
+.theme-ayu {
+  --surface-base:    #0d1017;   /* Ayu surface.base / ui.bg — the iconic ink */
+  --surface-raised:  #141821;   /* Ayu panel.bg — panels, sidebar, table header */
+  --surface-overlay: #1b2029;   /* +L — modals, popovers, row hover */
+  --surface-inset:   #080a0f;   /* Ayu surface.sunk — gutter, inputs, code wells */
+
+  /* Borders barely visible — separation by elevation (tint = Ayu ui.fg #5A6378) */
+  --border-subtle:  rgba(92, 103, 122, 0.13);
+  --border-default: rgba(92, 103, 122, 0.26);
+  --border-strong:  rgba(92, 103, 122, 0.48);
+
+  --text-primary:   #c5c3bc;   /* Ayu editor.fg #BFBDB6, a hair brighter to clear the ≥10:1 floor on raised */
+  --text-secondary: #8b93a1;
+  --text-tertiary:  #63708a;
+  --text-disabled:  #3d4453;
+
+  /* Ayu gold default accent lives in .theme-ayu:not([class*="accent-"]) below,
+     so a user-picked accent overrides it (consistent with the other themes). */
+
+  --hover-bg:   rgba(115, 130, 160, 0.06);
+  --active-bg:  rgba(115, 130, 160, 0.11);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  /* Feedback — Ayu vcs/common hues */
+  --feedback-success:        #7fd962;
+  --feedback-success-bg:     rgba(127, 217, 98, 0.10);
+  --feedback-success-border: rgba(127, 217, 98, 0.25);
+  --feedback-success-text:   #a2e585;
+  --feedback-error:          #f07178;   /* Ayu markup red */
+  --feedback-error-bg:       rgba(240, 113, 120, 0.10);
+  --feedback-error-border:   rgba(240, 113, 120, 0.25);
+  --feedback-error-text:     #f79aa0;
+  --feedback-warning:        #ffb454;   /* Ayu func gold */
+  --feedback-warning-bg:     rgba(255, 180, 84, 0.10);
+  --feedback-warning-border: rgba(255, 180, 84, 0.25);
+  --feedback-warning-text:   #ffcb87;
+  --feedback-info:           #59c2ff;   /* Ayu entity blue */
+  --feedback-info-bg:        rgba(89, 194, 255, 0.10);
+  --feedback-info-border:    rgba(89, 194, 255, 0.25);
+  --feedback-info-text:      #8ad4ff;
+
+  /* Syntax — faithful to Ayu Dark (themes/dark.yaml) */
+  --syntax-keyword:   #ff8f40;   /* orange — SELECT/FROM/WHERE */
+  --syntax-string:    #aad94c;   /* green string literals */
+  --syntax-number:    #d2a6ff;   /* purple — numeric literals (Ayu constant) */
+  --syntax-function:  #ffb454;   /* gold — COUNT/SUM */
+  --syntax-comment:   #646d7c;   /* muted blue-grey, italic (Ayu gray) */
+  --syntax-type:      #59c2ff;   /* blue — data types, CAST */
+  --syntax-operator:  #f29668;   /* peach/pink */
+  --syntax-variable:  #bfbdb6;   /* = text: identifiers stay neutral */
+  --syntax-constant:  #d2a6ff;   /* purple — TRUE/FALSE/NULL */
+
+  /* Database types (mirror the syntax family) */
+  --type-integer:  #59c2ff;
+  --type-float:    #95e6cb;
+  --type-text:     #aad94c;
+  --type-datetime: #d2a6ff;
+  --type-boolean:  #ff8f40;
+  --type-default:  #e6b450;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #0d1017;   /* dark text on the bright gold accent */
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(115, 130, 160, 0.04);
+}
+
+/* ═══════════════════════════════════════════════
    DARK THEME: NORD DARK
    Nord-inspired polar night, darker variant
    ═══════════════════════════════════════════════ */
@@ -1099,6 +1177,10 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 .theme-amoxlight:not([class*="accent-"]) {
   --accent-primary: #0a7d8c;
+}
+/* Ayu Dark ships its signature gold accent by default (overridable). */
+.theme-ayu:not([class*="accent-"]) {
+  --accent-primary: #e6b450;
 }
 
 /* ═══════════════════════════════════════════════

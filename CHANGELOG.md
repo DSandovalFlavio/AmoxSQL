@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.7.0] — 2026-07-06
+
+### Added
+
+- **New theme: Ayu Dark** — a faithful adaptation of the [ayu-theme/ayu-colors](https://github.com/ayu-theme/ayu-colors) palette. Ink-blue near-black surfaces (`#0D1017`), the signature Ayu gold accent (`#E6B450`, overridable), and warm, readable syntax highlighting (orange keywords, gold functions, blue types, green strings, purple constants) that the Monaco editor picks up live. The theme picker is now **10 themes**. Also corrected the developer style-guide theme table, which still listed the retired Carbon/Graphite/Snow.
+
+---
+
 ## [3.6.1] — 2026-07-05
 
 ### Fixes

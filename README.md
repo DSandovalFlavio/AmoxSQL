@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v3.6.1)
+# AmoxSQL (v3.7.0)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -58,7 +58,7 @@ Mucho ha pasado desde el último release. Lo más reciente:
 > Historial completo en [CHANGELOG.md](./CHANGELOG.md).
 
 ### 🎨 Sistema de Diseño Linear UI
-* **9 Temas de Color:** **Amox Dark**, Obsidian, Onyx, Nord Dark, Dark Islands (oscuros) + **Amox Light**, Ivory, Mist, Light (claros). Amox Dark/Light son los temas insignia de marca (cyan/teal). El editor de código Monaco sigue el tema y el acento en vivo, y todos los temas están calibrados a los mismos pisos de contraste WCAG.
+* **10 Temas de Color:** **Amox Dark**, Obsidian, Onyx, **Ayu Dark**, Nord Dark, Dark Islands (oscuros) + **Amox Light**, Ivory, Mist, Light (claros). Amox Dark/Light son los temas insignia de marca (cyan/teal) y Ayu Dark es una adaptación fiel de la paleta de [ayu-colors](https://github.com/ayu-theme/ayu-colors). El editor de código Monaco sigue el tema y el acento en vivo, y todos los temas están calibrados a los mismos pisos de contraste WCAG.
 * **13 Colores de Acento:** 7 vibrantes (Cyan, Aqua, Sky, Azure, Blue, Cobalt, Linear Blue) + 6 sobrios (Sage, Amber, Rose, Lavender, Steel, Copper).
 * **Layout Flexible:** Horizontal (default) o Vertical para monitores ultrawide.
 * **Card-Based Layout:** Interfaz flotante con bordes sutiles y superficies elevadas.
@@ -176,12 +176,12 @@ Mucho ha pasado desde el último release. Lo más reciente:
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v3.6.1 — Rediseño del sistema de temas + temas insignia de marca
+### 🎉 v3.7.0 — Rediseño del sistema de temas + temas insignia de marca
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v3.6.1](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v3.7.0](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).

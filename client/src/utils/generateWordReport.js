@@ -27,7 +27,7 @@ const remarkProcessor = unified().use(remarkParse).use(remarkGfm);
 
 // Same theme-class list App.jsx toggles on document.body when the user
 // switches themes (see App.jsx's "Apply Theme & Accent Classes" effect).
-const THEME_CLASSES = ['light-theme', 'theme-onyx', 'theme-amoxdark', 'theme-nord', 'theme-islands', 'theme-ivory', 'theme-mist', 'theme-amoxlight'];
+const THEME_CLASSES = ['light-theme', 'theme-onyx', 'theme-amoxdark', 'theme-ayu', 'theme-nord', 'theme-islands', 'theme-ivory', 'theme-mist', 'theme-amoxlight'];
 
 // Charts render axis/grid/text colors via `var(--css-custom-property)` set
 // directly as SVG attribute values, so they repaint live when the body's
