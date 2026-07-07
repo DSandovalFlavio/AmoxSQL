@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v3.7.0)
+# AmoxSQL (v3.7.2)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -176,12 +176,12 @@ Mucho ha pasado desde el último release. Lo más reciente:
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v3.7.0 — Rediseño del sistema de temas + temas insignia de marca
+### 🎉 v3.7.2 — Rediseño del sistema de temas + temas insignia de marca
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v3.7.0](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v3.7.2](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).
