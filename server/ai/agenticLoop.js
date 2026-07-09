@@ -83,9 +83,11 @@ Steps to fix:
 }
 
 /**
- * Builds a concise plan-continuation message injected as the "user" turn
- * at the start of each new iteration. Gives the LLM a clear picture of
- * what's done and what's left.
+ * Builds the plan-continuation message injected as the "user" turn at the start
+ * of each new iteration. This is the ONE message the model reliably reads every
+ * turn (recency), so it carries the narrative contract — not just "execute and
+ * mark done". It demands the narrate → execute → narrate cycle and keeps a
+ * "story so far" thread so the narration stays coherent across compaction.
  */
 function buildContinuationPrompt(activePlan, iteration, maxIter) {
     if (!activePlan.id || !activePlan.steps?.length) return '';
@@ -99,23 +101,35 @@ function buildContinuationPrompt(activePlan, iteration, maxIter) {
         return `  ${icon} ${step.id}: ${step.description}${note}`;
     });
 
+    // Narrative memory: the headlines the agent already wrote, so the thread
+    // survives compaction and the next chapter connects to the previous ones.
+    const storyNotes = activePlan.steps
+        .filter(s => s.status === 'done' && s.note)
+        .map(s => `  • ${s.note}`);
+    const storySoFar = storyNotes.length
+        ? `\nStory so far (your own findings — build on these, don't repeat them):\n${storyNotes.join('\n')}\n`
+        : '';
+
     const pending  = activePlan.steps.filter(s => s.status === 'pending');
     const nextStep = pending[0];
     const directive = pending.length > 0
-        ? `The plan already exists — do NOT call create_plan again. Continue with step "${nextStep.id}: ${nextStep.description}": mark it \`update_plan(..., "in_progress")\`, do the work (re-run any queries you need — results from earlier turns are not cached), then \`update_plan(..., "done")\`.`
-        : 'All steps are done. Call `final_answer` with your summary now.';
+        ? `The plan already exists — do NOT call create_plan again. Work step "${nextStep.id}: ${nextStep.description}" like an analyst narrating out loud:
+1. \`update_plan(..., "in_progress")\`, then do the work (re-run any queries you need — earlier results are not cached).
+2. **In the chat, write 2-3 sentences of prose**: what you found (numbers woven in), why it matters for the user's question, and how it shapes the next step. Surface surprises and dead ends ("I expected X but…", "ruling out Y because…").
+3. \`update_plan(..., "done")\` — the note is a one-line headline of what you just narrated.`
+        : 'All steps are done. Write your CLOSING NARRATIVE now (2-4 short paragraphs: the story of what you found, why it happens, what to do) as chat prose, THEN call `final_answer` as the structured recap.';
 
-    // Graduated budget awareness: tell the model where it stands, and escalate
-    // as the ceiling approaches so it converges instead of running out cold.
+    // Graduated budget awareness. Narration is cheap; only QUERIES cost
+    // iterations — say so, so the model trims exploration, not words.
     const itersLeft = Math.max(0, maxIter - iteration);
-    const budgetLine = `Iteration ${iteration}/${maxIter} — ${itersLeft} left.`;
+    const budgetLine = `Iteration ${iteration}/${maxIter} — ${itersLeft} left. (Narrating costs nothing; only extra queries burn iterations.)`;
     let urgency = '';
     if (itersLeft <= 3) {
-        urgency = `\n\n⚡ **URGENT: Only ${itersLeft} iteration(s) left. Skip any remaining optional steps and call \`final_answer\` NOW with the results you already have.**`;
+        urgency = `\n\n⚡ **Only ${itersLeft} iteration(s) left. Stop opening new lines of inquiry — write your closing narrative and call \`final_answer\`. Do NOT shorten the narrative; skip remaining OPTIONAL queries, not words.**`;
     } else if (itersLeft <= Math.ceil(maxIter * 0.25)) {
-        urgency = `\n\n⏳ **You are in the last quarter of your budget (${itersLeft} iterations left). Prioritize the essential remaining steps and prepare to wrap up soon.**`;
+        urgency = `\n\n⏳ **Last quarter of the budget (${itersLeft} left). Finish the essential remaining steps and prepare your closing story.**`;
     } else if (itersLeft <= Math.ceil(maxIter * 0.5)) {
-        urgency = `\n\n⏱️ **Half your iteration budget is used (${itersLeft} left). Keep steps focused — one iteration should complete one plan step.**`;
+        urgency = `\n\n⏱️ **Half the budget used (${itersLeft} left). One step per iteration — keep narrating as you go.**`;
     }
 
     return `[AGENT LOOP — Continue execution]
@@ -124,14 +138,14 @@ ${budgetLine}
 
 Plan status:
 ${lines.join('\n')}
-
+${storySoFar}
 ${directive}${urgency}`;
 }
 
 /**
  * Builds the forced-synthesis directive for the reserved wrap-up turn. The
  * working budget is spent; this is the model's last turn, so it must finalize
- * rather than start new work.
+ * with a real closing narrative — not a terse recap.
  */
 function buildWrapUpPrompt(activePlan) {
     const unfinished = (activePlan.steps || []).filter(
@@ -141,17 +155,24 @@ function buildWrapUpPrompt(activePlan) {
         ? unfinished.map(s => `  ○ ${s.id}: ${s.description}`).join('\n')
         : '  (all steps finished)';
 
+    const storyNotes = (activePlan.steps || [])
+        .filter(s => s.status === 'done' && s.note)
+        .map(s => `  • ${s.note}`);
+    const storySoFar = storyNotes.length
+        ? `\nYour findings so far (weave these into the story):\n${storyNotes.join('\n')}\n`
+        : '';
+
     return `[FINAL TURN — iteration budget exhausted]
 This is your LAST turn. You have no iterations left to run more queries.
-
+${storySoFar}
 You MUST now:
-1. Briefly synthesize what you found across the completed steps (2-4 sentences of prose).
-2. Call \`final_answer\` with tldr + findings, and list any step you could not finish under \`caveats\`.
+1. **In the chat, write your CLOSING NARRATIVE** (2-4 short paragraphs): tie the findings together into a story — what you set out to answer, what you found (numbers woven in), why it happens, and what you'd do about it. Do not shorten it just because you're out of iterations.
+2. Call \`final_answer\` as the structured recap (tldr + findings with their so_what + the same narrative in \`summary\`). List any unfinished step under \`caveats\`.
 
 Steps still unfinished (mention them in caveats):
 ${list}
 
-Do NOT call create_plan, execute_sql, describe_table, or any other tool. Synthesize what you already have and call final_answer NOW.`;
+Do NOT call create_plan, execute_sql, describe_table, or any other tool. Tell the story with what you already have, then call final_answer.`;
 }
 
 /**
@@ -504,7 +525,10 @@ async function* agenticLoop(options, getModelFn) {
                         // so we surface the recap as prose too. (Whole-run text, think stripped.)
                         const hasStructuredOutput = !!(toolResult.tldr || toolResult.findings?.length);
                         const visibleProse = stripThinkText(fullRunText).trim();
-                        const proseThin = visibleProse.length < 220;
+                        // A real analysis narrates as it goes; if the whole run produced
+                        // less than a couple of short paragraphs, the model skipped the
+                        // narrative — surface the closing summary as prose.
+                        const proseThin = visibleProse.length < 600;
                         const modelAlreadyWroteSummary = iterText.trim().length > 80;
                         if (!hasStructuredOutput && toolResult.summary && !modelAlreadyWroteSummary) {
                             // Legacy: stream summary as text when no structured fields

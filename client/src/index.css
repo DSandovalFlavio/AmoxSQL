@@ -6842,19 +6842,36 @@ tr:hover .rt-td {
 
 .ai-narrative-finding {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 3px;
   padding: 4px 8px;
   background: var(--hover-bg);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
 }
 
+/* Top row of a finding: the point + its metric/actions */
+.ai-narrative-finding-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .ai-narrative-finding-point {
   color: var(--text-secondary);
   flex: 1;
   line-height: 1.4;
+}
+
+/* The "so what" — why this finding deserves attention */
+.ai-narrative-finding-sowhat {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  color: var(--text-muted);
+  line-height: 1.45;
+  font-style: italic;
 }
 
 .ai-narrative-finding-value {

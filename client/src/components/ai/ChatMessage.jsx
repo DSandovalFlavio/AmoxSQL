@@ -200,34 +200,39 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
                     <ul className="ai-narrative-findings">
                         {findings.map((f, i) => (
                             <li key={i} className="ai-narrative-finding">
-                                <span className="ai-narrative-finding-point">{decodeSafely(f.point)}</span>
-                                <span className="ai-narrative-finding-right">
-                                    {f.value && <span className="ai-narrative-finding-value">{decodeSafely(f.value)}</span>}
-                                    {f.source_query_id && (
-                                        <button
-                                            className="ai-narrative-audit-btn"
-                                            title="Ver consulta fuente"
-                                            onClick={() => openAudit(f.source_query_id)}
-                                        >
-                                            <LuSearch size={10} />
-                                        </button>
-                                    )}
-                                    {onAskAbout && (
-                                        <button
-                                            className="ai-narrative-audit-btn"
-                                            title="Ask the agent about this finding"
-                                            onClick={() => onAskAbout({
-                                                type: 'finding',
-                                                findingText: decodeSafely(f.point) + (f.value ? ` (${decodeSafely(f.value)})` : ''),
-                                                queryId: f.source_query_id || undefined,
-                                                label: `Finding: ${decodeSafely(f.point).slice(0, 40)}`,
-                                                key: `finding:${i}:${f.source_query_id || decodeSafely(f.point).slice(0, 20)}`,
-                                            })}
-                                        >
-                                            <LuMessageSquareQuote size={10} />
-                                        </button>
-                                    )}
-                                </span>
+                                <div className="ai-narrative-finding-main">
+                                    <span className="ai-narrative-finding-point">{decodeSafely(f.point)}</span>
+                                    <span className="ai-narrative-finding-right">
+                                        {f.value && <span className="ai-narrative-finding-value">{decodeSafely(f.value)}</span>}
+                                        {f.source_query_id && (
+                                            <button
+                                                className="ai-narrative-audit-btn"
+                                                title="Ver consulta fuente"
+                                                onClick={() => openAudit(f.source_query_id)}
+                                            >
+                                                <LuSearch size={10} />
+                                            </button>
+                                        )}
+                                        {onAskAbout && (
+                                            <button
+                                                className="ai-narrative-audit-btn"
+                                                title="Ask the agent about this finding"
+                                                onClick={() => onAskAbout({
+                                                    type: 'finding',
+                                                    findingText: decodeSafely(f.point) + (f.value ? ` (${decodeSafely(f.value)})` : ''),
+                                                    queryId: f.source_query_id || undefined,
+                                                    label: `Finding: ${decodeSafely(f.point).slice(0, 40)}`,
+                                                    key: `finding:${i}:${f.source_query_id || decodeSafely(f.point).slice(0, 20)}`,
+                                                })}
+                                            >
+                                                <LuMessageSquareQuote size={10} />
+                                            </button>
+                                        )}
+                                    </span>
+                                </div>
+                                {f.so_what && (
+                                    <p className="ai-narrative-finding-sowhat">{decodeSafely(f.so_what)}</p>
+                                )}
                             </li>
                         ))}
                     </ul>

@@ -1,7 +1,7 @@
 # Plan de Implementación — Deep Dive: voz narrativa y conversacional
 
 > Deriva de [deep_dive_narrativa.md](deep_dive_narrativa.md) (auditoría; causas N1–N7, preguntas Q1–Q50).
-> **Estado:** pendiente de arranque.
+> **Estado:** ✅ **F1+F2+F3 implementadas** (el motor narrativo). F4 (skill auto), F5 (tiers locales, condicional), F6 (UI), F7 (verificación) pendientes.
 
 ## Objetivo
 
@@ -15,7 +15,7 @@ Que Deep Dive se sienta como un **analista que acompaña**: narra qué investiga
 
 ---
 
-### Fase 1 — El continuation prompt narra (N1, N2 · el lever más grande)
+### Fase 1 — El continuation prompt narra (N1, N2 · el lever más grande) ✅ HECHA
 
 Reescribir `buildContinuationPrompt` (`server/ai/agenticLoop.js`) para que cada turno exija el ciclo **narrar → ejecutar → narrar**:
 
@@ -27,7 +27,7 @@ Reescribir `buildContinuationPrompt` (`server/ai/agenticLoop.js`) para que cada 
 
 ---
 
-### Fase 2 — Arco narrativo obligatorio en el prompt de modo (N4)
+### Fase 2 — Arco narrativo obligatorio en el prompt de modo (N4) ✅ HECHA
 
 En `buildDivingModeSection` (`server/ai/prompt/modes.js`), reemplazar la lista suelta del "Analytical Narrator" por una sección **"Narrative Arc — how an analysis reads"** con las 4 piezas obligatorias:
 
@@ -42,7 +42,10 @@ Añadir además a "Conversation State": *"Follow-up questions get a CONVERSATION
 
 ---
 
-### Fase 3 — `final_answer` pro-narrativa (N3 · insights con "so what")
+### Fase 3 — `final_answer` pro-narrativa (N3 · insights con "so what") ✅ HECHA
+
+> Nota de implementación: campo `so_what` añadido al schema de findings y renderizado en `NarrativeCard` como subtexto (borde de acento, itálica). La descripción del tool ya no dice "skip summary" — ahora exige `summary` como narrativa de cierre. El `resolvedSummary` de respaldo pasó de bullets a párrafos en prosa (tejiendo el `so_what` de cada finding). Umbral de la red prosa-primero 220 → 600.
+
 
 1. **Campo nuevo `so_what`** en cada finding: `{point, value, so_what, source_query_id}` — "why this deserves attention / what it implies". El prompt lo exige; `NarrativeCard` lo renderiza como subtítulo del finding (texto secundario bajo el punto).
 2. **Rehabilitar `summary` como narrativa**: la descripción del tool deja de decir "skip the legacy summary field"; pasa a *"summary: the closing narrative in flowing markdown prose (2-4 short paragraphs). ALWAYS provide it — the structured fields are the recap, the summary is the story"*.

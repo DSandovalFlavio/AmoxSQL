@@ -498,17 +498,21 @@ final_answer: tool({
   parameters: z.object({
     tldr:              z.string().optional(),       // 1-2 oraciones: el takeaway principal
     findings:          z.array(z.object({
-      point: z.string(),                            // observación
-      value: z.string().optional()                  // métrica de soporte ("+ 41%", "$50k")
+      point:   z.string(),                          // observación
+      value:   z.string().optional(),               // métrica de soporte ("+ 41%", "$50k")
+      so_what: z.string().optional(),               // POR QUÉ importa / qué implica — sin esto es solo un dato
+      source_query_id: z.string().optional()        // queryId de la execute_sql que lo produjo
     })).optional(),
     likely_cause:      z.string().optional(),       // el "por qué" del hallazgo principal
-    suggested_actions: z.array(z.string()).optional(), // 2-3 acciones concretas
+    suggested_actions: z.array(z.string()).optional(), // acciones concretas, cada una con su razón
     caveats:           z.array(z.string()).optional(), // limitaciones de datos, supuestos
     followup_questions: z.array(z.string()).optional(),
-    summary:           z.string().optional()        // legacy — se auto-construye si hay campos estructurados
+    summary:           z.string().optional()        // narrativa de cierre en prosa — SIEMPRE incluirla (es la respuesta; los campos son el recap)
   })
 })
 ```
+
+**Voz narrativa (auditoría narrativa 2026-07).** El agente narra un arco: OPENING (con create_plan, la hipótesis), PER-STEP (hallazgo + por qué importa + qué cambia, narrado en el chat antes de marcar done), PIVOTS, y CLOSING (2-4 párrafos). El lever es `buildContinuationPrompt` (`agenticLoop.js`) — el único mensaje que el modelo lee cada turno — que ahora exige el ciclo narrar→ejecutar→narrar y lleva un "story so far" (los `note` de los pasos done). El `resolvedSummary` de respaldo construye prosa, no bullets. Ver [deep_dive_narrativa.md](../docs/dev/deep_dive_narrativa.md).
 
 ### Renderizado (ChatMessage.jsx — NarrativeCard)
 

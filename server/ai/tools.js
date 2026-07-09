@@ -922,34 +922,40 @@ function createTools(context) {
 
     if (mode === 'diving') {
         allTools.final_answer = tool({
-            description: 'Signal that the analysis is complete. Call this as the LAST action. Use structured fields for a professional narrative — skip the legacy "summary" field when using tldr/findings/suggested_actions.',
+            description: 'Signal that the analysis is complete — the structured recap of the closing narrative you just wrote in the chat. Call it as the LAST action. ALWAYS include `summary` (your closing story in prose) AND the structured fields; they complement each other, they do not replace the narrative.',
             inputSchema: z.object({
-                tldr: z.string().optional().describe('1-2 sentence TL;DR: the single most important finding.'),
+                tldr: z.string().optional().describe('1-2 sentence TL;DR: the single most important takeaway.'),
                 findings: z.array(z.object({
                     point: z.string().describe('Key observation or insight.'),
                     value: z.string().optional().describe('Supporting metric, number, or percentage.'),
+                    so_what: z.string().optional().describe('Why this finding deserves attention / what it implies for the user. A finding without its "so what" is just a number — always include it.'),
                     source_query_id: z.string().optional().describe('queryId from the execute_sql call that produced this number.'),
-                })).min(1).max(8).optional().describe('Key findings, each with an optional supporting metric.'),
-                likely_cause: z.string().optional().describe('Probable explanation for the main finding (omit if not applicable).'),
-                suggested_actions: z.array(z.string()).min(1).max(4).optional().describe('Concrete next steps.'),
+                })).min(1).max(8).optional().describe('Key findings, each with a metric AND its so_what (why it matters).'),
+                likely_cause: z.string().optional().describe('Probable explanation for the main finding (the "why").'),
+                suggested_actions: z.array(z.string()).min(1).max(4).optional().describe('Concrete next steps, each with a brief reason.'),
                 caveats: z.array(z.string()).optional().describe('Data quality notes, limitations, or assumptions.'),
-                summary: z.string().optional().describe('Full markdown narrative — fallback if structured fields are not used.'),
+                summary: z.string().optional().describe('Your CLOSING NARRATIVE in flowing markdown prose (2-4 short paragraphs): the story of what you found, why it happens, and what to do. ALWAYS provide it — it is the answer; the structured fields are its recap.'),
                 followup_questions: z.array(z.string()).min(2).max(4).optional().describe('Follow-up questions to explore next.'),
             }),
             execute: async ({ tldr, findings, likely_cause, suggested_actions, caveats, summary, followup_questions }) => {
+                // Fallback ONLY when the model gave no narrative summary: build flowing
+                // prose (not bare bullets) from the structured fields so the reply still
+                // reads like analysis, weaving each finding's so_what into the sentence.
                 const resolvedSummary = summary || [
-                    tldr ? `**TL;DR:** ${tldr}` : '',
+                    tldr || '',
                     findings?.length
-                        ? '\n**Findings:**\n' + findings.map(f =>
-                            `- ${f.point}${f.value ? ` — **${f.value}**` : ''}`
-                          ).join('\n')
+                        ? findings.map(f => {
+                            const metric = f.value ? ` (${f.value})` : '';
+                            const soWhat = f.so_what ? ` — ${f.so_what}` : '';
+                            return `${f.point}${metric}${soWhat}.`;
+                          }).join(' ')
                         : '',
-                    likely_cause ? `\n**Why:** ${likely_cause}` : '',
+                    likely_cause ? `The likely driver: ${likely_cause}` : '',
                     suggested_actions?.length
-                        ? '\n**Suggested actions:**\n' + suggested_actions.map(a => `- ${a}`).join('\n')
+                        ? `Next, ${suggested_actions.map(a => a.replace(/\.$/, '')).join('; ')}.`
                         : '',
-                    caveats?.length ? `\n**Note:** ${caveats.join(' ')}` : '',
-                ].filter(Boolean).join('\n');
+                    caveats?.length ? `A caveat: ${caveats.join(' ')}` : '',
+                ].filter(Boolean).join('\n\n');
 
                 if (activePlan?.steps) {
                     for (const step of activePlan.steps) {
