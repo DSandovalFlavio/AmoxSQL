@@ -20,9 +20,13 @@ ${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
   - **bar-horizontal key rule**: x_axis_key = CATEGORY column (products, regions — appears LEFT); y_axis_keys = VALUE column(s) (revenue, count — appears BOTTOM). Never swap them. x_axis_label labels the LEFT axis; y_axis_label labels the BOTTOM axis.
   - Axes: x_axis_label, y_axis_label (always set with units), x_axis_angle (45 for dates), date_aggregation (month/quarter/year)
   - Data: sort_mode, limit (top-N ranking), split_by (breakdown by dimension), cumulative (running total)
-  - Style: color_theme, show_data_labels (for ranked bars), legend_position, grid_mode, number_format
+  - Style: color_theme (pick by intent — see "Color with intent"), show_data_labels (for ranked bars), legend_position, grid_mode, number_format
   - Line: line_type (monotone/step), show_dots
-  - Bar: bar_color_mode (dimension = one color per category), bar_radius
+  - Bar: bar_color_mode (series=ONE color, the default and right choice for a ranking; dimension=one color per category, ONLY for ≤5 truly distinct categories; intensity=fade by magnitude), bar_radius
+  - **Storytelling layer** (make the chart argue your point — set these on every important chart):
+    - takeaway: "one-sentence conclusion shown under the chart" — the message, not the metric
+    - protagonist: "series/category name" — colors the hero and mutes the rest to gray (the "one protagonist" rule)
+    - annotations: [{type:"text"|"box", x, y?, x2?, y2?, text, color?}] — callout on the exact point that carries the finding (max 3)
   - **Overlays** (use these to tell the story visually):
     - trend_line: {type: "linear"|"moving-average", window_size?, color?} — reveals direction on time series
     - goal_line: {value, label, color?, style?} — shows progress toward a target
@@ -52,8 +56,9 @@ ${mode === 'diving' ? `- **final_answer**: Signal analysis complete with structu
       - Always set \`x_axis_label\`/\`y_axis_label\` (never leave raw column names). Add \`subtitle\` with the key insight and \`footnote\` with the data source.
       - Dates: \`x_axis_angle="45"\` + \`date_aggregation\` (month for 1-3 yr, quarter for 3+ yr).
       - Use overlays to tell the story: \`trend_line\` on time series; \`ref_line\` for mean/median; \`goal_line\` for targets; \`highlight:{type:"max"}\` to mark the peak; \`headline_kpi\` to anchor the total.
-      - For ranking bars: \`sort_mode="y-desc"\`, \`limit=10\`, \`bar_color_mode="dimension"\`, \`show_data_labels=true\`.
-      - For breakdowns: \`split_by\` to pivot by region/segment/category.
+      - For ranking bars (ONE metric): \`sort_mode="y-desc"\`, \`limit=10\`, \`show_data_labels=true\`, and keep \`bar_color_mode="series"\` (ONE color for all bars) — then \`highlight:{type:"max"}\` or \`{type:"exact", value:"<hero>"}\` to make the protagonist pop. Do NOT use \`bar_color_mode="dimension"\` on a ranking — a rainbow of one color per bar hides the message.
+      - For breakdowns: \`split_by\` to pivot by region/segment/category, and name the hero with \`protagonist\` so the rest fade to gray.
+      - Tell the chart's conclusion with \`takeaway\` (one line under the chart) and mark the key point with an \`annotations\` callout.
    2. Call \`chart_storyteller\` immediately after — use the same \`query_id\`.
    3. Write markdown interpretation: visual pattern, 2-3 takeaways with specific numbers, analytical implication.
 8. **Timeout**: SQL queries have a 30-second limit. Use LIMIT, WHERE, or \`USING SAMPLE 10%\` for large tables.

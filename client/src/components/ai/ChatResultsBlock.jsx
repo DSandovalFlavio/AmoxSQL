@@ -167,8 +167,12 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             // ── Headline KPI ──────────────────────────────────────────────────────
             headline: cc.headline || { visible: false, metric: 'total', compareWith: 'none', size: 'auto' },
 
-            // ── Series colors ─────────────────────────────────────────────────────
-            seriesConfig: {},
+            // ── Storytelling layer (AI can now set these) ─────────────────────────
+            // Per-series colors: the "one protagonist, rest gray" emphasis. Was
+            // hardcoded to {} — which silently discarded the agent's protagonist.
+            seriesConfig: cc.seriesConfig || {},
+            annotations:  cc.annotations  || [],
+            takeaway:     cc.takeaway     || '',
         };
     }, [chartConfig]);
 
@@ -237,9 +241,14 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         <div id={chartDOMId} className="ai-chart">
             {/* Header */}
             <div className="ai-chart-header">
-                <span className="ai-chart-title">
-                    {chartConfig.title || 'Data Visualization'}
-                </span>
+                <div className="ai-chart-titleblock">
+                    <span className="ai-chart-title">
+                        {chartConfig.title || 'Data Visualization'}
+                    </span>
+                    {fullConfig.chartSubtitle && (
+                        <span className="ai-chart-subtitle">{fullConfig.chartSubtitle}</span>
+                    )}
+                </div>
                 <button
                     className="ai-chart-btn"
                     onClick={handleToggleFullscreen}
@@ -263,6 +272,14 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     />
                 </ChartErrorBoundary>
             </div>
+
+            {/* Takeaway — the chart's one-sentence conclusion */}
+            {fullConfig.takeaway && (
+                <p className="ai-chart-takeaway">{fullConfig.takeaway}</p>
+            )}
+            {fullConfig.chartFootnote && (
+                <p className="ai-chart-footnote">{fullConfig.chartFootnote}</p>
+            )}
 
             {/* Footer / Actions */}
             <div className="ai-chart-footer">
