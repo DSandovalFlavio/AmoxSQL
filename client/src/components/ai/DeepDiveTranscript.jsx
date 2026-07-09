@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LuUser, LuBot, LuLoader, LuChartColumn, LuDatabase, LuListChecks } from 'react-icons/lu';
 import { stripThink, turnActivityStats, turnFinalAnswer } from './deepDiveTurns';
-import { NarrativeCard, QueryAuditModal, makeMdComponents } from './ChatMessage';
+import { NarrativeCard, QueryAuditModal, makeMdComponents, citeUrlTransform } from './ChatMessage';
 import StreamingMarkdown from './StreamingMarkdown';
 
 /** AI turn prose (without reasoning). The final synthesis renders as a card instead. */
@@ -54,9 +54,9 @@ const TranscriptTurn = memo(({ turn, isSelected, onSelect, onFollowUp, onAskAbou
                     {text ? (
                         <div className="ddt-ai-prose markdown-body">
                             {turn.inProgress ? (
-                                <StreamingMarkdown content={text} components={mdComponents} />
+                                <StreamingMarkdown content={text} components={mdComponents} urlTransform={citeUrlTransform} />
                             ) : (
-                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{text}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents} urlTransform={citeUrlTransform}>{text}</ReactMarkdown>
                             )}
                         </div>
                     ) : !finalAnswer ? (

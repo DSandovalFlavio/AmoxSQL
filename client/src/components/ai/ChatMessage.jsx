@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+/**
+ * react-markdown sanitizes link hrefs and DROPS unknown protocols — our internal
+ * `cite:<queryId>#<column>` citations would otherwise become empty hrefs (which,
+ * as target=_blank anchors, opened a whole new app window). Preserve cite: URLs;
+ * apply the default (safe) sanitization to everything else.
+ */
+export const citeUrlTransform = (url) =>
+    (typeof url === 'string' && url.startsWith('cite:')) ? url : defaultUrlTransform(url);
 import { API_BASE } from '../../api.js';
 import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
@@ -651,9 +660,9 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 // (the prose already lives in the transcript card).
                                 if (activityOnly) return null;
                                 if (isStreaming && idx === lastTextIdx) {
-                                    return <StreamingMarkdown key={idx} content={part.content} components={mdComponents} />;
+                                    return <StreamingMarkdown key={idx} content={part.content} components={mdComponents} urlTransform={citeUrlTransform} />;
                                 }
-                                return <MarkdownChunk key={idx} content={part.content} components={mdComponents} />;
+                                return <MarkdownChunk key={idx} content={part.content} components={mdComponents} urlTransform={citeUrlTransform} />;
                             })}
                             {isStreaming && (
                                 <span className="ai-msg-cursor" />
