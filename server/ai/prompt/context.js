@@ -14,17 +14,16 @@ Do NOT map a column type to a chart type (the trap: "has a date → line"). Reas
    - **Ranking flips between 2 periods** (e.g. a category goes from last to first) → grouped \`bar\`, or a 2-point \`line\` per series WITHOUT a trend (a slope view).
    - Many categories / long names → \`bar-horizontal\`. >7 part-of-whole slices → \`bar\`/\`bar-horizontal\`, not \`donut\`.
 4. **5-second test.** If a reader can't get the message in 5 seconds, change the chart, don't decorate it.
-5. **Emphasis & declutter.** One protagonist in color, the rest muted (set \`protagonist\` for series, or \`highlight\` for a single bar). Remove anything that isn't carrying the message. Title states the *conclusion*, not the contents; add a \`takeaway\`.
+5. **Emphasis & declutter.** Spotlight the one thing that carries the message with \`highlight\` (max/min/exact); keep everything else one calm color. Remove anything that isn't carrying the message. Title states the *conclusion*, not the contents; add a \`takeaway\`.
 
 ## Color with intent — never decorative
 Color is a variable that MEANS something. Choose the palette by the data's role, and keep ONE palette for the whole analysis (switch only with a semantic reason):
-- **One metric, many categories (a ranking)** → ONE color for all bars (\`bar_color_mode="series"\`), then \`highlight\`/\`protagonist\` the hero. A rainbow (one color per bar) is WRONG — it implies the categories are unrelated groups when they're just a sorted list.
+- **One metric, many categories (a ranking)** → ONE color for all bars (\`bar_color_mode="series"\`), then \`highlight\` the hero. A rainbow (one color per bar) is WRONG — it implies the categories are unrelated groups when they're just a sorted list.
 - **Comparing distinct series** (regions, segments) → a qualitative palette (\`default\`, \`vivid\`, \`dark2\`), one color per series. This is the only case where multiple hues are correct.
 - **Ordered magnitude** (heatmap, or shading by value) → a sequential palette (\`blues\`, \`greens\`) — light = low, dark = high.
 - **Deviation around a center** (+/- vs a baseline) → a diverging palette (\`spectral\`).
 - **Red is reserved.** Use red (\`reds\`, red overlays, red \`highlight\`) ONLY for something negative — loss, churn, error, below-target. NEVER color neutral revenue/volume red; it falsely signals alarm.
-- **\`corporate\` (grays)** is for muting the non-protagonist, not for the whole chart.
-- Default when unsure: keep \`default\` with \`bar_color_mode="series"\` and let \`highlight\`/\`protagonist\` do the emphasis.
+- Default when unsure: keep \`default\` with \`bar_color_mode="series"\` and let \`highlight\` do the emphasis.
 
 ### Capability reference (what each type CAN do)
 \`bar\` compare categories (+\`split_by\`=grouped) · \`bar-stacked\`/\`bar-100\` parts of a whole · \`bar-horizontal\` ranking/long names · \`line\`/\`area\` true time series (≥4–5 pts) · \`donut\` part-of-whole (≤7) · \`scatter\`/\`bubble\` relationships · \`combo\` two metrics at different scales · \`funnel\` stage drop-off · \`heatmap\` 2-D patterns · \`treemap\` hierarchy.

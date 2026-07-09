@@ -308,7 +308,7 @@ function createTools(context) {
                 cumulative: z.boolean().optional().describe('Show running total instead of individual values (line/area charts).'),
 
                 // ── Visual style ──────────────────────────────────────────────────
-                color_theme: z.enum(['default', 'vivid', 'neon', 'pastel', 'dark2', 'ocean', 'sunset', 'corporate', 'blues', 'greens', 'reds', 'spectral']).optional().describe('Color palette — choose by data role, not decoration. Qualitative (comparing distinct series): default, vivid, dark2, pastel, neon. Sequential (ordered magnitude, light→dark): blues, greens. Diverging (+/- around a center): spectral. reds/sunset: RESERVED for negative/alarm metrics only — never for neutral revenue/volume. corporate=grays (mute non-hero). For a single-metric ranking DO NOT swap palettes per bar — keep one color and use highlight/protagonist.'),
+                color_theme: z.enum(['default', 'vivid', 'neon', 'pastel', 'dark2', 'ocean', 'sunset', 'corporate', 'blues', 'greens', 'reds', 'spectral']).optional().describe('Color palette — choose by data role, not decoration. Qualitative (comparing distinct series): default, vivid, dark2, pastel, neon. Sequential (ordered magnitude, light→dark): blues, greens. Diverging (+/- around a center): spectral. reds/sunset: RESERVED for negative/alarm metrics only — never for neutral revenue/volume. corporate=grays. For a single-metric ranking DO NOT swap palettes per bar — keep one color and use highlight to spotlight the leader.'),
                 show_data_labels: z.boolean().optional().describe('Show value labels directly on bars/points. Good for ranked bar charts. Default: false.'),
                 legend_position: z.enum(['top', 'bottom', 'left', 'right', 'none']).optional().describe('Legend placement. none hides it. Default: top.'),
                 grid_mode: z.enum(['both', 'horizontal', 'vertical', 'none']).optional().describe('Grid lines. Default: horizontal.'),
@@ -318,7 +318,7 @@ function createTools(context) {
                 show_dots: z.boolean().optional().describe('Show data points on line/area charts. Default: true.'),
 
                 // ── Bar chart options ─────────────────────────────────────────────
-                bar_color_mode: z.enum(['series', 'dimension', 'intensity']).optional().describe('Bar coloring. series=ONE color for all bars (default; the CORRECT choice for a single-metric ranking — pair with highlight/protagonist for emphasis). dimension=one color per category, ONLY when there are ≤5 genuinely distinct categories whose identity matters (NOT a sorted ranking — that makes a misleading rainbow). intensity=fade opacity by value magnitude.'),
+                bar_color_mode: z.enum(['series', 'dimension', 'intensity']).optional().describe('Bar coloring. series=ONE color for all bars (default; the CORRECT choice for a single-metric ranking — pair with highlight for emphasis). dimension=one color per category, ONLY when there are ≤5 genuinely distinct categories whose identity matters (NOT a sorted ranking — that makes a misleading rainbow). intensity=fade opacity by value magnitude.'),
                 bar_radius: z.number().int().min(0).max(20).optional().describe('Bar corner radius in px. 0=sharp, 4=slight rounding (default), 8=rounded.'),
 
                 // ── Analytical overlays ───────────────────────────────────────────
@@ -359,7 +359,6 @@ function createTools(context) {
 
                 // ── Storytelling layer ────────────────────────────────────────────
                 takeaway: z.string().optional().describe('One-sentence conclusion shown under the chart — the MESSAGE, not the metric. e.g. "San Francisco alone drives a quarter of all revenue." Set this on every important chart.'),
-                protagonist: z.string().optional().describe('The hero series/category to emphasize; everything else fades to gray (the "one protagonist" rule). For a breakdown (split_by) or multi-metric chart, pass the exact series name. For a single-metric ranking, pass the category to spotlight (maps to a highlight).'),
                 annotations: z.array(z.object({
                     type: z.enum(['text', 'box']).describe('text=point callout at (x[,y]); box=shaded region from x..x2 [and y..y2].'),
                     x: z.string().describe('Category/x value to anchor to (must match an x_axis_key value in the data).'),
@@ -380,7 +379,7 @@ function createTools(context) {
                 bar_color_mode, bar_radius,
                 trend_line, goal_line, ref_line, highlight,
                 headline_kpi, donut_center_kpi, donut_label_content,
-                takeaway, protagonist, annotations,
+                takeaway, annotations,
             }) => {
                 let queryResult = queryResults.get(query_id);
                 if (!queryResult && aiPersistence) {
@@ -447,7 +446,7 @@ function createTools(context) {
                 // 1. Rainbow ranking: dimension mode on a single-metric bar w/ many categories.
                 if (bar_color_mode === 'dimension' && singleSeries && distinctXCount > 5 &&
                     (chart_type === 'bar' || chart_type === 'bar-horizontal')) {
-                    chartWarnings.push(`bar_color_mode="dimension" paints each of the ${distinctXCount} bars a different color — a rainbow that hides the ranking. Re-call with bar_color_mode="series" (one color) plus highlight:{type:"max"} or a protagonist to spotlight the leader.`);
+                    chartWarnings.push(`bar_color_mode="dimension" paints each of the ${distinctXCount} bars a different color — a rainbow that hides the ranking. Re-call with bar_color_mode="series" (one color) plus highlight:{type:"max"} to spotlight the leader.`);
                 }
                 // 2. Sequential palette on categorical bars that aren't sorted by value → misleading.
                 if (['blues', 'greens', 'reds'].includes(color_theme) && singleSeries &&
@@ -465,33 +464,6 @@ function createTools(context) {
                 if (chart_type === 'donut' && distinctXCount > 7) {
                     chartWarnings.push(`A donut with ${distinctXCount} slices is unreadable (>7). Use a bar/bar-horizontal ranking instead.`);
                 }
-
-                // ── Protagonist: color the hero, mute the rest to gray ──────────────
-                // Multi-series (split_by or multiple y): gray every non-hero series so
-                // the hero keeps its palette color and pops. Single-series: spotlight
-                // the hero category via a (non-red) highlight.
-                const NEUTRAL_GRAY = '#8b93a1';
-                let protagonistSeriesConfig = null;
-                let protagonistHighlight = null;
-                if (protagonist) {
-                    const multiY = Array.isArray(y_axis_keys) && y_axis_keys.length > 1;
-                    if (split_by) {
-                        const seriesVals = [...new Set(rows.map(r => String(r?.[split_by] ?? '')).filter(Boolean))];
-                        const cfg = {};
-                        for (const v of seriesVals) if (String(v) !== String(protagonist)) cfg[v] = { color: NEUTRAL_GRAY };
-                        if (Object.keys(cfg).length) protagonistSeriesConfig = cfg;
-                    } else if (multiY) {
-                        const cfg = {};
-                        for (const k of y_axis_keys) if (String(k) !== String(protagonist)) cfg[k] = { color: NEUTRAL_GRAY };
-                        if (Object.keys(cfg).length) protagonistSeriesConfig = cfg;
-                    } else {
-                        protagonistHighlight = { type: 'exact', value: protagonist, color: '#9b87f5' };
-                    }
-                }
-                // Explicit highlight wins; otherwise the protagonist spotlight applies.
-                const effectiveHighlight = highlight
-                    ? { type: highlight.type, value: highlight.value || '', color: highlight.color || '#ff4444' }
-                    : protagonistHighlight;
 
                 // Annotations → renderer shape (id + only the set fields).
                 const mappedAnnotations = Array.isArray(annotations)
@@ -568,15 +540,14 @@ function createTools(context) {
                             style: 'dashed',
                         },
                     }),
-                    ...(effectiveHighlight && {
+                    ...(highlight !== undefined && {
                         highlightConfig: {
-                            type: effectiveHighlight.type,
-                            value: effectiveHighlight.value || '',
-                            color: effectiveHighlight.color || '#ff4444',
+                            type: highlight.type,
+                            value: highlight.value || '',
+                            color: highlight.color || '#ff4444',
                         },
                     }),
-                    // Storytelling layer (protagonist / takeaway / annotations)
-                    ...(protagonistSeriesConfig && { seriesConfig: protagonistSeriesConfig }),
+                    // Storytelling layer (takeaway / annotations)
                     ...(takeaway !== undefined && { takeaway }),
                     ...(mappedAnnotations && mappedAnnotations.length ? { annotations: mappedAnnotations } : {}),
                     // Headline KPI

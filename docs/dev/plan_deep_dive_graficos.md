@@ -45,8 +45,8 @@ Ampliar el schema de `display_chart` y el `fullConfig` del chat:
 
 1. **`takeaway`** (string): la conclusión de una línea bajo el chart. Mapea a `takeaway` del config; `ChatResultsBlock` lo agrega al `fullConfig` y se renderiza (verificar dónde lo pinta `ChartRenderer`/frame; si es del frame del visualizer, renderizarlo como caption del chart en chat).
 2. **`annotations`** (array acotada, máx 3): `{ type: 'text'|'box', x, y?, x2?, y2?, text, color? }` — mapea a `annotations[]`; `ChartRenderer.jsx:369-407` ya sabe pintarlas; solo hay que dejar de omitirlas en `ChatResultsBlock`.
-3. **`protagonist`** (string, opcional — el mecanismo que faltaba para G2): nombre de la serie/categoría héroe. El execute lo traduce a `seriesConfig` (héroe = color de la paleta; resto = gris neutro) para multi-series, o a `highlight:{type:'exact'}` para single-series. `ChatResultsBlock` deja de hardcodear `seriesConfig: {}` (`:171`) y respeta el del config.
-4. Prompt: documentar los 3 campos nuevos en `buildToolsSection` con la regla "cada chart importante lleva takeaway; anota el punto que sostiene tu hallazgo".
+3. ~~**`protagonist`**~~ — **DESCARTADO.** Se implementó (héroe en color, resto en gris neutro vía `seriesConfig`; single-series → `highlight`) pero se **revirtió** a petición del usuario: forzaba colores hardcodeados (gris `#8b93a1`, morado `#9b87f5`) que pisaban el tema. El énfasis se logra con el `highlight` existente (que el agente colorea o usa su default), sin hardcodear. `seriesConfig` vuelve a `{}` en el chat.
+4. Prompt: documentar los campos de storytelling en `buildToolsSection` con la regla "cada chart importante lleva takeaway; anota el punto que sostiene tu hallazgo".
 
 **Archivos:** `server/ai/tools.js` (schema+map), `server/ai/prompt/tools.js`, `client/src/components/ai/ChatResultsBlock.jsx`.
 

@@ -167,10 +167,10 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             // ── Headline KPI ──────────────────────────────────────────────────────
             headline: cc.headline || { visible: false, metric: 'total', compareWith: 'none', size: 'auto' },
 
-            // ── Storytelling layer (AI can now set these) ─────────────────────────
-            // Per-series colors: the "one protagonist, rest gray" emphasis. Was
-            // hardcoded to {} — which silently discarded the agent's protagonist.
-            seriesConfig: cc.seriesConfig || {},
+            // ── Series colors ─────────────────────────────────────────────────────
+            seriesConfig: {},
+
+            // ── Storytelling layer (AI can set these) ─────────────────────────────
             annotations:  cc.annotations  || [],
             takeaway:     cc.takeaway     || '',
         };
