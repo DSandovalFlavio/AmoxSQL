@@ -825,13 +825,29 @@ export default function useAiChat({
                     // so display_chart calls can find their exact chart config instead of the first one.
                     if (toolCalls && Array.isArray(toolCalls) && queryResultsByMsgId[m.id]) {
                         const qResults = queryResultsByMsgId[m.id];
-                        let qrIndex = 0;
                         const clientIdToDbQrId = new Map(); // queryId (client) → qr.id (DB)
 
+                        // Pair each execute_sql with ITS OWN persisted result by SQL
+                        // text. The old index pairing mis-assigned data whenever a query
+                        // errored or wasn't persisted — the offset handed a chart the
+                        // wrong query's rows, so on reload the x-axis column was absent
+                        // and the chart rendered "No data to display". Falls back to the
+                        // message's own persisted result data (which is correct) if a
+                        // query has no cache match.
+                        const norm = (str) => String(str || '').replace(/\s+/g, ' ').trim();
+                        const byQuery = new Map();
+                        for (const qr of qResults) {
+                            const k = norm(qr.sql_query);
+                            if (!byQuery.has(k)) byQuery.set(k, []);
+                            byQuery.get(k).push(qr);
+                        }
+
                         toolCalls = toolCalls.map(tc => {
-                            if (tc.toolName === 'execute_sql' && qrIndex < qResults.length) {
-                                const qr = qResults[qrIndex++];
+                            if (tc.toolName === 'execute_sql') {
+                                const bucket = byQuery.get(norm(tc.args?.query));
+                                const qr = (bucket && bucket.length) ? bucket.shift() : null;
                                 const clientQueryId = tc.result?.queryId;
+                                if (!qr) return tc; // keep the message's own (correct) data
                                 if (clientQueryId) clientIdToDbQrId.set(clientQueryId, qr.id);
                                 return {
                                     ...tc,
