@@ -69,6 +69,15 @@ const SessionInventory = ({
         fetchArtifacts();
     }, [fetchArtifacts]);
 
+    // Refetch when the analysis creates new artifacts (charts/notebooks/vault),
+    // otherwise the panel would stay at its load-time snapshot (the "0 artifacts"
+    // bug: a freshly-charted analysis showed nothing until the session reopened).
+    useEffect(() => {
+        const onChanged = () => fetchArtifacts();
+        window.addEventListener('amox_artifacts_changed', onChanged);
+        return () => window.removeEventListener('amox_artifacts_changed', onChanged);
+    }, [fetchArtifacts]);
+
     // Delete artifact
     const handleDeleteArtifact = async (artifactId, e) => {
         e.stopPropagation();

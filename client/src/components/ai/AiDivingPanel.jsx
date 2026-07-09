@@ -232,93 +232,74 @@ const AiDivingPanel = ({
     }, [conversationId]);
 
     // ─── Auto-create artifacts for build_notebook, display_chart, and save_to_vault ───
-    // Track processed tool calls so we don't re-open files on every messages update
+    // Dedup key per tool call (STABLE across reload: toolCallId is persisted), so a
+    // chart/notebook/vault artifact is POSTed exactly once — never duplicated on a
+    // reload or an unrelated messages change.
+    const ARTIFACT_TOOLS = { build_notebook: 'notebook', display_chart: 'chart', save_to_vault: 'sql' };
     const processedArtifactsRef = useRef(new Set());
 
-    // Pre-populate on mount/conversation switch so remount doesn't re-open existing notebooks
+    // Seed the processed set on conversation switch so already-persisted artifacts
+    // are never re-POSTed (and notebooks aren't re-opened) after a reload.
     useEffect(() => {
-        if (messages.length === 0) return;
+        const seen = new Set();
         for (const msg of messages) {
             if (msg.role !== 'assistant' || !msg.toolCalls) continue;
             for (const tc of msg.toolCalls) {
-                if (tc.toolName === 'build_notebook' && tc.result && !tc.result.error) {
-                    processedArtifactsRef.current.add(`notebook:${tc.result.path || tc.result.fileName}`);
+                if (ARTIFACT_TOOLS[tc.toolName] && tc.result && !tc.result.error) {
+                    seen.add(`${tc.toolName}:${tc.toolCallId}`);
                 }
             }
         }
+        processedArtifactsRef.current = seen;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conversationId]);
 
+    // Post any new artifacts the agent just produced and tell the inventory panel
+    // to refresh (it otherwise only fetches on conversation switch — the reason a
+    // freshly-charted analysis showed "0 artifacts" until reopened).
     useEffect(() => {
         if (!conversationId || messages.length === 0) return;
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg.role !== 'assistant' || !lastMsg.toolCalls) return;
+        let anyPosted = false;
 
-        for (const tc of lastMsg.toolCalls) {
-            if (tc.toolName === 'build_notebook' && tc.result && !tc.result.error) {
-                const artifactKey = `notebook:${tc.result.path || tc.result.fileName}`;
-                const isNew = !processedArtifactsRef.current.has(artifactKey);
-                processedArtifactsRef.current.add(artifactKey);
+        for (const msg of messages) {
+            if (msg.role !== 'assistant' || !msg.toolCalls) continue;
+            for (const tc of msg.toolCalls) {
+                const type = ARTIFACT_TOOLS[tc.toolName];
+                if (!type || !tc.result || tc.result.error) continue;
+                const key = `${tc.toolName}:${tc.toolCallId}`;
+                if (processedArtifactsRef.current.has(key)) continue;
+                processedArtifactsRef.current.add(key);
+                anyPosted = true;
 
-                if (isNew) {
-                    (async () => {
-                        try {
-                            await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    type: 'notebook',
-                                    name: tc.result.fileName || tc.result.name || 'Analysis Notebook',
-                                    data: tc.result,
-                                }),
-                            });
-                        } catch (err) {
-                            console.error('Failed to auto-create notebook artifact:', err);
-                        }
-                    })();
-                    // Refresh FileExplorer and auto-open only on first detection
-                    window.dispatchEvent(new Event('amox_files_changed'));
-                    if (onOpenFile && tc.result.path) {
-                        onOpenFile(tc.result.path);
+                const name =
+                    tc.toolName === 'build_notebook' ? (tc.result.fileName || tc.result.name || 'Analysis Notebook')
+                    : tc.toolName === 'display_chart' ? (tc.result?.chartConfig?.title || tc.args?.title || 'Chart')
+                    : (tc.result?.title || 'Vault Entry');
+
+                (async () => {
+                    try {
+                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type, name, data: tc.result }),
+                        });
+                        // Nudge the inventory panel to refetch its artifact list.
+                        window.dispatchEvent(new Event('amox_artifacts_changed'));
+                    } catch (err) {
+                        console.error('Failed to auto-create artifact:', err);
                     }
+                })();
+
+                // Notebooks: refresh the file tree and open the file on first creation.
+                if (tc.toolName === 'build_notebook') {
+                    window.dispatchEvent(new Event('amox_files_changed'));
+                    if (onOpenFile && tc.result.path) onOpenFile(tc.result.path);
                 }
             }
-
-            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
-                (async () => {
-                    try {
-                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                type: 'chart',
-                                name: tc.result?.chartConfig?.title || tc.args?.title || 'Chart',
-                                data: tc.result,
-                            }),
-                        });
-                    } catch (err) {
-                        console.error('Failed to auto-create chart artifact:', err);
-                    }
-                })();
-            }
-
-            if (tc.toolName === 'save_to_vault' && tc.result && !tc.result.error) {
-                (async () => {
-                    try {
-                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                type: 'sql',
-                                name: tc.result?.title || 'Vault Entry',
-                                data: tc.result,
-                            }),
-                        });
-                    } catch (err) {
-                        console.error('Failed to auto-create vault artifact:', err);
-                    }
-                })();
-            }
         }
+
+        // A no-op read of anyPosted keeps the intent explicit for future edits.
+        void anyPosted;
     }, [messages, conversationId, onOpenFile]);
 
     // ─── Empty state (no conversation yet) ───

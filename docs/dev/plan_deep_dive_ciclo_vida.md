@@ -1,7 +1,7 @@
 # Plan de Implementación — Deep Dive: ciclo de vida del análisis
 
 > Deriva de [deep_dive_ciclo_vida.md](deep_dive_ciclo_vida.md) (auditoría). Referencias B1–B5 y Q1–Q50 apuntan a ese doc.
-> **Estado:** ✅ **F1–F5 implementadas** (cierre veraz · presupuesto 50 + wrap-up · selección estable · prosa primero · continuación 5.1–5.3). Pendiente: F5.4 (add_step, diferida) y F6 (backlog).
+> **Estado:** ✅ **F1–F5 + fix de ARTIFACTS (F6)** implementadas (cierre veraz · presupuesto 50 + wrap-up · selección estable · prosa primero · continuación 5.1–5.3 · bug ARTIFACTS). Diferido a otro PR: F5.4 (add_step) y el resto de F6 (notificaciones, export deck, refactor de deuda).
 
 ## Objetivo
 
@@ -87,13 +87,13 @@ Restaurar el contrato de [modos_ai.md](../../contexto_caracteristicas/modos_ai.m
 
 ---
 
-### Fase 6 — Pulidos y pendientes detectados (backlog) 📦
+### Fase 6 — Pulidos y pendientes detectados (backlog) 📦 (parcial)
 
-- **Indicador de presupuesto en la UI**: chip "ciclo 18/25" durante el run (los eventos `step-start` ya traen `iteration/maxIterations`). (Q1/2)
-- **Verificar bug del panel ARTIFACTS** ("0 artifacts" con 3 gráficos creados — síntoma 5 de la auditoría).
-- Notificación al terminar en otra pestaña (Q44).
-- Export a `.amoxdeck` desde un análisis (Q42) — conecta con Report Flow.
-- Refactor de deuda: unificar las 3 derivaciones del plan y las 2 fuentes de verdad de status (terreno de B1/B2/B5).
+- ✅ **Bug del panel ARTIFACTS resuelto** (síntoma 5): eran DOS bugs — (a) `SessionInventory` solo hacía fetch al cambiar `conversationId`, nunca refrescaba tras crear gráficos → mostraba "0"; ahora escucha `amox_artifacts_changed` y refetch. (b) el auto-registro de artifacts de `display_chart`/`save_to_vault` no deduplicaba (solo `build_notebook`) → re-posteaba en cada reload; ahora dedup universal por `toolName:toolCallId` (estable en reload).
+- ✅ **Indicador de presupuesto**: ya existía en `AgentPlanPanel` ("Iteration X/Y" durante el run, alimentado por `step-start`). Cubre Q1/Q2.
+- ⏳ Notificación al terminar en otra pestaña (Q44). **Diferido.**
+- ⏳ Export a `.amoxdeck` desde un análisis (Q42) — conecta con Report Flow. **Diferido.**
+- ⏳ Refactor de deuda: unificar las 3 derivaciones del plan y las 2 fuentes de verdad de status (terreno de B1/B2/B5). **Diferido.**
 
 ## Orden y entrega
 
