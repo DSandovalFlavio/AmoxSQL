@@ -50,6 +50,15 @@ const MAX_STALL_RETRIES = 2;
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+/** Strip <think>…</think> reasoning (and any unclosed trailing one) — mirrors the
+ *  client's deepDiveTurns.stripThink so server-side prose measurements match what
+ *  the user actually sees. */
+function stripThinkText(s = '') {
+    return String(s || '')
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<think>[\s\S]*$/i, '');
+}
+
 /**
  * Builds a SQL correction directive when execute_sql returned an error.
  * Injected as a forced-retry user message so the LLM fixes the query immediately.
@@ -313,6 +322,7 @@ async function* agenticLoop(options, getModelFn) {
     let sqlCorrectionRetries = 0;   // consecutive iterations that ended with unresolved SQL errors
     let stallRetries         = 0;   // consecutive iterations aborted by the stall watchdog
     let anyIterationHadText  = false; // tracks if any prior iter produced text (for fallback message)
+    let fullRunText          = '';    // all narrated text across the run (for the prose-first safety net)
     let totalUsage           = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
     console.log(`[AgenticLoop] Starting | Provider: ${provider} | Model: ${model} | maxIter: ${maxIterations}`);
@@ -403,6 +413,7 @@ async function* agenticLoop(options, getModelFn) {
                 if (part.type === 'text-delta') {
                     const textChunk = part.textDelta ?? part.text ?? '';
                     iterText += textChunk;
+                    fullRunText += textChunk;
                     yield { type: 'text-delta', text: textChunk };
 
                 } else if (part.type === 'tool-call') {
@@ -487,8 +498,13 @@ async function* agenticLoop(options, getModelFn) {
                         }
 
                         // Structured output (tldr + findings) is rendered by NarrativeCard in the UI.
-                        // When structured fields are present, suppress text streaming to avoid duplication.
+                        // Normally we suppress streaming the summary to avoid duplicating the card.
+                        // BUT if the model barely narrated across the whole run (prose-first
+                        // contract broken), the chat reply would be an empty shell + a card —
+                        // so we surface the recap as prose too. (Whole-run text, think stripped.)
                         const hasStructuredOutput = !!(toolResult.tldr || toolResult.findings?.length);
+                        const visibleProse = stripThinkText(fullRunText).trim();
+                        const proseThin = visibleProse.length < 220;
                         const modelAlreadyWroteSummary = iterText.trim().length > 80;
                         if (!hasStructuredOutput && toolResult.summary && !modelAlreadyWroteSummary) {
                             // Legacy: stream summary as text when no structured fields
@@ -507,8 +523,13 @@ async function* agenticLoop(options, getModelFn) {
                                 yield { type: 'text-delta', text: followupsBlock };
                                 iterText += followupsBlock;
                             }
+                        } else if (hasStructuredOutput && proseThin && toolResult.summary) {
+                            // Safety net: the model dumped into the card without narrating.
+                            // Surface the recap as prose so the reply isn't just a bare card.
+                            yield { type: 'text-delta', text: (visibleProse ? '\n\n' : '') + toolResult.summary };
+                            iterText += toolResult.summary;
                         }
-                        // Structured: NarrativeCard in ChatMessage handles tldr/findings/followups visually
+                        // Structured (rich prose case): NarrativeCard handles tldr/findings/followups visually
                         yield {
                             type:     'plan-completed',
                             summary:  toolResult.summary,

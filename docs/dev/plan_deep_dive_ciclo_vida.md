@@ -1,7 +1,7 @@
 # Plan de Implementación — Deep Dive: ciclo de vida del análisis
 
 > Deriva de [deep_dive_ciclo_vida.md](deep_dive_ciclo_vida.md) (auditoría). Referencias B1–B5 y Q1–Q50 apuntan a ese doc.
-> **Estado:** ✅ **F1 (cierre veraz), F2 (presupuesto 50 + wrap-up) y F3 (selección estable) implementadas.** F4–F6 pendientes.
+> **Estado:** ✅ **F1–F4 implementadas** (cierre veraz · presupuesto 50 + wrap-up · selección estable · prosa primero). F5–F6 pendientes.
 
 ## Objetivo
 
@@ -62,9 +62,11 @@ Los 4 fixes que eliminan los bugs visibles hoy. Bajo riesgo, alto impacto.
 
 ---
 
-### Fase 4 — Síntesis "prosa primero" de verdad 📝
+### Fase 4 — Síntesis "prosa primero" de verdad 📝 ✅ HECHA
 
 Restaurar el contrato de [modos_ai.md](../../contexto_caracteristicas/modos_ai.md): prosa narrada primero, tarjeta como recap.
+
+> Nota de implementación: (4.1) el prompt del Step 5 ahora exige 2-4 frases de síntesis narrada ANTES de `final_answer`. (4.2) red de seguridad en el server: se acumula `fullRunText`; si al finalizar la prosa visible (con `<think>` quitado) es < 220 chars pese a haber output estructurado, se des-suprime y se streamea el `summary` como texto — nadie recibe una tarjeta pelada. (4.3) los caveats se sacaron del colapsable de la NarrativeCard (siempre visibles, son confianza) y `hasDetails` los excluye del toggle.
 
 | # | Cambio | Archivo | Detalle |
 |---|--------|---------|---------|

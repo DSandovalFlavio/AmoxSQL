@@ -155,7 +155,8 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
     const [causeOpen, setCauseOpen] = useState(true);
     const [detailsOpen, setDetailsOpen] = useState(true);
     const [auditQueryId, setAuditQueryId] = useState(null);
-    const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0 || caveats?.length > 0;
+    // Caveats render outside the collapse (always visible), so they don't count here.
+    const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0;
 
     const openAudit = useCallback((qid) => setAuditQueryId(qid), []);
     const closeAudit = useCallback(() => setAuditQueryId(null), []);
@@ -258,14 +259,16 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
                 </div>
             )}
 
+            </>)}
+
+            {/* Caveats live OUTSIDE the collapse: data-quality notes and assumptions
+                are trust-critical and must be visible even when the summary is hidden. */}
             {caveats?.length > 0 && (
                 <div className="ai-narrative-caveats">
                     <LuTriangleAlert size={10} className="ai-narrative-caveats-icon" />
                     <span>{decodeSafely(caveats.join(' '))}</span>
                 </div>
             )}
-
-            </>)}
 
             {followup_questions?.length > 0 && (
                 <div className="ai-msg-followups">
