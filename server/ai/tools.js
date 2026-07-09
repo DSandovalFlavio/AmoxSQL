@@ -953,7 +953,10 @@ function createTools(context) {
 
                 if (activePlan?.steps) {
                     for (const step of activePlan.steps) {
-                        if (step.status === 'pending' || step.status === 'running') {
+                        // Sweep every non-terminal status to done. NOTE: update_plan
+                        // writes 'in_progress' (never 'running'); the missing case here
+                        // was why the last in-progress step stayed stuck forever.
+                        if (step.status === 'pending' || step.status === 'running' || step.status === 'in_progress') {
                             step.status = 'done';
                         }
                     }

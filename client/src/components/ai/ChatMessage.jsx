@@ -150,8 +150,10 @@ function QueryAuditModal({ queryId, onClose }) {
  */
 export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
-    const [causeOpen, setCauseOpen] = useState(false);
-    const [detailsOpen, setDetailsOpen] = useState(false);
+    // Findings are the payload of the analysis — show them expanded by default.
+    // Collapsing them behind "Show summary" made Deep Dive answers look empty.
+    const [causeOpen, setCauseOpen] = useState(true);
+    const [detailsOpen, setDetailsOpen] = useState(true);
     const [auditQueryId, setAuditQueryId] = useState(null);
     const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0 || caveats?.length > 0;
 

@@ -25,8 +25,16 @@ const { getModelProfile } = require('./modelProfiles');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
 const { verifyFindings } = require('./findingsLinter');
 
-// Hard ceiling — never grows dynamically beyond this
-const MAX_LOOP_ITERATIONS = 25;
+// Absolute hard ceiling — the working budget (effectiveMaxIterations) plus the
+// reserved wrap-up turn never exceeds this.
+const MAX_LOOP_ITERATIONS = 50;
+// Default working budget before a plan sizes it (conversational / no-plan turns
+// end early via the decision tree, so this only bounds runaway plan-less loops).
+const DEFAULT_LOOP_ITERATIONS = 25;
+// One iteration is held back as a guaranteed synthesis turn: when the working
+// budget is exhausted without final_answer, the model gets one last forced turn
+// to synthesize what it found instead of being cut off mid-analysis.
+const WRAP_UP_RESERVE = 1;
 // Per-iteration tool steps
 const ITER_MAX_STEPS = 10;
 // Max times we retry an iteration that produced no tool calls (idle recovery)
@@ -88,19 +96,74 @@ function buildContinuationPrompt(activePlan, iteration, maxIter) {
         ? `The plan already exists — do NOT call create_plan again. Continue with step "${nextStep.id}: ${nextStep.description}": mark it \`update_plan(..., "in_progress")\`, do the work (re-run any queries you need — results from earlier turns are not cached), then \`update_plan(..., "done")\`.`
         : 'All steps are done. Call `final_answer` with your summary now.';
 
-    // Add urgency when approaching the iteration limit
-    const itersLeft = maxIter - iteration;
-    const urgency = itersLeft <= 3
-        ? `\n\n⚡ **URGENT: Only ${itersLeft} iteration(s) left. Skip any remaining optional steps and call \`final_answer\` NOW with the results you already have.**`
-        : '';
+    // Graduated budget awareness: tell the model where it stands, and escalate
+    // as the ceiling approaches so it converges instead of running out cold.
+    const itersLeft = Math.max(0, maxIter - iteration);
+    const budgetLine = `Iteration ${iteration}/${maxIter} — ${itersLeft} left.`;
+    let urgency = '';
+    if (itersLeft <= 3) {
+        urgency = `\n\n⚡ **URGENT: Only ${itersLeft} iteration(s) left. Skip any remaining optional steps and call \`final_answer\` NOW with the results you already have.**`;
+    } else if (itersLeft <= Math.ceil(maxIter * 0.25)) {
+        urgency = `\n\n⏳ **You are in the last quarter of your budget (${itersLeft} iterations left). Prioritize the essential remaining steps and prepare to wrap up soon.**`;
+    } else if (itersLeft <= Math.ceil(maxIter * 0.5)) {
+        urgency = `\n\n⏱️ **Half your iteration budget is used (${itersLeft} left). Keep steps focused — one iteration should complete one plan step.**`;
+    }
 
     return `[AGENT LOOP — Continue execution]
 Goal: ${activePlan.goal}
+${budgetLine}
 
 Plan status:
 ${lines.join('\n')}
 
 ${directive}${urgency}`;
+}
+
+/**
+ * Builds the forced-synthesis directive for the reserved wrap-up turn. The
+ * working budget is spent; this is the model's last turn, so it must finalize
+ * rather than start new work.
+ */
+function buildWrapUpPrompt(activePlan) {
+    const unfinished = (activePlan.steps || []).filter(
+        s => s.status === 'pending' || s.status === 'in_progress' || s.status === 'running'
+    );
+    const list = unfinished.length
+        ? unfinished.map(s => `  ○ ${s.id}: ${s.description}`).join('\n')
+        : '  (all steps finished)';
+
+    return `[FINAL TURN — iteration budget exhausted]
+This is your LAST turn. You have no iterations left to run more queries.
+
+You MUST now:
+1. Briefly synthesize what you found across the completed steps (2-4 sentences of prose).
+2. Call \`final_answer\` with tldr + findings, and list any step you could not finish under \`caveats\`.
+
+Steps still unfinished (mention them in caveats):
+${list}
+
+Do NOT call create_plan, execute_sql, describe_table, or any other tool. Synthesize what you already have and call final_answer NOW.`;
+}
+
+/**
+ * Server-side fallback synthesis: used only when even the wrap-up turn produced
+ * no prose and no final_answer. Guarantees the chat is never left empty. Built
+ * from the plan goal and per-step notes the agent recorded via update_plan.
+ */
+function buildFallbackSummary(activePlan) {
+    if (!activePlan?.id) return '';
+    const done = (activePlan.steps || []).filter(s => s.status === 'done');
+    const notes = done.filter(s => s.note).map(s => `- ${s.description}: ${s.note}`);
+    const pending = (activePlan.steps || []).filter(
+        s => s.status === 'pending' || s.status === 'in_progress' || s.status === 'interrupted'
+    );
+
+    let out = `**Análisis parcial** — se alcanzó el límite de iteraciones antes de terminar.\n\n`;
+    if (activePlan.goal) out += `Objetivo: ${activePlan.goal}\n\n`;
+    if (notes.length)   out += `Lo que alcancé a completar:\n${notes.join('\n')}\n\n`;
+    if (pending.length) out += `Quedó pendiente: ${pending.map(s => s.description).join('; ')}.\n\n`;
+    out += `Pulsa **Continuar** para que termine el análisis.`;
+    return out;
 }
 
 // ─── main export ──────────────────────────────────────────────────────────────
@@ -129,7 +192,7 @@ async function* agenticLoop(options, getModelFn) {
         filePath = null,
         fileType = null,
         conversationId = null,
-        maxIterations = MAX_LOOP_ITERATIONS,
+        maxIterations = DEFAULT_LOOP_ITERATIONS,
         planStepOverrides = [],
         continueMode = false,
     } = options;
@@ -241,8 +304,11 @@ async function* agenticLoop(options, getModelFn) {
     }
     let iteration               = 0;
     let loopDone                = false;
-    // Effective iteration ceiling: starts at maxIterations, grows when a plan is created
-    let effectiveMaxIterations  = maxIterations;
+    // Working iteration budget. Starts at the requested/default budget and is
+    // resized to the plan's dynamic budget when create_plan runs (see the
+    // create_plan handler below). Always kept under MAX_LOOP_ITERATIONS minus the
+    // reserved wrap-up turn, so working + wrap-up never exceeds the hard ceiling.
+    let effectiveMaxIterations  = Math.min(MAX_LOOP_ITERATIONS - WRAP_UP_RESERVE, maxIterations);
     let idleRetries          = 0;   // consecutive iterations with zero tool calls
     let sqlCorrectionRetries = 0;   // consecutive iterations that ended with unresolved SQL errors
     let stallRetries         = 0;   // consecutive iterations aborted by the stall watchdog
@@ -251,11 +317,25 @@ async function* agenticLoop(options, getModelFn) {
 
     console.log(`[AgenticLoop] Starting | Provider: ${provider} | Model: ${model} | maxIter: ${maxIterations}`);
 
-    while (iteration < effectiveMaxIterations && !loopDone) {
+    // The loop runs the working budget PLUS one reserved wrap-up turn.
+    while (iteration < effectiveMaxIterations + WRAP_UP_RESERVE && !loopDone) {
         iteration++;
-        console.log(`[AgenticLoop] Iteration ${iteration}/${effectiveMaxIterations} | Plan: ${activePlan.id || 'none'}`);
+        // The reserved final turn: working budget spent, plan still unfinished.
+        // Force a synthesis instead of running more work.
+        const isWrapUp = iteration > effectiveMaxIterations && !!activePlan.id;
+        if (isWrapUp) {
+            console.log(`[AgenticLoop] Wrap-up turn — forcing synthesis (plan ${activePlan.id})`);
+            iterMessages = [...iterMessages, { role: 'user', content: buildWrapUpPrompt(activePlan) }];
+        }
+        console.log(`[AgenticLoop] Iteration ${iteration}/${effectiveMaxIterations}${isWrapUp ? ' (wrap-up)' : ''} | Plan: ${activePlan.id || 'none'}`);
 
-        yield { type: 'step-start', iteration, maxIterations: effectiveMaxIterations };
+        // Report iteration capped at the working budget so the UI never shows "26/25".
+        yield {
+            type: 'step-start',
+            iteration: Math.min(iteration, effectiveMaxIterations),
+            maxIterations: effectiveMaxIterations,
+            wrapUp: isWrapUp,
+        };
 
         // ── Compact before each iteration ──
         // Compaction can involve a full LLM summarization call that emits no
@@ -362,6 +442,19 @@ async function* agenticLoop(options, getModelFn) {
                                     step.status = 'skipped';
                                     step.note   = 'Skipped by user before execution';
                                 }
+                            }
+                        }
+                        // Resize the working budget to the plan's dynamic budget
+                        // (~5 iters/step, clamped [25,50]), capped under the hard
+                        // ceiling so the reserved wrap-up turn always fits.
+                        if (activePlan.dynamicMaxIterations) {
+                            const scaled = Math.min(
+                                MAX_LOOP_ITERATIONS - WRAP_UP_RESERVE,
+                                activePlan.dynamicMaxIterations,
+                            );
+                            if (scaled !== effectiveMaxIterations) {
+                                console.log(`[AgenticLoop] Plan budget: ${effectiveMaxIterations} → ${scaled} (${activePlan.steps.length} steps)`);
+                                effectiveMaxIterations = scaled;
                             }
                         }
                         yield {
@@ -625,9 +718,34 @@ async function* agenticLoop(options, getModelFn) {
         }
     }
 
-    // Max iterations reached without final_answer — pause and ask user to continue
+    // Budget (including the reserved wrap-up turn) exhausted without final_answer —
+    // close out truthfully and pause so the user can continue.
     if (!loopDone && iteration >= effectiveMaxIterations) {
-        const pendingCount = activePlan.steps?.filter(s => s.status === 'pending').length || 0;
+        // Re-status the steps the agent left open so the plan panel stops lying:
+        // an in_progress/running step at this point was interrupted, not running.
+        let snapshotChanged = false;
+        for (const step of activePlan.steps || []) {
+            if (step.status === 'in_progress' || step.status === 'running') {
+                step.status = 'interrupted';
+                step.note = step.note || 'Interrumpido — se agotaron las iteraciones';
+                snapshotChanged = true;
+            }
+        }
+        if (snapshotChanged && activePlan.steps) {
+            // Emit a final truthful snapshot so the client updates step icons.
+            yield { type: 'plan-progress', steps: activePlan.steps };
+        }
+
+        // Guarantee a synthesis: if not even the wrap-up turn produced prose,
+        // emit a concise server-built summary so the chat is never left empty.
+        if (!anyIterationHadText) {
+            const fallback = buildFallbackSummary(activePlan);
+            if (fallback) yield { type: 'text-delta', text: fallback };
+        }
+
+        const pendingCount = activePlan.steps?.filter(
+            s => s.status === 'pending' || s.status === 'interrupted'
+        ).length || 0;
         yield {
             type: 'ask-continue',
             planGoal:      activePlan.goal || '',
@@ -637,7 +755,9 @@ async function* agenticLoop(options, getModelFn) {
         };
         // Persist plan as paused so the status is visible in future loads
         if (conversationId && activePlan.id) {
-            aiPersistence.updatePlan(dbManager, activePlan.id, { status: 'paused' }).catch(() => {});
+            aiPersistence.updatePlan(dbManager, activePlan.id, {
+                status: 'paused', steps: activePlan.steps,
+            }).catch(() => {});
         }
     }
 
