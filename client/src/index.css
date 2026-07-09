@@ -6870,27 +6870,28 @@ tr:hover .rt-td {
   line-height: 1.4;
 }
 
-/* Inline citation chip — a number linked to its source query. Readable text
-   (not a low-contrast accent-colored figure) with an accent underline as the
-   click affordance. Used in both Assistant and Deep Dive prose. */
+/* Inline citation — a number linked to its source query. Styled as plain BOLD
+   text in the SAME color as the surrounding prose (no low-contrast accent
+   coloring); the clickable affordance is a faint underline that only appears on
+   hover. Used in both Assistant and Deep Dive prose. */
 .ai-cite-link {
   font: inherit;
-  color: var(--text-primary);
-  font-weight: var(--weight-medium);
+  color: inherit;
+  font-weight: var(--weight-semibold);
   background: none;
   border: none;
-  padding: 0 1px;
+  padding: 0;
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
-  border-bottom: 1px dotted color-mix(in srgb, var(--accent-primary) 70%, transparent);
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: background 0.12s ease;
 }
 
 .ai-cite-link:hover {
-  border-bottom-color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  border-radius: 3px;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
 }
 
 /* The "so what" — why this finding deserves attention */
