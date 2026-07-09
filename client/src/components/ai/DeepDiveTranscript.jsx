@@ -1,9 +1,9 @@
-import { memo } from 'react';
+import { memo, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LuUser, LuBot, LuLoader, LuChartColumn, LuDatabase, LuListChecks } from 'react-icons/lu';
 import { stripThink, turnActivityStats, turnFinalAnswer } from './deepDiveTurns';
-import { NarrativeCard } from './ChatMessage';
+import { NarrativeCard, QueryAuditModal, makeMdComponents } from './ChatMessage';
 import StreamingMarkdown from './StreamingMarkdown';
 
 /** AI turn prose (without reasoning). The final synthesis renders as a card instead. */
@@ -33,6 +33,11 @@ const TranscriptTurn = memo(({ turn, isSelected, onSelect, onFollowUp, onAskAbou
     const working = turn.inProgress && isGenerating;
     const hasActivity = stats.steps > 0 || stats.hasReasoning;
 
+    // Inline citations ([value](cite:queryId)) open the source query here instead
+    // of navigating the Electron window to a "cite:" URL (which reset the app).
+    const [citeQueryId, setCiteQueryId] = useState(null);
+    const mdComponents = useMemo(() => makeMdComponents(setCiteQueryId), []);
+
     return (
         <div className={`ddt-ai${isSelected ? ' ddt-ai--selected' : ''}`}>
             <span className="ddt-avatar ddt-avatar--ai"><LuBot size={12} /></span>
@@ -49,9 +54,9 @@ const TranscriptTurn = memo(({ turn, isSelected, onSelect, onFollowUp, onAskAbou
                     {text ? (
                         <div className="ddt-ai-prose markdown-body">
                             {turn.inProgress ? (
-                                <StreamingMarkdown content={text} />
+                                <StreamingMarkdown content={text} components={mdComponents} />
                             ) : (
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{text}</ReactMarkdown>
                             )}
                         </div>
                     ) : !finalAnswer ? (
@@ -72,6 +77,10 @@ const TranscriptTurn = memo(({ turn, isSelected, onSelect, onFollowUp, onAskAbou
                 {/* Final synthesis lives in the chat, not the inspector */}
                 {finalAnswer && <NarrativeCard result={finalAnswer} onFollowUp={onFollowUp} onAskAbout={onAskAbout} />}
             </div>
+
+            {citeQueryId && (
+                <QueryAuditModal queryId={citeQueryId} onClose={() => setCiteQueryId(null)} />
+            )}
         </div>
     );
 });

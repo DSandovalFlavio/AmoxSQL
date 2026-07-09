@@ -13,24 +13,22 @@ import StreamingMarkdown, { MarkdownChunk } from './StreamingMarkdown';
  * Markdown renderers for chat prose. Module-level factory so the object can be
  * memoized per message (stable identity keeps memoized markdown chunks alive).
  */
-function makeMdComponents(setCiteQueryId) {
+export function makeMdComponents(setCiteQueryId) {
     return {
         p: ({ children }) => <p>{children}</p>,
         a: ({ href, children }) => {
-            // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query
+            // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query.
+            // Rendered as a citation "chip": readable text + accent underline (NOT a
+            // low-contrast accent-colored number). stopPropagation so it doesn't also
+            // trigger the surrounding turn-select handler in the Deep Dive transcript.
             if (href && href.startsWith('cite:')) {
                 const [qid, column] = href.slice(5).split('#');
                 return (
                     <button
                         type="button"
-                        title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect`}
-                        onClick={() => setCiteQueryId(qid)}
-                        style={{
-                            font: 'inherit', color: 'var(--accent-primary)',
-                            background: 'none', border: 'none',
-                            borderBottom: '1px dotted var(--accent-primary)',
-                            padding: 0, cursor: 'pointer', whiteSpace: 'nowrap',
-                        }}
+                        className="ai-cite-link"
+                        title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect the source`}
+                        onClick={(e) => { e.stopPropagation(); setCiteQueryId(qid); }}
                     >{children}</button>
                 );
             }
@@ -79,7 +77,7 @@ function decodeSafely(str) {
 /**
  * Modal that shows the SQL query and result rows that back a specific finding.
  */
-function QueryAuditModal({ queryId, onClose }) {
+export function QueryAuditModal({ queryId, onClose }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
