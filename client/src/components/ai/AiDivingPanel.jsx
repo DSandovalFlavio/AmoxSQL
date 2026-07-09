@@ -5,7 +5,7 @@ import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
 import DeepDiveTranscript from './DeepDiveTranscript';
 import DeepDiveInspector from './DeepDiveInspector';
-import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
+import { groupIntoTurns, buildSessionArtifacts, buildStepGroups } from './deepDiveTurns';
 import ToolCallBlock from './ToolCallBlock';
 import ModelDropdown from './ModelDropdown';
 import SessionInventory from './SessionInventory';
@@ -67,6 +67,7 @@ const AiDivingPanel = ({
         inputText, setInputText,
         isGenerating,
         streamingText,
+        streamingId,
         isThinking,
         activeToolCalls,
         errorMsg, setErrorMsg,
@@ -113,13 +114,17 @@ const AiDivingPanel = ({
     const historicalTurns = useMemo(() => groupIntoTurns(messages), [messages]);
     const turns = useMemo(() => {
         if (isGenerating && (streamingText || activeToolCalls.length > 0)) {
+            // The live turn borrows the id the final message will carry, so when
+            // it becomes historical the turn identity (and inspector selection)
+            // is continuous — no churn, no re-click.
+            const liveId = streamingId || '__live__';
             return [...historicalTurns, {
-                id: '__live__', type: 'ai', text: streamingText || '', inProgress: true,
-                messages: [{ id: '__live__', role: 'assistant', content: streamingText || '', toolCalls: activeToolCalls }],
+                id: liveId, type: 'ai', text: streamingText || '', inProgress: true,
+                messages: [{ id: liveId, role: 'assistant', content: streamingText || '', toolCalls: activeToolCalls }],
             }];
         }
         return historicalTurns;
-    }, [historicalTurns, isGenerating, streamingText, activeToolCalls]);
+    }, [historicalTurns, isGenerating, streamingText, activeToolCalls, streamingId]);
 
     // handleSend's identity changes on every composer keystroke (depends on
     // inputText). Children must receive a STABLE callback or their memo dies
@@ -128,20 +133,30 @@ const AiDivingPanel = ({
     useEffect(() => { handleSendRef.current = handleSend; });
     const sendFollowUp = useCallback((text) => handleSendRef.current(text), []);
 
-    const [selectedTurnId, setSelectedTurnId] = useState(null);
+    // The user's explicit pin (null = auto-follow). Clicking a turn pins it; a
+    // new run clears it so the inspector follows the fresh analysis.
+    const [pinnedTurnId, setPinnedTurnId] = useState(null);
 
-    // While generating, follow the live turn; otherwise keep selection valid (default: last AI turn).
+    // New run → drop the pin so we auto-follow the new turn (edge-triggered).
+    const wasGeneratingRef = useRef(false);
     useEffect(() => {
-        if (isGenerating) {
-            const live = turns[turns.length - 1];
-            if (live) setSelectedTurnId(live.id);
-            return;
-        }
-        if (!turns.find(t => t.id === selectedTurnId)) {
-            const lastAi = [...turns].reverse().find(t => t.type === 'ai');
-            setSelectedTurnId(lastAi ? lastAi.id : null);
-        }
-    }, [turns, isGenerating, selectedTurnId]);
+        if (isGenerating && !wasGeneratingRef.current) setPinnedTurnId(null);
+        wasGeneratingRef.current = isGenerating;
+    }, [isGenerating]);
+
+    // Selection is DERIVED (no lagging effect, so no empty-state flash):
+    //  - a live pin wins as long as that turn still exists;
+    //  - while generating, follow the live/last turn;
+    //  - otherwise the last AI turn that actually has step activity (skip a
+    //    trailing prose-only turn), falling back to the last AI turn.
+    const selectedTurnId = useMemo(() => {
+        if (pinnedTurnId && turns.some(t => t.id === pinnedTurnId)) return pinnedTurnId;
+        if (isGenerating && turns.length) return turns[turns.length - 1].id;
+        const aiTurns = turns.filter(t => t.type === 'ai');
+        if (!aiTurns.length) return null;
+        const withActivity = [...aiTurns].reverse().find(t => buildStepGroups(t).length > 0);
+        return (withActivity || aiTurns[aiTurns.length - 1]).id;
+    }, [pinnedTurnId, turns, isGenerating]);
 
     const selectedTurn = turns.find(t => t.id === selectedTurnId) || null;
 
@@ -605,7 +620,7 @@ const AiDivingPanel = ({
                                         <DeepDiveTranscript
                                             turns={turns}
                                             selectedTurnId={selectedTurnId}
-                                            onSelect={setSelectedTurnId}
+                                            onSelect={setPinnedTurnId}
                                             onFollowUp={sendFollowUp}
                                             onAskAbout={handleAskAbout}
                                             isGenerating={isGenerating}

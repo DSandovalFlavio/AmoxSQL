@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE as API } from '../../api.js';
 
+/** Stable client-side message id (survives the streaming→historical handoff). */
+function genId() {
+    try { if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID(); } catch { /* noop */ }
+    return `m-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
 export const DEFAULT_GEMINI_MODELS = [
     { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', size: 'Cloud' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', size: 'Cloud' },
@@ -120,6 +126,10 @@ export default function useAiChat({
     const [streamingText, setStreamingText] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [activeToolCalls, setActiveToolCalls] = useState([]);
+    // Stable id for the in-flight assistant turn. The live turn AND the message
+    // appended at run-end share this id, so the inspector selection survives the
+    // live→historical handoff without a churn (no empty-state flash, no re-click).
+    const [streamingId, setStreamingId] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [conversationId, setConversationId] = useState(null);
     // pending edits: Map of toolCallId → edit result (waiting for user accept/reject)
@@ -374,10 +384,14 @@ export default function useAiChat({
         }
 
         // Add user message
-        const userMsg = { role: 'user', content: text, toolCalls: [] };
+        const userMsg = { id: genId(), role: 'user', content: text, toolCalls: [] };
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
         setInputText('');
+        // Mint the assistant turn id up-front so the live turn and the final
+        // appended message share identity (stable inspector selection).
+        const assistantId = genId();
+        setStreamingId(assistantId);
         const isContinuation = !!pendingContinue;
         setIsGenerating(true);
         setStreamingText('');
@@ -631,6 +645,7 @@ export default function useAiChat({
             await new Promise(r => setTimeout(r, 50));
 
             const assistantMsg = {
+                id: assistantId,
                 role: 'assistant',
                 content: fullText,
                 toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
@@ -687,6 +702,7 @@ export default function useAiChat({
             setActiveToolCalls([]);
         } finally {
             setIsGenerating(false);
+            setStreamingId(null);
             abortControllerRef.current = null;
         }
     }, [
@@ -940,6 +956,7 @@ export default function useAiChat({
         inputText, setInputText,
         isGenerating,
         streamingText,
+        streamingId,
         isThinking,
         activeToolCalls,
         errorMsg, setErrorMsg,

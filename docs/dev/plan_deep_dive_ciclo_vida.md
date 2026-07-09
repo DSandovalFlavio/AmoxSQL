@@ -1,7 +1,7 @@
 # Plan de Implementación — Deep Dive: ciclo de vida del análisis
 
 > Deriva de [deep_dive_ciclo_vida.md](deep_dive_ciclo_vida.md) (auditoría). Referencias B1–B5 y Q1–Q50 apuntan a ese doc.
-> **Estado:** ✅ **F1 (cierre veraz) y F2 (presupuesto 50 + wrap-up) implementadas.** F3–F6 pendientes.
+> **Estado:** ✅ **F1 (cierre veraz), F2 (presupuesto 50 + wrap-up) y F3 (selección estable) implementadas.** F4–F6 pendientes.
 
 ## Objetivo
 
@@ -57,6 +57,8 @@ Los 4 fixes que eliminan los bugs visibles hoy. Bajo riesgo, alto impacto.
 | 3.4 | **Adjuntar la síntesis al turno del trabajo** (opcional) | `deepDiveTurns.js` | Si el mensaje final es prosa-only sin actividad propia y pertenece al mismo run, fusionarlo con el turno anterior como "cierre" en vez de burbuja nueva — elimina de raíz la burbuja que roba foco. Evaluar contra el modelo de turnos documentado en [plan_deep_dive_layout.md](plan_deep_dive_layout.md). |
 
 **Verificación:** inspeccionar un paso mientras corre → al terminar, la vista no salta; empty state no aparece nunca durante un run.
+
+> **✅ HECHA.** Nota de implementación: el run completo se agrega como **un solo mensaje/turno** (no hay prosa final separada del trabajo), así que 3.4 (fusionar) resultó innecesario. El fix real: un `streamingId` estable acuñado al enviar (`useAiChat`), compartido por el turno vivo y el mensaje final → identidad continua en el handoff live→histórico. La selección pasó de `useState`+`useEffect` (que forzaba el foco al turno vivo y parpadeaba a null) a un **modelo derivado con pin** (`pinnedTurnId` en `AiDivingPanel`): el click fija, un run nuevo limpia el pin (edge-triggered), y sin pin auto-sigue el último turno **con actividad** (salta prosa vacía). Sin efecto lagging → sin parpadeo a empty state, sin re-click.
 
 ---
 
