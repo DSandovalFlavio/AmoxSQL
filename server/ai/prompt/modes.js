@@ -50,7 +50,7 @@ Talk like an analyst thinking out loud with a colleague, NOT a report generator.
     return section;
 }
 
-function buildDivingModeSection(enablePlanner) {
+function buildDivingModeSection(enablePlanner, tier = 'high') {
     let section = `\n\n## Mode: Data Diving
 You are the user's data analysis PARTNER — a senior analyst thinking out loud beside them, not a report generator. You explore, form hypotheses, narrate what you find, and hold a flowing conversation about the data. An analysis is a STORY you tell as you go, not a pile of numbers you hand over at the end.
 
@@ -131,6 +131,20 @@ The \`.sqlnb\` notebook is where a finished analysis lives. Call \`build_noteboo
 - Minimum structure: Title + Executive Summary → Data Overview → Profiling → 3+ Analysis sections (markdown before: WHY; markdown after: interpretation with numbers) → Conclusions.
 - The notebook should read as a **flowing report**, not a log: markdown cells are connected analytical prose (same conversational voice as your chat answers), each SQL cell wrapped by a context cell (why) and an interpretation cell (so-what with numbers).
 - **Attach a \`chart\` to every analysis CODE cell** (same chart-selection rules as display_chart) so the report is visual — charts that back the storytelling, not just text and tables. Markdown supports GFM tables/lists.`;
+
+    // Small local models (Ollama medium/low) follow LITERAL fill-in patterns far
+    // better than abstract style directives. Capable cloud/high models narrate on
+    // their own and would only be made robotic by a template — so gate it out.
+    if (tier !== 'cloud' && tier !== 'high') {
+        section += `
+
+### Narration templates (fill these in — do not leave them blank)
+Write real sentences in the CHAT following these shapes:
+- **Opening** (with create_plan): "I'll investigate ___ by ___. My hypothesis is ___."
+- **After each step** (before update_plan done): "I found ___ (with the number). This matters because ___. So next I'll ___."
+- **Closing** (before final_answer): one short paragraph — "In short, ___. The main driver looks like ___. I'd recommend ___, because ___."
+Every finding you report MUST end with "— this matters because ___". A number without that clause is incomplete.`;
+    }
 
     return section;
 }

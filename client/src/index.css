@@ -5776,8 +5776,14 @@ tr:hover .rt-td {
 .ddt-chip-hint, .ddt-chip-inspecting { font-size: var(--text-mini); margin-left: auto; }
 .ddt-chip-hint { color: var(--text-muted); }
 .ddt-chip-inspecting { color: var(--accent-primary); }
-.ddt-ai-prose { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.55; }
-.ddt-ai-prose p { margin: 0 0 4px; }
+.ddt-ai-prose { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.6; }
+/* Real air between paragraphs so the narration reads as connected chapters,
+   not a run-on wall — the narrative arc (opening → steps → closing) needs breath. */
+.ddt-ai-prose p { margin: 0 0 10px; }
+.ddt-ai-prose p:last-child { margin-bottom: 0; }
+.ddt-ai-prose > :first-child { margin-top: 0; }
+.ddt-ai-prose ul, .ddt-ai-prose ol { margin: 4px 0 10px; padding-left: 18px; }
+.ddt-ai-prose li { margin: 2px 0; }
 .ddt-ai-working { font-size: var(--text-sm); color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
 .ddt-chip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .ddt-chip-item { display: inline-flex; align-items: center; gap: 3px; font-size: var(--text-mini); color: var(--text-tertiary); }

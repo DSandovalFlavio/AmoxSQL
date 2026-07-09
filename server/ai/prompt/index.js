@@ -71,7 +71,9 @@ function buildDynamicSection(options) {
         projectCtx = null,
         filePath = null,
         fileType = null,
+        modelProfile = null,
     } = options;
+    const tier = modelProfile?.tier || 'high';
 
     const now = new Date().toLocaleString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -88,7 +90,7 @@ function buildDynamicSection(options) {
     if (mode === 'assistant') {
         d += buildAssistantModeSection({ filePath, fileType, currentQuery, currentResult, currentChartConfig });
     } else {
-        d += buildDivingModeSection(enablePlanner);
+        d += buildDivingModeSection(enablePlanner, tier);
     }
 
     // Extensions

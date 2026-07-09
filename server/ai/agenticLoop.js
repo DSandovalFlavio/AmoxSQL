@@ -20,7 +20,7 @@ const { buildSystemPrompt, buildSystemParts } = require('./systemPrompt');
 const { loadUserRules } = require('./userRules');
 const { compactContext, needsCompaction } = require('./compaction');
 const { loadMemoriesText, extractMemories } = require('./memory');
-const { getSkill } = require('./skills');
+const { getSkill, loadSkills, matchSkillByIntent } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
 const { verifyFindings } = require('./findingsLinter');
@@ -232,15 +232,39 @@ async function* agenticLoop(options, getModelFn) {
     const projectPath = process.cwd();
     const aiPersistence = require('./persistence');
 
+    // Auto-activate a skill by intent when the user didn't pick one. The skill's
+    // reasoning framework (EDA, storytelling, cohort…) then shapes the analysis —
+    // matchSkillByIntent was implemented but never wired until now.
+    async function resolveSkill() {
+        if (activeSkillId) return getSkill(projectPath, activeSkillId);
+        if (mode !== 'diving') return null;
+        try {
+            const lastUser = [...messages].reverse().find(m => m.role === 'user');
+            if (!lastUser?.content) return null;
+            const skills = await loadSkills(projectPath);
+            const match = matchSkillByIntent(lastUser.content, skills);
+            if (!match) return null;
+            const skill = skills.find(s => s.id === match.skillId) || null;
+            if (skill) console.log(`[AgenticLoop] Auto-activated skill "${skill.id}" (confidence ${match.confidence})`);
+            return skill;
+        } catch { return null; }
+    }
+
     // ── Load shared context once ──
     const [userRules, memories, activeSkill, projectCtx] = await Promise.all([
         loadUserRules(projectPath),
         loadMemoriesText(dbManager),
-        activeSkillId ? getSkill(projectPath, activeSkillId) : Promise.resolve(null),
+        resolveSkill(),
         loadProjectContext(projectPath).catch(() => null),
     ]);
 
     const profile = getModelProfile(model, provider);
+
+    // Tell the UI which framework is shaping this analysis (auto-activated only —
+    // when the user picked it, the UI already shows it). Unknown to older clients.
+    if (activeSkill && !activeSkillId) {
+        yield { type: 'skill-activated', skillId: activeSkill.id, skillName: activeSkill.name, auto: true };
+    }
 
     const promptOptions = {
         tables, files, mode,

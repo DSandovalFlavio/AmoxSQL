@@ -1,7 +1,7 @@
 # Plan de Implementación — Deep Dive: voz narrativa y conversacional
 
 > Deriva de [deep_dive_narrativa.md](deep_dive_narrativa.md) (auditoría; causas N1–N7, preguntas Q1–Q50).
-> **Estado:** ✅ **F1+F2+F3 implementadas** (el motor narrativo). F4 (skill auto), F5 (tiers locales, condicional), F6 (UI), F7 (verificación) pendientes.
+> **Estado:** ✅ **F1–F6 implementadas.** Falta solo **F7 (verificación con modelo real)** — requiere correr un EDA con Gemini 3.5 Flash / MiniMax M3 en la app.
 
 ## Objetivo
 
@@ -56,7 +56,10 @@ Añadir además a "Conversation State": *"Follow-up questions get a CONVERSATION
 
 ---
 
-### Fase 4 — Conectar la skill de storytelling (N5)
+### Fase 4 — Conectar la skill de storytelling (N5) ✅ HECHA
+
+> Nota: `resolveSkill()` en `agenticLoop.js` — si `mode==='diving'` y no hay `activeSkillId`, corre `matchSkillByIntent(último mensaje del usuario, loadSkills())` y carga la skill que gane (antes era dead code). Emite un evento `skill-activated` (auto) que la UI puede mostrar como chip (el handler cliente queda opcional/diferido). Umbral existente 0.25.
+
 
 `matchSkillByIntent()` está implementado y muerto. Conectarlo:
 
@@ -67,7 +70,10 @@ Añadir además a "Conversation State": *"Follow-up questions get a CONVERSATION
 
 ---
 
-### Fase 5 — Plantillas literales SOLO para modelos locales chicos (N6 · condicional)
+### Fase 5 — Plantillas literales SOLO para modelos locales chicos (N6 · condicional) ✅ HECHA (mecanismo)
+
+> Nota: `buildDivingModeSection(enablePlanner, tier)` inyecta un bloque de plantillas de rellenar-huecos **solo si `tier !== 'cloud' && tier !== 'high'`** (Ollama medium/low). Gemini/MiniMax (cloud) nunca lo ven. El tier viaja desde `modelProfile` vía `buildDynamicSection`. Queda por confirmar en F7 si hace falta afinarlo con modelos locales reales.
+
 
 **Alcance corregido**: los modelos cloud que se usan en la práctica (Gemini 3.5 Flash, MiniMax M3) son tier `cloud` en `modelProfiles` y **no necesitan ni recibirían** esto — son perfectamente capaces de narrar; su sequedad la causan las instrucciones (N1-N3), que arreglan F1-F3. Esta fase aplica únicamente a los **tiers medium/low de Ollama local** (gemma4:e2b, phi4:mini…), que no siguen instrucciones abstractas de estilo.
 
@@ -78,10 +84,10 @@ Añadir además a "Conversation State": *"Follow-up questions get a CONVERSATION
 
 ---
 
-### Fase 6 — La prosa del run se lee como capítulos (N7 · UI, opcional)
+### Fase 6 — La prosa del run se lee como capítulos (N7 · UI, opcional) ✅ HECHA (mínimo)
 
-- Mínimo: CSS — párrafos de la prosa del turno con espaciado real (aire entre capítulos de narración).
-- Evaluar (no comprometido): intercalar marcadores ligeros de paso en el chat ("— s3 · Tendencia temporal —") derivados de los `update_plan`, para que la narración concatenada tenga costuras visibles. Riesgo: ruido; decidir tras probar F1-F3, que pueden bastar.
+- ✅ CSS: párrafos de `.ddt-ai-prose` con `margin-bottom: 10px` (antes 4px), line-height 1.6, y espaciado de listas — aire real entre capítulos de narración.
+- ⏳ Marcadores de paso intercalados ("— s3 · Tendencia —"): **no implementado** (riesgo de ruido). Reevaluar tras F7 si la prosa concatenada aún se ve sin costuras.
 
 **Archivos:** `client/src/index.css`, quizá `DeepDiveTranscript.jsx`.
 
