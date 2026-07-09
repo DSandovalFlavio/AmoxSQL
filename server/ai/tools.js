@@ -544,7 +544,9 @@ function createTools(context) {
                         highlightConfig: {
                             type: highlight.type,
                             value: highlight.value || '',
-                            color: highlight.color || '#ff4444',
+                            // Spotlight follows the theme accent, not alarm-red — a
+                            // highlighted leader is emphasis, not something negative.
+                            color: highlight.color || 'var(--accent-primary)',
                         },
                     }),
                     // Storytelling layer (takeaway / annotations)

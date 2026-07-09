@@ -162,7 +162,7 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             goalLine:        cc.goalLine      || { enabled: false, value: '', label: '', color: '#22c55e', style: 'dashed' },
             refLine:         cc.refLine       || { value: '', label: '', color: '#ff4444', style: 'dashed' },
             refArea:         { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 },
-            highlightConfig: cc.highlightConfig || { type: 'none', value: '', color: '#ff4444' },
+            highlightConfig: cc.highlightConfig || { type: 'none', value: '', color: 'var(--accent-primary)' },
 
             // ── Headline KPI ──────────────────────────────────────────────────────
             headline: cc.headline || { visible: false, metric: 'total', compareWith: 'none', size: 'auto' },
