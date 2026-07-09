@@ -97,6 +97,7 @@ const AiDivingPanel = ({
         pendingAskUser, setPendingAskUser,
         pendingContinue,
         handleContinue,
+        handleFinalizeNow,
         handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,
@@ -106,6 +107,9 @@ const AiDivingPanel = ({
     const [sessionName, setSessionName] = useState('');
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showModesGuide, setShowModesGuide] = useState(false);
+    // Continue banner: optional focus instruction for the resumed analysis.
+    const [continueInstr, setContinueInstr] = useState('');
+    const [showContinueInput, setShowContinueInput] = useState(false);
 
     // ─── Turns (transcript) + selected turn (inspector) ───
     // Historical turns derive ONLY from messages: their identity survives both
@@ -734,23 +738,63 @@ const AiDivingPanel = ({
                         </div>
                     )}
 
-                    {/* Continue banner — shown when loop exhausts without final_answer */}
+                    {/* Continue banner — loop exhausted without final_answer, or a
+                        paused plan was reopened. Offers focus/continue/finish/cancel. */}
                     {pendingContinue && (
                         <div className="ai-ask-user-banner ai-continue-banner">
                             <p className="ai-ask-user-question">
-                                El análisis necesita más iteraciones para completarse.
+                                {pendingContinue.resumed
+                                    ? 'Este análisis quedó pausado sin terminar.'
+                                    : 'El análisis necesita más iteraciones para completarse.'}
                                 {pendingContinue.pendingSteps > 0 && ` Quedan ${pendingContinue.pendingSteps} paso(s) pendientes.`}
                             </p>
+
+                            {showContinueInput && (
+                                <textarea
+                                    className="ai-continue-instr"
+                                    placeholder="Instrucciones para continuar (opcional): p.ej. «solo termina s6, ignora el resto»"
+                                    value={continueInstr}
+                                    onChange={e => setContinueInstr(e.target.value)}
+                                    rows={2}
+                                    autoFocus
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                            handleContinue(continueInstr);
+                                            setContinueInstr(''); setShowContinueInput(false);
+                                        }
+                                    }}
+                                />
+                            )}
+
                             <div className="ai-ask-user-options">
                                 <button
                                     className="ai-ask-user-option ai-continue-btn"
-                                    onClick={handleContinue}
+                                    onClick={() => {
+                                        handleContinue(showContinueInput ? continueInstr : undefined);
+                                        setContinueInstr(''); setShowContinueInput(false);
+                                    }}
                                 >
-                                    Continuar
+                                    {showContinueInput && continueInstr.trim() ? 'Continuar con esto' : 'Continuar'}
+                                </button>
+                                {!showContinueInput && (
+                                    <button
+                                        className="ai-ask-user-option ai-continue-btn--ghost"
+                                        onClick={() => setShowContinueInput(true)}
+                                        title="Dirigir cómo continúa el análisis"
+                                    >
+                                        Con instrucciones…
+                                    </button>
+                                )}
+                                <button
+                                    className="ai-ask-user-option ai-continue-btn--ghost"
+                                    onClick={() => { handleFinalizeNow(); setContinueInstr(''); setShowContinueInput(false); }}
+                                    title="Sintetiza lo que ya tiene, sin correr más pasos"
+                                >
+                                    Finalizar con lo que hay
                                 </button>
                                 <button
                                     className="ai-ask-user-option ai-continue-btn--cancel"
-                                    onClick={handleDeclineContinue}
+                                    onClick={() => { handleDeclineContinue(); setContinueInstr(''); setShowContinueInput(false); }}
                                 >
                                     Cancelar
                                 </button>

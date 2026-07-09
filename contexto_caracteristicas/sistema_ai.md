@@ -371,6 +371,10 @@ const WRAP_UP_RESERVE         = 1;   // turno final reservado para síntesis for
 
 **Sweep de `final_answer`.** Al finalizar normalmente, `final_answer` barre los pasos `pending`/`running`/**`in_progress`** → `done`. (El caso `in_progress` faltaba y era la causa de que el último paso nunca se marcara completo.)
 
+**Prosa primero (red de seguridad).** El loop acumula `fullRunText`; al llamar `final_answer`, si la prosa visible (con `<think>` quitado por `stripThinkText`) es < 220 chars pese a haber output estructurado, des-suprime y streamea el `summary` como texto — el chat nunca queda con una tarjeta pelada. El prompt (Step 5) exige narrar 2-4 frases antes de `final_answer`.
+
+**Continuación.** Al agotar ciclos se emite `ask-continue` y el plan se persiste `paused`. La UI ofrece: **Continuar** (presupuesto fresco de 30), **Con instrucciones…** (el texto viaja como turno de usuario → continue con foco), **Finalizar con lo que hay** (`continueBudget: 1` en el body → el wrap-up fuerza la síntesis), **Cancelar**. Al reabrir una conversación cuyo plan quedó incompleto, el cliente lo detecta (sin `final_answer` + pasos pendientes), lo marca `paused` y re-ofrece continuar.
+
 Auditoría y plan: [deep_dive_ciclo_vida.md](../docs/dev/deep_dive_ciclo_vida.md), [plan_deep_dive_ciclo_vida.md](../docs/dev/plan_deep_dive_ciclo_vida.md).
 
 ---

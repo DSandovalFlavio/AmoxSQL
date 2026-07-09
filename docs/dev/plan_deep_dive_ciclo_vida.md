@@ -1,7 +1,7 @@
 # Plan de Implementación — Deep Dive: ciclo de vida del análisis
 
 > Deriva de [deep_dive_ciclo_vida.md](deep_dive_ciclo_vida.md) (auditoría). Referencias B1–B5 y Q1–Q50 apuntan a ese doc.
-> **Estado:** ✅ **F1–F4 implementadas** (cierre veraz · presupuesto 50 + wrap-up · selección estable · prosa primero). F5–F6 pendientes.
+> **Estado:** ✅ **F1–F5 implementadas** (cierre veraz · presupuesto 50 + wrap-up · selección estable · prosa primero · continuación 5.1–5.3). Pendiente: F5.4 (add_step, diferida) y F6 (backlog).
 
 ## Objetivo
 
@@ -76,14 +76,14 @@ Restaurar el contrato de [modos_ai.md](../../contexto_caracteristicas/modos_ai.m
 
 ---
 
-### Fase 5 — Continuación de primera clase 🔁
+### Fase 5 — Continuación de primera clase 🔁 ✅ HECHA (5.1–5.3; 5.4 diferida)
 
 | # | Cambio | Archivo | Detalle |
 |---|--------|---------|---------|
-| 5.1 | **Tarjeta ask-continue rica** (Q19/20) | cliente (`useAiChat.js:582-597` + componente de la tarjeta) | Listar pasos pendientes/interrumpidos; acciones: **Continue** (presupuesto fresco), **Continue con instrucciones…** (input → se inyecta al resume prompt), **Finalizar con lo que hay** (fuerza wrap-up 2.5 sin más ciclos). |
-| 5.2 | **Reanudar tras recargar** (Q21) | `useAiChat.js` reload path (~840) | Al cargar una conversación cuyo plan está `paused` → banner "Análisis pausado en s6 — ¿continuar?" que dispara el mismo continue. |
-| 5.3 | **Continue con foco** (Q19) | `server/index.js` + `agenticLoop.js` | El resume prompt acepta la instrucción del usuario ("solo termina s6, ignora s7"). |
-| 5.4 | **Extender el plan pausado** (Q25/27) | `tools_planner.js` + UI del plan | `update_plan` acepta `add_step`; en la UI, "+ Add step" sobre un plan pausado antes de continuar. (Germen de la F7 "dirigir en vuelo" de [plan_deep_dive_interaccion.md](plan_deep_dive_interaccion.md).) |
+| 5.1 ✅ | **Tarjeta ask-continue rica** (Q19/20) | `AiDivingPanel.jsx` banner + `useAiChat.js` | Acciones: **Continuar** (presupuesto fresco), **Con instrucciones…** (textarea → se envía como turno de usuario), **Finalizar con lo que hay** (`handleFinalizeNow`), **Cancelar**. |
+| 5.2 ✅ | **Reanudar tras recargar** (Q21) | `useAiChat.js` reload path | Al cargar una conversación cuyo plan quedó sin `final_answer` con pasos pendientes → se marca `paused`, los `in_progress` pasan a `interrupted`, y se dispara `pendingContinue` (`resumed:true`, banner con texto propio). |
+| 5.3 ✅ | **Continue con foco** (Q19) | `server/index.js` + flujo de mensaje | La instrucción del usuario viaja como el turno de usuario del continue (el modelo la lee junto al resume prompt). `continueBudget` en el body permite "Finalizar" con presupuesto 1 (el wrap-up fuerza la síntesis ya). |
+| 5.4 ⏳ | **Extender el plan pausado** (Q25/27) | `tools_planner.js` + UI del plan | `update_plan` con `add_step` + "+ Add step" en un plan pausado. **Diferida** — es una capacidad nueva de tool (germen de la F7 "dirigir en vuelo"), va en su propio PR. |
 
 ---
 

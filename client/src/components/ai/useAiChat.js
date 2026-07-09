@@ -462,6 +462,10 @@ export default function useAiChat({
             }
             if (isContinuation) {
                 requestBody.continueMode = true;
+                const opts = continueOptsRef.current || {};
+                // Finalize-now → budget of 1 so the wrap-up turn forces synthesis fast.
+                if (opts.finalize) requestBody.continueBudget = 1;
+                continueOptsRef.current = null;
             }
             // Send a lightweight summary of the result (not the full data)
             if (ctxResult) {
@@ -714,8 +718,26 @@ export default function useAiChat({
     ]);
 
     // ─── Continue after loop exhaustion ───
-    const handleContinue = useCallback(() => {
-        handleSend('continua con el plan');
+    // continueOptsRef threads per-continue options (budget/finalize) into the very
+    // next handleSend without adding them to its dependency array.
+    const continueOptsRef = useRef(null);
+
+    // Continue the paused plan. An optional instruction (from the "Continue with
+    // instructions…" input) is sent as the user turn so the agent can focus the
+    // remaining work ("only finish s6, skip s7").
+    const handleContinue = useCallback((instruction) => {
+        continueOptsRef.current = { finalize: false };
+        const text = (typeof instruction === 'string' && instruction.trim())
+            ? instruction.trim()
+            : 'Continúa con el plan donde lo dejaste.';
+        handleSend(text);
+    }, [handleSend]);
+
+    // Finish now with whatever the agent already has — no more queries. Grants a
+    // budget of 1 so the wrap-up turn forces a synthesis immediately.
+    const handleFinalizeNow = useCallback(() => {
+        continueOptsRef.current = { finalize: true };
+        handleSend('Finaliza el análisis AHORA con lo que ya tienes: no corras más queries ni pasos nuevos. Llama final_answer con un resumen de los hallazgos hasta ahora y marca lo que quedó pendiente en caveats.');
     }, [handleSend]);
 
     const handleDeclineContinue = useCallback(() => {
@@ -884,6 +906,27 @@ export default function useAiChat({
                         }
                     }
                 }
+                // A plan reconstructed without a final_answer, still holding
+                // unfinished steps, was left paused (cycles exhausted / interrupted).
+                // Mark it paused, surface interrupted steps, and offer to continue.
+                if (reconstructedPlan && reconstructedPlan.status !== 'completed') {
+                    const unfinished = reconstructedPlan.steps.filter(
+                        s => s.status === 'pending' || s.status === 'in_progress'
+                    );
+                    if (unfinished.length > 0) {
+                        reconstructedPlan.steps = reconstructedPlan.steps.map(s =>
+                            s.status === 'in_progress' ? { ...s, status: 'interrupted' } : s
+                        );
+                        reconstructedPlan.status = 'paused';
+                        setPendingContinue({
+                            planGoal:       reconstructedPlan.goal || '',
+                            pendingSteps:   unfinished.length,
+                            completedSteps: reconstructedPlan.steps.filter(s => s.status === 'done').length,
+                            planId:         reconstructedPlan.planId || null,
+                            resumed:        true, // came from a reload, not a live exhaustion
+                        });
+                    }
+                }
                 setPlanState(reconstructedPlan);
 
                 // Restore persisted context objects (diving mode)
@@ -993,6 +1036,7 @@ export default function useAiChat({
         pendingAskUser, setPendingAskUser,
         pendingContinue, setPendingContinue,
         handleContinue,
+        handleFinalizeNow,
         handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,

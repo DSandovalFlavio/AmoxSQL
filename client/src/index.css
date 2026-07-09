@@ -7131,11 +7131,31 @@ tr:hover .rt-td {
 
 .ai-continue-banner .ai-ask-user-options {
   flex-direction: row;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
+.ai-continue-instr {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0 2px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.ai-continue-instr:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
 .ai-continue-btn {
-  flex: 1;
+  flex: 1 1 auto;
   text-align: center;
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   border-color: var(--accent-primary);
@@ -7147,8 +7167,14 @@ tr:hover .rt-td {
   background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
 }
 
+.ai-continue-btn--ghost {
+  flex: 0 1 auto;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
 .ai-continue-btn--cancel {
-  flex: 1;
+  flex: 0 1 auto;
   text-align: center;
   color: var(--text-muted);
 }
