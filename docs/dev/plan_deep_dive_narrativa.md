@@ -64,11 +64,12 @@ Añadir además a "Conversation State": *"Follow-up questions get a CONVERSATION
 
 ---
 
-### Fase 5 — Estilo por tier de modelo (N6)
+### Fase 5 — Plantillas literales SOLO para modelos locales chicos (N6 · condicional)
 
-Los modelos flash/small necesitan instrucciones más literales:
+**Alcance corregido**: los modelos cloud que se usan en la práctica (Gemini 3.5 Flash, MiniMax M3) son tier `cloud` en `modelProfiles` y **no necesitan ni recibirían** esto — son perfectamente capaces de narrar; su sequedad la causan las instrucciones (N1-N3), que arreglan F1-F3. Esta fase aplica únicamente a los **tiers medium/low de Ollama local** (gemma4:e2b, phi4:mini…), que no siguen instrucciones abstractas de estilo.
 
-- En `buildDivingModeSection`, aceptar el `modelProfile` y, para tiers no-high, añadir una **plantilla mínima** de narración por paso (ej.: *"Encontré ___. Esto importa porque ___. Por eso ahora voy a ___."*) y del cierre. Los modelos grandes no la necesitan (y la plantilla los empobrecería) — se inyecta solo en tiers bajos/medios.
+- "Plantilla literal" = andamio de rellenar-huecos en el prompt (ej.: *"Al cerrar cada paso escribe: «Encontré ___. Esto importa porque ___. Por eso ahora ___.»"*). Los modelos chicos replican patrones literales mucho mejor que directivas abstractas; el costo es prosa formulaica — aceptable en un 4B, empobrecedor en uno grande (por eso NUNCA se inyecta en cloud/high).
+- **Condicional a F7**: solo se implementa si tras F1-F3 los modelos locales medium siguen secos en la verificación.
 
 **Archivos:** `server/ai/prompt/modes.js`, `server/ai/prompt/index.js` (pasar el profile).
 
@@ -85,7 +86,7 @@ Los modelos flash/small necesitan instrucciones más literales:
 
 ### Fase 7 — Verificación con checklist
 
-Correr el EDA de referencia (export.csv) con un modelo cloud y uno flash, y evaluar contra las 8 categorías de la auditoría (A-H). Criterio de salida: B/C/D/F pasan de ❌ a ✅/⚠️ en ambos modelos. Iterar el prompt si no.
+Correr el EDA de referencia (export.csv) con los modelos reales de uso — **Gemini 3.5 Flash y MiniMax M3** (cloud) y un Ollama medium local — y evaluar contra las 8 categorías de la auditoría (A-H). Criterio de salida: B/C/D/F pasan de ❌ a ✅/⚠️ en los cloud. Si el local medium sigue seco → activa F5.
 
 ## Orden y entrega
 
