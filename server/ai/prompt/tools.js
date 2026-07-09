@@ -56,7 +56,7 @@ ${mode === 'diving' ? `- **final_answer**: Signal analysis complete with structu
       - Always set \`x_axis_label\`/\`y_axis_label\` (never leave raw column names). Add \`subtitle\` with the key insight and \`footnote\` with the data source.
       - Dates: \`x_axis_angle="45"\` + \`date_aggregation\` (month for 1-3 yr, quarter for 3+ yr).
       - Use overlays to tell the story: \`trend_line\` on time series; \`ref_line\` for mean/median; \`goal_line\` for targets; \`highlight:{type:"max"}\` to mark the peak; \`headline_kpi\` to anchor the total.
-      - For ranking bars (ONE metric): \`sort_mode="y-desc"\`, \`limit=10\`, \`show_data_labels=true\`, and keep \`bar_color_mode="series"\` (ONE color for all bars) — then \`highlight:{type:"max"}\` or \`{type:"exact", value:"<hero>"}\` to make the protagonist pop. Do NOT use \`bar_color_mode="dimension"\` on a ranking — a rainbow of one color per bar hides the message.
+      - For ranking bars (ONE metric): \`sort_mode="y-desc"\`, \`limit=10\`, \`show_data_labels=true\`, keep \`bar_color_mode="series"\` (ONE color), and ALWAYS add \`highlight:{type:"max"}\` (or \`{type:"exact", value:"<hero>"}\`) — the server then mutes the other bars to gray so the leader pops. Without a highlight a ranking is just a wall of identical bars. NEVER use \`bar_color_mode="dimension"\` on a ranking — a rainbow hides the message.
       - For breakdowns: \`split_by\` to pivot by region/segment/category, and name the hero with \`protagonist\` so the rest fade to gray.
       - Tell the chart's conclusion with \`takeaway\` (one line under the chart) and mark the key point with an \`annotations\` callout.
    2. Call \`chart_storyteller\` immediately after — use the same \`query_id\`.

@@ -489,9 +489,25 @@ function createTools(context) {
                     }
                 }
                 // Explicit highlight wins; otherwise the protagonist spotlight applies.
-                const effectiveHighlight = highlight
+                let effectiveHighlight = highlight
                     ? { type: highlight.type, value: highlight.value || '', color: highlight.color || '#ff4444' }
                     : protagonistHighlight;
+
+                // Single-metric ranking with a spotlighted bar: mute the OTHER bars to
+                // gray so the hero truly pops, instead of a field of identical accent
+                // bars with one odd one out (the user's "why is everything purple?").
+                const isBarChart = chart_type === 'bar' || chart_type === 'bar-horizontal';
+                if (isBarChart && singleSeries && !split_by && effectiveHighlight && effectiveHighlight.type) {
+                    if (!protagonistSeriesConfig) protagonistSeriesConfig = {};
+                    for (const k of y_axis_keys) {
+                        if (!protagonistSeriesConfig[k]) protagonistSeriesConfig[k] = { color: NEUTRAL_GRAY };
+                    }
+                    // A red spotlight on a neutral ranking reads as "alarm" — use the
+                    // brand accent instead unless the metric is genuinely negative.
+                    if (effectiveHighlight.color === '#ff4444' && !negativeSemantics) {
+                        effectiveHighlight = { ...effectiveHighlight, color: '#9b87f5' };
+                    }
+                }
 
                 // Annotations → renderer shape (id + only the set fields).
                 const mappedAnnotations = Array.isArray(annotations)
