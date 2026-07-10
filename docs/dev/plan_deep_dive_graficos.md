@@ -1,7 +1,7 @@
 # Plan de Implementación — Deep Dive: color con teoría y storytelling en gráficos
 
 > Deriva de [deep_dive_graficos.md](deep_dive_graficos.md) (auditoría; causas G1–G7).
-> **Estado:** ✅ F1, F2, F3 implementadas (F3 sin `protagonist` — revertido). **F1 evolucionó** a "color como decisión de diseño" (ver addendum abajo). F4/F5 pendientes.
+> **Estado:** ✅ **F1–F5 implementadas.** F3 sin `protagonist` (revertido). F1 evolucionó a "color como decisión de diseño" (addendum abajo). F4 = retiro de `chart_storyteller`. F5 = verificado sin cambio de código.
 
 ## Addendum — Color como razonamiento del agente (evolución de F1, a pedido del usuario)
 
@@ -61,20 +61,17 @@ Ampliar el schema de `display_chart` y el `fullConfig` del chat:
 
 ---
 
-### Fase 4 — Conectar `chart_storyteller` al chart del chat (G5)
+### Fase 4 — Conectar `chart_storyteller` al chart del chat (G5) ✅ HECHA (opción B)
 
-Hoy su output muere en un cache. Dos opciones (elegir al implementar):
+Se eligió **B (retirar del loop)**: con F3 el agente pone `takeaway`/`annotations` él mismo con mejor contexto analítico que la pura estadística, y su output nunca llegaba al chart del chat (no-op visible que gastaba una iteración). Se eliminó `chart_storyteller` del toolset del agente (`server/ai/tools.js`, bloque diving) y sus menciones del prompt (`prompt/tools.js` lista de tools + secuencia "Visualize → Interpret"; descripción de `display_chart`). **El tab Story del editor NO se afecta** — usa `generateChartStory` vía el endpoint `/api/ai/chart-story`, no el tool.
 
-- **A (merge):** si `chart_storyteller` se llama tras un `display_chart` del mismo `query_id`, fusionar `chart_title/subtitle/footnote` + `key_insights→takeaway` al `chartConfig` ya emitido (re-emitir un `tool-result` actualizado o aplicar el merge en el cliente al detectar `story:<query_id>`).
-- **B (retirar del loop):** con F3, el agente ya puede poner takeaway/anotaciones él mismo con mejor contexto; degradar `chart_storyteller` a herramienta interna del tab Story (quitarla del set del agente) para que no gaste iteraciones en un no-op visible.
-
-**Archivos:** `server/ai/tools.js` y/o `client/.../ChatResultsBlock.jsx`.
+**Archivos:** `server/ai/tools.js`, `server/ai/prompt/tools.js`.
 
 ---
 
-### Fase 5 — "Open in Story Flow" completo (G7)
+### Fase 5 — "Open in Story Flow" completo (G7) ✅ HECHA (sin cambio de código — verificado)
 
-Con F3 en su lugar, el export (`App.jsx handleExportAmoxvis`) ya llevará `takeaway`/`annotations`/`seriesConfig` de forma natural (van en `fullConfig`). Verificar y ajustar si algún campo se pierde en el flat `.amoxvis`.
+Con F3, el export (`App.jsx handleExportAmoxvis`) escribe `{...fullConfig, query}` y `fullConfig` ya incluye `takeaway` y `annotations`. Verificado de punta a punta: el loader del `.amoxvis` (`useChartState` → `LOAD_CONFIG`) mapea **todas** las claves de `DEFAULT_CONFIG`, y `takeaway` (:209) + `annotations` (:218) están ahí → se cargan al abrir en Story Flow. El highlight ahora sigue el acento (no rojo), y la paleta es la razonada por el agente. Así el chart exportado abre **con su storytelling intacto y sin colores malos** — ya no hay que arreglarlo a mano. No requirió cambio de código.
 
 ---
 

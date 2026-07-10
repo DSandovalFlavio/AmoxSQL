@@ -273,7 +273,7 @@ function createTools(context) {
         }),
 
         display_chart: tool({
-            description: 'Render a fully configured chart from a previous execute_sql result. Act as a data journalist. CHOOSE THE CHART TYPE BY REASONING, not by column type — follow the "Chart Selection" framework in your instructions: (1) state the ONE message, (2) classify the intent (comparison / change-over-time / part-of-whole / relationship / ranking-change), (3) check the data shape. Key trap: a date column with only 2–3 periods is a COMPARISON, not a trend — use grouped bars (split_by) rather than a line; lines need ≥4–5 points to be honest. For real date/timestamp time series set date_aggregation and x_axis_angle=45. After rendering, follow with chart_storyteller.',
+            description: 'Render a fully configured chart from a previous execute_sql result. Act as a data journalist. CHOOSE THE CHART TYPE BY REASONING, not by column type — follow the "Chart Selection" framework in your instructions: (1) state the ONE message, (2) classify the intent (comparison / change-over-time / part-of-whole / relationship / ranking-change), (3) check the data shape. Key trap: a date column with only 2–3 periods is a COMPARISON, not a trend — use grouped bars (split_by) rather than a line; lines need ≥4–5 points to be honest. For real date/timestamp time series set date_aggregation and x_axis_angle=45. Set `takeaway` (the chart\'s one-line conclusion) and, when a specific point carries the finding, an `annotations` callout — right here on display_chart.',
             inputSchema: z.object({
                 // ── Core ──────────────────────────────────────────────────────────
                 query_id: z.string().describe('The queryId from a previous execute_sql result.'),
@@ -1065,38 +1065,12 @@ function createTools(context) {
             },
         });
 
-        // ── chart_storyteller ────────────────────────────────────────────────
-        allTools.chart_storyteller = tool({
-            description: 'Generate a data story for a chart: computes stats (top contributors, deltas, outliers) in code and returns a structured headline + insights. Call after display_chart to auto-fill the Story tab. Use query_id from execute_sql result; set x_key and y_key to match the chart axes.',
-            inputSchema: z.object({
-                query_id:   z.string().describe('queryId returned by execute_sql.'),
-                x_key:      z.string().describe('Column used as the X axis / category label.'),
-                y_key:      z.string().describe('Primary numeric column (Y axis).'),
-                chart_type: z.string().optional().describe('Chart type hint: bar, line, area, donut, etc.'),
-                title_hint: z.string().optional().describe('Optional user-specified title to refine the headline.'),
-            }),
-            execute: async ({ query_id, x_key, y_key, chart_type, title_hint }) => {
-                const { generateChartStory } = require('./chartStory');
-                let cached = queryResults.get(query_id);
-                if (!cached && aiPersistence) {
-                    const fromDb = await aiPersistence.getQueryCache(dbManager, query_id);
-                    if (fromDb) cached = { data: fromDb.data || [], columns: fromDb.columns_info || [] };
-                }
-                const rows = cached?.data || cached?.rows;
-                if (!cached || !Array.isArray(rows)) {
-                    return { error: `Query "${query_id}" not found. Run execute_sql first and use its queryId.` };
-                }
-                const story = generateChartStory(rows, {
-                    xKey: x_key, yKey: y_key,
-                    chartType: chart_type || 'bar',
-                    titleHint: title_hint || '',
-                });
-                if (story.error) return story;
-                // Persist to queryResults so the frontend can pick it up
-                queryResults.set(`story:${query_id}`, story);
-                return story;
-            },
-        });
+        // NOTE: chart_storyteller was retired from the agent's toolset. The agent
+        // now writes the chart's `takeaway` and `annotations` itself on display_chart
+        // (with full analytical context — richer than the pure-stats storyteller),
+        // so calling a separate tool was a wasted iteration whose output never
+        // reached the chat chart. The generateChartStory stats engine still powers
+        // the interactive Story tab via the /api/ai/chart-story endpoint.
 
         // Planner tools (create_plan + update_plan) in all diving-mode sessions
         if (enablePlanner) {
