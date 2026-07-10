@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+/**
+ * react-markdown sanitizes link hrefs and DROPS unknown protocols — our internal
+ * `cite:<queryId>#<column>` citations would otherwise become empty hrefs (which,
+ * as target=_blank anchors, opened a whole new app window). Preserve cite: URLs;
+ * apply the default (safe) sanitization to everything else.
+ */
+export const citeUrlTransform = (url) =>
+    (typeof url === 'string' && url.startsWith('cite:')) ? url : defaultUrlTransform(url);
 import { API_BASE } from '../../api.js';
 import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
@@ -13,24 +22,22 @@ import StreamingMarkdown, { MarkdownChunk } from './StreamingMarkdown';
  * Markdown renderers for chat prose. Module-level factory so the object can be
  * memoized per message (stable identity keeps memoized markdown chunks alive).
  */
-function makeMdComponents(setCiteQueryId) {
+export function makeMdComponents(setCiteQueryId) {
     return {
         p: ({ children }) => <p>{children}</p>,
         a: ({ href, children }) => {
-            // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query
+            // Inline citation: [value](cite:<queryId>#<column>) → clickable, opens the source query.
+            // Rendered as a citation "chip": readable text + accent underline (NOT a
+            // low-contrast accent-colored number). stopPropagation so it doesn't also
+            // trigger the surrounding turn-select handler in the Deep Dive transcript.
             if (href && href.startsWith('cite:')) {
                 const [qid, column] = href.slice(5).split('#');
                 return (
                     <button
                         type="button"
-                        title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect`}
-                        onClick={() => setCiteQueryId(qid)}
-                        style={{
-                            font: 'inherit', color: 'var(--accent-primary)',
-                            background: 'none', border: 'none',
-                            borderBottom: '1px dotted var(--accent-primary)',
-                            padding: 0, cursor: 'pointer', whiteSpace: 'nowrap',
-                        }}
+                        className="ai-cite-link"
+                        title={`From query ${qid}${column ? ` · ${column}` : ''} — click to inspect the source`}
+                        onClick={(e) => { e.stopPropagation(); setCiteQueryId(qid); }}
                     >{children}</button>
                 );
             }
@@ -79,7 +86,7 @@ function decodeSafely(str) {
 /**
  * Modal that shows the SQL query and result rows that back a specific finding.
  */
-function QueryAuditModal({ queryId, onClose }) {
+export function QueryAuditModal({ queryId, onClose }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -150,10 +157,13 @@ function QueryAuditModal({ queryId, onClose }) {
  */
 export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
-    const [causeOpen, setCauseOpen] = useState(false);
-    const [detailsOpen, setDetailsOpen] = useState(false);
+    // Findings are the payload of the analysis — show them expanded by default.
+    // Collapsing them behind "Show summary" made Deep Dive answers look empty.
+    const [causeOpen, setCauseOpen] = useState(true);
+    const [detailsOpen, setDetailsOpen] = useState(true);
     const [auditQueryId, setAuditQueryId] = useState(null);
-    const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0 || caveats?.length > 0;
+    // Caveats render outside the collapse (always visible), so they don't count here.
+    const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0;
 
     const openAudit = useCallback((qid) => setAuditQueryId(qid), []);
     const closeAudit = useCallback(() => setAuditQueryId(null), []);
@@ -197,34 +207,39 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
                     <ul className="ai-narrative-findings">
                         {findings.map((f, i) => (
                             <li key={i} className="ai-narrative-finding">
-                                <span className="ai-narrative-finding-point">{decodeSafely(f.point)}</span>
-                                <span className="ai-narrative-finding-right">
-                                    {f.value && <span className="ai-narrative-finding-value">{decodeSafely(f.value)}</span>}
-                                    {f.source_query_id && (
-                                        <button
-                                            className="ai-narrative-audit-btn"
-                                            title="Ver consulta fuente"
-                                            onClick={() => openAudit(f.source_query_id)}
-                                        >
-                                            <LuSearch size={10} />
-                                        </button>
-                                    )}
-                                    {onAskAbout && (
-                                        <button
-                                            className="ai-narrative-audit-btn"
-                                            title="Ask the agent about this finding"
-                                            onClick={() => onAskAbout({
-                                                type: 'finding',
-                                                findingText: decodeSafely(f.point) + (f.value ? ` (${decodeSafely(f.value)})` : ''),
-                                                queryId: f.source_query_id || undefined,
-                                                label: `Finding: ${decodeSafely(f.point).slice(0, 40)}`,
-                                                key: `finding:${i}:${f.source_query_id || decodeSafely(f.point).slice(0, 20)}`,
-                                            })}
-                                        >
-                                            <LuMessageSquareQuote size={10} />
-                                        </button>
-                                    )}
-                                </span>
+                                <div className="ai-narrative-finding-main">
+                                    <span className="ai-narrative-finding-point">{decodeSafely(f.point)}</span>
+                                    <span className="ai-narrative-finding-right">
+                                        {f.value && <span className="ai-narrative-finding-value">{decodeSafely(f.value)}</span>}
+                                        {f.source_query_id && (
+                                            <button
+                                                className="ai-narrative-audit-btn"
+                                                title="Ver consulta fuente"
+                                                onClick={() => openAudit(f.source_query_id)}
+                                            >
+                                                <LuSearch size={10} />
+                                            </button>
+                                        )}
+                                        {onAskAbout && (
+                                            <button
+                                                className="ai-narrative-audit-btn"
+                                                title="Ask the agent about this finding"
+                                                onClick={() => onAskAbout({
+                                                    type: 'finding',
+                                                    findingText: decodeSafely(f.point) + (f.value ? ` (${decodeSafely(f.value)})` : ''),
+                                                    queryId: f.source_query_id || undefined,
+                                                    label: `Finding: ${decodeSafely(f.point).slice(0, 40)}`,
+                                                    key: `finding:${i}:${f.source_query_id || decodeSafely(f.point).slice(0, 20)}`,
+                                                })}
+                                            >
+                                                <LuMessageSquareQuote size={10} />
+                                            </button>
+                                        )}
+                                    </span>
+                                </div>
+                                {f.so_what && (
+                                    <p className="ai-narrative-finding-sowhat">{decodeSafely(f.so_what)}</p>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -256,14 +271,16 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
                 </div>
             )}
 
+            </>)}
+
+            {/* Caveats live OUTSIDE the collapse: data-quality notes and assumptions
+                are trust-critical and must be visible even when the summary is hidden. */}
             {caveats?.length > 0 && (
                 <div className="ai-narrative-caveats">
                     <LuTriangleAlert size={10} className="ai-narrative-caveats-icon" />
                     <span>{decodeSafely(caveats.join(' '))}</span>
                 </div>
             )}
-
-            </>)}
 
             {followup_questions?.length > 0 && (
                 <div className="ai-msg-followups">
@@ -643,9 +660,9 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 // (the prose already lives in the transcript card).
                                 if (activityOnly) return null;
                                 if (isStreaming && idx === lastTextIdx) {
-                                    return <StreamingMarkdown key={idx} content={part.content} components={mdComponents} />;
+                                    return <StreamingMarkdown key={idx} content={part.content} components={mdComponents} urlTransform={citeUrlTransform} />;
                                 }
-                                return <MarkdownChunk key={idx} content={part.content} components={mdComponents} />;
+                                return <MarkdownChunk key={idx} content={part.content} components={mdComponents} urlTransform={citeUrlTransform} />;
                             })}
                             {isStreaming && (
                                 <span className="ai-msg-cursor" />

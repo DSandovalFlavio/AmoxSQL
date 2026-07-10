@@ -273,7 +273,7 @@ function createTools(context) {
         }),
 
         display_chart: tool({
-            description: 'Render a fully configured chart from a previous execute_sql result. Act as a data journalist. CHOOSE THE CHART TYPE BY REASONING, not by column type — follow the "Chart Selection" framework in your instructions: (1) state the ONE message, (2) classify the intent (comparison / change-over-time / part-of-whole / relationship / ranking-change), (3) check the data shape. Key trap: a date column with only 2–3 periods is a COMPARISON, not a trend — use grouped bars (split_by) rather than a line; lines need ≥4–5 points to be honest. For real date/timestamp time series set date_aggregation and x_axis_angle=45. After rendering, follow with chart_storyteller.',
+            description: 'Render a fully configured chart from a previous execute_sql result. Act as a data journalist. CHOOSE THE CHART TYPE BY REASONING, not by column type — follow the "Chart Selection" framework in your instructions: (1) state the ONE message, (2) classify the intent (comparison / change-over-time / part-of-whole / relationship / ranking-change), (3) check the data shape. Key trap: a date column with only 2–3 periods is a COMPARISON, not a trend — use grouped bars (split_by) rather than a line; lines need ≥4–5 points to be honest. For real date/timestamp time series set date_aggregation and x_axis_angle=45. Set `takeaway` (the chart\'s one-line conclusion) and, when a specific point carries the finding, an `annotations` callout — right here on display_chart.',
             inputSchema: z.object({
                 // ── Core ──────────────────────────────────────────────────────────
                 query_id: z.string().describe('The queryId from a previous execute_sql result.'),
@@ -308,7 +308,12 @@ function createTools(context) {
                 cumulative: z.boolean().optional().describe('Show running total instead of individual values (line/area charts).'),
 
                 // ── Visual style ──────────────────────────────────────────────────
-                color_theme: z.enum(['default', 'vivid', 'neon', 'pastel', 'dark2', 'ocean', 'sunset', 'corporate', 'blues', 'greens', 'reds', 'spectral']).optional().describe('Color palette. Qualitative: default, vivid, neon, pastel, dark2, corporate. Sequential: blues, greens, reds. Diverging: spectral. Brand: ocean, sunset.'),
+                color_theme: z.enum([
+                    'default', 'vivid', 'dark2', 'set1', 'set2', 'pastel', 'neon',
+                    'blues', 'greens', 'purples', 'ylorbr', 'reds',
+                    'spectral', 'rdylbu', 'rdylgn', 'piyg',
+                    'ocean', 'sunset', 'corporate',
+                ]).optional().describe('Color palette — reason it by data role + theme + readability (see "Color is a design decision" and "Rendering context" in your instructions), do NOT default blindly. Qualitative (distinct series): default, dark2, set2, vivid, pastel, neon. Sequential (ordered magnitude, light→dark): blues, greens, purples, ylorbr. Diverging (+/- around a center): spectral, rdylbu, rdylgn, piyg. Brand/mono: ocean, sunset, corporate(grays). reds/sunset & red overlays: RESERVED for negative/alarm metrics only. For a single-metric ranking keep one color + highlight the leader, never one color per bar.'),
                 show_data_labels: z.boolean().optional().describe('Show value labels directly on bars/points. Good for ranked bar charts. Default: false.'),
                 legend_position: z.enum(['top', 'bottom', 'left', 'right', 'none']).optional().describe('Legend placement. none hides it. Default: top.'),
                 grid_mode: z.enum(['both', 'horizontal', 'vertical', 'none']).optional().describe('Grid lines. Default: horizontal.'),
@@ -318,7 +323,7 @@ function createTools(context) {
                 show_dots: z.boolean().optional().describe('Show data points on line/area charts. Default: true.'),
 
                 // ── Bar chart options ─────────────────────────────────────────────
-                bar_color_mode: z.enum(['series', 'dimension', 'intensity']).optional().describe('Bar coloring. series=one color per series (default); dimension=one color per category (good for single-series bar); intensity=color by value magnitude.'),
+                bar_color_mode: z.enum(['series', 'dimension', 'intensity']).optional().describe('Bar coloring. series=ONE color for all bars (default; the CORRECT choice for a single-metric ranking — pair with highlight for emphasis). dimension=one color per category, ONLY when there are ≤5 genuinely distinct categories whose identity matters (NOT a sorted ranking — that makes a misleading rainbow). intensity=fade opacity by value magnitude.'),
                 bar_radius: z.number().int().min(0).max(20).optional().describe('Bar corner radius in px. 0=sharp, 4=slight rounding (default), 8=rounded.'),
 
                 // ── Analytical overlays ───────────────────────────────────────────
@@ -356,6 +361,18 @@ function createTools(context) {
                 // ── Donut-specific ────────────────────────────────────────────────
                 donut_center_kpi: z.enum(['none', 'total', 'average']).optional().describe('Show total or average in the donut center hole. Default: none.'),
                 donut_label_content: z.enum(['percent', 'value', 'name', 'name_percent', 'name_value']).optional().describe('What to show on donut slice labels. Default: percent.'),
+
+                // ── Storytelling layer ────────────────────────────────────────────
+                takeaway: z.string().optional().describe('One-sentence conclusion shown under the chart — the MESSAGE, not the metric. e.g. "San Francisco alone drives a quarter of all revenue." Set this on every important chart.'),
+                annotations: z.array(z.object({
+                    type: z.enum(['text', 'box']).describe('text=point callout at (x[,y]); box=shaded region from x..x2 [and y..y2].'),
+                    x: z.string().describe('Category/x value to anchor to (must match an x_axis_key value in the data).'),
+                    x2: z.string().optional().describe('End x value for a box region.'),
+                    y: z.union([z.number(), z.string()]).optional().describe('Y value; omit for a text callout to auto-place it on the data point.'),
+                    y2: z.union([z.number(), z.string()]).optional().describe('End y value for a box region.'),
+                    text: z.string().describe('Short callout label (a few words) naming what the reader should notice here.'),
+                    color: z.string().optional().describe('Hex color. Default: warning amber.'),
+                })).max(3).optional().describe('Up to 3 callouts marking the exact points that carry your finding. Use sparingly — annotate the "aha", not everything.'),
             }),
             execute: async ({
                 query_id, chart_type, title, subtitle, footnote,
@@ -367,6 +384,7 @@ function createTools(context) {
                 bar_color_mode, bar_radius,
                 trend_line, goal_line, ref_line, highlight,
                 headline_kpi, donut_center_kpi, donut_label_content,
+                takeaway, annotations,
             }) => {
                 let queryResult = queryResults.get(query_id);
                 if (!queryResult && aiPersistence) {
@@ -425,6 +443,46 @@ function createTools(context) {
                     trend_line = undefined;
                     chartWarnings.push(`Removed the trend line: it cannot be computed over split/multiple series (it would aggregate unrelated series into a meaningless trend).`);
                 }
+
+                // ── Color linter (soft warnings; the agent re-calls if it agrees) ──
+                const distinctXCount = new Set(rows.map(r => String(r?.[x_axis_key] ?? ''))).size;
+                const singleSeries = !split_by && Array.isArray(y_axis_keys) && y_axis_keys.length === 1;
+
+                // 1. Rainbow ranking: dimension mode on a single-metric bar w/ many categories.
+                if (bar_color_mode === 'dimension' && singleSeries && distinctXCount > 5 &&
+                    (chart_type === 'bar' || chart_type === 'bar-horizontal')) {
+                    chartWarnings.push(`bar_color_mode="dimension" paints each of the ${distinctXCount} bars a different color — a rainbow that hides the ranking. Re-call with bar_color_mode="series" (one color) plus highlight:{type:"max"} to spotlight the leader.`);
+                }
+                // 2. Sequential palette on categorical bars that aren't sorted by value → misleading.
+                if (['blues', 'greens', 'reds'].includes(color_theme) && singleSeries &&
+                    (chart_type === 'bar' || chart_type === 'bar-horizontal') &&
+                    sort_mode && !String(sort_mode).startsWith('y')) {
+                    chartWarnings.push(`A sequential palette ("${color_theme}") signals ordered magnitude, but the bars aren't sorted by value. Sort with sort_mode="y-desc", or use one solid color.`);
+                }
+                // 3. Red palette on a metric with no negative semantics → false alarm.
+                const yText = (Array.isArray(y_axis_keys) ? y_axis_keys.join(' ') : '').toLowerCase();
+                const negativeSemantics = /(loss|churn|error|cost|defect|fail|drop|decline|refund|complaint|debt|overdue|deficit|attrition)/.test(yText);
+                if ((color_theme === 'reds' || color_theme === 'sunset') && !negativeSemantics) {
+                    chartWarnings.push(`Red reads as alarm/negative, but "${(y_axis_keys || []).join(', ')}" looks neutral. Reserve red for loss/churn/below-target; use a neutral palette (default/blues/ocean) for revenue/volume.`);
+                }
+                // 4. Donut with too many slices (was prompt-only; now enforced as a warning).
+                if (chart_type === 'donut' && distinctXCount > 7) {
+                    chartWarnings.push(`A donut with ${distinctXCount} slices is unreadable (>7). Use a bar/bar-horizontal ranking instead.`);
+                }
+
+                // Annotations → renderer shape (id + only the set fields).
+                const mappedAnnotations = Array.isArray(annotations)
+                    ? annotations.map((a, i) => ({
+                        id: `ann-${i}`,
+                        type: a.type,
+                        x: a.x,
+                        ...(a.x2 !== undefined && { x2: a.x2 }),
+                        ...(a.y  !== undefined && { y: a.y }),
+                        ...(a.y2 !== undefined && { y2: a.y2 }),
+                        text: a.text,
+                        ...(a.color && { color: a.color }),
+                    }))
+                    : null;
 
                 const chartConfig = {
                     // Core
@@ -491,9 +549,14 @@ function createTools(context) {
                         highlightConfig: {
                             type: highlight.type,
                             value: highlight.value || '',
-                            color: highlight.color || '#ff4444',
+                            // Spotlight follows the theme accent, not alarm-red — a
+                            // highlighted leader is emphasis, not something negative.
+                            color: highlight.color || 'var(--accent-primary)',
                         },
                     }),
+                    // Storytelling layer (takeaway / annotations)
+                    ...(takeaway !== undefined && { takeaway }),
+                    ...(mappedAnnotations && mappedAnnotations.length ? { annotations: mappedAnnotations } : {}),
                     // Headline KPI
                     ...(headline_kpi !== undefined && {
                         headline: {
@@ -922,38 +985,47 @@ function createTools(context) {
 
     if (mode === 'diving') {
         allTools.final_answer = tool({
-            description: 'Signal that the analysis is complete. Call this as the LAST action. Use structured fields for a professional narrative — skip the legacy "summary" field when using tldr/findings/suggested_actions.',
+            description: 'Signal that the analysis is complete — the structured recap of the closing narrative you just wrote in the chat. Call it as the LAST action. ALWAYS include `summary` (your closing story in prose) AND the structured fields; they complement each other, they do not replace the narrative.',
             inputSchema: z.object({
-                tldr: z.string().optional().describe('1-2 sentence TL;DR: the single most important finding.'),
+                tldr: z.string().optional().describe('1-2 sentence TL;DR: the single most important takeaway.'),
                 findings: z.array(z.object({
                     point: z.string().describe('Key observation or insight.'),
                     value: z.string().optional().describe('Supporting metric, number, or percentage.'),
+                    so_what: z.string().optional().describe('Why this finding deserves attention / what it implies for the user. A finding without its "so what" is just a number — always include it.'),
                     source_query_id: z.string().optional().describe('queryId from the execute_sql call that produced this number.'),
-                })).min(1).max(8).optional().describe('Key findings, each with an optional supporting metric.'),
-                likely_cause: z.string().optional().describe('Probable explanation for the main finding (omit if not applicable).'),
-                suggested_actions: z.array(z.string()).min(1).max(4).optional().describe('Concrete next steps.'),
+                })).min(1).max(8).optional().describe('Key findings, each with a metric AND its so_what (why it matters).'),
+                likely_cause: z.string().optional().describe('Probable explanation for the main finding (the "why").'),
+                suggested_actions: z.array(z.string()).min(1).max(4).optional().describe('Concrete next steps, each with a brief reason.'),
                 caveats: z.array(z.string()).optional().describe('Data quality notes, limitations, or assumptions.'),
-                summary: z.string().optional().describe('Full markdown narrative — fallback if structured fields are not used.'),
+                summary: z.string().optional().describe('Your CLOSING NARRATIVE in flowing markdown prose (2-4 short paragraphs): the story of what you found, why it happens, and what to do. ALWAYS provide it — it is the answer; the structured fields are its recap.'),
                 followup_questions: z.array(z.string()).min(2).max(4).optional().describe('Follow-up questions to explore next.'),
             }),
             execute: async ({ tldr, findings, likely_cause, suggested_actions, caveats, summary, followup_questions }) => {
+                // Fallback ONLY when the model gave no narrative summary: build flowing
+                // prose (not bare bullets) from the structured fields so the reply still
+                // reads like analysis, weaving each finding's so_what into the sentence.
                 const resolvedSummary = summary || [
-                    tldr ? `**TL;DR:** ${tldr}` : '',
+                    tldr || '',
                     findings?.length
-                        ? '\n**Findings:**\n' + findings.map(f =>
-                            `- ${f.point}${f.value ? ` — **${f.value}**` : ''}`
-                          ).join('\n')
+                        ? findings.map(f => {
+                            const metric = f.value ? ` (${f.value})` : '';
+                            const soWhat = f.so_what ? ` — ${f.so_what}` : '';
+                            return `${f.point}${metric}${soWhat}.`;
+                          }).join(' ')
                         : '',
-                    likely_cause ? `\n**Why:** ${likely_cause}` : '',
+                    likely_cause ? `The likely driver: ${likely_cause}` : '',
                     suggested_actions?.length
-                        ? '\n**Suggested actions:**\n' + suggested_actions.map(a => `- ${a}`).join('\n')
+                        ? `Next, ${suggested_actions.map(a => a.replace(/\.$/, '')).join('; ')}.`
                         : '',
-                    caveats?.length ? `\n**Note:** ${caveats.join(' ')}` : '',
-                ].filter(Boolean).join('\n');
+                    caveats?.length ? `A caveat: ${caveats.join(' ')}` : '',
+                ].filter(Boolean).join('\n\n');
 
                 if (activePlan?.steps) {
                     for (const step of activePlan.steps) {
-                        if (step.status === 'pending' || step.status === 'running') {
+                        // Sweep every non-terminal status to done. NOTE: update_plan
+                        // writes 'in_progress' (never 'running'); the missing case here
+                        // was why the last in-progress step stayed stuck forever.
+                        if (step.status === 'pending' || step.status === 'running' || step.status === 'in_progress') {
                             step.status = 'done';
                         }
                     }
@@ -993,38 +1065,12 @@ function createTools(context) {
             },
         });
 
-        // ── chart_storyteller ────────────────────────────────────────────────
-        allTools.chart_storyteller = tool({
-            description: 'Generate a data story for a chart: computes stats (top contributors, deltas, outliers) in code and returns a structured headline + insights. Call after display_chart to auto-fill the Story tab. Use query_id from execute_sql result; set x_key and y_key to match the chart axes.',
-            inputSchema: z.object({
-                query_id:   z.string().describe('queryId returned by execute_sql.'),
-                x_key:      z.string().describe('Column used as the X axis / category label.'),
-                y_key:      z.string().describe('Primary numeric column (Y axis).'),
-                chart_type: z.string().optional().describe('Chart type hint: bar, line, area, donut, etc.'),
-                title_hint: z.string().optional().describe('Optional user-specified title to refine the headline.'),
-            }),
-            execute: async ({ query_id, x_key, y_key, chart_type, title_hint }) => {
-                const { generateChartStory } = require('./chartStory');
-                let cached = queryResults.get(query_id);
-                if (!cached && aiPersistence) {
-                    const fromDb = await aiPersistence.getQueryCache(dbManager, query_id);
-                    if (fromDb) cached = { data: fromDb.data || [], columns: fromDb.columns_info || [] };
-                }
-                const rows = cached?.data || cached?.rows;
-                if (!cached || !Array.isArray(rows)) {
-                    return { error: `Query "${query_id}" not found. Run execute_sql first and use its queryId.` };
-                }
-                const story = generateChartStory(rows, {
-                    xKey: x_key, yKey: y_key,
-                    chartType: chart_type || 'bar',
-                    titleHint: title_hint || '',
-                });
-                if (story.error) return story;
-                // Persist to queryResults so the frontend can pick it up
-                queryResults.set(`story:${query_id}`, story);
-                return story;
-            },
-        });
+        // NOTE: chart_storyteller was retired from the agent's toolset. The agent
+        // now writes the chart's `takeaway` and `annotations` itself on display_chart
+        // (with full analytical context — richer than the pure-stats storyteller),
+        // so calling a separate tool was a wasted iteration whose output never
+        // reached the chat chart. The generateChartStory stats engine still powers
+        // the interactive Story tab via the /api/ai/chart-story endpoint.
 
         // Planner tools (create_plan + update_plan) in all diving-mode sessions
         if (enablePlanner) {

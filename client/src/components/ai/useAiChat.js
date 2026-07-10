@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE as API } from '../../api.js';
 
+/** Stable client-side message id (survives the streaming→historical handoff). */
+function genId() {
+    try { if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID(); } catch { /* noop */ }
+    return `m-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
 export const DEFAULT_GEMINI_MODELS = [
     { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', size: 'Cloud' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', size: 'Cloud' },
@@ -120,6 +126,10 @@ export default function useAiChat({
     const [streamingText, setStreamingText] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [activeToolCalls, setActiveToolCalls] = useState([]);
+    // Stable id for the in-flight assistant turn. The live turn AND the message
+    // appended at run-end share this id, so the inspector selection survives the
+    // live→historical handoff without a churn (no empty-state flash, no re-click).
+    const [streamingId, setStreamingId] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [conversationId, setConversationId] = useState(null);
     // pending edits: Map of toolCallId → edit result (waiting for user accept/reject)
@@ -374,10 +384,14 @@ export default function useAiChat({
         }
 
         // Add user message
-        const userMsg = { role: 'user', content: text, toolCalls: [] };
+        const userMsg = { id: genId(), role: 'user', content: text, toolCalls: [] };
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
         setInputText('');
+        // Mint the assistant turn id up-front so the live turn and the final
+        // appended message share identity (stable inspector selection).
+        const assistantId = genId();
+        setStreamingId(assistantId);
         const isContinuation = !!pendingContinue;
         setIsGenerating(true);
         setStreamingText('');
@@ -443,11 +457,26 @@ export default function useAiChat({
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
             if (ctxContent) requestBody.currentQuery = ctxContent;
+            // Rendering context: let the agent choose chart palettes that harmonize
+            // with the user's active theme and read on the current light/dark mode.
+            try {
+                const cs = getComputedStyle(document.body);
+                requestBody.uiTheme = {
+                    mode: document.body.classList.contains('mode-light') ? 'light' : 'dark',
+                    theme: localStorage.getItem('amoxsql-theme') || 'dark',
+                    accent: localStorage.getItem('amoxsql-accent') || 'default',
+                    accentColor: cs.getPropertyValue('--accent-primary').trim() || null,
+                };
+            } catch { /* no DOM (SSR/test) — skip */ }
             if (currentSkippedSteps.size > 0) {
                 requestBody.planStepOverrides = Array.from(currentSkippedSteps).map(id => ({ stepId: id, status: 'skipped', note: 'skipped by user' }));
             }
             if (isContinuation) {
                 requestBody.continueMode = true;
+                const opts = continueOptsRef.current || {};
+                // Finalize-now → budget of 1 so the wrap-up turn forces synthesis fast.
+                if (opts.finalize) requestBody.continueBudget = 1;
+                continueOptsRef.current = null;
             }
             // Send a lightweight summary of the result (not the full data)
             if (ctxResult) {
@@ -631,6 +660,7 @@ export default function useAiChat({
             await new Promise(r => setTimeout(r, 50));
 
             const assistantMsg = {
+                id: assistantId,
                 role: 'assistant',
                 content: fullText,
                 toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
@@ -687,6 +717,7 @@ export default function useAiChat({
             setActiveToolCalls([]);
         } finally {
             setIsGenerating(false);
+            setStreamingId(null);
             abortControllerRef.current = null;
         }
     }, [
@@ -698,8 +729,26 @@ export default function useAiChat({
     ]);
 
     // ─── Continue after loop exhaustion ───
-    const handleContinue = useCallback(() => {
-        handleSend('continua con el plan');
+    // continueOptsRef threads per-continue options (budget/finalize) into the very
+    // next handleSend without adding them to its dependency array.
+    const continueOptsRef = useRef(null);
+
+    // Continue the paused plan. An optional instruction (from the "Continue with
+    // instructions…" input) is sent as the user turn so the agent can focus the
+    // remaining work ("only finish s6, skip s7").
+    const handleContinue = useCallback((instruction) => {
+        continueOptsRef.current = { finalize: false };
+        const text = (typeof instruction === 'string' && instruction.trim())
+            ? instruction.trim()
+            : 'Continúa con el plan donde lo dejaste.';
+        handleSend(text);
+    }, [handleSend]);
+
+    // Finish now with whatever the agent already has — no more queries. Grants a
+    // budget of 1 so the wrap-up turn forces a synthesis immediately.
+    const handleFinalizeNow = useCallback(() => {
+        continueOptsRef.current = { finalize: true };
+        handleSend('Finaliza el análisis AHORA con lo que ya tienes: no corras más queries ni pasos nuevos. Llama final_answer con un resumen de los hallazgos hasta ahora y marca lo que quedó pendiente en caveats.');
     }, [handleSend]);
 
     const handleDeclineContinue = useCallback(() => {
@@ -787,13 +836,29 @@ export default function useAiChat({
                     // so display_chart calls can find their exact chart config instead of the first one.
                     if (toolCalls && Array.isArray(toolCalls) && queryResultsByMsgId[m.id]) {
                         const qResults = queryResultsByMsgId[m.id];
-                        let qrIndex = 0;
                         const clientIdToDbQrId = new Map(); // queryId (client) → qr.id (DB)
 
+                        // Pair each execute_sql with ITS OWN persisted result by SQL
+                        // text. The old index pairing mis-assigned data whenever a query
+                        // errored or wasn't persisted — the offset handed a chart the
+                        // wrong query's rows, so on reload the x-axis column was absent
+                        // and the chart rendered "No data to display". Falls back to the
+                        // message's own persisted result data (which is correct) if a
+                        // query has no cache match.
+                        const norm = (str) => String(str || '').replace(/\s+/g, ' ').trim();
+                        const byQuery = new Map();
+                        for (const qr of qResults) {
+                            const k = norm(qr.sql_query);
+                            if (!byQuery.has(k)) byQuery.set(k, []);
+                            byQuery.get(k).push(qr);
+                        }
+
                         toolCalls = toolCalls.map(tc => {
-                            if (tc.toolName === 'execute_sql' && qrIndex < qResults.length) {
-                                const qr = qResults[qrIndex++];
+                            if (tc.toolName === 'execute_sql') {
+                                const bucket = byQuery.get(norm(tc.args?.query));
+                                const qr = (bucket && bucket.length) ? bucket.shift() : null;
                                 const clientQueryId = tc.result?.queryId;
+                                if (!qr) return tc; // keep the message's own (correct) data
                                 if (clientQueryId) clientIdToDbQrId.set(clientQueryId, qr.id);
                                 return {
                                     ...tc,
@@ -868,6 +933,27 @@ export default function useAiChat({
                         }
                     }
                 }
+                // A plan reconstructed without a final_answer, still holding
+                // unfinished steps, was left paused (cycles exhausted / interrupted).
+                // Mark it paused, surface interrupted steps, and offer to continue.
+                if (reconstructedPlan && reconstructedPlan.status !== 'completed') {
+                    const unfinished = reconstructedPlan.steps.filter(
+                        s => s.status === 'pending' || s.status === 'in_progress'
+                    );
+                    if (unfinished.length > 0) {
+                        reconstructedPlan.steps = reconstructedPlan.steps.map(s =>
+                            s.status === 'in_progress' ? { ...s, status: 'interrupted' } : s
+                        );
+                        reconstructedPlan.status = 'paused';
+                        setPendingContinue({
+                            planGoal:       reconstructedPlan.goal || '',
+                            pendingSteps:   unfinished.length,
+                            completedSteps: reconstructedPlan.steps.filter(s => s.status === 'done').length,
+                            planId:         reconstructedPlan.planId || null,
+                            resumed:        true, // came from a reload, not a live exhaustion
+                        });
+                    }
+                }
                 setPlanState(reconstructedPlan);
 
                 // Restore persisted context objects (diving mode)
@@ -940,6 +1026,7 @@ export default function useAiChat({
         inputText, setInputText,
         isGenerating,
         streamingText,
+        streamingId,
         isThinking,
         activeToolCalls,
         errorMsg, setErrorMsg,
@@ -976,6 +1063,7 @@ export default function useAiChat({
         pendingAskUser, setPendingAskUser,
         pendingContinue, setPendingContinue,
         handleContinue,
+        handleFinalizeNow,
         handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,

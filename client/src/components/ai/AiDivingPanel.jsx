@@ -5,7 +5,7 @@ import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
 import DeepDiveTranscript from './DeepDiveTranscript';
 import DeepDiveInspector from './DeepDiveInspector';
-import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
+import { groupIntoTurns, buildSessionArtifacts, buildStepGroups } from './deepDiveTurns';
 import ToolCallBlock from './ToolCallBlock';
 import ModelDropdown from './ModelDropdown';
 import SessionInventory from './SessionInventory';
@@ -67,6 +67,7 @@ const AiDivingPanel = ({
         inputText, setInputText,
         isGenerating,
         streamingText,
+        streamingId,
         isThinking,
         activeToolCalls,
         errorMsg, setErrorMsg,
@@ -96,6 +97,7 @@ const AiDivingPanel = ({
         pendingAskUser, setPendingAskUser,
         pendingContinue,
         handleContinue,
+        handleFinalizeNow,
         handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,
@@ -105,6 +107,9 @@ const AiDivingPanel = ({
     const [sessionName, setSessionName] = useState('');
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showModesGuide, setShowModesGuide] = useState(false);
+    // Continue banner: optional focus instruction for the resumed analysis.
+    const [continueInstr, setContinueInstr] = useState('');
+    const [showContinueInput, setShowContinueInput] = useState(false);
 
     // ─── Turns (transcript) + selected turn (inspector) ───
     // Historical turns derive ONLY from messages: their identity survives both
@@ -113,13 +118,17 @@ const AiDivingPanel = ({
     const historicalTurns = useMemo(() => groupIntoTurns(messages), [messages]);
     const turns = useMemo(() => {
         if (isGenerating && (streamingText || activeToolCalls.length > 0)) {
+            // The live turn borrows the id the final message will carry, so when
+            // it becomes historical the turn identity (and inspector selection)
+            // is continuous — no churn, no re-click.
+            const liveId = streamingId || '__live__';
             return [...historicalTurns, {
-                id: '__live__', type: 'ai', text: streamingText || '', inProgress: true,
-                messages: [{ id: '__live__', role: 'assistant', content: streamingText || '', toolCalls: activeToolCalls }],
+                id: liveId, type: 'ai', text: streamingText || '', inProgress: true,
+                messages: [{ id: liveId, role: 'assistant', content: streamingText || '', toolCalls: activeToolCalls }],
             }];
         }
         return historicalTurns;
-    }, [historicalTurns, isGenerating, streamingText, activeToolCalls]);
+    }, [historicalTurns, isGenerating, streamingText, activeToolCalls, streamingId]);
 
     // handleSend's identity changes on every composer keystroke (depends on
     // inputText). Children must receive a STABLE callback or their memo dies
@@ -128,20 +137,30 @@ const AiDivingPanel = ({
     useEffect(() => { handleSendRef.current = handleSend; });
     const sendFollowUp = useCallback((text) => handleSendRef.current(text), []);
 
-    const [selectedTurnId, setSelectedTurnId] = useState(null);
+    // The user's explicit pin (null = auto-follow). Clicking a turn pins it; a
+    // new run clears it so the inspector follows the fresh analysis.
+    const [pinnedTurnId, setPinnedTurnId] = useState(null);
 
-    // While generating, follow the live turn; otherwise keep selection valid (default: last AI turn).
+    // New run → drop the pin so we auto-follow the new turn (edge-triggered).
+    const wasGeneratingRef = useRef(false);
     useEffect(() => {
-        if (isGenerating) {
-            const live = turns[turns.length - 1];
-            if (live) setSelectedTurnId(live.id);
-            return;
-        }
-        if (!turns.find(t => t.id === selectedTurnId)) {
-            const lastAi = [...turns].reverse().find(t => t.type === 'ai');
-            setSelectedTurnId(lastAi ? lastAi.id : null);
-        }
-    }, [turns, isGenerating, selectedTurnId]);
+        if (isGenerating && !wasGeneratingRef.current) setPinnedTurnId(null);
+        wasGeneratingRef.current = isGenerating;
+    }, [isGenerating]);
+
+    // Selection is DERIVED (no lagging effect, so no empty-state flash):
+    //  - a live pin wins as long as that turn still exists;
+    //  - while generating, follow the live/last turn;
+    //  - otherwise the last AI turn that actually has step activity (skip a
+    //    trailing prose-only turn), falling back to the last AI turn.
+    const selectedTurnId = useMemo(() => {
+        if (pinnedTurnId && turns.some(t => t.id === pinnedTurnId)) return pinnedTurnId;
+        if (isGenerating && turns.length) return turns[turns.length - 1].id;
+        const aiTurns = turns.filter(t => t.type === 'ai');
+        if (!aiTurns.length) return null;
+        const withActivity = [...aiTurns].reverse().find(t => buildStepGroups(t).length > 0);
+        return (withActivity || aiTurns[aiTurns.length - 1]).id;
+    }, [pinnedTurnId, turns, isGenerating]);
 
     const selectedTurn = turns.find(t => t.id === selectedTurnId) || null;
 
@@ -213,93 +232,74 @@ const AiDivingPanel = ({
     }, [conversationId]);
 
     // ─── Auto-create artifacts for build_notebook, display_chart, and save_to_vault ───
-    // Track processed tool calls so we don't re-open files on every messages update
+    // Dedup key per tool call (STABLE across reload: toolCallId is persisted), so a
+    // chart/notebook/vault artifact is POSTed exactly once — never duplicated on a
+    // reload or an unrelated messages change.
+    const ARTIFACT_TOOLS = { build_notebook: 'notebook', display_chart: 'chart', save_to_vault: 'sql' };
     const processedArtifactsRef = useRef(new Set());
 
-    // Pre-populate on mount/conversation switch so remount doesn't re-open existing notebooks
+    // Seed the processed set on conversation switch so already-persisted artifacts
+    // are never re-POSTed (and notebooks aren't re-opened) after a reload.
     useEffect(() => {
-        if (messages.length === 0) return;
+        const seen = new Set();
         for (const msg of messages) {
             if (msg.role !== 'assistant' || !msg.toolCalls) continue;
             for (const tc of msg.toolCalls) {
-                if (tc.toolName === 'build_notebook' && tc.result && !tc.result.error) {
-                    processedArtifactsRef.current.add(`notebook:${tc.result.path || tc.result.fileName}`);
+                if (ARTIFACT_TOOLS[tc.toolName] && tc.result && !tc.result.error) {
+                    seen.add(`${tc.toolName}:${tc.toolCallId}`);
                 }
             }
         }
+        processedArtifactsRef.current = seen;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conversationId]);
 
+    // Post any new artifacts the agent just produced and tell the inventory panel
+    // to refresh (it otherwise only fetches on conversation switch — the reason a
+    // freshly-charted analysis showed "0 artifacts" until reopened).
     useEffect(() => {
         if (!conversationId || messages.length === 0) return;
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg.role !== 'assistant' || !lastMsg.toolCalls) return;
+        let anyPosted = false;
 
-        for (const tc of lastMsg.toolCalls) {
-            if (tc.toolName === 'build_notebook' && tc.result && !tc.result.error) {
-                const artifactKey = `notebook:${tc.result.path || tc.result.fileName}`;
-                const isNew = !processedArtifactsRef.current.has(artifactKey);
-                processedArtifactsRef.current.add(artifactKey);
+        for (const msg of messages) {
+            if (msg.role !== 'assistant' || !msg.toolCalls) continue;
+            for (const tc of msg.toolCalls) {
+                const type = ARTIFACT_TOOLS[tc.toolName];
+                if (!type || !tc.result || tc.result.error) continue;
+                const key = `${tc.toolName}:${tc.toolCallId}`;
+                if (processedArtifactsRef.current.has(key)) continue;
+                processedArtifactsRef.current.add(key);
+                anyPosted = true;
 
-                if (isNew) {
-                    (async () => {
-                        try {
-                            await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    type: 'notebook',
-                                    name: tc.result.fileName || tc.result.name || 'Analysis Notebook',
-                                    data: tc.result,
-                                }),
-                            });
-                        } catch (err) {
-                            console.error('Failed to auto-create notebook artifact:', err);
-                        }
-                    })();
-                    // Refresh FileExplorer and auto-open only on first detection
-                    window.dispatchEvent(new Event('amox_files_changed'));
-                    if (onOpenFile && tc.result.path) {
-                        onOpenFile(tc.result.path);
+                const name =
+                    tc.toolName === 'build_notebook' ? (tc.result.fileName || tc.result.name || 'Analysis Notebook')
+                    : tc.toolName === 'display_chart' ? (tc.result?.chartConfig?.title || tc.args?.title || 'Chart')
+                    : (tc.result?.title || 'Vault Entry');
+
+                (async () => {
+                    try {
+                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type, name, data: tc.result }),
+                        });
+                        // Nudge the inventory panel to refetch its artifact list.
+                        window.dispatchEvent(new Event('amox_artifacts_changed'));
+                    } catch (err) {
+                        console.error('Failed to auto-create artifact:', err);
                     }
+                })();
+
+                // Notebooks: refresh the file tree and open the file on first creation.
+                if (tc.toolName === 'build_notebook') {
+                    window.dispatchEvent(new Event('amox_files_changed'));
+                    if (onOpenFile && tc.result.path) onOpenFile(tc.result.path);
                 }
             }
-
-            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
-                (async () => {
-                    try {
-                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                type: 'chart',
-                                name: tc.result?.chartConfig?.title || tc.args?.title || 'Chart',
-                                data: tc.result,
-                            }),
-                        });
-                    } catch (err) {
-                        console.error('Failed to auto-create chart artifact:', err);
-                    }
-                })();
-            }
-
-            if (tc.toolName === 'save_to_vault' && tc.result && !tc.result.error) {
-                (async () => {
-                    try {
-                        await fetch(`${API}/api/ai/sessions/${conversationId}/artifacts`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                type: 'sql',
-                                name: tc.result?.title || 'Vault Entry',
-                                data: tc.result,
-                            }),
-                        });
-                    } catch (err) {
-                        console.error('Failed to auto-create vault artifact:', err);
-                    }
-                })();
-            }
         }
+
+        // A no-op read of anyPosted keeps the intent explicit for future edits.
+        void anyPosted;
     }, [messages, conversationId, onOpenFile]);
 
     // ─── Empty state (no conversation yet) ───
@@ -605,7 +605,7 @@ const AiDivingPanel = ({
                                         <DeepDiveTranscript
                                             turns={turns}
                                             selectedTurnId={selectedTurnId}
-                                            onSelect={setSelectedTurnId}
+                                            onSelect={setPinnedTurnId}
                                             onFollowUp={sendFollowUp}
                                             onAskAbout={handleAskAbout}
                                             isGenerating={isGenerating}
@@ -719,23 +719,63 @@ const AiDivingPanel = ({
                         </div>
                     )}
 
-                    {/* Continue banner — shown when loop exhausts without final_answer */}
+                    {/* Continue banner — loop exhausted without final_answer, or a
+                        paused plan was reopened. Offers focus/continue/finish/cancel. */}
                     {pendingContinue && (
                         <div className="ai-ask-user-banner ai-continue-banner">
                             <p className="ai-ask-user-question">
-                                El análisis necesita más iteraciones para completarse.
+                                {pendingContinue.resumed
+                                    ? 'Este análisis quedó pausado sin terminar.'
+                                    : 'El análisis necesita más iteraciones para completarse.'}
                                 {pendingContinue.pendingSteps > 0 && ` Quedan ${pendingContinue.pendingSteps} paso(s) pendientes.`}
                             </p>
+
+                            {showContinueInput && (
+                                <textarea
+                                    className="ai-continue-instr"
+                                    placeholder="Instrucciones para continuar (opcional): p.ej. «solo termina s6, ignora el resto»"
+                                    value={continueInstr}
+                                    onChange={e => setContinueInstr(e.target.value)}
+                                    rows={2}
+                                    autoFocus
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                            handleContinue(continueInstr);
+                                            setContinueInstr(''); setShowContinueInput(false);
+                                        }
+                                    }}
+                                />
+                            )}
+
                             <div className="ai-ask-user-options">
                                 <button
                                     className="ai-ask-user-option ai-continue-btn"
-                                    onClick={handleContinue}
+                                    onClick={() => {
+                                        handleContinue(showContinueInput ? continueInstr : undefined);
+                                        setContinueInstr(''); setShowContinueInput(false);
+                                    }}
                                 >
-                                    Continuar
+                                    {showContinueInput && continueInstr.trim() ? 'Continuar con esto' : 'Continuar'}
+                                </button>
+                                {!showContinueInput && (
+                                    <button
+                                        className="ai-ask-user-option ai-continue-btn--ghost"
+                                        onClick={() => setShowContinueInput(true)}
+                                        title="Dirigir cómo continúa el análisis"
+                                    >
+                                        Con instrucciones…
+                                    </button>
+                                )}
+                                <button
+                                    className="ai-ask-user-option ai-continue-btn--ghost"
+                                    onClick={() => { handleFinalizeNow(); setContinueInstr(''); setShowContinueInput(false); }}
+                                    title="Sintetiza lo que ya tiene, sin correr más pasos"
+                                >
+                                    Finalizar con lo que hay
                                 </button>
                                 <button
                                     className="ai-ask-user-option ai-continue-btn--cancel"
-                                    onClick={handleDeclineContinue}
+                                    onClick={() => { handleDeclineContinue(); setContinueInstr(''); setShowContinueInput(false); }}
                                 >
                                     Cancelar
                                 </button>

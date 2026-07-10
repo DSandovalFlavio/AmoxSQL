@@ -5497,6 +5497,13 @@ tr:hover .rt-td {
   gap: var(--space-3);
 }
 
+.ai-chart-titleblock {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .ai-chart-title {
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
@@ -5506,6 +5513,34 @@ tr:hover .rt-td {
   text-overflow: ellipsis;
   letter-spacing: var(--tracking-tight);
   min-width: 0;
+}
+
+.ai-chart-subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The chart's one-sentence conclusion — accent-bordered caption under the plot */
+.ai-chart-takeaway {
+  margin: 0;
+  padding: 8px var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.45;
+  border-left: 3px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 7%, transparent);
+}
+
+.ai-chart-footnote {
+  margin: 0;
+  padding: 4px var(--space-4);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .ai-chart-area {
@@ -5776,8 +5811,14 @@ tr:hover .rt-td {
 .ddt-chip-hint, .ddt-chip-inspecting { font-size: var(--text-mini); margin-left: auto; }
 .ddt-chip-hint { color: var(--text-muted); }
 .ddt-chip-inspecting { color: var(--accent-primary); }
-.ddt-ai-prose { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.55; }
-.ddt-ai-prose p { margin: 0 0 4px; }
+.ddt-ai-prose { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.6; }
+/* Real air between paragraphs so the narration reads as connected chapters,
+   not a run-on wall — the narrative arc (opening → steps → closing) needs breath. */
+.ddt-ai-prose p { margin: 0 0 10px; }
+.ddt-ai-prose p:last-child { margin-bottom: 0; }
+.ddt-ai-prose > :first-child { margin-top: 0; }
+.ddt-ai-prose ul, .ddt-ai-prose ol { margin: 4px 0 10px; padding-left: 18px; }
+.ddt-ai-prose li { margin: 2px 0; }
 .ddt-ai-working { font-size: var(--text-sm); color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
 .ddt-chip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .ddt-chip-item { display: inline-flex; align-items: center; gap: 3px; font-size: var(--text-mini); color: var(--text-tertiary); }
@@ -6602,6 +6643,12 @@ tr:hover .rt-td {
   color: var(--text-muted);
 }
 
+.ai-plan-badge--paused {
+  color: var(--color-warning, #f59e0b);
+  border-color: color-mix(in oklch, var(--color-warning, #f59e0b) 40%, transparent);
+  background: color-mix(in oklch, var(--color-warning, #f59e0b) 12%, transparent);
+}
+
 .ai-plan-chevron {
   flex-shrink: 0;
   color: var(--text-muted);
@@ -6672,13 +6719,15 @@ tr:hover .rt-td {
   align-items: center;
 }
 
-.ai-plan-step--done    .ai-plan-step-icon { color: var(--color-success); }
-.ai-plan-step--failed  .ai-plan-step-icon { color: var(--color-error); }
-.ai-plan-step--skipped .ai-plan-step-icon { color: var(--text-muted); }
-.ai-plan-step--pending .ai-plan-step-icon { color: var(--border-subtle); }
-.ai-plan-step--running .ai-plan-step-icon { color: var(--accent-primary); }
+.ai-plan-step--done        .ai-plan-step-icon { color: var(--color-success); }
+.ai-plan-step--failed      .ai-plan-step-icon { color: var(--color-error); }
+.ai-plan-step--skipped     .ai-plan-step-icon { color: var(--text-muted); }
+.ai-plan-step--interrupted .ai-plan-step-icon { color: var(--color-warning, #f59e0b); }
+.ai-plan-step--pending     .ai-plan-step-icon { color: var(--border-subtle); }
+.ai-plan-step--running     .ai-plan-step-icon { color: var(--accent-primary); }
 
-.ai-plan-step--done    { color: var(--text-secondary); }
+.ai-plan-step--done        { color: var(--text-secondary); }
+.ai-plan-step--interrupted { color: var(--text-secondary); }
 .ai-plan-step--running { color: var(--text-primary); font-weight: var(--weight-medium); }
 
 .ai-plan-step--running .ai-plan-step-icon svg,
@@ -6834,19 +6883,60 @@ tr:hover .rt-td {
 
 .ai-narrative-finding {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 3px;
   padding: 4px 8px;
   background: var(--hover-bg);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
 }
 
+/* Top row of a finding: the point + its metric/actions */
+.ai-narrative-finding-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .ai-narrative-finding-point {
   color: var(--text-secondary);
   flex: 1;
   line-height: 1.4;
+}
+
+/* Inline citation — a number linked to its source query. Uses the selected
+   accent color so it reads as an interactive, source-backed figure, with a
+   subtle dotted underline that strengthens on hover. Used in both Assistant and
+   Deep Dive prose. */
+.ai-cite-link {
+  font: inherit;
+  color: var(--accent-primary);
+  font-weight: var(--weight-semibold);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.ai-cite-link:hover {
+  border-bottom-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-radius: 3px;
+}
+
+/* The "so what" — why this finding deserves attention */
+.ai-narrative-finding-sowhat {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  color: var(--text-muted);
+  line-height: 1.45;
+  font-style: italic;
 }
 
 .ai-narrative-finding-value {
@@ -7123,11 +7213,31 @@ tr:hover .rt-td {
 
 .ai-continue-banner .ai-ask-user-options {
   flex-direction: row;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
+.ai-continue-instr {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0 2px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.ai-continue-instr:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
 .ai-continue-btn {
-  flex: 1;
+  flex: 1 1 auto;
   text-align: center;
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   border-color: var(--accent-primary);
@@ -7139,8 +7249,14 @@ tr:hover .rt-td {
   background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
 }
 
+.ai-continue-btn--ghost {
+  flex: 0 1 auto;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
 .ai-continue-btn--cancel {
-  flex: 1;
+  flex: 0 1 auto;
   text-align: center;
   color: var(--text-muted);
 }

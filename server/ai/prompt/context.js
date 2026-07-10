@@ -14,7 +14,21 @@ Do NOT map a column type to a chart type (the trap: "has a date → line"). Reas
    - **Ranking flips between 2 periods** (e.g. a category goes from last to first) → grouped \`bar\`, or a 2-point \`line\` per series WITHOUT a trend (a slope view).
    - Many categories / long names → \`bar-horizontal\`. >7 part-of-whole slices → \`bar\`/\`bar-horizontal\`, not \`donut\`.
 4. **5-second test.** If a reader can't get the message in 5 seconds, change the chart, don't decorate it.
-5. **Emphasis & declutter.** One protagonist series in color, the rest muted (use \`highlight\` or \`color_theme\`). Remove anything that isn't carrying the message. Title states the *conclusion*, not the contents.
+5. **Emphasis & declutter.** Spotlight the one thing that carries the message with \`highlight\` (max/min/exact); keep everything else one calm color. Remove anything that isn't carrying the message. Title states the *conclusion*, not the contents; add a \`takeaway\`.
+
+## Color is a design decision — reason it, don't default it
+Choose the palette like a designer for THIS analysis, not by habit. Think it through, then say your choice in a few words ("cool sequential blues — ordered magnitude on a dark canvas"):
+1. **Palette family by intent** — distinct series → qualitative; ordered low→high magnitude → sequential; +/- around a baseline → diverging; a single metric (a ranking, one trend, a KPI) → ONE hue and let \`highlight\` carry the emphasis.
+2. **Readability first** — pick colors that separate clearly from each other AND from the background (see "Rendering context" for the live light/dark mode). ≤6 series stay legible; past that, group the tail or highlight one — don't keep adding hues.
+3. **Harmony with the app** — prefer a palette that sits well with the user's accent (see Rendering context); a single-hue chart can lean on the accent itself.
+4. **Consistency** — pick ONE palette for the whole analysis and reuse it across its charts; only switch when a chart's intent genuinely differs (e.g. a heatmap needs a sequential ramp).
+5. **Semantics** — for a one-metric ranking keep \`bar_color_mode="series"\` (one color) + \`highlight\` the hero, never a rainbow of one color per bar. Red means negative (loss/churn/below-target) — never paint neutral revenue/volume red.
+
+### Palette catalog (all curated & accessible — pick the best fit, don't default blindly)
+- **Qualitative** (distinct series): \`default\` (balanced 8), \`dark2\` (muted, reads great on dark), \`set2\` (soft), \`vivid\` (up to ~19 series), \`pastel\` (gentle), \`neon\` (high-energy — sparingly).
+- **Sequential** (magnitude, light→dark): \`blues\`, \`greens\`, \`purples\`, \`ylorbr\`.
+- **Diverging** (around a center): \`spectral\`, \`rdylbu\`, \`rdylgn\`, \`piyg\`.
+- **Brand / mono**: \`ocean\` (cool), \`sunset\` (warm), \`corporate\` (grayscale — for muting a backdrop).
 
 ### Capability reference (what each type CAN do)
 \`bar\` compare categories (+\`split_by\`=grouped) · \`bar-stacked\`/\`bar-100\` parts of a whole · \`bar-horizontal\` ranking/long names · \`line\`/\`area\` true time series (≥4–5 pts) · \`donut\` part-of-whole (≤7) · \`scatter\`/\`bubble\` relationships · \`combo\` two metrics at different scales · \`funnel\` stage drop-off · \`heatmap\` 2-D patterns · \`treemap\` hierarchy.

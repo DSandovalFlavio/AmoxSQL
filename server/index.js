@@ -2126,7 +2126,7 @@ async function expandReferencedArtifacts(refs) {
 }
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, referencedArtifacts } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2172,13 +2172,18 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
+            uiTheme: uiTheme || null,
             conversationId: conversationId || null,
             planStepOverrides: Array.isArray(planStepOverrides) ? planStepOverrides : [],
             // continueMode: user clicked "Continue" after loop exhaustion — grant extra
             // iterations AND resume the persisted plan (the client sends content-only
             // messages, so the loop can't reconstruct the plan from history).
+            // continueBudget lets the client request a smaller fresh budget — e.g.
+            // "Finish now" sends 1 so the wrap-up turn forces synthesis immediately.
             continueMode: !!continueMode,
-            maxIterations: continueMode ? 30 : undefined,
+            maxIterations: continueMode
+                ? Math.max(1, Math.min(50, Number(continueBudget) || 30))
+                : undefined,
         };
 
         // Detect model tier to choose between tool-loop and prompt-only

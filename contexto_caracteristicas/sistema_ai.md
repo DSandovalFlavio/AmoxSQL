@@ -27,7 +27,7 @@ AiSidebar (React) ──SSE──> /api/ai/chat/stream (Express)
 | `client/src/components/ai/ChatMessage.jsx` | Renderizado de mensajes (markdown, thinking) |
 | `client/src/components/ai/ToolCallBlock.jsx` (111 lineas) | Bloques colapsables de tool calls |
 | `server/index.js` (lineas 755-1289) | Endpoints /api/ai/* |
-| `server/AiManager.js` (600+ lineas) | Orquestacion: chat, stream, prompt-only |
+| `server/AiManager.js` (600+ lineas) | Orquestacion: chat, stream, prompt-only. **MiniMax M-series**: se crea con `createOpenAI` (endpoint OpenAI-compatible) + un `fetch` wrapper que inyecta `thinking:{type:'adaptive'}` en cada request → razonamiento avanzado SIEMPRE activo. `reasoning_split` se deja sin fijar → el razonamiento llega como `<think>…</think>` en el content, que el render ya parsea. |
 | `server/ai/tools.js` (443 lineas) | Definiciones de tools con Zod schemas |
 | `server/ai/systemPrompt.js` (338 lineas) | Builder de system prompt dinamico |
 | `server/ai/persistence.js` | Persistencia en DuckDB (amoxsql_ai schema) |
@@ -350,6 +350,35 @@ Use list_tables to verify exact table names, then fix and retry.
 
 ---
 
+## Presupuesto de iteraciones y cierre garantizado (ciclo de vida)
+
+El loop agentic (`server/ai/agenticLoop.js`) mide su trabajo en **iteraciones** (cada una permite hasta `ITER_MAX_STEPS = 10` tool calls). Constantes clave:
+
+```javascript
+const MAX_LOOP_ITERATIONS     = 50;  // techo absoluto (working + wrap-up)
+const DEFAULT_LOOP_ITERATIONS = 25;  // presupuesto antes de que un plan lo dimensione
+const WRAP_UP_RESERVE         = 1;   // turno final reservado para síntesis forzada
+```
+
+**Presupuesto dinámico.** Al crearse un plan, `create_plan` (`tools_planner.js`) calcula `dynamicMaxIterations = min(50, max(25, pasos × 5))` y el loop redimensiona `effectiveMaxIterations` a ese valor (capado bajo `MAX_LOOP_ITERATIONS - WRAP_UP_RESERVE`). Un plan de 7 pasos obtiene 35 iteraciones; uno de 10+ llega al techo de 50.
+
+**Countdown escalonado.** `buildContinuationPrompt` inyecta el estado del presupuesto en cada turno (`Iteration X/Y — Z left`) y escala la urgencia al 50%, al 25% y en las últimas 3 iteraciones — el modelo converge en vez de quedarse sin ciclos en frío.
+
+**Turno de wrap-up garantizado.** Si se agota el presupuesto de trabajo sin `final_answer`, el loop corre **una iteración reservada** con `buildWrapUpPrompt`: fuerza al modelo a sintetizar y llamar `final_answer` (prohibiéndole otras tools). Si aun así no finaliza:
+- Los pasos que quedaron `in_progress`/`running` se re-estatusan a **`interrupted`** y se emite un `plan-progress` final veraz (el panel deja de mostrar spinners eternos; el badge pasa a `Paused`).
+- Si tampoco hubo prosa, `buildFallbackSummary` emite un resumen parcial construido desde las notas de los pasos, para que el chat nunca quede vacío.
+- Se emite `ask-continue` y el plan se persiste como `paused` (con el snapshot de pasos).
+
+**Sweep de `final_answer`.** Al finalizar normalmente, `final_answer` barre los pasos `pending`/`running`/**`in_progress`** → `done`. (El caso `in_progress` faltaba y era la causa de que el último paso nunca se marcara completo.)
+
+**Prosa primero (red de seguridad).** El loop acumula `fullRunText`; al llamar `final_answer`, si la prosa visible (con `<think>` quitado por `stripThinkText`) es < 220 chars pese a haber output estructurado, des-suprime y streamea el `summary` como texto — el chat nunca queda con una tarjeta pelada. El prompt (Step 5) exige narrar 2-4 frases antes de `final_answer`.
+
+**Continuación.** Al agotar ciclos se emite `ask-continue` y el plan se persiste `paused`. La UI ofrece: **Continuar** (presupuesto fresco de 30), **Con instrucciones…** (el texto viaja como turno de usuario → continue con foco), **Finalizar con lo que hay** (`continueBudget: 1` en el body → el wrap-up fuerza la síntesis), **Cancelar**. Al reabrir una conversación cuyo plan quedó incompleto, el cliente lo detecta (sin `final_answer` + pasos pendientes), lo marca `paused` y re-ofrece continuar.
+
+Auditoría y plan: [deep_dive_ciclo_vida.md](../docs/dev/deep_dive_ciclo_vida.md), [plan_deep_dive_ciclo_vida.md](../docs/dev/plan_deep_dive_ciclo_vida.md).
+
+---
+
 ## Plan Visible y Editable (Fase 1)
 
 Los planes del AI se pueden editar en la UI antes de ejecutarse.
@@ -469,17 +498,21 @@ final_answer: tool({
   parameters: z.object({
     tldr:              z.string().optional(),       // 1-2 oraciones: el takeaway principal
     findings:          z.array(z.object({
-      point: z.string(),                            // observación
-      value: z.string().optional()                  // métrica de soporte ("+ 41%", "$50k")
+      point:   z.string(),                          // observación
+      value:   z.string().optional(),               // métrica de soporte ("+ 41%", "$50k")
+      so_what: z.string().optional(),               // POR QUÉ importa / qué implica — sin esto es solo un dato
+      source_query_id: z.string().optional()        // queryId de la execute_sql que lo produjo
     })).optional(),
     likely_cause:      z.string().optional(),       // el "por qué" del hallazgo principal
-    suggested_actions: z.array(z.string()).optional(), // 2-3 acciones concretas
+    suggested_actions: z.array(z.string()).optional(), // acciones concretas, cada una con su razón
     caveats:           z.array(z.string()).optional(), // limitaciones de datos, supuestos
     followup_questions: z.array(z.string()).optional(),
-    summary:           z.string().optional()        // legacy — se auto-construye si hay campos estructurados
+    summary:           z.string().optional()        // narrativa de cierre en prosa — SIEMPRE incluirla (es la respuesta; los campos son el recap)
   })
 })
 ```
+
+**Voz narrativa (auditoría narrativa 2026-07).** El agente narra un arco: OPENING (con create_plan, la hipótesis), PER-STEP (hallazgo + por qué importa + qué cambia, narrado en el chat antes de marcar done), PIVOTS, y CLOSING (2-4 párrafos). El lever es `buildContinuationPrompt` (`agenticLoop.js`) — el único mensaje que el modelo lee cada turno — que ahora exige el ciclo narrar→ejecutar→narrar y lleva un "story so far" (los `note` de los pasos done). El `resolvedSummary` de respaldo construye prosa, no bullets. Ver [deep_dive_narrativa.md](../docs/dev/deep_dive_narrativa.md).
 
 ### Renderizado (ChatMessage.jsx — NarrativeCard)
 
@@ -503,6 +536,8 @@ final_answer: tool({
 ```
 
 **Lógica de detección:** Si `toolResult.tldr || toolResult.findings?.length`, se suprime el streaming del summary y se renderiza NarrativeCard. Los mensajes con solo `summary` siguen renderizando como markdown.
+
+**Expandida por defecto:** la NarrativeCard abre `detailsOpen`/`causeOpen` en `true` — los findings, el "Why?" y los caveats se ven sin clicks. Colapsarlos tras "Show summary" hacía que las respuestas de Deep Dive parecieran vacías (el usuario solo veía el `tldr`).
 
 ---
 

@@ -162,13 +162,17 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             goalLine:        cc.goalLine      || { enabled: false, value: '', label: '', color: '#22c55e', style: 'dashed' },
             refLine:         cc.refLine       || { value: '', label: '', color: '#ff4444', style: 'dashed' },
             refArea:         { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 },
-            highlightConfig: cc.highlightConfig || { type: 'none', value: '', color: '#ff4444' },
+            highlightConfig: cc.highlightConfig || { type: 'none', value: '', color: 'var(--accent-primary)' },
 
             // ── Headline KPI ──────────────────────────────────────────────────────
             headline: cc.headline || { visible: false, metric: 'total', compareWith: 'none', size: 'auto' },
 
             // ── Series colors ─────────────────────────────────────────────────────
             seriesConfig: {},
+
+            // ── Storytelling layer (AI can set these) ─────────────────────────────
+            annotations:  cc.annotations  || [],
+            takeaway:     cc.takeaway     || '',
         };
     }, [chartConfig]);
 
@@ -237,9 +241,14 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         <div id={chartDOMId} className="ai-chart">
             {/* Header */}
             <div className="ai-chart-header">
-                <span className="ai-chart-title">
-                    {chartConfig.title || 'Data Visualization'}
-                </span>
+                <div className="ai-chart-titleblock">
+                    <span className="ai-chart-title">
+                        {chartConfig.title || 'Data Visualization'}
+                    </span>
+                    {fullConfig.chartSubtitle && (
+                        <span className="ai-chart-subtitle">{fullConfig.chartSubtitle}</span>
+                    )}
+                </div>
                 <button
                     className="ai-chart-btn"
                     onClick={handleToggleFullscreen}
@@ -263,6 +272,14 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     />
                 </ChartErrorBoundary>
             </div>
+
+            {/* Takeaway — the chart's one-sentence conclusion */}
+            {fullConfig.takeaway && (
+                <p className="ai-chart-takeaway">{fullConfig.takeaway}</p>
+            )}
+            {fullConfig.chartFootnote && (
+                <p className="ai-chart-footnote">{fullConfig.chartFootnote}</p>
+            )}
 
             {/* Footer / Actions */}
             <div className="ai-chart-footer">

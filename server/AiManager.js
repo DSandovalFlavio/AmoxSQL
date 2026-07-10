@@ -214,6 +214,22 @@ class AiManager {
                 apiKey: config.minimaxApiKey || process.env.MINIMAX_API_KEY,
                 baseURL: 'https://api.minimax.io/v1',
                 compatibility: 'compatible',
+                // MiniMax M-series advanced reasoning, ALWAYS ON. On the
+                // OpenAI-compatible endpoint thinking.type ∈ {adaptive, disabled}
+                // ("enabled" only exists on their Anthropic endpoint); "adaptive"
+                // explicitly keeps thinking on. reasoning_split is left unset so the
+                // reasoning streams inside content as <think>…</think>, which the chat
+                // rendering already parses (transcript strips it; inspector shows it).
+                fetch: async (url, options) => {
+                    if (options?.body) {
+                        try {
+                            const body = JSON.parse(options.body);
+                            if (!body.thinking) body.thinking = { type: 'adaptive' };
+                            options = { ...options, body: JSON.stringify(body) };
+                        } catch { /* non-JSON body — send unchanged */ }
+                    }
+                    return fetch(url, options);
+                },
             });
             return minimax.chat(modelName || 'MiniMax-M2.7');
         } else {

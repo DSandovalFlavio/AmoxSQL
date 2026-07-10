@@ -38,9 +38,11 @@ function createPlannerTools({ activePlan, aiPersistence, dbManager, conversation
                 activePlan.id = planId;
                 activePlan.goal = goal;
                 activePlan.steps = steps.map(s => ({ ...s, status: 'pending' }));
-                // Dynamic iteration budget: 3 iterations per step, clamped to [15, 50].
-                // Capa 4 will enforce an absolute hardcap of 25 in the loop itself.
-                activePlan.dynamicMaxIterations = Math.min(50, Math.max(15, activePlan.steps.length * 3));
+                // Dynamic iteration budget: ~5 iterations per step, clamped to [25, 50].
+                // The agenticLoop reads this to size effectiveMaxIterations (see the
+                // create_plan handler there). The loop enforces MAX_LOOP_ITERATIONS (50)
+                // as the absolute hard ceiling.
+                activePlan.dynamicMaxIterations = Math.min(50, Math.max(25, activePlan.steps.length * 5));
 
                 if (aiPersistence && conversationId) {
                     aiPersistence.savePlan(dbManager, {

@@ -20,9 +20,12 @@ ${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
   - **bar-horizontal key rule**: x_axis_key = CATEGORY column (products, regions — appears LEFT); y_axis_keys = VALUE column(s) (revenue, count — appears BOTTOM). Never swap them. x_axis_label labels the LEFT axis; y_axis_label labels the BOTTOM axis.
   - Axes: x_axis_label, y_axis_label (always set with units), x_axis_angle (45 for dates), date_aggregation (month/quarter/year)
   - Data: sort_mode, limit (top-N ranking), split_by (breakdown by dimension), cumulative (running total)
-  - Style: color_theme, show_data_labels (for ranked bars), legend_position, grid_mode, number_format
+  - Style: color_theme (pick by intent — see "Color with intent"), show_data_labels (for ranked bars), legend_position, grid_mode, number_format
   - Line: line_type (monotone/step), show_dots
-  - Bar: bar_color_mode (dimension = one color per category), bar_radius
+  - Bar: bar_color_mode (series=ONE color, the default and right choice for a ranking; dimension=one color per category, ONLY for ≤5 truly distinct categories; intensity=fade by magnitude), bar_radius
+  - **Storytelling layer** (make the chart argue your point — set these on every important chart):
+    - takeaway: "one-sentence conclusion shown under the chart" — the message, not the metric
+    - annotations: [{type:"text"|"box", x, y?, x2?, y2?, text, color?}] — callout on the exact point that carries the finding (max 3)
   - **Overlays** (use these to tell the story visually):
     - trend_line: {type: "linear"|"moving-average", window_size?, color?} — reveals direction on time series
     - goal_line: {value, label, color?, style?} — shows progress toward a target
@@ -34,8 +37,7 @@ ${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
 - **build_notebook**: Create a professional analytical notebook (.sqlnb) — diving mode only
 - **validate_sql**: Validate SQL without executing it; detailed=true returns the full execution plan
 ${mode === 'assistant' ? `- **write_file**: Update the active SQL file or notebook in the editor (mode='overwrite'); or write/append to disk (mode='create'/'append')
-` : ''}- **chart_storyteller**: Compute story (headline, KPI delta, key insights) from query data — NO LLM, pure stats. Call immediately after display_chart.
-${mode === 'diving' ? `- **final_answer**: Signal analysis complete with structured summary — call LAST
+` : ''}${mode === 'diving' ? `- **final_answer**: Signal analysis complete with structured summary — call LAST
 - **ask_user**: Pause to ask a clarifying question when you genuinely cannot continue` : `- **suggest_followups**: Suggest follow-up questions — call this last`}`;
 
     const rules = `## Tool Usage Rules
@@ -47,15 +49,16 @@ ${mode === 'diving' ? `- **final_answer**: Signal analysis complete with structu
 4. **Schema first**: Call \`list_tables\` or \`describe_table\` before writing queries when column names are uncertain.
 5. **EDA first**: For any unknown table, run \`profile_data\` — it replaces 5–10 manual queries.
 6. **Retry on error**: If a query fails, read the error hint and fix it. For "already exists" use \`CREATE OR REPLACE\`.
-7. **Visualize → Story → Interpret** (mandatory sequence for aggregations/trends/comparisons):
+7. **Visualize → Interpret** (mandatory for aggregations/trends/comparisons):
    1. Call \`display_chart\` — design the chart like a data journalist:
       - Always set \`x_axis_label\`/\`y_axis_label\` (never leave raw column names). Add \`subtitle\` with the key insight and \`footnote\` with the data source.
+      - Choose the palette by REASONING (see "Color is a design decision" + "Rendering context"): fit the intent, read on the current light/dark canvas, harmonize with the accent, one palette per analysis.
       - Dates: \`x_axis_angle="45"\` + \`date_aggregation\` (month for 1-3 yr, quarter for 3+ yr).
       - Use overlays to tell the story: \`trend_line\` on time series; \`ref_line\` for mean/median; \`goal_line\` for targets; \`highlight:{type:"max"}\` to mark the peak; \`headline_kpi\` to anchor the total.
-      - For ranking bars: \`sort_mode="y-desc"\`, \`limit=10\`, \`bar_color_mode="dimension"\`, \`show_data_labels=true\`.
+      - For ranking bars (ONE metric): \`sort_mode="y-desc"\`, \`limit=10\`, \`show_data_labels=true\`, keep \`bar_color_mode="series"\` (ONE color for all bars) — then \`highlight:{type:"max"}\` or \`{type:"exact", value:"<hero>"}\` to make the leader pop. Do NOT use \`bar_color_mode="dimension"\` on a ranking — a rainbow of one color per bar hides the message.
       - For breakdowns: \`split_by\` to pivot by region/segment/category.
-   2. Call \`chart_storyteller\` immediately after — use the same \`query_id\`.
-   3. Write markdown interpretation: visual pattern, 2-3 takeaways with specific numbers, analytical implication.
+      - Tell the chart's conclusion with \`takeaway\` (one line under the chart) and mark the key point with an \`annotations\` callout — set both on \`display_chart\` itself.
+   2. Write markdown interpretation: visual pattern, 2-3 takeaways with specific numbers, analytical implication.
 8. **Timeout**: SQL queries have a 30-second limit. Use LIMIT, WHERE, or \`USING SAMPLE 10%\` for large tables.
 9. **Never describe without doing**: You MUST call tools immediately — never respond with a plan description without calling \`create_plan\` first.
 10. **Correlations via SQL**: Use DuckDB's native \`CORR(col_a, target)\` instead of a separate tool.

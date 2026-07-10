@@ -8,16 +8,17 @@
 
 import React, { useState } from 'react';
 import {
-    LuCircleCheck, LuCircleX, LuCircleMinus, LuCircle,
+    LuCircleCheck, LuCircleX, LuCircleMinus, LuCircle, LuCirclePause,
     LuLoader, LuChevronDown, LuChevronRight, LuBrain, LuSkipForward,
 } from 'react-icons/lu';
 
 const STATUS_ICON = {
-    done:    { Icon: LuCircleCheck,  cls: 'ai-plan-step--done'    },
-    failed:  { Icon: LuCircleX,      cls: 'ai-plan-step--failed'  },
-    skipped: { Icon: LuCircleMinus,  cls: 'ai-plan-step--skipped' },
-    pending: { Icon: LuCircle,       cls: 'ai-plan-step--pending' },
-    running: { Icon: LuLoader,       cls: 'ai-plan-step--running ai-plan-step-icon--spin' },
+    done:        { Icon: LuCircleCheck,  cls: 'ai-plan-step--done'        },
+    failed:      { Icon: LuCircleX,      cls: 'ai-plan-step--failed'      },
+    skipped:     { Icon: LuCircleMinus,  cls: 'ai-plan-step--skipped'     },
+    interrupted: { Icon: LuCirclePause,  cls: 'ai-plan-step--interrupted' },
+    pending:     { Icon: LuCircle,       cls: 'ai-plan-step--pending'     },
+    running:     { Icon: LuLoader,       cls: 'ai-plan-step--running ai-plan-step-icon--spin' },
 };
 
 /**
@@ -46,6 +47,7 @@ export default function AgentPlanPanel({
     ).length;
     const total = steps.length;
     const pct   = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+    const isPaused = status === 'paused';
 
     // Determine which step is "running": an explicitly in_progress step takes
     // precedence; otherwise the first pending (non-user-skipped) one while generating.
@@ -70,8 +72,12 @@ export default function AgentPlanPanel({
                         editable
                     </span>
                 )}
-                <span className="ai-plan-badge">
-                    {status === 'completed' ? '✓ Done' : `${doneCount}/${total}`}
+                <span className={`ai-plan-badge${isPaused ? ' ai-plan-badge--paused' : ''}`}>
+                    {status === 'completed'
+                        ? '✓ Done'
+                        : isPaused
+                            ? `Paused · ${doneCount}/${total}`
+                            : `${doneCount}/${total}`}
                 </span>
 
                 {collapsed
@@ -106,9 +112,15 @@ export default function AgentPlanPanel({
                     <ul className="ai-plan-steps">
                         {steps.map((step, idx) => {
                             const isUserSkipped = userSkippedSteps.has(step.id);
+                            // A step only spins while the agent is actually generating.
+                            // Once stopped, an in_progress step was interrupted (out of
+                            // cycles / paused) — show a pause icon, not an eternal spinner.
+                            const isRunning = isGenerating && (idx === runningIdx || step.status === 'in_progress');
                             const effectiveStatus = isUserSkipped
                                 ? 'skipped'
-                                : (idx === runningIdx || step.status === 'in_progress') ? 'running' : (step.status || 'pending');
+                                : isRunning
+                                    ? 'running'
+                                    : (step.status === 'in_progress' ? 'interrupted' : (step.status || 'pending'));
                             const { Icon, cls } = STATUS_ICON[effectiveStatus] || STATUS_ICON.pending;
                             const canSkip = isEditable && onSkipStep && step.status === 'pending' && !isUserSkipped;
 
