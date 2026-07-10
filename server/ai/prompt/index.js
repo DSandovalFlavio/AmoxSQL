@@ -72,6 +72,7 @@ function buildDynamicSection(options) {
         filePath = null,
         fileType = null,
         modelProfile = null,
+        uiTheme = null,
     } = options;
     const tier = modelProfile?.tier || 'high';
 
@@ -91,6 +92,20 @@ function buildDynamicSection(options) {
         d += buildAssistantModeSection({ filePath, fileType, currentQuery, currentResult, currentChartConfig });
     } else {
         d += buildDivingModeSection(enablePlanner, tier);
+    }
+
+    // Live rendering context — the user's active theme, so chart palettes can
+    // harmonize with the accent and read on the current light/dark background.
+    if (uiTheme && (mode === 'diving' || mode === 'assistant')) {
+        const mode_ = uiTheme.mode === 'light' ? 'LIGHT' : 'DARK';
+        const parts = [
+            `The app is currently in **${mode_} mode**`,
+            uiTheme.theme ? `theme "${uiTheme.theme}"` : null,
+            uiTheme.accentColor ? `accent color \`${uiTheme.accentColor}\`` : (uiTheme.accent ? `accent "${uiTheme.accent}"` : null),
+        ].filter(Boolean).join(', ');
+        d += `\n\n## Rendering context (choose chart colors for THIS canvas)
+${parts}.
+When you design a chart's palette, make it read on a ${mode_.toLowerCase()} background and sit in harmony with the accent above (a single-hue/ranking chart may lean on the accent itself). Don't pick colors that vanish into a ${mode_.toLowerCase()} background or clash with the accent.`;
     }
 
     // Extensions

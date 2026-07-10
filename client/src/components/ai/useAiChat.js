@@ -457,6 +457,17 @@ export default function useAiChat({
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
             if (ctxContent) requestBody.currentQuery = ctxContent;
+            // Rendering context: let the agent choose chart palettes that harmonize
+            // with the user's active theme and read on the current light/dark mode.
+            try {
+                const cs = getComputedStyle(document.body);
+                requestBody.uiTheme = {
+                    mode: document.body.classList.contains('mode-light') ? 'light' : 'dark',
+                    theme: localStorage.getItem('amoxsql-theme') || 'dark',
+                    accent: localStorage.getItem('amoxsql-accent') || 'default',
+                    accentColor: cs.getPropertyValue('--accent-primary').trim() || null,
+                };
+            } catch { /* no DOM (SSR/test) — skip */ }
             if (currentSkippedSteps.size > 0) {
                 requestBody.planStepOverrides = Array.from(currentSkippedSteps).map(id => ({ stepId: id, status: 'skipped', note: 'skipped by user' }));
             }

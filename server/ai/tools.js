@@ -308,7 +308,12 @@ function createTools(context) {
                 cumulative: z.boolean().optional().describe('Show running total instead of individual values (line/area charts).'),
 
                 // ── Visual style ──────────────────────────────────────────────────
-                color_theme: z.enum(['default', 'vivid', 'neon', 'pastel', 'dark2', 'ocean', 'sunset', 'corporate', 'blues', 'greens', 'reds', 'spectral']).optional().describe('Color palette — choose by data role, not decoration. Qualitative (comparing distinct series): default, vivid, dark2, pastel, neon. Sequential (ordered magnitude, light→dark): blues, greens. Diverging (+/- around a center): spectral. reds/sunset: RESERVED for negative/alarm metrics only — never for neutral revenue/volume. corporate=grays. For a single-metric ranking DO NOT swap palettes per bar — keep one color and use highlight to spotlight the leader.'),
+                color_theme: z.enum([
+                    'default', 'vivid', 'dark2', 'set1', 'set2', 'pastel', 'neon',
+                    'blues', 'greens', 'purples', 'ylorbr', 'reds',
+                    'spectral', 'rdylbu', 'rdylgn', 'piyg',
+                    'ocean', 'sunset', 'corporate',
+                ]).optional().describe('Color palette — reason it by data role + theme + readability (see "Color is a design decision" and "Rendering context" in your instructions), do NOT default blindly. Qualitative (distinct series): default, dark2, set2, vivid, pastel, neon. Sequential (ordered magnitude, light→dark): blues, greens, purples, ylorbr. Diverging (+/- around a center): spectral, rdylbu, rdylgn, piyg. Brand/mono: ocean, sunset, corporate(grays). reds/sunset & red overlays: RESERVED for negative/alarm metrics only. For a single-metric ranking keep one color + highlight the leader, never one color per bar.'),
                 show_data_labels: z.boolean().optional().describe('Show value labels directly on bars/points. Good for ranked bar charts. Default: false.'),
                 legend_position: z.enum(['top', 'bottom', 'left', 'right', 'none']).optional().describe('Legend placement. none hides it. Default: top.'),
                 grid_mode: z.enum(['both', 'horizontal', 'vertical', 'none']).optional().describe('Grid lines. Default: horizontal.'),

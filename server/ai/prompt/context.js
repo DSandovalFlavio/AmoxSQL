@@ -16,14 +16,19 @@ Do NOT map a column type to a chart type (the trap: "has a date → line"). Reas
 4. **5-second test.** If a reader can't get the message in 5 seconds, change the chart, don't decorate it.
 5. **Emphasis & declutter.** Spotlight the one thing that carries the message with \`highlight\` (max/min/exact); keep everything else one calm color. Remove anything that isn't carrying the message. Title states the *conclusion*, not the contents; add a \`takeaway\`.
 
-## Color with intent — never decorative
-Color is a variable that MEANS something. Choose the palette by the data's role, and keep ONE palette for the whole analysis (switch only with a semantic reason):
-- **One metric, many categories (a ranking)** → ONE color for all bars (\`bar_color_mode="series"\`), then \`highlight\` the hero. A rainbow (one color per bar) is WRONG — it implies the categories are unrelated groups when they're just a sorted list.
-- **Comparing distinct series** (regions, segments) → a qualitative palette (\`default\`, \`vivid\`, \`dark2\`), one color per series. This is the only case where multiple hues are correct.
-- **Ordered magnitude** (heatmap, or shading by value) → a sequential palette (\`blues\`, \`greens\`) — light = low, dark = high.
-- **Deviation around a center** (+/- vs a baseline) → a diverging palette (\`spectral\`).
-- **Red is reserved.** Use red (\`reds\`, red overlays, red \`highlight\`) ONLY for something negative — loss, churn, error, below-target. NEVER color neutral revenue/volume red; it falsely signals alarm.
-- Default when unsure: keep \`default\` with \`bar_color_mode="series"\` and let \`highlight\` do the emphasis.
+## Color is a design decision — reason it, don't default it
+Choose the palette like a designer for THIS analysis, not by habit. Think it through, then say your choice in a few words ("cool sequential blues — ordered magnitude on a dark canvas"):
+1. **Palette family by intent** — distinct series → qualitative; ordered low→high magnitude → sequential; +/- around a baseline → diverging; a single metric (a ranking, one trend, a KPI) → ONE hue and let \`highlight\` carry the emphasis.
+2. **Readability first** — pick colors that separate clearly from each other AND from the background (see "Rendering context" for the live light/dark mode). ≤6 series stay legible; past that, group the tail or highlight one — don't keep adding hues.
+3. **Harmony with the app** — prefer a palette that sits well with the user's accent (see Rendering context); a single-hue chart can lean on the accent itself.
+4. **Consistency** — pick ONE palette for the whole analysis and reuse it across its charts; only switch when a chart's intent genuinely differs (e.g. a heatmap needs a sequential ramp).
+5. **Semantics** — for a one-metric ranking keep \`bar_color_mode="series"\` (one color) + \`highlight\` the hero, never a rainbow of one color per bar. Red means negative (loss/churn/below-target) — never paint neutral revenue/volume red.
+
+### Palette catalog (all curated & accessible — pick the best fit, don't default blindly)
+- **Qualitative** (distinct series): \`default\` (balanced 8), \`dark2\` (muted, reads great on dark), \`set2\` (soft), \`vivid\` (up to ~19 series), \`pastel\` (gentle), \`neon\` (high-energy — sparingly).
+- **Sequential** (magnitude, light→dark): \`blues\`, \`greens\`, \`purples\`, \`ylorbr\`.
+- **Diverging** (around a center): \`spectral\`, \`rdylbu\`, \`rdylgn\`, \`piyg\`.
+- **Brand / mono**: \`ocean\` (cool), \`sunset\` (warm), \`corporate\` (grayscale — for muting a backdrop).
 
 ### Capability reference (what each type CAN do)
 \`bar\` compare categories (+\`split_by\`=grouped) · \`bar-stacked\`/\`bar-100\` parts of a whole · \`bar-horizontal\` ranking/long names · \`line\`/\`area\` true time series (≥4–5 pts) · \`donut\` part-of-whole (≤7) · \`scatter\`/\`bubble\` relationships · \`combo\` two metrics at different scales · \`funnel\` stage drop-off · \`heatmap\` 2-D patterns · \`treemap\` hierarchy.

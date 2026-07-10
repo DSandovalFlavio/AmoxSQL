@@ -1,7 +1,16 @@
 # Plan de Implementación — Deep Dive: color con teoría y storytelling en gráficos
 
 > Deriva de [deep_dive_graficos.md](deep_dive_graficos.md) (auditoría; causas G1–G7).
-> **Estado:** pendiente de arranque.
+> **Estado:** ✅ F1, F2, F3 implementadas (F3 sin `protagonist` — revertido). **F1 evolucionó** a "color como decisión de diseño" (ver addendum abajo). F4/F5 pendientes.
+
+## Addendum — Color como razonamiento del agente (evolución de F1, a pedido del usuario)
+
+En vez de reglas rígidas + defaults hardcodeados, el agente **razona** su paleta por análisis, considerando: el mensaje/intención, la legibilidad, el **tema activo de AmoxSQL** (modo claro/oscuro + acento) y teoría del color — eligiendo entre TODAS las paletas curadas.
+
+- **Tema en vivo → prompt**: el cliente envía `uiTheme {mode, theme, accent, accentColor}` (`useAiChat` lee `document.body` + localStorage) → `server/index.js` → `agenticLoop` → `buildDynamicSection` emite una sección "Rendering context" con el modo y el acento reales. Así el agente elige colores que leen en el fondo actual y armonizan con el acento.
+- **Razonamiento de color** (`prompt/context.js`): la sección "Color is a design decision" reemplaza las reglas rígidas por un proceso (familia por intención → legibilidad → armonía con el acento → consistencia de sesión → semántica), + un **catálogo completo** de paletas con su carácter.
+- **Enum ampliado** (`tools.js`): `color_theme` pasa de 12 a 19 paletas (añade set1/set2/purples/ylorbr/rdylbu/rdylgn/piyg) — el agente tiene "todas las mejores disponibles".
+- **Sin hardcodeo**: el `highlight` default sigue `var(--accent-primary)` (no rojo); `protagonist` (gris/morado hardcodeado) fue eliminado. El énfasis es `highlight` + la paleta razonada.
 
 ## Objetivo
 

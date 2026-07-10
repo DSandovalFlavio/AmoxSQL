@@ -225,6 +225,7 @@ async function* agenticLoop(options, getModelFn) {
         maxIterations = DEFAULT_LOOP_ITERATIONS,
         planStepOverrides = [],
         continueMode = false,
+        uiTheme = null,
     } = options;
 
     const provider = providerOverride;
@@ -275,6 +276,7 @@ async function* agenticLoop(options, getModelFn) {
         filePath, fileType,
         enablePlanner: mode === 'diving',
         projectCtx,
+        uiTheme,
     };
 
     // For Anthropic: split into static (cached) + dynamic blocks.

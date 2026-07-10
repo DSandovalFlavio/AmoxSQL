@@ -2126,7 +2126,7 @@ async function expandReferencedArtifacts(refs) {
 }
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2172,6 +2172,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
+            uiTheme: uiTheme || null,
             conversationId: conversationId || null,
             planStepOverrides: Array.isArray(planStepOverrides) ? planStepOverrides : [],
             // continueMode: user clicked "Continue" after loop exhaustion — grant extra
