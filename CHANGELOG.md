@@ -5,6 +5,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.8.0] — 2026-07-09
+
+### Deep Dive, reimaginado: analista que narra, cierra bien y grafica con criterio
+
+Una revisión a fondo del modo **Deep Dive** — su ciclo de vida, su voz y sus gráficos — más razonamiento avanzado en MiniMax.
+
+#### Ciclo de vida del análisis
+- **Presupuesto de 50 iteraciones con escala dinámica** (antes 25, que se quedaba corto): el plan dimensiona el presupuesto (~5/paso, 25–50) y un **turno de cierre reservado garantiza una síntesis** aunque se agoten los ciclos — nunca más un corte en seco.
+- **Cierre veraz**: el último paso ya se marca completo (fix del enum `in_progress`), los pasos interrumpidos se muestran como tal (no spinner eterno), y el badge distingue **Paused** de Done.
+- **Selección del inspector estable**: al terminar un análisis ya no se pierde el foco ni parpadea a "Select a step…" (ids de turno estables).
+- **Continuación de primera clase**: la tarjeta al agotar ciclos ofrece **Continuar / Con instrucciones… / Finalizar con lo que hay / Cancelar**, y una conversación pausada se puede retomar al reabrirla.
+
+#### Voz narrativa
+- El agente **narra con arco**: abre con su hipótesis, cuenta cada hallazgo con su "por qué importa", y cierra con 2–4 párrafos de historia — no un volcado de datos duros. `final_answer` gana el campo **`so_what`** por hallazgo, y la tarjeta de resumen se muestra expandida.
+
+#### Gráficos con teoría del color y storytelling
+- El agente **razona la paleta** por análisis: intención + legibilidad + **el tema activo de AmoxSQL** (modo claro/oscuro y acento, enviados en vivo) + teoría del color, eligiendo entre **19 paletas** curadas. Se acabó el arcoíris en rankings (un color + líder resaltado) y el rojo decorativo (rojo reservado a lo negativo; el resaltado sigue tu acento).
+- **Storytelling en el gráfico**: `takeaway` (conclusión de una línea) y **anotaciones** (callouts) que el agente pone directo en el chart; viajan intactos al abrir en Story Flow.
+- Un **linter de color** avisa al agente de elecciones que engañan (arcoíris, secuencial sin orden, rojo neutro, donut >7).
+
+#### Razonamiento avanzado en MiniMax
+- **MiniMax M-series (M3) corre con razonamiento avanzado siempre activo** (`thinking: adaptive`); el razonamiento se muestra en el inspector.
+
+### Fixes
+- **Citaciones inline** (`[valor](cite:…)`) ya no recargan la app al hacer clic — abren la consulta fuente en un modal. (Causa: `react-markdown` sanitizaba el protocolo `cite:`.)
+- **Gráficos vacíos al reabrir una conversación** ("No data to display"): el emparejado de datos por índice se cambió por emparejado por texto de SQL.
+- **Panel ARTIFACTS** mostraba "0" pese a tener gráficos: ahora refresca al crearse y deduplica.
+
+---
+
 ## [3.7.2] — 2026-07-06
 
 ### Fixes
