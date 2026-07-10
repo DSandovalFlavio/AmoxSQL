@@ -27,7 +27,7 @@ AiSidebar (React) ──SSE──> /api/ai/chat/stream (Express)
 | `client/src/components/ai/ChatMessage.jsx` | Renderizado de mensajes (markdown, thinking) |
 | `client/src/components/ai/ToolCallBlock.jsx` (111 lineas) | Bloques colapsables de tool calls |
 | `server/index.js` (lineas 755-1289) | Endpoints /api/ai/* |
-| `server/AiManager.js` (600+ lineas) | Orquestacion: chat, stream, prompt-only |
+| `server/AiManager.js` (600+ lineas) | Orquestacion: chat, stream, prompt-only. **MiniMax M-series**: se crea con `createOpenAI` (endpoint OpenAI-compatible) + un `fetch` wrapper que inyecta `thinking:{type:'adaptive'}` en cada request → razonamiento avanzado SIEMPRE activo. `reasoning_split` se deja sin fijar → el razonamiento llega como `<think>…</think>` en el content, que el render ya parsea. |
 | `server/ai/tools.js` (443 lineas) | Definiciones de tools con Zod schemas |
 | `server/ai/systemPrompt.js` (338 lineas) | Builder de system prompt dinamico |
 | `server/ai/persistence.js` | Persistencia en DuckDB (amoxsql_ai schema) |
