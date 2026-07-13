@@ -27,7 +27,7 @@ We love new ideas! Please open a GitHub Issue with the "enhancement" label and d
 1.  **Fork** the repository.
 2.  Create a **new branch** for your feature or fix (`git checkout -b feature/amazing-feature`).
 3.  Make your changes.
-4.  Run the app locally to ensure everything works (`npm start`).
+4.  Run the app locally to ensure everything works (`pnpm start`). AmoxSQL uses **pnpm 11+** — do not use `npm` or `yarn`.
 5.  **Commit** your changes with a clear message.
 6.  Push to your fork and submit a **Pull Request**.
 
