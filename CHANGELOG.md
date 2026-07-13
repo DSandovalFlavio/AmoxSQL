@@ -5,6 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.8.1] — 2026-07-12
+
+### Metadata de archivos casi instantánea (Direct Query / Import)
+
+- **Inspección de columnas y hojas ~300× más rápida en Excel grandes.** Al hacer "Direct Query", "Copy Column Names", "Export for AI" o abrir el modal de import sobre un `.xlsx` de decenas de MB, generar el scaffold con hojas/columnas/tipos pasó de **~30 s a <1 s en frío (típicamente <100 ms) y <5 ms en caché**.
+- **Causa raíz:** SheetJS inflaba el archivo ZIP completo (~cientos de MB de XML en el hilo del server, congelándolo) solo para listar los nombres de hojas. Ahora los nombres se leen del directorio central del ZIP inflando únicamente `xl/workbook.xml` (nuevo `server/xlsxMeta.js`), con **fallback a SheetJS** para archivos exóticos.
+- **Además:** se eliminó el DESCRIBE duplicado de la hoja objetivo (N+1 → N), la inspección corre en el lane `meta` de DuckDB (ya no se encola detrás de queries del usuario), y se añadió **caché por mtime** para que Direct Query → Import → Export-for-AI del mismo archivo pague el costo una sola vez.
+- El server **deja de congelarse** durante la inspección de archivos grandes. Auditoría en `docs/dev/auditoria_metadata_archivos.md`.
+
+---
+
 ## [3.8.0] — 2026-07-09
 
 ### Deep Dive, reimaginado: analista que narra, cierra bien y grafica con criterio

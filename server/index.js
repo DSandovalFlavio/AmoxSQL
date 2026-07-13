@@ -1025,6 +1025,7 @@ app.post('/api/db/extensions/load', async (req, res) => {
 
 /* --- Excel Import APIs --- */
 const xlsx = require('xlsx');
+const xlsxMeta = require('./xlsxMeta');
 
 app.get('/api/files/inspect-excel', async (req, res) => {
     const filePath = req.query.path;
@@ -1035,12 +1036,15 @@ app.get('/api/files/inspect-excel', async (req, res) => {
     if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
 
     try {
-        // Async read: workbooks can be hundreds of MB and this shares the
-        // event loop with the AI SSE stream. (xlsx.read parse itself is still
-        // sync CPU — a worker_thread is the remaining follow-up.)
-        const buf = await fs.promises.readFile(fullPath);
-        const workbook = xlsx.read(buf, { type: 'buffer', bookSheets: true });
-        res.json({ sheets: workbook.SheetNames });
+        // Fast path: read sheet names from the zip central directory instead of
+        // parsing the whole workbook with SheetJS (which inflates every entry).
+        // See docs/dev/auditoria_metadata_archivos.md.
+        const cached = xlsxMeta.getCached(fullPath);
+        if (cached && cached.sheets) return res.json({ sheets: cached.sheets });
+
+        const { sheets } = xlsxMeta.getSheetNames(fullPath);
+        xlsxMeta.setCached(fullPath, { sheets });
+        res.json({ sheets });
     } catch (err) {
         res.status(500).json({ error: 'Failed to read Excel file', details: err.message });
     }
@@ -1064,41 +1068,50 @@ app.get('/api/files/inspect-columns', async (req, res) => {
 
     const ext = (fullPath.match(/\.[^.]+$/) || [''])[0].toLowerCase();
 
+    // Metadata runs on the 'meta' lane so it never queues behind a long user
+    // query on the 'main' connection. See docs/dev/auditoria_metadata_archivos.md.
+    const meta = dbManager.lane ? dbManager.lane('meta') : dbManager;
+
     try {
         if (ext === '.xlsx' || ext === '.xls') {
-            // Get sheet names first (async read — see /api/files/inspect-excel)
-            const workbook = xlsx.read(await fs.promises.readFile(fullPath), { type: 'buffer', bookSheets: true });
-            const sheets = workbook.SheetNames;
-
-            // Get columns for the requested sheet (or first sheet)
-            const targetSheet = sheet || sheets[0];
-            let columns = [];
-            try {
-                const describe = await dbManager.systemQuery(
-                    `DESCRIBE SELECT * FROM read_xlsx('${fullPath}', sheet='${targetSheet}')`
-                );
-                columns = describe.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
-            } catch (e) {
-                console.warn(`[inspect-columns] Failed to describe Excel sheet '${targetSheet}':`, e.message);
+            // Serve from cache when the file is unchanged (covers Direct Query →
+            // Import → Export-for-AI on the same file paying the cost once).
+            const cached = xlsxMeta.getCached(fullPath);
+            if (cached && cached.sheetsWithColumns) {
+                const target = sheet || cached.sheets[0];
+                return res.json({
+                    sheets: cached.sheets,
+                    columns: cached.sheetsWithColumns[target] || [],
+                    sheetsWithColumns: cached.sheetsWithColumns,
+                });
             }
 
-            // Optionally get columns for ALL sheets
+            // Sheet names via the zip central directory — not a full SheetJS parse.
+            const { sheets } = xlsxMeta.getSheetNames(fullPath);
+
+            // DESCRIBE every sheet once (bind is early-stopping, ~ms per sheet).
+            // The target sheet is included here — no separate/duplicate describe.
             const sheetsWithColumns = {};
             for (const s of sheets) {
                 try {
-                    const desc = await dbManager.systemQuery(
+                    const desc = await meta.systemQuery(
                         `DESCRIBE SELECT * FROM read_xlsx('${fullPath}', sheet='${s}')`
                     );
                     sheetsWithColumns[s] = desc.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
-                } catch {
+                } catch (e) {
+                    console.warn(`[inspect-columns] Failed to describe Excel sheet '${s}':`, e.message);
                     sheetsWithColumns[s] = [];
                 }
             }
 
+            const targetSheet = sheet || sheets[0];
+            const columns = sheetsWithColumns[targetSheet] || [];
+
+            xlsxMeta.setCached(fullPath, { sheets, sheetsWithColumns });
             res.json({ sheets, columns, sheetsWithColumns });
         } else {
-            // CSV, Parquet, JSON — use DuckDB DESCRIBE directly
-            const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullPath}'`);
+            // CSV, Parquet, JSON — DuckDB DESCRIBE (sniffer samples; already cheap)
+            const describe = await meta.systemQuery(`DESCRIBE SELECT * FROM '${fullPath}'`);
             const columns = describe.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
             res.json({ columns });
         }
