@@ -520,28 +520,33 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 {showExportMenu && (
                                     <div className="toolbar-dropdown-menu" style={{ right: 0, left: 'auto' }}>
                                         <div className="rt-dropdown-section">Quick Export</div>
+                                        <div className="rt-dropdown-subtext">Las filas cargadas aquí — al instante</div>
                                         {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv, action: 'exportCSV' },
                                         { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson, action: 'exportJSON' },
-                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: null },
-                                        ].map(item => (
-                                            <div
-                                                key={item.label}
-                                                className={`toolbar-dropdown-item${exportingAction === item.action ? ' rt-exporting' : ''}`}
-                                                onClick={() => { if (!exportingAction) item.fn(); }}
-                                                aria-disabled={exportingAction === item.action}
-                                            >
-                                                {exportingAction === item.action ? <LuLoader size={13} className="spin" /> : item.icon} {exportingAction === item.action ? 'Exporting...' : item.label}
-                                            </div>
-                                        ))}
+                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: 'copy' },
+                                        ].map(item => {
+                                            const isBusy = exportingAction === item.action;
+                                            return (
+                                                <div
+                                                    key={item.label}
+                                                    className={`toolbar-dropdown-item${isBusy ? ' rt-exporting' : ''}`}
+                                                    onClick={() => { if (!exportingAction) item.fn(); }}
+                                                    aria-disabled={isBusy}
+                                                >
+                                                    {isBusy ? <LuLoader size={13} className="spin" /> : item.icon} {isBusy ? 'Exporting...' : item.label}
+                                                </div>
+                                            );
+                                        })}
                                         <div className="rt-dropdown-separator" />
                                         <div className="rt-dropdown-section">Full Export (DuckDB)</div>
+                                        <div className="rt-dropdown-subtext">Re-ejecuta la query — todas las filas, a archivo (CSV/Parquet/Excel/nube)</div>
                                         <div className="toolbar-dropdown-item rt-dropdown-accent" onClick={() => { setIsExportDataOpen(true); setShowExportMenu(false); }}>
                                             <LuFileDown size={13} /> Export to File…
                                         </div>
                                         <div className="rt-dropdown-separator" />
                                         <div className="rt-dropdown-section">AI</div>
                                         <div className="toolbar-dropdown-item" onClick={() => { setIsExportAiContextOpen(true); setShowExportMenu(false); }}>
-                                            <LuSparkles size={13} /> Export for AI…
+                                            <LuSparkles size={13} /> Metadata for AI…
                                         </div>
                                     </div>
                                 )}

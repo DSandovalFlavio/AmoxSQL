@@ -5,6 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.8.2] — 2026-07-13
+
+### Export de datos: arreglos y claridad
+
+- **Fix crítico — el Excel exportado ahora abre.** Exportar un resultado a `.xlsx` escribía en realidad contenido **CSV** dentro del archivo (con extensión `.xlsx`), así que Excel no lo podía abrir. Ahora se genera un **`.xlsx` real** vía la extensión `excel` de DuckDB (`COPY ... FORMAT xlsx`). Si el resultado supera el límite de Excel (1,048,576 filas), se avisa claro y se sugiere CSV/Parquet.
+- **Fix — el ítem "Copy to Clipboard" ya no aparece pegado en "Exporting…".** Un bug de estado (`action: null` comparado contra el estado en reposo, también `null`) hacía que ese ítem del menú de export mostrara un spinner "Exporting…" permanente.
+- **Menú de export más claro.** Cada sección explica qué hace: **Quick Export** ("las filas cargadas aquí — al instante") vs **Full Export** ("re-ejecuta la query — todas las filas, a archivo CSV/Parquet/Excel/nube").
+- **"Export for AI…" → "Metadata for AI…"** — nombre más explícito de lo que exporta (schema + muestra + perfil para pegar en un chat de IA).
+- **Direct Query en archivos anchos.** El scaffold ya no vuelca 50+ columnas en el comentario: muestra las primeras 20 y anota cuántas quedan (`… (+N columnas más, no mostradas)`).
+
+---
+
 ## [3.8.1] — 2026-07-12
 
 ### Metadata de archivos casi instantánea (Direct Query / Import)

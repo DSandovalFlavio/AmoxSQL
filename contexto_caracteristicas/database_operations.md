@@ -141,12 +141,13 @@ CREATE OR REPLACE TABLE "{tableName}" AS SELECT * FROM '{filePath}'
 
 ### Exportacion de Datos
 
-**POST /api/export-data** (lineas 1645-1687):
-```sql
-COPY ({query}) TO '{outputPath}' (FORMAT '{format}')
-```
-- Formatos: csv, parquet, xlsx
-- Retorna: path + row count
+**POST /api/export-data** — export local vía `COPY (query) TO file`:
+- **csv** → `(HEADER, DELIMITER ',')`; **parquet** → `(FORMAT PARQUET)`.
+- **xlsx** → `.xlsx` REAL vía la extensión `excel` (`COPY ... WITH (FORMAT xlsx, HEADER true)`). Requiere `LOAD excel` explícito — la función COPY TO xlsx **no** autocarga (a diferencia de read_xlsx). Excel limita una hoja a 1,048,576 filas; si se supera, se devuelve un error accionable (usar CSV/Parquet).
+- Nota histórica: antes de v3.8.2, el modo xlsx escribía CSV dentro del `.xlsx` → el archivo no abría en Excel.
+- Retorna: path + row count.
+
+Menú de export (results table, `ResultsTable.jsx`): **Quick Export** (CSV/JSON/portapapeles vía Web Worker en cliente, sobre las filas ya cargadas) vs **Full Export** (`/api/export-data`, re-ejecuta la query, todas las filas, a archivo/nube) vs **Metadata for AI** (`ExportAiContextModal`, documento de contexto para chat de IA).
 
 **POST /api/export/cloud** (lineas 490-528):
 - S3: access key, secret, region, endpoint

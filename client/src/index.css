@@ -3028,6 +3028,14 @@ tr:hover .rt-td {
   letter-spacing: var(--tracking-wide);
 }
 
+.rt-dropdown-subtext {
+  padding: 0 12px 4px;
+  font-size: var(--text-mini);
+  color: var(--text-tertiary);
+  line-height: 1.35;
+  max-width: 280px;
+}
+
 .rt-dropdown-separator {
   height: 1px;
   background-color: var(--border-subtle);

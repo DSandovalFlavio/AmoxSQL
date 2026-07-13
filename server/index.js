@@ -3409,12 +3409,24 @@ app.post('/api/export-data', async (req, res) => {
         else if (format === 'parquet') copyFormat = "PARQUET";
         else if (format === 'xlsx') {
             try {
-                await dbManager.query(`COPY (${cleanQuery}) TO '${fullPath}' WITH (FORMAT CSV, HEADER)`);
+                // Real .xlsx via the excel extension. It must be explicitly loaded:
+                // unlike read_xlsx (which autoloads), the COPY TO xlsx function does not.
+                // Writing FORMAT CSV into a .xlsx used to produce a file Excel couldn't open.
+                try { await dbManager.query('INSTALL excel; LOAD excel;'); } catch (e) {
+                    console.warn('[export-data] excel extension load warning:', e.message);
+                }
+                await dbManager.query(`COPY (${cleanQuery}) TO '${fullPath}' WITH (FORMAT xlsx, HEADER true)`);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${cleanQuery}) t`);
                 const rowCount = countResult[0]?.cnt || 0;
-                return res.json({ success: true, path: filename, rowCount, note: 'Exported as CSV (rename to .csv for best compatibility)' });
+                return res.json({ success: true, path: filename, rowCount });
             } catch (xlsxErr) {
-                return res.status(500).json({ error: `Excel export failed: ${xlsxErr.message}. Try CSV or Parquet instead.` });
+                // Excel caps a worksheet at 1,048,576 rows; surface a clear, actionable message.
+                const overLimit = /row limit/i.test(xlsxErr.message);
+                return res.status(500).json({
+                    error: overLimit
+                        ? 'Excel limita una hoja a 1,048,576 filas y el resultado la supera. Exporta a CSV o Parquet.'
+                        : `Excel export failed: ${xlsxErr.message}. Try CSV or Parquet instead.`,
+                });
             }
         }
 
