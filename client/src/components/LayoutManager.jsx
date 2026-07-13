@@ -419,7 +419,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             return;
         }
 
-        const query = tab.content;
+        // Resolve ${variables} before EXPLAIN — Run and Export already do, and raw
+        // ${var} placeholders would make DuckDB's EXPLAIN fail on parameterized queries.
+        const { queryVariables } = stateRef.current;
+        const query = resolveVariables(tab.content, queryVariables);
         // Default mode: ANALYZE (real timing) for read-only queries; otherwise EXPLAIN (estimated),
         // since ANALYZE executes the query. The backend also guards this. The modal can switch modes.
         const isReadOnly = /^\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/|\s)*(?:SELECT|WITH)\b/i.test(query);

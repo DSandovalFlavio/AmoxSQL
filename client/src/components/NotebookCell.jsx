@@ -536,7 +536,7 @@ const NotebookCell = ({
                                                     types={result.types}
                                                     executionTime={result.executionTime}
                                                     query={result.executedQuery || content}
-                                                    currentEditorQuery={content}
+                                                    currentEditorQuery={() => contentRef.current}
                                                     onDbChange={noopDbChange}
                                                     isReportMode={isReportMode}
                                                     initialChartConfig={initialCellState?.chartConfig || null}

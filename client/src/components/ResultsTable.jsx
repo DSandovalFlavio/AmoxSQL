@@ -1,12 +1,11 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuSparkles } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
-import ExportAiContextModal from './ExportAiContextModal';
 import { useToast } from './ToastProvider';
 
 const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null }) => {
@@ -22,7 +21,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const [vaultTitle, setVaultTitle] = useState('');
     const [vaultTags, setVaultTags] = useState('');
     const [vaultSaving, setVaultSaving] = useState(false);
-    const [isExportAiContextOpen, setIsExportAiContextOpen] = useState(false);
     const [exportingAction, setExportingAction] = useState(null);
 
     // View State
@@ -536,11 +534,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                                 </div>
                                             );
                                         })}
-                                        <div className="rt-dropdown-separator" />
-                                        <div className="rt-dropdown-section">AI</div>
-                                        <div className="toolbar-dropdown-item" onClick={() => { setIsExportAiContextOpen(true); setShowExportMenu(false); }}>
-                                            <LuSparkles size={13} /> Metadata for AI…
-                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -659,12 +652,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                 isOpen={isSaveDbModalOpen}
                 onClose={() => setIsSaveDbModalOpen(false)}
                 onSave={handleSaveToDb}
-            />
-
-            <ExportAiContextModal
-                isOpen={isExportAiContextOpen}
-                onClose={() => setIsExportAiContextOpen(false)}
-                query={resolveEditorQuery() || query}
             />
 
             {/* Compare Results Modal */}
