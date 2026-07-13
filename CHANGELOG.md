@@ -5,6 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.8.3] — 2026-07-13
+
+### El export ahora pertenece a la query, no a los resultados
+
+Rediseño de dónde vive y qué exporta el "Export to File" (full export vía DuckDB), más un fix en el export a la nube.
+
+- **Botón "Export" en la toolbar del editor** (después de Save). Exporta la salida completa de la **query actual del editor** (CSV/Parquet/Excel/nube), resolviendo las variables. Antes esto vivía en el área de resultados y re-ejecutaba la **última query ejecutada** — así que si quitabas un `WHERE`/`LIMIT` sin volver a correr, el export salía con el filtro viejo. Ahora es WYSIWYG: siempre exporta lo que ves en el editor.
+- **El botón del área de resultados se llama ahora "Download"** y exporta solo **las filas cargadas en la tabla** (CSV/JSON/portapapeles, al instante) + Metadata for AI. Se le quitó el full-export (era redundante ahí).
+- **"Export results…" en el menú contextual de un `.sql`** (3 puntitos en el explorador de archivos): lee el archivo y abre el export sobre esa query.
+- **Fix — export a la nube rechaza formatos no soportados.** Cloud solo admite CSV/JSON/Parquet; antes un formato distinto (p. ej. `xlsx` arrastrado como estado obsoleto) caía en silencio a Parquet bajo una extensión equivocada. Ahora se valida y se avisa.
+
+---
+
 ## [3.8.2] — 2026-07-13
 
 ### Export de datos: arreglos y claridad

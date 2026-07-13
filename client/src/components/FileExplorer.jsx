@@ -14,6 +14,7 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
 import FilePreviewModal from './FilePreviewModal';
 import ExportAiContextModal from './ExportAiContextModal';
+import ExportDataModal from './ExportDataModal';
 import GSheetsSection from './GSheetsSection';
 
 const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
@@ -69,6 +70,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // File Preview State
     const [previewFilePath, setPreviewFilePath] = useState(null);
     const [aiContextFile, setAiContextFile] = useState(null); // { path, name } for Export for AI
+    const [exportSqlQuery, setExportSqlQuery] = useState(null); // string SQL for "Export results…" on a .sql file
+    const [exportSqlLoading, setExportSqlLoading] = useState(false);
 
     // Column Copy Loading State
     const [copyingColumns, setCopyingColumns] = useState(false);
@@ -925,6 +928,28 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             </div>
                         </>
                     )}
+                    {/* .sql — export the query's results to a file (reads the file from disk) */}
+                    {contextMenu.file.name.match(/\.sql$/i) && (
+                        <div
+                            onClick={async () => {
+                                if (exportSqlLoading) return;
+                                const filePath = contextMenu.file.path;
+                                setContextMenu(null);
+                                setExportSqlLoading(true);
+                                try {
+                                    const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
+                                    const data = await res.json();
+                                    setExportSqlQuery(data.content || '');
+                                } catch (err) {
+                                    console.error('Failed to read SQL file for export:', err);
+                                    setExportSqlQuery('');
+                                } finally { setExportSqlLoading(false); }
+                            }}
+                            className="context-menu-item"
+                        >
+                            {exportSqlLoading ? <LuLoader size={14} className="spin" /> : <LuFileSpreadsheet size={14} />} Export results...
+                        </div>
+                    )}
                     {contextMenu.file.isDirectory && (
                         <div onClick={() => onImportFile(contextMenu.file.path, true)} className="context-menu-item">
                             <LuDatabase size={14} /> Import Folder to Database...
@@ -1021,6 +1046,12 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     onClose={() => setPreviewFilePath(null)}
                 />
             )}
+
+            <ExportDataModal
+                isOpen={exportSqlQuery !== null}
+                onClose={() => setExportSqlQuery(null)}
+                query={exportSqlQuery || ''}
+            />
 
             <ExportAiContextModal
                 isOpen={!!aiContextFile}

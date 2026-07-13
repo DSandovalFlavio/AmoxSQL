@@ -1,10 +1,11 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory } from 'react-icons/lu';
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown } from 'react-icons/lu';
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
-import { VariablesToggle, VariablesPanel } from './VariablesBar';
+import ExportDataModal from './ExportDataModal';
+import { VariablesToggle, VariablesPanel, resolveVariables } from './VariablesBar';
 
 // Lazy pane types (G10): each of these pulls a heavy dependency tree
 // (Recharts, mermaid/katex/highlight via MarkdownPreview, @xyflow/react…).
@@ -120,6 +121,7 @@ const EditorPane = ({
 
     // Action bar state (must be before any early return)
     const [showSaveMenu, setShowSaveMenu] = useState(false);
+    const [showExport, setShowExport] = useState(false);
     const saveMenuRef = useRef(null);
     // Edit/run timestamps as refs — updating them must NOT re-render the pane
     // on every keystroke; PaneTimestamps refreshes the label on its own tick.
@@ -607,6 +609,20 @@ const EditorPane = ({
                                         )}
                                     </div>
 
+                                    {/* Export — runs the CURRENT editor query to a file (CSV/Parquet/Excel/cloud).
+                                        Export is tied to the query, not the shown results: it always uses the
+                                        latest editor text, so it never exports a stale (last-run) version. */}
+                                    <div className="ep-action-group">
+                                        <button
+                                            className="ep-action-btn"
+                                            onClick={() => setShowExport(true)}
+                                            title="Export query data to a file"
+                                            aria-label="Export query data"
+                                        >
+                                            <LuFileDown size={13} /> Export
+                                        </button>
+                                    </div>
+
                                     {/* History button — opens the History tab in the left sidebar */}
                                     <div className="ep-action-group">
                                         <button
@@ -654,6 +670,13 @@ const EditorPane = ({
                             {varsExpanded && (variables || []).length > 0 && (
                                 <VariablesPanel variables={variables || []} onChange={onVariablesChange || (() => { })} />
                             )}
+
+                            {/* Export modal — exports the CURRENT editor query (variables resolved). */}
+                            <ExportDataModal
+                                isOpen={showExport}
+                                onClose={() => setShowExport(false)}
+                                query={resolveVariables(activeTab?.content || '', variables)}
+                            />
 
                             {/* Editor Section — body of the card */}
                             <div className="ep-editor-section">

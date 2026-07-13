@@ -6,7 +6,6 @@ const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
-import ExportDataModal from './ExportDataModal';
 import ExportAiContextModal from './ExportAiContextModal';
 import { useToast } from './ToastProvider';
 
@@ -23,7 +22,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const [vaultTitle, setVaultTitle] = useState('');
     const [vaultTags, setVaultTags] = useState('');
     const [vaultSaving, setVaultSaving] = useState(false);
-    const [isExportDataOpen, setIsExportDataOpen] = useState(false);
     const [isExportAiContextOpen, setIsExportAiContextOpen] = useState(false);
     const [exportingAction, setExportingAction] = useState(null);
 
@@ -512,15 +510,16 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 )}
                             </div>
 
-                            {/* Export Dropdown */}
+                            {/* Download Dropdown — the rows shown in THIS table (in-memory, instant).
+                                Full export of the whole query lives in the editor toolbar ("Export"),
+                                since it re-runs the query and belongs to the query, not the shown rows. */}
                             <div className="toolbar-dropdown">
                                 <button className="rt-action-btn" onClick={() => setShowExportMenu(!showExportMenu)}>
-                                    <LuFileDown size={12} /> Export ▾
+                                    <LuFileDown size={12} /> Download ▾
                                 </button>
                                 {showExportMenu && (
                                     <div className="toolbar-dropdown-menu" style={{ right: 0, left: 'auto' }}>
-                                        <div className="rt-dropdown-section">Quick Export</div>
-                                        <div className="rt-dropdown-subtext">Las filas cargadas aquí — al instante</div>
+                                        <div className="rt-dropdown-subtext">Las filas cargadas en esta tabla</div>
                                         {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv, action: 'exportCSV' },
                                         { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson, action: 'exportJSON' },
                                         { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: 'copy' },
@@ -537,12 +536,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                                 </div>
                                             );
                                         })}
-                                        <div className="rt-dropdown-separator" />
-                                        <div className="rt-dropdown-section">Full Export (DuckDB)</div>
-                                        <div className="rt-dropdown-subtext">Re-ejecuta la query — todas las filas, a archivo (CSV/Parquet/Excel/nube)</div>
-                                        <div className="toolbar-dropdown-item rt-dropdown-accent" onClick={() => { setIsExportDataOpen(true); setShowExportMenu(false); }}>
-                                            <LuFileDown size={13} /> Export to File…
-                                        </div>
                                         <div className="rt-dropdown-separator" />
                                         <div className="rt-dropdown-section">AI</div>
                                         <div className="toolbar-dropdown-item" onClick={() => { setIsExportAiContextOpen(true); setShowExportMenu(false); }}>
@@ -666,12 +659,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                 isOpen={isSaveDbModalOpen}
                 onClose={() => setIsSaveDbModalOpen(false)}
                 onSave={handleSaveToDb}
-            />
-
-            <ExportDataModal
-                isOpen={isExportDataOpen}
-                onClose={() => setIsExportDataOpen(false)}
-                query={resolveEditorQuery() || query}
             />
 
             <ExportAiContextModal
