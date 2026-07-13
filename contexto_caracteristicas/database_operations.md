@@ -124,8 +124,14 @@ CREATE OR REPLACE TABLE "{tableName}" AS SELECT * FROM '{filePath}'
 - Opcion `cleanColumns`: renombra cols (trim whitespace, _ por espacios)
 - Ejecuta `dbManager.checkpoint()` para flush WAL
 
-**GET /api/files/inspect-excel** (lineas 376-390):
-- Usa libreria xlsx para listar sheet names
+**GET /api/files/inspect-excel** — lista sheet names:
+- **Ruta rápida** (`server/xlsxMeta.js`): lee el directorio central del ZIP e infla solo `xl/workbook.xml` (~ms), sin parsear el libro completo. Fallback a la librería `xlsx` (SheetJS) si el archivo es exótico (ZIP64, layout inesperado).
+- **Por qué:** `xlsx.read(buf, {bookSheets:true})` inflaba TODO el archivo (cientos de MB de XML en el hilo del server) solo para los nombres. Ver `docs/dev/auditoria_metadata_archivos.md`.
+
+**GET /api/files/inspect-columns** — columnas + tipos (y hojas para Excel):
+- Nombres de hoja vía `xlsxMeta.getSheetNames` (ruta ZIP rápida); tipos vía `DESCRIBE SELECT * FROM read_xlsx(..., sheet=s)` por hoja (el bind de read_xlsx se detiene temprano, ~ms/hoja).
+- Corre en el lane `meta` de DuckDB (no se encola detrás de queries del usuario) y cachea el resultado por `mtime` (Map LRU en `xlsxMeta.js`).
+- Consumidores: Direct Query (`LayoutManager.handleQueryFile`), Copy Column Names (`FileExplorer`), Export for AI (`ExportAiContextModal`).
 
 **POST /api/db/import-excel** (lineas 392-453):
 - **MERGE**: `UNION ALL BY NAME` de todos los sheets
