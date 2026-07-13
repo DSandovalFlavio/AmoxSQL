@@ -4,6 +4,8 @@
 
 > The code editor at the heart of AmoxSQL: write, run, and debug DuckDB SQL with schema-aware autocomplete, syntax highlighting, and one-shortcut execution.
 
+<img src="../../../images/04_sql_editor.png" alt="AmoxSQL SQL editor" width="100%" />
+
 ## What it is
 
 The SQL editor is the core of the IDE. It's built on a professional code editor with DuckDB-specific syntax highlighting, and it talks live to the local engine to give you real autocomplete and validation — not guesses.

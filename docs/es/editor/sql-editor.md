@@ -4,6 +4,8 @@
 
 > El editor de código de AmoxSQL: escribe, ejecuta y depura SQL de DuckDB con autocompletado que entiende tu esquema, resaltado de sintaxis y ejecución en un atajo.
 
+<img src="../../../images/04_sql_editor.png" alt="Editor SQL de AmoxSQL" width="100%" />
+
 ## Qué es
 
 El editor SQL es el corazón del IDE. Está construido sobre un editor de código profesional con resaltado de sintaxis específico para DuckDB, y se conecta en vivo con el motor local para darte autocompletado y validación reales — no adivinanzas.

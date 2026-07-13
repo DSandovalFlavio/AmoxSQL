@@ -14,12 +14,12 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 ## Getting started · Primeros pasos
 | Page | Español | English | Status |
 |---|---|---|---|
-| Introduction | [es](es/user-guide/introduction.md) | [en](en/user-guide/introduction.md) | ⚪ |
-| Installation | [es](es/user-guide/installation.md) | [en](en/user-guide/installation.md) | ⚪ |
-| First steps | [es](es/user-guide/first-steps.md) | [en](en/user-guide/first-steps.md) | ⚪ |
-| The interface | [es](es/user-guide/interface.md) | [en](en/user-guide/interface.md) | ⚪ |
-| Projects & connections | [es](es/user-guide/projects-and-connections.md) | [en](en/user-guide/projects-and-connections.md) | ⚪ |
-| Themes & appearance | [es](es/user-guide/themes-and-appearance.md) | [en](en/user-guide/themes-and-appearance.md) | ⚪ |
+| Introduction | [es](es/user-guide/introduction.md) | [en](en/user-guide/introduction.md) | 🟢 |
+| Installation | [es](es/user-guide/installation.md) | [en](en/user-guide/installation.md) | 🟢 |
+| First steps | [es](es/user-guide/first-steps.md) | [en](en/user-guide/first-steps.md) | 🟢 |
+| The interface | [es](es/user-guide/interface.md) | [en](en/user-guide/interface.md) | 🟢 |
+| Projects & connections | [es](es/user-guide/projects-and-connections.md) | [en](en/user-guide/projects-and-connections.md) | 🟢 |
+| Themes & appearance | [es](es/user-guide/themes-and-appearance.md) | [en](en/user-guide/themes-and-appearance.md) | 🟢 |
 
 ## Editor
 | Page | Español | English | Status |
@@ -113,5 +113,5 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 ## Concepts · Conceptos
 | Page | Español | English | Status |
 |---|---|---|---|
-| Architecture | [es](es/concepts/architecture.md) | [en](en/concepts/architecture.md) | ⚪ |
-| Local-first | [es](es/concepts/local-first.md) | [en](en/concepts/local-first.md) | ⚪ |
+| Architecture | [es](es/concepts/architecture.md) | [en](en/concepts/architecture.md) | 🟢 |
+| Local-first | [es](es/concepts/local-first.md) | [en](en/concepts/local-first.md) | 🟢 |
