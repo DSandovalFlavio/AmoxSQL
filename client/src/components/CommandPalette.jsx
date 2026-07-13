@@ -214,7 +214,8 @@ export function buildDefaultActions({
 
         // DBT
         { id: 'dbt-panel', label: 'Show DBT Studio', category: 'DBT', icon: LuFolder, action: () => setActiveSidebarTab('dbt') },
-        { id: 'dbt-new-model', label: 'DBT: New Model', category: 'DBT', icon: LuFilePlus, action: () => { setActiveSidebarTab('dbt'); /* DbtPanel will handle */ } },
+        // 'DBT: New Model' removed — it only navigated to the panel (no new-model flow was
+        // wired), duplicating 'Show DBT Studio'. Re-add with a real action if needed.
 
         // Help & Tours — replay any onboarding tour from anywhere
         ...TOURS.map((t) => ({

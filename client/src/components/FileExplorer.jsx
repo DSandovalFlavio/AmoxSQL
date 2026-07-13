@@ -875,7 +875,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
                 }}>
                     {/* ── Type-specific actions ── */}
-                    {contextMenu.file.name.match(/\.(csv|parquet|json|xlsx|xls)$/i) && (
+                    {contextMenu.file.name.match(/\.(csv|tsv|parquet|json|xlsx|xls)$/i) && (
                         <div onClick={() => onImportFile(contextMenu.file.path, false)} className="context-menu-item">
                             <LuDatabase size={14} /> Import to Database...
                         </div>
@@ -885,12 +885,12 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             <LuFileSpreadsheet size={14} /> Quick Preview
                         </div>
                     )}
-                    {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
+                    {contextMenu.file.name.match(/\.(csv|tsv|xlsx|xls|parquet|json)$/i) && (
                         <div onClick={() => { onQueryFile(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
                             <LuSearch size={14} /> Direct Query
                         </div>
                     )}
-                    {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
+                    {contextMenu.file.name.match(/\.(csv|tsv|xlsx|xls|parquet|json)$/i) && (
                         <div
                             onClick={async () => {
                                 if (copyingColumns) return;
@@ -1026,9 +1026,9 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     <div onClick={() => revealInExplorer(contextMenu.file)} className="context-menu-item">
                         <LuExternalLink size={14} /> Reveal in Explorer
                     </div>
-                    <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\//g, '/')); setContextMenu(null); }} className="context-menu-item">
-                        <LuCopy size={14} /> Copy Path
-                    </div>
+                    {/* "Copy Path" (backslash identity regex) was a redundant duplicate of the
+                        normalized relative path below, and its label implied an absolute path it
+                        never produced — removed. */}
                     <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\\/g, '/')); setContextMenu(null); }} className="context-menu-item">
                         <LuClipboard size={14} /> Copy Relative Path
                     </div>

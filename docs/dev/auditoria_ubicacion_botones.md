@@ -101,3 +101,19 @@ Estado de verificación: ✔ = confirmado leyendo el código en esta sesión; �
 **F4 — Limpieza / código muerto:** B3, B7, B8, B9, B10, B11, B13, B14, B15, B16, B17, B12.
 
 Cada fase es independiente y se puede commitear por separado. Ninguna requiere cambios de esquema ni de servidor salvo B2/A8 (cliente) y, opcionalmente, un endpoint de ruta absoluta para B8.
+
+---
+
+## E. Estado de implementación (2026-07-13, v3.8.3)
+
+- **F1 — HECHO:** B1 (Vault crash), B2 (Import YAML confirma), A10 (deck image export gated), A8 (Settings "Save Settings").
+- **F2 — HECHO:** A1 (Metadata for AI → dropdown Export del editor; resultados = "Download" solo filas), A2 (Analyze resuelve variables), A3 (celda usa getter vivo), A4 (resuelto por A1), A9 (label condicional "Export config").
+- **F3 — HECHO:** A5 (parcial: ver deferidos), A6 ("Save as table…"), A7 (sort asc directo), B4 (GSheets onQuerySql), B5 (Retry re-carga config), B6 (bulk delete).
+- **F4 — HECHO:** B3 (Ctrl+B muerto removido), B8 (Copy Path redundante removido), B9 (DBT New Model removido), B10 (Ctrl+Shift+Enter cableado), B11 (rama skills muerta removida), B14 (tsv en Import/Direct Query/Copy Columns), B16 (fullscreen PNG dims), B17 (To Here abre logs).
+
+### Deferidos (decisión de producto / riesgo)
+- **A5 (New File Here honra carpeta):** requiere propagar un dir por defecto a `createNew` + modal Save As. No implementado (evita tocar el flujo de guardado); el label sigue diciendo "Here". Pendiente si se quiere el comportamiento completo.
+- **B7 (borrar runner Execution Chain):** es código muerto real, pero borrar una feature completa es decisión de producto — se deja señalado, no borrado.
+- **B12 (charts colapsan a un queryId al recargar en AiSidebar):** verificar si esa superficie sigue viva (AiDivingPanel la superó); fix arriesgado sin confirmarlo.
+- **B13 (spinner "Refresh all" de 600ms):** cosmético; se deja como feedback de "disparado".
+- **B15 (props/estado muertos):** limpieza nivel-lint sin impacto de usuario.

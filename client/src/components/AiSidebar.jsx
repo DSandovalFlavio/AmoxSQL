@@ -980,27 +980,8 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                         )}
                     </div>
 
-                    {/* ─── Skill Selector (Data Diving only) ─── */}
-                    {isDiving && availableSkills.length > 0 && (
-                        <div className="ai-skill-selector">
-                            <div className="ai-skill-label">
-                                <LuWand size={10} />
-                                <span>Skill</span>
-                            </div>
-                            <select
-                                className="ai-skill-select"
-                                value={activeSkillId || ''}
-                                onChange={(e) => setActiveSkillId(e.target.value || null)}
-                            >
-                                <option value="">General (no skill)</option>
-                                {availableSkills.map(s => (
-                                    <option key={s.id} value={s.id} title={s.description}>
-                                        {s.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* Skill selector removed here — it's Data Diving only, and this is the
+                        non-diving sidebar return (isDiving is always false). Lives in AiDivingPanel. */}
 
                     {/* ─── Context (Drag & Drop) ─── */}
                     <div className="ai-context-section">

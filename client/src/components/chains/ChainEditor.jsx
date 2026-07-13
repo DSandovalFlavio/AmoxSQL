@@ -358,6 +358,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     }, [serialize, filePath, execution, toast]);
 
     const handleRunToNode = useCallback(async (nodeId) => {
+        setLogCollapsed(false);
         const chainDef = serialize();
         const result = await execution.startRun(chainDef, filePath, { mode: 'to_node', startNodeId: nodeId });
         if (result?.error) toast.error(`Chain failed: ${result.error}`);
