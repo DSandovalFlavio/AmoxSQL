@@ -152,8 +152,9 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - **No emojis in the UI** — always use Lucide icons (`react-icons/lu`). The only exception is the Markdown export in `client/src/components/ai/exportConversation.js` (it's text, not UI).
 - **No references to external technologies or products** in code, prompts, comments, UI text, or docs. Only what the product is built on or integrates may be named: the LLM providers (Ollama, Google Gemini, Anthropic, OpenAI, Google Vertex), DuckDB (the engine), AmoxSQL itself, and the project's own dependencies (React, Vite, Electron, Recharts, Express, Vercel AI SDK, Zod, Monaco, etc.).
 
-## Further Reading (in-repo docs, mostly Spanish)
-- `docs/dev/arquitectura.md`, `decisiones_tecnicas.md`, `patrones_react.md`, `guia_estilos.md` — deeper architecture, design decisions, React patterns, and style guide
+## Further Reading (in-repo docs)
+- **`docs/`** — the **user-facing documentation** (bilingual ES/EN, ~57 pages/language). Start at `docs/README.md` (master index). This is the place for how each feature works from a user's perspective.
+- `docs/dev/arquitectura.md`, `decisiones_tecnicas.md`, `patrones_react.md`, `guia_estilos.md` — deeper architecture, design decisions, React patterns, and style guide (internal, mostly Spanish)
 - `docs/dev/auditoria_visualizaciones.md`, `plan_story_flow.md` — **Story Flow** (the data-viz section): capability audit + phased implementation plan/status
 - `contexto_caracteristicas/*.md` — per-feature deep dives (AI system, notebook, autocomplete, layout/tabs, DB ops, file formats)
 - `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` — contribution flow, security policy, version history

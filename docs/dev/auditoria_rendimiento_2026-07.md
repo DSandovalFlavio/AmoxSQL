@@ -310,9 +310,8 @@ también contra el build empaquetado (`pnpm dist`).
 
 - `CLAUDE.md` dice que el stdout del server "se pipea a través de main" — ya no:
   `utilityProcess.fork` sin `stdio` → `inherit` (`electron/main.js:233-243`).
-- [pendiente_rendimiento_multiples_graficos.md](pendiente_rendimiento_multiples_graficos.md):
-  las 4 hipótesis quedan CONFIRMADAS y ampliadas por esta auditoría (este doc la sustituye como
-  fuente para la sesión de optimización).
+- `pendiente_rendimiento_multiples_graficos.md` (retirado): sus 4 hipótesis quedaron CONFIRMADAS
+  y ampliadas por esta auditoría, que la sustituye como fuente para la sesión de optimización.
 
 ## 9. Metodología
 

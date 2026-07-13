@@ -1,5 +1,7 @@
 # Plan de implementación: documentación nueva de AmoxSQL
 
+> **Estado: ✅ EJECUTADO (2026-07-13).** F0–F7 completas. 57 páginas/idioma (114 archivos ES+EN) en `docs/`, índice maestro, README landing bilingüe (`README.md` + `README.en.md`), manifiesto de capturas (`docs/dev/capturas_pendientes.md`), y correcciones base. Links internos verificados (1,375 revisados, 0 rotos en `docs/`).
+
 **Fecha:** 2026-07-13 · **Versión objetivo:** v3.8.3+
 **Objetivo:** rediseñar y crear una documentación completa, detallada y actual de **todas** las capacidades de AmoxSQL, sin dejar nada sin documentar. El README dejará de ser un documento monolítico desactualizado (su "Lo Nuevo" se quedó en v3.3) y pasará a ser una landing page que enlaza a una guía estructurada.
 
