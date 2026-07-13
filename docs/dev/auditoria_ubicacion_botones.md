@@ -111,9 +111,10 @@ Cada fase es independiente y se puede commitear por separado. Ninguna requiere c
 - **F3 — HECHO:** A5 (parcial: ver deferidos), A6 ("Save as table…"), A7 (sort asc directo), B4 (GSheets onQuerySql), B5 (Retry re-carga config), B6 (bulk delete).
 - **F4 — HECHO:** B3 (Ctrl+B muerto removido), B8 (Copy Path redundante removido), B9 (DBT New Model removido), B10 (Ctrl+Shift+Enter cableado), B11 (rama skills muerta removida), B14 (tsv en Import/Direct Query/Copy Columns), B16 (fullscreen PNG dims), B17 (To Here abre logs).
 
+- **B7 — HECHO:** eliminado el `ExecutionChainModal` (runner de secuencia de .sql, superado por el editor visual Data Flow/.sqlchain): borrado `ExecutionChainModal.jsx`, `handleOpenChain`, estado `isChainOpen`/`sqlFileList`, el lazy import y el render en App.jsx (~250 líneas de código inalcanzable). El botón "New Execution Chain" ya abría el Data Flow (`createNew('sqlchain')`), no este modal.
+
 ### Deferidos (decisión de producto / riesgo)
 - **A5 (New File Here honra carpeta):** requiere propagar un dir por defecto a `createNew` + modal Save As. No implementado (evita tocar el flujo de guardado); el label sigue diciendo "Here". Pendiente si se quiere el comportamiento completo.
-- **B7 (borrar runner Execution Chain):** es código muerto real, pero borrar una feature completa es decisión de producto — se deja señalado, no borrado.
 - **B12 (charts colapsan a un queryId al recargar en AiSidebar):** verificar si esa superficie sigue viva (AiDivingPanel la superó); fix arriesgado sin confirmarlo.
 - **B13 (spinner "Refresh all" de 600ms):** cosmético; se deja como feedback de "disparado".
 - **B15 (props/estado muertos):** limpieza nivel-lint sin impacto de usuario.
