@@ -828,6 +828,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         let content = '';
 
+        // Cap the column list in the scaffold comment so wide files (50+ cols)
+        // don't drown the query in metadata. Show the first 20, note the rest.
+        const MAX_COLS_IN_COMMENT = 20;
+        const formatColList = (cols) => {
+            if (!cols || cols.length === 0) return 'Unable to read columns';
+            const shown = cols.slice(0, MAX_COLS_IN_COMMENT).map(c => `${c.name} (${c.type})`).join(', ');
+            const extra = cols.length - MAX_COLS_IN_COMMENT;
+            return extra > 0 ? `${shown}, … (+${extra} columnas más, no mostradas)` : shown;
+        };
+
         if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
             try {
                 const res = await fetch(`${API_BASE}/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
@@ -838,10 +848,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 // Build column comments per sheet
                 const sheetDetails = sheets.map(s => {
                     const cols = sheetsWithColumns[s] || [];
-                    const colList = cols.length > 0
-                        ? cols.map(c => `${c.name} (${c.type})`).join(', ')
-                        : 'Unable to read columns';
-                    return `-- Sheet: "${s}"\n--   Columns: ${colList}`;
+                    return `-- Sheet: "${s}"\n--   Columns: ${formatColList(cols)}`;
                 }).join('\n');
 
                 const sheetComments = sheets.map(s => `-- SELECT * FROM read_xlsx('${normalizedPath}', sheet='${s}') LIMIT 100;`).join('\n');
@@ -856,8 +863,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const res = await fetch(`${API_BASE}/api/files/inspect-columns?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
                 if (data.columns && data.columns.length > 0) {
-                    const colList = data.columns.map(c => `${c.name} (${c.type})`).join(', ');
-                    columnComment = `\n * Columns: ${colList}`;
+                    columnComment = `\n * Columns: ${formatColList(data.columns)}`;
                 }
             } catch {
                 // Silently ignore column fetch errors

@@ -912,7 +912,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             onClick={() => { setAiContextFile({ path: contextMenu.file.path, name: contextMenu.file.name }); setContextMenu(null); }}
                             className="context-menu-item"
                         >
-                            <LuSparkles size={14} /> Export for AI...
+                            <LuSparkles size={14} /> Metadata for AI...
                         </div>
                     )}
                     {contextMenu.file.name.endsWith('.amoxvis') && (

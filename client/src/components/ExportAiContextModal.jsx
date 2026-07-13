@@ -161,7 +161,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <LuSparkles size={16} /> Export for AI
+                        <LuSparkles size={16} /> Metadata for AI
                     </h3>
                     <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                         <LuX size={18} />
