@@ -285,7 +285,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                     title: vaultTitle.trim(),
                     sqlContent,
                     tags: vaultTags.trim() || null,
-                    resultSnapshot: JSON.stringify({ rowCount: totalRows, columns: headers.slice(0, 10) }),
+                    resultSnapshot: JSON.stringify({ rowCount: totalRows, columns: columns.slice(0, 10) }),
                 }),
             });
             if (!res.ok) throw new Error('Failed to save');

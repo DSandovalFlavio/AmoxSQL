@@ -277,8 +277,16 @@ const DeckEditor = ({
                                             <div className="ep-action-dropdown-item" onClick={() => handleExportPptx('native')}>
                                                 Native charts (editable)
                                             </div>
-                                            <div className="ep-action-dropdown-item" onClick={() => handleExportPptx('image')}>
-                                                Image charts (needs Present view)
+                                            <div
+                                                className="ep-action-dropdown-item"
+                                                onClick={() => { if (viewMode === 'present') handleExportPptx('image'); }}
+                                                aria-disabled={viewMode !== 'present'}
+                                                title={viewMode === 'present'
+                                                    ? 'Export chart images'
+                                                    : 'Cambia a la vista Present para capturar las imágenes de los gráficos'}
+                                                style={viewMode !== 'present' ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                                            >
+                                                Image charts {viewMode !== 'present' ? '(cambia a Present)' : ''}
                                             </div>
                                         </div>
                                     )}

@@ -1771,8 +1771,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </p>
                                     </div>
                                     <div className="stg-ai-actions">
-                                        <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary">
-                                            {isSaving ? 'Saving...' : 'Save AI Settings'}
+                                        <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary" title="Guarda toda la configuración (AI, cloud, editor, etc.)">
+                                            {isSaving ? 'Saving...' : 'Save Settings'}
                                         </button>
                                         {saveMessage && (
                                             <span className={`stg-save-msg stg-save-msg--${saveMessage.type}`}>
@@ -2198,8 +2198,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             Connect your cloud storage buckets to export query results directly to S3 or Google Cloud Storage using DuckDB's native httpfs extension.
                                         </p>
                                     </div>
-                                    <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary">
-                                        {isSaving ? 'Saving...' : 'Save Cloud Settings'}
+                                    <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary" title="Guarda toda la configuración (AI, cloud, editor, etc.)">
+                                        {isSaving ? 'Saving...' : 'Save Settings'}
                                     </button>
                                 </div>
 
