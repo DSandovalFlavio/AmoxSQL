@@ -469,8 +469,8 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                     <LuExternalLink size={12} /> Pop-out
                                 </button>
                             )}
-                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save results to database">
-                                <LuSave size={12} /> Save to DB
+                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save query as a table" title="Materializa la query completa como tabla/vista (no solo las filas mostradas)">
+                                <LuSave size={12} /> Save as table…
                             </button>
                             <div className="toolbar-dropdown">
                                 <button className="rt-action-btn" onClick={() => { setVaultTitle(''); setVaultTags(''); setShowVaultPrompt(v => !v); }}>
@@ -681,7 +681,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                         <LuClipboardCopy size={13} /> Copy All Column Names
                     </div>
                     <div className="column-context-menu-separator" />
-                    <div className="column-context-menu-item" onClick={() => { handleSort(contextMenu.column); setContextMenu(null); }}>
+                    <div className="column-context-menu-item" onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'asc' }); setContextMenu(null); }}>
                         <LuChevronUp size={13} /> Sort Ascending
                     </div>
                     <div className="column-context-menu-item" onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'desc' }); setContextMenu(null); }}>

@@ -17,7 +17,7 @@ import ExportAiContextModal from './ExportAiContextModal';
 import ExportDataModal from './ExportDataModal';
 import GSheetsSection from './GSheetsSection';
 
-const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -63,6 +63,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // Delete Modal State
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [fileToDelete, setFileToDelete] = useState(null);
+    const [deleteTargets, setDeleteTargets] = useState([]); // bulk delete: all files to remove
 
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
@@ -375,25 +376,39 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // --- Delete Logic ---
     const handleDeleteClick = (file) => {
         setContextMenu(null);
+        // If the clicked file is part of a multi-selection, delete the whole selection.
+        const targets = (selectedFiles.size > 1 && selectedFiles.has(file.path))
+            ? getSelectedFileObjects()
+            : [file];
+        setDeleteTargets(targets);
         setFileToDelete(file);
         setDeleteModalOpen(true);
     };
 
     const confirmDelete = async () => {
-        if (!fileToDelete) return;
-        const response = await fetch(`${API_BASE}/api/file/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: fileToDelete.path, isDirectory: fileToDelete.isDirectory })
-        });
-
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Delete failed');
+        const targets = deleteTargets.length > 0 ? deleteTargets : (fileToDelete ? [fileToDelete] : []);
+        if (targets.length === 0) return;
+        const failures = [];
+        for (const t of targets) {
+            try {
+                const response = await fetch(`${API_BASE}/api/file/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: t.path, isDirectory: t.isDirectory })
+                });
+                if (!response.ok) {
+                    const data = await response.json();
+                    failures.push(`${t.name}: ${data.error || 'delete failed'}`);
+                }
+            } catch (err) {
+                failures.push(`${t.name}: ${err.message}`);
+            }
         }
-
         fetchFiles(currentPath);
         setFileToDelete(null);
+        setDeleteTargets([]);
+        setSelectedFiles(new Set());
+        if (failures.length > 0) throw new Error(failures.join('\n'));
     };
 
     // --- Duplicate ---
@@ -591,9 +606,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
             if (e.key === 'Delete' && selectedFiles.size > 0) {
                 e.preventDefault();
                 const items = getSelectedFileObjects();
-                if (items.length === 1) { handleDeleteClick(items[0]); }
-                // Bulk delete: delete first, we can enhance later
-                else if (items.length > 1) { handleDeleteClick(items[0]); }
+                // handleDeleteClick detects the multi-selection and deletes all of it.
+                if (items.length > 0) handleDeleteClick(items[0]);
             }
             if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedFiles.size > 0) {
                 e.preventDefault(); copyFiles(getSelectedFileObjects());
@@ -1028,8 +1042,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                 isOpen={deleteModalOpen}
                 onClose={() => setDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                itemName={fileToDelete?.name}
-                itemType={fileToDelete?.isDirectory ? 'Folder' : 'File'}
+                itemName={deleteTargets.length > 1 ? `${deleteTargets.length} elementos` : fileToDelete?.name}
+                itemType={deleteTargets.length > 1 ? 'Items' : (fileToDelete?.isDirectory ? 'Folder' : 'File')}
             />
 
             <AlertDialog
@@ -1090,9 +1104,10 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
             {/* Google Sheets section */}
             <GSheetsSection
-                onQuerySheet={(sql, sheetName, tabName) => {
-                    // Open a new query tab with the read_gsheet SQL
-                    onQueryFile?.(null, sql, `${sheetName}${tabName ? ' → ' + tabName : ''}`);
+                onQuerySheet={(sql) => {
+                    // Open a new SQL tab seeded with the read_gsheet query.
+                    // (onQueryFile expects a file PATH and rejects non-strings — use onQuerySql.)
+                    onQuerySql?.(sql);
                 }}
             />
         </div>

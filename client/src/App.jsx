@@ -1150,6 +1150,7 @@ function App() {
                   onNewFolder={handleNewFolder}
                   onImportFile={handleImportRequest}
                   onQueryFile={handleQueryFileTab}
+                  onQuerySql={(sql) => layoutRef.current?.createNew('sql', sql)}
                   onPreviewFile={handleQueryFileTab}
                   onEditChart={handleEditChartTab}
                   onEditChartWithSql={handleEditChartWithSqlTab}
