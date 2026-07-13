@@ -408,7 +408,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                 {!isReportMode && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: isFullscreen ? '0 0 10px 0' : '8px 16px 0 0' }}>
                         {isFullscreen && (
-                            <button onClick={handleDownload} title="Download Chart as PNG"
+                            <button onClick={() => handleDownload({ label: 'original', width: chartRef.current?.offsetWidth, height: chartRef.current?.offsetHeight })} title="Download Chart as PNG"
                                 style={{
                                     background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)',
                                     cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '11px',

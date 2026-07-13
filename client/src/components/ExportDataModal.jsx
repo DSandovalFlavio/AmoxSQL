@@ -132,7 +132,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                         <LuHardDrive size={14} /> Local Server
                     </button>
                     <button
-                        onClick={() => setExportTarget('cloud')}
+                        onClick={() => { setExportTarget('cloud'); if (format === 'xlsx') setFormat('csv'); }}
                         style={{
                             flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer',
                             backgroundColor: exportTarget === 'cloud' ? 'var(--accent-primary)' : 'var(--input-bg)',

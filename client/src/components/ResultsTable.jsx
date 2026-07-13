@@ -1,13 +1,11 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuSparkles } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
-import ExportDataModal from './ExportDataModal';
-import ExportAiContextModal from './ExportAiContextModal';
 import { useToast } from './ToastProvider';
 
 const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null }) => {
@@ -23,8 +21,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const [vaultTitle, setVaultTitle] = useState('');
     const [vaultTags, setVaultTags] = useState('');
     const [vaultSaving, setVaultSaving] = useState(false);
-    const [isExportDataOpen, setIsExportDataOpen] = useState(false);
-    const [isExportAiContextOpen, setIsExportAiContextOpen] = useState(false);
     const [exportingAction, setExportingAction] = useState(null);
 
     // View State
@@ -287,7 +283,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                     title: vaultTitle.trim(),
                     sqlContent,
                     tags: vaultTags.trim() || null,
-                    resultSnapshot: JSON.stringify({ rowCount: totalRows, columns: headers.slice(0, 10) }),
+                    resultSnapshot: JSON.stringify({ rowCount: totalRows, columns: columns.slice(0, 10) }),
                 }),
             });
             if (!res.ok) throw new Error('Failed to save');
@@ -473,8 +469,8 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                     <LuExternalLink size={12} /> Pop-out
                                 </button>
                             )}
-                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save results to database">
-                                <LuSave size={12} /> Save to DB
+                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save query as a table" title="Materializa la query completa como tabla/vista (no solo las filas mostradas)">
+                                <LuSave size={12} /> Save as table…
                             </button>
                             <div className="toolbar-dropdown">
                                 <button className="rt-action-btn" onClick={() => { setVaultTitle(''); setVaultTags(''); setShowVaultPrompt(v => !v); }}>
@@ -512,15 +508,16 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 )}
                             </div>
 
-                            {/* Export Dropdown */}
+                            {/* Download Dropdown — the rows shown in THIS table (in-memory, instant).
+                                Full export of the whole query lives in the editor toolbar ("Export"),
+                                since it re-runs the query and belongs to the query, not the shown rows. */}
                             <div className="toolbar-dropdown">
                                 <button className="rt-action-btn" onClick={() => setShowExportMenu(!showExportMenu)}>
-                                    <LuFileDown size={12} /> Export ▾
+                                    <LuFileDown size={12} /> Download ▾
                                 </button>
                                 {showExportMenu && (
                                     <div className="toolbar-dropdown-menu" style={{ right: 0, left: 'auto' }}>
-                                        <div className="rt-dropdown-section">Quick Export</div>
-                                        <div className="rt-dropdown-subtext">Las filas cargadas aquí — al instante</div>
+                                        <div className="rt-dropdown-subtext">Las filas cargadas en esta tabla</div>
                                         {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv, action: 'exportCSV' },
                                         { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson, action: 'exportJSON' },
                                         { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: 'copy' },
@@ -537,17 +534,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                                 </div>
                                             );
                                         })}
-                                        <div className="rt-dropdown-separator" />
-                                        <div className="rt-dropdown-section">Full Export (DuckDB)</div>
-                                        <div className="rt-dropdown-subtext">Re-ejecuta la query — todas las filas, a archivo (CSV/Parquet/Excel/nube)</div>
-                                        <div className="toolbar-dropdown-item rt-dropdown-accent" onClick={() => { setIsExportDataOpen(true); setShowExportMenu(false); }}>
-                                            <LuFileDown size={13} /> Export to File…
-                                        </div>
-                                        <div className="rt-dropdown-separator" />
-                                        <div className="rt-dropdown-section">AI</div>
-                                        <div className="toolbar-dropdown-item" onClick={() => { setIsExportAiContextOpen(true); setShowExportMenu(false); }}>
-                                            <LuSparkles size={13} /> Metadata for AI…
-                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -668,18 +654,6 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                 onSave={handleSaveToDb}
             />
 
-            <ExportDataModal
-                isOpen={isExportDataOpen}
-                onClose={() => setIsExportDataOpen(false)}
-                query={resolveEditorQuery() || query}
-            />
-
-            <ExportAiContextModal
-                isOpen={isExportAiContextOpen}
-                onClose={() => setIsExportAiContextOpen(false)}
-                query={resolveEditorQuery() || query}
-            />
-
             {/* Compare Results Modal */}
             {compareOpen && storedForCompare && (
                 <Suspense fallback={null}>
@@ -707,7 +681,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                         <LuClipboardCopy size={13} /> Copy All Column Names
                     </div>
                     <div className="column-context-menu-separator" />
-                    <div className="column-context-menu-item" onClick={() => { handleSort(contextMenu.column); setContextMenu(null); }}>
+                    <div className="column-context-menu-item" onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'asc' }); setContextMenu(null); }}>
                         <LuChevronUp size={13} /> Sort Ascending
                     </div>
                     <div className="column-context-menu-item" onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'desc' }); setContextMenu(null); }}>

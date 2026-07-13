@@ -329,9 +329,11 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     <button
                         className="ai-chart-btn"
                         onClick={handleDownloadConfig}
-                        title="Save as .amoxvis and open it in the Story Flow editor"
+                        title={onExportAmoxvis
+                            ? 'Save as .amoxvis and open it in the Story Flow editor'
+                            : 'Download the chart config as a .json file'}
                     >
-                        <LuFileJson size={12} /> Open in Story Flow
+                        <LuFileJson size={12} /> {onExportAmoxvis ? 'Open in Story Flow' : 'Export config (.json)'}
                     </button>
                 </div>
             </div>

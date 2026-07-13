@@ -1421,6 +1421,16 @@ app.post('/api/export/cloud', async (req, res) => {
     // destination: s3://bucket/path/file.parquet or gs://bucket/path/file.csv
     // format: parquet, csv, json
     // cloudProvider: s3 or gcs
+    // Cloud export supports only CSV/JSON/Parquet — NOT xlsx. Validate up front so
+    // an unsupported format never silently falls through to a Parquet body written
+    // under a mismatched extension.
+    const allowedCloudFormats = ['csv', 'parquet', 'json'];
+    if (!allowedCloudFormats.includes((format || '').toLowerCase())) {
+        return res.status(400).json({
+            error: `Formato no soportado para export a la nube: ${format || '(vacío)'}. Usa CSV, JSON o Parquet.`,
+        });
+    }
+
     try {
         const config = aiManager.getConfig();
 

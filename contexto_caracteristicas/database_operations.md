@@ -147,7 +147,12 @@ CREATE OR REPLACE TABLE "{tableName}" AS SELECT * FROM '{filePath}'
 - Nota histórica: antes de v3.8.2, el modo xlsx escribía CSV dentro del `.xlsx` → el archivo no abría en Excel.
 - Retorna: path + row count.
 
-Menú de export (results table, `ResultsTable.jsx`): **Quick Export** (CSV/JSON/portapapeles vía Web Worker en cliente, sobre las filas ya cargadas) vs **Full Export** (`/api/export-data`, re-ejecuta la query, todas las filas, a archivo/nube) vs **Metadata for AI** (`ExportAiContextModal`, documento de contexto para chat de IA).
+Dónde vive el export (desde v3.8.3):
+- **Toolbar del editor** (`EditorPane.jsx`, botón "Export" después de Save): abre `ExportDataModal` con la **query actual del editor** (variables resueltas vía `resolveVariables`). Re-ejecuta la query completa a archivo/nube (`/api/export-data`, `/api/export/cloud`). Export ligado a la query, no a los resultados mostrados → siempre usa el texto actual (no la última query ejecutada).
+- **Toolbar de resultados** (`ResultsTable.jsx`, botón "Download"): **solo** las filas cargadas en la tabla — CSV/JSON/portapapeles vía Web Worker en cliente (instantáneo, en memoria) + **Metadata for AI** (`ExportAiContextModal`).
+- **FileExplorer** (3 puntitos en un `.sql`): "Export results…" lee el archivo (`GET /api/file`) y abre `ExportDataModal` con esa query.
+
+Export a la nube (`/api/export/cloud`): solo CSV/JSON/Parquet (NO xlsx); valida el formato y rechaza el resto (evita escribir Parquet bajo una extensión equivocada).
 
 **POST /api/export/cloud** (lineas 490-528):
 - S3: access key, secret, region, endpoint

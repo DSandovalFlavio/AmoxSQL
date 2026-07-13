@@ -358,6 +358,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     }, [serialize, filePath, execution, toast]);
 
     const handleRunToNode = useCallback(async (nodeId) => {
+        setLogCollapsed(false);
         const chainDef = serialize();
         const result = await execution.startRun(chainDef, filePath, { mode: 'to_node', startNodeId: nodeId });
         if (result?.error) toast.error(`Chain failed: ${result.error}`);
@@ -416,6 +417,17 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 const yamlStr = await file.text();
                 const chain = yamlToChain(yamlStr);
 
+                // Importing replaces the whole canvas — confirm first if there's work
+                // to lose (mirrors the AI-generate path, which also confirms).
+                if (nodes.length > 0) {
+                    const ok = await dialog.confirmAsync({
+                        title: 'Import chain from YAML',
+                        message: `This replaces the current chain on the canvas (${nodes.length} node${nodes.length === 1 ? '' : 's'}). Continue?`,
+                        confirmLabel: 'Import',
+                    });
+                    if (!ok) return;
+                }
+
                 setChainMeta({ name: chain.name, description: chain.description, variables: chain.variables });
                 setNodes(chain.nodes.map(n => ({
                     id: n.id,
@@ -442,7 +454,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             }
         };
         input.click();
-    }, [toast]);
+    }, [toast, nodes, dialog]);
 
     // --- Auto-layout ---
     const handleAutoLayout = useCallback(() => {

@@ -14,9 +14,10 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
 import FilePreviewModal from './FilePreviewModal';
 import ExportAiContextModal from './ExportAiContextModal';
+import ExportDataModal from './ExportDataModal';
 import GSheetsSection from './GSheetsSection';
 
-const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -62,6 +63,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // Delete Modal State
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [fileToDelete, setFileToDelete] = useState(null);
+    const [deleteTargets, setDeleteTargets] = useState([]); // bulk delete: all files to remove
 
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
@@ -69,6 +71,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // File Preview State
     const [previewFilePath, setPreviewFilePath] = useState(null);
     const [aiContextFile, setAiContextFile] = useState(null); // { path, name } for Export for AI
+    const [exportSqlQuery, setExportSqlQuery] = useState(null); // string SQL for "Export results…" on a .sql file
+    const [exportSqlLoading, setExportSqlLoading] = useState(false);
 
     // Column Copy Loading State
     const [copyingColumns, setCopyingColumns] = useState(false);
@@ -372,25 +376,39 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     // --- Delete Logic ---
     const handleDeleteClick = (file) => {
         setContextMenu(null);
+        // If the clicked file is part of a multi-selection, delete the whole selection.
+        const targets = (selectedFiles.size > 1 && selectedFiles.has(file.path))
+            ? getSelectedFileObjects()
+            : [file];
+        setDeleteTargets(targets);
         setFileToDelete(file);
         setDeleteModalOpen(true);
     };
 
     const confirmDelete = async () => {
-        if (!fileToDelete) return;
-        const response = await fetch(`${API_BASE}/api/file/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: fileToDelete.path, isDirectory: fileToDelete.isDirectory })
-        });
-
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Delete failed');
+        const targets = deleteTargets.length > 0 ? deleteTargets : (fileToDelete ? [fileToDelete] : []);
+        if (targets.length === 0) return;
+        const failures = [];
+        for (const t of targets) {
+            try {
+                const response = await fetch(`${API_BASE}/api/file/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: t.path, isDirectory: t.isDirectory })
+                });
+                if (!response.ok) {
+                    const data = await response.json();
+                    failures.push(`${t.name}: ${data.error || 'delete failed'}`);
+                }
+            } catch (err) {
+                failures.push(`${t.name}: ${err.message}`);
+            }
         }
-
         fetchFiles(currentPath);
         setFileToDelete(null);
+        setDeleteTargets([]);
+        setSelectedFiles(new Set());
+        if (failures.length > 0) throw new Error(failures.join('\n'));
     };
 
     // --- Duplicate ---
@@ -588,9 +606,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
             if (e.key === 'Delete' && selectedFiles.size > 0) {
                 e.preventDefault();
                 const items = getSelectedFileObjects();
-                if (items.length === 1) { handleDeleteClick(items[0]); }
-                // Bulk delete: delete first, we can enhance later
-                else if (items.length > 1) { handleDeleteClick(items[0]); }
+                // handleDeleteClick detects the multi-selection and deletes all of it.
+                if (items.length > 0) handleDeleteClick(items[0]);
             }
             if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedFiles.size > 0) {
                 e.preventDefault(); copyFiles(getSelectedFileObjects());
@@ -858,7 +875,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
                 }}>
                     {/* ── Type-specific actions ── */}
-                    {contextMenu.file.name.match(/\.(csv|parquet|json|xlsx|xls)$/i) && (
+                    {contextMenu.file.name.match(/\.(csv|tsv|parquet|json|xlsx|xls)$/i) && (
                         <div onClick={() => onImportFile(contextMenu.file.path, false)} className="context-menu-item">
                             <LuDatabase size={14} /> Import to Database...
                         </div>
@@ -868,12 +885,12 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             <LuFileSpreadsheet size={14} /> Quick Preview
                         </div>
                     )}
-                    {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
+                    {contextMenu.file.name.match(/\.(csv|tsv|xlsx|xls|parquet|json)$/i) && (
                         <div onClick={() => { onQueryFile(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
                             <LuSearch size={14} /> Direct Query
                         </div>
                     )}
-                    {contextMenu.file.name.match(/\.(csv|xlsx|xls|parquet|json)$/i) && (
+                    {contextMenu.file.name.match(/\.(csv|tsv|xlsx|xls|parquet|json)$/i) && (
                         <div
                             onClick={async () => {
                                 if (copyingColumns) return;
@@ -924,6 +941,28 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                 <LuCode size={14} /> Edit with SQL
                             </div>
                         </>
+                    )}
+                    {/* .sql — export the query's results to a file (reads the file from disk) */}
+                    {contextMenu.file.name.match(/\.sql$/i) && (
+                        <div
+                            onClick={async () => {
+                                if (exportSqlLoading) return;
+                                const filePath = contextMenu.file.path;
+                                setContextMenu(null);
+                                setExportSqlLoading(true);
+                                try {
+                                    const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
+                                    const data = await res.json();
+                                    setExportSqlQuery(data.content || '');
+                                } catch (err) {
+                                    console.error('Failed to read SQL file for export:', err);
+                                    setExportSqlQuery('');
+                                } finally { setExportSqlLoading(false); }
+                            }}
+                            className="context-menu-item"
+                        >
+                            {exportSqlLoading ? <LuLoader size={14} className="spin" /> : <LuFileSpreadsheet size={14} />} Export results...
+                        </div>
                     )}
                     {contextMenu.file.isDirectory && (
                         <div onClick={() => onImportFile(contextMenu.file.path, true)} className="context-menu-item">
@@ -987,9 +1026,9 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     <div onClick={() => revealInExplorer(contextMenu.file)} className="context-menu-item">
                         <LuExternalLink size={14} /> Reveal in Explorer
                     </div>
-                    <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\//g, '/')); setContextMenu(null); }} className="context-menu-item">
-                        <LuCopy size={14} /> Copy Path
-                    </div>
+                    {/* "Copy Path" (backslash identity regex) was a redundant duplicate of the
+                        normalized relative path below, and its label implied an absolute path it
+                        never produced — removed. */}
                     <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\\/g, '/')); setContextMenu(null); }} className="context-menu-item">
                         <LuClipboard size={14} /> Copy Relative Path
                     </div>
@@ -1003,8 +1042,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                 isOpen={deleteModalOpen}
                 onClose={() => setDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                itemName={fileToDelete?.name}
-                itemType={fileToDelete?.isDirectory ? 'Folder' : 'File'}
+                itemName={deleteTargets.length > 1 ? `${deleteTargets.length} elementos` : fileToDelete?.name}
+                itemType={deleteTargets.length > 1 ? 'Items' : (fileToDelete?.isDirectory ? 'Folder' : 'File')}
             />
 
             <AlertDialog
@@ -1021,6 +1060,12 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     onClose={() => setPreviewFilePath(null)}
                 />
             )}
+
+            <ExportDataModal
+                isOpen={exportSqlQuery !== null}
+                onClose={() => setExportSqlQuery(null)}
+                query={exportSqlQuery || ''}
+            />
 
             <ExportAiContextModal
                 isOpen={!!aiContextFile}
@@ -1059,9 +1104,10 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
             {/* Google Sheets section */}
             <GSheetsSection
-                onQuerySheet={(sql, sheetName, tabName) => {
-                    // Open a new query tab with the read_gsheet SQL
-                    onQueryFile?.(null, sql, `${sheetName}${tabName ? ' → ' + tabName : ''}`);
+                onQuerySheet={(sql) => {
+                    // Open a new SQL tab seeded with the read_gsheet query.
+                    // (onQueryFile expects a file PATH and rejects non-strings — use onQuerySql.)
+                    onQuerySql?.(sql);
                 }}
             />
         </div>

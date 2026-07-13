@@ -1,6 +1,6 @@
 <img src="./assets/logo.svg" alt="AmoxSQL Logo" width="300" height="300" align="center"/> 
 
-# AmoxSQL (v3.8.2)
+# AmoxSQL (v3.8.3)
 
 > **El Códice Moderno para el Análisis Local de Datos.**
 >
@@ -176,14 +176,14 @@ Mucho ha pasado desde el último release. Lo más reciente:
 
 ## ⬇️ Instalación y Descarga
 
-### 🎉 v3.8.2 — Export de datos: arreglos y claridad
+### 🎉 v3.8.3 — El export ahora pertenece a la query
 
-El Excel exportado desde una query ahora **sí abre** (antes se escribía CSV disfrazado), el menú de export es más claro (Quick vs Full), y la inspección de metadata de v3.8.1 dejó los Excel grandes casi instantáneos.
+Botón **Export** en la toolbar del editor que exporta la query actual (WYSIWYG, sin versiones viejas); el botón de resultados pasa a **Download** (lo que ves en la tabla). Más: el Excel exportado **sí abre** (v3.8.2) y la metadata de Excel grandes es casi instantánea (v3.8.1).
 
 Este software está disponible **libre y abierto** a toda la comunidad.
 Descarga el instalador pre-construido para Windows directamente desde GitHub Releases:
 
-👉 **[Descargar AmoxSQL v3.8.2](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
+👉 **[Descargar AmoxSQL v3.8.3](https://github.com/dsandovalflavio/amoxsql/releases/latest)**
 
 > **Nota:** Los releases beta iniciales incluyen el instalador pre-construido gratis.
 > En adelante, los instaladores continuos pre-construidos estarán disponibles exclusivamente para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio).

@@ -36,7 +36,6 @@ import TabBar from './components/TabBar';
 // KeyboardShortcutsModal removed — shortcuts now integrated in SettingsModal
 const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
-const ExecutionChainModal = lazy(() => import('./components/ExecutionChainModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
 import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch } from "react-icons/lu";
@@ -149,10 +148,6 @@ function App() {
   // Data Quality & Schema Diff Modals
   const [qualityCheckTable, setQualityCheckTable] = useState(null);
   const [isSchemaDiffOpen, setIsSchemaDiffOpen] = useState(false);
-
-  // Execution Chain Modal
-  const [isChainOpen, setIsChainOpen] = useState(false);
-  const [sqlFileList, setSqlFileList] = useState([]);
 
   /* --- Project Workflow Handlers --- */
 
@@ -405,12 +400,6 @@ function App() {
         setShowAiSidebar(v => !v);
         return;
       }
-      // Toggle Left Sidebar: Ctrl+B
-      if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
-        e.preventDefault();
-        setShowSidebar(v => !v);
-        return;
-      }
       // Toggle Split View: Ctrl+\
       if (e.ctrlKey && !e.shiftKey && e.key === '\\') {
         e.preventDefault();
@@ -459,33 +448,6 @@ function App() {
     const handler = () => setShowAiSidebar(true);
     window.addEventListener('amox_ai_prompt', handler);
     return () => window.removeEventListener('amox_ai_prompt', handler);
-  }, []);
-
-  /* --- Execution Chain Handler --- */
-  const handleOpenChain = useCallback(async () => {
-    try {
-      const collectSqlFiles = async (dir = '') => {
-        const res = await fetch(`${API_BASE}/api/files?path=${encodeURIComponent(dir)}`);
-        const files = await res.json();
-        let sqlFiles = [];
-        for (const f of files) {
-          if (f.isDirectory) {
-            const sub = await collectSqlFiles(f.path);
-            sqlFiles = sqlFiles.concat(sub);
-          } else if (f.name.endsWith('.sql') || f.name.endsWith('.md')) {
-            sqlFiles.push(f.path);
-          }
-        }
-        return sqlFiles;
-      };
-      const files = await collectSqlFiles();
-      setSqlFileList(files);
-      setIsChainOpen(true);
-    } catch (err) {
-      console.error('Failed to collect SQL files:', err);
-      setSqlFileList([]);
-      setIsChainOpen(true);
-    }
   }, []);
 
   // settingsInitialTab controls which tab opens in SettingsModal
@@ -1150,6 +1112,7 @@ function App() {
                   onNewFolder={handleNewFolder}
                   onImportFile={handleImportRequest}
                   onQueryFile={handleQueryFileTab}
+                  onQuerySql={(sql) => layoutRef.current?.createNew('sql', sql)}
                   onPreviewFile={handleQueryFileTab}
                   onEditChart={handleEditChartTab}
                   onEditChartWithSql={handleEditChartWithSqlTab}
@@ -1424,15 +1387,6 @@ function App() {
           initialFile={importTargetFile || ''}
           onClose={() => setIsExcelImportModalOpen(false)}
           onImport={(config) => performExcelImport(config)}
-        />
-
-        <ExecutionChainModal
-          isOpen={isChainOpen}
-          onClose={() => setIsChainOpen(false)}
-          sqlFiles={sqlFileList}
-          dbPath={currentDb}
-          readOnly={dbReadOnly}
-          refreshTrigger={refreshDbTrigger}
         />
       </Suspense>
 

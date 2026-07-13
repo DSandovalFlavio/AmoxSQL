@@ -55,9 +55,9 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
 
     // ─── Load Config ───
-    useEffect(() => {
-        const loadConfig = async () => {
+    const loadConfig = useCallback(async () => {
             try {
+                setStatus('LOADING');
                 const res = await fetch(`${API}/api/settings/config`);
                 const configData = await res.json();
 
@@ -107,12 +107,13 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                 console.error("AI Status check failed", e);
                 setStatus('ERROR');
             }
-        };
+    }, []);
 
+    useEffect(() => {
         loadConfig();
         window.addEventListener('amox_settings_updated', loadConfig);
         return () => window.removeEventListener('amox_settings_updated', loadConfig);
-    }, []);
+    }, [loadConfig]);
 
     // ─── Load Skills (Data Diving) ───
     useEffect(() => {
@@ -828,7 +829,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                     {status === 'ERROR' && (
                         <div className="ai-error-state">
                             Error loading AI configuration.
-                            <button onClick={() => setStatus('READY')}>Retry</button>
+                            <button onClick={() => loadConfig()}>Retry</button>
                         </div>
                     )}
 
@@ -922,7 +923,7 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
             {status === 'ERROR' && (
                 <div className="ai-error-state">
                     Error loading AI configuration.
-                    <button onClick={() => setStatus('READY')}>Retry</button>
+                    <button onClick={() => loadConfig()}>Retry</button>
                 </div>
             )}
 
@@ -979,27 +980,8 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                         )}
                     </div>
 
-                    {/* ─── Skill Selector (Data Diving only) ─── */}
-                    {isDiving && availableSkills.length > 0 && (
-                        <div className="ai-skill-selector">
-                            <div className="ai-skill-label">
-                                <LuWand size={10} />
-                                <span>Skill</span>
-                            </div>
-                            <select
-                                className="ai-skill-select"
-                                value={activeSkillId || ''}
-                                onChange={(e) => setActiveSkillId(e.target.value || null)}
-                            >
-                                <option value="">General (no skill)</option>
-                                {availableSkills.map(s => (
-                                    <option key={s.id} value={s.id} title={s.description}>
-                                        {s.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* Skill selector removed here — it's Data Diving only, and this is the
+                        non-diving sidebar return (isDiving is always false). Lives in AiDivingPanel. */}
 
                     {/* ─── Context (Drag & Drop) ─── */}
                     <div className="ai-context-section">

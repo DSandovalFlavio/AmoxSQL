@@ -414,6 +414,18 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isFullView]);
 
+    // Run All — Ctrl+Shift+Enter (advertised in the Run All tooltip).
+    useEffect(() => {
+        const handler = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Enter') {
+                e.preventDefault();
+                runAll();
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [runAll]);
+
     const toolbarContent = (
         <div className="snb-toolbar">
             {/* Left: Mode switcher + primary actions */}

@@ -5,6 +5,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.8.3] — 2026-07-13
+
+### El export ahora pertenece a la query, no a los resultados
+
+Rediseño de dónde vive y qué exporta el "Export to File" (full export vía DuckDB), más un fix en el export a la nube.
+
+- **Botón "Export" en la toolbar del editor** (después de Save). Exporta la salida completa de la **query actual del editor** (CSV/Parquet/Excel/nube), resolviendo las variables. Antes esto vivía en el área de resultados y re-ejecutaba la **última query ejecutada** — así que si quitabas un `WHERE`/`LIMIT` sin volver a correr, el export salía con el filtro viejo. Ahora es WYSIWYG: siempre exporta lo que ves en el editor.
+- **El botón del área de resultados se llama ahora "Download"** y exporta solo **las filas cargadas en la tabla** (CSV/JSON/portapapeles, al instante) + Metadata for AI. Se le quitó el full-export (era redundante ahí).
+- **"Export results…" en el menú contextual de un `.sql`** (3 puntitos en el explorador de archivos): lee el archivo y abre el export sobre esa query.
+- **Fix — export a la nube rechaza formatos no soportados.** Cloud solo admite CSV/JSON/Parquet; antes un formato distinto (p. ej. `xlsx` arrastrado como estado obsoleto) caía en silencio a Parquet bajo una extensión equivocada. Ahora se valida y se avisa.
+
+### Auditoría de ubicación de botones — bugs y reasignaciones
+
+Auditoría de toda la UI buscando fallos de ubicación como el del export (acción que vive donde no corresponde / usa estado stale). Reporte: `docs/dev/auditoria_ubicacion_botones.md`.
+
+- **Crashes / pérdida de datos:** "Save to Vault" crasheaba (variable fuera de scope) — arreglado; **Import YAML** (Data Flow) reemplazaba toda la chain sin confirmar — ahora confirma; export de **"Image charts"** a PowerPoint producía slides en blanco fuera de la vista Present — ahora se deshabilita salvo en Present; los dos botones "Save AI/Cloud Settings" (que en realidad guardaban TODO) se unificaron a **"Save Settings"**.
+- **Reasignaciones por dueño:** **"Metadata for AI"** se movió del menú de resultados (filas) al dropdown **Export** del editor (query); **Analyze** ahora resuelve `${variables}` como Run/Export; la celda de notebook usa el buffer vivo para Vault; "Open in Story Flow" muestra "Export config" cuando no puede abrir Story Flow.
+- **Labels y acciones rotas:** "Save to DB" → **"Save as table…"**; "Sort Ascending" ya no alterna a descendente; **"Retry"** del AI ahora recarga de verdad; **Google Sheets "Query Sheet"** ahora abre la pestaña (antes no hacía nada); borrar con **multi-selección** borra toda la selección.
+- **Limpieza:** Ctrl+B duplicado y "DBT: New Model"/"Copy Path" redundantes removidos; **Ctrl+Shift+Enter** cablea Run All en notebooks; `.tsv` ahora ofrece Import/Direct Query/Copy Columns; PNG en pantalla completa usa el tamaño real; "To Here" (Data Flow) abre los logs.
+
+---
+
 ## [3.8.2] — 2026-07-13
 
 ### Export de datos: arreglos y claridad
