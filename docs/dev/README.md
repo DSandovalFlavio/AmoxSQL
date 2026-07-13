@@ -1,7 +1,8 @@
 # AmoxSQL — Documentación Interna para Desarrolladores
 
-> **Versión:** 2.1.3 · **Última actualización:** 2026-05-01  
-> Docs de uso interno. Para docs públicas ver [`README.md`](../../README.md) en raíz.
+> **Versión:** 3.8.3 · **Última actualización:** 2026-07-13
+> Docs de uso **interno** (desarrollo). La **documentación de usuario** vive en
+> [`docs/`](../) (guía bilingüe ES/EN). El README raíz ([`README.md`](../../README.md)) es la landing.
 
 ---
 
@@ -53,20 +54,22 @@ feat(ai): add detect_anomalies tool
 | Info | Dónde está |
 |------|-----------|
 | Guía para Claude Code | [`CLAUDE.md`](../../CLAUDE.md) — no modificar |
-| Docs públicas | [`README.md`](../../README.md) |
+| **Documentación de usuario (bilingüe)** | [`docs/`](../) — guía detallada por feature |
+| Landing pública | [`README.md`](../../README.md) |
 | Guía de contribución | [`CONTRIBUTING.md`](../../CONTRIBUTING.md) |
-| Roadmap de features AI | [Plan de implementación](../../../.claude/plans/oye-quiero-que-hagas-floating-bubble.md) |
+| Backlog / roadmap | [`pendientes.md`](pendientes.md) · [`plan_profesionalizacion.md`](plan_profesionalizacion.md) |
 
 ---
 
 ## Quick Reference — Comandos de Desarrollo
 
 ```bash
-npm start              # Dev: Vite :5173 + Electron
-npm run client:dev     # Solo frontend (Vite)
-npm run client:build   # Build → client/dist/
-npm run dist           # client:build + electron-builder (NSIS)
-npm run postinstall    # Rebuild módulos nativos (DuckDB) para Electron ABI
+# pnpm 11+ obligatorio (no usar npm ni yarn)
+pnpm start              # Dev: Vite :5173 + Electron
+pnpm client:dev         # Solo frontend (Vite)
+pnpm client:build       # Build → client/dist/
+pnpm dist               # client:build + electron-builder (NSIS)
+pnpm run postinstall    # Rebuild módulos nativos (DuckDB) para Electron ABI
 ```
 
 **Validar iconos Lu\* antes de commit:**

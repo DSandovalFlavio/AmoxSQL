@@ -1,16 +1,26 @@
-# React + Vite
+# AmoxSQL — Cliente (frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este directorio es la SPA de React (Vite) que actúa como **renderer** de AmoxSQL.
+No es una app independiente: se ejecuta dentro del shell de Electron y habla con el
+servidor Express local por HTTP.
 
-Currently, two official plugins are available:
+- **Documentación de usuario:** [`../docs/`](../docs/)
+- **README principal:** [`../README.md`](../README.md)
+- **Guía de arquitectura:** [`../docs/dev/arquitectura.md`](../docs/dev/arquitectura.md) y [`../CLAUDE.md`](../CLAUDE.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Desarrollo
 
-## React Compiler
+`client/` es un proyecto pnpm independiente (tiene su propio `package.json` y
+`pnpm-workspace.yaml`). Desde la **raíz** del repositorio:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+pnpm install            # instala deps de la raíz
+pnpm --dir client install   # instala deps del cliente
+pnpm start              # levanta Vite + espera :5173 + lanza Electron
+```
 
-## Expanding the ESLint configuration
+Solo-frontend (Vite en :5173, sin Electron): `pnpm client:dev`.
+Build de producción → `client/dist/`: `pnpm client:build`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+> Para todo lo demás (comandos, formatos de archivo, endpoints, convenciones),
+> ver [`../CLAUDE.md`](../CLAUDE.md).

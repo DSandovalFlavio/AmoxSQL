@@ -15,7 +15,10 @@ We will acknowledge receipt of your report within 48 hours and strive to provide
 
 ## Supported Versions
 
+Only the latest released version receives security fixes. AmoxSQL ships as a
+desktop application with frequent releases; please update to the newest version.
+
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.1.x   | :white_check_mark: |
-| 1.0.x   | :x:                |
+| 3.8.x   | :white_check_mark: |
+| < 3.8   | :x:                |

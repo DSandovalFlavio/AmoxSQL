@@ -109,12 +109,12 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `ai/_sqlHelpers.js` — Shared SQL utilities for tools
 
 ### Utilities
-- `client/src/utils/notebookParser.js` — Parse/serialize .sqlnb files (JSON v2.0 + legacy marker format)
+- `client/src/utils/notebookParser.js` — Parse/serialize .sqlnb files (JSON v3.0; backward-compatible with v2.0 JSON + legacy `-- !CELL:` marker format, migrates v2→v3 sidecar state)
 - `client/src/utils/generateHtmlReport.js` — Self-contained HTML report export with charts as PNG
 
 ## File Formats
 - `.sql` — Plain SQL files
-- `.sqlnb` — SQL Notebook (JSON v2.0 with cells array + environment)
+- `.sqlnb` — SQL Notebook (JSON v3.0 with cells array + environment; reads v2.0 + legacy markers)
 - `.sqlnb.state.json` — Sidecar file for notebook visual state (results cache, chart configs)
 - `.amoxvis` — Chart configuration files
 - `.amoxdeck` — **Report Flow** deck: markdown-first presentation (front-matter + slides split by `---` + `<!-- layout: X -->` directives + fenced ` ```amoxchart ` blocks referencing a `.amoxvis`). Edited visually via the in-tab Report Flow Studio (`client/src/components/deck/`); parsed by `client/src/utils/deckParser.js`. Exports to native/editable PowerPoint (`generatePptxReport.js`) and Word.
