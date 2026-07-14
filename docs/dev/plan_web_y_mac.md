@@ -94,14 +94,15 @@ Sin un **Apple Developer ID ($99/año)**, el `.dmg` arm64 mostrará **"AmoxSQL e
 - **Mockup HTML de la web** (artifact) con la dirección de diseño. ✅
 - Decisiones pendientes del usuario: dominio (`amoxsql.com` sí/no), presupuesto de firma Mac ($99/año sí/no ahora), y si el sitio enlaza o consume la doc.
 
-### Fase 1 — Instalador macOS (rápido, alto impacto)
-Trabaja en el repo de la app, rama nueva:
-1. `.npmrc` (`node-linker=hoisted`), bloque `mac`/`dmg`/`asarUnpack`/`publish` en `package.json`.
-2. `.github/workflows/release.yml` (matriz Win+Mac).
-3. Probar con un tag de prueba (o `workflow_dispatch`) → generar `.dmg` arm64 sin firmar.
-4. Añadir sección macOS a los docs de instalación (Win + Mac, con `xattr -cr`).
-5. Adjuntar el `.dmg` a la release v3.8.3 (o v3.8.4) junto al `.exe`.
-> Sin firma = gratis. Firma/notarización = fase opcional posterior si se paga el Developer Program.
+### Fase 1 — Instalador macOS (rápido, alto impacto) — ⏳ EN CURSO
+Config implementada en la rama `claude/mac-installer`:
+1. ✅ `package.json`: `asarUnpack` de `@duckdb/**`, bloque `mac` (dmg+zip arm64, `identity: null` = sin firmar pero ad-hoc para que corra, `category`), bloque `dmg`, `icon: assets/icon.png`.
+   - **No** se cambió `node-linker` (Windows ya compila con el layout pnpm actual → cambiarlo era riesgo innecesario).
+   - Icono mac: `assets/icon.png` (1024×1024, rasterizado del `logo.svg` con Electron; `.ico` topaba en 256 y Mac exige ≥512).
+2. ✅ `.github/workflows/release.yml`: matriz `windows-latest` + `macos-14`; `workflow_dispatch` (sube artefactos para probar) y push de tag `v*` (adjunta a la release). `--frozen-lockfile`, `install-app-deps`, `client:build`, `electron-builder --mac --arm64` / `--win`.
+3. ✅ Docs de instalación (ES+EN) con la sección macOS (`.dmg` arm64 + `xattr -cr` para descargas).
+4. ⏳ **Pendiente de correr en Actions** (yo no puedo compilar Mac desde Windows): disparar el workflow (`workflow_dispatch`) → validar que sale el `.dmg` arm64 → luego un tag para adjuntarlo a la release.
+> Sin firma = gratis. Firma/notarización = fase opcional posterior si se paga el Developer Program ($99/año).
 
 ### Fase 2 — Rediseño de la web (repo del sitio)
 1. Nuevo sistema de tokens/diseño (del mockup aprobado).

@@ -1,0 +1,82 @@
+name: Build installers
+
+# Compila los instaladores de AmoxSQL para Windows y macOS (Apple Silicon).
+# - Ejecución manual (workflow_dispatch): compila y sube los instaladores como
+#   artefactos del run, para probar sin tocar ninguna release.
+# - Push de un tag v* (p. ej. v3.8.4): además adjunta los instaladores a la
+#   GitHub Release de ese tag.
+#
+# El repo es público → los runners macos-14 (Apple Silicon / arm64) son gratis.
+# @duckdb/node-api es N-API precompilado: no hay rebuild de ABI, solo hay que
+# instalar en un runner arm64 real. No se puede cross-compilar (Mac en Mac).
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write        # necesario para adjuntar assets a la release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            ebArgs: '--win'
+          - os: macos-14          # Apple Silicon (arm64)
+            platform: mac
+            ebArgs: '--mac --arm64'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20        # Electron 33 embebe Node 20.18 (ABI 130)
+          cache: pnpm
+
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install deps (client)
+        run: pnpm install --frozen-lockfile
+        working-directory: client
+
+      - name: Rebuild native deps for Electron
+        run: pnpm exec electron-builder install-app-deps
+
+      - name: Build client
+        run: pnpm run client:build
+
+      - name: Build installer (${{ matrix.platform }})
+        run: pnpm exec electron-builder ${{ matrix.ebArgs }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: amoxsql-${{ matrix.platform }}
+          if-no-files-found: ignore
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+
+      - name: Attach to release (only on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
