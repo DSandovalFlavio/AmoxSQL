@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [3.8.3] — 2026-07-13
 
+### 🍎 Instalador para macOS (Apple Silicon) — beta
+
+Primera build para **Mac con chips Apple Silicon (M1–M4)**: `AmoxSQL-3.8.3-arm64.dmg`, compilada por GitHub Actions y adjunta a esta release junto al `.exe` de Windows. **Beta: aún no verificada en hardware Mac real** — se agradece feedback vía Issues. Primer arranque (build sin firmar): `xattr -cr /Applications/AmoxSQL.app`. Detalles en la [guía de instalación](docs/es/user-guide/installation.md).
+
 ### El export ahora pertenece a la query, no a los resultados
 
 Rediseño de dónde vive y qué exporta el "Export to File" (full export vía DuckDB), más un fix en el export a la nube.
