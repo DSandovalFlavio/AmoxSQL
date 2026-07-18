@@ -41,7 +41,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20        # Electron 33 embebe Node 20.18 (ABI 130)
+          node-version: 22        # toolchain para pnpm 11 (requiere Node >=22.13).
+                                  # NO tiene que ser el Node de Electron: electron-builder
+                                  # reconstruye deps nativas contra el ABI de Electron.
           cache: pnpm
 
       - name: Install deps (root)
