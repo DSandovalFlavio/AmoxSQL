@@ -60,7 +60,9 @@ jobs:
         run: pnpm run client:build
 
       - name: Build installer (${{ matrix.platform }})
-        run: pnpm exec electron-builder ${{ matrix.ebArgs }}
+        # --publish never: la subida la maneja este workflow (upload-artifact +
+        # action-gh-release en tag), no el auto-publish de electron-builder.
+        run: pnpm exec electron-builder ${{ matrix.ebArgs }} --publish never
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
