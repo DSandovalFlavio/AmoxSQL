@@ -48,7 +48,9 @@ The full guide (bilingual ES/EN) lives in **[`docs/`](./docs/README.md)**:
 
 ## ⬇️ Installation
 
-**Download (Windows):** the pre-built installer is on **[GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/latest)**.
+**Download:** pre-built installers are on **[GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/latest)**.
+- **Windows** — `AmoxSQL Setup <version>.exe` (NSIS).
+- **macOS (Apple Silicon · M1–M4)** — `AmoxSQL-<version>-arm64.dmg`. ⚠️ **Beta, not yet verified on real Mac hardware** — try it and [give us feedback](https://github.com/dsandovalflavio/amoxsql/issues). First launch: `xattr -cr /Applications/AmoxSQL.app` (see the [guide](./docs/en/user-guide/installation.md)).
 
 **Build from source** (always free): requires Node.js 20+, pnpm 11+, and C++ build tools.
 ```bash
