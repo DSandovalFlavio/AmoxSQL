@@ -41,7 +41,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20        # Electron 33 embebe Node 20.18 (ABI 130)
+          node-version: 22        # toolchain para pnpm 11 (requiere Node >=22.13).
+                                  # NO tiene que ser el Node de Electron: electron-builder
+                                  # reconstruye deps nativas contra el ABI de Electron.
           cache: pnpm
 
       - name: Install deps (root)
@@ -58,7 +60,9 @@ jobs:
         run: pnpm run client:build
 
       - name: Build installer (${{ matrix.platform }})
-        run: pnpm exec electron-builder ${{ matrix.ebArgs }}
+        # --publish never: la subida la maneja este workflow (upload-artifact +
+        # action-gh-release en tag), no el auto-publish de electron-builder.
+        run: pnpm exec electron-builder ${{ matrix.ebArgs }} --publish never
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
