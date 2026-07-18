@@ -4,13 +4,24 @@
 
 > Two paths: download the pre-built Windows installer, or build from source (always free, on any platform with the build tools).
 
-## Option A — Download the installer (Windows)
+## Option A — Download the installer
 
-1. Go to [GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/latest).
-2. Download `AmoxSQL Setup <version>.exe`.
-3. Run it. The NSIS installer lets you pick the install folder (no admin rights required).
+Go to [GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/latest) and download the installer for your platform.
 
-> **Note:** continuous pre-built installers are available to [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio). Building from source is always free.
+### Windows
+1. Download `AmoxSQL Setup <version>.exe`.
+2. Run it. The NSIS installer lets you pick the install folder (no admin rights required).
+
+### macOS (Apple Silicon · M1–M4)
+1. Download `AmoxSQL-<version>-arm64.dmg`.
+2. Open it and drag **AmoxSQL** into **Applications**.
+3. **First launch:** because the build isn't yet signed with an Apple Developer ID, macOS flags anything downloaded from the internet and may say *"AmoxSQL is damaged / can't be opened."* It isn't damaged — you just need to clear the quarantine flag. Open **Terminal** and run once:
+   ```bash
+   xattr -cr /Applications/AmoxSQL.app
+   ```
+   Then open it normally. (On macOS Sequoia the right-click → Open bypass was removed, so the Terminal command is the reliable path.)
+
+> **Note:** the macOS installer targets **Apple Silicon (arm64)**. Official signing/notarization (double-click launch without the Terminal step) will come later. Continuous pre-built installers are available to [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio); building from source is always free.
 
 ## Option B — Build from source
 

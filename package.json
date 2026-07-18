@@ -54,6 +54,9 @@
       "!**/*.map",
       "package.json"
     ],
+    "asarUnpack": [
+      "**/node_modules/@duckdb/**"
+    ],
     "extraResources": [
       {
         "from": "agent/skills",
@@ -75,6 +78,18 @@
       "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "zip", "arch": ["arm64"] }
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.developer-tools",
+      "identity": null
+    },
+    "dmg": {
+      "title": "${productName} ${version}"
     }
   }
 }
