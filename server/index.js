@@ -959,6 +959,40 @@ app.post('/api/db/import', async (req, res) => {
 });
 
 /* --- Extension Management APIs --- */
+
+// Autoload persistence: which extensions to LOAD automatically on startup.
+// Stored in ~/.amoxsql/config.json under `extensions` so activations survive an
+// app restart (dbManager.loadedExtensions only survives a reconnect within a run).
+function getAutoloadExtensions() {
+    try {
+        const cfg = aiManager.getConfig();
+        return Array.isArray(cfg.extensions) ? cfg.extensions : [];
+    } catch { return []; }
+}
+function addAutoloadExtension(name) {
+    try {
+        const cfg = aiManager.getConfig();
+        const list = Array.isArray(cfg.extensions) ? cfg.extensions : [];
+        if (!list.includes(name)) {
+            list.push(name);
+            cfg.extensions = list;
+            aiManager.saveConfig(cfg);
+        }
+    } catch (e) {
+        console.warn('[Extensions] Could not persist autoload extension:', e.message);
+    }
+}
+function removeAutoloadExtension(name) {
+    try {
+        const cfg = aiManager.getConfig();
+        const list = Array.isArray(cfg.extensions) ? cfg.extensions : [];
+        cfg.extensions = list.filter(n => n !== name);
+        aiManager.saveConfig(cfg);
+    } catch (e) {
+        console.warn('[Extensions] Could not remove autoload extension:', e.message);
+    }
+}
+
 app.get('/api/db/extensions', async (req, res) => {
     try {
         const extensions = await dbManager.systemQuery('SELECT * FROM duckdb_extensions()');
@@ -969,6 +1003,12 @@ app.get('/api/db/extensions', async (req, res) => {
     }
 });
 
+// Names of extensions set to auto-load on startup (drives the "Remove from
+// startup" affordance in the client).
+app.get('/api/db/extensions/autoload', (req, res) => {
+    res.json({ names: getAutoloadExtensions() });
+});
+
 app.post('/api/db/extensions/install', async (req, res) => {
     const { name, fromCommunity = false } = req.body;
     if (!name) return res.status(400).json({ error: 'Extension name is required' });
@@ -977,25 +1017,43 @@ app.post('/api/db/extensions/install', async (req, res) => {
     const safeName = String(name).trim().replace(/[^a-zA-Z0-9_-]/g, '');
     if (!safeName) return res.status(400).json({ error: 'Invalid extension name' });
 
-    const fromClause = fromCommunity ? ' FROM community' : '';
+    // A community-only extension returns "HTTP 404" from the official repo —
+    // indistinguishable by message from a genuinely platform-unavailable one.
+    // The only way to tell them apart is to actually try the community repo, so
+    // do that transparently here (server-side) instead of a client round-trip.
+    let triedCommunity = fromCommunity;
     try {
-        await dbManager.systemQuery(`INSTALL ${safeName}${fromClause}`);
+        try {
+            await dbManager.systemQuery(`INSTALL ${safeName}${fromCommunity ? ' FROM community' : ''}`);
+        } catch (installErr) {
+            const looksMissing = /HTTP 404|not found|does not exist|no extension/i.test(installErr.message);
+            if (!fromCommunity && looksMissing) {
+                triedCommunity = true;
+                await dbManager.systemQuery(`INSTALL ${safeName} FROM community`);
+            } else {
+                throw installErr;
+            }
+        }
         await dbManager.systemQuery(`LOAD ${safeName}`);
-        res.json({ success: true, message: `Extension '${safeName}' installed and loaded.` });
+        dbManager.rememberExtension(safeName);
+        addAutoloadExtension(safeName);
+        res.json({
+            success: true,
+            message: `Extension '${safeName}' installed and loaded.`,
+            fromCommunity: triedCommunity,
+        });
     } catch (err) {
         console.error(`Failed to install extension '${safeName}':`, err);
-        // HTTP 404 from community CDN = extension not compiled for this DuckDB version/platform
+        // HTTP 404 after we've already tried community = not compiled for this
+        // DuckDB version/platform.
         const isPlatformUnavailable = /HTTP 404/.test(err.message);
-        const isNotFound = !isPlatformUnavailable && /not found|does not exist|no extension/i.test(err.message);
-        const hint = !fromCommunity && isNotFound
-            ? ' This extension may be in the community repository — try installing with the community option.'
-            : '';
-        // Extract version/platform from the CDN URL for a helpful client message
-        const urlMatch = err.message.match(/community-extensions\.duckdb\.org\/([^/]+)\/([^/]+)\//);
+        const urlMatch = err.message.match(/(?:community-)?extensions\.duckdb\.org\/([^/]+)\/([^/]+)\//);
         res.status(500).json({
             error: `Failed to install extension '${safeName}'`,
-            details: err.message + hint,
-            canRetryFromCommunity: !fromCommunity && isNotFound,
+            details: err.message,
+            // The server already exhausted the community fallback, so there is
+            // nothing left for the client to retry.
+            canRetryFromCommunity: false,
             platformUnavailable: isPlatformUnavailable,
             duckdbVersion: urlMatch?.[1] ?? null,
             platform: urlMatch?.[2] ?? null,
@@ -1012,6 +1070,8 @@ app.post('/api/db/extensions/load', async (req, res) => {
 
     try {
         await dbManager.systemQuery(`LOAD ${safeName}`);
+        dbManager.rememberExtension(safeName);
+        addAutoloadExtension(safeName);
         const rows = await dbManager.systemQuery(
             `SELECT * FROM duckdb_extensions() WHERE extension_name = '${safeName}'`
         );
@@ -1020,6 +1080,20 @@ app.post('/api/db/extensions/load', async (req, res) => {
         console.error(`Failed to load extension '${safeName}':`, err);
         res.status(500).json({ error: `Failed to load extension '${safeName}'`, details: err.message });
     }
+});
+
+// Stop auto-loading an extension on startup. It stays loaded in the current
+// session (DuckDB has no clean per-connection UNLOAD); this only removes it from
+// the persisted autoload list so it won't come back next launch.
+app.post('/api/db/extensions/forget', (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Extension name is required' });
+    const safeName = String(name).trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeName) return res.status(400).json({ error: 'Invalid extension name' });
+
+    dbManager.forgetExtension(safeName);
+    removeAutoloadExtension(safeName);
+    res.json({ success: true, message: `'${safeName}' removed from startup auto-load.` });
 });
 
 
@@ -3176,6 +3250,21 @@ app.post('/api/query', async (req, res) => {
             invalidateTableContextCache();
         }
 
+        // If the user activated an extension straight from the editor (a bare
+        // `LOAD name;`), remember it so it survives reconnects and app restarts,
+        // exactly like the Extensions panel does. Deliberately conservative:
+        // only a lone LOAD of a simple identifier, never a file-path LOAD.
+        try {
+            const loadMatch = /^\s*LOAD\s+["']?([a-zA-Z0-9_]+)["']?\s*;?\s*$/i.exec(query);
+            if (loadMatch) {
+                const extName = loadMatch[1];
+                if (!dbManager.getLoadedExtensions().includes(extName)) {
+                    dbManager.rememberExtension(extName);
+                    addAutoloadExtension(extName);
+                }
+            }
+        } catch { /* non-fatal bookkeeping */ }
+
         res.json({
             data: rows,
             types: result.types,
@@ -5135,6 +5224,21 @@ const startServer = (preferredPort = 3001) => {
             aiPersistence.initSchema(dbManager).catch(err =>
                 console.warn('[AI] Startup schema init warning (non-fatal):', err.message)
             );
+
+            // Re-activate extensions the user auto-loads. Fire-and-forget so the
+            // listen callback stays synchronous; dbManager re-LOADs them (and
+            // keeps re-LOADing on every reconnect) once seeded.
+            (async () => {
+                try {
+                    const names = getAutoloadExtensions();
+                    if (names.length === 0) return;
+                    names.forEach(n => dbManager.rememberExtension(n));
+                    await dbManager.restoreExtensions();
+                    console.log(`[Extensions] Auto-loaded ${names.length}: ${names.join(', ')}`);
+                } catch (e) {
+                    console.warn('[Extensions] Startup autoload warning (non-fatal):', e.message);
+                }
+            })();
 
             resolve({ server, port: actualPort });
         });

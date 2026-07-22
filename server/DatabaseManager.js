@@ -33,6 +33,12 @@ class DatabaseManager {
         this.alias = 'user_db';
         this._laneFacades = {};
 
+        // Extensions the user has explicitly LOADed. LOAD is per-connection and
+        // is lost whenever the instance is recreated (reconnect / open / reset),
+        // so we remember them here and re-LOAD after every _initSystem — otherwise
+        // opening a database silently drops every activated extension.
+        this.loadedExtensions = new Set();
+
         // Initialize immediately
         this._initSystem();
     }
@@ -53,8 +59,51 @@ class DatabaseManager {
             }
             this.attachedPath = null;
             console.log("[DB Manager] System DB initialized (Neo Client, lanes: " + LANES.join(', ') + ").");
+
+            // Re-LOAD any extensions the user had activated. The instance is
+            // brand new here, so a fresh reconnect/reset would otherwise leave
+            // them installed-but-unloaded.
+            await this.restoreExtensions();
         } catch (e) {
             console.error("[DB Manager] FATAL: Could not init system DB", e);
+        }
+    }
+
+    // ─── Extension activation memory ───────────────────────────────────────
+    // The endpoints run INSTALL/LOAD; they call rememberExtension so the manager
+    // can re-LOAD on the next instance. Startup seeds this set from config so
+    // activations survive an app restart, not just a reconnect.
+    rememberExtension(name) {
+        const safe = String(name || '').trim();
+        if (safe) this.loadedExtensions.add(safe);
+    }
+
+    forgetExtension(name) {
+        this.loadedExtensions.delete(String(name || '').trim());
+    }
+
+    getLoadedExtensions() {
+        return [...this.loadedExtensions];
+    }
+
+    /**
+     * LOAD every remembered extension on the 'main' lane. Best-effort per
+     * extension: one failure (e.g. binary removed from disk) must not abort the
+     * rest or break the connection. Called at the end of _initSystem (where
+     * connections.main is freshly set) and by the server on startup.
+     */
+    async restoreExtensions() {
+        if (!this.loadedExtensions || this.loadedExtensions.size === 0) return;
+        let conn = this.connections.main;
+        if (!conn) {
+            try { conn = await this._ensureLane('main'); } catch { return; }
+        }
+        for (const name of this.loadedExtensions) {
+            try {
+                await conn.run(`LOAD ${name}`);
+            } catch (e) {
+                console.warn(`[DB Manager] Could not restore extension '${name}':`, e?.message || e);
+            }
         }
     }
 

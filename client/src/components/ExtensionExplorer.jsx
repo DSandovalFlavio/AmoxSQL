@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, forwardRef, memo } from 'reac
 import {
     LuRefreshCw, LuDownload, LuSearch, LuPackage, LuCheck, LuCircle,
     LuLoader, LuCircleAlert, LuShieldCheck, LuUsers, LuPlay, LuExternalLink,
-    LuCopy, LuStar, LuChevronDown, LuChevronRight, LuZap,
+    LuCopy, LuStar, LuChevronDown, LuChevronRight, LuZap, LuCircleSlash,
 } from "react-icons/lu";
 import { useToast } from './ToastProvider';
 import FEATURED_EXTENSIONS from '../data/featuredExtensions';
@@ -32,6 +32,7 @@ const FILTER_OPTIONS = ['All', 'Featured', 'Loaded', 'Installed', 'Community', '
 
 const ExtensionExplorer = () => {
     const [extensions, setExtensions] = useState([]);
+    const [autoload, setAutoload] = useState([]); // names set to load on startup
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [query, setQuery] = useState('');
@@ -42,14 +43,23 @@ const ExtensionExplorer = () => {
     const contextMenuRef = useRef(null);
     const toast = useToast();
 
+    const autoloadSet = new Set(autoload);
+
     const fetchExtensions = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API_BASE}/api/db/extensions`);
-            if (!res.ok) throw new Error('Failed to fetch');
-            const data = await res.json();
+            const [extRes, autoRes] = await Promise.all([
+                fetch(`${API_BASE}/api/db/extensions`),
+                fetch(`${API_BASE}/api/db/extensions/autoload`),
+            ]);
+            if (!extRes.ok) throw new Error('Failed to fetch');
+            const data = await extRes.json();
             setExtensions(data);
+            if (autoRes.ok) {
+                const auto = await autoRes.json();
+                setAutoload(Array.isArray(auto.names) ? auto.names : []);
+            }
         } catch (err) {
             setError(err.message);
         } finally {
@@ -142,6 +152,26 @@ const ExtensionExplorer = () => {
             toast.error(err.message);
         } finally {
             setBusyExt(null);
+        }
+    };
+
+    const handleForget = async (name) => {
+        setContextMenu(null);
+        try {
+            const res = await fetch(`${API_BASE}/api/db/extensions/forget`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.info(`'${name}' won't auto-load on startup anymore.`, 4000);
+                fetchExtensions();
+            } else {
+                toast.error(data.details || data.error, 6000);
+            }
+        } catch (err) {
+            toast.error(err.message);
         }
     };
 
@@ -399,7 +429,9 @@ const ExtensionExplorer = () => {
                     x={contextMenu.x}
                     y={contextMenu.y}
                     ext={contextMenu.ext}
+                    isAutoload={autoloadSet.has(contextMenu.ext.extension_name || contextMenu.ext.name)}
                     onLoad={handleLoad}
+                    onForget={handleForget}
                     onCopyName={handleCopyName}
                     onOpenDocs={handleOpenDocs}
                     onClose={() => setContextMenu(null)}
@@ -575,9 +607,10 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
 };
 
 /* ── Context menu ── */
-const ContextMenu = forwardRef(({ x, y, ext, onLoad, onCopyName, onOpenDocs, onClose }, ref) => {
+const ContextMenu = forwardRef(({ x, y, ext, isAutoload, onLoad, onForget, onCopyName, onOpenDocs, onClose }, ref) => {
     const installed = ext.installed;
     const loaded = ext.loaded;
+    const extName = ext.extension_name || ext.name;
     const featuredMeta = FEATURED_EXTENSIONS.find(f => f.name === ext.extension_name);
     const docsUrl = featuredMeta?.docsUrl ||
         (ext.extension_name ? `https://duckdb.org/docs/extensions/${ext.extension_name}` : null);
@@ -623,6 +656,14 @@ const ContextMenu = forwardRef(({ x, y, ext, onLoad, onCopyName, onOpenDocs, onC
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <LuRefreshCw size={12} /> Reload
+                </button>
+            )}
+
+            {isAutoload && (
+                <button style={itemStyle} onClick={() => onForget(extName)}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <LuCircleSlash size={12} /> Remove from startup
                 </button>
             )}
 
