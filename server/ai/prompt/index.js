@@ -10,7 +10,7 @@
 
 const { formatTableSchemas, formatFileSchemas, formatTableSchemasCompact, formatFileSchemasCompact } = require('./schema');
 const { buildToolsSection } = require('./tools');
-const { buildAssistantModeSection, buildDivingModeSection } = require('./modes');
+const { buildAssistantModeSection, buildDivingModeSection, buildLiveEditorState } = require('./modes');
 const {
     buildChartTypesSection,
     buildReferencesSection,
@@ -73,23 +73,29 @@ function buildDynamicSection(options) {
         fileType = null,
         modelProfile = null,
         uiTheme = null,
+        tableRoster = null,
     } = options;
     const tier = modelProfile?.tier || 'high';
 
-    const now = new Date().toLocaleString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
-    });
-
-    let d = `## Current Date & Time\n${now}`;
-
-    // Schema
-    d += `\n\n## Data Context\n### Tables\n${formatTableSchemas(tables)}`;
+    // ── Schema (semi-stable — kept near the TOP so its token prefix stays
+    // cache-hot; the volatile date + live editor state go at the very END) ──
+    let d = `## Data Context\n### Tables\n${formatTableSchemas(tables)}`;
     d += formatFileSchemas(files);
 
-    // Mode section
+    // Bounded-context roster (F3): when assistant loaded only the referenced
+    // tables, list the OTHER table names cheaply so the model knows they exist
+    // and can pull columns on demand via describe_table.
+    if (Array.isArray(tableRoster) && tableRoster.length) {
+        const shown = new Set((tables || []).map(t => t.name));
+        const others = tableRoster.filter(n => !shown.has(n));
+        if (others.length) {
+            d += `\n\n_Other tables in this database (call \`describe_table\` for columns): ${others.join(', ')}_`;
+        }
+    }
+
+    // Mode section (instructions — stable per mode)
     if (mode === 'assistant') {
-        d += buildAssistantModeSection({ filePath, fileType, currentQuery, currentResult, currentChartConfig });
+        d += buildAssistantModeSection({ filePath, fileType });
     } else {
         d += buildDivingModeSection(enablePlanner, tier);
     }
@@ -114,6 +120,18 @@ When you design a chart's palette, make it read on a ${mode_.toLowerCase()} back
     d += buildSkillSection(activeSkill);
     d += buildUserRulesSection(userRules);
     d += buildMemoriesSection(memories);
+
+    // ── VOLATILE TAIL (kept LAST so everything above stays cache-hot) ──
+    // The live editor state changes on every keystroke; the date changes daily.
+    // Placing them at the end means an edit or a new day only invalidates these
+    // trailing tokens, not the whole schema+instructions prefix (F3 / H5).
+    if (mode === 'assistant') {
+        d += buildLiveEditorState({ currentQuery, currentResult, currentChartConfig });
+    }
+    const today = new Date().toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+    d += `\n\n## Current Date\n${today}`;
 
     return d;
 }

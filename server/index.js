@@ -1966,6 +1966,47 @@ let _tableContextCache = null;
 let _tableContextCacheTime = 0;
 const TABLE_CONTEXT_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Lightweight name-only roster (F3): used to bound assistant context — the model
+// gets full columns only for referenced tables + a cheap roster of the rest.
+let _tableNamesCache = null;
+let _tableNamesCacheTime = 0;
+
+/** Returns all user base-table names (cheap, cached). */
+async function listAllTableNames() {
+    const now = Date.now();
+    if (_tableNamesCache && (now - _tableNamesCacheTime) < TABLE_CONTEXT_TTL) return _tableNamesCache;
+    try {
+        const rows = await dbManager.systemQuery(
+            `SELECT table_name FROM information_schema.tables
+             WHERE ${userTablesWhereClause()} AND table_type = 'BASE TABLE'
+             ORDER BY table_name`,
+            { lane: 'meta' }
+        );
+        _tableNamesCache = rows.map(r => r.table_name);
+        _tableNamesCacheTime = now;
+        return _tableNamesCache;
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Finds which real tables a SQL string references, by matching known table names
+ * as whole-word tokens (case-insensitive, tolerant of double-quoting). Matching
+ * against the ACTUAL name list (not SQL parsing) is robust: a real table name
+ * appearing in the query is a strong signal it's used, and unknown tokens are
+ * simply ignored. Used to bound assistant context to the active query.
+ */
+function extractReferencedTables(query, allNames) {
+    if (!query || !Array.isArray(allNames) || allNames.length === 0) return [];
+    const q = String(query);
+    return allNames.filter(name => {
+        const esc = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`(^|[^A-Za-z0-9_])"?${esc}"?($|[^A-Za-z0-9_])`, 'i');
+        return re.test(q);
+    });
+}
+
 async function buildTableContext(contextTables = null) {
     // If contextTables is explicitly provided but empty, return empty
     if (contextTables && contextTables.length === 0) return [];
@@ -2069,6 +2110,8 @@ async function buildTableContext(contextTables = null) {
 function invalidateTableContextCache() {
     _tableContextCache = null;
     _tableContextCacheTime = 0;
+    _tableNamesCache = null;
+    _tableNamesCacheTime = 0;
 }
 
 /**
@@ -2136,9 +2179,17 @@ app.post('/api/ai/chat', async (req, res) => {
 
     try {
         // If the user provides explicit context items, we only load those.
-        // If NO explicit context items are provided, we load the whole DB schema.
+        // If NO explicit context items are provided: diving loads the whole DB
+        // schema; assistant loads only the tables referenced in the active query
+        // + a name roster of the rest (F3, bounded context).
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
-        const tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+        let tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+        let tableRoster = null;
+        if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
+            const allNames = await listAllTableNames();
+            tableRoster = allNames;
+            tablesToLoad = extractReferencedTables(currentQuery, allNames).map(name => ({ name }));
+        }
 
         const [tables, files] = await Promise.all([
             buildTableContext(tablesToLoad),
@@ -2156,6 +2207,7 @@ app.post('/api/ai/chat', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            tableRoster,
         });
 
         res.json(result);
@@ -2247,7 +2299,20 @@ app.post('/api/ai/chat/stream', async (req, res) => {
 
     try {
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
-        const tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+        let tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+
+        // ── Bounded context for assistant mode (F3, fixes H9) ──
+        // Deep Dive genuinely needs the whole DB; the editor assistant does not.
+        // When the user hasn't dragged explicit context, load full columns ONLY
+        // for tables referenced in the active query, plus a cheap name roster of
+        // the rest (the model pulls details on demand via describe_table).
+        let tableRoster = null;
+        if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
+            const allNames = await listAllTableNames();
+            tableRoster = allNames;
+            const referenced = extractReferencedTables(currentQuery, allNames);
+            tablesToLoad = referenced.map(name => ({ name }));
+        }
 
         const [tables, files, expandedReferences] = await Promise.all([
             buildTableContext(tablesToLoad),
@@ -2270,6 +2335,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
+            tableRoster,
             uiTheme: uiTheme || null,
             conversationId: conversationId || null,
             planStepOverrides: Array.isArray(planStepOverrides) ? planStepOverrides : [],

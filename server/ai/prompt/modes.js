@@ -5,7 +5,7 @@
  */
 
 function buildAssistantModeSection(options) {
-    const { filePath, fileType, currentQuery, currentResult, currentChartConfig } = options;
+    const { filePath, fileType } = options;
 
     let section = `\n\n## Mode: Editor Assistant
 You are the user's analysis companion while they work in the SQL editor or notebook. This conversation is linked to the active file.
@@ -21,20 +21,6 @@ Talk like an analyst thinking out loud with a colleague, NOT a report generator.
 
     if (filePath) {
         section += `\n\n### Active File: \`${filePath}\` (${fileType || 'sql'})`;
-    }
-
-    if (currentQuery) {
-        section += `\n\n**Current query:**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
-    }
-
-    if (currentResult) {
-        section += `\n**Result:** ${currentResult.rowCount || 0} rows, columns: ${
-            currentResult.columns ? currentResult.columns.map(c => c.name).join(', ') : 'unknown'
-        }`;
-    }
-
-    if (currentChartConfig) {
-        section += `\n**Chart:** ${currentChartConfig.chartType} | X: ${currentChartConfig.xAxisKey} | Y: ${currentChartConfig.yAxisKeys?.join(', ')}`;
     }
 
     section += `\n\n### Capabilities
@@ -149,4 +135,25 @@ Every finding you report MUST end with "— this matters because ___". A number 
     return section;
 }
 
-module.exports = { buildAssistantModeSection, buildDivingModeSection };
+/**
+ * The live editor state (assistant mode) — the volatile part that changes on
+ * every keystroke. Emitted at the very END of the dynamic prompt (F3) so it
+ * doesn't bust the KV/prefix cache for the stable schema + instructions above:
+ * when the user edits their query, only these trailing tokens change.
+ */
+function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig } = {}) {
+    let s = '';
+    if (currentQuery) {
+        s += `\n\n## Current editor state\n**Current query:**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
+    }
+    if (currentResult) {
+        const cols = currentResult.columns ? currentResult.columns.map(c => c.name).join(', ') : 'unknown';
+        s += `${currentQuery ? '\n' : '\n\n## Current editor state\n'}**Result:** ${currentResult.rowCount || 0} rows, columns: ${cols}`;
+    }
+    if (currentChartConfig) {
+        s += `\n**Chart:** ${currentChartConfig.chartType} | X: ${currentChartConfig.xAxisKey} | Y: ${currentChartConfig.yAxisKeys?.join(', ')}`;
+    }
+    return s;
+}
+
+module.exports = { buildAssistantModeSection, buildDivingModeSection, buildLiveEditorState };

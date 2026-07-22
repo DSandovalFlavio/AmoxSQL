@@ -346,6 +346,7 @@ class AiManager {
             activeSkillId = null,
             filePath = null,
             fileType = null,
+            tableRoster = null,
             conversationId = null,
         } = options;
 
@@ -368,7 +369,7 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType,
+            filePath, fileType, tableRoster,
         });
 
         // Create tool context (mode-aware for tool filtering)
@@ -472,6 +473,7 @@ class AiManager {
             activeSkillId = null,
             filePath = null,
             fileType = null,
+            tableRoster = null,
             conversationId = null,
         } = options;
 
@@ -493,7 +495,7 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType,
+            filePath, fileType, tableRoster,
         });
 
         const queryResults = new Map();
