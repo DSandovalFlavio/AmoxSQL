@@ -37,7 +37,7 @@ export const STORY_FLOW_STAGES = [
         key: 'style', icon: LuPalette, title: 'Style', tagline: 'Make it look good',
         headline: 'Give it a clean visual identity',
         desc: 'The look and feel of the chart.',
-        points: ['Palette + per-series colors', 'Gradient fill, card background, typography'],
+        points: ['Palette + per-series colors', 'Gradient fill, card background, typography', 'Sterling editorial palettes, by La Matemaga'],
     },
     {
         key: 'story', icon: LuPenLine, title: 'Story', tagline: 'Make it speak',

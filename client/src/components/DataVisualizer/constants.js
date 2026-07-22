@@ -29,6 +29,34 @@ export const COLOR_PALETTES = {
     sunset: ['#ff6b6b', '#ee5a24', '#f0932b', '#f9ca24', '#6ab04c', '#22a6b3'],
     corporate: ['#2c3e50', '#34495e', '#7f8c8d', '#95a5a6', '#bdc3c7', '#ecf0f1'],
     neon: ['#ff00ff', '#00ffff', '#ff6600', '#00ff00', '#ff3366', '#6633ff'],
+    // Sterling — editorial palette system from Sterling (MIT) © La Matemaga
+    // https://github.com/LaMatemaga/sterling
+    // Eight named categoricals (Violet, Teal, Orchid, Amber, Blue, Coral, Moss,
+    // Payne), calibrated per surface: `sterling` for light chart backgrounds,
+    // `sterlingDark` for dark ones. Ramps preserve Sterling's semantics: the
+    // diverging scale reads violet=positive <-> teal=negative.
+    sterling: ['#9A79E7', '#25A08D', '#D45AC7', '#E4A43A', '#5A83D7', '#E87864', '#96AB51', '#536B78'],
+    sterlingDark: ['#B69AF2', '#5EC9AE', '#E88BDD', '#F2C46D', '#86A8E8', '#F29A88', '#B7C974', '#B7C8D1'],
+    sterlingSequential: ['#4D357A', '#563C87', '#684AA1', '#7B59BC', '#8E68D8', '#9A79E7', '#A889ED', '#B69AF2', '#D5C3F6', '#F1ECFA'],
+    sterlingDiverging: ['#4D357A', '#7B59BC', '#9A79E7', '#B69AF2', '#F1ECFA', '#F6F3FB', '#E4F4EF', '#5EC9AE', '#25A08D', '#1E796C', '#164D47'],
+    sterlingHeat: ['#4D357A', '#684AA1', '#4666AF', '#4F73C6', '#218C7C', '#4E9670', '#879347', '#B0953A', '#D39A32', '#E4B85C', '#F5DEA0'],
+};
+
+// ─── Legend text twins ──────────────────────────────────────
+// Sterling's key legibility idea: a mark color and the TEXT that labels it are
+// not the same color. Each categorical has a hue-matched twin — darkened for
+// light surfaces, lightened for dark ones — so legend labels read as text.
+// Values from Sterling (MIT) © La Matemaga. Consumed by the legend renderer
+// (Fase 3); palettes without an entry fall back to the mark color.
+export const LEGEND_PAIRS = {
+    sterling: {
+        light: ['#6945B8', '#147568', '#A43A99', '#855700', '#365DA5', '#A94230', '#5D6F19', '#445762'],
+        dark:  ['#C7B3F7', '#78D8C1', '#F0A0E7', '#F5CB7C', '#9BB9EF', '#F6AA9A', '#C5D486', '#C6D5DC'],
+    },
+    sterlingDark: {
+        light: ['#6945B8', '#147568', '#A43A99', '#855700', '#365DA5', '#A94230', '#5D6F19', '#445762'],
+        dark:  ['#C7B3F7', '#78D8C1', '#F0A0E7', '#F5CB7C', '#9BB9EF', '#F6AA9A', '#C5D486', '#C6D5DC'],
+    },
 };
 
 // ─── Chart Type Registry ─────────────────────────────────────

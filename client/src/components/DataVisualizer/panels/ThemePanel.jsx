@@ -42,6 +42,13 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
         { label: 'Sequential', keys: ['blues', 'greens', 'reds', 'purples', 'ylorbr'] },
         { label: 'Diverging', keys: ['spectral', 'rdylbu', 'rdylgn', 'piyg'] },
         { label: 'Brand', keys: ['ocean', 'sunset', 'corporate'] },
+        // Editorial palette system from Sterling (MIT) © La Matemaga —
+        // https://github.com/LaMatemaga/sterling
+        {
+            label: 'Sterling · by La Matemaga',
+            title: 'Editorial palette system from Sterling, by La Matemaga (MIT). Categoricals calibrated for light and dark surfaces; diverging reads violet=positive, teal=negative.',
+            keys: ['sterling', 'sterlingDark', 'sterlingSequential', 'sterlingDiverging', 'sterlingHeat'],
+        },
     ];
 
     return (
@@ -51,7 +58,10 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                 <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
                     {paletteGroups.map(group => (
                         <div key={group.label} style={{ marginBottom: '8px' }}>
-                            <span style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
+                            <span
+                                title={group.title}
+                                style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}
+                            >
                                 {group.label}
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '3px' }}>
