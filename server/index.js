@@ -1468,7 +1468,7 @@ app.post('/api/settings/cloud/test-adc', async (req, res) => {
         const result = await generateText({
             model,
             prompt: 'Say "ADC authentication successful"',
-            maxTokens: 10,
+            maxOutputTokens: 10,
         });
 
         if (result.text) {

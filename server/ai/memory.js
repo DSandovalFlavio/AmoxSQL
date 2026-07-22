@@ -68,7 +68,7 @@ Respond EXCLUSIVELY with valid JSON matching this schema:
                 model,
                 system: fallbackPrompt,
                 messages: [{ role: 'user', content: `Transcript:\n${transcript}` }],
-                maxTokens: 500
+                maxOutputTokens: 500
             });
             
             // Extract JSON from potential markdown blocks

@@ -14,7 +14,7 @@
 
 'use strict';
 
-const { streamText } = require('ai');
+const { streamText, stepCountIs } = require('ai');
 const { createTools } = require('./tools');
 const { buildSystemPrompt, buildSystemParts } = require('./systemPrompt');
 const { loadUserRules } = require('./userRules');
@@ -450,8 +450,12 @@ async function* agenticLoop(options, getModelFn) {
                 system:      systemArg,
                 messages:    compactedMessages,
                 tools:       profile.supportsToolCalling ? tools : undefined,
-                maxSteps:    Math.min(profile.maxSteps, ITER_MAX_STEPS),
-                maxTokens:   profile.maxTokens,
+                // AI SDK v6: `maxSteps` no existe (era ignorado → cada streamText
+                // paraba tras 1 paso y el loop externo re-mandaba TODO el contexto
+                // por cada tool). stopWhen permite encadenar varios tool steps
+                // DENTRO de una request, reutilizando el KV cache caliente.
+                stopWhen:       stepCountIs(Math.min(profile.maxSteps, ITER_MAX_STEPS)),
+                maxOutputTokens: profile.maxTokens,
                 abortSignal: iterAbort.signal,
             });
 

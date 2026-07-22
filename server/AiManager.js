@@ -390,7 +390,7 @@ class AiManager {
                 messages: compactedMessages,
                 tools: profile.supportsToolCalling ? tools : undefined,
                 stopWhen: stepCountIs(profile.maxSteps),
-                maxTokens: profile.maxTokens,
+                maxOutputTokens: profile.maxTokens,
             });
 
             // Perf instrumentation (F0)
@@ -513,7 +513,7 @@ class AiManager {
             messages: compactedMessages,
             tools: profile.supportsToolCalling ? tools : undefined,
             stopWhen: stepCountIs(profile.maxSteps),
-            maxTokens: profile.maxTokens,
+            maxOutputTokens: profile.maxTokens,
             onFinish: async (event) => {
                 const { usage } = event;
                 // Perf instrumentation (F0): readable per-request line for Ollama
@@ -611,7 +611,7 @@ ${schemaText}`;
                 model: llmModel,
                 system: systemPrompt,
                 messages: currentMessages,
-                maxTokens: profile.maxTokens,
+                maxOutputTokens: profile.maxTokens,
             });
 
             let fullText = '';
@@ -768,7 +768,7 @@ ${schemaText}`;
                     model: llmModel,
                     system: 'You are a data analyst. Summarize the query results concisely in markdown. Highlight key insights.',
                     messages: summaryMessages,
-                    maxTokens: profile.maxTokens,
+                    maxOutputTokens: profile.maxTokens,
                 });
 
                 yield { type: 'text-delta', text: '\n\n---\n\n' };
@@ -824,7 +824,7 @@ ${schema}`;
                 model: llmModel,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: userPrompt }],
-                maxTokens: 4000,
+                maxOutputTokens: 4000,
             });
 
             // Track Gemini usage
