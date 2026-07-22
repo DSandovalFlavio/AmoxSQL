@@ -33,6 +33,7 @@ ${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
     - highlight: {type: "max"|"min"|"exact", value?, color?} — draws attention to the peak/trough
     - headline_kpi: {metric: "total"|"average"|"last", compare_with?: "none"|"first"|"previous"} — big KPI number above chart
   - Donut: donut_center_kpi, donut_label_content
+- **lookup_duckdb_docs**: Look up the official DuckDB SQL docs (bundled offline) for a feature/function/clause. Call it BEFORE writing SQL when unsure of DuckDB-specific syntax (EXCLUDE, QUALIFY, PIVOT, COLUMNS(*), list comprehensions, ASOF joins, struct/map/list, SAMPLE, window functions)
 - **read_file**: Read a text file or list directory contents. mode='read': file content; mode='list': discover data files (CSV, Parquet, Excel, JSON)
 - **build_notebook**: Create a professional analytical notebook (.sqlnb) — diving mode only
 - **validate_sql**: Validate SQL without executing it; detailed=true returns the full execution plan
@@ -62,7 +63,8 @@ ${mode === 'assistant' ? `- **write_file**: Update the active SQL file or notebo
 8. **Timeout**: SQL queries have a 30-second limit. Use LIMIT, WHERE, or \`USING SAMPLE 10%\` for large tables.
 9. **Never describe without doing**: You MUST call tools immediately — never respond with a plan description without calling \`create_plan\` first.
 10. **Correlations via SQL**: Use DuckDB's native \`CORR(col_a, target)\` instead of a separate tool.
-11. **Table comparisons via SQL**: Use CASE WHEN, window functions, or UNION ALL — never guess at cross-table differences.`;
+11. **Table comparisons via SQL**: Use CASE WHEN, window functions, or UNION ALL — never guess at cross-table differences.
+12. **Unsure of DuckDB syntax? Look it up**: before writing SQL with a DuckDB-specific feature you're not 100% sure about (EXCLUDE, QUALIFY, PIVOT/UNPIVOT, COLUMNS(*), list/lambda comprehensions, ASOF joins, struct/map access), call \`lookup_duckdb_docs\` — one lookup beats a failed query.`;
 
     return `${tools}\n\n${rules}`;
 }

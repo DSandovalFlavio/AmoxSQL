@@ -68,7 +68,7 @@ Respond EXCLUSIVELY with valid JSON matching this schema:
                 model,
                 system: fallbackPrompt,
                 messages: [{ role: 'user', content: `Transcript:\n${transcript}` }],
-                maxTokens: 500
+                maxOutputTokens: 500
             });
             
             // Extract JSON from potential markdown blocks
@@ -143,7 +143,25 @@ async function loadMemoriesText(dbManager) {
     return text.trim();
 }
 
+/**
+ * Decides whether background memory extraction should run for a given provider,
+ * per the user's `memoryExtraction` policy (F4). Extraction is a full extra LLM
+ * call after every turn; on a local single-slot Ollama it competes for the model
+ * and busts the KV cache, so the default keeps it off for local models.
+ *
+ * @param {string} provider - 'ollama' | 'gemini' | 'anthropic' | ...
+ * @param {'cloud-only'|'always'|'off'} [policy='cloud-only']
+ * @returns {boolean}
+ */
+function memoryExtractionAllowed(provider, policy = 'cloud-only') {
+    if (policy === 'off') return false;
+    if (policy === 'always') return true;
+    // 'cloud-only' (default): skip local Ollama to keep its single slot free.
+    return provider !== 'ollama';
+}
+
 module.exports = {
     extractMemories,
-    loadMemoriesText
+    loadMemoriesText,
+    memoryExtractionAllowed,
 };

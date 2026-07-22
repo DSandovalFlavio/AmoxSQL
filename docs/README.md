@@ -93,6 +93,8 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | Editor Assistant | [es](es/ai/editor-assistant.md) | [en](en/ai/editor-assistant.md) | 🟢 |
 | Deep Dive | [es](es/ai/deep-dive.md) | [en](en/ai/deep-dive.md) | 🟢 |
 | Providers & models | [es](es/ai/providers-and-models.md) | [en](en/ai/providers-and-models.md) | 🟢 |
+| Local AI performance | [es](es/ai/rendimiento-local.md) | [en](en/ai/local-performance.md) | 🟢 |
+| DuckDB docs for the AI | [es](es/ai/documentacion-duckdb.md) | [en](en/ai/duckdb-docs.md) | 🟢 |
 | Agent tools | [es](es/ai/agent-tools.md) | [en](en/ai/agent-tools.md) | 🟢 |
 | Skills | [es](es/ai/skills.md) | [en](en/ai/skills.md) | 🟢 |
 | Context as code | [es](es/ai/context-as-code.md) | [en](en/ai/context-as-code.md) | 🟢 |

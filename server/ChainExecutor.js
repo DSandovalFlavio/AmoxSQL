@@ -583,7 +583,7 @@ class ChainExecutor extends EventEmitter {
             const batch = rows.slice(i, i + concurrency);
             const settled = await Promise.all(batch.map(async (row) => {
                 try {
-                    const res = await generateText({ model: llm, prompt: buildPrompt(row.__val), maxTokens: 200 });
+                    const res = await generateText({ model: llm, prompt: buildPrompt(row.__val), maxOutputTokens: 200 });
                     return { rn: row.__rn, out: (res.text || '').trim() };
                 } catch { return { rn: row.__rn, out: null }; }
             }));

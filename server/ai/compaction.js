@@ -142,7 +142,7 @@ ${cleanedTranscript}
             model: model,
             system: 'You are an expert summarizer.',
             messages: [{ role: 'user', content: summaryPrompt }],
-            maxTokens: 800,
+            maxOutputTokens: 800,
         });
 
         const compactedMessages = [

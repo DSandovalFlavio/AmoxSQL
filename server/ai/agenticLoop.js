@@ -14,16 +14,17 @@
 
 'use strict';
 
-const { streamText } = require('ai');
+const { streamText, stepCountIs } = require('ai');
 const { createTools } = require('./tools');
 const { buildSystemPrompt, buildSystemParts } = require('./systemPrompt');
 const { loadUserRules } = require('./userRules');
 const { compactContext, needsCompaction } = require('./compaction');
-const { loadMemoriesText, extractMemories } = require('./memory');
+const { loadMemoriesText, extractMemories, memoryExtractionAllowed } = require('./memory');
 const { getSkill, loadSkills, matchSkillByIntent } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
 const { verifyFindings } = require('./findingsLinter');
+const { logOllamaPerf } = require('./perfLog');
 
 // Absolute hard ceiling — the working budget (effectiveMaxIterations) plus the
 // reserved wrap-up turn never exceeds this.
@@ -226,6 +227,7 @@ async function* agenticLoop(options, getModelFn) {
         planStepOverrides = [],
         continueMode = false,
         uiTheme = null,
+        memoryExtraction = 'cloud-only',
     } = options;
 
     const provider = providerOverride;
@@ -261,6 +263,11 @@ async function* agenticLoop(options, getModelFn) {
 
     const profile = getModelProfile(model, provider);
 
+    // gemma4 thinking token (F5) — empty unless the model uses the gemma
+    // mechanism AND thinking is turned on for it.
+    const { getOllamaRuntime } = require('./modelProfiles');
+    const thinkTokenPrefix = provider === 'ollama' ? getOllamaRuntime(model).gemmaTokenPrefix : '';
+
     // Tell the UI which framework is shaping this analysis (auto-activated only —
     // when the user picked it, the UI already shows it). Unknown to older clients.
     if (activeSkill && !activeSkillId) {
@@ -277,6 +284,7 @@ async function* agenticLoop(options, getModelFn) {
         enablePlanner: mode === 'diving',
         projectCtx,
         uiTheme,
+        thinkTokenPrefix,
     };
 
     // For Anthropic: split into static (cached) + dynamic blocks.
@@ -411,6 +419,7 @@ async function* agenticLoop(options, getModelFn) {
         });
 
         const iterStart = Date.now();
+        let iterFirstEventAt   = null;   // TTFT observable (perf instrumentation)
         let iterHasFinalAnswer = false;
         let iterHasAskUser     = false;
         let iterText           = '';
@@ -448,20 +457,35 @@ async function* agenticLoop(options, getModelFn) {
                 system:      systemArg,
                 messages:    compactedMessages,
                 tools:       profile.supportsToolCalling ? tools : undefined,
-                maxSteps:    Math.min(profile.maxSteps, ITER_MAX_STEPS),
-                maxTokens:   profile.maxTokens,
+                // AI SDK v6: `maxSteps` no existe (era ignorado → cada streamText
+                // paraba tras 1 paso y el loop externo re-mandaba TODO el contexto
+                // por cada tool). stopWhen permite encadenar varios tool steps
+                // DENTRO de una request, reutilizando el KV cache caliente.
+                stopWhen:       stepCountIs(Math.min(profile.maxSteps, ITER_MAX_STEPS)),
+                maxOutputTokens: profile.maxTokens,
                 abortSignal: iterAbort.signal,
             });
 
             armStall();
             for await (const part of result.fullStream) {
                 armStall(); // reset the silence timer on every event
+                if (!iterFirstEventAt) iterFirstEventAt = Date.now();
 
                 if (part.type === 'text-delta') {
                     const textChunk = part.textDelta ?? part.text ?? '';
                     iterText += textChunk;
                     fullRunText += textChunk;
                     yield { type: 'text-delta', text: textChunk };
+
+                } else if (part.type === 'reasoning-start' || part.type === 'reasoning-delta' || part.type === 'reasoning-end') {
+                    // Native reasoning (think:true) arrives on a separate channel;
+                    // wrap it as <think>…</think> in the text stream so the client
+                    // renders it as a thinking block. Not counted toward iterText
+                    // (prose-first safety net) — reasoning isn't the final answer.
+                    const chunk = part.type === 'reasoning-start' ? '<think>'
+                        : part.type === 'reasoning-end' ? '</think>'
+                        : (part.text ?? part.textDelta ?? '');
+                    yield { type: 'text-delta', text: chunk };
 
                 } else if (part.type === 'tool-call') {
                     const args = part.input ?? part.args ?? {};
@@ -622,6 +646,16 @@ async function* agenticLoop(options, getModelFn) {
 
                 } else if (part.type === 'finish') {
                     const iterMs = Date.now() - iterStart;
+
+                    // Perf instrumentation (F0): one readable line per Ollama request.
+                    // prefill = tokens NOT served by the KV cache — must be small on turn 2+.
+                    logOllamaPerf(`loop#${iteration}`, {
+                        model,
+                        usage: part.totalUsage ?? part.usage,
+                        providerMetadata: part.providerMetadata,
+                        ttftMs: iterFirstEventAt ? iterFirstEventAt - iterStart : null,
+                    });
+
                     // Accumulate token usage across iterations
                     if (part.usage) {
                         totalUsage.promptTokens     += part.usage.promptTokens     || 0;
@@ -832,8 +866,9 @@ async function* agenticLoop(options, getModelFn) {
         }
     }
 
-    // Background memory extraction
-    if (profile.supportsMemory) {
+    // Background memory extraction (gated by policy — off for local models by
+    // default so the extra LLM call doesn't compete for the Ollama slot / cache).
+    if (profile.supportsMemory && memoryExtractionAllowed(provider, memoryExtraction)) {
         const llm = llmModel;
         extractMemories(llm, messages, dbManager).catch(e =>
             console.error('[AgenticLoop] Memory extraction error:', e)

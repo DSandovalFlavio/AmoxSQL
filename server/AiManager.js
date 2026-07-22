@@ -15,16 +15,23 @@ const { createAnthropic } = require('@ai-sdk/anthropic');
 const { createOpenAI } = require('@ai-sdk/openai');
 const { createOllama } = require('ai-sdk-ollama');
 const ollama = createOllama();
+
+// ── Ollama model instance cache (F1 del plan de performance local) ──
+// One instance per (model, runtime-options) combination. Reusing the instance
+// guarantees every request carries IDENTICAL options — critical because a
+// num_ctx change between requests forces Ollama to unload+reload the model.
+const _ollamaModelCache = new Map();
 const { createTools } = require('./ai/tools');
 const { buildSystemPrompt } = require('./ai/systemPrompt');
 const { loadUserRules } = require('./ai/userRules');
 const { compactContext } = require('./ai/compaction');
-const { loadMemoriesText, extractMemories } = require('./ai/memory');
+const { loadMemoriesText, extractMemories, memoryExtractionAllowed } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
-const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo } = require('./ai/modelProfiles');
+const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo, getOllamaRuntime, setOllamaRuntimeConfig } = require('./ai/modelProfiles');
 const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
 const { applyRowLimit } = require('./_sqlUtils');
 const { agenticLoop } = require('./ai/agenticLoop');
+const { logOllamaPerf } = require('./ai/perfLog');
 
 class AiManager {
     constructor() {
@@ -57,6 +64,24 @@ class AiManager {
                 usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 },
                 experimental: { planner: true },
                 modelTierOverrides: {},
+                // Ollama local runtime (F1): keep_alive largo para evitar cold
+                // starts; numCtx 0 = auto por tier (8k low / 16k medium+).
+                ollamaKeepAlive: '4h',
+                ollamaNumCtx: 0,
+                // Extracción de memorias en background (F4): 'cloud-only' evita el
+                // LLM extra por turno en modelos locales (compite por el slot y
+                // rompe el KV cache). Opciones: 'cloud-only' | 'always' | 'off'.
+                memoryExtraction: 'cloud-only',
+                // Overrides de thinking por modelo (F5): { '<model>': 'on'|'off'|'auto' }
+                ollamaThinkOverrides: {},
+                // Modelo por modo (F6): { assistant, diving } — vacío = usa defaultModel.
+                modelPerMode: {},
+                // Docs de DuckDB (offline): modo de actualización del snapshot.
+                //   'off'    → solo el bundle empaquetado (nunca red)
+                //   'manual' → el usuario actualiza con un botón
+                //   'auto'   → AmoxSQL refresca cada duckdbDocsIntervalDays
+                duckdbDocsUpdate: 'auto',
+                duckdbDocsIntervalDays: 30,
                 geminiModels: [
                     { id: 'gemini-2.5-flash-lite', category: 'flash-lite', dailyLimit: 1000, contextWindow: 100000, costPerMInput: 0.10 },
                     { id: 'gemini-2.5-flash', category: 'flash', dailyLimit: 250, contextWindow: 500000, costPerMInput: 0.30 },
@@ -114,8 +139,25 @@ class AiManager {
                 fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
             }
 
+            // Migrate: ensure Ollama runtime fields exist
+            if (config.ollamaKeepAlive === undefined) { config.ollamaKeepAlive = '4h'; needsWrite = true; }
+            if (config.ollamaNumCtx === undefined) { config.ollamaNumCtx = 0; needsWrite = true; }
+            if (config.memoryExtraction === undefined) { config.memoryExtraction = 'cloud-only'; needsWrite = true; }
+            if (config.ollamaThinkOverrides === undefined) { config.ollamaThinkOverrides = {}; needsWrite = true; }
+            if (config.modelPerMode === undefined) { config.modelPerMode = {}; needsWrite = true; }
+            if (config.duckdbDocsUpdate === undefined) { config.duckdbDocsUpdate = 'auto'; needsWrite = true; }
+            if (config.duckdbDocsIntervalDays === undefined) { config.duckdbDocsIntervalDays = 30; needsWrite = true; }
+            if (needsWrite) fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+
             // Sync tier overrides with modelProfiles module
             setUserTierOverrides(config.modelTierOverrides || {});
+
+            // Sync Ollama runtime config (keep_alive / num_ctx / think overrides)
+            setOllamaRuntimeConfig({
+                keepAlive: config.ollamaKeepAlive,
+                numCtx: config.ollamaNumCtx,
+                thinkOverrides: config.ollamaThinkOverrides || {},
+            });
 
             return config;
         } catch (e) {
@@ -147,6 +189,31 @@ class AiManager {
         // Sync user tier overrides on initialization
         setUserTierOverrides(config.modelTierOverrides || {});
         console.log(`[AI] Initialized with Provider: ${this.provider}, Model: ${this.modelName}`);
+
+        // DuckDB docs auto-update (fire-and-forget; the bundled snapshot always works).
+        this.maybeAutoUpdateDocs().catch(() => {});
+    }
+
+    /**
+     * If the DuckDB docs update mode is 'auto' and the active snapshot is older
+     * than the configured interval, refresh it in the background. Best-effort:
+     * offline failures are swallowed (the bundled/previous snapshot stays valid).
+     */
+    async maybeAutoUpdateDocs() {
+        const config = this.getConfig();
+        if (config.duckdbDocsUpdate !== 'auto') return;
+        const duckdbDocs = require('./ai/duckdbDocs');
+        const status = duckdbDocs.getStatus();
+        const intervalMs = Math.max(1, Number(config.duckdbDocsIntervalDays) || 30) * 24 * 60 * 60 * 1000;
+        const age = status.extractedAt ? (Date.now() - new Date(status.extractedAt).getTime()) : Infinity;
+        if (age < intervalMs) return; // fresh enough
+        console.log(`[DuckDB Docs] Auto-update: snapshot is ${Math.round(age / 86400000)}d old, refreshing…`);
+        try {
+            const res = await duckdbDocs.refresh(msg => console.log('[DuckDB Docs]', msg));
+            console.log(`[DuckDB Docs] Auto-update done: ${res.count} files @ ${res.extractedAt}`);
+        } catch (err) {
+            console.warn('[DuckDB Docs] Auto-update failed (keeping current snapshot):', err.message);
+        }
     }
 
     // ─── Vercel AI SDK Provider Resolution ───
@@ -233,9 +300,41 @@ class AiManager {
             });
             return minimax.chat(modelName || 'MiniMax-M2.7');
         } else {
-            // Ollama — local model
-            return ollama(modelName || 'qwen3:1.7b');
+            // Ollama — local model with explicit runtime options (F1):
+            //   keep_alive  → model stays resident (default '4h', configurable)
+            //   num_ctx     → real context size, identical on EVERY request
+            //   sampling    → per-family recommended params
+            //   think:false → disable invisible CoT for qwen3.5/qwen3/ornith
+            return this.getOllamaModel(modelName || 'qwen3:1.7b');
         }
+    }
+
+    /**
+     * Builds (and caches) an ai-sdk-ollama model instance with the full local
+     * runtime. The cache key includes the resolved options so a config change
+     * (e.g. num_ctx in Settings) naturally produces a fresh instance.
+     * @param {string} modelName
+     * @returns {object} Vercel AI SDK model instance
+     */
+    getOllamaModel(modelName) {
+        const rt = getOllamaRuntime(modelName);
+        const key = `${modelName}|ctx:${rt.numCtx}|ka:${rt.keepAlive}|think:${rt.think}|${JSON.stringify(rt.sampling)}`;
+
+        let instance = _ollamaModelCache.get(key);
+        if (!instance) {
+            instance = ollama(modelName, {
+                keep_alive: rt.keepAlive,
+                // Native think param only when defined (qwen3.5/qwen3/ornith).
+                ...(typeof rt.think === 'boolean' ? { think: rt.think } : {}),
+                options: {
+                    num_ctx: rt.numCtx,
+                    ...rt.sampling,
+                },
+            });
+            _ollamaModelCache.set(key, instance);
+            console.log(`[AI] Ollama model configured: ${modelName} | num_ctx=${rt.numCtx} | keep_alive=${rt.keepAlive}${rt.think === false ? ' | think=off' : ''}`);
+        }
+        return instance;
     }
 
     /**
@@ -296,6 +395,7 @@ class AiManager {
             activeSkillId = null,
             filePath = null,
             fileType = null,
+            tableRoster = null,
             conversationId = null,
         } = options;
 
@@ -311,6 +411,10 @@ class AiManager {
         // Get model profile for adaptive parameters
         const profile = getModelProfile(model, provider);
 
+        // gemma4 thinking token (F5) — empty unless the model uses the gemma
+        // mechanism AND thinking is turned on for it.
+        const thinkTokenPrefix = provider === 'ollama' ? getOllamaRuntime(model).gemmaTokenPrefix : '';
+
         // Build dynamic system prompt (tier-adaptive)
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
@@ -318,7 +422,7 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType,
+            filePath, fileType, tableRoster, thinkTokenPrefix,
         });
 
         // Create tool context (mode-aware for tool filtering)
@@ -340,11 +444,15 @@ class AiManager {
                 messages: compactedMessages,
                 tools: profile.supportsToolCalling ? tools : undefined,
                 stopWhen: stepCountIs(profile.maxSteps),
-                maxTokens: profile.maxTokens,
+                maxOutputTokens: profile.maxTokens,
             });
 
-            // Run memory extraction in the background (skip for low-tier models)
-            if (profile.supportsMemory) {
+            // Perf instrumentation (F0)
+            logOllamaPerf('chat', { model, usage: result.usage, providerMetadata: result.providerMetadata });
+
+            // Run memory extraction in the background (skip for low-tier models,
+            // and — per policy — for local models to keep the Ollama slot free).
+            if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
                 extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
             }
 
@@ -419,6 +527,7 @@ class AiManager {
             activeSkillId = null,
             filePath = null,
             fileType = null,
+            tableRoster = null,
             conversationId = null,
         } = options;
 
@@ -434,13 +543,17 @@ class AiManager {
         // Get model profile for adaptive parameters
         const profile = getModelProfile(model, provider);
 
+        // gemma4 thinking token (F5) — empty unless the model uses the gemma
+        // mechanism AND thinking is turned on for it.
+        const thinkTokenPrefix = provider === 'ollama' ? getOllamaRuntime(model).gemmaTokenPrefix : '';
+
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType,
+            filePath, fileType, tableRoster, thinkTokenPrefix,
         });
 
         const queryResults = new Map();
@@ -460,10 +573,14 @@ class AiManager {
             messages: compactedMessages,
             tools: profile.supportsToolCalling ? tools : undefined,
             stopWhen: stepCountIs(profile.maxSteps),
-            maxTokens: profile.maxTokens,
-            onFinish: async ({ usage }) => {
-                // Run memory extraction in the background (skip for low-tier models)
-                if (profile.supportsMemory) {
+            maxOutputTokens: profile.maxTokens,
+            onFinish: async (event) => {
+                const { usage } = event;
+                // Perf instrumentation (F0): readable per-request line for Ollama
+                logOllamaPerf('stream', { model, usage, providerMetadata: event.providerMetadata });
+                // Run memory extraction in the background (skip for low-tier models,
+                // and — per policy — for local models to keep the Ollama slot free).
+                if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
                     extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
                 }
                 if (provider === 'gemini' && usage) {
@@ -555,7 +672,7 @@ ${schemaText}`;
                 model: llmModel,
                 system: systemPrompt,
                 messages: currentMessages,
-                maxTokens: profile.maxTokens,
+                maxOutputTokens: profile.maxTokens,
             });
 
             let fullText = '';
@@ -567,6 +684,14 @@ ${schemaText}`;
                 if (part.type === 'text-delta') {
                     fullText += part.textDelta || part.text || '';
                     yield { type: 'text-delta', text: part.textDelta || part.text || '' };
+                } else if (part.type === 'reasoning-start') {
+                    // Show native reasoning as a <think> block, but keep it OUT of
+                    // fullText so it doesn't interfere with SQL block extraction.
+                    yield { type: 'text-delta', text: '<think>' };
+                } else if (part.type === 'reasoning-delta') {
+                    yield { type: 'text-delta', text: part.text ?? part.textDelta ?? '' };
+                } else if (part.type === 'reasoning-end') {
+                    yield { type: 'text-delta', text: '</think>' };
                 }
             }
 
@@ -712,7 +837,7 @@ ${schemaText}`;
                     model: llmModel,
                     system: 'You are a data analyst. Summarize the query results concisely in markdown. Highlight key insights.',
                     messages: summaryMessages,
-                    maxTokens: profile.maxTokens,
+                    maxOutputTokens: profile.maxTokens,
                 });
 
                 yield { type: 'text-delta', text: '\n\n---\n\n' };
@@ -768,7 +893,7 @@ ${schema}`;
                 model: llmModel,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: userPrompt }],
-                maxTokens: 4000,
+                maxOutputTokens: 4000,
             });
 
             // Track Gemini usage

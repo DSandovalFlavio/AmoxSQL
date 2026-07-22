@@ -1277,7 +1277,9 @@ app.get('/api/settings/config', (req, res) => {
 });
 
 app.post('/api/settings/config', async (req, res) => {
-    const { geminiApiKey, anthropicApiKey, minimaxApiKey, gcpProject, gcpLocation, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels } = req.body;
+    const { geminiApiKey, anthropicApiKey, minimaxApiKey, gcpProject, gcpLocation, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels,
+        ollamaKeepAlive, ollamaNumCtx, memoryExtraction, ollamaThinkOverrides, modelPerMode,
+        duckdbDocsUpdate, duckdbDocsIntervalDays } = req.body;
     try {
         const config = aiManager.getConfig();
         if (geminiApiKey    !== undefined) config.geminiApiKey    = geminiApiKey;
@@ -1300,6 +1302,23 @@ app.post('/api/settings/config', async (req, res) => {
         }
         if (geminiModels !== undefined) {
             config.geminiModels = geminiModels;
+        }
+        // ── AI local performance settings (F1/F4/F5/F6) ──
+        let syncRuntime = false;
+        if (ollamaKeepAlive     !== undefined) { config.ollamaKeepAlive     = ollamaKeepAlive || '4h'; syncRuntime = true; }
+        if (ollamaNumCtx        !== undefined) { config.ollamaNumCtx        = Number(ollamaNumCtx) || 0; syncRuntime = true; }
+        if (ollamaThinkOverrides !== undefined) { config.ollamaThinkOverrides = ollamaThinkOverrides || {}; syncRuntime = true; }
+        if (memoryExtraction    !== undefined) config.memoryExtraction    = memoryExtraction;
+        if (modelPerMode        !== undefined) config.modelPerMode        = { ...config.modelPerMode, ...modelPerMode };
+        if (duckdbDocsUpdate       !== undefined) config.duckdbDocsUpdate       = duckdbDocsUpdate;
+        if (duckdbDocsIntervalDays !== undefined) config.duckdbDocsIntervalDays = Number(duckdbDocsIntervalDays) || 30;
+        if (syncRuntime) {
+            const { setOllamaRuntimeConfig } = require('./ai/modelProfiles');
+            setOllamaRuntimeConfig({
+                keepAlive: config.ollamaKeepAlive,
+                numCtx: config.ollamaNumCtx,
+                thinkOverrides: config.ollamaThinkOverrides || {},
+            });
         }
 
         await fs.promises.writeFile(aiManager.configPath, JSON.stringify(config, null, 2));
@@ -1468,7 +1487,7 @@ app.post('/api/settings/cloud/test-adc', async (req, res) => {
         const result = await generateText({
             model,
             prompt: 'Say "ADC authentication successful"',
-            maxTokens: 10,
+            maxOutputTokens: 10,
         });
 
         if (result.text) {
@@ -1934,6 +1953,75 @@ app.post('/api/settings/ollama/pull', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/ai/warmup — Preload a local Ollama model into memory (F4).
+ * Fire-and-forget from the client on model select / sidebar open so weights
+ * load while the user types. Uses the SAME num_ctx/keep_alive as real chat
+ * requests (getOllamaRuntime) — a different num_ctx would force a second
+ * load on the first real message.
+ * Body: { model }
+ */
+app.post('/api/ai/warmup', async (req, res) => {
+    const { model } = req.body || {};
+    if (!model) return res.status(400).json({ error: 'Model name is required' });
+    try {
+        const { getOllamaRuntime } = require('./ai/modelProfiles');
+        const rt = getOllamaRuntime(model);
+        // Empty-message chat load: Ollama returns immediately with the model
+        // resident. We don't await generation — just the load.
+        const resp = await fetch('http://localhost:11434/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model,
+                messages: [],
+                keep_alive: rt.keepAlive,
+                options: { num_ctx: rt.numCtx, ...rt.sampling },
+            }),
+            signal: AbortSignal.timeout(120000), // model load can be slow on cold disk
+        });
+        if (!resp.ok) {
+            const text = await resp.text().catch(() => '');
+            return res.status(502).json({ error: `Ollama warmup failed: ${resp.status} ${text}`.trim() });
+        }
+        const json = await resp.json().catch(() => ({}));
+        console.log(`[AI Warmup] ${model} | num_ctx=${rt.numCtx} | loaded (${json.done_reason || 'load'})`);
+        res.json({ success: true, model, numCtx: rt.numCtx });
+    } catch (err) {
+        // Warmup is best-effort; report but don't treat as fatal client-side.
+        console.warn(`[AI Warmup] ${model} failed:`, err.message);
+        res.status(502).json({ error: err.message });
+    }
+});
+
+/**
+ * GET /api/ai/model-status — Which Ollama models are resident right now (F4).
+ * Proxies /api/ps and flags CPU offload (size_vram < size) so the UI can show
+ * a truthful ● hot / ◐ partial-on-CPU / ○ cold indicator.
+ */
+app.get('/api/ai/model-status', async (req, res) => {
+    try {
+        const resp = await fetch('http://localhost:11434/api/ps', {
+            signal: AbortSignal.timeout(3000),
+        });
+        if (!resp.ok) return res.json({ models: [] });
+        const json = await resp.json();
+        const models = (json.models || []).map(m => ({
+            name: m.name,
+            model: m.model,
+            sizeVram: m.size_vram ?? 0,
+            size: m.size ?? 0,
+            onCpu: (m.size_vram ?? 0) < (m.size ?? 0),   // partly/fully on CPU → slower
+            fullyLoaded: (m.size_vram ?? 0) > 0 && (m.size_vram ?? 0) >= (m.size ?? 0),
+            expiresAt: m.expires_at || null,
+        }));
+        res.json({ models });
+    } catch {
+        // Ollama not running / no models loaded — empty, not an error.
+        res.json({ models: [] });
+    }
+});
+
 app.post('/api/ai/init', async (req, res) => {
     try {
         await aiManager.initialize();
@@ -1941,6 +2029,46 @@ app.post('/api/ai/init', async (req, res) => {
     } catch (err) {
         console.error("[API] AI Init failed", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * GET /api/ai/duckdb-docs/status — snapshot status for the Settings UI.
+ * Returns extractedAt (last update), file count, source (bundled/user) and mode.
+ */
+app.get('/api/ai/duckdb-docs/status', (req, res) => {
+    try {
+        const duckdbDocs = require('./ai/duckdbDocs');
+        const cfg = aiManager.getConfig();
+        res.json({
+            ...duckdbDocs.getStatus(),
+            updateMode: cfg.duckdbDocsUpdate || 'auto',
+            intervalDays: cfg.duckdbDocsIntervalDays || 30,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Guard: a single in-flight refresh at a time.
+let _duckdbDocsRefreshing = false;
+
+/**
+ * POST /api/ai/duckdb-docs/refresh — manually re-download the DuckDB docs
+ * snapshot from GitHub into the user dir. Returns the new status.
+ */
+app.post('/api/ai/duckdb-docs/refresh', async (req, res) => {
+    if (_duckdbDocsRefreshing) return res.status(409).json({ error: 'A refresh is already in progress.' });
+    _duckdbDocsRefreshing = true;
+    try {
+        const duckdbDocs = require('./ai/duckdbDocs');
+        const status = await duckdbDocs.refresh(msg => console.log('[DuckDB Docs]', msg));
+        res.json({ success: true, ...status });
+    } catch (err) {
+        console.error('[DuckDB Docs] Manual refresh failed:', err.message);
+        res.status(502).json({ error: `No se pudo actualizar: ${err.message}` });
+    } finally {
+        _duckdbDocsRefreshing = false;
     }
 });
 
@@ -1965,6 +2093,47 @@ app.post('/api/ai/generate', async (req, res) => {
 let _tableContextCache = null;
 let _tableContextCacheTime = 0;
 const TABLE_CONTEXT_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Lightweight name-only roster (F3): used to bound assistant context — the model
+// gets full columns only for referenced tables + a cheap roster of the rest.
+let _tableNamesCache = null;
+let _tableNamesCacheTime = 0;
+
+/** Returns all user base-table names (cheap, cached). */
+async function listAllTableNames() {
+    const now = Date.now();
+    if (_tableNamesCache && (now - _tableNamesCacheTime) < TABLE_CONTEXT_TTL) return _tableNamesCache;
+    try {
+        const rows = await dbManager.systemQuery(
+            `SELECT table_name FROM information_schema.tables
+             WHERE ${userTablesWhereClause()} AND table_type = 'BASE TABLE'
+             ORDER BY table_name`,
+            { lane: 'meta' }
+        );
+        _tableNamesCache = rows.map(r => r.table_name);
+        _tableNamesCacheTime = now;
+        return _tableNamesCache;
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Finds which real tables a SQL string references, by matching known table names
+ * as whole-word tokens (case-insensitive, tolerant of double-quoting). Matching
+ * against the ACTUAL name list (not SQL parsing) is robust: a real table name
+ * appearing in the query is a strong signal it's used, and unknown tokens are
+ * simply ignored. Used to bound assistant context to the active query.
+ */
+function extractReferencedTables(query, allNames) {
+    if (!query || !Array.isArray(allNames) || allNames.length === 0) return [];
+    const q = String(query);
+    return allNames.filter(name => {
+        const esc = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`(^|[^A-Za-z0-9_])"?${esc}"?($|[^A-Za-z0-9_])`, 'i');
+        return re.test(q);
+    });
+}
 
 async function buildTableContext(contextTables = null) {
     // If contextTables is explicitly provided but empty, return empty
@@ -2069,6 +2238,8 @@ async function buildTableContext(contextTables = null) {
 function invalidateTableContextCache() {
     _tableContextCache = null;
     _tableContextCacheTime = 0;
+    _tableNamesCache = null;
+    _tableNamesCacheTime = 0;
 }
 
 /**
@@ -2136,9 +2307,17 @@ app.post('/api/ai/chat', async (req, res) => {
 
     try {
         // If the user provides explicit context items, we only load those.
-        // If NO explicit context items are provided, we load the whole DB schema.
+        // If NO explicit context items are provided: diving loads the whole DB
+        // schema; assistant loads only the tables referenced in the active query
+        // + a name roster of the rest (F3, bounded context).
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
-        const tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+        let tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+        let tableRoster = null;
+        if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
+            const allNames = await listAllTableNames();
+            tableRoster = allNames;
+            tablesToLoad = extractReferencedTables(currentQuery, allNames).map(name => ({ name }));
+        }
 
         const [tables, files] = await Promise.all([
             buildTableContext(tablesToLoad),
@@ -2156,6 +2335,7 @@ app.post('/api/ai/chat', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            tableRoster,
         });
 
         res.json(result);
@@ -2247,7 +2427,20 @@ app.post('/api/ai/chat/stream', async (req, res) => {
 
     try {
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
-        const tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+        let tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
+
+        // ── Bounded context for assistant mode (F3, fixes H9) ──
+        // Deep Dive genuinely needs the whole DB; the editor assistant does not.
+        // When the user hasn't dragged explicit context, load full columns ONLY
+        // for tables referenced in the active query, plus a cheap name roster of
+        // the rest (the model pulls details on demand via describe_table).
+        let tableRoster = null;
+        if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
+            const allNames = await listAllTableNames();
+            tableRoster = allNames;
+            const referenced = extractReferencedTables(currentQuery, allNames);
+            tablesToLoad = referenced.map(name => ({ name }));
+        }
 
         const [tables, files, expandedReferences] = await Promise.all([
             buildTableContext(tablesToLoad),
@@ -2270,6 +2463,8 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
+            tableRoster,
+            memoryExtraction: aiManager.getConfig().memoryExtraction || 'cloud-only',
             uiTheme: uiTheme || null,
             conversationId: conversationId || null,
             planStepOverrides: Array.isArray(planStepOverrides) ? planStepOverrides : [],
@@ -2340,6 +2535,15 @@ app.post('/api/ai/chat/stream', async (req, res) => {
 
                 if (part.type === 'text-delta') {
                     res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.textDelta || part.text })}\n\n`);
+                } else if (part.type === 'reasoning-start') {
+                    // Native reasoning (think:true) arrives on a separate channel;
+                    // wrap it as <think>…</think> in the text stream so the client's
+                    // existing thinking-block parser renders it live.
+                    res.write(`data: ${JSON.stringify({ type: 'text-delta', text: '<think>' })}\n\n`);
+                } else if (part.type === 'reasoning-delta') {
+                    res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.text ?? part.textDelta ?? '' })}\n\n`);
+                } else if (part.type === 'reasoning-end') {
+                    res.write(`data: ${JSON.stringify({ type: 'text-delta', text: '</think>' })}\n\n`);
                 } else if (part.type === 'tool-call') {
                     const toolArgs = part.input ?? part.args ?? {};
                     res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: toolArgs, toolCallId: part.toolCallId })}\n\n`);

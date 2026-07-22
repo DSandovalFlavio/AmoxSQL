@@ -106,6 +106,9 @@ export default function useAiChat({
     // discovered live from the backend.
     const [cloudModelsList, setCloudModelsList] = useState([]);
     const [isModelsLoading, setIsModelsLoading] = useState(false);
+    // F4: which Ollama models are resident right now (from /api/ai/model-status),
+    // so the model picker can show a ● hot / ◐ on-CPU / ○ cold indicator.
+    const [modelStatus, setModelStatus] = useState([]);
 
     // ─── Skills State ───
     const [availableSkills, setAvailableSkills] = useState([]);
@@ -175,7 +178,9 @@ export default function useAiChat({
                         setInstalledModels(models);
 
                         if (models.length > 0) {
-                            const found = models.find(m => m.name === configData.defaultModel);
+                            // F6: prefer this mode's own model, then the global default.
+                            const preferred = configData.modelPerMode?.[mode] || configData.defaultModel;
+                            const found = models.find(m => m.name === preferred);
                             setSelectedModel(found ? found.name : models[0].name);
                         } else {
                             setSelectedModel('');
@@ -192,12 +197,13 @@ export default function useAiChat({
                     setCloudModelsList(availableModels);
                     setIsModelsLoading(false);
 
-                    const modelFound = availableModels.find(m => m.id === configData.defaultModel);
+                    const preferred = configData.modelPerMode?.[mode] || configData.defaultModel;
+                    const modelFound = availableModels.find(m => m.id === preferred);
                     if (modelFound && modelFound.id !== 'custom') {
-                        setSelectedModel(configData.defaultModel);
+                        setSelectedModel(preferred);
                     } else {
                         setSelectedModel('custom');
-                        setCustomModel(configData.defaultModel || '');
+                        setCustomModel(preferred || '');
                     }
                 }
                 setStatus('READY');
@@ -211,6 +217,34 @@ export default function useAiChat({
         window.addEventListener('amox_settings_updated', loadConfig);
         return () => window.removeEventListener('amox_settings_updated', loadConfig);
     }, []);
+
+    // ─── F4: Warm the selected model + track its residency ───
+    // When the user picks a local model (or one resolves on open), preload it in
+    // the background so weights are in memory by the time they hit send. Then
+    // poll /api/ai/model-status so the picker shows a truthful hot/cold dot.
+    useEffect(() => {
+        if (provider !== 'ollama' || !modelToUse || modelToUse === 'custom') return;
+        let cancelled = false;
+
+        const refreshStatus = async () => {
+            try {
+                const res = await fetch(`${API}/api/ai/model-status`);
+                const data = await res.json();
+                if (!cancelled) setModelStatus(data.models || []);
+            } catch { /* Ollama not running — leave status empty */ }
+        };
+
+        // Fire-and-forget warmup (don't block; the model loads while the user types).
+        fetch(`${API}/api/ai/warmup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: modelToUse }),
+        }).then(() => { if (!cancelled) refreshStatus(); }).catch(() => {});
+
+        refreshStatus();
+        const iv = setInterval(refreshStatus, 20000); // keep the dot fresh
+        return () => { cancelled = true; clearInterval(iv); };
+    }, [provider, modelToUse]);
 
     // ─── Load Skills (conditional) ───
     useEffect(() => {
@@ -505,6 +539,10 @@ export default function useAiChat({
             let fullText = '';
             let toolResults = [];
             let buffer = '';
+            // Reasoning timing (for the "Pensó durante Xs" chip): mark when the
+            // first <think> opens and when it closes.
+            let thinkStart = null;
+            let thinkingMs = null;
 
             // Text deltas arrive one per token; rendering the transcript once per
             // token saturates the main thread. Accumulate in fullText and flush to
@@ -550,6 +588,13 @@ export default function useAiChat({
 
                         if (event.type === 'text-delta') {
                             fullText += event.text;
+                            // Time the reasoning span (first <think> → its </think>).
+                            if (thinkStart === null && fullText.includes('<think>')) {
+                                thinkStart = performance.now();
+                            }
+                            if (thinkingMs === null && thinkStart !== null && fullText.includes('</think>')) {
+                                thinkingMs = performance.now() - thinkStart;
+                            }
                             scheduleStreamFlush();
 
                         } else if (event.type === 'tool-call') {
@@ -664,6 +709,7 @@ export default function useAiChat({
                 role: 'assistant',
                 content: fullText,
                 toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
+                thinkingMs: thinkingMs || undefined,
             };
             setMessages(prev => [...prev, assistantMsg]);
             setStreamingText('');
@@ -697,11 +743,13 @@ export default function useAiChat({
                 })();
             }
 
-            // Save model as default and notify other AI panels to sync
+            // Remember this mode's model (F6: assistant and diving keep separate
+            // models — the server merges modelPerMode) and keep defaultModel as a
+            // sensible fallback. Notify other AI panels to re-sync.
             fetch(`${API}/api/settings/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ defaultModel: currentModel }),
+                body: JSON.stringify({ defaultModel: currentModel, modelPerMode: { [mode]: currentModel } }),
             }).then(() => {
                 window.dispatchEvent(new Event('amox_settings_updated'));
             }).catch(() => {});
@@ -1012,6 +1060,7 @@ export default function useAiChat({
         customModel, setCustomModel,
         installedModels,
         isModelsLoading,
+        modelStatus,
 
         // Skills state
         availableSkills,

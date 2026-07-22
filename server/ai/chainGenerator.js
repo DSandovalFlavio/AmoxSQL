@@ -170,7 +170,7 @@ async function generateChain({ getModel, provider, model, prompt, currentChain, 
     let messages = [{ role: 'user', content: prompt }];
 
     for (let attempt = 0; attempt <= 1; attempt++) {
-        const res = await generateText({ model: llm, system, messages, maxTokens: 4000 });
+        const res = await generateText({ model: llm, system, messages, maxOutputTokens: 4000 });
         const json = extractJson(res.text);
         let problem = null;
 

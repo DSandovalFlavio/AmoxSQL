@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -364,16 +364,28 @@ function parseThinkingBlocks(text) {
 
 /**
  * ThinkingBlock — Collapsible block showing model reasoning.
+ * While the model is reasoning it auto-expands (you watch it think live); when
+ * reasoning ends it auto-collapses into a clickable chip — "Pensó durante Xs" if
+ * we measured the duration, else "Razonamiento". Click to re-open the full trace.
  */
-const ThinkingBlock = ({ content, isStreaming }) => {
+const ThinkingBlock = ({ content, isStreaming, durationMs }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const wasStreamingRef = useRef(false);
 
-    // Auto-expand if it's currently streaming
+    // Auto-expand while streaming; auto-collapse the moment reasoning finishes.
     useEffect(() => {
         if (isStreaming) {
             setIsExpanded(true);
+            wasStreamingRef.current = true;
+        } else if (wasStreamingRef.current) {
+            setIsExpanded(false);
+            wasStreamingRef.current = false;
         }
     }, [isStreaming]);
+
+    const label = isStreaming
+        ? 'Razonando…'
+        : (durationMs ? `Pensó durante ${(durationMs / 1000).toFixed(1)}s` : 'Razonamiento');
 
     return (
         <div className="ai-msg-thinking">
@@ -382,7 +394,7 @@ const ThinkingBlock = ({ content, isStreaming }) => {
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <LuBrain size={12} className={`ai-msg-thinking__icon ${isStreaming ? 'ai-pulsing' : ''}`} />
-                <span>{isStreaming ? 'Reasoning...' : 'Reasoning'}</span>
+                <span>{label}</span>
                 {isExpanded
                     ? <LuChevronDown size={12} />
                     : <LuChevronRight size={12} />
@@ -445,7 +457,7 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, onRunSql, onApplyToFile, onAppendToFile, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent, activityOnly = false }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onApplyToFile, onAppendToFile, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent, activityOnly = false }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -654,7 +666,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                             {citeQueryId && <QueryAuditModal queryId={citeQueryId} onClose={() => setCiteQueryId(null)} />}
                             {parts.map((part, idx) => {
                                 if (part.type === 'thinking') {
-                                    return <ThinkingBlock key={idx} content={part.content} isStreaming={part.isStreaming} />;
+                                    return <ThinkingBlock key={idx} content={part.content} isStreaming={part.isStreaming} durationMs={thinkingMs} />;
                                 }
                                 // Inspector mode: reasoning + activity only, hide the prose
                                 // (the prose already lives in the transcript card).
@@ -786,6 +798,7 @@ export default memo(ChatMessage, (prev, next) => (
     prev.content === next.content &&
     prev.toolCalls === next.toolCalls &&
     prev.isStreaming === next.isStreaming &&
+    prev.thinkingMs === next.thinkingMs &&
     prev.isDiving === next.isDiving &&
     prev.allMessages === next.allMessages &&
     prev.pendingEdits === next.pendingEdits &&

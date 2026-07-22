@@ -63,7 +63,7 @@ Las capacidades (`supportsToolCalling`, `supportsCharts`, `supportsNotebooks`, `
 
 ### Razonamiento (thinking)
 
-Algunos modelos exponen su razonamiento. En los **modelos M de MiniMax** el razonamiento avanzado está **siempre activo** y se muestra en el inspector de [Deep Dive](deep-dive.md). Otros modelos activan el thinking según sus capacidades detectadas.
+Algunos modelos exponen su razonamiento. En los **modelos M de MiniMax** el razonamiento avanzado está **siempre activo** y se muestra en el inspector de [Deep Dive](deep-dive.md). En los modelos locales de Ollama puedes activarlo/desactivarlo **por modelo (Auto / Activado / Desactivado)** — ver [Rendimiento de la IA local](rendimiento-local.md), porque el razonamiento cambia calidad por latencia.
 
 ## Tips y gemas
 
@@ -76,5 +76,6 @@ Algunos modelos exponen su razonamiento. En los **modelos M de MiniMax** el razo
 ## Relacionado
 
 - [La IA de AmoxSQL](introduction.md) · [Herramientas del agente](agent-tools.md) · [Modo prompt-only](prompt-only-mode.md)
+- [Rendimiento de la IA local](rendimiento-local.md) — mantén rápidos los modelos locales
 - [Deep Dive](deep-dive.md) · [Asistente del editor](editor-assistant.md)
 - [Configuración](../reference/configuration.md)
