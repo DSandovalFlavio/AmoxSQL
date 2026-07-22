@@ -1006,22 +1006,22 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 
 /* ═══════════════════════════════════════════════
    DARK THEME: STERLING DEEP
-   A calmer, deeper take on Sterling Dark. The surface ladder is shifted down:
-   the SIDEBAR/panels now sit at #120d1f (what Sterling Dark used as its paper),
-   and the app/editor background drops below it, staying in the same violet hue.
+   A calmer, deeper take on Sterling Dark. The surface ladder is shifted well
+   down into a near-black violet: the SIDEBAR/panels sit at #0a0714 and the
+   app/editor background drops below it to #050310, same violet hue throughout.
    Same Sterling palette on syntax/feedback — but on deeper surfaces it reads
    rich instead of loud. Values derived from Sterling (MIT) © La Matemaga.
    ═══════════════════════════════════════════════ */
 .theme-sterlingdeep {
-  --surface-base:    #0a0714;   /* app + editor background — deepest violet-ink */
-  --surface-raised:  #120d1f;   /* panels, sidebar, table header (old Dark paper) */
-  --surface-overlay: #1a1330;   /* modals, popovers, row hover — elevation */
-  --surface-inset:   #06040d;   /* wells: gutter, inputs, code blocks */
+  --surface-base:    #050310;   /* app + editor background — near-black violet */
+  --surface-raised:  #0a0714;   /* panels, sidebar (the old Deep background) */
+  --surface-overlay: #110c1e;   /* modals, popovers, row hover — elevation */
+  --surface-inset:   #020106;   /* wells: gutter, inputs, code blocks — deepest */
 
-  /* Calmer borders — darker, less saturated violets so the UI reads quiet */
-  --border-subtle:  #221b36;
-  --border-default: #2c2447;
-  --border-strong:  #3a3057;
+  /* Very quiet borders — deep, desaturated violets */
+  --border-subtle:  #1a1430;
+  --border-default: #241d3a;
+  --border-strong:  #322a4a;
 
   --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
   --text-secondary: #a99fc4;   /* Sterling muted */
@@ -1076,10 +1076,10 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
-  --button-text-color: #0a0714;   /* deep ink on the lavender accent */
+  --button-text-color: #050310;   /* deep ink on the lavender accent */
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-row-hover: rgba(196, 181, 253, 0.035);
+  --table-row-hover: rgba(196, 181, 253, 0.03);
 }
 
 /* ═══════════════════════════════════════════════
