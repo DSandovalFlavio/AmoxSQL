@@ -36,6 +36,7 @@ const THEMES = [
     { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'JetBrains-inspired' },
     { id: 'ayu',       label: 'Ayu Dark',     icon: <LuMoon size={14} />, sidebar: '#141821', editor: '#0d1017', text: '#e6b450', desc: 'Ink blue · gold accent' },
     { id: 'sterlingdark',  label: 'Sterling Dark',  icon: <LuMoon size={14} />, sidebar: '#1d1530', editor: '#120d1f', text: '#c4b5fd', desc: 'Sterling · by La Matemaga' },
+    { id: 'sterlingdeep',  label: 'Sterling Deep',  icon: <LuMoon size={14} />, sidebar: '#120d1f', editor: '#0a0714', text: '#c4b5fd', desc: 'Sterling · deep & calm' },
     { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
     { id: 'sterlinglight', label: 'Sterling Light', icon: <LuSun size={14} />,  sidebar: '#fbf9fe', editor: '#f6f3fb', text: '#7c5ce0', desc: 'Sterling · by La Matemaga' },
     { id: 'ivory',     label: 'Ivory',        icon: <LuSun size={14} />,  sidebar: '#f3ede4', editor: '#faf6ef', text: '#3b3228', desc: 'Warm paper' },

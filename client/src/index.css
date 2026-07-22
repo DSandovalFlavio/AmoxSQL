@@ -1005,6 +1005,84 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
+   DARK THEME: STERLING DEEP
+   A calmer, deeper take on Sterling Dark. The surface ladder is shifted down:
+   the SIDEBAR/panels now sit at #120d1f (what Sterling Dark used as its paper),
+   and the app/editor background drops below it, staying in the same violet hue.
+   Same Sterling palette on syntax/feedback — but on deeper surfaces it reads
+   rich instead of loud. Values derived from Sterling (MIT) © La Matemaga.
+   ═══════════════════════════════════════════════ */
+.theme-sterlingdeep {
+  --surface-base:    #0a0714;   /* app + editor background — deepest violet-ink */
+  --surface-raised:  #120d1f;   /* panels, sidebar, table header (old Dark paper) */
+  --surface-overlay: #1a1330;   /* modals, popovers, row hover — elevation */
+  --surface-inset:   #06040d;   /* wells: gutter, inputs, code blocks */
+
+  /* Calmer borders — darker, less saturated violets so the UI reads quiet */
+  --border-subtle:  #221b36;
+  --border-default: #2c2447;
+  --border-strong:  #3a3057;
+
+  --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
+  --text-secondary: #a99fc4;   /* Sterling muted */
+  --text-tertiary:  #8b7fa8;
+  --text-disabled:  #5c5178;
+
+  /* Lavender "period" accent stays (overridable via .theme-sterlingdeep:not(...)). */
+
+  --hover-bg:   rgba(196, 181, 253, 0.05);
+  --active-bg:  rgba(196, 181, 253, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.75);
+
+  /* Feedback — same Sterling families (teal/coral/amber/blue) */
+  --feedback-success:        #5ec9ae;
+  --feedback-success-bg:     rgba(94, 201, 174, 0.10);
+  --feedback-success-border: rgba(94, 201, 174, 0.22);
+  --feedback-success-text:   #78d8c1;
+  --feedback-error:          #f29a88;
+  --feedback-error-bg:       rgba(242, 154, 136, 0.10);
+  --feedback-error-border:   rgba(242, 154, 136, 0.22);
+  --feedback-error-text:     #f6aa9a;
+  --feedback-warning:        #f2c46d;
+  --feedback-warning-bg:     rgba(242, 196, 109, 0.10);
+  --feedback-warning-border: rgba(242, 196, 109, 0.22);
+  --feedback-warning-text:   #f5cb7c;
+  --feedback-info:           #86a8e8;
+  --feedback-info-bg:        rgba(134, 168, 232, 0.10);
+  --feedback-info-border:    rgba(134, 168, 232, 0.22);
+  --feedback-info-text:      #9bb9ef;
+
+  /* Syntax — the 8 Sterling dark categoricals, one per role */
+  --syntax-keyword:   #b69af2;   /* Violet */
+  --syntax-string:    #5ec9ae;   /* Teal */
+  --syntax-number:    #f2c46d;   /* Amber */
+  --syntax-function:  #86a8e8;   /* Blue */
+  --syntax-comment:   #645980;   /* violet-grey, recedes a touch more */
+  --syntax-type:      #e88bdd;   /* Orchid */
+  --syntax-operator:  #b7c8d1;   /* Payne */
+  --syntax-variable:  #ede9f5;
+  --syntax-constant:  #f29a88;   /* Coral */
+
+  --type-integer:  #86a8e8;
+  --type-float:    #5ec9ae;
+  --type-text:     #f2c46d;
+  --type-datetime: #b69af2;
+  --type-boolean:  #e88bdd;
+  --type-default:  #b7c8d1;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #0a0714;   /* deep ink on the lavender accent */
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(196, 181, 253, 0.035);
+}
+
+/* ═══════════════════════════════════════════════
    DARK THEME: AYU DARK — faithful to ayu-theme/ayu-colors (themes/dark.yaml)
    Ink-blue near-black (#0D1017) with the signature Ayu gold accent (#E6B450)
    and warm, readable syntax: orange keywords, gold functions, blue types,
@@ -1265,7 +1343,8 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 /* Sterling themes ship the Sterling "period" accent by default (overridable).
    Values from Sterling (MIT) © La Matemaga. */
-.theme-sterlingdark:not([class*="accent-"]) {
+.theme-sterlingdark:not([class*="accent-"]),
+.theme-sterlingdeep:not([class*="accent-"]) {
   --accent-primary: #c4b5fd;
 }
 .theme-sterlinglight:not([class*="accent-"]) {
