@@ -12,6 +12,7 @@ const { exec } = require('child_process');
 const dbManager        = require('./DatabaseManager');
 const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
+const { detectResultType } = require('./_sqlClassify');
 
 const app = express();
 const PORT = 3001;
@@ -3265,6 +3266,18 @@ app.post('/api/query', async (req, res) => {
             }
         } catch { /* non-fatal bookkeeping */ }
 
+        // Classify the statement so the editor can decide how to render it: a
+        // tabular result gets the table, a DML/DDL side-effect gets a summary
+        // ("Table Created", "5 rows updated", …) instead of an empty grid.
+        const { resultType, details: resultDetails } = detectResultType(query);
+        let rowsAffected = null;
+        if (['rows_inserted', 'rows_updated', 'rows_deleted'].includes(resultType)) {
+            // DuckDB returns DML affected-row counts as a single "Count" column.
+            const first = rows[0];
+            const count = first?.Count ?? first?.count;
+            if (count !== undefined && count !== null) rowsAffected = Number(count);
+        }
+
         res.json({
             data: rows,
             types: result.types,
@@ -3272,7 +3285,10 @@ app.post('/api/query', async (req, res) => {
             rowCount: rows.length,
             truncated,
             rowLimit: limited ? rowLimit : null,
-            queryId: qid
+            queryId: qid,
+            resultType,
+            resultDetails,
+            rowsAffected,
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

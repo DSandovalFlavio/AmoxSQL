@@ -8,14 +8,24 @@ export function DialogProvider({ children }) {
     const resolverRef = useRef(null);
     const inputRef = useRef(null);
     const [inputValue, setInputValue] = useState('');
+    const [checkboxChecked, setCheckboxChecked] = useState(false);
 
     const close = useCallback((value) => {
         const resolve = resolverRef.current;
         resolverRef.current = null;
         setDialog(null);
         setInputValue('');
+        setCheckboxChecked(false);
         if (resolve) resolve(value);
     }, []);
+
+    // The value a dialog resolves to when dismissed (Escape / backdrop / cancel).
+    const cancelValue = (d) => {
+        if (!d) return null;
+        if (d.kind === 'prompt') return null;
+        if (d.kind === 'choose') return { value: null, remember: false };
+        return false;
+    };
 
     const promptAsync = useCallback((opts = {}) => {
         return new Promise((resolve) => {
@@ -47,9 +57,32 @@ export function DialogProvider({ children }) {
         });
     }, []);
 
-    const api = useRef({ promptAsync, confirmAsync });
+    /**
+     * A multi-option chooser with an optional "remember" checkbox.
+     * opts: { title, message, options: [{ label, value, primary?, description? }],
+     *         checkboxLabel?, cancelLabel? }
+     * Resolves to { value, remember } — value is the chosen option's value, or
+     * null if the user dismissed the dialog.
+     */
+    const chooseAsync = useCallback((opts = {}) => {
+        return new Promise((resolve) => {
+            resolverRef.current = resolve;
+            setCheckboxChecked(false);
+            setDialog({
+                kind: 'choose',
+                title: opts.title || 'Choose an option',
+                message: opts.message || '',
+                options: Array.isArray(opts.options) ? opts.options : [],
+                checkboxLabel: opts.checkboxLabel || null,
+                cancelLabel: opts.cancelLabel || 'Cancel',
+            });
+        });
+    }, []);
+
+    const api = useRef({ promptAsync, confirmAsync, chooseAsync });
     api.current.promptAsync = promptAsync;
     api.current.confirmAsync = confirmAsync;
+    api.current.chooseAsync = chooseAsync;
 
     useEffect(() => {
         if (!dialog) return;
@@ -60,7 +93,7 @@ export function DialogProvider({ children }) {
         const onKey = (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
-                close(dialog.kind === 'prompt' ? null : false);
+                close(cancelValue(dialog));
             } else if (e.key === 'Enter' && dialog.kind === 'prompt') {
                 e.preventDefault();
                 submitPrompt();
@@ -90,7 +123,7 @@ export function DialogProvider({ children }) {
                     aria-modal="true"
                     aria-labelledby="amox-dialog-title"
                     onMouseDown={(e) => {
-                        if (e.target === e.currentTarget) close(dialog.kind === 'prompt' ? null : false);
+                        if (e.target === e.currentTarget) close(cancelValue(dialog));
                     }}
                     style={{
                         position: 'fixed',
@@ -163,9 +196,71 @@ export function DialogProvider({ children }) {
                                 }}
                             />
                         )}
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+
+                        {dialog.kind === 'choose' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '4px' }}>
+                                {dialog.options.map((opt, idx) => (
+                                    <button
+                                        key={opt.value ?? idx}
+                                        onClick={() => close({ value: opt.value, remember: checkboxChecked })}
+                                        style={{
+                                            display: 'block',
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            padding: '10px 12px',
+                                            background: opt.primary
+                                                ? 'var(--accent-primary, #22d3ee)'
+                                                : 'var(--surface-base, #141418)',
+                                            border: `1px solid ${opt.primary ? 'transparent' : 'var(--border-subtle, #33333c)'}`,
+                                            borderRadius: '7px',
+                                            color: opt.primary
+                                                ? 'var(--surface-base, #141418)'
+                                                : 'var(--text-active, #e5e5e5)',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                        }}
+                                        onMouseEnter={(e) => { if (!opt.primary) e.currentTarget.style.borderColor = 'var(--accent-primary, #22d3ee)'; }}
+                                        onMouseLeave={(e) => { if (!opt.primary) e.currentTarget.style.borderColor = 'var(--border-subtle, #33333c)'; }}
+                                    >
+                                        {opt.label}
+                                        {opt.description && (
+                                            <span style={{
+                                                display: 'block',
+                                                marginTop: '3px',
+                                                fontSize: '11px',
+                                                fontWeight: 400,
+                                                color: opt.primary ? 'var(--surface-base, #141418)' : 'var(--text-tertiary, #8a8a93)',
+                                                opacity: opt.primary ? 0.85 : 1,
+                                            }}>
+                                                {opt.description}
+                                            </span>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {dialog.kind === 'choose' && dialog.checkboxLabel && (
+                            <label style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                margin: '12px 0 4px', fontSize: '12px',
+                                color: 'var(--text-primary, #bdbdc4)', cursor: 'pointer',
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={checkboxChecked}
+                                    onChange={(e) => setCheckboxChecked(e.target.checked)}
+                                    style={{ cursor: 'pointer' }}
+                                />
+                                {dialog.checkboxLabel}
+                            </label>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: dialog.kind === 'choose' ? '8px' : 0 }}>
                             <button
-                                onClick={() => close(dialog.kind === 'prompt' ? null : false)}
+                                onClick={() => close(cancelValue(dialog))}
                                 style={{
                                     padding: '6px 14px',
                                     background: 'transparent',
@@ -180,29 +275,31 @@ export function DialogProvider({ children }) {
                             >
                                 {dialog.cancelLabel}
                             </button>
-                            <button
-                                onClick={() => {
-                                    if (dialog.kind === 'prompt') submitPrompt();
-                                    else close(true);
-                                }}
-                                disabled={dialog.kind === 'prompt' && !(inputValue ?? '').trim()}
-                                style={{
-                                    padding: '6px 14px',
-                                    background: dialog.destructive
-                                        ? 'var(--color-error, #dc2626)'
-                                        : 'var(--accent-primary, #22d3ee)',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    color: dialog.destructive ? 'var(--button-text-color, #fff)' : 'var(--surface-base, #141418)',
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    fontFamily: 'inherit',
-                                    opacity: dialog.kind === 'prompt' && !(inputValue ?? '').trim() ? 0.5 : 1,
-                                }}
-                            >
-                                {dialog.confirmLabel}
-                            </button>
+                            {dialog.kind !== 'choose' && (
+                                <button
+                                    onClick={() => {
+                                        if (dialog.kind === 'prompt') submitPrompt();
+                                        else close(true);
+                                    }}
+                                    disabled={dialog.kind === 'prompt' && !(inputValue ?? '').trim()}
+                                    style={{
+                                        padding: '6px 14px',
+                                        background: dialog.destructive
+                                            ? 'var(--color-error, #dc2626)'
+                                            : 'var(--accent-primary, #22d3ee)',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        color: dialog.destructive ? 'var(--button-text-color, #fff)' : 'var(--surface-base, #141418)',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit',
+                                        opacity: dialog.kind === 'prompt' && !(inputValue ?? '').trim() ? 0.5 : 1,
+                                    }}
+                                >
+                                    {dialog.confirmLabel}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

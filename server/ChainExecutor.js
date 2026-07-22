@@ -10,6 +10,7 @@ const path = require('path');
 const EventEmitter = require('events');
 const chainPersistence = require('./ChainPersistence');
 const aiManager = require('./AiManager');
+const { detectResultType } = require('./_sqlClassify');
 
 /**
  * Node types that produce a *derived intermediate* table — plumbing between
@@ -222,47 +223,11 @@ class ChainExecutor extends EventEmitter {
     }
 
     // --- Result Type Detection ---
+    // Delegates to the shared classifier (server/_sqlClassify.js) so the editor's
+    // "run as script" summary and chain node results speak the same language.
 
     detectResultType(sql) {
-        if (!sql) return { resultType: 'unknown', details: {} };
-        const trimmed = sql.trim().toUpperCase();
-
-        if (/^CREATE\s+(OR\s+REPLACE\s+)?TABLE/i.test(trimmed)) {
-            const match = sql.match(/CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)/i);
-            return { resultType: 'table_created', details: { table: match?.[1] || 'unknown' } };
-        }
-        if (/^CREATE\s+(OR\s+REPLACE\s+)?VIEW/i.test(trimmed)) {
-            const match = sql.match(/CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)/i);
-            return { resultType: 'view_created', details: { view: match?.[1] || 'unknown' } };
-        }
-        if (/^INSERT\s+INTO/i.test(trimmed)) {
-            const match = sql.match(/INSERT\s+INTO\s+([^\s(]+)/i);
-            return { resultType: 'rows_inserted', details: { table: match?.[1] || 'unknown' } };
-        }
-        if (/^UPDATE\s+/i.test(trimmed)) {
-            const match = sql.match(/UPDATE\s+([^\s]+)/i);
-            return { resultType: 'rows_updated', details: { table: match?.[1] || 'unknown' } };
-        }
-        if (/^DELETE\s+FROM/i.test(trimmed)) {
-            const match = sql.match(/DELETE\s+FROM\s+([^\s]+)/i);
-            return { resultType: 'rows_deleted', details: { table: match?.[1] || 'unknown' } };
-        }
-        if (/^COPY\s+.*\s+TO\s+/i.test(trimmed)) {
-            return { resultType: 'file_exported', details: {} };
-        }
-        if (/^DROP\s+TABLE/i.test(trimmed)) {
-            const match = sql.match(/DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?([^\s;]+)/i);
-            return { resultType: 'table_dropped', details: { table: match?.[1] || 'unknown' } };
-        }
-        if (/^DROP\s+VIEW/i.test(trimmed)) {
-            const match = sql.match(/DROP\s+VIEW\s+(?:IF\s+EXISTS\s+)?([^\s;]+)/i);
-            return { resultType: 'view_dropped', details: { view: match?.[1] || 'unknown' } };
-        }
-        if (/^SELECT/i.test(trimmed)) {
-            return { resultType: 'query_result', details: {} };
-        }
-
-        return { resultType: 'unknown', details: {} };
+        return detectResultType(sql);
     }
 
     // --- Output Context ---
