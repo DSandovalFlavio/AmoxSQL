@@ -15,13 +15,19 @@ const { createAnthropic } = require('@ai-sdk/anthropic');
 const { createOpenAI } = require('@ai-sdk/openai');
 const { createOllama } = require('ai-sdk-ollama');
 const ollama = createOllama();
+
+// ── Ollama model instance cache (F1 del plan de performance local) ──
+// One instance per (model, runtime-options) combination. Reusing the instance
+// guarantees every request carries IDENTICAL options — critical because a
+// num_ctx change between requests forces Ollama to unload+reload the model.
+const _ollamaModelCache = new Map();
 const { createTools } = require('./ai/tools');
 const { buildSystemPrompt } = require('./ai/systemPrompt');
 const { loadUserRules } = require('./ai/userRules');
 const { compactContext } = require('./ai/compaction');
 const { loadMemoriesText, extractMemories } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
-const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo } = require('./ai/modelProfiles');
+const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo, getOllamaRuntime, setOllamaRuntimeConfig } = require('./ai/modelProfiles');
 const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
 const { applyRowLimit } = require('./_sqlUtils');
 const { agenticLoop } = require('./ai/agenticLoop');
@@ -58,6 +64,10 @@ class AiManager {
                 usage: { flashLite: 0, flash: 0, pro: 0, tokens: 0 },
                 experimental: { planner: true },
                 modelTierOverrides: {},
+                // Ollama local runtime (F1): keep_alive largo para evitar cold
+                // starts; numCtx 0 = auto por tier (8k low / 16k medium+).
+                ollamaKeepAlive: '4h',
+                ollamaNumCtx: 0,
                 geminiModels: [
                     { id: 'gemini-2.5-flash-lite', category: 'flash-lite', dailyLimit: 1000, contextWindow: 100000, costPerMInput: 0.10 },
                     { id: 'gemini-2.5-flash', category: 'flash', dailyLimit: 250, contextWindow: 500000, costPerMInput: 0.30 },
@@ -115,8 +125,16 @@ class AiManager {
                 fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
             }
 
+            // Migrate: ensure Ollama runtime fields exist
+            if (config.ollamaKeepAlive === undefined) { config.ollamaKeepAlive = '4h'; needsWrite = true; }
+            if (config.ollamaNumCtx === undefined) { config.ollamaNumCtx = 0; needsWrite = true; }
+            if (needsWrite) fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+
             // Sync tier overrides with modelProfiles module
             setUserTierOverrides(config.modelTierOverrides || {});
+
+            // Sync Ollama runtime config (keep_alive / num_ctx) with modelProfiles
+            setOllamaRuntimeConfig({ keepAlive: config.ollamaKeepAlive, numCtx: config.ollamaNumCtx });
 
             return config;
         } catch (e) {
@@ -234,9 +252,40 @@ class AiManager {
             });
             return minimax.chat(modelName || 'MiniMax-M2.7');
         } else {
-            // Ollama — local model
-            return ollama(modelName || 'qwen3:1.7b');
+            // Ollama — local model with explicit runtime options (F1):
+            //   keep_alive  → model stays resident (default '4h', configurable)
+            //   num_ctx     → real context size, identical on EVERY request
+            //   sampling    → per-family recommended params
+            //   think:false → disable invisible CoT for qwen3.5/qwen3/ornith
+            return this.getOllamaModel(modelName || 'qwen3:1.7b');
         }
+    }
+
+    /**
+     * Builds (and caches) an ai-sdk-ollama model instance with the full local
+     * runtime. The cache key includes the resolved options so a config change
+     * (e.g. num_ctx in Settings) naturally produces a fresh instance.
+     * @param {string} modelName
+     * @returns {object} Vercel AI SDK model instance
+     */
+    getOllamaModel(modelName) {
+        const rt = getOllamaRuntime(modelName);
+        const key = `${modelName}|ctx:${rt.numCtx}|ka:${rt.keepAlive}|think:${rt.think}|${JSON.stringify(rt.sampling)}`;
+
+        let instance = _ollamaModelCache.get(key);
+        if (!instance) {
+            instance = ollama(modelName, {
+                keep_alive: rt.keepAlive,
+                ...(rt.think === false ? { think: false } : {}),
+                options: {
+                    num_ctx: rt.numCtx,
+                    ...rt.sampling,
+                },
+            });
+            _ollamaModelCache.set(key, instance);
+            console.log(`[AI] Ollama model configured: ${modelName} | num_ctx=${rt.numCtx} | keep_alive=${rt.keepAlive}${rt.think === false ? ' | think=off' : ''}`);
+        }
+        return instance;
     }
 
     /**

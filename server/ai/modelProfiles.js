@@ -263,6 +263,73 @@ function invalidateCapabilitiesCache(modelName) {
 }
 
 
+// ── Ollama runtime options (F1 del plan de performance local) ────────────
+// Everything the local runner needs beyond the tier: context size, sampling
+// params per model family, and whether to disable thinking. These are applied
+// when CONSTRUCTING the ai-sdk-ollama model instance (AiManager.getModel).
+//
+// Hard rule from the Ollama docs: `num_ctx` must be IDENTICAL on every request
+// for a given model (warmup included) — changing it forces a full model
+// unload+reload. That's why the value lives here, in one place.
+
+// Per-family sampling + thinking control. First match wins.
+// Sources: model pages on ollama.com (qwen3.5/ornith: 0.6/0.95/20; gemma4: 1.0/0.95/64).
+const OLLAMA_FAMILY_RUNTIME = [
+    // qwen3.5 / qwen3 / ornith (qwen3.5-based): thinking ON by default upstream →
+    // disable it in the tool loop (invisible CoT is pure perceived latency).
+    // `think:false` is safe for these families (native /api/chat support).
+    { pattern: /^(qwen3\.5|qwen3|ornith)/, sampling: { temperature: 0.6, top_p: 0.95, top_k: 20 }, think: false },
+    // gemma4: thinking is opt-in via a <|think|> token in the system prompt —
+    // we never inject it, so no `think` param needed (it would error).
+    { pattern: /^gemma4/, sampling: { temperature: 1.0, top_p: 0.95, top_k: 64 } },
+];
+
+// Global runtime config (set from ~/.amoxsql/config.json by the app).
+// keepAlive: how long Ollama keeps the model resident after a request.
+// numCtx: 0 = auto (per-tier default below); otherwise a forced global value.
+let _ollamaRuntimeConfig = { keepAlive: '4h', numCtx: 0 };
+
+/**
+ * Set global Ollama runtime overrides from user config.
+ * @param {{ keepAlive?: string|number, numCtx?: number }} cfg
+ */
+function setOllamaRuntimeConfig(cfg) {
+    if (!cfg) return;
+    _ollamaRuntimeConfig = {
+        keepAlive: cfg.keepAlive || '4h',
+        numCtx: Number(cfg.numCtx) || 0,
+    };
+}
+
+/**
+ * Resolves the full Ollama runtime for a model: num_ctx, keep_alive, sampling
+ * and think flag. Deterministic per (model, config) so AiManager can cache the
+ * constructed model instance and every request carries identical options.
+ *
+ * @param {string} modelName
+ * @param {object} [profile] - Pre-computed model profile (avoids recursion)
+ * @returns {{ numCtx: number, keepAlive: string|number, sampling: object, think: boolean|undefined }}
+ */
+function getOllamaRuntime(modelName, profile) {
+    const name = String(modelName || '').toLowerCase();
+    const p = profile || getModelProfile(modelName, 'ollama');
+
+    // num_ctx: global override wins; otherwise per-tier default calibrated to
+    // the target hardware (8 GB VRAM): low → 8192, medium/high → 16384.
+    const numCtx = _ollamaRuntimeConfig.numCtx > 0
+        ? _ollamaRuntimeConfig.numCtx
+        : (p.tier === 'low' ? 8192 : 16384);
+
+    const fam = OLLAMA_FAMILY_RUNTIME.find(f => f.pattern.test(name));
+    return {
+        numCtx,
+        keepAlive: _ollamaRuntimeConfig.keepAlive,
+        sampling: fam?.sampling || {},
+        think: fam?.think,
+    };
+}
+
+
 // ── User tier overrides ──────────────────────────────────────────────────
 // Loaded lazily from config. The main app can set this via setUserTierOverrides().
 let _userTierOverrides = null;
@@ -284,17 +351,38 @@ function getUserTierOverrides() {
 }
 
 
+const CLOUD_PROVIDERS = ['gemini', 'anthropic', 'minimax'];
+
 /**
  * Returns the full profile for a model by matching its name against known patterns.
- * 
+ *
  * Priority: user override → MODEL_PATTERNS → cloud detection → Ollama API → param regex fallback
- * 
+ *
+ * For local (Ollama) models, `contextWindow` is clamped to the num_ctx we will
+ * actually request (F1) so compaction operates on reality — the model's
+ * theoretical max is preserved in `modelMaxContext`.
+ *
  * @param {string} modelName - The model identifier (e.g. 'gemma4:e2b', 'gemini-2.5-flash')
  * @param {string} providerName - 'ollama' or 'gemini' (used as fallback)
  * @param {object} [ollamaInfo] - Pre-fetched Ollama model info (optional, avoids re-fetching)
  * @returns {object} Complete model profile with all capability flags
  */
 function getModelProfile(modelName, providerName, ollamaInfo) {
+    const profile = _computeModelProfile(modelName, providerName, ollamaInfo);
+
+    // ── Align local context with the real num_ctx (F1) ──
+    // Before this clamp, profiles claimed 32k-128k while Ollama silently served
+    // its default (4096) — compaction never fired and the prompt got truncated.
+    if (profile.tier !== 'cloud' && !CLOUD_PROVIDERS.includes(providerName)) {
+        const rt = getOllamaRuntime(modelName, profile);
+        profile.modelMaxContext = profile.contextWindow;
+        profile.contextWindow = Math.min(profile.contextWindow, rt.numCtx);
+    }
+
+    return profile;
+}
+
+function _computeModelProfile(modelName, providerName, ollamaInfo) {
     const name = String(modelName || '').toLowerCase();
 
     // ── 1. Check user overrides ──
@@ -408,6 +496,8 @@ module.exports = {
     invalidateCapabilitiesCache,
     setUserTierOverrides,
     getUserTierOverrides,
+    getOllamaRuntime,
+    setOllamaRuntimeConfig,
     TIER_DEFAULTS,
     MODEL_PATTERNS,
 };
