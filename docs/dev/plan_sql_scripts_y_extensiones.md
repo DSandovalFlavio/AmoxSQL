@@ -1,6 +1,13 @@
 # Plan: Scripts SQL multi-statement + fix de extensiones
 
-> **Estado**: propuesto (2026-07-21) · **Iniciativa**: ejecución de archivos `.sql` con varios statements y reparación del sistema de extensiones DuckDB.
+> **Estado**: Fases 1-3 IMPLEMENTADAS (2026-07-21), sin merge, en la rama `claude/fix-extensiones-fase1` · **Iniciativa**: ejecución de archivos `.sql` con varios statements y reparación del sistema de extensiones DuckDB.
+
+## Estado de implementación (2026-07-21)
+
+- **Fase 1 — Extensiones**: HECHA. `DatabaseManager.loadedExtensions` (Set) + `restoreExtensions()` re-LOAD tras cada `_initSystem`; retry `FROM community` server-side en 404; persistencia `config.json.extensions` + autoload en `startServer`; endpoint `/api/db/extensions/forget` + "Remove from startup"; bonus: `LOAD name;` desde editor persiste. Verificado: re-LOAD tras reinit, persistencia config, clasificación DML, builds.
+- **Fase 2 — Scripts**: HECHA. `client/src/utils/sqlSplitter.js` (splitter robusto), `server/_sqlClassify.js` (clasificador compartido; ChainExecutor delega), `resultType`/`rowsAffected` en `/api/query`, `chooseAsync` (3 opciones + "recordar por archivo" en localStorage), `runAsScript` (ejecución secuencial stop-on-error), `ScriptRunSummary.jsx` (bitácora).
+- **Fase 3 — Notebook**: HECHA. `resultSummary.js` (util compartido), badge de side-effect en celdas DML, celdas multi-statement como mini-script, `executeQuery` single devuelve `resultType`.
+- **Pendiente**: verificación runtime en la app (diálogo, render de bitácora, "recordar") — el build no cubre interacción; y merge del PR. Convertir `.sql`→Data Flow sigue en backlog.
 
 ## Contexto y problema
 
