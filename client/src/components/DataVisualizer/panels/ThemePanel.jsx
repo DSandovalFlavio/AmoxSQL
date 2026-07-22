@@ -4,7 +4,7 @@
  */
 import { memo } from 'react';
 import { Section, Toggle, SelectField, SliderField, SimpleColorPicker, panelStyles } from './shared';
-import { COLOR_PALETTES, FONT_OPTIONS, BACKGROUND_TONES } from '../constants';
+import { COLOR_PALETTES, FONT_OPTIONS, BACKGROUND_TONES, PALETTE_PURPOSE } from '../constants';
 
 const PalettePreview = memo(({ colors, isActive, onClick }) => (
     <div
@@ -47,9 +47,10 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
         {
             label: 'Sterling · by La Matemaga',
             title: 'Editorial palette system from Sterling, by La Matemaga (MIT). Categoricals calibrated for light and dark surfaces; diverging reads violet=positive, teal=negative.',
+            purpose: 'Editorial system — categorical, sequential, diverging & heat.',
             keys: ['sterling', 'sterlingDark', 'sterlingSequential', 'sterlingDiverging', 'sterlingHeat'],
         },
-    ];
+    ].map(g => ({ ...g, purpose: g.purpose ?? PALETTE_PURPOSE[g.label] }));
 
     return (
         <>
@@ -59,11 +60,16 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                     {paletteGroups.map(group => (
                         <div key={group.label} style={{ marginBottom: '8px' }}>
                             <span
-                                title={group.title}
+                                title={group.title || group.purpose}
                                 style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}
                             >
                                 {group.label}
                             </span>
+                            {group.purpose && (
+                                <div style={{ fontSize: '9px', color: 'var(--text-tertiary, var(--text-muted))', marginTop: '1px', lineHeight: 1.3 }}>
+                                    {group.purpose}
+                                </div>
+                            )}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '3px' }}>
                                 {group.keys.filter(k => COLOR_PALETTES[k]).map(key => (
                                     <PalettePreview

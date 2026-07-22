@@ -132,6 +132,8 @@ Aplicar la vara de calidad de Sterling al catálogo actual de 19 paletas (`COLOR
 
 Tooling: script auxiliar de una sola vez (Node, en `scripts/`) para cálculos OKLCH + contraste; los valores finales viven hardcodeados y comentados en `constants.js` (sin dependencia runtime nueva).
 
+**Estado de F4 (implementado):** sub-pasos 1 (gemelos de leyenda para las 19 paletas, `scripts/gen_twins.mjs` → `LEGEND_PAIRS`), 2 (contraste ≥4.5:1 contra superficie, incorporado en la generación) y 6 (guía de propósito en el picker, `PALETTE_PURPOSE`) HECHOS y verificados. Sub-pasos 3 (recorte de bandas muertas en secuenciales), 4 (centro honesto en divergentes) y 5 (reorden CVD) DIFERIDOS a propósito: mutar los hex de las paletas de marca cambiaría la apariencia de charts `.amoxvis` ya guardados por el usuario — contra el principio Sterling de no romper el contrato de lectura. El trabajo de gemelos ya entrega la mayor ganancia de legibilidad sin ese riesgo. Quedan como backlog (idea: exponerlos como paletas nuevas o un toggle "orden CVD-safe" que no altere las guardadas).
+
 ### Fase 5 — Figure shell editorial (fuente, firma, tags)
 
 En `DEFAULT_CONFIG` + `StoryPanel.jsx` + render `DataVisualizer.jsx:433-525`:
