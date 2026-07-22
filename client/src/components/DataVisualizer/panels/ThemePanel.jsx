@@ -3,8 +3,10 @@
  * Tab: "Theme" — "How does it look?"
  */
 import { memo } from 'react';
+import { LuExternalLink } from 'react-icons/lu';
 import { Section, Toggle, SelectField, SliderField, SimpleColorPicker, panelStyles } from './shared';
 import { COLOR_PALETTES, FONT_OPTIONS, BACKGROUND_TONES, PALETTE_PURPOSE } from '../constants';
+import { openSterling } from '../StoryFlowGuide';
 
 const PalettePreview = memo(({ colors, isActive, onClick }) => (
     <div
@@ -46,8 +48,9 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
         // https://github.com/LaMatemaga/sterling
         {
             label: 'Sterling · by La Matemaga',
-            title: 'Editorial palette system from Sterling, by La Matemaga (MIT). Categoricals calibrated for light and dark surfaces; diverging reads violet=positive, teal=negative.',
+            title: 'Editorial palette system from Sterling, by La Matemaga (MIT). Click to open the repo. Categoricals calibrated for light and dark surfaces; diverging reads violet=positive, teal=negative.',
             purpose: 'Editorial system — categorical, sequential, diverging & heat.',
+            credit: true,
             keys: ['sterling', 'sterlingDark', 'sterlingSequential', 'sterlingDiverging', 'sterlingHeat'],
         },
     ].map(g => ({ ...g, purpose: g.purpose ?? PALETTE_PURPOSE[g.label] }));
@@ -59,12 +62,24 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                 <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
                     {paletteGroups.map(group => (
                         <div key={group.label} style={{ marginBottom: '8px' }}>
-                            <span
-                                title={group.title || group.purpose}
-                                style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}
-                            >
-                                {group.label}
-                            </span>
+                            {group.credit ? (
+                                <a
+                                    href="https://github.com/LaMatemaga/sterling"
+                                    onClick={openSterling}
+                                    title={group.title}
+                                    style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--accent-color-user)', letterSpacing: '0.3px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}
+                                >
+                                    {group.label}
+                                    <LuExternalLink size={9} />
+                                </a>
+                            ) : (
+                                <span
+                                    title={group.title || group.purpose}
+                                    style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}
+                                >
+                                    {group.label}
+                                </span>
+                            )}
                             {group.purpose && (
                                 <div style={{ fontSize: '9px', color: 'var(--text-tertiary, var(--text-muted))', marginTop: '1px', lineHeight: 1.3 }}>
                                     {group.purpose}

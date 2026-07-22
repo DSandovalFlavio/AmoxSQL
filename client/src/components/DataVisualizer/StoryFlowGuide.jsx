@@ -9,9 +9,17 @@
 import { memo } from 'react';
 import {
     LuChartColumn, LuDatabase, LuSettings2, LuPalette, LuPenLine, LuDownload,
-    LuSparkles,
+    LuSparkles, LuExternalLink,
 } from 'react-icons/lu';
 import { Tour } from '../onboarding/Tour';
+
+// Open an external URL through Electron's shell (falls back to a new tab in dev).
+const STERLING_URL = 'https://github.com/LaMatemaga/sterling';
+export const openSterling = (e) => {
+    e?.preventDefault?.();
+    if (window.electronAPI?.openExternal) window.electronAPI.openExternal(STERLING_URL);
+    else window.open(STERLING_URL, '_blank', 'noopener,noreferrer');
+};
 
 // ─── Content (the 6 stages) ──────────────────────────────────
 export const STORY_FLOW_STAGES = [
@@ -98,6 +106,22 @@ export const StoryFlowGuide = memo(() => (
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.desc}</div>
             </div>
         ))}
+
+        {/* Credit: the Sterling palette system + editorial ideas are by La Matemaga */}
+        <div style={{
+            marginTop: '18px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle, var(--border-color))',
+            fontSize: '11.5px', color: 'var(--text-muted)', lineHeight: 1.5,
+        }}>
+            The Sterling themes, editorial palettes and inline-legend idea are adapted from{' '}
+            <a
+                href={STERLING_URL}
+                onClick={openSterling}
+                style={{ color: 'var(--accent-color-user)', textDecoration: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+            >
+                Sterling by La Matemaga <LuExternalLink size={11} style={{ verticalAlign: '-1px' }} />
+            </a>
+            {' '}— an open-source (MIT) editorial figure system. Thank you. ✦
+        </div>
     </div>
 ));
 StoryFlowGuide.displayName = 'StoryFlowGuide';
