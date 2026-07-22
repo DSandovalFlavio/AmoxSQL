@@ -12,7 +12,11 @@ const STATUS_ICON = {
     cancelled: { Icon: LuCircleSlash, color: 'var(--text-tertiary, #8a8a93)' },
 };
 
-const ScriptRunSummary = ({ scriptRun }) => {
+// compact=true when a final table is shown below the summary: the summary then
+// keeps its natural height (never squished by the growing table) and caps its
+// step list to a small scroller. compact=false (summary is the only result):
+// it fills the pane and scrolls.
+const ScriptRunSummary = ({ scriptRun, compact = false }) => {
     const [collapsed, setCollapsed] = useState(false);
     if (!scriptRun || !Array.isArray(scriptRun.steps)) return null;
 
@@ -40,6 +44,15 @@ const ScriptRunSummary = ({ scriptRun }) => {
             margin: '8px',
             overflow: 'hidden',
             fontSize: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            // With a table below (compact): never shrink — keep natural height so
+            // the growing table can't squish the summary to a sliver.
+            // Alone: fill the fixed-height pane and let the steps scroll (an
+            // auto-height notebook parent ignores the % cap and grows naturally).
+            ...(compact
+                ? { flexShrink: 0 }
+                : { flex: '1 1 auto', minHeight: 0, maxHeight: 'calc(100% - 16px)' }),
         }}>
             {/* Header */}
             <button
@@ -60,9 +73,16 @@ const ScriptRunSummary = ({ scriptRun }) => {
                 </span>
             </button>
 
-            {/* Steps */}
+            {/* Steps — scroll internally when the run is long; header stays put */}
             {!collapsed && (
-                <div style={{ borderTop: '1px solid var(--border-subtle, #33333c)' }}>
+                <div style={{
+                    borderTop: '1px solid var(--border-subtle, #33333c)',
+                    overflowY: 'auto',
+                    // compact: a small scroller above the table. alone: fill + scroll.
+                    ...(compact
+                        ? { maxHeight: '30vh' }
+                        : { flex: '1 1 auto', minHeight: 0 }),
+                }}>
                     {steps.map((step) => {
                         const { Icon, color, spin } = STATUS_ICON[step.status] || STATUS_ICON.running;
                         return (

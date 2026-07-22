@@ -5,6 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.8.4] — 2026-07-21
+
+### Scripts SQL multi-statement + fix de extensiones
+
+Un archivo `.sql` con varias sentencias ya no queda bloqueado, y el panel de extensiones vuelve a ser usable. El modelo "una query → una tabla" se mantiene: el render se decide por **tipo de resultado**, no por cantidad de sentencias.
+
+- **Ejecutar como script.** Al correr un `.sql` con varias sentencias aparece un diálogo con tres opciones: **Ejecutar como script** (corre todo en orden y muestra una bitácora — "Table created", "5 rows updated", duración por paso; si la última es un `SELECT`, muestra su tabla), **Convertir a SQL Notebook**, o **Cancelar**. Con checkbox "Recordar para este archivo".
+- **Splitter robusto.** El troceo por `;` ahora respeta strings, identificadores, bloques dollar-quoted y comentarios (antes `SELECT ';'` o `$$ … ; … $$` rompían).
+- **Extensiones que persisten.** Las extensiones activadas ya no se pierden al abrir/cambiar de base de datos (se re-cargan solas), se auto-cargan al iniciar la app, y una extensión de comunidad se instala aunque no la marques como tal (reintento automático). Acción "Remove from startup" para dejar de auto-cargar.
+- **Notebook.** Las celdas DML muestran un resumen ("N rows updated") en vez de una tabla vacía; una celda con varias sentencias corre como mini-script.
+
+---
+
 ## [3.8.3] — 2026-07-13
 
 ### 🍎 Instalador para macOS (Apple Silicon) — beta

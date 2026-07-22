@@ -376,7 +376,7 @@ const EditorPane = ({
         <>
             {activeTab.resultsError && <div className="ep-error">Error: {activeTab.resultsError}</div>}
 
-            {activeTab.scriptRun && <ScriptRunSummary scriptRun={activeTab.scriptRun} />}
+            {activeTab.scriptRun && <ScriptRunSummary scriptRun={activeTab.scriptRun} compact={!!activeTab.results} />}
 
             {activeTab.results && (
                 <>

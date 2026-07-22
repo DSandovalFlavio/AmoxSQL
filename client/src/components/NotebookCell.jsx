@@ -524,7 +524,12 @@ const NotebookCell = ({
 
                                 {result.error && <div className={`nb-error-msg ${isReportMode ? 'report-mode' : ''}`}>Error: {result.error}</div>}
 
-                                {result.scriptRun && !isReportMode && <ScriptRunSummary scriptRun={result.scriptRun} />}
+                                {result.scriptRun && !isReportMode && (
+                                    <ScriptRunSummary
+                                        scriptRun={result.scriptRun}
+                                        compact={!!result.data && !isSideEffectType(result.resultType)}
+                                    />
+                                )}
 
                                 {/* DML/DDL side-effect: a one-line summary, not an empty grid with a stray Count column */}
                                 {result.data && !result.error && !result.scriptRun && isSideEffectType(result.resultType) && (
