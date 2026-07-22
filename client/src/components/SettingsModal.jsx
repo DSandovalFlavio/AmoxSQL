@@ -615,6 +615,11 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [ollamaThinkOverrides, setOllamaThinkOverrides] = useState({});
     const [ollamaKeepAlive, setOllamaKeepAlive] = useState('4h');
     const [ollamaNumCtx, setOllamaNumCtx] = useState(0);
+    // DuckDB docs (offline) settings
+    const [duckdbDocsUpdate, setDuckdbDocsUpdate] = useState('auto');
+    const [duckdbDocsIntervalDays, setDuckdbDocsIntervalDays] = useState(30);
+    const [docsStatus, setDocsStatus] = useState(null);
+    const [docsRefreshing, setDocsRefreshing] = useState(false);
 
     // Ollama Specific State
     const [installedModels, setInstalledModels] = useState([]);
@@ -731,6 +736,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     if (data.ollamaThinkOverrides) setOllamaThinkOverrides(data.ollamaThinkOverrides);
                     if (data.ollamaKeepAlive) setOllamaKeepAlive(data.ollamaKeepAlive);
                     if (data.ollamaNumCtx !== undefined) setOllamaNumCtx(data.ollamaNumCtx);
+                    if (data.duckdbDocsUpdate) setDuckdbDocsUpdate(data.duckdbDocsUpdate);
+                    if (data.duckdbDocsIntervalDays !== undefined) setDuckdbDocsIntervalDays(data.duckdbDocsIntervalDays);
+                    // Fetch DuckDB docs snapshot status (date, count, source)
+                    fetch(`${API}/api/ai/duckdb-docs/status`).then(r => r.json()).then(setDocsStatus).catch(() => {});
                     if (data.gsheets) {
                         setGsheetsKeyPath(data.gsheets.serviceAccountKeyPath || '');
                         setGsheetsEmail(data.gsheets.serviceAccountEmail || '');
@@ -787,6 +796,26 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         finally { setIsLoadingModels(false); }
     };
 
+    const handleRefreshDuckdbDocs = async () => {
+        setDocsRefreshing(true);
+        try {
+            const res = await fetch(`${API}/api/ai/duckdb-docs/refresh`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                setDocsStatus(prev => ({ ...prev, ...data }));
+                setSaveMessage({ type: 'success', text: 'Documentación de DuckDB actualizada' });
+            } else {
+                setSaveMessage({ type: 'error', text: data.error || 'No se pudo actualizar' });
+            }
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch {
+            setSaveMessage({ type: 'error', text: 'No se pudo actualizar (¿sin conexión?)' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } finally {
+            setDocsRefreshing(false);
+        }
+    };
+
     const handleSaveConfig = async () => {
         setIsSaving(true);
         setSaveMessage(null);
@@ -803,6 +832,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     modelTierOverrides,
                     memoryExtraction, ollamaThinkOverrides,
                     ollamaKeepAlive, ollamaNumCtx,
+                    duckdbDocsUpdate, duckdbDocsIntervalDays,
                 })
             });
             window.dispatchEvent(new Event('amox_settings_updated'));
@@ -2215,6 +2245,74 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     })
                                                 )}
                                             </div>
+                                        </div>
+
+                                        {/* ── Documentación de DuckDB (offline) (D4) ── */}
+                                        <div className="stg-card stg-card--transparent">
+                                            <h4 className="stg-card-title stg-card-title--mb12">
+                                                <LuGlobe size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
+                                                Documentación de DuckDB (offline)
+                                            </h4>
+                                            <p className="stg-card-desc" style={{ marginBottom: 12 }}>
+                                                La IA puede consultar la documentación oficial de DuckDB (empaquetada, sin conexión) para acertar la sintaxis específica (EXCLUDE, QUALIFY, PIVOT, list comprehensions…). Siempre funciona con la copia base; puedes mantenerla al día.
+                                            </p>
+
+                                            <div className="stg-row stg-row--separator">
+                                                <div className="stg-flex-1">
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Estado</h4>
+                                                    <p className="stg-row-desc">
+                                                        {docsStatus?.available
+                                                            ? <>Última actualización: <strong>{docsStatus.extractedAt ? new Date(docsStatus.extractedAt).toLocaleDateString() : '—'}</strong> · {docsStatus.count} temas · {docsStatus.source === 'user' ? 'actualizada' : 'copia base'}</>
+                                                            : 'Cargando…'}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    className="stg-btn stg-btn--secondary"
+                                                    onClick={handleRefreshDuckdbDocs}
+                                                    disabled={docsRefreshing || duckdbDocsUpdate === 'off'}
+                                                    title={duckdbDocsUpdate === 'off' ? 'Actívala en modo Manual o Automática para actualizar' : 'Descargar la última documentación'}
+                                                >
+                                                    {docsRefreshing
+                                                        ? <><LuLoader size={13} style={{ animation: 'spin 1s linear infinite', marginRight: 5, verticalAlign: '-2px' }} />Actualizando…</>
+                                                        : <><LuDownload size={13} style={{ marginRight: 5, verticalAlign: '-2px' }} />Actualizar ahora</>}
+                                                </button>
+                                            </div>
+
+                                            <div className="stg-row stg-row--separator">
+                                                <div className="stg-flex-1">
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Actualización</h4>
+                                                    <p className="stg-row-desc">
+                                                        <strong>Solo base</strong>: nunca descarga, 100% offline. <strong>Manual</strong>: tú decides con el botón. <strong>Automática</strong>: AmoxSQL la refresca cada cierto tiempo.
+                                                    </p>
+                                                </div>
+                                                <select
+                                                    className="stg-select"
+                                                    style={{ width: 150 }}
+                                                    value={duckdbDocsUpdate}
+                                                    onChange={(e) => setDuckdbDocsUpdate(e.target.value)}
+                                                >
+                                                    <option value="off">Solo base (offline)</option>
+                                                    <option value="manual">Manual</option>
+                                                    <option value="auto">Automática</option>
+                                                </select>
+                                            </div>
+
+                                            {duckdbDocsUpdate === 'auto' && (
+                                                <div className="stg-row">
+                                                    <div className="stg-flex-1">
+                                                        <h4 className="stg-section-heading stg-section-heading--mb4">Frecuencia (días)</h4>
+                                                        <p className="stg-row-desc">Cada cuántos días AmoxSQL busca una versión más reciente al iniciar.</p>
+                                                    </div>
+                                                    <input
+                                                        type="number"
+                                                        className="stg-input"
+                                                        style={{ width: 90 }}
+                                                        value={duckdbDocsIntervalDays}
+                                                        min={1} step={1}
+                                                        onChange={(e) => setDuckdbDocsIntervalDays(Number(e.target.value) || 30)}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="stg-card stg-card--transparent">

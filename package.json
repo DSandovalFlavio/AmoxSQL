@@ -50,6 +50,7 @@
       "electron/**/*",
       "server/**/*",
       "!server/models/*.gguf",
+      "!server/ai/data/duckdb-docs/**",
       "client/dist/**/*",
       "!**/*.map",
       "package.json"
@@ -61,6 +62,10 @@
       {
         "from": "agent/skills",
         "to": "builtin-skills"
+      },
+      {
+        "from": "server/ai/data/duckdb-docs",
+        "to": "duckdb-docs"
       }
     ],
     "directories": {

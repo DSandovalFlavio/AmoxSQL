@@ -1,8 +1,16 @@
 # Plan — Búsqueda de documentación de DuckDB para la IA
 
-> **Estado**: PLAN (investigación hecha, implementación pendiente)
+> **Estado**: ✅ IMPLEMENTADO (D1–D4) en la rama `claude/ai-local-performance`. Se eligió **bundle completo offline** (126 archivos) con 3 modos de actualización.
 > **Fecha**: 2026-07-22
 > **Objetivo**: dar a los modelos locales (sobre todo los pequeños) una herramienta para consultar la documentación oficial de DuckDB y así dejar de fallar en sintaxis específica (EXCLUDE, QUALIFY, COLUMNS, PIVOT, list comprehensions, etc.).
+>
+> **Implementado**:
+> - **D1** — `server/ai/duckdbDocs.js` (bundle vs snapshot de usuario, manifest con fecha, lookup con gotcha-map + sección relevante) + `scripts/gen_duckdb_docs.js` + snapshot de 126 archivos en `server/ai/data/duckdb-docs/`.
+> - **D2** — tool `lookup_duckdb_docs` (universal, tier medium+) + mención en el system prompt.
+> - **D3** — config `duckdbDocsUpdate` (off/manual/auto, default auto) + `duckdbDocsIntervalDays`; endpoints `GET /api/ai/duckdb-docs/status` y `POST /api/ai/duckdb-docs/refresh`; auto-update al iniciar (`maybeAutoUpdateDocs`).
+> - **D4** — UI en Ajustes (fecha, conteo, selector de modo, botón "Actualizar ahora"); bundling vía `extraResources`; docs de usuario ES/EN.
+>
+> Nota: se implementó el **bundle completo** (opción elegida por el usuario), no el híbrido índice+fetch del plan original.
 
 ## 1. La pregunta clave: ¿navegador headless o algo más simple?
 
