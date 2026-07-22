@@ -5,6 +5,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [3.9.0] — 2026-07-22
+
+### Sterling llega a AmoxSQL — temas, paletas y storytelling editorial
+
+Integra aprendizajes del design system open-source **[Sterling](https://github.com/LaMatemaga/sterling)** de **La Matemaga** (MIT), con crédito clickeable a su repo en la app. Los conceptos se re-implementaron sobre el stack de AmoxSQL; no se copió su código.
+
+- **Tres temas nuevos**: **Sterling Light** (papel lavanda), **Sterling Dark** (violeta profundo) y **Sterling Deep** (violeta-gris casi negro, desaturado y sobrio). En el selector de Apariencia.
+- **Paletas Sterling** en Story Flow: grupo "Sterling · by La Matemaga" con categóricas light/dark, secuencial, divergente (violeta=positivo, teal=negativo) y heat.
+- **Leyendas editoriales**: los labels de leyenda usan un color de *texto legible* (distinto del color de la marca), en TODAS las paletas — no solo las Sterling. Nueva opción de leyenda **inline**, tejida dentro del subtítulo.
+- **Mejora del catálogo**: las 19 paletas existentes ahora tienen su par de texto legible (contraste ≥4.5:1) y guía de uso por propósito en el picker.
+- **Figure shell editorial**: campo de *fuente* dedicado, *firma* ("Made with AmoxSQL"), *marca QED* (punto en el acento tras el título), y descarga del **CSV de las filas procesadas** que dibuja la figura.
+- **IA más editorial**: `display_chart` ahora escribe títulos como afirmación, subtítulos factuales, no inventa fuentes, y puede usar las paletas Sterling + leyenda inline.
+
+---
+
 ## [3.8.4] — 2026-07-21
 
 ### Scripts SQL multi-statement + fix de extensiones
