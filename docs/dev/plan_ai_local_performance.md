@@ -1,8 +1,18 @@
 # Plan — Performance de AI local (Ollama): hacia el primer token casi instantáneo
 
-> **Estado**: PLAN (auditoría completa, implementación pendiente)
+> **Estado**: EN CURSO — F0, F1, F2, F3 hechas (rama `claude/ai-local-performance`). Faltan F4–F7.
 > **Fecha**: 2026-07-22
 > **Objetivo**: que los modelos locales (ornith, gemma4, qwen3.5, lfm2.5) respondan en AmoxSQL con una latencia percibida cercana a la de la terminal `ollama run`, y que el cambio de modelo no cueste un minuto de espera.
+>
+> **Progreso**:
+> - ✅ **F0** — plan + instrumentación (`server/ai/perfLog.js`): log por request con load/prefill/gen/ttft. Validado en vivo.
+> - ✅ **F1** — runtime explícito de Ollama: `keep_alive` '4h', `num_ctx` por tier (idéntico por request, instancia cacheada), sampling por familia, `think:false` para qwen3.5/qwen3/ornith. `contextWindow` clampeado al num_ctx real. Validado en vivo con qwen3.5:0.8b.
+> - ✅ **F2** — opciones muertas del AI SDK v6: `maxSteps`→`stopWhen: stepCountIs()`, `maxTokens`→`maxOutputTokens` en todos los call sites. Verificado: 2 tool calls encadenados en UNA request.
+> - ✅ **F3** — prefijo estable (fecha al final, día; estado vivo al tail) + contexto acotado para assistant (solo tablas referenciadas + roster). Medido: assistant ~5084→~3003 tk; 99% del prompt estable al editar la query.
+> - ⏳ **F4** — warmup + ciclo de vida del modelo + memorias fuera del camino crítico.
+> - ⏳ **F5** — toggle de thinking On/Off/Auto por modelo en la UI.
+> - ⏳ **F6** — modelo por modo + hint de idoneidad en Deep Dive.
+> - ⏳ **F7** — docs de usuario.
 
 ---
 
