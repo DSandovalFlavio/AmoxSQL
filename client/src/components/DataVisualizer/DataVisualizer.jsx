@@ -27,6 +27,8 @@ import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES } from '
 import { processChartData, isDateColumn, computeHeadline } from './utils/dataProcessing';
 import { exportChartAsPng, saveChartConfig, copyChartToClipboard } from './utils/exportChart';
 import { renderRichText } from './utils/richText';
+import { getLegendTextColors } from './utils/legendColors';
+import InlineLegend from './InlineLegend';
 
 // Panels
 import ChartTypeSelector from './panels/ChartTypeSelector';
@@ -123,6 +125,26 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         COLOR_PALETTES[state.colorTheme] || COLOR_PALETTES.default,
         [state.colorTheme]
     );
+
+    // ── Inline legend items (legendPosition 'inline' — Sterling-style, woven
+    // into the subtitle). Built from the series that actually render; series
+    // color overrides win, label text uses the palette's legend twin. Donut/pie
+    // encode categories per-row, not per-series, so they keep box legends.
+    const inlineLegendItems = useMemo(() => {
+        if (state.legendPosition !== 'inline') return null;
+        if (state.chartType === 'donut') return null;
+        if (!finalSeriesKeys || finalSeriesKeys.length === 0) return null;
+        const twins = getLegendTextColors(state.colorTheme);
+        return finalSeriesKeys.map((key, i) => {
+            const custom = state.seriesConfig?.[key]?.color;
+            return {
+                label: state.seriesConfig?.[key]?.label || key,
+                color: custom || activeColors[i % activeColors.length],
+                textColor: custom ? null : (twins ? twins[i % twins.length] : null),
+                shapeIndex: i,
+            };
+        });
+    }, [state.legendPosition, state.chartType, state.colorTheme, state.seriesConfig, finalSeriesKeys, activeColors]);
 
     // ── Headline computation ──
     const headlineData = useMemo(() =>
@@ -460,7 +482,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             paddingLeft: state.textAlign === 'left' ? '50px' : '0',
                         }}>{renderRichText(state.chartTitle)}</h2>
                     )}
-                    {state.chartSubtitle && (
+                    {(state.chartSubtitle || inlineLegendItems) && (
                         <h3 style={{
                             textAlign: state.textAlign,
                             margin: `0 0 ${state.titleSpacing}px 0`,
@@ -468,7 +490,18 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             fontSize: `${Math.round(14 * state.textScale)}px`,
                             fontWeight: '400',
                             paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>{renderRichText(state.chartSubtitle)}</h3>
+                        }}>
+                            {state.chartSubtitle ? renderRichText(state.chartSubtitle) : null}
+                            {inlineLegendItems && (
+                                <>
+                                    {state.chartSubtitle ? ' ' : null}
+                                    <InlineLegend
+                                        items={inlineLegendItems}
+                                        fontSize={Math.round(14 * state.textScale)}
+                                    />
+                                </>
+                            )}
+                        </h3>
                     )}
 
                     {/* Chart — only mount the ResponsiveContainer when this view is

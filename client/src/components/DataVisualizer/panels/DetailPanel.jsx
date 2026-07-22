@@ -144,6 +144,7 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys, showHighlight = tr
                     <option value="bottom">Bottom</option>
                     <option value="left">Left</option>
                     <option value="right">Right</option>
+                    <option value="inline">Inline (in subtitle)</option>
                     <option value="none">Hidden</option>
                 </SelectField>
             </Section>
