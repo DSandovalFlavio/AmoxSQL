@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { formatNumber, createFormatter, formatDateLabel, createTooltipFormatter } from '../utils/numberFormat';
 import { computeTrendLine, processDonutData } from '../utils/dataProcessing';
+import { getLegendTextColors, legendTextColorFor } from '../utils/legendColors';
 import RichTooltip from './RichTooltip';
 
 // ─── Helper: CustomizedDot ───────────────────────────────────
@@ -143,9 +144,13 @@ const ChartRenderer = memo(({
     };
 
     // ── Custom Legend Renderer ──
+    // Label color uses the palette's legend-text twin when it has one (a
+    // Sterling idea, MIT © La Matemaga): hue-matched but calibrated to read as
+    // TEXT — darker on light surfaces, lighter on dark. Mark keeps its color.
     const CustomLegend = useCallback(({ payload }) => {
         if (!payload || payload.length === 0) return null;
         const isVert = legendPosition === 'left' || legendPosition === 'right';
+        const twins = getLegendTextColors(config.colorTheme);
         return (
             <div style={{
                 display: 'flex',
@@ -168,7 +173,8 @@ const ChartRenderer = memo(({
                         border: '1px solid var(--border-color)',
                         background: 'var(--panel-section-bg, var(--hover-bg))',
                         fontSize: `${fontSize}px`,
-                        color: 'var(--text-primary)',
+                        color: legendTextColorFor(entry.color, activeColors, twins) || 'var(--text-primary)',
+                        fontWeight: twins ? 600 : 'inherit',
                         opacity: axisLabelOpacity,
                         lineHeight: 1.3,
                         whiteSpace: 'nowrap',
@@ -186,11 +192,11 @@ const ChartRenderer = memo(({
                 ))}
             </div>
         );
-    }, [legendPosition, fontSize, axisLabelOpacity]);
+    }, [legendPosition, fontSize, axisLabelOpacity, config.colorTheme, activeColors]);
 
     // ── Legend props ──
     const legendProps = useMemo(() => {
-        if (legendPosition === 'none') return {};
+        if (legendPosition === 'none' || legendPosition === 'inline') return {};
         const layout = (legendPosition === 'left' || legendPosition === 'right') ? 'vertical' : 'horizontal';
         return {
             verticalAlign: legendPosition === 'bottom' ? 'bottom' : legendPosition === 'top' ? 'top' : 'middle',
@@ -512,7 +518,7 @@ const ChartRenderer = memo(({
                         )}
                         <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: 'color-mix(in srgb, var(--text-primary) 20%, transparent)' }}
                             {...tooltipExtra} />
-                        {legendPosition !== 'none' && <Legend {...legendProps} />}
+                        {legendPosition !== 'none' && legendPosition !== 'inline' && <Legend {...legendProps} />}
                         {refElements}
                         {annotationElements}
 
@@ -617,7 +623,7 @@ const ChartRenderer = memo(({
 
                         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'color-mix(in srgb, var(--text-primary) 6%, transparent)' }}
                             {...tooltipExtra} />
-                        {legendPosition !== 'none' && <Legend {...legendProps} />}
+                        {legendPosition !== 'none' && legendPosition !== 'inline' && <Legend {...legendProps} />}
                         {refElements}
                         {annotationElements}
 
@@ -694,7 +700,7 @@ const ChartRenderer = memo(({
                                 tickFormatter={fmt} domain={rightYDomain} scale={yScale} />
                         )}
                         <Tooltip contentStyle={tooltipStyle} {...tooltipExtra} />
-                        {legendPosition !== 'none' && <Legend {...legendProps} />}
+                        {legendPosition !== 'none' && legendPosition !== 'inline' && <Legend {...legendProps} />}
                         {refElements}
                         {annotationElements}
 
@@ -802,7 +808,7 @@ const ChartRenderer = memo(({
                         <ZAxis type="number" dataKey="size" range={[60, 600]} name="Size" />
                         <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle}
                             formatter={tooltipFormatter} labelFormatter={xAxisTickFormatter} />
-                        {legendPosition !== 'none' && <Legend {...legendProps} />}
+                        {legendPosition !== 'none' && legendPosition !== 'inline' && <Legend {...legendProps} />}
                         {refElements}
 
                         {scatterQuadrants && xAxisKey && yAxisKeys[0] && (() => {
@@ -874,7 +880,7 @@ const ChartRenderer = memo(({
                             ))}
                         </Pie>
                         <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
-                        {legendPosition !== 'none' && <Legend {...legendProps} />}
+                        {legendPosition !== 'none' && legendPosition !== 'inline' && <Legend {...legendProps} />}
                     </PieChart>
                 </ResponsiveContainer>
             );
@@ -896,7 +902,7 @@ const ChartRenderer = memo(({
                             {showLabels && <LabelList position="center" fill="var(--button-text-color)" fontSize={fontSize}
                                 formatter={(v) => fmt(v)} />}
                         </Funnel>
-                        {legendPosition !== 'none' && <Legend {...legendProps} />}
+                        {legendPosition !== 'none' && legendPosition !== 'inline' && <Legend {...legendProps} />}
                     </FunnelChart>
                 </ResponsiveContainer>
             );

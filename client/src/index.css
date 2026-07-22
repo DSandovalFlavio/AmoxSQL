@@ -924,6 +924,168 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
+   DARK THEME: STERLING DARK
+   Surface + palette values from Sterling (MIT) © La Matemaga
+   https://github.com/LaMatemaga/sterling — deep violet paper (#120d1f)
+   with the Sterling dark categorical family on syntax: violet keywords,
+   teal strings, amber numerics, blue functions, orchid types.
+   ═══════════════════════════════════════════════ */
+.theme-sterlingdark {
+  --surface-base:    #120d1f;   /* Sterling dark "paper" */
+  --surface-raised:  #1d1530;   /* Sterling "surface" — panels, sidebar */
+  --surface-overlay: #271c40;   /* Sterling "surface-2" — modals, popovers */
+  --surface-inset:   #0c0817;   /* wells: gutter, inputs, code blocks */
+
+  /* Sterling draws its grid/edge as literal violets, not alphas */
+  --border-subtle:  #36284e;    /* Sterling grid */
+  --border-default: #3a2b55;    /* Sterling edge */
+  --border-strong:  #4d357a;
+
+  --text-primary:   #ede9f5;   /* Sterling text */
+  --text-secondary: #a99fc4;   /* Sterling muted */
+  --text-tertiary:  #8b7fa8;
+  --text-disabled:  #5c5178;
+
+  /* Sterling's dark "period" lavender is the DEFAULT accent — the rule lives
+     in .theme-sterlingdark:not([class*="accent-"]) so a user pick overrides. */
+
+  --hover-bg:   rgba(196, 181, 253, 0.06);
+  --active-bg:  rgba(196, 181, 253, 0.10);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  /* Feedback — mapped onto Sterling's categorical families:
+     teal=success, coral=error, amber=warning, blue=info.
+     Text tones use the Sterling legend twins (lightened for dark). */
+  --feedback-success:        #5ec9ae;
+  --feedback-success-bg:     rgba(94, 201, 174, 0.10);
+  --feedback-success-border: rgba(94, 201, 174, 0.25);
+  --feedback-success-text:   #78d8c1;
+  --feedback-error:          #f29a88;
+  --feedback-error-bg:       rgba(242, 154, 136, 0.10);
+  --feedback-error-border:   rgba(242, 154, 136, 0.25);
+  --feedback-error-text:     #f6aa9a;
+  --feedback-warning:        #f2c46d;
+  --feedback-warning-bg:     rgba(242, 196, 109, 0.10);
+  --feedback-warning-border: rgba(242, 196, 109, 0.25);
+  --feedback-warning-text:   #f5cb7c;
+  --feedback-info:           #86a8e8;
+  --feedback-info-bg:        rgba(134, 168, 232, 0.10);
+  --feedback-info-border:    rgba(134, 168, 232, 0.25);
+  --feedback-info-text:      #9bb9ef;
+
+  /* Syntax — the 8 Sterling dark categoricals, one per role */
+  --syntax-keyword:   #b69af2;   /* Violet — SELECT/FROM/WHERE */
+  --syntax-string:    #5ec9ae;   /* Teal literals */
+  --syntax-number:    #f2c46d;   /* Amber — numerics leap out */
+  --syntax-function:  #86a8e8;   /* Blue — COUNT/SUM */
+  --syntax-comment:   #6f6490;   /* violet-grey, recedes */
+  --syntax-type:      #e88bdd;   /* Orchid — data types, CAST */
+  --syntax-operator:  #b7c8d1;   /* Payne, low weight */
+  --syntax-variable:  #ede9f5;   /* = text: identifiers stay neutral */
+  --syntax-constant:  #f29a88;   /* Coral — TRUE/FALSE/NULL */
+
+  /* Database types (mirror the syntax family) */
+  --type-integer:  #86a8e8;
+  --type-float:    #5ec9ae;
+  --type-text:     #f2c46d;
+  --type-datetime: #b69af2;
+  --type-boolean:  #e88bdd;
+  --type-default:  #b7c8d1;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #120d1f;   /* dark ink on the lavender accent */
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(196, 181, 253, 0.04);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: STERLING DEEP
+   A calmer, deeper take on Sterling Dark. Anchored on a MUTED grey-violet
+   (#0b0912 sidebar) — low chroma, not the saturated violet of Sterling Dark —
+   with the app/editor background dropping below it to #08060f.
+   Same Sterling palette on syntax/feedback — but on deeper surfaces it reads
+   rich instead of loud. Values derived from Sterling (MIT) © La Matemaga.
+   ═══════════════════════════════════════════════ */
+.theme-sterlingdeep {
+  /* Anchored on #0b0912 (the sidebar) — a muted, low-chroma grey-violet, not
+     the saturated violet of Sterling Dark. The whole ladder keeps that quiet
+     character so nothing reads bright. */
+  --surface-base:    #08060f;   /* app + editor background — below the sidebar */
+  --surface-raised:  #0b0912;   /* panels, sidebar, table header (reference) */
+  --surface-overlay: #14111e;   /* modals, popovers, row hover — elevation */
+  --surface-inset:   #05040b;   /* wells: gutter, inputs, code blocks — deepest */
+
+  /* Very quiet borders — muted grey-violet, low chroma */
+  --border-subtle:  #191622;
+  --border-default: #221e2c;
+  --border-strong:  #2e2a3a;
+
+  --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
+  --text-secondary: #a99fc4;   /* Sterling muted */
+  --text-tertiary:  #8b7fa8;
+  --text-disabled:  #5c5178;
+
+  /* Lavender "period" accent stays (overridable via .theme-sterlingdeep:not(...)). */
+
+  --hover-bg:   rgba(196, 181, 253, 0.05);
+  --active-bg:  rgba(196, 181, 253, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.75);
+
+  /* Feedback — same Sterling families (teal/coral/amber/blue) */
+  --feedback-success:        #5ec9ae;
+  --feedback-success-bg:     rgba(94, 201, 174, 0.10);
+  --feedback-success-border: rgba(94, 201, 174, 0.22);
+  --feedback-success-text:   #78d8c1;
+  --feedback-error:          #f29a88;
+  --feedback-error-bg:       rgba(242, 154, 136, 0.10);
+  --feedback-error-border:   rgba(242, 154, 136, 0.22);
+  --feedback-error-text:     #f6aa9a;
+  --feedback-warning:        #f2c46d;
+  --feedback-warning-bg:     rgba(242, 196, 109, 0.10);
+  --feedback-warning-border: rgba(242, 196, 109, 0.22);
+  --feedback-warning-text:   #f5cb7c;
+  --feedback-info:           #86a8e8;
+  --feedback-info-bg:        rgba(134, 168, 232, 0.10);
+  --feedback-info-border:    rgba(134, 168, 232, 0.22);
+  --feedback-info-text:      #9bb9ef;
+
+  /* Syntax — the 8 Sterling dark categoricals, one per role */
+  --syntax-keyword:   #b69af2;   /* Violet */
+  --syntax-string:    #5ec9ae;   /* Teal */
+  --syntax-number:    #f2c46d;   /* Amber */
+  --syntax-function:  #86a8e8;   /* Blue */
+  --syntax-comment:   #645980;   /* violet-grey, recedes a touch more */
+  --syntax-type:      #e88bdd;   /* Orchid */
+  --syntax-operator:  #b7c8d1;   /* Payne */
+  --syntax-variable:  #ede9f5;
+  --syntax-constant:  #f29a88;   /* Coral */
+
+  --type-integer:  #86a8e8;
+  --type-float:    #5ec9ae;
+  --type-text:     #f2c46d;
+  --type-datetime: #b69af2;
+  --type-boolean:  #e88bdd;
+  --type-default:  #b7c8d1;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #08060f;   /* deep ink on the lavender accent */
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(196, 181, 253, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
    DARK THEME: AYU DARK — faithful to ayu-theme/ayu-colors (themes/dark.yaml)
    Ink-blue near-black (#0D1017) with the signature Ayu gold accent (#E6B450)
    and warm, readable syntax: orange keywords, gold functions, blue types,
@@ -1181,6 +1343,15 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 /* Ayu Dark ships its signature gold accent by default (overridable). */
 .theme-ayu:not([class*="accent-"]) {
   --accent-primary: #e6b450;
+}
+/* Sterling themes ship the Sterling "period" accent by default (overridable).
+   Values from Sterling (MIT) © La Matemaga. */
+.theme-sterlingdark:not([class*="accent-"]),
+.theme-sterlingdeep:not([class*="accent-"]) {
+  --accent-primary: #c4b5fd;
+}
+.theme-sterlinglight:not([class*="accent-"]) {
+  --accent-primary: #7c5ce0;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1560,20 +1731,114 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
+   LIGHT THEME: STERLING LIGHT
+   Surface + palette values from Sterling (MIT) © La Matemaga
+   https://github.com/LaMatemaga/sterling — lavender-tinted paper (#f6f3fb)
+   with the Sterling LEGEND palette on syntax: the hue-matched darkened
+   twins that Sterling designed precisely to stay readable as text on
+   light surfaces.
+   ═══════════════════════════════════════════════ */
+.theme-sterlinglight {
+  /* Elevation rises toward white (light-mode logic) */
+  --surface-base:    #f6f3fb;   /* Sterling light "paper" */
+  --surface-raised:  #fbf9fe;   /* Sterling "surface" — panels/sidebar/cards */
+  --surface-overlay: #ffffff;   /* modals/popovers/menus */
+  --surface-inset:   #e2dbf0;   /* Sterling "surface-2" — wells, inputs */
+
+  /* Sterling draws its grid/edge as literal lavenders, not alphas */
+  --border-subtle:  #d9d1e6;    /* Sterling grid */
+  --border-default: #cfc5de;    /* Sterling edge */
+  --border-strong:  #b9aed0;
+
+  /* Violet ink, three real tiers */
+  --text-primary:   #241a3d;   /* Sterling text */
+  --text-secondary: #5c5178;   /* Sterling muted */
+  --text-tertiary:  #7d719c;
+  --text-disabled:  #a99fc4;
+
+  /* Sterling's light "period" violet is the DEFAULT accent — the rule lives
+     in .theme-sterlinglight:not([class*="accent-"]) so a user pick overrides. */
+
+  --hover-bg:   rgba(36, 26, 61, 0.05);
+  --active-bg:  rgba(36, 26, 61, 0.09);
+
+  /* Soft violet-tinted shadows */
+  --shadow-sm: 0 1px 2px rgba(36, 26, 61, 0.06);
+  --shadow-md: 0 4px 12px rgba(36, 26, 61, 0.09);
+  --shadow-lg: 0 8px 30px rgba(36, 26, 61, 0.13);
+
+  /* Feedback — Sterling legend twins (darkened for light bg, AA):
+     teal=success, coral=error, amber=warning, blue=info */
+  --feedback-success:        #147568;
+  --feedback-success-bg:     rgba(20, 117, 104, 0.10);
+  --feedback-success-border: rgba(20, 117, 104, 0.22);
+  --feedback-success-text:   #0f6156;
+  --feedback-error:          #a94230;
+  --feedback-error-bg:       rgba(169, 66, 48, 0.10);
+  --feedback-error-border:   rgba(169, 66, 48, 0.22);
+  --feedback-error-text:     #93382a;
+  --feedback-warning:        #855700;
+  --feedback-warning-bg:     rgba(133, 87, 0, 0.10);
+  --feedback-warning-border: rgba(133, 87, 0, 0.22);
+  --feedback-warning-text:   #6f4a00;
+  --feedback-info:           #365da5;
+  --feedback-info-bg:        rgba(54, 93, 165, 0.10);
+  --feedback-info-border:    rgba(54, 93, 165, 0.22);
+  --feedback-info-text:      #2c4d8e;
+  --color-destructive:       #a94230;
+  --color-destructive-bg:    rgba(169, 66, 48, 0.10);
+  --color-destructive-text:  #93382a;
+
+  /* Syntax — the 8 Sterling LIGHT legend colors, one per role */
+  --syntax-keyword:   #6945b8;   /* Violet — SELECT/FROM/WHERE */
+  --syntax-string:    #147568;   /* Teal literals */
+  --syntax-number:    #855700;   /* Amber — numerics */
+  --syntax-function:  #365da5;   /* Blue — COUNT/SUM */
+  --syntax-comment:   #8a80a5;   /* violet-grey, recedes */
+  --syntax-type:      #a43a99;   /* Orchid — data types, CAST */
+  --syntax-operator:  #445762;   /* Payne, sober */
+  --syntax-variable:  #241a3d;   /* = text: identifiers neutral */
+  --syntax-constant:  #a94230;   /* Coral — TRUE/FALSE/NULL */
+
+  --type-integer:  #365da5;
+  --type-float:    #147568;
+  --type-text:     #855700;
+  --type-datetime: #6945b8;
+  --type-boolean:  #a43a99;
+  --type-default:  #445762;
+
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #ffffff;
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: rgba(36, 26, 61, 0.05);
+  --tooltip-bg: var(--surface-overlay);
+  --table-row-hover: #f1ecfa;
+}
+
+/* ═══════════════════════════════════════════════
    LIGHT THEME ACCENT PRESETS
    (darker oklch values for contrast on light bg)
    ═══════════════════════════════════════════════ */
 .light-theme.accent-linear,
 .theme-ivory.accent-linear,
 .theme-mist.accent-linear,
-.theme-amoxlight.accent-linear {
+.theme-amoxlight.accent-linear, .theme-sterlinglight.accent-linear {
   --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
 }
 
 .light-theme.accent-amox-2,
 .theme-ivory.accent-amox-2,
 .theme-mist.accent-amox-2,
-.theme-amoxlight.accent-amox-2 {
+.theme-amoxlight.accent-amox-2, .theme-sterlinglight.accent-amox-2 {
   --accent-primary: oklch(0.62 0.13 195);      /* ≈ #00CFDA */
   --button-text-color: #ffffff;
 }
@@ -1581,7 +1846,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-3,
 .theme-ivory.accent-amox-3,
 .theme-mist.accent-amox-3,
-.theme-amoxlight.accent-amox-3 {
+.theme-amoxlight.accent-amox-3, .theme-sterlinglight.accent-amox-3 {
   --accent-primary: oklch(0.61 0.125 197);     /* ≈ #00C4D9 */
   --button-text-color: #ffffff;
 }
@@ -1589,7 +1854,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-4,
 .theme-ivory.accent-amox-4,
 .theme-mist.accent-amox-4,
-.theme-amoxlight.accent-amox-4 {
+.theme-amoxlight.accent-amox-4, .theme-sterlinglight.accent-amox-4 {
   --accent-primary: oklch(0.59 0.12 202);      /* ≈ #00B5D6 */
   --button-text-color: #ffffff;
 }
@@ -1597,7 +1862,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-5,
 .theme-ivory.accent-amox-5,
 .theme-mist.accent-amox-5,
-.theme-amoxlight.accent-amox-5 {
+.theme-amoxlight.accent-amox-5, .theme-sterlinglight.accent-amox-5 {
   --accent-primary: oklch(0.57 0.12 212);      /* ≈ #00A5D4 */
   --button-text-color: #ffffff;
 }
@@ -1605,7 +1870,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-6,
 .theme-ivory.accent-amox-6,
 .theme-mist.accent-amox-6,
-.theme-amoxlight.accent-amox-6 {
+.theme-amoxlight.accent-amox-6, .theme-sterlinglight.accent-amox-6 {
   --accent-primary: oklch(0.55 0.13 228);      /* ≈ #0097D1 */
   --button-text-color: #ffffff;
 }
@@ -1613,7 +1878,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-7,
 .theme-ivory.accent-amox-7,
 .theme-mist.accent-amox-7,
-.theme-amoxlight.accent-amox-7 {
+.theme-amoxlight.accent-amox-7, .theme-sterlinglight.accent-amox-7 {
   --accent-primary: oklch(0.53 0.14 245);      /* ≈ #0088CC */
   --button-text-color: #ffffff;
 }
@@ -1621,7 +1886,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-8,
 .theme-ivory.accent-amox-8,
 .theme-mist.accent-amox-8,
-.theme-amoxlight.accent-amox-8 {
+.theme-amoxlight.accent-amox-8, .theme-sterlinglight.accent-amox-8 {
   --accent-primary: oklch(0.51 0.16 255);      /* ≈ #0078C8 */
   --button-text-color: #ffffff;
 }
@@ -1629,7 +1894,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-9,
 .theme-ivory.accent-amox-9,
 .theme-mist.accent-amox-9,
-.theme-amoxlight.accent-amox-9 {
+.theme-amoxlight.accent-amox-9, .theme-sterlinglight.accent-amox-9 {
   --accent-primary: oklch(0.49 0.18 262);      /* ≈ #006AC2 */
   --button-text-color: #ffffff;
 }
@@ -1637,7 +1902,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 .light-theme.accent-amox-10,
 .theme-ivory.accent-amox-10,
 .theme-mist.accent-amox-10,
-.theme-amoxlight.accent-amox-10 {
+.theme-amoxlight.accent-amox-10, .theme-sterlinglight.accent-amox-10 {
   --accent-primary: oklch(0.47 0.20 268);      /* ≈ #005ABB */
   --button-text-color: #ffffff;
 }
@@ -1646,19 +1911,19 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
    specificity (0,2,0) beats each light theme's default accent, so picking a
    sober accent on a light theme now applies (was: silently ignored). */
 .light-theme.accent-islands, .theme-ivory.accent-islands,
-.theme-mist.accent-islands, .theme-amoxlight.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
+.theme-mist.accent-islands, .theme-amoxlight.accent-islands, .theme-sterlinglight.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
 .light-theme.accent-sage, .theme-ivory.accent-sage,
-.theme-mist.accent-sage, .theme-amoxlight.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
+.theme-mist.accent-sage, .theme-amoxlight.accent-sage, .theme-sterlinglight.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
 .light-theme.accent-amber, .theme-ivory.accent-amber,
-.theme-mist.accent-amber, .theme-amoxlight.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
+.theme-mist.accent-amber, .theme-amoxlight.accent-amber, .theme-sterlinglight.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
 .light-theme.accent-rose, .theme-ivory.accent-rose,
-.theme-mist.accent-rose, .theme-amoxlight.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
+.theme-mist.accent-rose, .theme-amoxlight.accent-rose, .theme-sterlinglight.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
 .light-theme.accent-lavender, .theme-ivory.accent-lavender,
-.theme-mist.accent-lavender, .theme-amoxlight.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
+.theme-mist.accent-lavender, .theme-amoxlight.accent-lavender, .theme-sterlinglight.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
 .light-theme.accent-steel, .theme-ivory.accent-steel,
-.theme-mist.accent-steel, .theme-amoxlight.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
+.theme-mist.accent-steel, .theme-amoxlight.accent-steel, .theme-sterlinglight.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
 .light-theme.accent-copper, .theme-ivory.accent-copper,
-.theme-mist.accent-copper, .theme-amoxlight.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
+.theme-mist.accent-copper, .theme-amoxlight.accent-copper, .theme-sterlinglight.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
 
 
 /* Form controls don't inherit font-family by default — force them to use the
