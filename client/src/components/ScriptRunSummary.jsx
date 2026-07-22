@@ -40,6 +40,14 @@ const ScriptRunSummary = ({ scriptRun }) => {
             margin: '8px',
             overflow: 'hidden',
             fontSize: '12px',
+            // Cap to the results pane (fixed height) so a long run scrolls its
+            // steps instead of overflowing the clipped container. In an
+            // auto-height parent (notebook cell) the % cap is ignored and it
+            // grows naturally.
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            maxHeight: 'calc(100% - 16px)',
         }}>
             {/* Header */}
             <button
@@ -60,9 +68,14 @@ const ScriptRunSummary = ({ scriptRun }) => {
                 </span>
             </button>
 
-            {/* Steps */}
+            {/* Steps — scroll internally when the run is long; header stays put */}
             {!collapsed && (
-                <div style={{ borderTop: '1px solid var(--border-subtle, #33333c)' }}>
+                <div style={{
+                    borderTop: '1px solid var(--border-subtle, #33333c)',
+                    flex: '1 1 auto',
+                    minHeight: 0,
+                    overflowY: 'auto',
+                }}>
                     {steps.map((step) => {
                         const { Icon, color, spin } = STATUS_ICON[step.status] || STATUS_ICON.running;
                         return (
