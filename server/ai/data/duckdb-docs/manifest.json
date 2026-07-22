@@ -1,0 +1,1463 @@
+{
+  "source": "duckdb/duckdb-web",
+  "ref": "main",
+  "basePath": "docs/current/sql",
+  "extractedAt": "2026-07-22T22:06:07.918Z",
+  "count": 126,
+  "files": [
+    {
+      "path": "constraints.md",
+      "title": "Constraints",
+      "headings": [
+        "Syntax",
+        "Check Constraint",
+        "Not Null Constraint",
+        "Primary Key and Unique Constraint",
+        "Foreign Keys"
+      ]
+    },
+    {
+      "path": "data_types/array.md",
+      "title": "Array Type",
+      "headings": [
+        "Creating Arrays",
+        "Defining an Array Field",
+        "Retrieving Values from Arrays",
+        "Functions",
+        "Examples",
+        "Ordering",
+        "See Also"
+      ]
+    },
+    {
+      "path": "data_types/bitstring.md",
+      "title": "Bitstring Type",
+      "headings": [
+        "Creating a Bitstring",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/blob.md",
+      "title": "Blob Type",
+      "headings": [
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/boolean.md",
+      "title": "Boolean Type",
+      "headings": [
+        "Conjunctions",
+        "Expressions"
+      ]
+    },
+    {
+      "path": "data_types/date.md",
+      "title": "Date Types",
+      "headings": [
+        "Special Values",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/enum.md",
+      "title": "Enum Data Type",
+      "headings": [
+        "Creating Enums",
+        "Using Enums",
+        "Enums vs. Strings",
+        "Ordering of Enums",
+        "Functions",
+        "Enum Removal"
+      ]
+    },
+    {
+      "path": "data_types/geometry.md",
+      "title": "Geometry Data Type",
+      "headings": [
+        "Types of Geometries",
+        "Multi-Dimensional Geometries",
+        "Empty Geometries",
+        "Geometry Storage",
+        "Shredding and Compression",
+        "Geometry Statistics",
+        "Coordinate Reference Systems",
+        "How are Coordinate Reference Systems Stored in DuckDB?",
+        "Handling Unknown Coordinate Reference Systems",
+        "Working with Geometries in Different Coordinate Reference Systems",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/interval.md",
+      "title": "Interval Type",
+      "headings": [
+        "Arithmetic with Timestamps, Dates and Intervals",
+        "Equality and Comparison",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/list.md",
+      "title": "List Type",
+      "headings": [
+        "Creating Lists",
+        "Retrieving from Lists",
+        "Comparison and Ordering",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/literal_types.md",
+      "title": "Literal Types",
+      "headings": [
+        "Null Literals",
+        "Integer Literals",
+        "Other Numeric Literals",
+        "Underscores in Numeric Literals",
+        "String Literals",
+        "Implicit String Literal Concatenation",
+        "Implicit String Conversion",
+        "Escape String Literals",
+        "Dollar-Quoted String Literals"
+      ]
+    },
+    {
+      "path": "data_types/map.md",
+      "title": "Map Type",
+      "headings": [
+        "Creating Maps",
+        "Retrieving from Maps",
+        "Comparison Operators",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/nulls.md",
+      "title": "NULL Values",
+      "headings": [
+        "NULL and Functions",
+        "NULL and AND / OR",
+        "NULL and IN / NOT IN",
+        "NULL and Aggregate Functions"
+      ]
+    },
+    {
+      "path": "data_types/numeric.md",
+      "title": "Numeric Types",
+      "headings": [
+        "Fixed-Width Integer Types",
+        "Variable-Length Integers",
+        "Fixed-Point Decimals",
+        "Floating-Point Types",
+        "Universally Unique Identifiers (UUIDs)",
+        "UUIDv4",
+        "UUIDv7",
+        "Rounding",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/overview.md",
+      "title": "Data Types",
+      "headings": [
+        "General-Purpose Data Types",
+        "Nested / Composite Types",
+        "Rules for Case Sensitivity",
+        "Updating Values of Nested Types",
+        "Nesting",
+        "Performance Implications"
+      ]
+    },
+    {
+      "path": "data_types/struct.md",
+      "title": "Struct Data Type",
+      "headings": [
+        "Creating Structs",
+        "Adding or Updating Fields of Structs",
+        "Retrieving from Structs",
+        "unnest / STRUCT.*",
+        "Dot Notation Order of Operations",
+        "No Dots",
+        "One Dot",
+        "Two (or More) Dots",
+        "Creating Structs with the row Function",
+        "Comparison and Ordering",
+        "Updating the Schema",
+        "Adding a Field",
+        "Dropping a Field",
+        "Renaming a Field",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/text.md",
+      "title": "Text Types",
+      "headings": [
+        "Specifying a Length Limit",
+        "Specifying a Compression Type",
+        "Text Type Values",
+        "Strings with Special Characters",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/time.md",
+      "title": "Time Types",
+      "headings": []
+    },
+    {
+      "path": "data_types/timestamp.md",
+      "title": "Timestamp Types",
+      "headings": [
+        "Timestamp Types",
+        "Conversion between Strings and Naïve / Time Zone-Aware Timestamps",
+        "Special Values",
+        "Functions",
+        "Time Zones",
+        "Instants",
+        "Temporal Binning",
+        "Time Zone Support",
+        "Calendar Support",
+        "Settings"
+      ]
+    },
+    {
+      "path": "data_types/timezones.md",
+      "title": "Time Zone Reference List",
+      "headings": []
+    },
+    {
+      "path": "data_types/typecasting.md",
+      "title": "Typecasting",
+      "headings": [
+        "Explicit Casting",
+        "Implicit Casting",
+        "Combination Casting",
+        "Casting Operations Matrix",
+        "Lossy Casts",
+        "Overflows",
+        "Varchar",
+        "Literal Types",
+        "Lists / Arrays",
+        "Arrays",
+        "Structs",
+        "Unions"
+      ]
+    },
+    {
+      "path": "data_types/union.md",
+      "title": "Union Type",
+      "headings": [
+        "Example",
+        "Union Casts",
+        "Casting to Unions",
+        "Casting between Unions",
+        "Comparison and Sorting",
+        "Functions"
+      ]
+    },
+    {
+      "path": "data_types/variant.md",
+      "title": "Variant Type",
+      "headings": [
+        "Examples",
+        "Storing Different Types in the Same Column",
+        "Checking the Type of a Value",
+        "Extracting Fields from Nested Variants",
+        "Parquet Support",
+        "Writing VARIANT to Parquet",
+        "Reading Snowflake VARIANT from Parquet"
+      ]
+    },
+    {
+      "path": "dialect/friendly_sql.md",
+      "title": "Friendly SQL",
+      "headings": [
+        "Clauses",
+        "Query Features",
+        "Literals and Identifiers",
+        "Data Types",
+        "Data Import",
+        "Functions and Expressions",
+        "Join Types",
+        "Trailing Commas",
+        "\"Top-N in Group\" Queries",
+        "Related Blog Posts"
+      ]
+    },
+    {
+      "path": "dialect/indexing.md",
+      "title": "Indexing",
+      "headings": [
+        "Examples"
+      ]
+    },
+    {
+      "path": "dialect/keywords_and_identifiers.md",
+      "title": "Keywords and Identifiers",
+      "headings": [
+        "Identifiers",
+        "Deduplicating Identifiers",
+        "Database Names",
+        "Rules for Case-Sensitivity",
+        "Keywords and Function Names",
+        "Case-Sensitivity of Identifiers",
+        "Case-Sensitivity of Keys in Nested Data Structures"
+      ]
+    },
+    {
+      "path": "dialect/order_preservation.md",
+      "title": "Order Preservation",
+      "headings": [
+        "Example",
+        "Clauses",
+        "Insertion Order"
+      ]
+    },
+    {
+      "path": "dialect/overview.md",
+      "title": "Overview",
+      "headings": []
+    },
+    {
+      "path": "dialect/postgresql_compatibility.md",
+      "title": "PostgreSQL Compatibility",
+      "headings": [
+        "Floating-Point Arithmetic",
+        "Division on Integers",
+        "UNION of Boolean and Integer Values",
+        "Implicit Casting on Equality Checks",
+        "Case Sensitivity for Quoted Identifiers",
+        "Using Double Equality Sign for Comparison",
+        "Vacuuming Tables",
+        "Strings",
+        "Functions",
+        "regexp_extract Function",
+        "to_date Function",
+        "date_part Function",
+        "Resolution of Type Names in the Schema",
+        "Exploiting Functional Dependencies for GROUP BY",
+        "Behavior of Regular Expression Match Operators"
+      ]
+    },
+    {
+      "path": "dialect/sql_quirks.md",
+      "title": "SQL Quirks",
+      "headings": [
+        "Aggregating Empty Groups",
+        "0 vs. 1-Based Indexing",
+        "Types",
+        "UINT8 vs. INT8",
+        "Expressions",
+        "Results That May Surprise You",
+        "NaN Values",
+        "age Function",
+        "Extract Functions",
+        "Clauses",
+        "Automatic Column Deduplication in SELECT",
+        "Case Insensitivity for SELECTing Columns",
+        "USING SAMPLE"
+      ]
+    },
+    {
+      "path": "expressions/case.md",
+      "title": "CASE Expression",
+      "headings": [
+        "SWITCH Expression"
+      ]
+    },
+    {
+      "path": "expressions/cast.md",
+      "title": "Casting",
+      "headings": [
+        "Explicit Casting",
+        "Casting Rules",
+        "TRY_CAST",
+        "cast_to_type Function"
+      ]
+    },
+    {
+      "path": "expressions/collations.md",
+      "title": "Collations",
+      "headings": [
+        "Using Collations",
+        "Default Collations",
+        "ICU Collations"
+      ]
+    },
+    {
+      "path": "expressions/comparison_operators.md",
+      "title": "Comparisons",
+      "headings": [
+        "Comparison Operators",
+        "Combination Casting",
+        "BETWEEN and IS [NOT] NULL"
+      ]
+    },
+    {
+      "path": "expressions/in.md",
+      "title": "IN Operator",
+      "headings": [
+        "IN (val1, val2, ...) (Tuple)",
+        "IN [val1, val2, ...] (List)",
+        "IN Map",
+        "IN Subquery",
+        "IN String",
+        "NOT IN"
+      ]
+    },
+    {
+      "path": "expressions/logical_operators.md",
+      "title": "Logical Operators",
+      "headings": [
+        "Binary Operators: AND and OR",
+        "Unary Operator: NOT"
+      ]
+    },
+    {
+      "path": "expressions/overview.md",
+      "title": "Expressions",
+      "headings": []
+    },
+    {
+      "path": "expressions/star.md",
+      "title": "Star Expression",
+      "headings": [
+        "Syntax",
+        "TABLE.* and STRUCT.*",
+        "EXCLUDE Clause",
+        "REPLACE Clause",
+        "RENAME Clause",
+        "Column Filtering via Pattern Matching Operators",
+        "COLUMNS Expression",
+        "COLUMNS Expression in a WHERE Clause",
+        "COLUMNS Expression in DISTINCT ON",
+        "Regular Expressions in a COLUMNS Expression",
+        "Renaming Columns with Regular Expressions in a COLUMNS Expression",
+        "COLUMNS Lambda Function",
+        "COLUMNS List",
+        "Unpacking a COLUMNS Expression",
+        "STRUCT.*"
+      ]
+    },
+    {
+      "path": "expressions/subqueries.md",
+      "title": "Subqueries",
+      "headings": [
+        "Scalar Subquery",
+        "Grades",
+        "ARRAY Subqueries",
+        "Subquery Comparisons: ALL, ANY and SOME",
+        "ALL",
+        "ANY",
+        "EXISTS",
+        "NOT EXISTS",
+        "IN Operator",
+        "Correlated Subqueries",
+        "Returning Each Row of the Subquery as a Struct"
+      ]
+    },
+    {
+      "path": "expressions/try.md",
+      "title": "TRY Expression",
+      "headings": [
+        "Examples",
+        "Casting",
+        "Logarithm on Zero",
+        "Casting Multiple Rows",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "functions/aggregates.md",
+      "title": "Aggregate Functions",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "DISTINCT Clause in Aggregate Functions",
+        "ORDER BY Clause in Aggregate Functions",
+        "Handling NULL Values",
+        "General Aggregate Functions",
+        "Approximate Aggregates",
+        "Statistical Aggregates",
+        "Ordered Set Aggregate Functions",
+        "Miscellaneous Aggregate Functions"
+      ]
+    },
+    {
+      "path": "functions/array.md",
+      "title": "Array Functions",
+      "headings": [
+        "Array-Native Functions"
+      ]
+    },
+    {
+      "path": "functions/bitstring.md",
+      "title": "Bitstring Functions",
+      "headings": [
+        "Bitstring Operators",
+        "Bitstring Functions",
+        "Bitstring Aggregate Functions"
+      ]
+    },
+    {
+      "path": "functions/blob.md",
+      "title": "Blob Functions",
+      "headings": []
+    },
+    {
+      "path": "functions/date.md",
+      "title": "Date Functions",
+      "headings": [
+        "Date Operators",
+        "Date Functions",
+        "Date Part Extraction Functions"
+      ]
+    },
+    {
+      "path": "functions/dateformat.md",
+      "title": "Date Format Functions",
+      "headings": [
+        "strftime Examples",
+        "strptime Examples",
+        "CSV Parsing",
+        "Format Specifiers"
+      ]
+    },
+    {
+      "path": "functions/datepart.md",
+      "title": "Date Part Functions",
+      "headings": [
+        "Part Specifiers Usable as Date Part Specifiers and in Intervals",
+        "Part Specifiers Only Usable as Date Part Specifiers",
+        "Part Functions"
+      ]
+    },
+    {
+      "path": "functions/enum.md",
+      "title": "Enum Functions",
+      "headings": []
+    },
+    {
+      "path": "functions/geometry.md",
+      "title": "Geometry Functions",
+      "headings": [
+        "Geometry Operators",
+        "Built-in Geometry Functions"
+      ]
+    },
+    {
+      "path": "functions/interval.md",
+      "title": "Interval Functions",
+      "headings": [
+        "Interval Operators",
+        "Interval Functions"
+      ]
+    },
+    {
+      "path": "functions/lambda.md",
+      "title": "Lambda Functions",
+      "headings": [
+        "Scalar Functions That Accept Lambda Functions",
+        "Nesting Lambda Functions",
+        "Scoping",
+        "Indexes as Parameters",
+        "Examples",
+        "list_transform Examples",
+        "list_filter Examples",
+        "list_reduce Examples",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "functions/list.md",
+      "title": "List Functions",
+      "headings": [
+        "List Operators",
+        "List Comprehension",
+        "Range Functions",
+        "range",
+        "generate_series",
+        "Date Ranges",
+        "Slicing",
+        "List Aggregates",
+        "list_* Rewrite Functions",
+        "Sorting Lists",
+        "Flattening",
+        "Lambda Functions",
+        "Related Functions"
+      ]
+    },
+    {
+      "path": "functions/map.md",
+      "title": "Map Functions",
+      "headings": []
+    },
+    {
+      "path": "functions/nested.md",
+      "title": "Nested Functions",
+      "headings": []
+    },
+    {
+      "path": "functions/numeric.md",
+      "title": "Numeric Functions",
+      "headings": [
+        "Numeric Operators",
+        "Division and Modulo Operators",
+        "Supported Types",
+        "Numeric Functions"
+      ]
+    },
+    {
+      "path": "functions/overview.md",
+      "title": "Functions",
+      "headings": [
+        "Function Syntax",
+        "Function Chaining via the Dot Operator",
+        "Using with Literals and Arrays",
+        "Limitations",
+        "Query Functions"
+      ]
+    },
+    {
+      "path": "functions/pattern_matching.md",
+      "title": "Pattern Matching",
+      "headings": [
+        "LIKE",
+        "SIMILAR TO",
+        "Globbing",
+        "GLOB",
+        "Glob Function to Find Filenames",
+        "Globbing Semantics",
+        "Regular Expressions"
+      ]
+    },
+    {
+      "path": "functions/regular_expressions.md",
+      "title": "Regular Expressions",
+      "headings": [
+        "Regular Expression Syntax",
+        "Functions",
+        "Options for Regular Expression Functions",
+        "Using regexp_matches",
+        "Using regexp_replace",
+        "Using regexp_extract",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "functions/struct.md",
+      "title": "Struct Functions",
+      "headings": []
+    },
+    {
+      "path": "functions/text.md",
+      "title": "Text Functions",
+      "headings": [
+        "Text Functions and Operators",
+        "Text Similarity Functions",
+        "Formatters",
+        "fmt Syntax",
+        "printf Syntax"
+      ]
+    },
+    {
+      "path": "functions/time.md",
+      "title": "Time Functions",
+      "headings": [
+        "Time Operators",
+        "Time Functions"
+      ]
+    },
+    {
+      "path": "functions/timestamp.md",
+      "title": "Timestamp Functions",
+      "headings": [
+        "Timestamp Operators",
+        "Scalar Timestamp Functions",
+        "Timestamp Table Functions"
+      ]
+    },
+    {
+      "path": "functions/timestamptz.md",
+      "title": "Timestamp with Time Zone Functions",
+      "headings": [
+        "Built-In Timestamp with Time Zone Functions",
+        "Timestamp with Time Zone Strings",
+        "ICU Timestamp with Time Zone Operators",
+        "ICU Timestamp with Time Zone Functions",
+        "ICU Timestamp Table Functions",
+        "ICU Timestamp Without Time Zone Functions",
+        "At Time Zone",
+        "Infinities",
+        "Calendars",
+        "Daylight Saving Time (DST) Transitions"
+      ]
+    },
+    {
+      "path": "functions/union.md",
+      "title": "Union Functions",
+      "headings": []
+    },
+    {
+      "path": "functions/utility.md",
+      "title": "Utility Functions",
+      "headings": [
+        "Scalar Utility Functions",
+        "Utility Table Functions"
+      ]
+    },
+    {
+      "path": "functions/window_functions.md",
+      "title": "Window Functions",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "General-Purpose Window Functions",
+        "Aggregate Window Functions",
+        "DISTINCT Arguments",
+        "ORDER BY Arguments",
+        "Nulls",
+        "Evaluation",
+        "Partition and Ordering",
+        "Framing",
+        "WINDOW Clauses",
+        "Filtering the Results of Window Functions Using QUALIFY",
+        "Box and Whisker Queries"
+      ]
+    },
+    {
+      "path": "indexes.md",
+      "title": "Indexes",
+      "headings": [
+        "Index Types",
+        "Min-Max Index (Zonemap)",
+        "Adaptive Radix Tree (ART)",
+        "Indexes Defined by Extensions",
+        "Persistence",
+        "CREATE INDEX and DROP INDEX Statements",
+        "Limitations of ART Indexes",
+        "Constraint Checking in UPDATE Statements",
+        "Over-Eager Constraint Checking in Foreign Keys"
+      ]
+    },
+    {
+      "path": "introduction.md",
+      "title": "SQL Introduction",
+      "headings": [
+        "Concepts",
+        "Creating a New Table",
+        "Populating a Table with Rows",
+        "Querying a Table",
+        "Joins between Tables",
+        "Aggregate Functions",
+        "Updates",
+        "Deletions"
+      ]
+    },
+    {
+      "path": "meta/duckdb_table_functions.md",
+      "title": "DuckDB_% Metadata Functions",
+      "headings": [
+        "duckdb_columns",
+        "duckdb_constraints",
+        "duckdb_coordinate_systems",
+        "duckdb_databases",
+        "duckdb_dependencies",
+        "duckdb_extensions",
+        "duckdb_functions",
+        "duckdb_indexes",
+        "duckdb_keywords",
+        "duckdb_log_contexts",
+        "duckdb_logs",
+        "duckdb_memory",
+        "duckdb_optimizers",
+        "duckdb_prepared_statements",
+        "duckdb_profiling_settings",
+        "duckdb_schemas",
+        "duckdb_secret_types",
+        "duckdb_secrets",
+        "duckdb_sequences",
+        "duckdb_settings",
+        "duckdb_tables",
+        "duckdb_temporary_files",
+        "duckdb_types",
+        "duckdb_variables",
+        "duckdb_views"
+      ]
+    },
+    {
+      "path": "meta/information_schema.md",
+      "title": "Information Schema",
+      "headings": [
+        "Tables",
+        "character_sets: Character Sets",
+        "columns: Columns",
+        "constraint_column_usage: Constraint Column Usage",
+        "key_column_usage: Key Column Usage",
+        "referential_constraints: Referential Constraints",
+        "schemata: Database, Catalog and Schema",
+        "tables: Tables and Views",
+        "table_constraints: Table Constraints",
+        "Catalog Functions"
+      ]
+    },
+    {
+      "path": "peg_parser.md",
+      "title": "PEG Parser",
+      "headings": []
+    },
+    {
+      "path": "query_syntax/filter.md",
+      "title": "FILTER Clause",
+      "headings": [
+        "Examples",
+        "Aggregate Function Syntax (Including FILTER Clause)"
+      ]
+    },
+    {
+      "path": "query_syntax/from.md",
+      "title": "FROM and JOIN Clauses",
+      "headings": [
+        "Examples",
+        "Table Functions",
+        "Joins",
+        "Outer Joins",
+        "Cross Product Joins (Cartesian Product)",
+        "Conditional Joins",
+        "Natural Joins",
+        "Semi and Anti Joins",
+        "Lateral Joins",
+        "Positional Joins",
+        "As-Of Joins",
+        "Self-Joins",
+        "Shorthands in the JOIN Clause",
+        "FROM-First Syntax",
+        "FROM-First Syntax with a SELECT Clause",
+        "FROM-First Syntax without a SELECT Clause",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/groupby.md",
+      "title": "GROUP BY Clause",
+      "headings": [
+        "GROUP BY ALL",
+        "Multiple Dimensions",
+        "Examples",
+        "GROUP BY ALL Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/grouping_sets.md",
+      "title": "GROUPING SETS",
+      "headings": [
+        "Examples",
+        "Description",
+        "Identifying Grouping Sets with GROUPING_ID()",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/having.md",
+      "title": "HAVING Clause",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/limit.md",
+      "title": "LIMIT and OFFSET Clauses",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/orderby.md",
+      "title": "ORDER BY Clause",
+      "headings": [
+        "ORDER BY ALL",
+        "NULL Order Modifier",
+        "Collations",
+        "Examples",
+        "ORDER BY ALL Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/prepared_statements.md",
+      "title": "Prepared Statements",
+      "headings": [
+        "Syntax",
+        "Example Dataset",
+        "Auto-Incremented Parameters: ?",
+        "Positional Parameters: $1",
+        "Named Parameters: $parameter",
+        "Dropping Prepared Statements: DEALLOCATE"
+      ]
+    },
+    {
+      "path": "query_syntax/qualify.md",
+      "title": "QUALIFY Clause",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/sample.md",
+      "title": "SAMPLE Clause",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/select.md",
+      "title": "SELECT Clause",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "SELECT List",
+        "Star Expressions",
+        "DISTINCT Clause",
+        "DISTINCT ON Clause",
+        "Aggregates",
+        "Window Functions",
+        "unnest Function"
+      ]
+    },
+    {
+      "path": "query_syntax/setops.md",
+      "title": "Set Operations",
+      "headings": [
+        "UNION",
+        "Vanilla UNION (Set Semantics)",
+        "UNION ALL (Bag Semantics)",
+        "UNION [ALL] BY NAME",
+        "INTERSECT",
+        "Vanilla INTERSECT (Set Semantics)",
+        "INTERSECT ALL (Bag Semantics)",
+        "EXCEPT",
+        "Vanilla EXCEPT (Set Semantics)",
+        "EXCEPT ALL (Bag Semantics)",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/unnest.md",
+      "title": "Unnesting",
+      "headings": [
+        "Examples",
+        "Unnesting Lists",
+        "Unnesting Structs",
+        "Recursive Unnest",
+        "Setting the Maximum Depth of Unnesting",
+        "Keeping Track of List Entry Positions",
+        "Keep Column Names When Recursively Unnesting"
+      ]
+    },
+    {
+      "path": "query_syntax/values.md",
+      "title": "VALUES Clause",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/where.md",
+      "title": "WHERE Clause",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/window.md",
+      "title": "WINDOW Clause",
+      "headings": [
+        "Syntax"
+      ]
+    },
+    {
+      "path": "query_syntax/with.md",
+      "title": "WITH Clause",
+      "headings": [
+        "Basic CTE Examples",
+        "CTE Materialization",
+        "Recursive CTEs",
+        "Example: Fibonacci Sequence",
+        "Example: Tree Traversal",
+        "Graph Traversal",
+        "Accessing the Union Table with recurring",
+        "Recursive CTEs with USING KEY",
+        "Example: USING KEY",
+        "Using VALUES",
+        "Example: USING KEY References Union Table",
+        "Limitations",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "samples.md",
+      "title": "Samples",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Sampling Methods",
+        "reservoir",
+        "bernoulli",
+        "system",
+        "Table Samples"
+      ]
+    },
+    {
+      "path": "statements/alter_table.md",
+      "title": "ALTER TABLE Statement",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "RENAME TABLE",
+        "RENAME COLUMN",
+        "ADD COLUMN",
+        "DROP COLUMN",
+        "[SET [DATA]] TYPE",
+        "Handling Structs",
+        "SET / DROP DEFAULT",
+        "ADD PRIMARY KEY",
+        "SET / RESET (Table Options)",
+        "ADD / DROP CONSTRAINT",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "statements/alter_view.md",
+      "title": "ALTER VIEW Statement",
+      "headings": [
+        "Examples"
+      ]
+    },
+    {
+      "path": "statements/analyze.md",
+      "title": "ANALYZE Statement",
+      "headings": [
+        "Usage"
+      ]
+    },
+    {
+      "path": "statements/attach.md",
+      "title": "ATTACH and DETACH Statements",
+      "headings": [
+        "Examples",
+        "ATTACH",
+        "ATTACH Syntax",
+        "Explicit Storage Versions",
+        "Database Encryption",
+        "Options",
+        "DETACH",
+        "DETACH Syntax",
+        "Name Qualification",
+        "Default Database and Schema",
+        "Changing the Default Database and Schema",
+        "Resolving Conflicts",
+        "Changing the Catalog Search Path",
+        "Transactional Semantics"
+      ]
+    },
+    {
+      "path": "statements/call.md",
+      "title": "CALL Statement",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/checkpoint.md",
+      "title": "CHECKPOINT Statement",
+      "headings": [
+        "Examples",
+        "Checkpointing In-Memory Tables",
+        "Syntax",
+        "Behavior",
+        "Reclaiming Space"
+      ]
+    },
+    {
+      "path": "statements/comment_on.md",
+      "title": "COMMENT ON Statement",
+      "headings": [
+        "Examples",
+        "Reading Comments",
+        "Limitations",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/copy.md",
+      "title": "COPY Statement",
+      "headings": [
+        "Examples",
+        "Overview",
+        "COPY ... FROM",
+        "Syntax",
+        "COPY ... TO",
+        "COPY ... TO Options",
+        "Syntax",
+        "COPY FROM DATABASE ... TO",
+        "Syntax",
+        "Format-Specific Options",
+        "CSV Options",
+        "Parquet Options",
+        "JSON Options",
+        "BLOB Options",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "statements/create_index.md",
+      "title": "CREATE INDEX Statement",
+      "headings": [
+        "CREATE INDEX",
+        "Examples",
+        "Parameters",
+        "Syntax",
+        "DROP INDEX",
+        "Examples",
+        "Parameters",
+        "Syntax",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "statements/create_macro.md",
+      "title": "CREATE MACRO Statement",
+      "headings": [
+        "Examples",
+        "Scalar Macros",
+        "Table Macros",
+        "Overloading",
+        "Syntax",
+        "Limitations",
+        "Using Subquery Macros",
+        "Overloads",
+        "Recursive Functions",
+        "Function Chaining on the First Function Does Not Work",
+        "Viewing the List of Macros and Table Macros"
+      ]
+    },
+    {
+      "path": "statements/create_schema.md",
+      "title": "CREATE SCHEMA Statement",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/create_secret.md",
+      "title": "CREATE SECRET Statement",
+      "headings": [
+        "Syntax for CREATE SECRET",
+        "Syntax for DROP SECRET"
+      ]
+    },
+    {
+      "path": "statements/create_sequence.md",
+      "title": "CREATE SEQUENCE Statement",
+      "headings": [
+        "Examples",
+        "Creating and Dropping Sequences",
+        "Using Sequences for Primary Keys",
+        "Selecting the Next Value",
+        "Selecting the Current Value",
+        "Syntax",
+        "Parameters",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "statements/create_table.md",
+      "title": "CREATE TABLE Statement",
+      "headings": [
+        "Examples",
+        "Temporary Tables",
+        "CREATE OR REPLACE",
+        "IF NOT EXISTS",
+        "CREATE TABLE ... AS SELECT (CTAS)",
+        "Copying the Schema",
+        "Check Constraints",
+        "Foreign Key Constraints",
+        "Limitations",
+        "Generated Columns",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/create_type.md",
+      "title": "CREATE TYPE Statement",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "statements/create_view.md",
+      "title": "CREATE VIEW Statement",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/delete.md",
+      "title": "DELETE Statement",
+      "headings": [
+        "Examples",
+        "USING Clause",
+        "RETURNING Clause",
+        "Syntax",
+        "The TRUNCATE Statement",
+        "Limitations on Reclaiming Memory and Disk Space"
+      ]
+    },
+    {
+      "path": "statements/describe.md",
+      "title": "DESCRIBE Statement",
+      "headings": [
+        "Usage",
+        "Alias",
+        "See Also"
+      ]
+    },
+    {
+      "path": "statements/drop.md",
+      "title": "DROP Statement",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Dependencies of Dropped Objects",
+        "Limitations",
+        "Dependencies on Views",
+        "Limitations on Reclaiming Disk Space"
+      ]
+    },
+    {
+      "path": "statements/export.md",
+      "title": "EXPORT and IMPORT DATABASE Statements",
+      "headings": [
+        "Examples",
+        "EXPORT DATABASE",
+        "Syntax",
+        "IMPORT DATABASE",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/insert.md",
+      "title": "INSERT Statement",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Insert Column Order",
+        "INSERT INTO ... [BY POSITION]",
+        "INSERT INTO ... BY NAME",
+        "ON CONFLICT Clause",
+        "DO NOTHING Clause",
+        "DO UPDATE Clause (Upsert)",
+        "Defining a Conflict Target",
+        "RETURNING Clause"
+      ]
+    },
+    {
+      "path": "statements/load_and_install.md",
+      "title": "LOAD / INSTALL Statements",
+      "headings": [
+        "INSTALL",
+        "Examples",
+        "Syntax",
+        "LOAD",
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/merge_into.md",
+      "title": "MERGE INTO Statement",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/overview.md",
+      "title": "Statements Overview",
+      "headings": []
+    },
+    {
+      "path": "statements/pivot.md",
+      "title": "PIVOT Statement",
+      "headings": [
+        "Simplified PIVOT Syntax",
+        "Example Data",
+        "PIVOT ON and USING",
+        "PIVOT ON, USING, and GROUP BY",
+        "IN Filter for ON Clause",
+        "Multiple Expressions per Clause",
+        "Using PIVOT within a SELECT Statement",
+        "Multiple PIVOT Statements",
+        "Simplified PIVOT Full Syntax Diagram",
+        "SQL Standard PIVOT Syntax",
+        "Examples",
+        "SQL Standard PIVOT Full Syntax Diagram",
+        "Limitations"
+      ]
+    },
+    {
+      "path": "statements/profiling.md",
+      "title": "Profiling Queries",
+      "headings": [
+        "EXPLAIN",
+        "EXPLAIN ANALYZE"
+      ]
+    },
+    {
+      "path": "statements/select.md",
+      "title": "SELECT Statement",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "SELECT Clause",
+        "FROM Clause",
+        "SAMPLE Clause",
+        "WHERE Clause",
+        "GROUP BY and HAVING Clauses",
+        "WINDOW Clause",
+        "QUALIFY Clause",
+        "ORDER BY, LIMIT and OFFSET Clauses",
+        "VALUES List",
+        "Row IDs",
+        "Common Table Expressions",
+        "Full Syntax Diagram"
+      ]
+    },
+    {
+      "path": "statements/set_variable.md",
+      "title": "SET VARIABLE and RESET VARIABLE Statements",
+      "headings": [
+        "Variable Scopes",
+        "SET VARIABLE",
+        "Syntax",
+        "RESET VARIABLE",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/set.md",
+      "title": "SET and RESET Statements",
+      "headings": [
+        "Examples",
+        "Set a Global Variable",
+        "Syntax",
+        "RESET",
+        "Scopes",
+        "Configuration"
+      ]
+    },
+    {
+      "path": "statements/show.md",
+      "title": "SHOW, SHOW DATABASES, and SHOW SCHEMAS Statements",
+      "headings": [
+        "SHOW Statement",
+        "SHOW DATABASES Statement",
+        "SHOW SCHEMAS Statement"
+      ]
+    },
+    {
+      "path": "statements/summarize.md",
+      "title": "SUMMARIZE Statement",
+      "headings": [
+        "Usage",
+        "See Also"
+      ]
+    },
+    {
+      "path": "statements/transactions.md",
+      "title": "Transaction Management",
+      "headings": [
+        "Statements",
+        "Starting a Transaction",
+        "Committing a Transaction",
+        "Rolling Back a Transaction",
+        "Multi-Statement Transactions",
+        "Isolation Level",
+        "Example"
+      ]
+    },
+    {
+      "path": "statements/unpivot.md",
+      "title": "UNPIVOT Statement",
+      "headings": [
+        "Simplified UNPIVOT Syntax",
+        "Example Data",
+        "UNPIVOT Manually",
+        "UNPIVOT Dynamically Using COLUMNS Expression",
+        "UNPIVOT into Multiple Value Columns",
+        "Using UNPIVOT within a SELECT Statement",
+        "Expressions within UNPIVOT Statements",
+        "Simplified UNPIVOT Full Syntax Diagram",
+        "SQL Standard UNPIVOT Syntax",
+        "SQL Standard UNPIVOT Manually",
+        "SQL Standard UNPIVOT Dynamically Using the COLUMNS Expression",
+        "SQL Standard UNPIVOT into Multiple Value Columns",
+        "SQL Standard UNPIVOT Full Syntax Diagram"
+      ]
+    },
+    {
+      "path": "statements/update_extensions.md",
+      "title": "UPDATE EXTENSIONS",
+      "headings": [
+        "Updating All Extensions",
+        "Updating Selected Extensions",
+        "How It Works"
+      ]
+    },
+    {
+      "path": "statements/update.md",
+      "title": "UPDATE Statement",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Update from Other Table",
+        "Update from Same Table",
+        "Update Using Joins",
+        "Upsert (Insert or Update)"
+      ]
+    },
+    {
+      "path": "statements/use.md",
+      "title": "USE Statement",
+      "headings": [
+        "Examples",
+        "Syntax"
+      ]
+    },
+    {
+      "path": "statements/vacuum.md",
+      "title": "VACUUM Statement",
+      "headings": [
+        "Examples",
+        "Vacuum with Indexes",
+        "Reclaiming Space",
+        "Syntax"
+      ]
+    }
+  ]
+}
