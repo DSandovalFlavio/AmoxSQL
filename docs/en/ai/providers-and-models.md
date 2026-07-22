@@ -63,7 +63,7 @@ Capabilities (`supportsToolCalling`, `supportsCharts`, `supportsNotebooks`, `sup
 
 ### Reasoning (thinking)
 
-Some models expose their reasoning. On **MiniMax M-series** models advanced reasoning is **always on** and is shown in the [Deep Dive](deep-dive.md) inspector. Other models enable thinking based on their detected capabilities.
+Some models expose their reasoning. On **MiniMax M-series** models advanced reasoning is **always on** and is shown in the [Deep Dive](deep-dive.md) inspector. For local Ollama models you can turn thinking **On / Off / Auto per model** — see [Local AI performance](local-performance.md), since reasoning trades quality for latency.
 
 ## Tips & gems
 
@@ -76,5 +76,6 @@ Some models expose their reasoning. On **MiniMax M-series** models advanced reas
 ## Related
 
 - [AmoxSQL AI](introduction.md) · [Agent tools](agent-tools.md) · [Prompt-only mode](prompt-only-mode.md)
+- [Local AI performance](local-performance.md) — keep local models fast
 - [Deep Dive](deep-dive.md) · [Editor Assistant](editor-assistant.md)
 - [Configuration](../reference/configuration.md)

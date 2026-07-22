@@ -1,6 +1,6 @@
 # Plan — Performance de AI local (Ollama): hacia el primer token casi instantáneo
 
-> **Estado**: EN CURSO — F0, F1, F2, F3 hechas (rama `claude/ai-local-performance`). Faltan F4–F7.
+> **Estado**: ✅ COMPLETO — F0–F7 hechas en la rama `claude/ai-local-performance`. Pendiente: PR + validación en la máquina target.
 > **Fecha**: 2026-07-22
 > **Objetivo**: que los modelos locales (ornith, gemma4, qwen3.5, lfm2.5) respondan en AmoxSQL con una latencia percibida cercana a la de la terminal `ollama run`, y que el cambio de modelo no cueste un minuto de espera.
 >
@@ -9,10 +9,16 @@
 > - ✅ **F1** — runtime explícito de Ollama: `keep_alive` '4h', `num_ctx` por tier (idéntico por request, instancia cacheada), sampling por familia, `think:false` para qwen3.5/qwen3/ornith. `contextWindow` clampeado al num_ctx real. Validado en vivo con qwen3.5:0.8b.
 > - ✅ **F2** — opciones muertas del AI SDK v6: `maxSteps`→`stopWhen: stepCountIs()`, `maxTokens`→`maxOutputTokens` en todos los call sites. Verificado: 2 tool calls encadenados en UNA request.
 > - ✅ **F3** — prefijo estable (fecha al final, día; estado vivo al tail) + contexto acotado para assistant (solo tablas referenciadas + roster). Medido: assistant ~5084→~3003 tk; 99% del prompt estable al editar la query.
-> - ⏳ **F4** — warmup + ciclo de vida del modelo + memorias fuera del camino crítico.
-> - ⏳ **F5** — toggle de thinking On/Off/Auto por modelo en la UI.
-> - ⏳ **F6** — modelo por modo + hint de idoneidad en Deep Dive.
-> - ⏳ **F7** — docs de usuario.
+> - ✅ **F4** — warmup (`/api/ai/warmup`) + indicador de estado (`/api/ai/model-status`, dot ●/◐/○) + memorias gateadas por política (`memoryExtraction`, default cloud-only). Warmup validado en vivo (done_reason=load); offload a CPU detectado.
+> - ✅ **F5** — thinking On/Off/Auto por modelo: `resolveThinking()` (native para qwen/ornith, `<|think|>` token para gemma4, always para lfm2.5) + config `ollamaThinkOverrides` + UI en Settings.
+> - ✅ **F6** — modelo por modo (`modelPerMode`, cada panel recuerda el suyo) + `DeepDiveModelHint` (<15B).
+> - ✅ **F7** — docs bilingües: `docs/{es,en}/ai/{rendimiento-local,local-performance}.md` + enlaces desde providers-and-models y README.
+
+## Nota de implementación
+
+F4–F6 se commitearon juntas (`feat(ai-perf): F4-F6`) porque tocan archivos entrelazados (AiManager, modelProfiles, index.js, SettingsModal, useAiChat). El mensaje del commit delimita cada fase.
+
+**Pendiente de validación en la máquina target** (Precision 3581, 8 GB VRAM): matriz de F5 (TTFT frío/caliente, turno 2 con `prompt_eval_count` chico, diving 3 pasos, thinking on/off) con Ollama ≥0.32. En la máquina dev (P600 2 GB) se validaron los mecanismos individuales en vivo.
 
 ---
 
