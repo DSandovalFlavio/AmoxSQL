@@ -11,12 +11,14 @@ import { Section, Toggle, SelectField, InputField, SimpleColorPicker, panelStyle
 const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => {
     const { chartType, chartTitle, chartSubtitle, chartFootnote, takeaway, textAlign,
         refLine, refArea, goalLine, trendLine, headline, highlightConfig, annotations,
+        chartSource, signature = {}, titleMark,
     } = state;
 
     const titleRef = useRef(null);
     const subtitleRef = useRef(null);
     const footnoteRef = useRef(null);
     const takeawayRef = useRef(null);
+    const sourceRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [storyError, setStoryError] = useState(null);
 
@@ -38,6 +40,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
         if (subtitleRef.current) setField('chartSubtitle', subtitleRef.current.value);
         if (footnoteRef.current) setField('chartFootnote', footnoteRef.current.value);
         if (takeawayRef.current) setField('takeaway', takeawayRef.current.value);
+        if (sourceRef.current) setField('chartSource', sourceRef.current.value);
     };
 
     const handleGenerateStory = async () => {
@@ -155,6 +158,11 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                     <input ref={footnoteRef} type="text" placeholder="Data source or footnote"
                         defaultValue={chartFootnote} style={panelStyles.input} />
                 </div>
+                <div style={{ marginBottom: '6px' }}>
+                    <label style={panelStyles.labelSmall}>Source</label>
+                    <input ref={sourceRef} type="text" placeholder="e.g. Sales DB · 2024"
+                        defaultValue={chartSource} style={panelStyles.input} />
+                </div>
                 <div style={{ marginBottom: '4px' }}>
                     <label style={panelStyles.labelSmall}>Takeaway (insight)</label>
                     <textarea ref={takeawayRef} placeholder="Key insight or recommendation..."
@@ -201,6 +209,38 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 {storyError && (
                     <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--color-error, #e05555)', padding: '4px 6px', background: 'var(--surface-raised)', borderRadius: '3px' }}>
                         {storyError}
+                    </div>
+                )}
+            </Section>
+
+            {/* ── Editorial (Sterling-style figure shell) ── */}
+            <Section title="Editorial">
+                <Toggle
+                    label="Title mark (QED period)"
+                    checked={!!titleMark}
+                    onChange={v => setField('titleMark', v)}
+                />
+                <div style={{ fontSize: '9px', color: 'var(--text-disabled)', margin: '2px 0 8px' }}>
+                    Adds a period after the title in the accent color. Write the title without a final dot.
+                </div>
+                <Toggle
+                    label="Signature"
+                    checked={!!signature.visible}
+                    onChange={v => setField('signature', { ...signature, visible: v })}
+                />
+                {signature.visible && (
+                    <div style={{ marginTop: '6px' }}>
+                        <label style={panelStyles.labelSmall}>Author (optional)</label>
+                        <input
+                            type="text"
+                            placeholder="Your name"
+                            defaultValue={signature.author || ''}
+                            onBlur={e => setField('signature', { ...signature, author: e.target.value })}
+                            style={panelStyles.input}
+                        />
+                        <div style={{ fontSize: '9px', color: 'var(--text-disabled)', marginTop: '3px' }}>
+                            Shows “{signature.author ? `Made by ${signature.author} with AmoxSQL` : 'Made with AmoxSQL'}” in the caption.
+                        </div>
                     </div>
                 )}
             </Section>

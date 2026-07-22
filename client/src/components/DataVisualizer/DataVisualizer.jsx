@@ -236,6 +236,32 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         }
     }, []);
 
+    // Export the PROCESSED rows behind the figure as CSV (Sterling idea, MIT ©
+    // La Matemaga): the exact aggregated/pivoted rows the chart draws, so the
+    // summary is inspectable — not the untouched source query.
+    const handleExportData = useCallback(() => {
+        const rows = processedData;
+        if (!rows || rows.length === 0) {
+            setAlertData({ isOpen: true, title: 'No data', type: 'error', message: 'There are no processed rows to export yet.' });
+            return;
+        }
+        const cols = Array.from(rows.reduce((set, r) => { Object.keys(r).forEach(k => set.add(k)); return set; }, new Set()));
+        const esc = (v) => {
+            if (v == null) return '';
+            const s = String(v);
+            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const csv = [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const base = (state.chartTitle || 'chart').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 40) || 'chart';
+        a.href = url;
+        a.download = `${base}-data.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }, [processedData, state.chartTitle]);
+
     const performSaveConfig = useCallback(async (filename) => {
         const result = await saveChartConfig(filename, getConfigForSave(), query);
         if (result.success) setIsSaveModalOpen(false);
@@ -407,6 +433,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                                 onLoadFile={() => fileInputRef.current.click()}
                                 onCopy={handleCopy}
                                 onPasteJson={() => setIsPasteJsonOpen(true)}
+                                onExportData={handleExportData}
                                 chartRef={chartRef}
                             />
                         )}
@@ -480,7 +507,11 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             fontSize: `${Math.round(18 * state.textScale)}px`,
                             fontWeight: '600',
                             paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>{renderRichText(state.chartTitle)}</h2>
+                        }}>
+                            {renderRichText(state.chartTitle)}
+                            {/* QED-like title mark (Sterling): a period in the accent color */}
+                            {state.titleMark && <span style={{ color: 'var(--accent-color-user)' }}>.</span>}
+                        </h2>
                     )}
                     {(state.chartSubtitle || inlineLegendItems) && (
                         <h3 style={{
@@ -554,6 +585,38 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                             whiteSpace: 'pre-wrap',
                             paddingLeft: state.textAlign === 'left' ? '50px' : '0',
                         }}>{state.chartFootnote}</div>
+                    )}
+
+                    {/* Editorial caption row (Sterling figure shell): Source + signature.
+                        Mono, muted, split left/right — the publication contract at the foot. */}
+                    {(state.chartSource || state.signature?.visible) && (
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'baseline',
+                            gap: '12px',
+                            flexWrap: 'wrap',
+                            marginTop: `${state.titleSpacing}px`,
+                            paddingTop: '5px',
+                            borderTop: state.chartFootnote ? 'none' : '1px solid var(--border-color)',
+                            color: 'var(--text-muted)',
+                            fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+                            fontSize: `${Math.round(11 * state.textScale)}px`,
+                            paddingLeft: state.textAlign === 'left' ? '50px' : '0',
+                        }}>
+                            <span>
+                                {state.chartSource && (
+                                    <><span style={{ color: 'var(--text-secondary)' }}>Source:</span> {state.chartSource}</>
+                                )}
+                            </span>
+                            {state.signature?.visible && (
+                                <span style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
+                                    {state.signature.author
+                                        ? `Made by ${state.signature.author} with AmoxSQL`
+                                        : 'Made with AmoxSQL'}
+                                </span>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

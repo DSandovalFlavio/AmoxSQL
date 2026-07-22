@@ -332,6 +332,13 @@ export const DEFAULT_CONFIG = {
     takeaway: '',
     textAlign: 'left',
 
+    // Editorial figure shell (Sterling idea, MIT © La Matemaga): a dedicated
+    // source line, a portable signature, and a QED-like title mark keep charts
+    // publication-ready. All off/empty by default — nothing changes until used.
+    chartSource: '',                          // "Source: X" caption at the foot
+    signature: { visible: false, author: '' }, // "Made with AmoxSQL" / "by X"
+    titleMark: false,                          // QED-like period after the title
+
     // Reference elements
     refLine: { value: '', label: '', color: '#ff4444', style: 'dashed' },
     refArea: { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 },

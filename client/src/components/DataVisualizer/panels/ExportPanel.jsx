@@ -18,7 +18,7 @@ const btnStyle = {
 
 const iconStyle = { marginRight: 6, verticalAlign: 'middle' };
 
-const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, onPasteJson, chartRef }) => {
+const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, onPasteJson, onExportData, chartRef }) => {
     return (
         <>
             <Section title="Clipboard">
@@ -26,6 +26,14 @@ const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, onPasteJso
                     <span><LuCopy size={12} style={iconStyle} />Copy chart as image</span>
                 </button>
             </Section>
+
+            {onExportData && (
+                <Section title="Data">
+                    <button onClick={onExportData} style={btnStyle} className="dv-export-item">
+                        <span><LuDownload size={12} style={iconStyle} />Download processed data (CSV)</span>
+                    </button>
+                </Section>
+            )}
 
             <Section title="Canvas size">
                 {EXPORT_PRESETS.map(p => (
