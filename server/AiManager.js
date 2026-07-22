@@ -651,6 +651,14 @@ ${schemaText}`;
                 if (part.type === 'text-delta') {
                     fullText += part.textDelta || part.text || '';
                     yield { type: 'text-delta', text: part.textDelta || part.text || '' };
+                } else if (part.type === 'reasoning-start') {
+                    // Show native reasoning as a <think> block, but keep it OUT of
+                    // fullText so it doesn't interfere with SQL block extraction.
+                    yield { type: 'text-delta', text: '<think>' };
+                } else if (part.type === 'reasoning-delta') {
+                    yield { type: 'text-delta', text: part.text ?? part.textDelta ?? '' };
+                } else if (part.type === 'reasoning-end') {
+                    yield { type: 'text-delta', text: '</think>' };
                 }
             }
 

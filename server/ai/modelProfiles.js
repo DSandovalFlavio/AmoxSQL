@@ -340,9 +340,11 @@ function resolveThinking(modelName) {
         mechanism,
         togglable,
         mode: override,
-        // native `think` param only for the native mechanism; undefined otherwise
-        // (sending it to a model that doesn't support it errors).
-        nativeThink: mechanism === 'native' ? wantOn : undefined,
+        // native `think` param for the native mechanism (on/off) and for 'always'
+        // models like lfm2.5, which surface their reasoning channel only when
+        // think:true is sent. undefined for gemma/none (sending it can error).
+        nativeThink: mechanism === 'always' ? true
+            : (mechanism === 'native' ? wantOn : undefined),
         // gemma token prefix injected only when ON for the gemma mechanism.
         gemmaTokenPrefix: (mechanism === 'gemma-token' && wantOn) ? GEMMA_THINK_TOKEN : '',
     };

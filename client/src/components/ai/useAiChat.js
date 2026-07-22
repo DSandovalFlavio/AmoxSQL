@@ -539,6 +539,10 @@ export default function useAiChat({
             let fullText = '';
             let toolResults = [];
             let buffer = '';
+            // Reasoning timing (for the "Pensó durante Xs" chip): mark when the
+            // first <think> opens and when it closes.
+            let thinkStart = null;
+            let thinkingMs = null;
 
             // Text deltas arrive one per token; rendering the transcript once per
             // token saturates the main thread. Accumulate in fullText and flush to
@@ -584,6 +588,13 @@ export default function useAiChat({
 
                         if (event.type === 'text-delta') {
                             fullText += event.text;
+                            // Time the reasoning span (first <think> → its </think>).
+                            if (thinkStart === null && fullText.includes('<think>')) {
+                                thinkStart = performance.now();
+                            }
+                            if (thinkingMs === null && thinkStart !== null && fullText.includes('</think>')) {
+                                thinkingMs = performance.now() - thinkStart;
+                            }
                             scheduleStreamFlush();
 
                         } else if (event.type === 'tool-call') {
@@ -698,6 +709,7 @@ export default function useAiChat({
                 role: 'assistant',
                 content: fullText,
                 toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
+                thinkingMs: thinkingMs || undefined,
             };
             setMessages(prev => [...prev, assistantMsg]);
             setStreamingText('');

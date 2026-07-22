@@ -2492,6 +2492,15 @@ app.post('/api/ai/chat/stream', async (req, res) => {
 
                 if (part.type === 'text-delta') {
                     res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.textDelta || part.text })}\n\n`);
+                } else if (part.type === 'reasoning-start') {
+                    // Native reasoning (think:true) arrives on a separate channel;
+                    // wrap it as <think>…</think> in the text stream so the client's
+                    // existing thinking-block parser renders it live.
+                    res.write(`data: ${JSON.stringify({ type: 'text-delta', text: '<think>' })}\n\n`);
+                } else if (part.type === 'reasoning-delta') {
+                    res.write(`data: ${JSON.stringify({ type: 'text-delta', text: part.text ?? part.textDelta ?? '' })}\n\n`);
+                } else if (part.type === 'reasoning-end') {
+                    res.write(`data: ${JSON.stringify({ type: 'text-delta', text: '</think>' })}\n\n`);
                 } else if (part.type === 'tool-call') {
                     const toolArgs = part.input ?? part.args ?? {};
                     res.write(`data: ${JSON.stringify({ type: 'tool-call', toolName: part.toolName, args: toolArgs, toolCallId: part.toolCallId })}\n\n`);

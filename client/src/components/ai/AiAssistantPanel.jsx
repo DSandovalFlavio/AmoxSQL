@@ -440,6 +440,7 @@ const AiAssistantPanel = ({
                                 allMessages={messages}
                                 isDiving={false}
                                 isStreaming={false}
+                                thinkingMs={msg.thinkingMs}
                                 onRunSql={onRunSql}
                                 onApplyToFile={onEditFile}
                                 onAppendToFile={onAppendToFile}
@@ -465,13 +466,19 @@ const AiAssistantPanel = ({
                             />
                         )}
 
-                        {/* Generating indicator */}
-                        {isGenerating && !streamingText && activeToolCalls.length === 0 && (
-                            <div className="ai-thinking">
-                                <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
-                                Thinking...
-                            </div>
-                        )}
+                        {/* Generating indicator — distinguishes model warm-up
+                            (cold model still loading into memory) from the normal
+                            pre-token wait, using the live model-status snapshot. */}
+                        {isGenerating && !streamingText && activeToolCalls.length === 0 && (() => {
+                            const modelWarming = provider === 'ollama' && selectedModel &&
+                                !modelStatus.some(m => m.name === selectedModel || m.model === selectedModel);
+                            return (
+                                <div className="ai-thinking">
+                                    <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
+                                    {modelWarming ? 'Encendiendo modelo…' : 'Pensando…'}
+                                </div>
+                            );
+                        })()}
 
                         <div ref={chatEndRef} />
                     </div>

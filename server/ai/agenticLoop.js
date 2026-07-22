@@ -477,6 +477,16 @@ async function* agenticLoop(options, getModelFn) {
                     fullRunText += textChunk;
                     yield { type: 'text-delta', text: textChunk };
 
+                } else if (part.type === 'reasoning-start' || part.type === 'reasoning-delta' || part.type === 'reasoning-end') {
+                    // Native reasoning (think:true) arrives on a separate channel;
+                    // wrap it as <think>…</think> in the text stream so the client
+                    // renders it as a thinking block. Not counted toward iterText
+                    // (prose-first safety net) — reasoning isn't the final answer.
+                    const chunk = part.type === 'reasoning-start' ? '<think>'
+                        : part.type === 'reasoning-end' ? '</think>'
+                        : (part.text ?? part.textDelta ?? '');
+                    yield { type: 'text-delta', text: chunk };
+
                 } else if (part.type === 'tool-call') {
                     const args = part.input ?? part.args ?? {};
                     yield { type: 'tool-call', toolName: part.toolName, args, toolCallId: part.toolCallId };
