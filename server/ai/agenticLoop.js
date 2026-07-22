@@ -24,6 +24,7 @@ const { getSkill, loadSkills, matchSkillByIntent } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
 const { verifyFindings } = require('./findingsLinter');
+const { logOllamaPerf } = require('./perfLog');
 
 // Absolute hard ceiling — the working budget (effectiveMaxIterations) plus the
 // reserved wrap-up turn never exceeds this.
@@ -411,6 +412,7 @@ async function* agenticLoop(options, getModelFn) {
         });
 
         const iterStart = Date.now();
+        let iterFirstEventAt   = null;   // TTFT observable (perf instrumentation)
         let iterHasFinalAnswer = false;
         let iterHasAskUser     = false;
         let iterText           = '';
@@ -456,6 +458,7 @@ async function* agenticLoop(options, getModelFn) {
             armStall();
             for await (const part of result.fullStream) {
                 armStall(); // reset the silence timer on every event
+                if (!iterFirstEventAt) iterFirstEventAt = Date.now();
 
                 if (part.type === 'text-delta') {
                     const textChunk = part.textDelta ?? part.text ?? '';
@@ -622,6 +625,16 @@ async function* agenticLoop(options, getModelFn) {
 
                 } else if (part.type === 'finish') {
                     const iterMs = Date.now() - iterStart;
+
+                    // Perf instrumentation (F0): one readable line per Ollama request.
+                    // prefill = tokens NOT served by the KV cache — must be small on turn 2+.
+                    logOllamaPerf(`loop#${iteration}`, {
+                        model,
+                        usage: part.totalUsage ?? part.usage,
+                        providerMetadata: part.providerMetadata,
+                        ttftMs: iterFirstEventAt ? iterFirstEventAt - iterStart : null,
+                    });
+
                     // Accumulate token usage across iterations
                     if (part.usage) {
                         totalUsage.promptTokens     += part.usage.promptTokens     || 0;

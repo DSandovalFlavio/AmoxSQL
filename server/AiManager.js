@@ -25,6 +25,7 @@ const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo } = require(
 const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
 const { applyRowLimit } = require('./_sqlUtils');
 const { agenticLoop } = require('./ai/agenticLoop');
+const { logOllamaPerf } = require('./ai/perfLog');
 
 class AiManager {
     constructor() {
@@ -343,6 +344,9 @@ class AiManager {
                 maxTokens: profile.maxTokens,
             });
 
+            // Perf instrumentation (F0)
+            logOllamaPerf('chat', { model, usage: result.usage, providerMetadata: result.providerMetadata });
+
             // Run memory extraction in the background (skip for low-tier models)
             if (profile.supportsMemory) {
                 extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
@@ -461,7 +465,10 @@ class AiManager {
             tools: profile.supportsToolCalling ? tools : undefined,
             stopWhen: stepCountIs(profile.maxSteps),
             maxTokens: profile.maxTokens,
-            onFinish: async ({ usage }) => {
+            onFinish: async (event) => {
+                const { usage } = event;
+                // Perf instrumentation (F0): readable per-request line for Ollama
+                logOllamaPerf('stream', { model, usage, providerMetadata: event.providerMetadata });
                 // Run memory extraction in the background (skip for low-tier models)
                 if (profile.supportsMemory) {
                     extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
