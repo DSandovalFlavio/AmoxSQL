@@ -4,6 +4,7 @@ import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePl
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
+import ScriptRunSummary from './ScriptRunSummary';
 import ExportDataModal from './ExportDataModal';
 import ExportAiContextModal from './ExportAiContextModal';
 import { VariablesToggle, VariablesPanel, resolveVariables } from './VariablesBar';
@@ -375,6 +376,8 @@ const EditorPane = ({
         <>
             {activeTab.resultsError && <div className="ep-error">Error: {activeTab.resultsError}</div>}
 
+            {activeTab.scriptRun && <ScriptRunSummary scriptRun={activeTab.scriptRun} />}
+
             {activeTab.results && (
                 <>
                     {!isPoppedOut && (
@@ -406,7 +409,7 @@ const EditorPane = ({
                 </>
             )}
 
-            {!activeTab.results && !activeTab.resultsError && (
+            {!activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && (
                 <div className="ep-no-results">
                     Run query (Ctrl+Enter) to see results.
                 </div>

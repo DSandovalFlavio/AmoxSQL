@@ -10,8 +10,28 @@ import { useDialog } from './dialogs/DialogProvider';
 import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 import { DECK_STARTER_TEMPLATE } from '../utils/deckParser';
 import { invalidateSchema } from '../state/sidebarCache';
+import { splitSqlStatements } from '../utils/sqlSplitter';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
+// Per-file choice for multi-statement .sql files: 'script' | 'notebook'.
+// Keyed by file path so "don't ask again for this file" survives reloads.
+const SQL_FILE_PREFS_KEY = 'amoxsql-sql-file-prefs';
+
+const getSqlFilePref = (path) => {
+    if (!path) return null;
+    try {
+        const prefs = JSON.parse(localStorage.getItem(SQL_FILE_PREFS_KEY) || '{}');
+        return prefs[path] || null;
+    } catch { return null; }
+};
+const setSqlFilePref = (path, pref) => {
+    if (!path) return;
+    try {
+        const prefs = JSON.parse(localStorage.getItem(SQL_FILE_PREFS_KEY) || '{}');
+        prefs[path] = pref;
+        localStorage.setItem(SQL_FILE_PREFS_KEY, JSON.stringify(prefs));
+    } catch { /* non-fatal */ }
+};
 
 const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar }, ref) => {
     const toast = useToast();
@@ -285,30 +305,165 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         setRunningQueryId(null);
     }, []);
 
+    // Run a multi-statement script sequentially, stopping at the first error.
+    // Produces a `scriptRun` log (one step per statement) rather than N tables;
+    // the last statement that yields rows still shows its table, preserving the
+    // "one query → one table" model for the tabular part.
+    const runAsScript = useCallback(async (pane, tabId, statements, rowLimit) => {
+        const { onQueryResult, onDbChange } = stateRef.current;
+        const controller = new AbortController();
+        queryAbortControllerRef.current = controller;
+
+        const steps = [];
+        let finalTable = null;        // last statement's tabular data
+        let finalTableQuery = null;
+        let errorMarker = null;
+        let schemaChanged = false;
+        let cancelled = false;
+        const scriptStart = performance.now();
+
+        try {
+            for (let idx = 0; idx < statements.length; idx++) {
+                const stmt = statements[idx];
+                const stepStart = performance.now();
+                const qid = crypto.randomUUID();
+                setRunningQueryId(qid); // so cancelQuery targets the running statement
+                const step = {
+                    index: idx,
+                    sqlPreview: stmt.code.replace(/\s+/g, ' ').slice(0, 120),
+                    startLine: stmt.startLine,
+                    status: 'running',
+                };
+                steps.push(step);
+                // Live snapshot so the summary fills in as it runs.
+                updateTab(pane, tabId, {
+                    scriptRun: { steps: steps.map(s => ({ ...s })), running: true, total: statements.length },
+                    results: finalTable, resultsQuery: finalTableQuery, resultsError: null,
+                });
+
+                let data;
+                try {
+                    const response = await fetch(`${API_BASE}/api/query`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: stmt.raw, queryId: qid, limit: rowLimit }),
+                        signal: controller.signal,
+                    });
+                    data = await response.json();
+                    if (!response.ok) {
+                        step.status = 'error';
+                        step.error = data.error;
+                        step.ms = (performance.now() - stepStart).toFixed(0);
+                        const m = parseDuckDBError(data.error);
+                        if (m) errorMarker = { ...m, line: m.line + stmt.startLine - 1 };
+                        break; // stop-on-error
+                    }
+                } catch (err) {
+                    step.ms = (performance.now() - stepStart).toFixed(0);
+                    if (err.name === 'AbortError') { step.status = 'cancelled'; cancelled = true; break; }
+                    step.status = 'error';
+                    step.error = err.message;
+                    const m = parseDuckDBError(err.message);
+                    if (m) errorMarker = { ...m, line: m.line + stmt.startLine - 1 };
+                    break;
+                }
+
+                step.status = 'ok';
+                step.ms = (performance.now() - stepStart).toFixed(0);
+                step.resultType = data.resultType;
+                step.rowsAffected = data.rowsAffected;
+                step.rowCount = data.rowCount;
+                step.truncated = data.truncated;
+                step.details = data.resultDetails;
+
+                const upper = stmt.code.toUpperCase();
+                if (upper.match(/^(CREATE|DROP|ALTER|UPDATE|INSERT|DELETE|ATTACH|DETACH|COPY)/) || upper.includes('INTO')) {
+                    schemaChanged = true;
+                }
+                // Keep the tabular result from the last statement that produced one.
+                if (data.resultType === 'query_result' && Array.isArray(data.data)) {
+                    finalTable = data;
+                    finalTableQuery = stmt.raw;
+                }
+            }
+        } finally {
+            setRunningQueryId(null);
+            queryAbortControllerRef.current = null;
+        }
+
+        const totalMs = (performance.now() - scriptStart).toFixed(0);
+        const failCount = steps.filter(s => s.status === 'error').length;
+        const okCount = steps.filter(s => s.status === 'ok').length;
+        updateTab(pane, tabId, {
+            scriptRun: {
+                steps, totalMs, okCount, failCount, cancelled,
+                stoppedAtError: failCount > 0,
+                total: statements.length,
+                running: false,
+            },
+            results: finalTable,             // null when no statement produced a table
+            resultsQuery: finalTableQuery,
+            resultsError: null,              // script errors live inside scriptRun
+            errorMarker,
+        });
+
+        if (schemaChanged) { invalidateSchema(); if (onDbChange) onDbChange(); }
+        if (onQueryResult) onQueryResult({ executionTime: totalMs, rowCount: finalTable?.data?.length ?? null });
+
+        return { script: true, okCount, failCount, cancelled };
+    }, [updateTab]);
+
     const executeQuery = useCallback(async (tabId, query) => {
-        const { leftTabs, queryVariables, editorSettings, dialog, onQueryResult, onDbChange } = stateRef.current;
+        const { leftTabs, rightTabs, queryVariables, editorSettings, dialog, onQueryResult, onDbChange } = stateRef.current;
+        const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
         const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
+        const rowLimit = editorSettings?.queryResultLimit ?? 10000;
 
-        const stripped = resolvedQuery.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
-        const statements = stripped.split(';').map(s => s.trim()).filter(s => s.length > 0);
-        
+        const statements = splitSqlStatements(resolvedQuery);
+
+        // ── Multi-statement: run as script, or split into a notebook ────────
         if (statements.length > 1) {
-            const createNotebook = await dialog.confirmAsync({
-                title: 'Múltiples consultas detectadas',
-                message: 'AmoxSQL ejecuta una sola consulta por archivo o bloque. Se detectaron múltiples consultas en este script separadas por ";".\n\nDado que el resultado se tabula, visualizar y procesar múltiples consultas simultáneamente no está soportado en este modo y puede generar errores.\n\nTe recomendamos convertir este script en un "SQL Notebook", donde cada consulta se ejecutará en su propia celda de forma aislada.',
-                confirmLabel: 'Convertir a SQL Notebook',
-                cancelLabel: 'Cancelar',
-            });
-            
-            if (createNotebook) {
-                const notebookContent = statements.map((s) => `-- !CELL:CODE!\n${s};`).join('\n\n');
-                createNew('notebook', notebookContent);
+            let mode = getSqlFilePref(tab?.path); // 'script' | 'notebook' | null
+            if (!mode) {
+                const choice = await dialog.chooseAsync({
+                    title: 'Se detectaron múltiples consultas',
+                    message: `Este archivo tiene ${statements.length} sentencias SQL. ¿Cómo quieres ejecutarlo?`,
+                    options: [
+                        {
+                            value: 'script',
+                            label: 'Ejecutar como script',
+                            primary: true,
+                            description: 'Corre cada sentencia en orden y muestra un resumen (filas afectadas, tablas creadas). Si la última es un SELECT, muestra su tabla.',
+                        },
+                        {
+                            value: 'notebook',
+                            label: 'Convertir a SQL Notebook',
+                            description: 'Separa cada sentencia en su propia celda para análisis iterativo.',
+                        },
+                    ],
+                    checkboxLabel: tab?.path ? 'Recordar mi elección para este archivo' : null,
+                    cancelLabel: 'Cancelar',
+                });
+                if (!choice || !choice.value) return { cancelled: true };
+                mode = choice.value;
+                if (choice.remember && tab?.path) setSqlFilePref(tab.path, mode);
             }
-            return { cancelled: true };
+
+            if (mode === 'notebook') {
+                // Preserve comments: each cell keeps the statement's raw text.
+                const notebookContent = statements
+                    .map((s) => `-- !CELL:CODE!\n${s.raw}${s.raw.endsWith(';') ? '' : ';'}`)
+                    .join('\n\n');
+                createNew('notebook', notebookContent);
+                return { cancelled: true };
+            }
+
+            return await runAsScript(pane, tabId, statements, rowLimit);
         }
 
+        // ── Single statement (original behavior) ────────────────────────────
         const qid = crypto.randomUUID();
         const controller = new AbortController();
         queryAbortControllerRef.current = controller;
@@ -317,13 +472,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: editorSettings?.queryResultLimit ?? 10000 }),
+                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: rowLimit }),
                 signal: controller.signal,
             });
             const data = await response.json();
 
             if (response.ok) {
-                updateTab(pane, tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null });
+                updateTab(pane, tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null, scriptRun: null });
 
                 // Notify parent of query result for status bar
                 if (onQueryResult) {
@@ -341,26 +496,36 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     if (onDbChange) onDbChange();
                 }
 
-                return { data: data.data, executionTime: data.executionTime };
+                return {
+                    data: data.data,
+                    types: data.types,
+                    executionTime: data.executionTime,
+                    resultType: data.resultType,
+                    resultDetails: data.resultDetails,
+                    details: data.resultDetails,
+                    rowsAffected: data.rowsAffected,
+                    rowCount: data.rowCount,
+                    truncated: data.truncated,
+                };
             } else {
                 const marker = parseDuckDBError(data.error);
-                updateTab(pane, tabId, { results: null, resultsError: data.error, errorMarker: marker });
+                updateTab(pane, tabId, { results: null, resultsError: data.error, errorMarker: marker, scriptRun: null });
                 return { error: data.error };
             }
         } catch (err) {
             if (err.name === 'AbortError') {
                 // User cancelled — clear state silently, no error shown
-                updateTab(pane, tabId, { results: null, resultsError: null, errorMarker: null });
+                updateTab(pane, tabId, { results: null, resultsError: null, errorMarker: null, scriptRun: null });
                 return { cancelled: true };
             }
             const marker = parseDuckDBError(err.message);
-            updateTab(pane, tabId, { results: null, resultsError: err.message, errorMarker: marker });
+            updateTab(pane, tabId, { results: null, resultsError: err.message, errorMarker: marker, scriptRun: null });
             return { error: err.message };
         } finally {
             setRunningQueryId(null);
             queryAbortControllerRef.current = null;
         }
-    }, [updateTab]); // reads the rest via stateRef; createNew (stable) resolved by closure
+    }, [updateTab, runAsScript]); // reads the rest via stateRef; createNew (stable) resolved by closure
 
     const handleRunActive = useCallback(async () => {
         const tab = getActiveTab();

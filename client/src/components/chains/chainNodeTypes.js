@@ -429,6 +429,8 @@ export const RESULT_TYPE_LABELS = {
     checkpoint_reached: 'Checkpoint',
     table_referenced: 'Table Referenced',
     assertion_passed: 'Assertion Passed',
+    extension_installed: 'Extension Installed',
+    extension_loaded: 'Extension Loaded',
     unknown: 'Executed',
 };
 
