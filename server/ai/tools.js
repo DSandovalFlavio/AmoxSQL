@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { analyzeJoin } = require('./joinSanityCheck');
+const duckdbDocs = require('./duckdbDocs');
 const { applyRowLimit } = require('../_sqlUtils');
 
 const SQL_TIMEOUT_MS = 30000;
@@ -268,6 +269,30 @@ function createTools(context) {
                     };
                 } catch (err) {
                     return { error: err?.message || String(err) };
+                }
+            },
+        }),
+
+        lookup_duckdb_docs: tool({
+            description: "Look up the official DuckDB SQL documentation (bundled offline) for a specific feature, function, clause, or syntax. Call this BEFORE writing SQL when you are unsure of exact DuckDB syntax — especially DuckDB-specific features that differ from other SQL dialects: EXCLUDE / REPLACE / COLUMNS(*), QUALIFY, PIVOT / UNPIVOT, list comprehensions & lambdas, ASOF joins, struct/map/list types, SAMPLE, window functions, GROUPING SETS. Returns the relevant doc section with examples. Prefer this over guessing — getting DuckDB-specific syntax right on the first try saves a failed query.",
+            inputSchema: z.object({
+                topic: z.string().describe('The DuckDB feature, function, clause or syntax to look up. Be specific, e.g. "EXCLUDE clause in SELECT", "QUALIFY window filter", "list comprehension", "date_trunc", "PIVOT syntax".'),
+            }),
+            execute: async ({ topic }) => {
+                try {
+                    const r = duckdbDocs.lookup(topic);
+                    if (!r.found) {
+                        return { found: false, hint: 'No matching DuckDB doc. Try a more specific feature name, or verify the syntax with a small test query.' };
+                    }
+                    return {
+                        found: true,
+                        title: r.title,
+                        section: r.matchedHeading || null,
+                        source: r.url,
+                        content: r.content,
+                    };
+                } catch (err) {
+                    return { found: false, error: err?.message || String(err) };
                 }
             },
         }),
