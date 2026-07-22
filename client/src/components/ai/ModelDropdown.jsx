@@ -1,7 +1,23 @@
 import { useState, useRef, useEffect } from 'react';
 import { LuCpu, LuCloud, LuCheck, LuChevronDown } from 'react-icons/lu';
 
-function ModelDropdown({ provider, selectedModel, setSelectedModel, installedModels, cloudModelsList, isModelsLoading }) {
+/**
+ * Residency dot (F4): ● green = hot in VRAM, ◐ amber = loaded but on CPU (slower),
+ * ○ dim = cold / not loaded. Reads the /api/ai/model-status snapshot.
+ */
+function StatusDot({ name, modelStatus }) {
+    const entry = (modelStatus || []).find(m => m.name === name || m.model === name);
+    let color = 'var(--text-tertiary)';   // cold
+    let title = 'Not loaded — first message will load it';
+    let glyph = '○';
+    if (entry) {
+        if (entry.onCpu) { color = 'var(--warning, #e0a030)'; glyph = '◐'; title = 'Loaded, partly on CPU (slower)'; }
+        else { color = 'var(--success, #3ba55d)'; glyph = '●'; title = 'Hot in memory — instant response'; }
+    }
+    return <span title={title} style={{ color, fontSize: '9px', lineHeight: 1, flexShrink: 0 }}>{glyph}</span>;
+}
+
+function ModelDropdown({ provider, selectedModel, setSelectedModel, installedModels, cloudModelsList, isModelsLoading, modelStatus = [] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const containerRef = useRef(null);
@@ -43,6 +59,7 @@ function ModelDropdown({ provider, selectedModel, setSelectedModel, installedMod
     return (
         <div ref={containerRef} className="ai-composer-model" style={{ position: 'relative' }} onClick={() => !isModelsLoading && setIsOpen(!isOpen)}>
             {provider === 'ollama' ? <LuCpu size={12} /> : <LuCloud size={12} />}
+            {provider === 'ollama' && selectedModel && <StatusDot name={selectedModel} modelStatus={modelStatus} />}
             <span className="ai-composer-model-text" style={{ userSelect: 'none' }}>{displayText}</span>
             <LuChevronDown size={12} style={{ opacity: 0.5, marginLeft: '2px' }} />
 
@@ -69,13 +86,16 @@ function ModelDropdown({ provider, selectedModel, setSelectedModel, installedMod
                         <div style={{ padding: '12px', fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>No models found</div>
                     ) : (
                         filteredOptions.map(opt => (
-                            <div 
-                                key={opt.value} 
+                            <div
+                                key={opt.value}
                                 className="column-context-menu-item"
                                 onClick={() => { setSelectedModel(opt.value); setIsOpen(false); }}
                                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                             >
-                                <span>{opt.label}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {provider === 'ollama' && <StatusDot name={opt.value} modelStatus={modelStatus} />}
+                                    {opt.label}
+                                </span>
                                 {selectedModel === opt.value && <LuCheck size={12} style={{ color: 'var(--accent-primary)' }} />}
                             </div>
                         ))

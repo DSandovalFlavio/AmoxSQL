@@ -20,6 +20,37 @@ import { API_BASE as API } from '../../api.js';
 // (e.g. opening a chart in Story Flow and coming back) doesn't reset to the top.
 const scrollMemory = new Map();
 
+// Rough parameter count (in billions) parsed from an Ollama model name, for the
+// Deep Dive suitability hint. e2b/e4b (Gemma efficient variants) map to ~2/~4.
+function estimateParamsB(modelName) {
+    const n = String(modelName || '').toLowerCase();
+    const eMatch = n.match(/:e(\d+)b/);           // gemma4:e2b → 2
+    if (eMatch) return parseFloat(eMatch[1]);
+    const bMatch = n.match(/(\d+(?:\.\d+)?)b/);    // qwen3.5:9b → 9, :0.8b → 0.8
+    return bMatch ? parseFloat(bMatch[1]) : null;
+}
+
+/**
+ * F6: a soft, dismissible hint when a small (<15B) local model is used for Deep
+ * Dive — which genuinely benefits from a bigger model. Never blocks; it's advice.
+ */
+function DeepDiveModelHint({ provider, model }) {
+    const [dismissed, setDismissed] = useState(false);
+    if (provider !== 'ollama' || dismissed) return null;
+    const params = estimateParamsB(model);
+    if (params == null || params >= 15) return null;
+    return (
+        <span
+            title="Deep Dive runs multi-step analyses that reward a stronger model. This one will work, but a local model ≥25B (e.g. qwen3.5:27b, gemma4:26b) or a cloud model gives noticeably deeper analysis. Smaller models shine in the editor Assistant."
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-tertiary)', cursor: 'default' }}
+        >
+            <LuLightbulb size={11} style={{ color: 'var(--warning, #e0a030)' }} />
+            <span>modelo pequeño para Deep Dive</span>
+            <LuX size={10} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={(e) => { e.stopPropagation(); setDismissed(true); }} />
+        </span>
+    );
+}
+
 /**
  * AiDivingPanel — Full 3-column Data Diving mode.
  * Replaces the diving branch of AiSidebar.jsx, powered by the useAiChat hook.
@@ -50,6 +81,7 @@ const AiDivingPanel = ({
         customModel, setCustomModel,
         installedModels,
         isModelsLoading,
+        modelStatus,
 
         // Skills state
         availableSkills,
@@ -516,7 +548,7 @@ const AiDivingPanel = ({
             </div>
             <div className="ai-composer-toolbar">
                 <div className="ai-composer-toolbar-left">
-                    <ModelDropdown 
+                    <ModelDropdown
                         provider={provider}
                         selectedModel={selectedModel}
                         setSelectedModel={setSelectedModel}
@@ -525,7 +557,9 @@ const AiDivingPanel = ({
                         customModel={customModel}
                         setCustomModel={setCustomModel}
                         isModelsLoading={isModelsLoading}
+                        modelStatus={modelStatus}
                     />
+                    <DeepDiveModelHint provider={provider} model={selectedModel} />
                 </div>
                 <div className="ai-composer-toolbar-right">
                     <span className="ai-composer-hint">{'Enter \u21B5'}</span>

@@ -272,32 +272,79 @@ function invalidateCapabilitiesCache(modelName) {
 // for a given model (warmup included) — changing it forces a full model
 // unload+reload. That's why the value lives here, in one place.
 
-// Per-family sampling + thinking control. First match wins.
+// Per-family sampling + thinking mechanism. First match wins.
 // Sources: model pages on ollama.com (qwen3.5/ornith: 0.6/0.95/20; gemma4: 1.0/0.95/64).
+//
+// thinkMechanism — how "thinking" is toggled for this family:
+//   'native'      → the native /api/chat `think: true|false` parameter (qwen3.5, qwen3, ornith)
+//   'gemma-token' → prepend a <|think|> token to the system prompt to turn it ON (gemma4)
+//   'always'      → the model always reasons; no toggle (lfm2.5)
+//   'none'        → no thinking support (default)
+// thinkDefault — what "auto" resolves to for this family.
 const OLLAMA_FAMILY_RUNTIME = [
     // qwen3.5 / qwen3 / ornith (qwen3.5-based): thinking ON by default upstream →
-    // disable it in the tool loop (invisible CoT is pure perceived latency).
-    // `think:false` is safe for these families (native /api/chat support).
-    { pattern: /^(qwen3\.5|qwen3|ornith)/, sampling: { temperature: 0.6, top_p: 0.95, top_k: 20 }, think: false },
-    // gemma4: thinking is opt-in via a <|think|> token in the system prompt —
-    // we never inject it, so no `think` param needed (it would error).
-    { pattern: /^gemma4/, sampling: { temperature: 1.0, top_p: 0.95, top_k: 64 } },
+    // auto disables it in the tool loop (invisible CoT is pure perceived latency).
+    { pattern: /^(qwen3\.5|qwen3|ornith)/, sampling: { temperature: 0.6, top_p: 0.95, top_k: 20 }, thinkMechanism: 'native', thinkDefault: false },
+    // gemma4: thinking is opt-in via a <|think|> token at the start of the system prompt.
+    { pattern: /^gemma4/, sampling: { temperature: 1.0, top_p: 0.95, top_k: 64 }, thinkMechanism: 'gemma-token', thinkDefault: false },
+    // lfm2.5: reasoning-only model, always thinks (short CoT); no toggle.
+    { pattern: /^lfm2\.5/, sampling: {}, thinkMechanism: 'always', thinkDefault: true },
 ];
+
+const GEMMA_THINK_TOKEN = '<|think|>';
 
 // Global runtime config (set from ~/.amoxsql/config.json by the app).
 // keepAlive: how long Ollama keeps the model resident after a request.
 // numCtx: 0 = auto (per-tier default below); otherwise a forced global value.
-let _ollamaRuntimeConfig = { keepAlive: '4h', numCtx: 0 };
+// thinkOverrides: { '<model>': 'on'|'off'|'auto' } — per-model thinking control (F5).
+let _ollamaRuntimeConfig = { keepAlive: '4h', numCtx: 0, thinkOverrides: {} };
 
 /**
  * Set global Ollama runtime overrides from user config.
- * @param {{ keepAlive?: string|number, numCtx?: number }} cfg
+ * @param {{ keepAlive?: string|number, numCtx?: number, thinkOverrides?: object }} cfg
  */
 function setOllamaRuntimeConfig(cfg) {
     if (!cfg) return;
     _ollamaRuntimeConfig = {
         keepAlive: cfg.keepAlive || '4h',
         numCtx: Number(cfg.numCtx) || 0,
+        thinkOverrides: cfg.thinkOverrides || {},
+    };
+}
+
+/**
+ * Resolves the thinking behavior for a model, combining the family mechanism
+ * with the user's per-model override (F5). Returns everything both the model
+ * instance (native `think`) and the prompt builder (gemma token) need.
+ *
+ * @param {string} modelName
+ * @returns {{ mechanism: string, togglable: boolean, mode: 'on'|'off'|'auto',
+ *            nativeThink: (boolean|undefined), gemmaTokenPrefix: string }}
+ */
+function resolveThinking(modelName) {
+    const name = String(modelName || '').toLowerCase();
+    const fam = OLLAMA_FAMILY_RUNTIME.find(f => f.pattern.test(name));
+    const mechanism = fam?.thinkMechanism || 'none';
+    const override = (_ollamaRuntimeConfig.thinkOverrides || {})[modelName]
+                  || (_ollamaRuntimeConfig.thinkOverrides || {})[name]
+                  || 'auto';
+
+    // Resolve on/off from the override, falling back to the family default.
+    const wantOn = override === 'on' ? true
+                 : override === 'off' ? false
+                 : !!fam?.thinkDefault;  // 'auto'
+
+    const togglable = mechanism === 'native' || mechanism === 'gemma-token';
+
+    return {
+        mechanism,
+        togglable,
+        mode: override,
+        // native `think` param only for the native mechanism; undefined otherwise
+        // (sending it to a model that doesn't support it errors).
+        nativeThink: mechanism === 'native' ? wantOn : undefined,
+        // gemma token prefix injected only when ON for the gemma mechanism.
+        gemmaTokenPrefix: (mechanism === 'gemma-token' && wantOn) ? GEMMA_THINK_TOKEN : '',
     };
 }
 
@@ -308,7 +355,8 @@ function setOllamaRuntimeConfig(cfg) {
  *
  * @param {string} modelName
  * @param {object} [profile] - Pre-computed model profile (avoids recursion)
- * @returns {{ numCtx: number, keepAlive: string|number, sampling: object, think: boolean|undefined }}
+ * @returns {{ numCtx: number, keepAlive: string|number, sampling: object,
+ *            think: (boolean|undefined), gemmaTokenPrefix: string }}
  */
 function getOllamaRuntime(modelName, profile) {
     const name = String(modelName || '').toLowerCase();
@@ -321,11 +369,13 @@ function getOllamaRuntime(modelName, profile) {
         : (p.tier === 'low' ? 8192 : 16384);
 
     const fam = OLLAMA_FAMILY_RUNTIME.find(f => f.pattern.test(name));
+    const thinking = resolveThinking(modelName);
     return {
         numCtx,
         keepAlive: _ollamaRuntimeConfig.keepAlive,
         sampling: fam?.sampling || {},
-        think: fam?.think,
+        think: thinking.nativeThink,
+        gemmaTokenPrefix: thinking.gemmaTokenPrefix,
     };
 }
 
@@ -498,6 +548,7 @@ module.exports = {
     getUserTierOverrides,
     getOllamaRuntime,
     setOllamaRuntimeConfig,
+    resolveThinking,
     TIER_DEFAULTS,
     MODEL_PATTERNS,
 };

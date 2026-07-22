@@ -19,7 +19,7 @@ const { createTools } = require('./tools');
 const { buildSystemPrompt, buildSystemParts } = require('./systemPrompt');
 const { loadUserRules } = require('./userRules');
 const { compactContext, needsCompaction } = require('./compaction');
-const { loadMemoriesText, extractMemories } = require('./memory');
+const { loadMemoriesText, extractMemories, memoryExtractionAllowed } = require('./memory');
 const { getSkill, loadSkills, matchSkillByIntent } = require('./skills');
 const { getModelProfile } = require('./modelProfiles');
 const { loadProjectContext, buildProjectContextSection } = require('./contextLoader');
@@ -227,6 +227,7 @@ async function* agenticLoop(options, getModelFn) {
         planStepOverrides = [],
         continueMode = false,
         uiTheme = null,
+        memoryExtraction = 'cloud-only',
     } = options;
 
     const provider = providerOverride;
@@ -262,6 +263,11 @@ async function* agenticLoop(options, getModelFn) {
 
     const profile = getModelProfile(model, provider);
 
+    // gemma4 thinking token (F5) — empty unless the model uses the gemma
+    // mechanism AND thinking is turned on for it.
+    const { getOllamaRuntime } = require('./modelProfiles');
+    const thinkTokenPrefix = provider === 'ollama' ? getOllamaRuntime(model).gemmaTokenPrefix : '';
+
     // Tell the UI which framework is shaping this analysis (auto-activated only —
     // when the user picked it, the UI already shows it). Unknown to older clients.
     if (activeSkill && !activeSkillId) {
@@ -278,6 +284,7 @@ async function* agenticLoop(options, getModelFn) {
         enablePlanner: mode === 'diving',
         projectCtx,
         uiTheme,
+        thinkTokenPrefix,
     };
 
     // For Anthropic: split into static (cached) + dynamic blocks.
@@ -849,8 +856,9 @@ async function* agenticLoop(options, getModelFn) {
         }
     }
 
-    // Background memory extraction
-    if (profile.supportsMemory) {
+    // Background memory extraction (gated by policy — off for local models by
+    // default so the extra LLM call doesn't compete for the Ollama slot / cache).
+    if (profile.supportsMemory && memoryExtractionAllowed(provider, memoryExtraction)) {
         const llm = llmModel;
         extractMemories(llm, messages, dbManager).catch(e =>
             console.error('[AgenticLoop] Memory extraction error:', e)

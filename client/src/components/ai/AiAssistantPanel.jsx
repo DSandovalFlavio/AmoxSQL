@@ -45,6 +45,7 @@ const AiAssistantPanel = ({
         customModel, setCustomModel,
         installedModels,
         isModelsLoading,
+        modelStatus,
 
         // Context
         contextObjects,
@@ -556,7 +557,7 @@ const AiAssistantPanel = ({
                                         </button>
                                     </div>
                                 ) : (
-                                    <ModelDropdown 
+                                    <ModelDropdown
                                         provider={provider}
                                         selectedModel={selectedModel}
                                         setSelectedModel={setSelectedModel}
@@ -565,6 +566,7 @@ const AiAssistantPanel = ({
                                         customModel={customModel}
                                         setCustomModel={setCustomModel}
                                         isModelsLoading={isModelsLoading}
+                                        modelStatus={modelStatus}
                                     />
                                 )}
                             </div>

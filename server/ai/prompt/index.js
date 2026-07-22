@@ -159,15 +159,19 @@ function buildSystemParts(options = {}) {
  * Builds the complete system prompt as a single string (all providers).
  */
 function buildSystemPrompt(options = {}) {
-    const { modelProfile = null } = options;
+    const { modelProfile = null, thinkTokenPrefix = '' } = options;
     const tier = modelProfile?.tier || 'high';
 
+    // gemma4 thinking is enabled by a <|think|> token at the very START of the
+    // system prompt (F5). Empty for every other model / when thinking is off.
+    const prefix = thinkTokenPrefix ? thinkTokenPrefix + '\n\n' : '';
+
     if (tier === 'low') {
-        return buildCompactPrompt(options);
+        return prefix + buildCompactPrompt(options);
     }
 
     const { enablePlanner = false, mode = 'diving' } = options;
-    return buildStaticSection(enablePlanner, tier, mode) + '\n\n' + buildDynamicSection(options);
+    return prefix + buildStaticSection(enablePlanner, tier, mode) + '\n\n' + buildDynamicSection(options);
 }
 
 /**

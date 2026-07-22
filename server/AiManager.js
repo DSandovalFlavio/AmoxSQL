@@ -25,7 +25,7 @@ const { createTools } = require('./ai/tools');
 const { buildSystemPrompt } = require('./ai/systemPrompt');
 const { loadUserRules } = require('./ai/userRules');
 const { compactContext } = require('./ai/compaction');
-const { loadMemoriesText, extractMemories } = require('./ai/memory');
+const { loadMemoriesText, extractMemories, memoryExtractionAllowed } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
 const { getModelProfile, setUserTierOverrides, fetchOllamaModelInfo, getOllamaRuntime, setOllamaRuntimeConfig } = require('./ai/modelProfiles');
 const { buildVirtualMapping, extractSqlBlocks, interceptTableNames, formatResultForContext } = require('./ai/promptOnlyMode');
@@ -68,6 +68,14 @@ class AiManager {
                 // starts; numCtx 0 = auto por tier (8k low / 16k medium+).
                 ollamaKeepAlive: '4h',
                 ollamaNumCtx: 0,
+                // Extracción de memorias en background (F4): 'cloud-only' evita el
+                // LLM extra por turno en modelos locales (compite por el slot y
+                // rompe el KV cache). Opciones: 'cloud-only' | 'always' | 'off'.
+                memoryExtraction: 'cloud-only',
+                // Overrides de thinking por modelo (F5): { '<model>': 'on'|'off'|'auto' }
+                ollamaThinkOverrides: {},
+                // Modelo por modo (F6): { assistant, diving } — vacío = usa defaultModel.
+                modelPerMode: {},
                 geminiModels: [
                     { id: 'gemini-2.5-flash-lite', category: 'flash-lite', dailyLimit: 1000, contextWindow: 100000, costPerMInput: 0.10 },
                     { id: 'gemini-2.5-flash', category: 'flash', dailyLimit: 250, contextWindow: 500000, costPerMInput: 0.30 },
@@ -128,13 +136,20 @@ class AiManager {
             // Migrate: ensure Ollama runtime fields exist
             if (config.ollamaKeepAlive === undefined) { config.ollamaKeepAlive = '4h'; needsWrite = true; }
             if (config.ollamaNumCtx === undefined) { config.ollamaNumCtx = 0; needsWrite = true; }
+            if (config.memoryExtraction === undefined) { config.memoryExtraction = 'cloud-only'; needsWrite = true; }
+            if (config.ollamaThinkOverrides === undefined) { config.ollamaThinkOverrides = {}; needsWrite = true; }
+            if (config.modelPerMode === undefined) { config.modelPerMode = {}; needsWrite = true; }
             if (needsWrite) fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
 
             // Sync tier overrides with modelProfiles module
             setUserTierOverrides(config.modelTierOverrides || {});
 
-            // Sync Ollama runtime config (keep_alive / num_ctx) with modelProfiles
-            setOllamaRuntimeConfig({ keepAlive: config.ollamaKeepAlive, numCtx: config.ollamaNumCtx });
+            // Sync Ollama runtime config (keep_alive / num_ctx / think overrides)
+            setOllamaRuntimeConfig({
+                keepAlive: config.ollamaKeepAlive,
+                numCtx: config.ollamaNumCtx,
+                thinkOverrides: config.ollamaThinkOverrides || {},
+            });
 
             return config;
         } catch (e) {
@@ -276,7 +291,8 @@ class AiManager {
         if (!instance) {
             instance = ollama(modelName, {
                 keep_alive: rt.keepAlive,
-                ...(rt.think === false ? { think: false } : {}),
+                // Native think param only when defined (qwen3.5/qwen3/ornith).
+                ...(typeof rt.think === 'boolean' ? { think: rt.think } : {}),
                 options: {
                     num_ctx: rt.numCtx,
                     ...rt.sampling,
@@ -362,6 +378,10 @@ class AiManager {
         // Get model profile for adaptive parameters
         const profile = getModelProfile(model, provider);
 
+        // gemma4 thinking token (F5) — empty unless the model uses the gemma
+        // mechanism AND thinking is turned on for it.
+        const thinkTokenPrefix = provider === 'ollama' ? getOllamaRuntime(model).gemmaTokenPrefix : '';
+
         // Build dynamic system prompt (tier-adaptive)
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
@@ -369,7 +389,7 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType, tableRoster,
+            filePath, fileType, tableRoster, thinkTokenPrefix,
         });
 
         // Create tool context (mode-aware for tool filtering)
@@ -397,8 +417,9 @@ class AiManager {
             // Perf instrumentation (F0)
             logOllamaPerf('chat', { model, usage: result.usage, providerMetadata: result.providerMetadata });
 
-            // Run memory extraction in the background (skip for low-tier models)
-            if (profile.supportsMemory) {
+            // Run memory extraction in the background (skip for low-tier models,
+            // and — per policy — for local models to keep the Ollama slot free).
+            if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
                 extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
             }
 
@@ -489,13 +510,17 @@ class AiManager {
         // Get model profile for adaptive parameters
         const profile = getModelProfile(model, provider);
 
+        // gemma4 thinking token (F5) — empty unless the model uses the gemma
+        // mechanism AND thinking is turned on for it.
+        const thinkTokenPrefix = provider === 'ollama' ? getOllamaRuntime(model).gemmaTokenPrefix : '';
+
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
             currentQuery, currentResult, currentChartConfig,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType, tableRoster,
+            filePath, fileType, tableRoster, thinkTokenPrefix,
         });
 
         const queryResults = new Map();
@@ -520,8 +545,9 @@ class AiManager {
                 const { usage } = event;
                 // Perf instrumentation (F0): readable per-request line for Ollama
                 logOllamaPerf('stream', { model, usage, providerMetadata: event.providerMetadata });
-                // Run memory extraction in the background (skip for low-tier models)
-                if (profile.supportsMemory) {
+                // Run memory extraction in the background (skip for low-tier models,
+                // and — per policy — for local models to keep the Ollama slot free).
+                if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
                     extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
                 }
                 if (provider === 'gemini' && usage) {

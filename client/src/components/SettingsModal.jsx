@@ -578,6 +578,17 @@ function ExternalSkillsSection() {
 
 // ─── Settings Modal ───────────────────────────────────────────────────────────
 
+// How "thinking" is toggled for an Ollama model (mirrors OLLAMA_FAMILY_RUNTIME
+// on the server): 'native' = qwen3.5/qwen3/ornith (think param), 'gemma-token' =
+// gemma4 (system-prompt token), 'always' = lfm2.5 (fixed on), 'none' = no control.
+function thinkMechanism(modelName) {
+    const n = String(modelName || '').toLowerCase();
+    if (/^(qwen3\.5|qwen3|ornith)/.test(n)) return 'native';
+    if (/^gemma4/.test(n)) return 'gemma-token';
+    if (/^lfm2\.5/.test(n)) return 'always';
+    return 'none';
+}
+
 const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentInterfaceFont = 'manrope', onInterfaceFontChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
     const [editorSubTab, setEditorSubTab]   = useState('general');
@@ -599,6 +610,11 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [plannerMode, setPlannerMode] = useState(true);
     const [geminiModels, setGeminiModels] = useState([]);
     const [modelTierOverrides, setModelTierOverrides] = useState({});
+    // AI local performance settings (F1/F4/F5)
+    const [memoryExtraction, setMemoryExtraction] = useState('cloud-only');
+    const [ollamaThinkOverrides, setOllamaThinkOverrides] = useState({});
+    const [ollamaKeepAlive, setOllamaKeepAlive] = useState('4h');
+    const [ollamaNumCtx, setOllamaNumCtx] = useState(0);
 
     // Ollama Specific State
     const [installedModels, setInstalledModels] = useState([]);
@@ -711,6 +727,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     if (data.experimental) setPlannerMode(!!data.experimental.planner);
                     if (data.geminiModels) setGeminiModels(data.geminiModels);
                     if (data.modelTierOverrides) setModelTierOverrides(data.modelTierOverrides);
+                    if (data.memoryExtraction) setMemoryExtraction(data.memoryExtraction);
+                    if (data.ollamaThinkOverrides) setOllamaThinkOverrides(data.ollamaThinkOverrides);
+                    if (data.ollamaKeepAlive) setOllamaKeepAlive(data.ollamaKeepAlive);
+                    if (data.ollamaNumCtx !== undefined) setOllamaNumCtx(data.ollamaNumCtx);
                     if (data.gsheets) {
                         setGsheetsKeyPath(data.gsheets.serviceAccountKeyPath || '');
                         setGsheetsEmail(data.gsheets.serviceAccountEmail || '');
@@ -780,7 +800,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     provider, defaultModel, s3Config, gcsConfig,
                     experimental: { planner: plannerMode },
                     geminiModels,
-                    modelTierOverrides
+                    modelTierOverrides,
+                    memoryExtraction, ollamaThinkOverrides,
+                    ollamaKeepAlive, ollamaNumCtx,
                 })
             });
             window.dispatchEvent(new Event('amox_settings_updated'));
@@ -2089,9 +2111,110 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 })}
                                             </div>
                                             <p className="stg-card-desc stg-card-desc--mt10">
-                                                Tiers dictate capabilities: Low (Prompts only), Medium (Tools + SQL), High (Tools + Charts + Advanced Planner). 
+                                                Tiers dictate capabilities: Low (Prompts only), Medium (Tools + SQL), High (Tools + Charts + Advanced Planner).
                                                 Default tiers are auto-detected using Ollama's API based on tool and thinking support.
                                             </p>
+                                        </div>
+
+                                        {/* ── AI Local Performance (F1/F4/F5) ── */}
+                                        <div className="stg-card stg-card--transparent">
+                                            <h4 className="stg-card-title stg-card-title--mb12">
+                                                <LuSparkles size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
+                                                Rendimiento AI local
+                                            </h4>
+
+                                            {/* Runtime: keep_alive + num_ctx */}
+                                            <div className="stg-row stg-row--separator">
+                                                <div className="stg-flex-1">
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Modelo en memoria (keep-alive)</h4>
+                                                    <p className="stg-row-desc">Cuánto se queda el modelo cargado tras usarlo. Más largo = sin esperas de recarga al volver. Ej: <code>4h</code>, <code>30m</code>, <code>-1</code> (siempre).</p>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    className="stg-input"
+                                                    style={{ width: 90 }}
+                                                    value={ollamaKeepAlive}
+                                                    onChange={(e) => setOllamaKeepAlive(e.target.value)}
+                                                    placeholder="4h"
+                                                />
+                                            </div>
+
+                                            <div className="stg-row stg-row--separator">
+                                                <div className="stg-flex-1">
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Ventana de contexto (num_ctx)</h4>
+                                                    <p className="stg-row-desc">Tokens de contexto por modelo. <code>0</code> = automático (8k modelos pequeños, 16k el resto). Debe caber en VRAM para no derramar a CPU.</p>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    className="stg-input"
+                                                    style={{ width: 90 }}
+                                                    value={ollamaNumCtx}
+                                                    min={0} step={2048}
+                                                    onChange={(e) => setOllamaNumCtx(Number(e.target.value) || 0)}
+                                                />
+                                            </div>
+
+                                            {/* Memory extraction policy */}
+                                            <div className="stg-row stg-row--separator">
+                                                <div className="stg-flex-1">
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Extracción de memorias</h4>
+                                                    <p className="stg-row-desc">Analizar cada conversación para recordar preferencias. En local usa una llamada extra al modelo que compite por el slot — por eso el default lo evita en Ollama.</p>
+                                                </div>
+                                                <select
+                                                    className="stg-select"
+                                                    style={{ width: 150 }}
+                                                    value={memoryExtraction}
+                                                    onChange={(e) => setMemoryExtraction(e.target.value)}
+                                                >
+                                                    <option value="cloud-only">Solo en la nube</option>
+                                                    <option value="always">Siempre</option>
+                                                    <option value="off">Desactivada</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Per-model thinking control */}
+                                            <div style={{ marginTop: 10 }}>
+                                                <h4 className="stg-section-heading stg-section-heading--mb4">Razonamiento (thinking) por modelo</h4>
+                                                <p className="stg-row-desc" style={{ marginBottom: 8 }}>
+                                                    El "pensamiento" mejora respuestas complejas pero añade latencia (el modelo escribe antes de responderte). <strong>Auto</strong> usa el default recomendado por modelo.
+                                                </p>
+                                                {installedModels.filter(m => thinkMechanism(m.name) !== 'none').length === 0 ? (
+                                                    <p className="stg-row-desc" style={{ opacity: 0.7 }}>No hay modelos con control de razonamiento instalados.</p>
+                                                ) : (
+                                                    installedModels.filter(m => thinkMechanism(m.name) !== 'none').map(m => {
+                                                        const mech = thinkMechanism(m.name);
+                                                        const fixed = mech === 'always';
+                                                        const val = fixed ? 'always' : (ollamaThinkOverrides[m.name] || 'auto');
+                                                        return (
+                                                            <div key={m.name} className="stg-row" style={{ padding: '5px 0' }}>
+                                                                <div className="stg-flex-1" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                                                                    <LuBrain size={12} style={{ color: 'var(--accent-primary)' }} />
+                                                                    {m.name}
+                                                                </div>
+                                                                {fixed ? (
+                                                                    <span className="stg-row-desc" style={{ opacity: 0.7 }} title="Este modelo razona siempre por diseño">Siempre activo</span>
+                                                                ) : (
+                                                                    <select
+                                                                        className="stg-select"
+                                                                        style={{ width: 110 }}
+                                                                        value={val}
+                                                                        onChange={(e) => setOllamaThinkOverrides(prev => {
+                                                                            const next = { ...prev };
+                                                                            if (e.target.value === 'auto') delete next[m.name];
+                                                                            else next[m.name] = e.target.value;
+                                                                            return next;
+                                                                        })}
+                                                                    >
+                                                                        <option value="auto">Auto</option>
+                                                                        <option value="on">Activado</option>
+                                                                        <option value="off">Desactivado</option>
+                                                                    </select>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="stg-card stg-card--transparent">
