@@ -283,9 +283,9 @@ function createTools(context) {
                     'scatter', 'bubble', 'combo',
                     'funnel', 'heatmap', 'treemap',
                 ]).describe('Chart type — pick by the message + data shape, NOT by column type. bar=compare categories (with split_by → grouped bars, ideal for before/after across 2–3 periods); bar-horizontal=ranking or long category names (x_axis_key=category shown LEFT, y_axis_keys=value shown BOTTOM); line/area=true time series with ≥4–5 points; donut=part-of-whole (≤7 slices); scatter=correlation; combo=two metrics at different scales. A date column with only 2–3 points is a comparison → use grouped bars, not a line.'),
-                title: z.string().describe('Descriptive chart title including the key metric and time range or dimension.'),
-                subtitle: z.string().optional().describe('One-line insight below the title, e.g. "Revenue grew 23% YoY driven by the West region".'),
-                footnote: z.string().optional().describe('Data source or caveat below the chart, e.g. "Based on 1,240 transactions · Jan–Dec 2024".'),
+                title: z.string().describe('The title is a CLAIM, not a label — state what the data shows, e.g. "West leads with 34% of sales", NOT "Sales by region". Write it WITHOUT a terminal period (the figure can add a QED-style mark). Include the key metric and dimension/time range.'),
+                subtitle: z.string().optional().describe('One factual line that explains the calculation, scope, or reading of the chart (not a second headline). When the series are colour-encoded, name them here so the subtitle doubles as the legend, e.g. "Quarterly revenue by region, in USD".'),
+                footnote: z.string().optional().describe('Scope or caveat — row count, date range, method, e.g. "Based on 1,240 transactions · Jan–Dec 2024". NEVER invent a data source or provenance you cannot support from the query context; describe scope instead of naming a source you are guessing.'),
 
                 // ── Data mapping ──────────────────────────────────────────────────
                 x_axis_key: z.string().describe('Column for the X axis or category dimension.'),
@@ -313,9 +313,10 @@ function createTools(context) {
                     'blues', 'greens', 'purples', 'ylorbr', 'reds',
                     'spectral', 'rdylbu', 'rdylgn', 'piyg',
                     'ocean', 'sunset', 'corporate',
-                ]).optional().describe('Color palette — reason it by data role + theme + readability (see "Color is a design decision" and "Rendering context" in your instructions), do NOT default blindly. Qualitative (distinct series): default, dark2, set2, vivid, pastel, neon. Sequential (ordered magnitude, light→dark): blues, greens, purples, ylorbr. Diverging (+/- around a center): spectral, rdylbu, rdylgn, piyg. Brand/mono: ocean, sunset, corporate(grays). reds/sunset & red overlays: RESERVED for negative/alarm metrics only. For a single-metric ranking keep one color + highlight the leader, never one color per bar.'),
+                    'sterling', 'sterlingDark', 'sterlingSequential', 'sterlingDiverging', 'sterlingHeat',
+                ]).optional().describe('Color palette — reason it by data role + theme + readability (see "Color is a design decision" and "Rendering context" in your instructions), do NOT default blindly. Qualitative (distinct series): default, dark2, set2, vivid, pastel, neon, sterling (editorial, calibrated for light & dark), sterlingDark. Sequential (ordered magnitude, light→dark): blues, greens, purples, ylorbr, sterlingSequential. Diverging (+/- around a center): spectral, rdylbu, rdylgn, piyg, sterlingDiverging (violet=positive, teal=negative). Brand/mono: ocean, sunset, corporate(grays). reds/sunset & red overlays: RESERVED for negative/alarm metrics only. For a single-metric ranking keep one color + highlight the leader, never one color per bar (categorical only when the categories carry meaning).'),
                 show_data_labels: z.boolean().optional().describe('Show value labels directly on bars/points. Good for ranked bar charts. Default: false.'),
-                legend_position: z.enum(['top', 'bottom', 'left', 'right', 'none']).optional().describe('Legend placement. none hides it. Default: top.'),
+                legend_position: z.enum(['top', 'bottom', 'left', 'right', 'inline', 'none']).optional().describe('Legend placement. "inline" weaves the series names into the subtitle sentence (editorial style — clean for 2–4 series). none hides it. Default: top.'),
                 grid_mode: z.enum(['both', 'horizontal', 'vertical', 'none']).optional().describe('Grid lines. Default: horizontal.'),
 
                 // ── Line/Area chart options ───────────────────────────────────────

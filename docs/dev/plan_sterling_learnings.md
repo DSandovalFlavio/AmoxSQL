@@ -144,7 +144,9 @@ En `DEFAULT_CONFIG` + `StoryPanel.jsx` + render `DataVisualizer.jsx:433-525`:
 5. **CSV de filas procesadas**: botón en `ExportPanel.jsx` que descarga las filas exactas que el chart renderiza (post agregación/pivot) — no la query original.
 Todo entra al `chartRef` → sale en el PNG y en los decks de Report Flow gratis.
 
-### Fase 6 — Tokens ópticos compartidos
+### Fase 6 — Tokens ópticos compartidos (DIFERIDA a backlog)
+
+> Decisión (2026-07-22): diferida a propósito. Es un refactor de consistencia de bajo valor visible y alto riesgo de regresión en 15+ tipos de gráfico. Se retoma como su propio PR cuando haya ancho de banda para validar cada tipo en light y dark.
 
 `DataVisualizer/constants.js` (o módulo nuevo `visualStyle.js`): escala semántica de strokes/opacidades estilo Sterling adaptada a Recharts (grid/mark/series/emphasis; ghost→signal). Refactor de `ChartRenderer.jsx` para consumirla en vez de valores ad-hoc. Objetivo: los 15+ tipos de chart leen como un solo sistema.
 
