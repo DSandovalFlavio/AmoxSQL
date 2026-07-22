@@ -1006,22 +1006,25 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 
 /* ═══════════════════════════════════════════════
    DARK THEME: STERLING DEEP
-   A calmer, deeper take on Sterling Dark. The surface ladder is shifted well
-   down into a near-black violet: the SIDEBAR/panels sit at #0a0714 and the
-   app/editor background drops below it to #050310, same violet hue throughout.
+   A calmer, deeper take on Sterling Dark. Anchored on a MUTED grey-violet
+   (#0b0912 sidebar) — low chroma, not the saturated violet of Sterling Dark —
+   with the app/editor background dropping below it to #08060f.
    Same Sterling palette on syntax/feedback — but on deeper surfaces it reads
    rich instead of loud. Values derived from Sterling (MIT) © La Matemaga.
    ═══════════════════════════════════════════════ */
 .theme-sterlingdeep {
-  --surface-base:    #050310;   /* app + editor background — near-black violet */
-  --surface-raised:  #0a0714;   /* panels, sidebar (the old Deep background) */
-  --surface-overlay: #110c1e;   /* modals, popovers, row hover — elevation */
-  --surface-inset:   #020106;   /* wells: gutter, inputs, code blocks — deepest */
+  /* Anchored on #0b0912 (the sidebar) — a muted, low-chroma grey-violet, not
+     the saturated violet of Sterling Dark. The whole ladder keeps that quiet
+     character so nothing reads bright. */
+  --surface-base:    #08060f;   /* app + editor background — below the sidebar */
+  --surface-raised:  #0b0912;   /* panels, sidebar, table header (reference) */
+  --surface-overlay: #14111e;   /* modals, popovers, row hover — elevation */
+  --surface-inset:   #05040b;   /* wells: gutter, inputs, code blocks — deepest */
 
-  /* Very quiet borders — deep, desaturated violets */
-  --border-subtle:  #1a1430;
-  --border-default: #241d3a;
-  --border-strong:  #322a4a;
+  /* Very quiet borders — muted grey-violet, low chroma */
+  --border-subtle:  #191622;
+  --border-default: #221e2c;
+  --border-strong:  #2e2a3a;
 
   --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
   --text-secondary: #a99fc4;   /* Sterling muted */
@@ -1076,7 +1079,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
-  --button-text-color: #050310;   /* deep ink on the lavender accent */
+  --button-text-color: #08060f;   /* deep ink on the lavender accent */
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --table-row-hover: rgba(196, 181, 253, 0.03);
