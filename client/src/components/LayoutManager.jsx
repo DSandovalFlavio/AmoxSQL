@@ -496,7 +496,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     if (onDbChange) onDbChange();
                 }
 
-                return { data: data.data, executionTime: data.executionTime };
+                return {
+                    data: data.data,
+                    types: data.types,
+                    executionTime: data.executionTime,
+                    resultType: data.resultType,
+                    resultDetails: data.resultDetails,
+                    details: data.resultDetails,
+                    rowsAffected: data.rowsAffected,
+                    rowCount: data.rowCount,
+                    truncated: data.truncated,
+                };
             } else {
                 const marker = parseDuckDBError(data.error);
                 updateTab(pane, tabId, { results: null, resultsError: data.error, errorMarker: marker, scriptRun: null });

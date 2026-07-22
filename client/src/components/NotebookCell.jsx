@@ -4,9 +4,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
+import ScriptRunSummary from './ScriptRunSummary';
 import LazyVisible from './LazyVisible';
 import DebugResultModal from './DebugResultModal';
-import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal, LuCode, LuType, LuSettings2, LuExternalLink, LuChevronsUp, LuChevronsDown } from "react-icons/lu";
+import { LuPlay, LuArrowUp, LuArrowDown, LuTrash2, LuGripHorizontal, LuCode, LuType, LuSettings2, LuExternalLink, LuChevronsUp, LuChevronsDown, LuCheck } from "react-icons/lu";
+import { describeResult, isSideEffectType } from '../utils/resultSummary';
 
 // Stable no-op: an inline `() => {}` would break ResultsTable's memo on every render.
 const noopDbChange = () => { };
@@ -522,7 +524,24 @@ const NotebookCell = ({
 
                                 {result.error && <div className={`nb-error-msg ${isReportMode ? 'report-mode' : ''}`}>Error: {result.error}</div>}
 
-                                {result.data && !result.error && (
+                                {result.scriptRun && !isReportMode && <ScriptRunSummary scriptRun={result.scriptRun} />}
+
+                                {/* DML/DDL side-effect: a one-line summary, not an empty grid with a stray Count column */}
+                                {result.data && !result.error && !result.scriptRun && isSideEffectType(result.resultType) && (
+                                    <div className={`nb-result-badge ${isReportMode ? 'report-mode' : ''}`} style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        padding: '8px 12px', fontSize: '12px',
+                                        color: 'var(--color-success-text, #4ade80)',
+                                    }}>
+                                        <LuCheck size={14} />
+                                        <span style={{ color: 'var(--text-secondary, #9a9aa2)' }}>{describeResult(result)}</span>
+                                        {result.executionTime != null && (
+                                            <span style={{ marginLeft: 'auto', color: 'var(--text-tertiary, #8a8a93)' }}>{result.executionTime} ms</span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {result.data && !result.error && !isSideEffectType(result.resultType) && (
                                     <>
                                         {!isPoppedOut && (
                                             <div

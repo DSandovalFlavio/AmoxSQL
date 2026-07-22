@@ -7,6 +7,7 @@ import AlertDialog from './AlertDialog';
 import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuFileType2, LuLoaderCircle, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
 import { injectEnvironmentVariables as injectEnvVars } from '../utils/injectEnvironmentVariables';
+import { splitSqlStatements } from '../utils/sqlSplitter';
 import { parseNotebookContent, parseNotebookEnvironment, serializeNotebookContent } from '../utils/notebookParser';
 import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 
@@ -293,6 +294,63 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
 
         let queryToRun = injectEnvironmentVariables(resolvedContent, env);
 
+        // A cell with several statements runs as a mini-script IN the cell —
+        // no "convert to notebook" dialog (we're already in one). Each statement
+        // goes through the single-statement path, so no dialog fires.
+        const statements = splitSqlStatements(queryToRun);
+        if (statements.length > 1) {
+            const steps = [];
+            let finalTable = null;
+            const scriptStart = performance.now();
+            for (let i = 0; i < statements.length; i++) {
+                const stmt = statements[i];
+                const stepStart = performance.now();
+                const r = await onRunQueryRef.current(stmt.raw);
+                const step = {
+                    index: i,
+                    sqlPreview: stmt.code.replace(/\s+/g, ' ').slice(0, 120),
+                    startLine: stmt.startLine,
+                    ms: (performance.now() - stepStart).toFixed(0),
+                };
+                if (r?.cancelled) {
+                    step.status = 'cancelled';
+                    steps.push(step);
+                    break; // user stopped the run
+                }
+                if (r?.error) {
+                    step.status = 'error';
+                    step.error = r.error;
+                    steps.push(step);
+                    break; // stop-on-error
+                }
+                step.status = 'ok';
+                step.resultType = r.resultType;
+                step.rowsAffected = r.rowsAffected;
+                step.rowCount = r.rowCount;
+                step.truncated = r.truncated;
+                step.details = r.resultDetails || r.details;
+                steps.push(step);
+                if (r.resultType === 'query_result' && Array.isArray(r.data)) finalTable = r;
+            }
+            const failCount = steps.filter(s => s.status === 'error').length;
+            const scriptRun = {
+                steps,
+                totalMs: (performance.now() - scriptStart).toFixed(0),
+                okCount: steps.filter(s => s.status === 'ok').length,
+                failCount,
+                cancelled: steps.some(s => s.status === 'cancelled'),
+                stoppedAtError: failCount > 0,
+                total: statements.length,
+                running: false,
+            };
+            setResults(prev => ({
+                ...prev,
+                [cellId]: { scriptRun, ...(finalTable || {}), error: null, executedQuery: queryToRun },
+            }));
+            saveStateOnly();
+            return;
+        }
+
         // Execute the query
         const result = await onRunQueryRef.current(queryToRun);
 
@@ -330,9 +388,9 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
 
             await handleRun(cell.id);
 
-            // Check for errors — stop on error
+            // Check for errors — stop on error (including a mini-script failure)
             const result = resultsRef.current[cell.id];
-            if (result?.error) break;
+            if (result?.error || result?.scriptRun?.failCount > 0) break;
         }
 
         setIsRunningBatch(false);

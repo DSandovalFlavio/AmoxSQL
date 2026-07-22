@@ -3,34 +3,7 @@ import {
     LuCheck, LuX, LuLoader, LuCircleSlash, LuChevronDown, LuChevronRight,
     LuListChecks,
 } from 'react-icons/lu';
-import { RESULT_TYPE_LABELS } from './chains/chainNodeTypes';
-
-// Human label for a completed step, folding in the affected-row count / object
-// name so a DML/DDL statement reads as "5 rows updated" / "Table created: t".
-function labelFor(step) {
-    const { resultType, rowsAffected, rowCount, truncated, details } = step;
-    switch (resultType) {
-        case 'rows_updated':
-        case 'rows_inserted':
-        case 'rows_deleted': {
-            const verb = { rows_updated: 'updated', rows_inserted: 'inserted', rows_deleted: 'deleted' }[resultType];
-            if (rowsAffected != null) return `${rowsAffected.toLocaleString()} row${rowsAffected === 1 ? '' : 's'} ${verb}`;
-            return RESULT_TYPE_LABELS[resultType] || 'Done';
-        }
-        case 'table_created':  return details?.table ? `Table created: ${details.table}` : 'Table created';
-        case 'view_created':   return details?.view ? `View created: ${details.view}` : 'View created';
-        case 'table_dropped':  return details?.table ? `Table dropped: ${details.table}` : 'Table dropped';
-        case 'view_dropped':   return details?.view ? `View dropped: ${details.view}` : 'View dropped';
-        case 'extension_installed': return details?.extension ? `Extension installed: ${details.extension}` : 'Extension installed';
-        case 'extension_loaded':    return details?.extension ? `Extension loaded: ${details.extension}` : 'Extension loaded';
-        case 'file_exported':  return 'File exported';
-        case 'query_result': {
-            const n = rowCount ?? 0;
-            return `${n.toLocaleString()}${truncated ? '+' : ''} row${n === 1 ? '' : 's'} returned`;
-        }
-        default: return RESULT_TYPE_LABELS[resultType] || 'Executed';
-    }
-}
+import { describeResult } from '../utils/resultSummary';
 
 const STATUS_ICON = {
     ok:        { Icon: LuCheck,       color: 'var(--color-success-text, #4ade80)' },
@@ -123,7 +96,7 @@ const ScriptRunSummary = ({ scriptRun }) => {
                                     gap: '2px', flexShrink: 0, color: 'var(--text-tertiary, #8a8a93)',
                                 }}>
                                     {step.status === 'ok' && (
-                                        <span style={{ color: 'var(--text-secondary, #9a9aa2)' }}>{labelFor(step)}</span>
+                                        <span style={{ color: 'var(--text-secondary, #9a9aa2)' }}>{describeResult(step)}</span>
                                     )}
                                     {step.ms != null && <span style={{ fontSize: '11px' }}>{step.ms} ms</span>}
                                 </div>
