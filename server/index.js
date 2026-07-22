@@ -1278,7 +1278,8 @@ app.get('/api/settings/config', (req, res) => {
 
 app.post('/api/settings/config', async (req, res) => {
     const { geminiApiKey, anthropicApiKey, minimaxApiKey, gcpProject, gcpLocation, provider, defaultModel, s3Config, gcsConfig, experimental, modelTierOverrides, geminiModels,
-        ollamaKeepAlive, ollamaNumCtx, memoryExtraction, ollamaThinkOverrides, modelPerMode } = req.body;
+        ollamaKeepAlive, ollamaNumCtx, memoryExtraction, ollamaThinkOverrides, modelPerMode,
+        duckdbDocsUpdate, duckdbDocsIntervalDays } = req.body;
     try {
         const config = aiManager.getConfig();
         if (geminiApiKey    !== undefined) config.geminiApiKey    = geminiApiKey;
@@ -1309,6 +1310,8 @@ app.post('/api/settings/config', async (req, res) => {
         if (ollamaThinkOverrides !== undefined) { config.ollamaThinkOverrides = ollamaThinkOverrides || {}; syncRuntime = true; }
         if (memoryExtraction    !== undefined) config.memoryExtraction    = memoryExtraction;
         if (modelPerMode        !== undefined) config.modelPerMode        = { ...config.modelPerMode, ...modelPerMode };
+        if (duckdbDocsUpdate       !== undefined) config.duckdbDocsUpdate       = duckdbDocsUpdate;
+        if (duckdbDocsIntervalDays !== undefined) config.duckdbDocsIntervalDays = Number(duckdbDocsIntervalDays) || 30;
         if (syncRuntime) {
             const { setOllamaRuntimeConfig } = require('./ai/modelProfiles');
             setOllamaRuntimeConfig({
@@ -2026,6 +2029,46 @@ app.post('/api/ai/init', async (req, res) => {
     } catch (err) {
         console.error("[API] AI Init failed", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * GET /api/ai/duckdb-docs/status — snapshot status for the Settings UI.
+ * Returns extractedAt (last update), file count, source (bundled/user) and mode.
+ */
+app.get('/api/ai/duckdb-docs/status', (req, res) => {
+    try {
+        const duckdbDocs = require('./ai/duckdbDocs');
+        const cfg = aiManager.getConfig();
+        res.json({
+            ...duckdbDocs.getStatus(),
+            updateMode: cfg.duckdbDocsUpdate || 'auto',
+            intervalDays: cfg.duckdbDocsIntervalDays || 30,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Guard: a single in-flight refresh at a time.
+let _duckdbDocsRefreshing = false;
+
+/**
+ * POST /api/ai/duckdb-docs/refresh — manually re-download the DuckDB docs
+ * snapshot from GitHub into the user dir. Returns the new status.
+ */
+app.post('/api/ai/duckdb-docs/refresh', async (req, res) => {
+    if (_duckdbDocsRefreshing) return res.status(409).json({ error: 'A refresh is already in progress.' });
+    _duckdbDocsRefreshing = true;
+    try {
+        const duckdbDocs = require('./ai/duckdbDocs');
+        const status = await duckdbDocs.refresh(msg => console.log('[DuckDB Docs]', msg));
+        res.json({ success: true, ...status });
+    } catch (err) {
+        console.error('[DuckDB Docs] Manual refresh failed:', err.message);
+        res.status(502).json({ error: `No se pudo actualizar: ${err.message}` });
+    } finally {
+        _duckdbDocsRefreshing = false;
     }
 });
 

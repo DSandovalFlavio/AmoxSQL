@@ -76,6 +76,12 @@ class AiManager {
                 ollamaThinkOverrides: {},
                 // Modelo por modo (F6): { assistant, diving } — vacío = usa defaultModel.
                 modelPerMode: {},
+                // Docs de DuckDB (offline): modo de actualización del snapshot.
+                //   'off'    → solo el bundle empaquetado (nunca red)
+                //   'manual' → el usuario actualiza con un botón
+                //   'auto'   → AmoxSQL refresca cada duckdbDocsIntervalDays
+                duckdbDocsUpdate: 'auto',
+                duckdbDocsIntervalDays: 30,
                 geminiModels: [
                     { id: 'gemini-2.5-flash-lite', category: 'flash-lite', dailyLimit: 1000, contextWindow: 100000, costPerMInput: 0.10 },
                     { id: 'gemini-2.5-flash', category: 'flash', dailyLimit: 250, contextWindow: 500000, costPerMInput: 0.30 },
@@ -139,6 +145,8 @@ class AiManager {
             if (config.memoryExtraction === undefined) { config.memoryExtraction = 'cloud-only'; needsWrite = true; }
             if (config.ollamaThinkOverrides === undefined) { config.ollamaThinkOverrides = {}; needsWrite = true; }
             if (config.modelPerMode === undefined) { config.modelPerMode = {}; needsWrite = true; }
+            if (config.duckdbDocsUpdate === undefined) { config.duckdbDocsUpdate = 'auto'; needsWrite = true; }
+            if (config.duckdbDocsIntervalDays === undefined) { config.duckdbDocsIntervalDays = 30; needsWrite = true; }
             if (needsWrite) fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
 
             // Sync tier overrides with modelProfiles module
@@ -181,6 +189,31 @@ class AiManager {
         // Sync user tier overrides on initialization
         setUserTierOverrides(config.modelTierOverrides || {});
         console.log(`[AI] Initialized with Provider: ${this.provider}, Model: ${this.modelName}`);
+
+        // DuckDB docs auto-update (fire-and-forget; the bundled snapshot always works).
+        this.maybeAutoUpdateDocs().catch(() => {});
+    }
+
+    /**
+     * If the DuckDB docs update mode is 'auto' and the active snapshot is older
+     * than the configured interval, refresh it in the background. Best-effort:
+     * offline failures are swallowed (the bundled/previous snapshot stays valid).
+     */
+    async maybeAutoUpdateDocs() {
+        const config = this.getConfig();
+        if (config.duckdbDocsUpdate !== 'auto') return;
+        const duckdbDocs = require('./ai/duckdbDocs');
+        const status = duckdbDocs.getStatus();
+        const intervalMs = Math.max(1, Number(config.duckdbDocsIntervalDays) || 30) * 24 * 60 * 60 * 1000;
+        const age = status.extractedAt ? (Date.now() - new Date(status.extractedAt).getTime()) : Infinity;
+        if (age < intervalMs) return; // fresh enough
+        console.log(`[DuckDB Docs] Auto-update: snapshot is ${Math.round(age / 86400000)}d old, refreshing…`);
+        try {
+            const res = await duckdbDocs.refresh(msg => console.log('[DuckDB Docs]', msg));
+            console.log(`[DuckDB Docs] Auto-update done: ${res.count} files @ ${res.extractedAt}`);
+        } catch (err) {
+            console.warn('[DuckDB Docs] Auto-update failed (keeping current snapshot):', err.message);
+        }
     }
 
     // ─── Vercel AI SDK Provider Resolution ───
