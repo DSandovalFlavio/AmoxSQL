@@ -391,6 +391,7 @@ class AiManager {
             currentQuery = '',
             currentResult = null,
             currentChartConfig = null,
+            currentView = null,
             referencedArtifacts = [],
             activeSkillId = null,
             filePath = null,
@@ -419,7 +420,7 @@ class AiManager {
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
-            currentQuery, currentResult, currentChartConfig,
+            currentQuery, currentResult, currentChartConfig, currentView,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
             filePath, fileType, tableRoster, thinkTokenPrefix,
@@ -523,6 +524,7 @@ class AiManager {
             currentQuery = '',
             currentResult = null,
             currentChartConfig = null,
+            currentView = null,
             referencedArtifacts = [],
             activeSkillId = null,
             filePath = null,
@@ -550,7 +552,7 @@ class AiManager {
         const systemPrompt = buildSystemPrompt({
             tables, files, mode,
             userRules, memories,
-            currentQuery, currentResult, currentChartConfig,
+            currentQuery, currentResult, currentChartConfig, currentView,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
             filePath, fileType, tableRoster, thinkTokenPrefix,

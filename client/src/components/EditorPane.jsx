@@ -85,6 +85,7 @@ const EditorPane = ({
     onCancelQuery,    // () -> cancel the running query
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
     onOpenAmoxvisAsSql, // (tab) -> switch amoxvis tab to SQL editor mode
+    onPersistUiState, // (pane, tabId, patch) -> persist view state to the tab (for AI session-awareness)
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -389,10 +390,16 @@ const EditorPane = ({
                             currentEditorQuery={getCurrentEditorQuery}
                             onDbChange={onDbChange}
                             initialChartConfig={activeTab.initialChartConfig}
+                            initialViewMode={activeTab.viewMode}
                             editorSettings={editorSettings}
                             onPopout={handlePopout}
                             truncated={activeTab.results.truncated}
                             rowLimit={activeTab.results.rowLimit}
+                            /* Lift view state to the tab so the AI assistant knows
+                               which surface the user is on and what chart they're
+                               building (session-awareness). View state only — no dirty. */
+                            onViewModeChange={onPersistUiState ? (m) => onPersistUiState(paneId, activeTab.id, { viewMode: m }) : undefined}
+                            onConfigChange={onPersistUiState ? (cfg) => onPersistUiState(paneId, activeTab.id, { chartConfig: cfg }) : undefined}
                         />
                     )}
 

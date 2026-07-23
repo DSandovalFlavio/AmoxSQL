@@ -2339,11 +2339,49 @@ async function buildAssistantQueryContext(currentQuery) {
 }
 
 /**
+ * Make the user's ON-SCREEN result referenceable by the AI (session-awareness).
+ * A manual editor run (`/api/query`) returns a queryId but never persists its
+ * rows, so `display_chart` could never resolve it — the model was forced to
+ * re-run execute_sql or (worse) beg for a queryId that doesn't exist. Here we
+ * register the live result into the SAME `amoxsql_ai.query_cache` that
+ * display_chart falls back to, so the assistant can chart/cite exactly what the
+ * user is looking at with zero re-execution. Idempotent: the id is a stable
+ * client UUID, so we skip if already cached (PRIMARY KEY would otherwise clash).
+ */
+async function registerLiveResultCache(currentResult, conversationId) {
+    try {
+        if (!aiPersistence || !currentResult) return;
+        const qid = currentResult.queryId;
+        const data = currentResult.data;
+        if (!qid || !Array.isArray(data) || data.length === 0) return;
+        const existing = await aiPersistence.getQueryCache(dbManager, qid);
+        if (existing) return;
+        const columns = Array.isArray(currentResult.columns) && currentResult.columns.length
+            ? currentResult.columns
+            : (data[0] ? Object.keys(data[0]).map(name => ({ name })) : []);
+        await aiPersistence.saveQueryCache(dbManager, {
+            queryId: qid,
+            conversationId: conversationId || null,
+            sqlQuery: currentResult.resultsQuery || '',
+            columns,
+            data,
+            rowCount: currentResult.rowCount ?? data.length,
+            execMs: Math.round(Number(currentResult.executionTime) || 0),
+        });
+        if (conversationId) {
+            aiPersistence.pruneQueryCache(dbManager, conversationId, 100).catch(() => {});
+        }
+    } catch (e) {
+        console.warn('[AI] live result cache failed:', e.message);
+    }
+}
+
+/**
  * POST /api/ai/chat — Non-streaming tool loop chat
  * Body: { messages, provider?, model?, mode?, contextFiles?, currentQuery?, currentResult?, currentChartConfig? }
  */
 app.post('/api/ai/chat', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, conversationId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2359,8 +2397,12 @@ app.post('/api/ai/chat', async (req, res) => {
         let tableRoster = null;
         let tables, files;
         if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
-            // Describe every object the active query references (tables + files).
-            const ctx = await buildAssistantQueryContext(currentQuery);
+            // Describe every object the active query references (tables + files),
+            // and make the user's on-screen result chartable by its own id.
+            const [ctx] = await Promise.all([
+                buildAssistantQueryContext(currentQuery),
+                registerLiveResultCache(currentResult, conversationId),
+            ]);
             tables = ctx.tables;
             files = ctx.files;
             tableRoster = ctx.roster;
@@ -2382,6 +2424,7 @@ app.post('/api/ai/chat', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            currentView,
             tableRoster,
         });
 
@@ -2451,7 +2494,7 @@ async function expandReferencedArtifacts(refs) {
 }
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2489,6 +2532,8 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             const [ctx, refs] = await Promise.all([
                 buildAssistantQueryContext(currentQuery),
                 expandReferencedArtifacts(referencedArtifacts),
+                // Make what the user is looking at chartable by its own id.
+                registerLiveResultCache(currentResult, conversationId),
             ]);
             tables = ctx.tables;
             files = ctx.files;
@@ -2513,6 +2558,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            currentView,
             referencedArtifacts: expandedReferences,
             activeSkillId,
             filePath,

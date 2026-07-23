@@ -846,6 +846,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 results: tab.results,
                 resultsQuery: tab.resultsQuery,
                 chartConfig: tab.chartConfig || tab.initialChartConfig || null,
+                activeView: tab.viewMode || null,
                 dirty: tab.dirty,
             };
         },
@@ -1248,6 +1249,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onCancelQuery={cancelQuery}
                     onShowHistory={onShowHistorySidebar}
                     onOpenAmoxvisAsSql={openAmoxvisAsSql}
+                    onPersistUiState={updateTab}
                 />
 
                 {splitEnabled && (
@@ -1283,6 +1285,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         isRunning={!!runningQueryId}
                         onCancelQuery={cancelQuery}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}
+                        onPersistUiState={updateTab}
                     />
                 )}
             </div>

@@ -476,6 +476,8 @@ export default function useAiChat({
             const ctxContent = liveCtx ? (liveCtx.content ?? null) : fileContent;
             const ctxResult = liveCtx ? (liveCtx.results ?? null) : fileResult;
             const ctxChartConfig = liveCtx ? (liveCtx.chartConfig ?? null) : fileChartConfig;
+            const ctxResultsQuery = liveCtx ? (liveCtx.resultsQuery ?? null) : null;
+            const ctxView = liveCtx ? (liveCtx.activeView ?? null) : null;
 
             const requestBody = {
                 messages: apiMessages,
@@ -512,14 +514,30 @@ export default function useAiChat({
                 if (opts.finalize) requestBody.continueBudget = 1;
                 continueOptsRef.current = null;
             }
-            // Send a lightweight summary of the result (not the full data)
-            if (ctxResult) {
+            // Live result the user is LOOKING AT. We send the id + the rows so the
+            // server can register them in the AI query-cache (display_chart then
+            // resolves THIS result with no re-execution), plus a tiny sample so the
+            // model can reason on real values. Local DB over localhost → cheap.
+            if (ctxResult && ((ctxResult.data?.length ?? 0) > 0 || ctxResult.rowCount)) {
+                const rows = Array.isArray(ctxResult.data) ? ctxResult.data : [];
+                // Columns WITH types when available (from /api/query `types` map).
+                const columns = ctxResult.types
+                    ? Object.entries(ctxResult.types).map(([name, type]) => ({ name, type }))
+                    : (ctxResult.columns || (rows[0] ? Object.keys(rows[0]).map(n => ({ name: n })) : []));
                 requestBody.currentResult = {
-                    rowCount: ctxResult.rowCount ?? ctxResult.data?.length ?? 0,
-                    columns: ctxResult.columns || (ctxResult.data?.[0] ? Object.keys(ctxResult.data[0]).map(n => ({ name: n })) : []),
+                    queryId: ctxResult.queryId ?? null,
+                    resultsQuery: ctxResultsQuery,
+                    rowCount: ctxResult.rowCount ?? rows.length,
+                    columns,
+                    truncated: !!ctxResult.truncated,
+                    executionTime: ctxResult.executionTime ?? null,
+                    data: rows.slice(0, 500),   // for server-side cache registration
+                    sample: rows.slice(0, 5),   // for the prompt (real values)
                 };
             }
             if (ctxChartConfig) requestBody.currentChartConfig = ctxChartConfig;
+            // Which surface the user is focused on: 'table' | 'chart' | 'profile'.
+            if (ctxView) requestBody.currentView = ctxView;
 
             const res = await fetch(`${API}/api/ai/chat/stream`, {
                 method: 'POST',

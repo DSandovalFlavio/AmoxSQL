@@ -28,8 +28,14 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
 
     const handleViewModeChange = (mode) => {
         setViewMode(mode);
-        if (onViewModeChange) onViewModeChange(mode);
     };
+
+    // Report the active view UP (mount + every change) so the tab — and through
+    // it the AI assistant — knows whether the user is on Table/Chart/Profile.
+    // Single source of truth (vs. also firing in the click handler).
+    useEffect(() => {
+        if (onViewModeChange) onViewModeChange(viewMode);
+    }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Enhanced Table State
     const [globalSearch, setGlobalSearch] = useState('');

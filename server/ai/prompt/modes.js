@@ -30,7 +30,7 @@ Talk like an analyst thinking out loud with a colleague, NOT a report generator.
 
 ### Workflow & honesty rules
 - **When you propose SQL the user should put in their editor, DELIVER IT with \`write_file\` (mode='overwrite'), not just as a code block in prose.** \`write_file\` gives the user Apply/Reject buttons to put it straight into their active file; a plain \`\`\`sql block has no such buttons. Briefly explain the change in chat, then call \`write_file\` with the full new query. (Exception: tiny inline snippets purely for illustration can stay in prose.)
-- **To chart, ALWAYS call \`execute_sql\` first and pass the EXACT \`queryId\` it returns to \`display_chart\`.** Never invent or guess an id (e.g. "current", "latest"); if you don't have a queryId yet, run the query to get one.
+- **To chart:** if the "Current editor state" section shows an on-screen result with a \`queryId\`, pass THAT id straight to \`display_chart\` — it's the exact result the user is looking at, no re-run needed. Otherwise call \`execute_sql\` first and use the \`queryId\` it returns. Never invent or guess an id (e.g. "current", "latest"). Also: NEVER ask the user for a \`query_id\` — they can't see it; either use the on-screen result's id or run \`execute_sql\` yourself.
 - **When the request is ambiguous, ASK before acting.** If you're unsure which column, metric, period, or comparison the user means, ask one short clarifying question in your reply instead of guessing or fabricating values. A good question beats a wrong chart — do not invent data, columns, or ids to force a result.
 - **Choose the chart with the "Chart Selection" framework above** and let the data shape decide (2–3 time periods = a comparison → grouped bars, not a line). If \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.`;
 
@@ -142,17 +142,47 @@ Every finding you report MUST end with "— this matters because ___". A number 
  * doesn't bust the KV/prefix cache for the stable schema + instructions above:
  * when the user edits their query, only these trailing tokens change.
  */
-function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig } = {}) {
+function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView } = {}) {
     let s = '';
+    let opened = false;
+    const open = () => {
+        if (!opened) { s += '\n\n## Current editor state (what the user is looking at right now)'; opened = true; }
+    };
+
+    if (currentView) {
+        open();
+        const v = currentView === 'chart' ? 'the CHART view'
+            : currentView === 'profile' ? 'the PROFILE view'
+            : 'the TABLE (results grid) view';
+        s += `\n**Active view:** the user is currently looking at ${v}.`;
+    }
     if (currentQuery) {
-        s += `\n\n## Current editor state\n**Current query:**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
+        open();
+        s += `\n**Current query (editor):**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
     }
     if (currentResult) {
-        const cols = currentResult.columns ? currentResult.columns.map(c => c.name).join(', ') : 'unknown';
-        s += `${currentQuery ? '\n' : '\n\n## Current editor state\n'}**Result:** ${currentResult.rowCount || 0} rows, columns: ${cols}`;
+        open();
+        const cols = Array.isArray(currentResult.columns) && currentResult.columns.length
+            ? currentResult.columns.map(c => (c.type ? `${c.name} (${c.type})` : c.name)).join(', ')
+            : 'unknown';
+        const trunc = currentResult.truncated ? ' (truncated to the shown rows)' : '';
+        s += `\n**On-screen result:** ${currentResult.rowCount || 0} rows${trunc}. Columns: ${cols}.`;
+        if (currentResult.queryId) {
+            s += `\n_This exact result is available as \`queryId\` **${currentResult.queryId}** — pass it DIRECTLY to \`display_chart\` (or cite it) to chart what the user already sees. No need to re-run \`execute_sql\` unless the query changed._`;
+            if (currentResult.resultsQuery && currentQuery
+                && currentResult.resultsQuery.trim() !== currentQuery.trim()) {
+                s += `\n_Note: this result came from a DIFFERENT query than what's now in the editor (the user edited it after running). Re-run if you need it to match the current editor text._`;
+            }
+        }
+        const sample = Array.isArray(currentResult.sample) ? currentResult.sample.slice(0, 5) : null;
+        if (sample && sample.length) {
+            s += `\n**Sample rows (first ${sample.length}):**\n\`\`\`json\n${JSON.stringify(sample)}\n\`\`\``;
+        }
     }
     if (currentChartConfig) {
-        s += `\n**Chart:** ${currentChartConfig.chartType} | X: ${currentChartConfig.xAxisKey} | Y: ${currentChartConfig.yAxisKeys?.join(', ')}`;
+        open();
+        const cc = currentChartConfig;
+        s += `\n**Chart the user is building:** ${cc.chartType || '?'} | X: ${cc.xAxisKey || '?'} | Y: ${(cc.yAxisKeys || []).join(', ') || '?'}${cc.splitByKey ? ` | split: ${cc.splitByKey}` : ''}.`;
     }
     return s;
 }

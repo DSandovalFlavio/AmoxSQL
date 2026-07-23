@@ -74,6 +74,7 @@ function buildDynamicSection(options) {
         currentQuery = '',
         currentResult = null,
         currentChartConfig = null,
+        currentView = null,
         referencedArtifacts = [],
         activeSkill = null,
         enablePlanner = false,
@@ -134,8 +135,11 @@ When you design a chart's palette, make it read on a ${mode_.toLowerCase()} back
     // The live editor state changes on every keystroke; the date changes daily.
     // Placing them at the end means an edit or a new day only invalidates these
     // trailing tokens, not the whole schema+instructions prefix (F3 / H5).
-    if (mode === 'assistant') {
-        d += buildLiveEditorState({ currentQuery, currentResult, currentChartConfig });
+    // Surface the live editor state (query/result/chart/view) as the volatile
+    // tail. Assistant always; diving too when any of it is present (so a Deep
+    // Dive linked to an open file can see what the user is looking at).
+    if (mode === 'assistant' || currentResult || currentChartConfig || currentView) {
+        d += buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView });
     }
     const today = new Date().toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
