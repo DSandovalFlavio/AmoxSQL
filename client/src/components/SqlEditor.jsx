@@ -97,6 +97,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     // value is a stale echo of our own edit — never a reason to rewrite the buffer.
     const lastBroadcastRef = useRef(null);
 
+    // True while WE call editor.setValue() (external replacement / tab swap).
+    // setValue fires the model-change event too, so without this flag the AI's
+    // applied SQL would be recorded as a user "broadcast" and then block the NEXT
+    // external apply as a false stale-echo — the "apply works once, then does
+    // nothing until you reopen the file" bug.
+    const programmaticRef = useRef(false);
+    const setValueSilently = (editor, next) => {
+        programmaticRef.current = true;
+        try { editor.setValue(next || ''); }
+        finally { programmaticRef.current = false; }
+    };
+
     // Save view state on unmount
     useEffect(() => {
         return () => {
@@ -120,7 +132,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 globalViewStateCache.set(activeTabIdRef.current, editor.saveViewState());
             }
             activeTabIdRef.current = props.tabId;
-            editor.setValue(value || '');
+            setValueSilently(editor, value);
             lastBroadcastRef.current = null;
 
             const savedState = globalViewStateCache.get(props.tabId);
@@ -146,11 +158,15 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // Genuine external replacement (file reload, format, AI edit applied).
         const viewState = editor.saveViewState();
-        editor.setValue(value || '');
+        setValueSilently(editor, value);
         if (viewState) editor.restoreViewState(viewState);
     }, [value, props.tabId]);
 
     const handleEditorChange = (newValue, event) => {
+        // Our own setValue() (tab swap / AI apply) — not a user edit. Don't record
+        // it as a broadcast (would poison the stale-echo guard) and don't re-emit.
+        if (programmaticRef.current) return;
+
         lastBroadcastRef.current = newValue;
 
         onChange(newValue);

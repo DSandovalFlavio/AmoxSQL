@@ -1015,11 +1015,11 @@ function createTools(context) {
             description: "Write content to a file. mode='overwrite' (default): replaces the active SQL file or notebook content in the editor without saving to disk — the user reviews and saves. mode='create': writes a new file to file_path. mode='append': appends content to an existing file.",
             inputSchema: z.object({
                 content: z.string().describe('Complete new content (overwrite/create) or text to append.'),
-                description: z.string().describe('Brief description of the change.'),
+                description: z.string().optional().default('Updated by AmoxSQL AI').describe('Optional short description of the change.'),
                 mode: z.enum(['overwrite', 'create', 'append']).optional().default('overwrite'),
                 file_path: z.string().optional().describe("For create/append: relative path within the project. Not needed for 'overwrite'."),
             }),
-            execute: async ({ content, description: desc, mode: writeMode = 'overwrite', file_path: filePath }) => {
+            execute: async ({ content, description: desc = 'Updated by AmoxSQL AI', mode: writeMode = 'overwrite', file_path: filePath }) => {
                 if (writeMode === 'overwrite') {
                     // Frontend handles this via action field (no disk write)
                     return { success: true, content, description: desc, action: 'edit_file' };
