@@ -25,26 +25,59 @@ const REF = 'main';
 const DOCS_SUBPATH = 'docs/current/sql';
 
 // Curated "gotcha" aliases: the DuckDB-specific syntax small models most often
-// get wrong → the doc file (relative to DOCS_SUBPATH) that explains it.
+// get wrong → the doc file (relative to DOCS_SUBPATH) + the exact heading that
+// answers it. `heading` biases section extraction so the model gets the right
+// part of the file (not just the first section).
 const GOTCHA_MAP = [
-    { re: /\bexclude\b|\breplace\b|\bcolumns\s*\(|\*\s*exclude|star\b/i, file: 'expressions/star.md' },
+    // Filtering columns BY NAME with a pattern — the classic trap: models write
+    // `EXCLUDE (like '%x%')` (invalid). The real syntax is `* NOT ILIKE '%x%'`.
+    { re: /(exclud\w*|filter\w*|quit\w*|omit\w*|remov\w*).*(column|col|field|campo)|(column|col|field|campo).*(pattern|patr[oó]n|like|glob|similar|ilike)|\*\s*(not\s+)?i?like|\*\s*glob|\*\s*similar/i,
+      file: 'expressions/star.md', heading: 'Column Filtering via Pattern Matching' },
+    { re: /\bexclude\b|\breplace\b|\brename\b.*column|\bstar\b|select\s+\*/i, file: 'expressions/star.md', heading: 'EXCLUDE' },
+    { re: /\bcolumns\s*\(|columns\s+expression|columns\s+lambda|columns\s+regex/i, file: 'expressions/star.md', heading: 'COLUMNS' },
     { re: /\bqualify\b/i, file: 'query_syntax/qualify.md' },
-    { re: /\bpivot\b/i, file: 'statements/pivot.md' },
     { re: /\bunpivot\b/i, file: 'statements/unpivot.md' },
-    { re: /\basof\b|as[- ]of join/i, file: 'query_syntax/from.md' },
-    { re: /\blambda\b|list comprehension|->\s*/i, file: 'functions/lambda.md' },
-    { re: /\blist\b|\barray\b/i, file: 'functions/list.md' },
+    { re: /\bpivot\b/i, file: 'statements/pivot.md' },
+    { re: /\basof\b|as[- ]of join/i, file: 'query_syntax/from.md', heading: 'ASOF' },
+    { re: /\blambda\b|list comprehension|comprensi[oó]n/i, file: 'functions/lambda.md' },
+    { re: /\blist\b|\barray\b|arreglo/i, file: 'functions/list.md' },
     { re: /\bstruct\b/i, file: 'data_types/struct.md' },
     { re: /\bmap\b/i, file: 'data_types/map.md' },
     { re: /\bunion\b type|\bunion\b value/i, file: 'data_types/union.md' },
-    { re: /\bsample\b|tablesample|using sample/i, file: 'samples.md' },
-    { re: /\bwindow\b|over\s*\(|partition by/i, file: 'functions/window.md' },
+    { re: /\bsample\b|tablesample|using sample|muestra/i, file: 'query_syntax/sample.md' },
+    { re: /window\s+function|over\s*\(|partition by|row_number|\brank\b|lead|lag/i, file: 'functions/window_functions.md' },
+    { re: /\bwindow\b.*clause|\bwindow\b\s+w/i, file: 'query_syntax/window.md' },
     { re: /\bgroup(ing)?\s*sets\b|\brollup\b|\bcube\b/i, file: 'query_syntax/grouping_sets.md' },
     { re: /\bwith\b|\bcte\b|recursive/i, file: 'query_syntax/with.md' },
-    { re: /\bregexp?_|regular expression/i, file: 'functions/regular_expressions.md' },
-    { re: /\bdate_?(trunc|part|diff)\b|strftime|strptime/i, file: 'functions/date.md' },
-    { re: /\bjson\b/i, file: 'data_types/json.md' },
+    { re: /\bregexp?_|regular expression|expresi[oó]n regular/i, file: 'functions/regular_expressions.md' },
+    { re: /\blike\b|\bglob\b|\bilike\b|similar to|pattern match/i, file: 'functions/pattern_matching.md' },
+    { re: /\bdate_?(trunc|part|diff)\b|strftime|strptime|fecha/i, file: 'functions/date.md' },
 ];
+
+// Spanish→English term normalization: the docs are in English, but models often
+// query in the user's language. Applied to the topic before matching.
+const ES_EN = [
+    [/\bexcluir\b|\bexcluye\b|\bexcluyendo\b/gi, 'exclude'],
+    [/\bcolumnas?\b/gi, 'column'],
+    [/\bfilas?\b/gi, 'row'],
+    [/\bpatr[oó]n\b|\bpatrones\b/gi, 'pattern'],
+    [/\bnombres?\b/gi, 'name'],
+    [/\bfecha\b|\bfechas\b/gi, 'date'],
+    [/\bventana\b/gi, 'window'],
+    [/\bagrupar\b|\bagrupaci[oó]n\b/gi, 'group'],
+    [/\bmuestra\b|\bmuestreo\b/gi, 'sample'],
+    [/\bcomod[ií]n\b/gi, 'wildcard'],
+    [/\bcadena\b|\btexto\b/gi, 'string'],
+    [/\bconsulta\b/gi, 'query'],
+    [/\bseleccionar\b|\bselecciona\b/gi, 'select'],
+    [/\btabla\b/gi, 'table'],
+];
+
+function normalizeTopic(topic) {
+    let t = String(topic || '');
+    for (const [re, en] of ES_EN) t = t.replace(re, en);
+    return t;
+}
 
 // ── Path resolution ─────────────────────────────────────────────────────────
 
@@ -191,37 +224,59 @@ function extractSection(md, heading) {
     return lines.slice(start, end).join('\n');
 }
 
+const STOP = new Set(['clause', 'function', 'functions', 'expression', 'expressions', 'syntax', 'example', 'examples', 'and', 'the', 'for', 'with', 'type', 'types', 'via', 'using', 'operators', 'operator']);
+
+/** Score the manifest files for a topic. Returns all files sorted best-first. */
+function scoreFiles(manifest, qNorm) {
+    const terms = qNorm.toLowerCase().split(/[^a-z0-9_]+/).filter(t => t.length > 2 && !STOP.has(t));
+    return manifest.files.map(f => {
+        const title = f.title.toLowerCase();
+        const headings = (f.headings || []).join(' | ').toLowerCase();
+        const pathL = f.path.toLowerCase();
+        let score = 0;
+        for (const t of terms) {
+            if (pathL.includes(t)) score += 3;            // path segment is a strong signal
+            if (title.includes(t)) score += 3;            // title too
+            if (headings.includes(t)) score += 2;         // a heading mentions it
+        }
+        return { f, score };
+    }).sort((a, b) => b.score - a.score);
+}
+
 /**
- * Finds the most relevant doc for a free-text topic and returns its content.
+ * Finds the most relevant DuckDB doc for a free-text topic and returns the
+ * relevant section PLUS the file's full table of contents (so the model can see
+ * sibling sections it might actually want) and up to 3 alternative files.
+ *
  * @param {string} topic
- * @returns {{ found: boolean, path?: string, title?: string, url?: string, content?: string, matchedHeading?: string }}
+ * @param {string} [section] - request a specific heading within the resolved file
+ * @returns {{ found, path?, title?, url?, matchedHeading?, content?, sections?, alternatives? }}
  */
-function lookup(topic) {
+function lookup(topic, section) {
     const dir = activeDir();
     const manifest = loadManifest(dir);
     if (!manifest) return { found: false };
-    const q = String(topic || '').trim();
-    if (!q) return { found: false };
+    const raw = String(topic || '').trim();
+    if (!raw) return { found: false };
+    const qNorm = normalizeTopic(raw);
 
-    // 1. Curated gotcha map wins.
-    let file = null;
+    // 1. Curated gotcha map wins — it carries the exact file + biasing heading.
+    let file = null, gotchaHeading = null;
     for (const g of GOTCHA_MAP) {
-        if (g.re.test(q)) { file = manifest.files.find(f => f.path === g.file); if (file) break; }
+        if (g.re.test(raw) || g.re.test(qNorm)) {
+            file = manifest.files.find(f => f.path === g.file);
+            if (file) { gotchaHeading = g.heading || null; break; }
+        }
     }
 
-    // 2. Otherwise score by title / heading / path token overlap.
+    // 2. Otherwise score every file; keep the top 3 as alternatives.
+    let alternatives = [];
     if (!file) {
-        const terms = q.toLowerCase().split(/[^a-z0-9_]+/).filter(t => t.length > 2);
-        let best = null, bestScore = 0;
-        for (const f of manifest.files) {
-            const hay = (f.title + ' ' + f.path + ' ' + (f.headings || []).join(' ')).toLowerCase();
-            let score = 0;
-            for (const t of terms) if (hay.includes(t)) score += hay.includes(' ' + t) || f.path.includes(t) ? 2 : 1;
-            if (score > bestScore) { bestScore = score; best = f; }
-        }
-        if (best && bestScore > 0) file = best;
+        const ranked = scoreFiles(manifest, qNorm).filter(x => x.score > 0);
+        if (ranked.length === 0) return { found: false };
+        file = ranked[0].f;
+        alternatives = ranked.slice(1, 4).map(x => ({ path: x.f.path, title: x.f.title }));
     }
-    if (!file) return { found: false };
 
     let md;
     try {
@@ -229,19 +284,30 @@ function lookup(topic) {
     } catch {
         return { found: false };
     }
+    md = md.replace(/^---\n[\s\S]*?\n---\n/, ''); // strip front-matter
 
-    // Strip YAML front-matter — it's noise for the model.
-    md = md.replace(/^---\n[\s\S]*?\n---\n/, '');
-
-    // Pick the heading whose key token appears in the query (e.g. "EXCLUDE
-    // Clause" matches a question about EXCLUDE). Generic words are ignored.
-    const STOP = new Set(['clause', 'function', 'functions', 'expression', 'syntax', 'example', 'examples', 'and', 'the', 'for', 'with', 'type', 'types']);
-    const qTokens = new Set(q.toLowerCase().split(/[^a-z0-9_]+/).filter(Boolean));
-    let matchedHeading = (file.headings || []).find(h => {
+    // Which heading? explicit `section` arg > gotcha bias > query-token match.
+    const qTokens = new Set(qNorm.toLowerCase().split(/[^a-z0-9_]+/).filter(Boolean));
+    const headings = file.headings || [];
+    const pickByToken = () => headings.find(h => {
         const ht = h.toLowerCase().split(/[^a-z0-9_]+/).filter(t => t.length > 2 && !STOP.has(t));
         return ht.some(t => qTokens.has(t));
     });
-    const content = extractSection(md, matchedHeading).trim().slice(0, 6000);
+    let matchedHeading = null;
+    if (section) {
+        matchedHeading = headings.find(h => h.toLowerCase().includes(section.toLowerCase())) || section;
+    } else if (gotchaHeading) {
+        matchedHeading = headings.find(h => h.toLowerCase().includes(gotchaHeading.toLowerCase())) || pickByToken();
+    } else {
+        matchedHeading = pickByToken();
+    }
+
+    const content = extractSection(md, matchedHeading)
+        .replace(/\{%[^%]*%\}/g, '')     // strip Jekyll liquid tags ({% link … %})
+        .replace(/\]\(\s*\)/g, ']')       // fix links left empty by the strip
+        .replace(/\n{3,}/g, '\n\n')       // collapse blank runs
+        .trim()
+        .slice(0, 6000);
     const webPath = file.path.replace(/\.md$/, '');
     return {
         found: true,
@@ -249,12 +315,16 @@ function lookup(topic) {
         title: file.title,
         url: `https://duckdb.org/docs/stable/sql/${webPath}`,
         matchedHeading: matchedHeading || null,
+        // The whole TOC, so the model sees sibling sections (e.g. "Column
+        // Filtering via Pattern Matching Operators") it can request via `section`.
+        sections: headings,
         content,
+        alternatives,
     };
 }
 
 module.exports = {
-    downloadDocs, refresh, getStatus, lookup, loadManifest,
+    downloadDocs, refresh, getStatus, lookup, loadManifest, normalizeTopic,
     bundledDir, userDir, activeDir,
     DOCS_SUBPATH, REPO, REF,
 };

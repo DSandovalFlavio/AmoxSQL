@@ -274,22 +274,27 @@ function createTools(context) {
         }),
 
         lookup_duckdb_docs: tool({
-            description: "Look up the official DuckDB SQL documentation (bundled offline) for a specific feature, function, clause, or syntax. Call this BEFORE writing SQL when you are unsure of exact DuckDB syntax — especially DuckDB-specific features that differ from other SQL dialects: EXCLUDE / REPLACE / COLUMNS(*), QUALIFY, PIVOT / UNPIVOT, list comprehensions & lambdas, ASOF joins, struct/map/list types, SAMPLE, window functions, GROUPING SETS. Returns the relevant doc section with examples. Prefer this over guessing — getting DuckDB-specific syntax right on the first try saves a failed query.",
+            description: "Look up the official DuckDB SQL documentation (bundled offline) for a specific feature, function, clause, or syntax. Call this BEFORE writing SQL when you are unsure of exact DuckDB syntax — especially DuckDB-specific features that differ from other SQL dialects: EXCLUDE / REPLACE / COLUMNS(*), filtering columns BY NAME with LIKE/GLOB/SIMILAR TO, QUALIFY, PIVOT / UNPIVOT, list comprehensions & lambdas, ASOF joins, struct/map/list types, SAMPLE, window functions, GROUPING SETS. Returns the relevant section PLUS the full list of sections in that doc (`sections`) — if the answer isn't in the section you got, call again with the `section` param set to a sibling section name. Prefer this over guessing.",
             inputSchema: z.object({
-                topic: z.string().describe('The DuckDB feature, function, clause or syntax to look up. Be specific, e.g. "EXCLUDE clause in SELECT", "QUALIFY window filter", "list comprehension", "date_trunc", "PIVOT syntax".'),
+                topic: z.string().describe('The DuckDB feature, function, clause or syntax. Be specific, e.g. "exclude columns matching a pattern", "QUALIFY window filter", "list comprehension", "date_trunc". You may ask in the user\'s language.'),
+                section: z.string().optional().describe('Optional: request a specific section heading within the resolved doc (from a previous result\'s `sections` list), e.g. "Column Filtering via Pattern Matching Operators".'),
             }),
-            execute: async ({ topic }) => {
+            execute: async ({ topic, section }) => {
                 try {
-                    const r = duckdbDocs.lookup(topic);
+                    const r = duckdbDocs.lookup(topic, section);
                     if (!r.found) {
-                        return { found: false, hint: 'No matching DuckDB doc. Try a more specific feature name, or verify the syntax with a small test query.' };
+                        return { found: false, hint: 'No matching DuckDB doc. Try a more specific English feature name, or validate your SQL with validate_sql.' };
                     }
                     return {
                         found: true,
                         title: r.title,
                         section: r.matchedHeading || null,
+                        // The other sections in this doc — if your answer isn't here,
+                        // call lookup_duckdb_docs again with section set to one of these.
+                        sections: r.sections || [],
                         source: r.url,
                         content: r.content,
+                        alternatives: r.alternatives || [],
                     };
                 } catch (err) {
                     return { found: false, error: err?.message || String(err) };
