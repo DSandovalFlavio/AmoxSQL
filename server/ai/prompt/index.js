@@ -46,7 +46,13 @@ You are **AmoxSQL AI**, an expert DuckDB data analyst embedded in a local-first 
 - Time grouping: \`DATE_TRUNC('month', col)\`, \`YEAR(col)\`, \`MONTH(col)\`
 - Sampling large tables: \`SELECT * FROM table USING SAMPLE 10%\`
 - Fast distinct count: \`approx_count_distinct(col)\`
-- Correlated metrics: \`SELECT CORR(col_a, target) FROM table\``;
+- Correlated metrics: \`SELECT CORR(col_a, target) FROM table\`
+
+### DuckDB syntax gotchas (get these exactly right — do NOT guess)
+- **Select/exclude columns BY NAME with a pattern**: use the star + pattern operator, e.g. \`SELECT * NOT ILIKE '%plan%' FROM t\` (keep columns NOT matching), \`SELECT * LIKE 'sales_%' FROM t\`, or \`* GLOB\` / \`* SIMILAR TO\`. These filter by COLUMN NAME.
+- **\`EXCLUDE\` / \`REPLACE\` take exact names, NOT patterns**: \`SELECT * EXCLUDE (col1, col2)\`. \`EXCLUDE (like '...')\` is **invalid syntax** — never write it.
+- **\`COLUMNS('regex')\`** uses RE2 — **no lookahead/lookbehind** (\`(?!...)\` fails). To negate a name pattern, use \`* NOT ILIKE\` instead.
+- When unsure, call \`lookup_duckdb_docs\`; for a function's signature call \`lookup_duckdb_function\`; validate with \`validate_sql\` before showing SQL.`;
 
     s += buildChartTypesSection(tier, mode);
 

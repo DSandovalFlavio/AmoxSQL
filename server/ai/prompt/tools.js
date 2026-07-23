@@ -33,7 +33,8 @@ ${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
     - highlight: {type: "max"|"min"|"exact", value?, color?} — draws attention to the peak/trough
     - headline_kpi: {metric: "total"|"average"|"last", compare_with?: "none"|"first"|"previous"} — big KPI number above chart
   - Donut: donut_center_kpi, donut_label_content
-- **lookup_duckdb_docs**: Look up the official DuckDB SQL docs (bundled offline) for a feature/function/clause. Call it BEFORE writing SQL when unsure of DuckDB-specific syntax (EXCLUDE, QUALIFY, PIVOT, COLUMNS(*), list comprehensions, ASOF joins, struct/map/list, SAMPLE, window functions)
+- **lookup_duckdb_docs**: Look up the official DuckDB SQL docs (bundled offline) for a feature/clause. Call it BEFORE writing SQL when unsure of DuckDB-specific syntax (EXCLUDE, filtering columns by pattern with LIKE/GLOB, QUALIFY, PIVOT, COLUMNS(*), list comprehensions, ASOF joins, struct/map/list, SAMPLE, window functions). Returns the section + the doc's full table of contents (\`sections\`) — call again with \`section\` for a sibling section
+- **lookup_duckdb_function**: Get a function's EXACT signature from the running engine (duckdb_functions()) — authoritative, version-exact, cannot be hallucinated. Use when unsure a function exists or its argument types
 - **read_file**: Read a text file or list directory contents. mode='read': file content; mode='list': discover data files (CSV, Parquet, Excel, JSON)
 - **build_notebook**: Create a professional analytical notebook (.sqlnb) — diving mode only
 - **validate_sql**: Validate SQL without executing it; detailed=true returns the full execution plan
@@ -64,7 +65,9 @@ ${mode === 'assistant' ? `- **write_file**: Update the active SQL file or notebo
 9. **Never describe without doing**: You MUST call tools immediately — never respond with a plan description without calling \`create_plan\` first.
 10. **Correlations via SQL**: Use DuckDB's native \`CORR(col_a, target)\` instead of a separate tool.
 11. **Table comparisons via SQL**: Use CASE WHEN, window functions, or UNION ALL — never guess at cross-table differences.
-12. **Unsure of DuckDB syntax? Look it up**: before writing SQL with a DuckDB-specific feature you're not 100% sure about (EXCLUDE, QUALIFY, PIVOT/UNPIVOT, COLUMNS(*), list/lambda comprehensions, ASOF joins, struct/map access), call \`lookup_duckdb_docs\` — one lookup beats a failed query.`;
+12. **Unsure of DuckDB syntax? Look it up**: before writing SQL with a DuckDB-specific feature you're not 100% sure about (EXCLUDE, filtering columns by pattern, QUALIFY, PIVOT/UNPIVOT, COLUMNS(*), list/lambda comprehensions, ASOF joins, struct/map access), call \`lookup_duckdb_docs\`; for a function's exact signature call \`lookup_duckdb_function\`. One lookup beats a failed query.
+13. **Validate DuckDB-specific SQL before showing it**: if you're proposing SQL that uses a DuckDB-specific feature and you did NOT verify it via docs/function lookup, call \`validate_sql\` first. DuckDB is local — validation costs milliseconds. If \`validate_sql\` fails, do NOT show that SQL to the user: look up the correct syntax, fix it, and validate again until it passes.
+14. **Never repeat rejected SQL**: if the user says a query "didn't work" / "failed", or \`validate_sql\`/\`execute_sql\` returned an error, you are FORBIDDEN from replying with the same syntax again. You MUST first call \`lookup_duckdb_docs\` (try different, English search terms) or \`lookup_duckdb_function\`, then \`validate_sql\` the corrected query, before answering.`;
 
     return `${tools}\n\n${rules}`;
 }

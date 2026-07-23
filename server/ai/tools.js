@@ -302,6 +302,48 @@ function createTools(context) {
             },
         }),
 
+        lookup_duckdb_function: tool({
+            description: "Get the EXACT signature(s) of a DuckDB function straight from the running engine (duckdb_functions()) — the authoritative source, always matching this exact DuckDB version, impossible to hallucinate. Use it when unsure a function exists or what arguments/types it takes (e.g. list_transform, date_trunc, regexp_replace, strftime). Returns every overload's parameter types, return type, description and examples.",
+            inputSchema: z.object({
+                name: z.string().describe('The function name (or a fragment) to look up, e.g. "date_trunc", "list_", "regexp".'),
+            }),
+            execute: async ({ name }) => {
+                const safe = String(name || '').replace(/[^a-z0-9_]/gi, '').toLowerCase();
+                if (!safe) return { found: false, hint: 'Provide a function name.' };
+                try {
+                    const rows = await db.systemQuery(`
+                        SELECT function_name,
+                          any_value(function_type) AS function_type,
+                          left(any_value(description), 200) AS description,
+                          array_to_string(list(DISTINCT array_to_string(parameter_types, ', ')), '  |  ') AS signatures,
+                          array_to_string(list(DISTINCT return_type), ', ') AS return_types,
+                          array_to_string(list_distinct(flatten(list(examples))), ' ;; ') AS examples
+                        FROM duckdb_functions()
+                        WHERE function_name = '${safe}' OR function_name ILIKE '%${safe}%'
+                        GROUP BY function_name
+                        ORDER BY (function_name = '${safe}') DESC, length(function_name)
+                        LIMIT 12`);
+                    if (!rows || rows.length === 0) {
+                        return { found: false, hint: `No DuckDB function matches "${safe}". It may not exist — check the docs with lookup_duckdb_docs, or verify with validate_sql.` };
+                    }
+                    return {
+                        found: true,
+                        count: rows.length,
+                        functions: rows.map(r => ({
+                            name: r.function_name,
+                            type: r.function_type,
+                            signatures: r.signatures ? r.signatures.split('  |  ') : [],
+                            returns: r.return_types,
+                            description: r.description || null,
+                            examples: r.examples || null,
+                        })),
+                    };
+                } catch (err) {
+                    return { found: false, error: err?.message || String(err) };
+                }
+            },
+        }),
+
         display_chart: tool({
             description: 'Render a fully configured chart from a previous execute_sql result. Act as a data journalist. CHOOSE THE CHART TYPE BY REASONING, not by column type — follow the "Chart Selection" framework in your instructions: (1) state the ONE message, (2) classify the intent (comparison / change-over-time / part-of-whole / relationship / ranking-change), (3) check the data shape. Key trap: a date column with only 2–3 periods is a COMPARISON, not a trend — use grouped bars (split_by) rather than a line; lines need ≥4–5 points to be honest. For real date/timestamp time series set date_aggregation and x_axis_angle=45. Set `takeaway` (the chart\'s one-line conclusion) and, when a specific point carries the finding, an `annotations` callout — right here on display_chart.',
             inputSchema: z.object({
@@ -943,7 +985,7 @@ function createTools(context) {
                     } else if (msg.includes('does not exist') || msg.includes('not found')) {
                         hint = 'Table/view not found. Call list_tables to see available objects.';
                     } else if (msg.includes('syntax') || msg.includes('parser') || msg.includes('binder')) {
-                        hint = 'SQL syntax error. Use double quotes for identifiers and single quotes for strings.';
+                        hint = 'DuckDB rejected this syntax. Do NOT show it to the user. Call lookup_duckdb_docs for the feature (or lookup_duckdb_function for a function signature), fix the SQL, and validate again.';
                     } else {
                         hint = 'Fix the query and retry. Use list_tables and describe_table to verify names.';
                     }
