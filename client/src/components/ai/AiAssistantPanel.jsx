@@ -97,6 +97,33 @@ const AiAssistantPanel = ({
     // ─── AI modes guide (the "?" modal) ───
     const [showModesGuide, setShowModesGuide] = useState(false);
 
+    // ─── Context pills: objects (tables/files) the active query references ───
+    // Reactive: polls the live editor query; when it changes, re-describes the
+    // FROM/JOIN objects so the pills (and the model) always match the query.
+    const [queryObjects, setQueryObjects] = useState([]);
+    const [expandedObj, setExpandedObj] = useState(null);
+    useEffect(() => {
+        if (!getActiveTabInfo) return;
+        let lastQ = null;
+        let timer = null;
+        const check = () => {
+            const q = getActiveTabInfo()?.content || '';
+            if (q === lastQ) return;
+            lastQ = q;
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                if (!q.trim()) { setQueryObjects([]); return; }
+                fetch(`${API}/api/ai/query-objects`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: q }),
+                }).then(r => r.json()).then(d => setQueryObjects(d.objects || [])).catch(() => {});
+            }, 500);
+        };
+        check();
+        const iv = setInterval(check, 1500);
+        return () => { clearInterval(iv); if (timer) clearTimeout(timer); };
+    }, [getActiveTabInfo]);
+
     // First-run AI modes tour. Rendering + replay are owned by the global
     // OnboardingHost via the tour registry.
     useEffect(() => {
@@ -500,6 +527,35 @@ const AiAssistantPanel = ({
                         onDragLeave={() => setIsDragOver(false)}
                         onDrop={handleDrop}
                     >
+                        {/* Auto-detected objects the active query references — the
+                            model sees their columns+types; click to inspect. */}
+                        {queryObjects.length > 0 && (
+                            <div className="ai-composer-ctx ai-qobjects" title="El asistente conoce las columnas de estos objetos de tu query">
+                                {queryObjects.map((o, i) => (
+                                    <div key={i} className="ai-composer-chip ai-qobject-chip" style={{ position: 'relative' }}>
+                                        {o.kind === 'file' ? <LuFile size={10} /> : <LuTable size={10} />}
+                                        <span
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => setExpandedObj(expandedObj === i ? null : i)}
+                                        >{o.label} · {o.columns.length} col</span>
+                                        {expandedObj === i && (
+                                            <div className="ai-qobject-pop" onMouseLeave={() => setExpandedObj(null)}>
+                                                <div className="ai-qobject-pop-title">
+                                                    {o.label}{o.format ? ` · ${o.format}` : ''}
+                                                </div>
+                                                {o.columns.map((c, ci) => (
+                                                    <div key={ci} className="ai-qobject-col">
+                                                        <span className="ai-qobject-col-name">{c.name}</span>
+                                                        <span className="ai-qobject-col-type">{c.type}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Artifact reference chips ("Ask about this") */}
                         {pendingReferences.length > 0 && (
                             <div className="ai-composer-ctx ai-composer-refs">
