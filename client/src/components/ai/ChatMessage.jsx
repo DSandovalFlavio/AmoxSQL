@@ -11,7 +11,7 @@ import remarkGfm from 'remark-gfm';
 export const citeUrlTransform = (url) =>
     (typeof url === 'string' && url.startsWith('cite:')) ? url : defaultUrlTransform(url);
 import { API_BASE } from '../../api.js';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote, LuPlay, LuFileInput } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
@@ -22,7 +22,15 @@ import StreamingMarkdown, { MarkdownChunk } from './StreamingMarkdown';
  * Markdown renderers for chat prose. Module-level factory so the object can be
  * memoized per message (stable identity keeps memoized markdown chunks alive).
  */
-export function makeMdComponents(setCiteQueryId) {
+// Pull the raw text out of a <code> element's children (string or nested nodes).
+function codeText(node) {
+    if (typeof node === 'string') return node;
+    if (Array.isArray(node)) return node.map(codeText).join('');
+    if (node && node.props) return codeText(node.props.children);
+    return '';
+}
+
+export function makeMdComponents(setCiteQueryId, sqlActionsRef) {
     return {
         p: ({ children }) => <p>{children}</p>,
         a: ({ href, children }) => {
@@ -43,9 +51,36 @@ export function makeMdComponents(setCiteQueryId) {
             }
             return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
         },
-        pre: ({ children, ...props }) => (
-            <pre className="ai-msg-code-block" {...props}>{children}</pre>
-        ),
+        pre: ({ children, ...props }) => {
+            // For SQL blocks in assistant mode, add an action bar so the user can
+            // apply the SQL to their editor or run it — even when the model pasted
+            // it as prose instead of calling write_file.
+            const codeEl = Array.isArray(children) ? children[0] : children;
+            const lang = /language-(\w+)/.exec(codeEl?.props?.className || '')?.[1];
+            const actions = sqlActionsRef?.current || {};
+            const isSql = lang === 'sql';
+            const sql = isSql ? codeText(codeEl?.props?.children).trim() : '';
+            const showBar = isSql && sql && (actions.onApplyToFile || actions.onRunSql);
+            return (
+                <div className={showBar ? 'ai-msg-code-wrap' : undefined}>
+                    <pre className="ai-msg-code-block" {...props}>{children}</pre>
+                    {showBar && (
+                        <div className="ai-msg-code-actions">
+                            {actions.onApplyToFile && (
+                                <button className="ai-code-action-btn" onClick={() => actions.onApplyToFile(sql)} title="Reemplazar el contenido del editor con esta consulta">
+                                    <LuFileInput size={12} /> Aplicar al editor
+                                </button>
+                            )}
+                            {actions.onRunSql && (
+                                <button className="ai-code-action-btn" onClick={() => actions.onRunSql(sql)} title="Ejecutar esta consulta">
+                                    <LuPlay size={12} /> Ejecutar
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        },
         code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || '');
             return match ? (
@@ -475,9 +510,17 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Inline citation → opens the query audit modal for the cited result
     const [citeQueryId, setCiteQueryId] = useState(null);
 
+    // SQL code-block actions (apply-to-editor / run) — only in assistant mode.
+    // Kept in a ref so mdComponents stays memo-stable while always current.
+    const sqlActionsRef = useRef({});
+    sqlActionsRef.current = {
+        onApplyToFile: !isDiving ? onApplyToFile : undefined,
+        onRunSql: onRunSql,
+    };
+
     // Stable markdown renderers (setCiteQueryId is a stable setter). A fresh
     // components object per render would defeat the memoized markdown chunks.
-    const mdComponents = useMemo(() => makeMdComponents(setCiteQueryId), []);
+    const mdComponents = useMemo(() => makeMdComponents(setCiteQueryId, sqlActionsRef), []);
 
     // Parse follow-up suggestions from suggest_followups tool
     const followUps = toolCalls?.filter(tc => tc.toolName === 'suggest_followups')
