@@ -12,8 +12,11 @@ For example, if you ask *"I want to use EXCLUDE in a SELECT"*, the AI looks up t
 
 ## How it works
 
-- The AI has a tool, **`lookup_duckdb_docs`**, which it calls on its own when unsure of DuckDB-specific syntax.
-- Everything is **local**: the docs are bundled; your query and your data are never sent anywhere. It just reads a markdown file from the snapshot.
+- The AI has two tools it calls on its own when unsure of the syntax:
+  - **`lookup_duckdb_docs`** — consults the bundled documentation (prose + examples). Returns the relevant section **and the file's table of contents**, so if the answer is in another section it requests it precisely.
+  - **`lookup_duckdb_function`** — asks the **live DuckDB engine** (`duckdb_functions()`) for any function's exact signature: parameter types, return type and examples. Because it comes from the engine that runs your queries, it **always matches your DuckDB version and is impossible to hallucinate**.
+- Also, before showing you SQL that uses a DuckDB-specific feature, the AI **validates it against the engine** (without executing it) — if it's invalid, it doesn't show it: it looks up the correct syntax and fixes it.
+- Everything is **local**: the docs are bundled and the engine is yours; your query and your data are never sent anywhere.
 - It returns **only the relevant section** (not the whole manual), so it doesn't overwhelm small models' context.
 
 > Note: the tool is used by tool-calling models (medium tier or higher). Very small (prompt-only) models don't call it.

@@ -12,8 +12,11 @@ Por ejemplo, si preguntas *"quiero usar EXCLUDE en un SELECT"*, la IA busca el d
 
 ## Cómo funciona
 
-- La IA tiene una herramienta, **`lookup_duckdb_docs`**, que llama por su cuenta cuando no está segura de una sintaxis DuckDB-específica.
-- Todo es **local**: la documentación viene empaquetada; no se envía tu consulta ni tus datos a ningún lado. Solo se lee un archivo markdown del snapshot.
+- La IA tiene dos herramientas que llama por su cuenta cuando no está segura de la sintaxis:
+  - **`lookup_duckdb_docs`** — consulta la documentación empaquetada (prosa + ejemplos). Devuelve la sección relevante **y el índice de secciones del archivo**, así que si la respuesta está en otra sección, la pide con precisión.
+  - **`lookup_duckdb_function`** — pregunta al **motor DuckDB en vivo** (`duckdb_functions()`) la firma exacta de cualquier función: tipos de parámetros, tipo de retorno y ejemplos. Como viene del motor que ejecuta tus consultas, **siempre coincide con tu versión de DuckDB y es imposible de inventar**.
+- Además, antes de mostrarte SQL con una feature DuckDB-específica, la IA lo **valida contra el motor** (sin ejecutarlo) — si no es válido, no te lo muestra: busca la sintaxis correcta y la corrige.
+- Todo es **local**: la documentación viene empaquetada y el motor es el tuyo; no se envía tu consulta ni tus datos a ningún lado.
 - Devuelve **solo la sección relevante** (no el manual entero), para no saturar el contexto de los modelos chicos.
 
 > Nota: la herramienta la usan los modelos con *tool-calling* (tier medium o superior). Los modelos muy pequeños (prompt-only) no la llaman.

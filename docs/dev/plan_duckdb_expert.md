@@ -1,6 +1,7 @@
 # Plan — "Experto DuckDB": que cualquier IA en AmoxSQL escriba SQL de DuckDB perfecto
 
-> **Estado**: PLAN (auditoría con evidencia empírica hecha; implementación pendiente)
+> **Estado**: ✅ IMPLEMENTADO (E1–E4) en rama `claude/duckdb-expert`. E5 (suite de eval) queda como futuro.
+> Validación: root causes verificados a nivel unitario (retrieval acierta los casos del transcript, tool de funciones corre en el motor real, prompt trae cheat sheet + reglas). El E2E con modelo real quedó pendiente de la máquina rápida — el dev (P600/CPU) hace timeout con el tool loop.
 > **Fecha**: 2026-07-22
 > **Objetivo**: que cualquier modelo (chico o grande) que use AmoxSQL sea experto completo en el dialecto de DuckDB — sin inventar sintaxis, verificando contra el motor real.
 > **Caso disparador**: conversación real donde el modelo inventó `SELECT * EXCLUDE (like '%plan%')` (inválido) en vez de la sintaxis correcta `SELECT * NOT ILIKE '%plan%'` — y la repitió incluso tras el "no funcionó" del usuario.
