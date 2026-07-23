@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { LuCopy, LuPlay, LuChevronDown, LuChevronRight, LuFileInput, LuFilePlus2 } from 'react-icons/lu';
 
 /**
@@ -11,7 +12,9 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const [copied, setCopied] = useState(false);
     const [showApplyMenu, setShowApplyMenu] = useState(false);
-    const menuRef = useRef(null);
+    const [menuPos, setMenuPos] = useState(null);
+    const menuRef = useRef(null);   // the anchor wrap (button)
+    const popRef = useRef(null);    // the portalled menu
 
     const handleCopy = () => {
         navigator.clipboard.writeText(sql);
@@ -19,16 +22,37 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
         setTimeout(() => setCopied(false), 1500);
     };
 
-    // Close dropdown on outside click
+    const openApplyMenu = () => {
+        if (showApplyMenu) { setShowApplyMenu(false); return; }
+        // Anchor the menu to the button in viewport space. It renders in a portal
+        // on <body>, so `.ai-sql { overflow: hidden }` (and any scroll container)
+        // can no longer clip it — the "menu queda escondido" bug.
+        const btn = menuRef.current?.querySelector('button');
+        if (btn) {
+            const r = btn.getBoundingClientRect();
+            setMenuPos({ top: r.bottom + 2, right: window.innerWidth - r.right });
+        }
+        setShowApplyMenu(true);
+    };
+
+    // Close dropdown on outside click (anchor OR portalled menu counts as inside)
     useEffect(() => {
         if (!showApplyMenu) return;
         const handleClickOutside = (e) => {
-            if (menuRef.current && !menuRef.current.contains(e.target)) {
-                setShowApplyMenu(false);
-            }
+            if (menuRef.current?.contains(e.target)) return;
+            if (popRef.current?.contains(e.target)) return;
+            setShowApplyMenu(false);
         };
+        const closeOnScroll = () => setShowApplyMenu(false);
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        // Anchored to viewport coords → any scroll would detach it; just close.
+        window.addEventListener('scroll', closeOnScroll, true);
+        window.addEventListener('resize', closeOnScroll);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('scroll', closeOnScroll, true);
+            window.removeEventListener('resize', closeOnScroll);
+        };
     }, [showApplyMenu]);
 
     const headerClasses = [
@@ -68,24 +92,23 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
                         <div className="ai-sql-apply-wrap" ref={menuRef} style={{ position: 'relative', display: 'inline-flex' }}>
                             <button
                                 className="ai-sql-btn"
-                                onClick={() => setShowApplyMenu(v => !v)}
+                                onClick={openApplyMenu}
                                 title="Apply to editor"
                             >
                                 <LuFileInput size={11} />
                                 Apply
                                 <LuChevronDown size={9} style={{ marginLeft: 2 }} />
                             </button>
-                            {showApplyMenu && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    right: 0,
-                                    marginTop: 2,
+                            {showApplyMenu && menuPos && createPortal((
+                                <div ref={popRef} style={{
+                                    position: 'fixed',
+                                    top: menuPos.top,
+                                    right: menuPos.right,
                                     background: 'var(--surface-overlay)',
                                     border: '1px solid var(--border-subtle)',
                                     borderRadius: 6,
                                     boxShadow: 'var(--shadow-md)',
-                                    zIndex: 100,
+                                    zIndex: 10000,
                                     minWidth: 160,
                                     overflow: 'hidden',
                                 }}>
@@ -112,7 +135,7 @@ const SqlBlock = ({ sql, onRun, onApplyToFile, onAppendToFile, defaultExpanded =
                                         </button>
                                     )}
                                 </div>
-                            )}
+                            ), document.body)}
                         </div>
                     )}
 

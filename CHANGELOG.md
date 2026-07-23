@@ -5,6 +5,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [4.0.0] — 2026-07-23
+
+### La IA local, reinventada — rápida, experta en DuckDB y consciente de tu sesión
+
+El salto de capacidad de IA más grande del proyecto. La IA local (Ollama) ahora arranca casi al instante, escribe SQL de DuckDB como una experta apoyándose en el propio motor y en la documentación oficial offline, y —lo más importante— **ve lo que tú estás viendo**: tu resultado en pantalla, la vista activa y el gráfico que armas.
+
+#### Rendimiento AI local casi instantáneo
+- **El modelo se queda caliente**: `keep_alive` configurable (4h por defecto) y `num_ctx` estable entre peticiones para no forzar recargas. El primer mensaje tras cambiar de modelo ya no tarda un mundo.
+- **Warmup automático**: al elegir un modelo se precarga en segundo plano; si mandas un mensaje antes de que esté listo, ves **"Encendiendo modelo…"** en vez de un "Pensando…" mudo.
+- **Razonamiento en vivo estilo Ollama**: cuando el modelo razona, lo ves pensar en una sección plegable con "Pensó durante X s".
+- **Modelo pegajoso por modo** y **thinking por modelo** (Auto/On/Off) configurables. Dieta de prompt y contexto acotado para respuestas más ágiles en máquinas modestas.
+
+#### Experta en DuckDB — el motor y los docs como árbitro
+- **Documentación de DuckDB offline**: 126 páginas de la documentación oficial empaquetadas en la app. La IA las consulta (`lookup_duckdb_docs`) para acertar sintaxis específica (EXCLUDE, QUALIFY, PIVOT, COLUMNS, list comprehensions) sin conexión. Card en Ajustes → IA con fecha de extracción, botón "Actualizar ahora" y tres modos (offline / manual / automático cada N días).
+- **Firmas de función desde el motor**: `lookup_duckdb_function` consulta `duckdb_functions()` de la propia base — firma exacta, versión exacta, imposible de alucinar.
+- **Validar antes de mostrar**: la IA valida el SQL antes de proponértelo y no repite una consulta que ya fue rechazada. Cheat sheet de quirks en el prompt (p. ej. excluir columnas por patrón es `SELECT * NOT ILIKE '%plan%'`, no un `WHERE`).
+
+#### El asistente entiende tu archivo y tu sesión
+- **Ve tus archivos**: describe automáticamente todo lo que tu query referencia en FROM/JOIN (CSV, JSON, Parquet, Excel) — columnas y tipos — mostrado en **pastillas reactivas** sobre el chat. Adiós al "¿cómo se llama tu tabla?".
+- **Ve tu resultado en pantalla**: el asistente ahora conoce el resultado que ya ejecutaste (su id, columnas con tipos y una muestra) y puede **graficarlo o citarlo sin volver a ejecutar** ni pedirte un `query_id` que no podías ver.
+- **Sabe qué estás mirando**: distingue si estás en la vista de **tabla, gráfico o perfil**, y ve el gráfico que construyes a mano.
+- **Botones de aplicar**: el SQL que genera la IA trae botones para **Reemplazar / Añadir** en tu archivo o **Ejecutar**, y puedes aplicarlo varias veces seguidas.
+
+#### Correcciones
+- `write_file` ya no falla cuando el modelo omite la descripción (los modelos pequeños lo omitían y la herramienta fallaba, provocando reintentos).
+- "Aplicar al editor" funciona de forma repetida sin tener que cerrar y reabrir el archivo.
+- El menú "Reemplazar / Añadir" del bloque de SQL ya no queda recortado ni escondido.
+
+---
+
 ## [3.9.0] — 2026-07-22
 
 ### Sterling llega a AmoxSQL — temas, paletas y storytelling editorial

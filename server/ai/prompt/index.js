@@ -46,7 +46,16 @@ You are **AmoxSQL AI**, an expert DuckDB data analyst embedded in a local-first 
 - Time grouping: \`DATE_TRUNC('month', col)\`, \`YEAR(col)\`, \`MONTH(col)\`
 - Sampling large tables: \`SELECT * FROM table USING SAMPLE 10%\`
 - Fast distinct count: \`approx_count_distinct(col)\`
-- Correlated metrics: \`SELECT CORR(col_a, target) FROM table\``;
+- Correlated metrics: \`SELECT CORR(col_a, target) FROM table\`
+
+### DuckDB syntax gotchas (get these exactly right — do NOT guess)
+- **Exclude/keep columns BY NAME with a pattern** → the star pattern operator goes right after \`*\`, filtering COLUMN NAMES:
+  - Drop columns whose name CONTAINS "plan": \`SELECT * NOT ILIKE '%plan%' FROM t\` (\`%\` = any chars, so \`%plan%\` = contains; \`'plan%'\` = starts-with only).
+  - Keep only columns starting with "sales_": \`SELECT * LIKE 'sales_%' FROM t\`. Also \`* GLOB\` / \`* SIMILAR TO\`.
+  - This is NOT a \`WHERE\` clause — \`WHERE col NOT ILIKE ...\` filters ROWS, not columns. Never use \`WHERE\` to drop columns.
+- **\`EXCLUDE\` / \`REPLACE\` take exact names, NOT patterns**: \`SELECT * EXCLUDE (col1, col2)\`. \`EXCLUDE (like '...')\` is **invalid syntax** — never write it.
+- **\`COLUMNS('regex')\`** uses RE2 — **no lookahead/lookbehind** (\`(?!...)\` fails). To negate a name pattern, use \`* NOT ILIKE\` instead.
+- When unsure, call \`lookup_duckdb_docs\`; for a function's signature call \`lookup_duckdb_function\`; validate with \`validate_sql\` before showing SQL.`;
 
     s += buildChartTypesSection(tier, mode);
 
@@ -65,6 +74,7 @@ function buildDynamicSection(options) {
         currentQuery = '',
         currentResult = null,
         currentChartConfig = null,
+        currentView = null,
         referencedArtifacts = [],
         activeSkill = null,
         enablePlanner = false,
@@ -125,8 +135,11 @@ When you design a chart's palette, make it read on a ${mode_.toLowerCase()} back
     // The live editor state changes on every keystroke; the date changes daily.
     // Placing them at the end means an edit or a new day only invalidates these
     // trailing tokens, not the whole schema+instructions prefix (F3 / H5).
-    if (mode === 'assistant') {
-        d += buildLiveEditorState({ currentQuery, currentResult, currentChartConfig });
+    // Surface the live editor state (query/result/chart/view) as the volatile
+    // tail. Assistant always; diving too when any of it is present (so a Deep
+    // Dive linked to an open file can see what the user is looking at).
+    if (mode === 'assistant' || currentResult || currentChartConfig || currentView) {
+        d += buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView });
     }
     const today = new Date().toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',

@@ -218,6 +218,7 @@ async function* agenticLoop(options, getModelFn) {
         currentQuery = '',
         currentResult = null,
         currentChartConfig = null,
+        currentView = null,
         referencedArtifacts = [],
         activeSkillId = null,
         filePath = null,
@@ -277,7 +278,7 @@ async function* agenticLoop(options, getModelFn) {
     const promptOptions = {
         tables, files, mode,
         userRules, memories,
-        currentQuery, currentResult, currentChartConfig,
+        currentQuery, currentResult, currentChartConfig, currentView,
         referencedArtifacts,
         activeSkill, modelProfile: profile,
         filePath, fileType,

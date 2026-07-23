@@ -2022,6 +2022,26 @@ app.get('/api/ai/model-status', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/ai/query-objects — describe the objects (tables + files) a query
+ * references in FROM/JOIN, for the assistant's context pills. No LLM; just
+ * DESCRIBE (schema only, no row scan). Called (debounced) as the user edits.
+ * Body: { query }
+ */
+app.post('/api/ai/query-objects', async (req, res) => {
+    const { query } = req.body || {};
+    if (!query || typeof query !== 'string') return res.json({ objects: [] });
+    try {
+        const { resolveQueryObjects } = require('./ai/queryObjects');
+        const allNames = await listAllTableNames();
+        const objects = await resolveQueryObjects(query, dbManager, allNames);
+        res.json({ objects });
+    } catch (err) {
+        console.warn('[AI Query Objects]', err.message);
+        res.json({ objects: [] });
+    }
+});
+
 app.post('/api/ai/init', async (req, res) => {
     try {
         await aiManager.initialize();
@@ -2295,11 +2315,73 @@ async function buildFileContext(contextFiles) {
 }
 
 /**
+ * Assistant context resolver: from the active query, describe every object it
+ * references in FROM/JOIN — DB tables AND file reads (CSV/JSON/Parquet/Excel) —
+ * so the assistant sees their columns+types instead of asking "what's your
+ * table?". Reactive by nature: called per message from the live query, so a
+ * newly-added object in an edited query shows up on the next turn.
+ * Returns { tables, files, roster } in the prompt's context shapes.
+ */
+const { resolveQueryObjects } = require('./ai/queryObjects');
+async function buildAssistantQueryContext(currentQuery) {
+    const allNames = await listAllTableNames();
+    let objs = [];
+    try {
+        objs = await resolveQueryObjects(currentQuery, dbManager, allNames);
+    } catch (e) {
+        console.warn('[AI Assistant Ctx] resolveQueryObjects failed:', e.message);
+    }
+    const tables = objs.filter(o => o.kind === 'table')
+        .map(o => ({ name: o.label, columns: o.columns, rows: '?' }));
+    const files = objs.filter(o => o.kind === 'file')
+        .map(o => ({ name: o.label, path: o.ref, columns: o.columns, sampleRows: [], rowCount: null }));
+    return { tables, files, roster: allNames };
+}
+
+/**
+ * Make the user's ON-SCREEN result referenceable by the AI (session-awareness).
+ * A manual editor run (`/api/query`) returns a queryId but never persists its
+ * rows, so `display_chart` could never resolve it — the model was forced to
+ * re-run execute_sql or (worse) beg for a queryId that doesn't exist. Here we
+ * register the live result into the SAME `amoxsql_ai.query_cache` that
+ * display_chart falls back to, so the assistant can chart/cite exactly what the
+ * user is looking at with zero re-execution. Idempotent: the id is a stable
+ * client UUID, so we skip if already cached (PRIMARY KEY would otherwise clash).
+ */
+async function registerLiveResultCache(currentResult, conversationId) {
+    try {
+        if (!aiPersistence || !currentResult) return;
+        const qid = currentResult.queryId;
+        const data = currentResult.data;
+        if (!qid || !Array.isArray(data) || data.length === 0) return;
+        const existing = await aiPersistence.getQueryCache(dbManager, qid);
+        if (existing) return;
+        const columns = Array.isArray(currentResult.columns) && currentResult.columns.length
+            ? currentResult.columns
+            : (data[0] ? Object.keys(data[0]).map(name => ({ name })) : []);
+        await aiPersistence.saveQueryCache(dbManager, {
+            queryId: qid,
+            conversationId: conversationId || null,
+            sqlQuery: currentResult.resultsQuery || '',
+            columns,
+            data,
+            rowCount: currentResult.rowCount ?? data.length,
+            execMs: Math.round(Number(currentResult.executionTime) || 0),
+        });
+        if (conversationId) {
+            aiPersistence.pruneQueryCache(dbManager, conversationId, 100).catch(() => {});
+        }
+    } catch (e) {
+        console.warn('[AI] live result cache failed:', e.message);
+    }
+}
+
+/**
  * POST /api/ai/chat — Non-streaming tool loop chat
  * Body: { messages, provider?, model?, mode?, contextFiles?, currentQuery?, currentResult?, currentChartConfig? }
  */
 app.post('/api/ai/chat', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, conversationId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2313,16 +2395,23 @@ app.post('/api/ai/chat', async (req, res) => {
         const hasExplicitContext = (contextFiles && contextFiles.length > 0) || (contextTables && contextTables.length > 0);
         let tablesToLoad = hasExplicitContext ? (contextTables || []) : null;
         let tableRoster = null;
+        let tables, files;
         if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
-            const allNames = await listAllTableNames();
-            tableRoster = allNames;
-            tablesToLoad = extractReferencedTables(currentQuery, allNames).map(name => ({ name }));
+            // Describe every object the active query references (tables + files),
+            // and make the user's on-screen result chartable by its own id.
+            const [ctx] = await Promise.all([
+                buildAssistantQueryContext(currentQuery),
+                registerLiveResultCache(currentResult, conversationId),
+            ]);
+            tables = ctx.tables;
+            files = ctx.files;
+            tableRoster = ctx.roster;
+        } else {
+            [tables, files] = await Promise.all([
+                buildTableContext(tablesToLoad),
+                buildFileContext(contextFiles),
+            ]);
         }
-
-        const [tables, files] = await Promise.all([
-            buildTableContext(tablesToLoad),
-            buildFileContext(contextFiles),
-        ]);
 
         const result = await aiManager.chat({
             messages,
@@ -2335,6 +2424,7 @@ app.post('/api/ai/chat', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            currentView,
             tableRoster,
         });
 
@@ -2404,7 +2494,7 @@ async function expandReferencedArtifacts(refs) {
 }
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2431,22 +2521,31 @@ app.post('/api/ai/chat/stream', async (req, res) => {
 
         // ── Bounded context for assistant mode (F3, fixes H9) ──
         // Deep Dive genuinely needs the whole DB; the editor assistant does not.
-        // When the user hasn't dragged explicit context, load full columns ONLY
-        // for tables referenced in the active query, plus a cheap name roster of
-        // the rest (the model pulls details on demand via describe_table).
+        // When the user hasn't dragged explicit context, describe every object the
+        // active query references in FROM/JOIN — DB tables AND file reads (CSV/
+        // JSON/Parquet/Excel) — so the assistant sees columns+types instead of
+        // asking "what's your table?". Reactive: resolved per message from the
+        // live query, so an edited query with a new object shows up next turn.
         let tableRoster = null;
+        let tables, files, expandedReferences;
         if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
-            const allNames = await listAllTableNames();
-            tableRoster = allNames;
-            const referenced = extractReferencedTables(currentQuery, allNames);
-            tablesToLoad = referenced.map(name => ({ name }));
+            const [ctx, refs] = await Promise.all([
+                buildAssistantQueryContext(currentQuery),
+                expandReferencedArtifacts(referencedArtifacts),
+                // Make what the user is looking at chartable by its own id.
+                registerLiveResultCache(currentResult, conversationId),
+            ]);
+            tables = ctx.tables;
+            files = ctx.files;
+            tableRoster = ctx.roster;
+            expandedReferences = refs;
+        } else {
+            [tables, files, expandedReferences] = await Promise.all([
+                buildTableContext(tablesToLoad),
+                buildFileContext(contextFiles),
+                expandReferencedArtifacts(referencedArtifacts),
+            ]);
         }
-
-        const [tables, files, expandedReferences] = await Promise.all([
-            buildTableContext(tablesToLoad),
-            buildFileContext(contextFiles),
-            expandReferencedArtifacts(referencedArtifacts),
-        ]);
 
         const chatOptions = {
             messages,
@@ -2459,6 +2558,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             currentQuery,
             currentResult,
             currentChartConfig,
+            currentView,
             referencedArtifacts: expandedReferences,
             activeSkillId,
             filePath,
