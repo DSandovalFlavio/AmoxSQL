@@ -1,7 +1,7 @@
 {
   "name": "amoxsql",
   "license": "SEE LICENSE IN LICENSE",
-  "version": "3.9.0",
+  "version": "4.0.0",
   "description": "The Modern Codex for Local Data Analysis",
   "author": {
     "name": "Flavio Sandoval",
