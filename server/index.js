@@ -435,7 +435,7 @@ app.get('/api/project/scan-dbs', (req, res) => {
     try {
         const files = fs.readdirSync(ROOT_DIR, { withFileTypes: true });
         const dbFiles = files
-            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db') || file.name.endsWith('.wal')))
+            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db') || file.name.endsWith('.wal') || file.name.endsWith('.ducklake')))
             .map(file => ({
                 name: file.name,
                 path: file.name // Relative path from root is enough for now

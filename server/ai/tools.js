@@ -750,7 +750,7 @@ function createTools(context) {
                     }
 
                     const ext = path.extname(fullPath).toLowerCase();
-                    const binaryExts = ['.db', '.duckdb', '.sqlite', '.parquet', '.xlsx', '.xls', '.zip', '.gz', '.tar', '.png', '.jpg', '.gif', '.pdf', '.exe', '.dll', '.wasm'];
+                    const binaryExts = ['.db', '.duckdb', '.sqlite', '.parquet', '.xlsx', '.xls', '.zip', '.gz', '.tar', '.png', '.jpg', '.gif', '.pdf', '.exe', '.dll', '.wasm', 'ducklake'];
                     if (binaryExts.includes(ext)) {
                         return { error: `Cannot read binary file (${ext}). Only text files are supported.` };
                     }
