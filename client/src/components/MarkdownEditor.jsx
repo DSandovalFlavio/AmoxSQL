@@ -83,6 +83,7 @@ const MarkdownEditor = ({
     showAiSidebar,
     isActive,
     onOpenFile,
+    filePath,
 }) => {
     const editorRef = useRef(null);
     const containerRef = useRef(null);
@@ -656,6 +657,7 @@ const MarkdownEditor = ({
                                 theme={theme}
                                 onOpenFile={onOpenFile}
                                 widthMode={widthMode}
+                                filePath={filePath}
                             />
                         </div>
                     )}

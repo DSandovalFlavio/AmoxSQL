@@ -30,6 +30,7 @@ class DatabaseManager {
         this.instance = null;
         this.connections = { main: null, meta: null, ai: null };
         this.attachedPath = null;
+        this.isDuckLake = false;
         this.alias = 'user_db';
         this._laneFacades = {};
 
@@ -58,6 +59,7 @@ class DatabaseManager {
                 this.connections[lane] = await this.instance.connect();
             }
             this.attachedPath = null;
+            this.isDuckLake = false;
             console.log("[DB Manager] System DB initialized (Neo Client, lanes: " + LANES.join(', ') + ").");
 
             // Re-LOAD any extensions the user had activated. The instance is
@@ -207,15 +209,37 @@ class DatabaseManager {
 
         // 3. Attach new
         try {
-            const attachMode = options.readOnly ? '(READ_ONLY)' : '';
-            console.log(`[DB Manager] Attaching: ${fullPath} AS ${this.alias} ${attachMode}`);
-
             if (!this.connections.main) await this._initSystem();
 
+            // DuckLake lakehouse (.ducklake) vs. plain DuckDB file — a .ducklake
+            // is only a metadata *catalog*; it must be attached through the
+            // ducklake extension with the `ducklake:` prefix, or DuckDB opens it
+            // as an ordinary database and exposes the raw metadata tables instead
+            // of the logical lakehouse tables.
+            const isDuckLake = fullPath.toLowerCase().endsWith('.ducklake');
+
+            if (isDuckLake) {
+                // Best-effort install; on a machine with network this is a no-op
+                // after the first time, and the extension also autoloads on first
+                // use in an ATTACH clause. Offline-first-run will surface a clear
+                // error from the ATTACH below.
+                try {
+                    await this.query(`INSTALL ducklake`);
+                    await this.query(`LOAD ducklake`);
+                    this.rememberExtension('ducklake');
+                } catch (extErr) {
+                    console.warn('[DB Manager] ducklake extension install/load warning:', extErr?.message || extErr);
+                }
+            }
+
+            const attachSql = this._buildAttachSql(fullPath, isDuckLake, options);
+            console.log(`[DB Manager] Attaching: ${attachSql}`);
+
             // Execute SQL ATTACH — instance-wide, visible to every lane
-            await this.query(`ATTACH '${fullPath}' AS ${this.alias} ${attachMode}`);
+            await this.query(attachSql);
 
             this.attachedPath = fullPath;
+            this.isDuckLake = isDuckLake;
 
             // `USE` is per-connection: replicate it on every lane so unqualified
             // names (and objects created by the AI, e.g. attach_file views)
@@ -228,7 +252,10 @@ class DatabaseManager {
             console.log("[DB Manager] Attach successful.");
 
             // --- QUERY HISTORY INITIALIZATION (RW ONLY) ---
-            if (!options.readOnly) {
+            // Skipped for DuckLake: writing the amoxsql_ai bookkeeping schema
+            // into a lakehouse would pollute the user's versioned data lake with
+            // our own tables (and generate snapshots/Parquet for bookkeeping).
+            if (!options.readOnly && !isDuckLake) {
                 await this._initHistory();
             }
 
@@ -237,6 +264,22 @@ class DatabaseManager {
             await this.reinitializeSystem();
             throw e;
         }
+    }
+
+    /**
+     * Build the ATTACH statement for a database file. Plain DuckDB files attach
+     * directly; DuckLake catalogs (.ducklake) attach through the ducklake
+     * extension with the `ducklake:` prefix and a sibling DATA_PATH directory
+     * (`<file>.files/`, DuckLake's default) where the Parquet data lives.
+     */
+    _buildAttachSql(fullPath, isDuckLake, options = {}) {
+        if (isDuckLake) {
+            const opts = [`DATA_PATH '${fullPath}.files'`];
+            if (options.readOnly) opts.push('READ_ONLY');
+            return `ATTACH 'ducklake:${fullPath}' AS ${this.alias} (${opts.join(', ')})`;
+        }
+        const attachMode = options.readOnly ? '(READ_ONLY)' : '';
+        return `ATTACH '${fullPath}' AS ${this.alias} ${attachMode}`.trim();
     }
 
     async _initHistory() {
@@ -473,6 +516,7 @@ class DatabaseManager {
         }
 
         this.attachedPath = null;
+        this.isDuckLake = false;
     }
 
     getCurrentPath() {

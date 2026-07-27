@@ -10,7 +10,8 @@ const SHORTCUTS = [
     },
     {
         category: 'Query', items: [
-            { keys: 'Ctrl + Enter', description: 'Run Query / Run Cell' },
+            { keys: 'Ctrl + Enter', description: 'Run Query / Run Cell (selection or whole script)' },
+            { keys: 'Ctrl + Alt + Enter', description: 'Run only the statement under the cursor' },
             { keys: 'Ctrl + Shift + A', description: 'Analyze Query Plan' },
         ]
     },

@@ -21,6 +21,15 @@ function FullscreenViewer({ onClose, children }) {
     const [scale, setScale] = useState(1);
     const [pos, setPos] = useState({ x: 0, y: 0 });
     const dragRef = useRef(null);
+    const stageRef = useRef(null);
+    // Refs mirror state so the wheel/pan handlers always read the latest values
+    // without depending on a fresh closure between rapid events.
+    const scaleRef = useRef(1);
+    const posRef = useRef({ x: 0, y: 0 });
+    useEffect(() => { scaleRef.current = scale; }, [scale]);
+    useEffect(() => { posRef.current = pos; }, [pos]);
+
+    const clamp = (s) => Math.min(8, Math.max(0.2, s));
 
     useEffect(() => {
         const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -28,35 +37,61 @@ function FullscreenViewer({ onClose, children }) {
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose]);
 
+    // Zoom anchored to the cursor: keep the point under the mouse fixed while
+    // scaling (instead of always zooming toward the center).
     const onWheel = (e) => {
         e.preventDefault();
-        setScale((s) => Math.min(8, Math.max(0.2, s * (e.deltaY < 0 ? 1.12 : 0.89))));
+        const rect = stageRef.current?.getBoundingClientRect();
+        const s = scaleRef.current;
+        const ns = clamp(s * (e.deltaY < 0 ? 1.12 : 0.89));
+        if (rect && ns !== s) {
+            const ux = e.clientX - rect.left - rect.width / 2;
+            const uy = e.clientY - rect.top - rect.height / 2;
+            const p = posRef.current;
+            setPos({ x: ux - (ns / s) * (ux - p.x), y: uy - (ns / s) * (uy - p.y) });
+        }
+        setScale(ns);
     };
+
+    // Pan with pointer capture so the drag survives fast moves and the pointer
+    // leaving the stage. The child <img>/<svg> have pointer-events:none + no
+    // native drag (CSS), so the gesture is never hijacked by image-drag or
+    // text-selection.
     const onPointerDown = (e) => {
-        dragRef.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+        e.preventDefault();
+        dragRef.current = { id: e.pointerId, x: e.clientX - posRef.current.x, y: e.clientY - posRef.current.y };
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
     };
     const onPointerMove = (e) => {
-        if (!dragRef.current) return;
-        setPos({ x: e.clientX - dragRef.current.x, y: e.clientY - dragRef.current.y });
+        const d = dragRef.current;
+        if (!d || d.id !== e.pointerId) return;
+        setPos({ x: e.clientX - d.x, y: e.clientY - d.y });
     };
-    const onPointerUp = () => { dragRef.current = null; };
+    const endDrag = (e) => {
+        const d = dragRef.current;
+        if (d && e?.currentTarget?.releasePointerCapture) {
+            try { e.currentTarget.releasePointerCapture(d.id); } catch { /* noop */ }
+        }
+        dragRef.current = null;
+    };
     const reset = () => { setScale(1); setPos({ x: 0, y: 0 }); };
 
     return createPortal(
         <div className="mde-fs-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
             <div className="mde-fs-toolbar">
-                <button onClick={() => setScale((s) => Math.min(8, s * 1.2))} title="Zoom in"><LuZoomIn size={16} /></button>
-                <button onClick={() => setScale((s) => Math.max(0.2, s * 0.83))} title="Zoom out"><LuZoomOut size={16} /></button>
+                <button onClick={() => setScale((s) => clamp(s * 1.2))} title="Zoom in"><LuZoomIn size={16} /></button>
+                <button onClick={() => setScale((s) => clamp(s * 0.83))} title="Zoom out"><LuZoomOut size={16} /></button>
                 <button onClick={reset} title="Reset"><LuRotateCcw size={15} /></button>
                 <button onClick={onClose} title="Close (Esc)"><LuX size={16} /></button>
             </div>
             <div
+                ref={stageRef}
                 className="mde-fs-stage"
                 onWheel={onWheel}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerLeave={onPointerUp}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
             >
                 <div
                     className="mde-fs-content"
@@ -109,15 +144,35 @@ function MermaidDiagram({ code, theme }) {
     );
 }
 
+// ── Image src resolution ─────────────────────────────────────────────────────
+// A relative image reference in a .md file (./assets/foo.png, ../img/d.svg) is
+// relative to the file's own directory on disk — NOT to the app's origin, where
+// the preview actually runs. So we rewrite relative srcs to the raw-file
+// endpoint, resolved against the markdown file's directory. External/data/blob
+// and root-absolute URLs pass through untouched. SVG and PNG both work.
+function resolveAssetSrc(src, baseDir) {
+    if (!src || /^(https?:|data:|blob:|\/)/i.test(src)) return src;
+    const rel = src.replace(/^\.\//, '');
+    const joined = baseDir ? `${baseDir}/${rel}` : rel;
+    const parts = [];
+    for (const seg of joined.replace(/\\/g, '/').split('/')) {
+        if (seg === '' || seg === '.') continue;
+        if (seg === '..') { parts.pop(); continue; }
+        parts.push(seg);
+    }
+    return `${API_BASE}/api/file/raw?path=${encodeURIComponent(parts.join('/'))}`;
+}
+
 // ── Zoomable image ──────────────────────────────────────────────────────────
-function ZoomableImage({ src, alt, ...props }) {
+function ZoomableImage({ src, alt, baseDir, ...props }) {
     const [fs, setFs] = useState(false);
+    const resolved = resolveAssetSrc(src, baseDir);
     return (
         <>
-            <img src={src} alt={alt} {...props} className="mde-img" onClick={() => setFs(true)} title="Click to expand" />
+            <img src={resolved} alt={alt} {...props} className="mde-img" onClick={() => setFs(true)} title="Click to expand" />
             {fs && (
                 <FullscreenViewer onClose={() => setFs(false)}>
-                    <img src={src} alt={alt} style={{ maxWidth: 'none' }} />
+                    <img src={resolved} alt={alt} draggable={false} style={{ maxWidth: 'none' }} />
                 </FullscreenViewer>
             )}
         </>
@@ -259,10 +314,17 @@ function makeHeading(level) {
 // by Report Flow decks to embed a live, refreshable .amoxvis chart) — it
 // receives the raw fenced-block body (YAML-ish text) and returns a ReactNode.
 // Without it, an ```amoxchart block just renders as a normal code block.
-const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock }) => {
+const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, filePath }) => {
+    const baseDir = useMemo(() => {
+        if (!filePath) return '';
+        const norm = filePath.replace(/\\/g, '/');
+        const idx = norm.lastIndexOf('/');
+        return idx >= 0 ? norm.slice(0, idx) : '';
+    }, [filePath]);
+
     const components = useMemo(() => ({
         a: (p) => <FileLink {...p} onOpenFile={onOpenFile} />,
-        img: (p) => <ZoomableImage {...p} />,
+        img: (p) => <ZoomableImage {...p} baseDir={baseDir} />,
         h1: makeHeading(1), h2: makeHeading(2), h3: makeHeading(3),
         h4: makeHeading(4), h5: makeHeading(5), h6: makeHeading(6),
         code: ({ node, className, children, ...props }) => (
@@ -292,7 +354,7 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             }
             return <blockquote className={className} {...props}>{children}</blockquote>;
         },
-    }), [onOpenFile, theme, renderChartBlock]);
+    }), [onOpenFile, theme, renderChartBlock, baseDir]);
 
     return (
         <div className={`mde-preview-body mde-preview-body--${widthMode}`} ref={bodyRef}>

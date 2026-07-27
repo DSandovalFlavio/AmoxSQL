@@ -596,8 +596,17 @@
     transform-origin: center center;
     transition: transform 0.04s linear;
     will-change: transform;
+    user-select: none;
 }
 .mde-fs-content img { max-width: none; display: block; }
+/* Children must not capture the pan gesture: no native image-drag, no text
+   selection, and let pointer events fall through to the stage. */
+.mde-fs-content img,
+.mde-fs-content svg {
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
 .mde-fs-mermaid svg { max-width: none !important; height: auto; }
 
 /* ═══════════════════════════════════════════════

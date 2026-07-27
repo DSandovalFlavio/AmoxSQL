@@ -36,7 +36,12 @@ function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name
     // Hide Chains intermediate tables (deterministic "__chain_<scope>_*" namespace).
     // Underscores are escaped so LIKE treats them as literals, not wildcards.
     const chainArtifactClause = `${nameCol} NOT LIKE '\\_\\_chain\\_%' ESCAPE '\\'`;
-    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
+    // Hide DuckLake's metadata catalog ("__ducklake_metadata_<alias>"), which
+    // holds ~30 internal bookkeeping tables (ducklake_snapshot, ducklake_data_file…)
+    // in its own DuckDB catalog — not the user's logical lakehouse tables.
+    const catalogCol = schemaCol.replace(/table_schema$/, 'table_catalog');
+    const duckLakeMetaClause = `${catalogCol} NOT LIKE '\\_\\_ducklake\\_metadata\\_%' ESCAPE '\\'`;
+    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND ${duckLakeMetaClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
 }
 
 app.use(cors());
@@ -488,8 +493,13 @@ app.post('/api/db/connect', async (req, res) => {
     try {
         await dbManager.connect(dbPath, ROOT_DIR, { readOnly: !!readOnly });
 
-        // Initialize AI persistence schema for this project's database
-        if (!readOnly) {
+        // Initialize AI persistence schema for this project's database.
+        // Skipped for DuckLake: the amoxsql_ai / amoxsql_chains bookkeeping
+        // schemas belong to AmoxSQL, not to the user's lakehouse — writing them
+        // into a .ducklake would pollute the versioned data lake. In DuckLake
+        // mode, AI conversations and chain history simply don't persist across
+        // sessions (queries and the AI assistant still work fully).
+        if (!readOnly && !dbManager.isDuckLake) {
             try {
                 const aiPersistence = require('./ai/persistence');
                 await aiPersistence.initSchema(dbManager);
@@ -3246,6 +3256,28 @@ app.get('/api/file', (req, res) => {
     fs.readFile(fullPath, 'utf8', (err, data) => {
         if (err) return res.status(500).json({ error: 'Failed to read file', details: err.message });
         res.json({ content: data });
+    });
+});
+
+/**
+ * GET /api/file/raw?path=...
+ * Streams a file's raw bytes with the correct Content-Type (via sendFile), so
+ * an <img src> in the Markdown preview can point straight at it. This is what
+ * makes relative image references (./assets/foo.png, ./diagram.svg) resolve —
+ * SVG and PNG both work; the format was never the issue, the path was.
+ * Confined to the project root; must not become an arbitrary-file-read.
+ */
+app.get('/api/file/raw', (req, res) => {
+    const filePath = req.query.path;
+    if (!filePath) return res.status(400).json({ error: 'Path is required' });
+
+    const resolvedRoot = path.resolve(ROOT_DIR);
+    const resolvedPath = path.resolve(path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath));
+    if (!resolvedPath.replace(/\\/g, '/').startsWith(resolvedRoot.replace(/\\/g, '/'))) {
+        return res.status(400).json({ error: 'Path must be within the project directory.' });
+    }
+    res.sendFile(resolvedPath, (err) => {
+        if (err && !res.headersSent) res.status(404).json({ error: 'File not found' });
     });
 });
 
