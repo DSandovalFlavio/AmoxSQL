@@ -106,6 +106,14 @@ function FullscreenViewer({ onClose, children }) {
 }
 
 // ── Mermaid diagram with fullscreen ─────────────────────────────────────────
+// Mermaid measures each label's width in a hidden container to size the node
+// box, then renders. If the measuring font differs from the rendered font, the
+// box comes out too narrow and the last letters get clipped. Mermaid's default
+// is trebuchet ms, but the preview renders in the app font (Manrope, wider), so
+// we pin BOTH measure and render to the same stack — mermaid injects its own
+// <style> with this fontFamily into the SVG, so measure == render everywhere
+// (preview and fullscreen portal alike).
+const MERMAID_FONT = "'Manrope', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
 let lastMermaidTheme = null;
 function MermaidDiagram({ code, theme }) {
     const [svg, setSvg] = useState('');
@@ -114,7 +122,14 @@ function MermaidDiagram({ code, theme }) {
     useEffect(() => {
         const mermaidTheme = isLightTheme(theme) ? 'default' : 'dark';
         if (lastMermaidTheme !== mermaidTheme) {
-            mermaid.initialize({ startOnLoad: false, theme: mermaidTheme, securityLevel: 'loose' });
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: mermaidTheme,
+                securityLevel: 'loose',
+                fontFamily: MERMAID_FONT,
+                themeVariables: { fontFamily: MERMAID_FONT },
+                flowchart: { htmlLabels: true, useMaxWidth: true },
+            });
             lastMermaidTheme = mermaidTheme;
         }
         const id = `mermaid-${Math.random().toString(36).slice(2, 11)}`;
