@@ -173,9 +173,27 @@ const StatBlock = ({ label, value }) => (
 
 // ── Expanded per-column detail ──
 const ColumnDetail = ({ col, onPlot }) => {
-    const chartData = col.dtype === 'numeric' && col.histogram
-        ? col.histogram.map((c, i) => ({ name: `Bin ${i + 1}`, count: Number(c) }))
-        : (col.topValues || []).map((t) => ({ name: String(t.value) || '(empty)', count: Number(t.count) }));
+    // Each bar carries its share of the total so the tooltip can show
+    // "1,234 (12.5%)" — a raw count alone doesn't say how big a slice it is.
+    const chartData = useMemo(() => {
+        if (col.dtype === 'numeric' && col.histogram) {
+            const counts = col.histogram.map(Number);
+            const total = counts.reduce((a, b) => a + b, 0);
+            return counts.map((c, i) => ({
+                name: `Bin ${i + 1}`,
+                count: c,
+                pct: total > 0 ? (c / total) * 100 : null,
+            }));
+        }
+        const tops = col.topValues || [];
+        // topValues carries pct already; fall back to the scanned row count.
+        const denom = Number(col.total) || tops.reduce((a, t) => a + Number(t.count), 0);
+        return tops.map((t) => {
+            const count = Number(t.count);
+            const pct = t.pct != null ? Number(t.pct) : (denom > 0 ? (count / denom) * 100 : null);
+            return { name: String(t.value) || '(empty)', count, pct: Number.isFinite(pct) ? pct : null };
+        });
+    }, [col]);
     return (
         <div style={{ padding: '18px 20px', display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '28px', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface-base)' }}>
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -199,7 +217,18 @@ const ColumnDetail = ({ col, onPlot }) => {
                             {col.dtype === 'numeric'
                                 ? <><XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} /><YAxis width={42} tickFormatter={fmtAxis} tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} /></>
                                 : <><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} /></>}
-                            <Tooltip contentStyle={{ background: 'var(--surface-overlay)', border: '1px solid var(--border-default)', borderRadius: 6, fontSize: 12 }} cursor={{ fill: 'var(--hover-bg)' }} />
+                            <Tooltip
+                                contentStyle={{ background: 'var(--surface-overlay)', border: '1px solid var(--border-default)', borderRadius: 6, fontSize: 12 }}
+                                /* Recharts defaults these to near-black, which is
+                                   unreadable on a dark overlay — pin them to theme tokens. */
+                                labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 2 }}
+                                itemStyle={{ color: 'var(--text-secondary)' }}
+                                formatter={(value, _n, entry) => {
+                                    const pct = entry?.payload?.pct;
+                                    return [pct != null ? `${fmt(value)} (${pct.toFixed(1)}%)` : fmt(value), 'Count'];
+                                }}
+                                cursor={{ fill: 'var(--hover-bg)' }}
+                            />
                             <Bar dataKey="count" radius={[3, 3, 3, 3]}>
                                 {chartData.map((_, i) => <Cell key={i} fill="var(--accent-primary)" fillOpacity={0.85} />)}
                             </Bar>
@@ -496,11 +525,14 @@ const DataProfiler = ({ data, isActive, query }) => {
                         <LuCircleCheck size={16} style={{ color: 'var(--color-success)' }} /> No data-quality issues detected.
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                    // Cards flow into as many columns as fit: a long findings list used to be
+                    // one item per row, wasting most of the width in full screen. auto-fill
+                    // collapses back to a single column when the panel is docked and narrow.
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '7px', alignItems: 'start' }}>
                         {findings.map((f, i) => {
                             const c = SEV[f.severity].color;
                             return (
-                                <div key={i} style={{ ...card, padding: '10px 13px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                                <div key={i} style={{ ...card, padding: '10px 13px', display: 'flex', gap: '10px', alignItems: 'flex-start', height: '100%' }}>
                                     {f.severity === 'info'
                                         ? <LuInfo size={15} style={{ color: c, flexShrink: 0, marginTop: '1px' }} />
                                         : <LuTriangleAlert size={15} style={{ color: c, flexShrink: 0, marginTop: '1px' }} />}
