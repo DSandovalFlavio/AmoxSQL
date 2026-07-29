@@ -409,7 +409,9 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             </div>
 
                             <span className="rt-stats">
-                                {totalRows} result{totalRows !== 1 ? 's' : ''} ({executionTime}ms)
+                                {totalRows} result{totalRows !== 1 ? 's' : ''}
+                                {columns.length > 0 && ` × ${columns.length} column${columns.length !== 1 ? 's' : ''}`}
+                                {' '}({executionTime}ms)
                                 {data.length !== totalRows && ` [Filtered from ${data.length}]`}
                                 {truncated && (
                                     <span style={{ marginLeft: 8, color: 'var(--feedback-warning)', fontWeight: 500 }}

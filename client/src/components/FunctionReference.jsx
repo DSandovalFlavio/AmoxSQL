@@ -1,5 +1,7 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { LuSearch, LuCopy, LuCheck, LuX, LuBookOpen, LuTriangleAlert } from 'react-icons/lu';
 import './FunctionReference.css';
 
@@ -17,27 +19,46 @@ function cleanSnippet(s) {
     return s.replace(/\$\{\d+:([^}]*)\}/g, '$1').replace(/\$\{?\d+\}?/g, '');
 }
 
-// Build a human-readable signature from the catalog fields.
-function buildSignature(fn) {
-    // Real parameter metadata (from duckdb_functions()) wins when present.
-    const params = Array.isArray(fn.parameters) ? fn.parameters : [];
+// Structured parameter list: [{ name, type }]. Table functions like read_csv
+// carry ~40 of these, so they get their own readable list instead of being
+// crammed into one unreadable signature line.
+function buildParams(fn) {
+    const names = Array.isArray(fn.parameters) ? fn.parameters : [];
     const types = Array.isArray(fn.parameter_types) ? fn.parameter_types : [];
-    if (params.length || types.length) {
-        const inner = params.length
-            ? params.map((p, i) => (types[i] ? `${p} ${types[i]}` : p)).join(', ')
-            : types.join(', ');
-        return `${fn.function_name}(${inner})`;
+    const n = Math.max(names.length, types.length);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const name = names[i] || '';
+        const type = types[i] || '';
+        if (!name && !type) continue;
+        out.push({ name: name || `arg${i + 1}`, type });
+    }
+    return out;
+}
+
+// Compact, always-readable call form. With many parameters we elide them —
+// the full set is listed below in its own section.
+const INLINE_PARAM_LIMIT = 4;
+function buildSignature(fn, params) {
+    if (params.length) {
+        if (params.length <= INLINE_PARAM_LIMIT) {
+            return `${fn.function_name}(${params.map(p => p.name).join(', ')})`;
+        }
+        const head = params.slice(0, INLINE_PARAM_LIMIT).map(p => p.name).join(', ');
+        return `${fn.function_name}(${head}, … +${params.length - INLINE_PARAM_LIMIT})`;
     }
     if (fn.snippet && /\(/.test(fn.snippet)) return cleanSnippet(fn.snippet);
     return `${fn.function_name}()`;
 }
 
-// A short call template to copy/paste.
-function callTemplate(fn) {
+// A short call template to copy/paste. With a long parameter list we copy just
+// the bare call — pasting 40 placeholder names would be noise, not help.
+function callTemplate(fn, params) {
     if (fn.snippet && /\(/.test(fn.snippet)) return cleanSnippet(fn.snippet);
-    const n = Array.isArray(fn.parameters) ? fn.parameters.length
-        : (Array.isArray(fn.parameter_types) ? fn.parameter_types.length : 0);
-    return `${fn.function_name}(${Array(n).fill('').map((_, i) => `arg${i + 1}`).join(', ')})`;
+    if (params.length && params.length <= INLINE_PARAM_LIMIT) {
+        return `${fn.function_name}(${params.map(p => p.name).join(', ')})`;
+    }
+    return `${fn.function_name}()`;
 }
 
 // The curated `doc` field is markdown: a description followed by ```sql fenced
@@ -151,14 +172,18 @@ export default function FunctionReference() {
     // markdown `doc` with fenced SQL examples inside; engine-only entries just
     // have a plain `description`. Both paths converge here.
     const detail = useMemo(() => {
-        if (!selected) return { text: '', examples: [] };
+        if (!selected) return { text: '', examples: [], params: [], signature: '', call: '' };
         const { text, blocks } = parseDoc(selected.doc);
         const extra = (Array.isArray(selected.examples) ? selected.examples : [])
             .map(ex => (typeof ex === 'string' ? ex : (ex.query || ex.sql || ex.code || '')))
             .filter(Boolean);
+        const params = buildParams(selected);
         return {
             text: text || selected.description || '',
             examples: [...blocks, ...extra],
+            params,
+            signature: buildSignature(selected, params),
+            call: callTemplate(selected, params),
         };
     }, [selected]);
 
@@ -226,9 +251,9 @@ export default function FunctionReference() {
                             </div>
 
                             <div className="fnref-sig-row">
-                                <code className="fnref-sig">{buildSignature(selected)}</code>
-                                <button className="fnref-copy" onClick={() => copy(callTemplate(selected), 'sig')} title="Copy call">
-                                    {copied === 'sig' ? <LuCheck size={13} /> : <LuCopy size={13} />}
+                                <code className="fnref-sig">{detail.signature}</code>
+                                <button className="fnref-copy" onClick={() => copy(detail.call, 'sig')} title="Copy call">
+                                    {copied === 'sig' ? <LuCheck size={14} /> : <LuCopy size={14} />}
                                 </button>
                             </div>
 
@@ -236,16 +261,34 @@ export default function FunctionReference() {
                                 <div className="fnref-ret"><span>Returns</span> <code>{selected.return_type}</code></div>
                             )}
 
-                            {detail.text && <p className="fnref-desc">{detail.text}</p>}
+                            {detail.params.length > 0 && (
+                                <div className="fnref-params">
+                                    <div className="fnref-section-title">Parameters ({detail.params.length})</div>
+                                    <div className="fnref-params-list">
+                                        {detail.params.map((p, i) => (
+                                            <div className="fnref-param" key={`${p.name}-${i}`}>
+                                                <code className="fnref-param-name">{p.name}</code>
+                                                {p.type && <span className="fnref-param-type">{p.type}</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {detail.text && (
+                                <div className="fnref-desc">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{detail.text}</ReactMarkdown>
+                                </div>
+                            )}
 
                             {detail.examples.length > 0 && (
                                 <div className="fnref-examples">
-                                    <div className="fnref-examples-title">Examples</div>
+                                    <div className="fnref-section-title">Examples</div>
                                     {detail.examples.map((text, i) => (
                                         <div className="fnref-example" key={i}>
                                             <code>{text}</code>
                                             <button className="fnref-copy" onClick={() => copy(text, `ex${i}`)} title="Copy example">
-                                                {copied === `ex${i}` ? <LuCheck size={12} /> : <LuCopy size={12} />}
+                                                {copied === `ex${i}` ? <LuCheck size={14} /> : <LuCopy size={14} />}
                                             </button>
                                         </div>
                                     ))}

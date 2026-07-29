@@ -11,7 +11,6 @@ import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
 import ExtensionExplorer from './components/ExtensionExplorer';
 import SnippetsPanel from './components/SnippetsPanel';
-import FunctionReference from './components/FunctionReference';
 import DbtPanel from './components/DbtPanel';
 import GitPanel from './components/GitPanel';
 import QueryHistoryPanel from './components/QueryHistoryPanel';
@@ -41,6 +40,8 @@ const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
 import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
+// Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
+const FunctionReference   = lazy(() => import('./components/FunctionReference'));
 import OnboardingHost from './components/onboarding/OnboardingHost';
 import { openTour, hasSeenTour } from './components/onboarding/tourRegistry';
 
@@ -1163,7 +1164,9 @@ function App() {
 
             {visitedSidebarTabs.has('functions') && (
               <div className={activeSidebarTab === 'functions' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'functions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <FunctionReference />
+                <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>}>
+                  <FunctionReference />
+                </Suspense>
               </div>
             )}
 
