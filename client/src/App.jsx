@@ -38,8 +38,10 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
+// Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
+const FunctionReference   = lazy(() => import('./components/FunctionReference'));
 import OnboardingHost from './components/onboarding/OnboardingHost';
 import { openTour, hasSeenTour } from './components/onboarding/tourRegistry';
 
@@ -1029,6 +1031,13 @@ function App() {
                 <LuCode size={20} />
               </button>
               <button
+                onClick={() => handleSidebarTabClick('functions')}
+                className={`activity-bar-btn ${activeSidebarTab === 'functions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="DuckDB Function Reference"
+              >
+                <LuSquareFunction size={20} />
+              </button>
+              <button
                 onClick={() => handleSidebarTabClick('history')}
                 className={`activity-bar-btn ${activeSidebarTab === 'history' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
                 title="Query History"
@@ -1150,6 +1159,14 @@ function App() {
             {visitedSidebarTabs.has('snippets') && (
               <div className={activeSidebarTab === 'snippets' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'snippets' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <SnippetsPanel onInsert={handleCreateSqlTab} />
+              </div>
+            )}
+
+            {visitedSidebarTabs.has('functions') && (
+              <div className={activeSidebarTab === 'functions' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'functions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+                <Suspense fallback={<div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>}>
+                  <FunctionReference />
+                </Suspense>
               </div>
             )}
 
