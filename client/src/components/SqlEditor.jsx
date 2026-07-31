@@ -4,6 +4,7 @@ import Editor from '@monaco-editor/react';
 import { format } from 'sql-formatter';
 import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
+import { splitSqlStatements } from '../utils/sqlSplitter';
 
 // Per-editor-instance document id inside the SHARED SQL worker (one worker +
 // one WASM pair for the whole app; documents keyed by this id).
@@ -321,6 +322,31 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
                 props.onRunQuery(queryToRun);
             }
+        });
+
+        // 1b. Run ONLY the statement under the cursor (Ctrl+Alt+Enter)
+        // Lets you run a single query from a multi-statement script without
+        // selecting it — the cursor's line picks the statement.
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
+            if (props.language === 'markdown') return;
+            if (!props.onRunQuery) return;
+            const model = editor.getModel();
+            const selection = editor.getSelection();
+            // An explicit selection still wins — run exactly what's selected.
+            if (selection && !selection.isEmpty()) {
+                props.onRunQuery(model.getValueInRange(selection));
+                return;
+            }
+            const stmts = splitSqlStatements(model.getValue());
+            if (stmts.length === 0) return;
+            const cursorLine = editor.getPosition()?.lineNumber ?? 1;
+            // The statement that owns the cursor is the last one whose startLine
+            // is <= the cursor line (statements are in source order).
+            let target = stmts[0];
+            for (const s of stmts) {
+                if (s.startLine <= cursorLine) target = s; else break;
+            }
+            props.onRunQuery(target.raw);
         });
 
         // 2. Save (Ctrl+S)

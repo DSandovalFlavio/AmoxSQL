@@ -146,7 +146,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
             let data = await response.json();
 
             // FILTER: Hide Database files
-            data = data.filter(f => !f.name.endsWith('.duckdb') && !f.name.endsWith('.db')  && !name.endsWith('.ducklake'));
+            data = data.filter(f => !f.name.endsWith('.duckdb') && !f.name.endsWith('.db') && !f.name.endsWith('.ducklake'));
 
             // Sort: directories first, then files
             data.sort((a, b) => {

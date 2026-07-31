@@ -210,6 +210,7 @@ function createTools(context) {
                         WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains')
                         AND NOT (table_schema = 'main' AND table_name IN ('amox_query_history'))
                         AND table_name NOT LIKE '\\_\\_chain\\_%' ESCAPE '\\'
+                        AND table_catalog NOT LIKE '\\_\\_ducklake\\_metadata\\_%' ESCAPE '\\'
                         AND table_type = 'BASE TABLE'
                         ORDER BY table_schema, table_name
                     `);
@@ -750,7 +751,7 @@ function createTools(context) {
                     }
 
                     const ext = path.extname(fullPath).toLowerCase();
-                    const binaryExts = ['.db', '.duckdb', '.sqlite', '.parquet', '.xlsx', '.xls', '.zip', '.gz', '.tar', '.png', '.jpg', '.gif', '.pdf', '.exe', '.dll', '.wasm', 'ducklake'];
+                    const binaryExts = ['.db', '.duckdb', '.sqlite', '.parquet', '.xlsx', '.xls', '.zip', '.gz', '.tar', '.png', '.jpg', '.gif', '.pdf', '.exe', '.dll', '.wasm', '.ducklake'];
                     if (binaryExts.includes(ext)) {
                         return { error: `Cannot read binary file (${ext}). Only text files are supported.` };
                     }
