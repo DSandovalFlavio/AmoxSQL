@@ -1,12 +1,22 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import { useToast } from './ToastProvider';
+
+// Rendered-cell budget: with results this wide (a real case hit 2700 columns from
+// an Excel import), rendering every cell of every row freezes the UI — 50 rows ×
+// 2700 cols is 135k <td>s, each doing its own JSON.stringify for the tooltip.
+// pageSize adapts to keep rows × columns under this budget instead of a fixed 50.
+const CELL_BUDGET = 15000;
+// Beyond this many columns, show the "wide result" banner + column windowing.
+const WIDE_THRESHOLD = 150;
+// Max columns rendered at once for a wide result (paginated horizontally).
+const MAX_VISIBLE_COLS = 60;
 
 const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null }) => {
     const toast = useToast();
@@ -47,6 +57,12 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const deferredColumnFilters = useDeferredValue(columnFilters);
 
     const [showFilters, setShowFilters] = useState(false); // Toggle filter row
+
+    // --- Wide-result column windowing (Fase 0/1: perf guard for 100s-1000s of columns) ---
+    const [selectedColumns, setSelectedColumns] = useState(null); // null = auto window; Set = manual pick, overrides windowing
+    const [columnPage, setColumnPage] = useState(0); // which MAX_VISIBLE_COLS window is showing (when no manual selection)
+    const [showColumnPicker, setShowColumnPicker] = useState(false);
+    const [columnPickerSearch, setColumnPickerSearch] = useState('');
 
     // --- Column Context Menu State ---
     const [contextMenu, setContextMenu] = useState(null); // { x, y, column }
@@ -131,6 +147,18 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         setGlobalSearch('');
         setSortConfig(null);
         setColumnFilters({});
+        setSelectedColumns(null);
+        setColumnPage(0);
+        setShowColumnPicker(false);
+        setColumnPickerSearch('');
+
+        // Adaptive default page size: keeps rendered cells under CELL_BUDGET.
+        // For normal tables (<=300 columns) this still resolves to 50, same as
+        // before — it only kicks in for unusually wide results.
+        const colCount = data && data.length > 0 && data[0] ? Object.keys(data[0]).length : 0;
+        if (colCount > 0) {
+            setPageSize(Math.min(50, Math.max(5, Math.floor(CELL_BUDGET / colCount))));
+        }
     }, [data]);
 
     // --- Data Processing Pipeline ---
@@ -210,6 +238,39 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     if (columns.length === 0) {
         return <div className="rt-no-results">No columns found in result.</div>;
     }
+
+    // --- Wide-result column windowing ---
+    // `columns` above is always the FULL list — exports, "copy all column names",
+    // and the vault snapshot all keep using it untouched. `visibleColumns` is only
+    // what gets rendered in the <table> DOM.
+    const isWide = columns.length > WIDE_THRESHOLD;
+    const totalColumnPages = Math.max(1, Math.ceil(columns.length / MAX_VISIBLE_COLS));
+    const safeColumnPage = Math.min(columnPage, totalColumnPages - 1);
+    const visibleColumns = (selectedColumns && selectedColumns.size > 0)
+        ? columns.filter(c => selectedColumns.has(c))
+        : (isWide
+            ? columns.slice(safeColumnPage * MAX_VISIBLE_COLS, safeColumnPage * MAX_VISIBLE_COLS + MAX_VISIBLE_COLS)
+            : columns);
+
+    const toggleColumn = (col) => {
+        setSelectedColumns(prev => {
+            // First toggle seeds the manual selection from whatever's currently
+            // visible, so unchecking one column keeps the rest of the window intact.
+            const base = prev ? new Set(prev) : new Set(visibleColumns);
+            if (base.has(col)) base.delete(col); else base.add(col);
+            return base;
+        });
+    };
+
+    // Page-size options never let the user pick something that would blow the
+    // cell budget back open on a wide result — the standard sizes are offered
+    // only when they'd still fit, and the current (possibly adaptive) value is
+    // always included so the <select> never shows a value that isn't an option.
+    const maxSafePageSize = Math.max(5, Math.floor(CELL_BUDGET / visibleColumns.length));
+    const pageSizeOptions = Array.from(new Set([
+        pageSize,
+        ...[50, 100, 500, 1000].filter(n => n <= maxSafePageSize),
+    ])).sort((a, b) => a - b);
 
     // Handlers
     const handleSort = (key) => {
@@ -406,6 +467,51 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                         <LuFilter size={13} /> Filters
                                     </button>
                                 )}
+                                {viewMode === 'table' && columns.length > 20 && (
+                                    <div className="toolbar-dropdown">
+                                        <button
+                                            className={`rt-view-btn${showColumnPicker ? ' active' : ''}`}
+                                            onClick={() => setShowColumnPicker(v => !v)}
+                                            aria-label="Choose visible columns"
+                                            title="Pick which columns to show"
+                                        >
+                                            <LuColumns3 size={13} />
+                                            {selectedColumns && selectedColumns.size > 0
+                                                ? `${visibleColumns.length}/${columns.length}`
+                                                : isWide ? `${visibleColumns.length}/${columns.length}` : 'Columns'}
+                                        </button>
+                                        {showColumnPicker && (
+                                            <div className="toolbar-dropdown-menu rt-column-picker">
+                                                <input
+                                                    type="text"
+                                                    className="vault-save-dropdown-input"
+                                                    placeholder="Search columns..."
+                                                    value={columnPickerSearch}
+                                                    onChange={(e) => setColumnPickerSearch(e.target.value)}
+                                                    autoFocus
+                                                />
+                                                <div className="rt-column-picker-actions">
+                                                    <button onClick={() => setSelectedColumns(new Set(columns))}>Select all</button>
+                                                    <button onClick={() => { setSelectedColumns(null); setColumnPage(0); }}>Reset</button>
+                                                </div>
+                                                <div className="rt-column-picker-list">
+                                                    {columns
+                                                        .filter(c => c.toLowerCase().includes(columnPickerSearch.toLowerCase()))
+                                                        .map(c => (
+                                                            <label key={c} className="rt-column-picker-item">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={visibleColumns.includes(c)}
+                                                                    onChange={() => toggleColumn(c)}
+                                                                />
+                                                                <span>{c}</span>
+                                                            </label>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <span className="rt-stats">
@@ -548,6 +654,44 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                         </div>
                     </div>
 
+                    {/* Wide-result banner: only when the table has more columns than we
+                        render at once. Explains why not everything is visible and links
+                        straight to the picker instead of leaving the user to guess. */}
+                    {viewMode === 'table' && isWide && (
+                        <div className="rt-wide-banner">
+                            <LuTriangleAlert size={13} />
+                            <span>
+                                Resultado muy ancho: {columns.length.toLocaleString()} columnas.
+                                {selectedColumns && selectedColumns.size > 0
+                                    ? ` Mostrando ${visibleColumns.length} seleccionadas.`
+                                    : ` Mostrando columnas ${safeColumnPage * MAX_VISIBLE_COLS + 1}-${Math.min((safeColumnPage + 1) * MAX_VISIBLE_COLS, columns.length)}.`}
+                            </span>
+                            <button className="rt-wide-banner-link" onClick={() => setShowColumnPicker(true)}>
+                                Elegir columnas
+                            </button>
+                            {!(selectedColumns && selectedColumns.size > 0) && totalColumnPages > 1 && (
+                                <div className="rt-col-paginator">
+                                    <button
+                                        className="rt-col-paginator-btn"
+                                        onClick={() => setColumnPage(p => Math.max(0, p - 1))}
+                                        disabled={safeColumnPage === 0}
+                                        aria-label="Previous columns"
+                                    >
+                                        <LuChevronLeft size={13} />
+                                    </button>
+                                    <span>{safeColumnPage + 1} / {totalColumnPages}</span>
+                                    <button
+                                        className="rt-col-paginator-btn"
+                                        onClick={() => setColumnPage(p => Math.min(totalColumnPages - 1, p + 1))}
+                                        disabled={safeColumnPage >= totalColumnPages - 1}
+                                        aria-label="Next columns"
+                                    >
+                                        <LuChevronRight size={13} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -558,7 +702,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                     <table className="rt-table" style={{ fontSize: `${editorSettings.resultsFontSize || 13}px` }}>
                         <thead className="rt-thead">
                             <tr>
-                                {columns.map((col) => {
+                                {visibleColumns.map((col) => {
                                     const isSorted = sortConfig?.key === col;
                                     return (
                                         <th
@@ -592,7 +736,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             </tr>
                             {showFilters && !isReportMode && (
                                 <tr>
-                                    {columns.map((col) => (
+                                    {visibleColumns.map((col) => (
                                         <td key={`filter-${col}`} className="rt-filter-cell">
                                             <input
                                                 type="text"
@@ -610,8 +754,22 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             {currentData.length > 0 ? (
                                 currentData.map((row, rowIndex) => (
                                     <tr key={rowIndex}>
-                                        {columns.map((col) => (
-                                            <td key={`${rowIndex}-${col}`} className="rt-td" title={row ? (typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col] ?? '')) : ''}>
+                                        {visibleColumns.map((col) => (
+                                            <td
+                                                key={`${rowIndex}-${col}`}
+                                                className="rt-td"
+                                                // Tooltip text is computed lazily, only for the cell actually
+                                                // hovered — not on every render for every cell. With a wide
+                                                // result (thousands of columns) computing this eagerly for
+                                                // every <td> (String()/JSON.stringify() × rows × cols) was
+                                                // the single biggest render cost and froze the UI.
+                                                onMouseEnter={(e) => {
+                                                    const val = row ? row[col] : null;
+                                                    e.currentTarget.title = (val && typeof val === 'object')
+                                                        ? JSON.stringify(val)
+                                                        : String(val ?? '');
+                                                }}
+                                            >
                                                 {formatValue(row ? row[col] : null)}
                                             </td>
                                         ))}
@@ -619,7 +777,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={columns.length} className="rt-empty">
+                                    <td colSpan={visibleColumns.length} className="rt-empty">
                                         No matching records found.
                                     </td>
                                 </tr>
@@ -635,10 +793,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 <span className="rt-page-info">Page {currentPage} of {totalPages}</span>
                                 <button className="rt-pagination-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>&gt;</button>
                                 <select className="rt-page-select" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                    <option value={500}>500</option>
-                                    <option value={1000}>1000</option>
+                                    {pageSizeOptions.map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
                             </div>
                         </div>
