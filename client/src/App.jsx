@@ -790,12 +790,15 @@ function App() {
     const result = await performSave(filename, contentToSave);
 
     if (result.success) {
-      // Notify LayoutManager that the file is now saved with this path
-      layoutRef.current?.finishSaveAs(filename);
+      // Notify LayoutManager that the file is now saved with this path.
+      // Pass the tab id captured when Save As was first requested — the modal
+      // is async, so re-deriving "the active tab" here could target the wrong
+      // pane's tab if the user switched panes while the dialog was open.
+      layoutRef.current?.finishSaveAs(filename, pendingSaveTab?.id);
     }
 
     return result;
-  }, [pendingSaveContent, performSave]);
+  }, [pendingSaveContent, pendingSaveTab, performSave]);
 
   const handleExportNotebook = useCallback(async (title, query, markdownContext) => {
     const filename = `AI_Analysis_${Date.now()}.sqlnb`;
@@ -1242,7 +1245,11 @@ function App() {
               <div style={{ display: 'flex', gap: titleBarTabs.splitEnabled ? '16px' : '0', padding: '6px 8px 4px 8px', flexShrink: 0 }}>
                 {titleBarTabs.splitEnabled ? (
                   <>
-                    <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+                    <div
+                      className={`tab-bar-card${titleBarTabs.paneId === 'left' ? ' active' : ''}`}
+                      style={{ flex: 1, margin: 0, minWidth: 0 }}
+                      onMouseDown={() => layoutRef.current?.focusPane('left')}
+                    >
                       <TabBar
                         tabs={titleBarTabs.left?.tabs || []}
                         activeTabId={titleBarTabs.left?.activeTabId}
@@ -1250,7 +1257,11 @@ function App() {
                         {...leftTabBarHandlers}
                       />
                     </div>
-                    <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+                    <div
+                      className={`tab-bar-card${titleBarTabs.paneId === 'right' ? ' active' : ''}`}
+                      style={{ flex: 1, margin: 0, minWidth: 0 }}
+                      onMouseDown={() => layoutRef.current?.focusPane('right')}
+                    >
                       <TabBar
                         tabs={titleBarTabs.right?.tabs || []}
                         activeTabId={titleBarTabs.right?.activeTabId}

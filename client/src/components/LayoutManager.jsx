@@ -64,6 +64,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Query Cancellation State
     const [runningQueryId, setRunningQueryId] = useState(null);
     const queryAbortControllerRef = useRef(null);
+    const lmContainerRef = useRef(null);
 
     // Drag & Drop State (declared here so stateRef below can reference it)
     const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
@@ -202,6 +203,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         } else {
             return rightTabs.find(t => t.id === rightActiveId);
         }
+    }, []);
+
+    // Which pane actually owns a tab, by id — the source of truth for actions
+    // that must land on the pane the tab lives in, NOT whichever pane happens
+    // to be active right now (that distinction is the root cause behind most
+    // of the "my tab went to the wrong side" reports).
+    const findTabPane = useCallback((tabId) => {
+        const { leftTabs, rightTabs } = stateRef.current;
+        if (leftTabs.some(t => t.id === tabId)) return 'left';
+        if (rightTabs.some(t => t.id === tabId)) return 'right';
+        return null;
     }, []);
 
     const updateTab = useCallback((pane, tabId, updates) => {
@@ -627,8 +639,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, [getActiveTab]);
 
-    // Extracted createNew so it can be passed to EditorPanes + exposed via ref
-    const createNew = useCallback((type, initialContent) => {
+    // Extracted createNew so it can be passed to EditorPanes + exposed via ref.
+    // `targetPane` is explicit ('left'|'right') when the caller knows exactly
+    // which pane triggered the action (e.g. that pane's own "+" button or its
+    // empty-state card) — it must win over `activePane`, which only serves as
+    // the fallback for actions with no specific origin (keyboard shortcuts,
+    // the command palette, sidebar actions).
+    const createNew = useCallback((type, initialContent, targetPane) => {
         const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb'
             : (type === 'chain' || type === 'sqlchain') ? 'sqlchain'
             : type;
@@ -657,13 +674,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             results: null,
             dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving' && normalizedType !== 'dbt-lineage'
         };
-        if (stateRef.current.activePane === 'left') {
+        const pane = targetPane || stateRef.current.activePane;
+        if (pane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
             setLeftActiveId(newTab.id);
         } else {
             setRightTabs(prev => [...prev, newTab]);
             setRightActiveId(newTab.id);
         }
+        setActivePane(pane);
     }, []);
 
     // Expose methods to parent
@@ -682,7 +701,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 onTabClose: handleTabClose,
                 onDragStart: handleDragStart,
                 onReorder: handleReorder,
-                onCreateNew: createNew,
+                // Bound to THIS pane — the "+" button in the left tab bar must
+                // always create in the left pane, regardless of which pane is
+                // currently active. See createNew's targetPane param.
+                onCreateNew: (type, initialContent) => createNew(type, initialContent, targetPane),
                 paneId: targetPane,
             };
         },
@@ -783,17 +805,29 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             else setRightActiveId(tabs[nextIdx].id);
         },
         toggleSplit: () => setSplitEnabled(v => !v),
-        finishSaveAs: (newPath) => {
-            // Update the active tab's path
-            const tab = getActiveTab();
-            if (tab) {
-                const updates = {
-                    path: newPath,
-                    name: newPath.split(/[/\\]/).pop(),
-                    dirty: false
-                };
-                updateTab(activePane, tab.id, updates);
-            }
+        // Focus a pane without touching its tabs — used when the user clicks
+        // the chrome around a tab bar (not a specific tab) so that pane's
+        // actions ("+", empty-state cards) target it correctly.
+        focusPane: (pane) => setActivePane(pane),
+        // `tabId` should be the id captured when "Save As…" was first requested
+        // (see App.jsx's pendingSaveTab). The save-as modal is async — the user
+        // can switch the active pane while it's open — so re-deriving "the
+        // active tab" at completion time can silently rewrite the WRONG tab's
+        // path. Falls back to the current active tab only for older/other
+        // callers that don't pass an id.
+        finishSaveAs: (newPath, tabId) => {
+            const { leftTabs, rightTabs } = stateRef.current;
+            const tab = tabId
+                ? (leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId))
+                : getActiveTab();
+            if (!tab) return;
+            const pane = findTabPane(tab.id) || stateRef.current.activePane;
+            const updates = {
+                path: newPath,
+                name: newPath.split(/[/\\]/).pop(),
+                dirty: false
+            };
+            updateTab(pane, tab.id, updates);
         },
 
         // --- Standalone handleQueryFile function (used by imperative handle + DnD) ---
@@ -951,7 +985,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             initialChartConfig: config
         };
 
-        const pane = stateRef.current.activePane;
+        // The "Edit with SQL" button lives inside the amoxvis tab itself — the
+        // new SQL tab must land in the SAME pane, not whichever pane happens
+        // to be active (they can differ once split panes are independently
+        // clickable, see the empty-pane focus fix below).
+        const pane = findTabPane(tab.id) || stateRef.current.activePane;
         if (pane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
             setLeftActiveId(newTab.id);
@@ -961,15 +999,19 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
 
         executeQuery(newTab.id, query);
-    }, [executeQuery]);
+    }, [executeQuery, findTabPane]);
 
     // --- handleQueryFile: Standalone function for DnD + imperative handle ---
-    const handleQueryFile = useCallback(async (filePath) => {
+    // `targetPane` lets a caller that knows exactly where the drop happened
+    // (an OS file dropped onto ONE specific EditorPane) override the default
+    // of "whichever pane is currently active".
+    const handleQueryFile = useCallback(async (filePath, targetPane) => {
         if (!filePath || typeof filePath !== 'string') {
             console.warn('[handleQueryFile] Called with invalid path:', filePath);
             return;
         }
-        const { leftTabs, rightTabs, activePane } = stateRef.current;
+        const { leftTabs, rightTabs, activePane: currentActivePane } = stateRef.current;
+        const activePane = targetPane || currentActivePane;
         const fileName = filePath.split(/[/\\]/).pop();
         const normalizedPath = filePath.replace(/\\/g, '/');
         const lowerName = fileName.toLowerCase();
@@ -983,13 +1025,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     const type = lowerName.endsWith('.sqlnb') ? 'sqlnb' : lowerName.endsWith('.sqlchain') ? 'sqlchain' : lowerName.endsWith('.md') ? 'md' : 'sql';
                     const existing = [...leftTabs, ...rightTabs].find(t => t.path === filePath);
                     if (existing) {
-                        if (leftTabs.find(t => t.id === existing.id)) setLeftActiveId(existing.id);
-                        else setRightActiveId(existing.id);
+                        if (leftTabs.find(t => t.id === existing.id)) { setLeftActiveId(existing.id); setActivePane('left'); }
+                        else { setRightActiveId(existing.id); setActivePane('right'); }
                         return;
                     }
                     const newTab = { id: Date.now().toString(), path: filePath, name: fileName, type, content: data.content, results: null, dirty: false };
                     if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
                     else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
+                    setActivePane(activePane);
                 }
             } catch (e) { console.error('[DnD] Failed to open SQL file:', e); }
             return;
@@ -1043,6 +1086,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const newTab = { id: Date.now().toString(), path: '', name: `${fileName}.sql`, type: 'sql', content, results: null, dirty: true };
         if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
         else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
+        setActivePane(activePane);
 
         // Auto-execute preview for CSV/Parquet files
         if (!lowerName.endsWith('.xlsx') && !lowerName.endsWith('.xls')) {
@@ -1077,11 +1121,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         e.preventDefault();
         if (!draggedTab) return;
 
-        const width = window.innerWidth;
-        const x = e.clientX;
-        const edgeThreshold = 100; // px
+        // Measured against THIS container, not window.innerWidth — the file
+        // explorer (left) and AI sidebar (right, when open) eat into the
+        // window width, so a window-relative edge threshold could fall
+        // entirely inside those sidebars and never be reachable by the mouse.
+        const rect = lmContainerRef.current?.getBoundingClientRect();
+        if (!rect || rect.width === 0) return;
+        const width = rect.width;
+        const x = e.clientX - rect.left;
+        const edgeThreshold = Math.min(100, width * 0.15);
 
-        // ... (rest of logic is fine)
         // Global Edge Detection (Priority)
         if (x > width - edgeThreshold) {
             setDragOverZone('right-edge');
@@ -1169,20 +1218,64 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     };
 
-    // Tab Reordering (Intra-pane)
+    // Tab Reordering — AND cross-pane move when the drop lands on the OTHER
+    // pane's tab bar. Previously this only ever searched for the dragged tab
+    // inside `paneId`'s own array, so dropping tab A (from the left pane)
+    // onto the right pane's tab bar silently did nothing — the tab bar isn't
+    // even inside `.lm-panes`'s DOM subtree, so the left/right-edge drop
+    // zones never fire for it either. This was the most commonly attempted
+    // gesture ("drag a tab onto the other side's bar") and the one most
+    // likely to feel broken.
     const handleReorder = useCallback((dragTabId, targetTabId, paneId) => {
-        const sourceId = dragTabId || stateRef.current.draggedTab?.tabId;
-        if (!sourceId || sourceId === targetTabId) return;
+        const { draggedTab, leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
+        const sourceId = dragTabId || draggedTab?.tabId;
+        if (!sourceId) return;
+        const sourcePane = draggedTab?.sourcePane
+            || (leftTabs.some(t => t.id === sourceId) ? 'left' : (rightTabs.some(t => t.id === sourceId) ? 'right' : null));
+        if (!sourcePane) return;
 
+        if (sourcePane !== paneId) {
+            const sourceTabs = sourcePane === 'left' ? leftTabs : rightTabs;
+            const tabToMove = sourceTabs.find(t => t.id === sourceId);
+            if (!tabToMove) return;
+
+            const setSourceTabs = sourcePane === 'left' ? setLeftTabs : setRightTabs;
+            const sourceActiveId = sourcePane === 'left' ? leftActiveId : rightActiveId;
+            const setSourceActiveId = sourcePane === 'left' ? setLeftActiveId : setRightActiveId;
+            const setTargetTabs = paneId === 'left' ? setLeftTabs : setRightTabs;
+            const setTargetActiveId = paneId === 'left' ? setLeftActiveId : setRightActiveId;
+
+            const newSource = sourceTabs.filter(t => t.id !== sourceId);
+            setSourceTabs(newSource);
+            if (sourceActiveId === sourceId) {
+                setSourceActiveId(newSource.length > 0 ? newSource[newSource.length - 1].id : null);
+            }
+
+            // Insert at the target tab's position, or at the end when dropped
+            // on empty bar space (targetTabId null, or a stale id — e.g. the
+            // bar had zero tabs).
+            setTargetTabs(prev => {
+                const targetIdx = targetTabId ? prev.findIndex(t => t.id === targetTabId) : -1;
+                const insertAt = targetIdx === -1 ? prev.length : targetIdx;
+                const next = [...prev];
+                next.splice(insertAt, 0, tabToMove);
+                return next;
+            });
+            setTargetActiveId(sourceId);
+            setActivePane(paneId);
+            return;
+        }
+
+        // Same-pane reorder. A null targetTabId (dropped on empty bar space,
+        // past the last tab) means "move to the end".
+        if (sourceId === targetTabId) return;
         const setTabs = paneId === 'left' ? setLeftTabs : setRightTabs;
-
         setTabs(prev => {
             const tabs = [...prev];
             const dragIdx = tabs.findIndex(t => t.id === sourceId);
-            const targetIdx = tabs.findIndex(t => t.id === targetTabId);
-
-            if (dragIdx === -1 || targetIdx === -1) return prev;
-
+            if (dragIdx === -1) return prev;
+            const targetIdx = targetTabId ? tabs.findIndex(t => t.id === targetTabId) : tabs.length - 1;
+            if (targetIdx === -1) return prev;
             const [removed] = tabs.splice(dragIdx, 1);
             tabs.splice(targetIdx, 0, removed);
             return tabs;
@@ -1200,8 +1293,26 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (onRequestSaveAs) onRequestSaveAs('', getActiveTab());
     }, [getActiveTab]);
 
+    // A click anywhere in an EMPTY pane must still be able to focus it — with
+    // no tab active, `EditorPane`'s onClickCapture (which fires onTabClick)
+    // had nothing to call, so an empty pane could never become the active one
+    // and every action from it (its own "+" cards included) silently landed
+    // in the OTHER pane instead.
+    const handleLeftPaneFocus = useCallback(() => setActivePane('left'), []);
+    const handleRightPaneFocus = useCallback(() => setActivePane('right'), []);
+
+    // Bound to a specific pane so each pane's "+" / empty-state actions always
+    // create there, never wherever `activePane` happens to be.
+    const handleLeftCreateNew = useCallback((type, initialContent) => createNew(type, initialContent, 'left'), [createNew]);
+    const handleRightCreateNew = useCallback((type, initialContent) => createNew(type, initialContent, 'right'), [createNew]);
+
+    // Same reasoning for an OS file dropped onto one specific pane's drop zone.
+    const handleLeftFileDrop = useCallback((path) => handleQueryFile(path, 'left'), [handleQueryFile]);
+    const handleRightFileDrop = useCallback((path) => handleQueryFile(path, 'right'), [handleQueryFile]);
+
     return (
         <div
+            ref={lmContainerRef}
             className="lm-container"
             onDragOver={handleGlobalDragOver}
             onDrop={handleGlobalDrop}
@@ -1219,9 +1330,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 <EditorPane
                     paneId="left"
                     isActive={activePane === 'left'}
+                    splitEnabled={splitEnabled}
                     tabs={leftTabs}
                     activeTabId={leftActiveId}
                     onTabClick={handleLeftTabClick}
+                    onPaneFocus={handleLeftPaneFocus}
                     onTabClose={handleTabClose}
                     onContentChange={handleContentChange}
                     onConversationChange={handleConversationChange}
@@ -1236,12 +1349,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     onVariablesChange={setQueryVariables}
                     onDragStart={handleDragStart}
                     onReorder={handleReorder}
-                    onFileDrop={handleQueryFile}
-                    onCreateNew={createNew}
+                    onFileDrop={handleLeftFileDrop}
+                    onCreateNew={handleLeftCreateNew}
                     onRequestSaveAs={handlePaneRequestSaveAs}
                     showAiSidebar={showAiSidebar}
                     onToggleAi={onToggleAi}
-                    onOpenFile={handleQueryFile}
+                    onOpenFile={handleLeftFileDrop}
                     availableTables={availableTables}
                     onExportNotebook={onExportNotebook}
                     onExportAmoxvis={onExportAmoxvis}
@@ -1256,9 +1369,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     <EditorPane
                         paneId="right"
                         isActive={activePane === 'right'}
+                        splitEnabled={splitEnabled}
                         tabs={rightTabs}
                         activeTabId={rightActiveId}
                         onTabClick={handleRightTabClick}
+                        onPaneFocus={handleRightPaneFocus}
                         onTabClose={handleTabClose}
                         onContentChange={handleContentChange}
                     onConversationChange={handleConversationChange}
@@ -1273,12 +1388,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onVariablesChange={setQueryVariables}
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}
-                        onFileDrop={handleQueryFile}
-                        onCreateNew={createNew}
+                        onFileDrop={handleRightFileDrop}
+                        onCreateNew={handleRightCreateNew}
                         onRequestSaveAs={handlePaneRequestSaveAs}
                         showAiSidebar={showAiSidebar}
                         onToggleAi={onToggleAi}
-                        onOpenFile={handleQueryFile}
+                        onOpenFile={handleRightFileDrop}
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
                         onExportAmoxvis={onExportAmoxvis}

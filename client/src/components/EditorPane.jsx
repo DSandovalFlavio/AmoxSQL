@@ -57,6 +57,8 @@ const EditorPane = ({
     tabs,
     activeTabId,
     onTabClick,
+    onPaneFocus,      // () -> mark this pane active even when it has no tabs
+    splitEnabled,     // boolean — split view is on (drives the active-pane affordance)
     onTabClose,
     onContentChange, // (tabId, newContent)
     onConversationChange, // (tabId, convId) — Deep Dive: remember the conversation without marking dirty
@@ -331,7 +333,10 @@ const EditorPane = ({
 
     if (!activeTab) {
         return (
-            <div className="ep-container">
+            <div
+                className={`ep-container${splitEnabled && isActive ? ' active' : ''}`}
+                onClickCapture={() => onPaneFocus && onPaneFocus()}
+            >
                 <div className="ep-empty-state">
                     <p className="ep-empty-subtitle">Create a new file to get started</p>
                     <div className="ep-empty-cards">
@@ -426,8 +431,15 @@ const EditorPane = ({
 
     return (
         <div
-            className="ep-container"
-            onClickCapture={() => onTabClick && activeTabId && onTabClick(activeTabId)}
+            className={`ep-container${splitEnabled && isActive ? ' active' : ''}`}
+            // An empty pane has no activeTabId, so onTabClick (which also flips
+            // activePane as a side effect) had nothing to fire — clicking into
+            // an empty pane could never make it the active one. onPaneFocus
+            // covers that case directly.
+            onClickCapture={() => {
+                if (activeTabId && onTabClick) onTabClick(activeTabId);
+                else if (onPaneFocus) onPaneFocus();
+            }}
             onDragEnter={(e) => {
                 if (e.dataTransfer.types.includes('Files')) {
                     e.preventDefault();

@@ -29,6 +29,15 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
         if (onReorder) onReorder(null, targetTabId, paneId);
     };
 
+    // Drop on empty bar space (past the last tab, or an entirely empty bar —
+    // e.g. an empty pane's bar with zero tabs and thus no per-tab drop
+    // targets at all). Per-tab handleDrop above stops propagation, so this
+    // only fires when the drop didn't land on a specific tab.
+    const handleBarDrop = (e) => {
+        e.preventDefault();
+        if (onReorder) onReorder(null, null, paneId);
+    };
+
     return (
         <div className="tab-bar">
             {/* New File Button — always first, like Chrome's "+" */}
@@ -64,7 +73,7 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                 </div>
             )}
 
-            <div className="tab-bar-tabs">
+            <div className="tab-bar-tabs" onDragOver={handleDragOver} onDrop={handleBarDrop}>
                 {tabs.map(tab => {
                     const isActive = tab.id === activeTabId;
                     return (

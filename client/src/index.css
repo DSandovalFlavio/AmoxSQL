@@ -646,6 +646,13 @@ body {
   margin: 6px 8px 4px 8px;
   flex-shrink: 0;
   overflow: visible;
+  transition: border-color var(--transition-fast);
+}
+
+/* Only meaningful with two panes on screen — shows which one is "active"
+   (where the next Ctrl+N / typed shortcut / dropped file will land). */
+.tab-bar-card.active {
+  border-color: var(--accent-primary);
 }
 
 .tab-bar-card .tab-bar {
@@ -3615,6 +3622,12 @@ tr:hover .rt-td--pinned {
   border-left: none;
   overflow: hidden;
   position: relative;
+}
+
+/* Same active-pane affordance as .tab-bar-card, applied by EditorPane only
+   when split is on — a single pane doesn't need to say "I'm the active one". */
+.ep-container.active {
+  box-shadow: inset 0 0 0 1px var(--accent-muted);
 }
 
 .ep-empty-state {
