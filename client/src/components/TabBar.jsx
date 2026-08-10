@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown } from 'react-icons/lu';
 
-const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew }) => {
+const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew, onTabContextMenu, onTabRename }) => {
     const [showNewMenu, setShowNewMenu] = useState(false);
     const menuRef = useRef(null);
 
@@ -84,9 +84,18 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                             onDragOver={handleDragOver}
                             onDrop={(e) => handleDrop(e, tab.id)}
                             onClick={() => onTabClick(tab.id)}
+                            onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onTabContextMenu && onTabContextMenu(e, tab.id, paneId);
+                            }}
                             className={`tab-item${isActive ? ' active' : ''}`}
                         >
-                            <span className="tab-label">
+                            <span
+                                className="tab-label"
+                                onDoubleClick={(e) => { e.stopPropagation(); onTabRename && onTabRename(tab.id, paneId); }}
+                                title="Doble clic para renombrar"
+                            >
                                 {tab.name}
                             </span>
                             {tab.dirty && <span className="tab-dirty">●</span>}

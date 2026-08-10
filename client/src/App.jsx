@@ -38,7 +38,7 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
@@ -73,6 +73,14 @@ function App() {
 
   // Tab bar state — synced from LayoutManager for rendering in WindowTitleBar
   const [titleBarTabs, setTitleBarTabs] = useState(null);
+  // Read by stable (deps-less) callbacks below that need the LATEST tab
+  // metadata without becoming unstable themselves every time a tab changes.
+  const titleBarTabsRef = useRef(null);
+  titleBarTabsRef.current = titleBarTabs;
+
+  // Tab context menu — {x, y, tabId, paneId}. Rendered here (not inside
+  // TabBar) so TabBar's memo isn't defeated by menu-open re-renders.
+  const [tabContextMenu, setTabContextMenu] = useState(null);
 
   // File Management State
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -490,10 +498,114 @@ function App() {
       const p = layoutRef.current?.getTabBarProps(pane);
       if (p?.onCreateNew) p.onCreateNew(type);
     },
-  }), []);
+    onTabContextMenu: (e, tabId, paneId) => {
+      setTabContextMenu({ x: e.clientX, y: e.clientY, tabId, paneId: pane ?? paneId });
+    },
+    onTabRename: (tabId) => requestTabRename(tabId),
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
   const leftTabBarHandlers = useMemo(() => makeTabBarHandlers('left'), [makeTabBarHandlers]);
   const rightTabBarHandlers = useMemo(() => makeTabBarHandlers('right'), [makeTabBarHandlers]);
   const singleTabBarHandlers = useMemo(() => makeTabBarHandlers(undefined), [makeTabBarHandlers]);
+
+  // Tab metadata lookup for the context menu — reads the LATEST tabs via the
+  // ref above, not the closed-over `titleBarTabs`, so this stays a stable
+  // dependency for `requestTabRename` below (referenced from the deps-less
+  // `makeTabBarHandlers`, which must never go stale).
+  const findTabMeta = useCallback((tabId) => {
+    const tbt = titleBarTabsRef.current;
+    if (!tbt) return null;
+    return tbt.left?.tabs.find(t => t.id === tabId) || tbt.right?.tabs.find(t => t.id === tabId) || null;
+  }, []);
+
+  // Shared by the context menu's "Renombrar" item AND double-clicking a tab
+  // label. An unsaved tab (no path yet) has nothing on disk to rename —
+  // redirect straight to Save As instead.
+  const requestTabRename = useCallback(async (tabId) => {
+    const meta = findTabMeta(tabId);
+    if (!meta) return;
+    if (!meta.path) {
+      layoutRef.current?.requestSaveAsForTab(tabId);
+      return;
+    }
+    const newName = await dialog.promptAsync({
+      title: 'Renombrar archivo',
+      message: `Nuevo nombre para "${meta.name}"`,
+      defaultValue: meta.name,
+      validate: (v) => (!v.trim() ? 'El nombre no puede estar vacío' : null),
+    });
+    if (!newName || newName.trim() === meta.name) return;
+    const result = await layoutRef.current?.renameTab(tabId, newName.trim());
+    if (result && !result.success) {
+      toast.error(`No se pudo renombrar: ${result.error}`);
+    }
+  }, [findTabMeta, dialog, toast]);
+
+  // Dismiss the tab context menu on outside click / scroll — same pattern as
+  // ResultsTable's column context menu.
+  useEffect(() => {
+    if (!tabContextMenu) return;
+    const dismiss = () => setTabContextMenu(null);
+    window.addEventListener('click', dismiss);
+    window.addEventListener('contextmenu', dismiss);
+    window.addEventListener('scroll', dismiss, true);
+    return () => {
+      window.removeEventListener('click', dismiss);
+      window.removeEventListener('contextmenu', dismiss);
+      window.removeEventListener('scroll', dismiss, true);
+    };
+  }, [tabContextMenu]);
+
+  const handleTabMenuAction = (action) => {
+    const menu = tabContextMenu;
+    setTabContextMenu(null);
+    if (!menu) return;
+    const { tabId, paneId } = menu;
+    const meta = findTabMeta(tabId);
+
+    switch (action) {
+      case 'rename':
+        requestTabRename(tabId);
+        break;
+      case 'save':
+        layoutRef.current?.saveTab(tabId);
+        break;
+      case 'saveAs':
+        layoutRef.current?.requestSaveAsForTab(tabId);
+        break;
+      case 'copyPath':
+        if (meta?.path) navigator.clipboard.writeText(meta.path);
+        break;
+      case 'reveal': {
+        if (meta?.path && window.electronAPI?.showItemInFolder) {
+          const base = projectPath.replace(/\\/g, '/').replace(/\/+$/, '');
+          window.electronAPI.showItemInFolder(`${base}/${meta.path}`);
+        }
+        break;
+      }
+      case 'moveToOtherPane':
+        layoutRef.current?.moveTabToOtherPane(tabId);
+        break;
+      case 'duplicate':
+        layoutRef.current?.duplicateTabToOtherPane(tabId);
+        break;
+      case 'close': {
+        const p = layoutRef.current?.getTabBarProps(paneId);
+        if (p) p.onTabClose(tabId);
+        break;
+      }
+      case 'closeOthers':
+        layoutRef.current?.closeOtherTabs(tabId);
+        break;
+      case 'closeToRight':
+        layoutRef.current?.closeTabsToRight(tabId);
+        break;
+      case 'closeAll':
+        layoutRef.current?.closeAllTabsInPane(paneId);
+        break;
+      default:
+        break;
+    }
+  };
 
   const handleSwitchProject = useCallback((path) => {
     setProjectPath(path);
@@ -1283,6 +1395,68 @@ function App() {
               </div>
             )}
 
+            {/* Tab Context Menu — right-click on a tab */}
+            {tabContextMenu && (() => {
+              const meta = findTabMeta(tabContextMenu.tabId);
+              const paneTabs = tabContextMenu.paneId === 'left' ? titleBarTabs?.left?.tabs : titleBarTabs?.right?.tabs;
+              const idxInPane = paneTabs ? paneTabs.findIndex(t => t.id === tabContextMenu.tabId) : -1;
+              const hasTabsToRight = idxInPane >= 0 && idxInPane < (paneTabs.length - 1);
+              const hasOtherTabs = (paneTabs?.length || 0) > 1;
+              const canReveal = !!(meta?.path && window.electronAPI?.showItemInFolder);
+              return (
+                <div
+                  className="column-context-menu"
+                  style={{ position: 'fixed', top: tabContextMenu.y, left: tabContextMenu.x, zIndex: 99999 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('rename')}>
+                    <LuPencil size={13} /> Renombrar…
+                  </div>
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('save')}>
+                    <LuSave size={13} /> Guardar
+                  </div>
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('saveAs')}>
+                    <LuSave size={13} /> Guardar como…
+                  </div>
+                  {meta?.path && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('copyPath')}>
+                      <LuClipboardCopy size={13} /> Copiar ruta
+                    </div>
+                  )}
+                  {canReveal && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('reveal')}>
+                      <LuFolderOpen size={13} /> Revelar en el explorador
+                    </div>
+                  )}
+                  <div className="column-context-menu-separator" />
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('moveToOtherPane')}>
+                    <LuArrowLeftRight size={13} /> {tabContextMenu.paneId === 'left' ? 'Mover al panel derecho' : 'Mover al panel izquierdo'}
+                  </div>
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('duplicate')}>
+                    <LuCopyPlus size={13} /> Abrir una copia al lado
+                  </div>
+                  <div className="column-context-menu-separator" />
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('close')}>
+                    <LuX size={13} /> Cerrar
+                  </div>
+                  {hasOtherTabs && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeOthers')}>
+                      <LuX size={13} /> Cerrar las demás
+                    </div>
+                  )}
+                  {hasTabsToRight && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeToRight')}>
+                      <LuX size={13} /> Cerrar las de la derecha
+                    </div>
+                  )}
+                  {hasOtherTabs && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeAll')}>
+                      <LuX size={13} /> Cerrar todas
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Content Area containing Editor AND AI Sidebar */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

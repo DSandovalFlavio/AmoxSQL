@@ -272,6 +272,36 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, []);
 
+    // Bulk close (used by the tab context menu's "Close Others / To the Right /
+    // All") — confirms once, listing every unsaved file, before discarding any
+    // of them. A single-tab close (handleTabClose above, and the "x" button)
+    // stays silent, matching its existing behavior.
+    const closeTabsWithConfirm = useCallback(async (pane, tabsToClose) => {
+        if (!tabsToClose || tabsToClose.length === 0) return;
+        const dirtyOnes = tabsToClose.filter(t => t.dirty);
+        if (dirtyOnes.length > 0) {
+            const { dialog } = stateRef.current;
+            const ok = await dialog.confirmAsync({
+                title: dirtyOnes.length === 1 ? 'Cerrar sin guardar' : `Cerrar ${dirtyOnes.length} archivos sin guardar`,
+                message: `Se perderán los cambios de: ${dirtyOnes.map(t => t.name).join(', ')}`,
+                confirmLabel: 'Cerrar de todos modos',
+                destructive: true,
+            });
+            if (!ok) return;
+        }
+        const idsToClose = new Set(tabsToClose.map(t => t.id));
+        const setTabs = pane === 'left' ? setLeftTabs : setRightTabs;
+        const setActiveId = pane === 'left' ? setLeftActiveId : setRightActiveId;
+        const currentActiveId = pane === 'left' ? stateRef.current.leftActiveId : stateRef.current.rightActiveId;
+        setTabs(prev => {
+            const remaining = prev.filter(t => !idsToClose.has(t.id));
+            if (idsToClose.has(currentActiveId)) {
+                setActiveId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
+            }
+            return remaining;
+        });
+    }, []);
+
     // Parse DuckDB error messages to extract line/column for inline highlighting
     const parseDuckDBError = (errorMsg) => {
         if (!errorMsg || typeof errorMsg !== 'string') return null;
@@ -547,9 +577,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, [getActiveTab, executeQuery]);
 
-    const handleSaveActive = useCallback(async (isSilent = false) => {
-        const { onRequestSaveAs, activePane, toast } = stateRef.current;
-        const tab = getActiveTab();
+    // Shared by the global Save trigger (always the active tab) AND the tab
+    // context menu's "Guardar" (an EXPLICIT tab, which may not be active).
+    // Resolves the pane via findTabPane, not `activePane` — an inactive tab
+    // being saved from the context menu can live in either pane.
+    const saveTabInternal = useCallback(async (tab, isSilent = false) => {
+        const { onRequestSaveAs, toast } = stateRef.current;
         if (!tab || !tab.dirty) return;
 
         if (!tab.path) {
@@ -560,6 +593,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
             return;
         }
+
+        const pane = findTabPane(tab.id);
+        if (!pane) return;
 
         try {
             let saveContent = tab.content;
@@ -576,7 +612,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             });
 
             if (response.ok) {
-                updateTab(activePane, tab.id, { dirty: false });
+                updateTab(pane, tab.id, { dirty: false });
                 if (tab.path) clearDraft(tab.path);
                 if (!isSilent) toast.success("Saved!");
             } else {
@@ -587,7 +623,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             console.error("Error saving: " + e.message);
             if (!isSilent) toast.error("Error saving: " + e.message);
         }
-    }, [getActiveTab, updateTab]);
+    }, [findTabPane, updateTab]);
+
+    const handleSaveActive = useCallback((isSilent = false) => saveTabInternal(getActiveTab(), isSilent), [getActiveTab, saveTabInternal]);
 
     const handleAnalyzeActive = useCallback(async (mode) => {
         const tab = getActiveTab();
@@ -966,7 +1004,88 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         },
 
         // Switch an amoxvis tab to SQL editor mode
-        handleOpenAmoxvisAsSql: (tab) => openAmoxvisAsSql(tab)
+        handleOpenAmoxvisAsSql: (tab) => openAmoxvisAsSql(tab),
+
+        // ─── Tab context menu operations (Fase 2) ───
+        // All of these take an EXPLICIT tabId — never `activePane`/"the active
+        // tab" — since the context menu can be opened on any tab, active or not.
+        saveTab: (tabId) => {
+            const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+            if (tab) saveTabInternal(tab);
+        },
+        requestSaveAsForTab: (tabId) => {
+            const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+            if (tab && onRequestSaveAs) onRequestSaveAs(tab.content, tab);
+        },
+        renameTab: async (tabId, newName) => {
+            const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+            if (!tab) return { success: false, error: 'Tab not found' };
+            if (!tab.path) return { success: false, error: 'unsaved' };
+            const dir = tab.path.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+            const newPath = dir ? `${dir}/${newName}` : newName;
+            if (newPath === tab.path) return { success: true };
+            try {
+                const response = await fetch(`${API_BASE}/api/file/rename`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldPath: tab.path, newPath }),
+                });
+                const data = await response.json();
+                if (!response.ok) return { success: false, error: data.error || 'Rename failed' };
+                updateTab(findTabPane(tabId), tabId, { path: newPath, name: newName });
+                return { success: true };
+            } catch (err) {
+                return { success: false, error: err.message };
+            }
+        },
+        moveTabToOtherPane: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const target = pane === 'left' ? 'right' : 'left';
+            setSplitEnabled(true);
+            moveTabToPane(tabId, pane, target);
+            setActivePane(target);
+        },
+        // Clones the tab into the OTHER pane as a fresh, unsaved copy — same
+        // content, but its own path/dirty state, so editing one to try a SQL
+        // variant never silently overwrites the file the other copy still
+        // shows. This is the "compare a variant side by side" gesture.
+        duplicateTabToOtherPane: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const tab = (pane === 'left' ? leftTabs : rightTabs).find(t => t.id === tabId);
+            if (!tab) return;
+            const target = pane === 'left' ? 'right' : 'left';
+            const clone = {
+                ...tab,
+                id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+                path: '',
+                dirty: true,
+                results: null, resultsQuery: null, resultsError: null, scriptRun: null, errorMarker: null,
+            };
+            setSplitEnabled(true);
+            if (target === 'left') { setLeftTabs(prev => [...prev, clone]); setLeftActiveId(clone.id); }
+            else { setRightTabs(prev => [...prev, clone]); setRightActiveId(clone.id); }
+            setActivePane(target);
+        },
+        closeOtherTabs: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const tabs = pane === 'left' ? leftTabs : rightTabs;
+            closeTabsWithConfirm(pane, tabs.filter(t => t.id !== tabId));
+        },
+        closeTabsToRight: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const tabs = pane === 'left' ? leftTabs : rightTabs;
+            const idx = tabs.findIndex(t => t.id === tabId);
+            if (idx === -1) return;
+            closeTabsWithConfirm(pane, tabs.slice(idx + 1));
+        },
+        closeAllTabsInPane: (paneId) => {
+            const tabs = paneId === 'left' ? leftTabs : rightTabs;
+            closeTabsWithConfirm(paneId, tabs);
+        },
     }));
 
     // Standalone helper: open an amoxvis tab in SQL editor mode
