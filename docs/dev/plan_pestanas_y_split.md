@@ -1,6 +1,11 @@
 # Plan — Interactividad de pestañas y modo pantalla dividida
 
-> **Estado: PROPUESTA** (2026-08-10). Rama sugerida: `claude/tabs-split-ux`.
+> **Estado: Fase 0, 1 y 2 IMPLEMENTADAS** (2026-08-10), rama `claude/tabs-split-ux`
+> (aún sin PR — por instrucción del usuario, solo commits por fase; el PR se abre
+> completo al final). Fase 3 (divisor arrastrable + alturas en fracción) y Fase 4
+> (enlace de resultados) siguen pendientes. Ver "Registro de implementación" al
+> final del documento.
+>
 > Origen: reporte del usuario — "al añadir una pestaña a la sección de la izquierda
 > en realidad aparece en la derecha", falta de menú contextual en pestañas, y
 > necesidad de enlazar la altura de las áreas de resultados en split.
@@ -366,3 +371,47 @@ refactorización grande y el caso de uso (comparar 2 queries) se cubre con dos.
   van en una clave aparte para no invalidar la restauración de pestañas si cambia el esquema.
 - **Sin tests.** El repo no tiene suite; cada fase se valida ejercitando la app
   (servidor Express + Vite en el navegador, como en las últimas sesiones).
+
+---
+
+## Registro de implementación (2026-08-10)
+
+### Fase 0 + Fase 1 — commits `59fff62`, `28e58fc`
+
+Los 7 bugs de la sección 1 quedaron corregidos (`createNew`/`handleQueryFile`/
+`openAmoxvisAsSql`/`finishSaveAs` con panel destino explícito, panel vacío
+activable, drop cruzado entre barras, zonas de arrastre relativas al
+contenedor). La señal visual de panel activo de la Fase 1 se **implementó y
+luego se retiró** por feedback directo del usuario: se veía sobrecargada
+encima del `:focus-within` que ya existía solo en la tarjeta del editor desde
+antes. Se mantiene únicamente ese borde original; el resto de la Fase 0
+(el enrutado correcto) sigue intacto — solo se quitó la capa visual añadida,
+no la lógica de foco de panel.
+
+### Fase 2 — commit `127f889`
+
+Menú contextual completo (clic derecho + doble clic para renombrar), con las
+correcciones de enrutado documentadas en el commit. Añade un IPC nuevo,
+`shell:showItemInFolder` (`electron/main.js` + `electron/preload.js`), para
+"Revelar en el explorador" — no existía antes, es cheap y coherente con el
+resto de acciones de archivo del menú.
+
+De paso se corrigió el mismo bug de fondo en `handleSaveActive`: usaba
+`activePane` para decidir dónde actualizar `dirty:false` tras guardar, en vez
+de `findTabPane(tab.id)`. Extraído a `saveTabInternal(tab)`, reutilizado por
+el trigger global (Ctrl+S) y por el "Guardar" del menú contextual (tab
+explícito, no necesariamente activo).
+
+Validado en el navegador contra el servidor real: renombrado end-to-end
+(confirmado por listado de directorio, no solo por el estado de React),
+duplicar-al-lado activa split y crea una copia sin path, mover colapsa el
+split al vaciar un panel, cierre en bloque pide confirmación listando los
+archivos con cambios sin guardar, y — el caso más importante — "Guardar
+como…" disparado sobre una pestaña inactiva (con otra pestaña activa y con
+cambios sin guardar en el otro panel) guarda el archivo correcto sin tocar
+la pestaña activa.
+
+**Pendiente:** Fase 3 (divisor arrastrable entre paneles + alturas de
+resultados en fracción en vez de píxeles) y Fase 4 (botón de enlace de altura
+entre las dos áreas de resultados — el pedido original del usuario). El PR
+se abre cuando el usuario decida cerrar esta ronda de fases.
