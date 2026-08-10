@@ -1073,6 +1073,30 @@ function App() {
     );
   }
 
+  // Tab-bar-card widths in split mode, computed in PIXELS from LayoutManager's
+  // measured .lm-panes width — NOT CSS percentages. This row and the editor
+  // panes below it are separate DOM regions with different padding/margin
+  // models (this row had its own padding + a gap + the link button between
+  // cards; the editor panes just have a 6px splitter), so the same
+  // `splitRatio` as a plain percentage lands each row's second pane at a
+  // different pixel — visibly misaligned tab bar vs. editor card underneath
+  // it. Matching the exact arithmetic LayoutManager uses for its own pane
+  // slots (minus the splitter width, minus each editor card's own 8px inset)
+  // is what actually keeps them lined up as you drag the divider.
+  const TAB_SPLITTER_WIDTH = 6; // must match LayoutManager's SPLITTER_WIDTH / .lm-splitter
+  const TAB_CARD_INSET = 8;     // must match .ep-inner's horizontal padding
+  const tabSplitRatio = titleBarTabs?.splitRatio ?? 0.5;
+  const tabPanesWidth = titleBarTabs?.lmPanesWidth || 0;
+  const tabGeometryReady = tabPanesWidth > (TAB_SPLITTER_WIDTH + TAB_CARD_INSET * 4);
+  const tabSlot1Width = (tabPanesWidth - TAB_SPLITTER_WIDTH) * tabSplitRatio;
+  const tabSlot2Width = (tabPanesWidth - TAB_SPLITTER_WIDTH) * (1 - tabSplitRatio);
+  const tabCard1Style = tabGeometryReady
+    ? { flex: '0 0 auto', width: tabSlot1Width - TAB_CARD_INSET * 2, marginLeft: TAB_CARD_INSET, marginRight: 3, minWidth: 0 }
+    : { flex: `0 0 ${tabSplitRatio * 100}%`, margin: 0, minWidth: 0 };
+  const tabCard2Style = tabGeometryReady
+    ? { flex: '0 0 auto', width: tabSlot2Width - TAB_CARD_INSET * 2, marginLeft: 3, marginRight: TAB_CARD_INSET, minWidth: 0 }
+    : { flex: `0 0 ${(1 - tabSplitRatio) * 100}%`, margin: 0, minWidth: 0 };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
       <WindowTitleBar
@@ -1354,12 +1378,12 @@ function App() {
           <div className="main-content">
             {/* Tab Bar Area — floating, only above editor + AI area, hidden when no tabs */}
             {titleBarTabs && (titleBarTabs.tabs.length > 0 || (titleBarTabs.splitEnabled && (titleBarTabs.left?.tabs.length > 0 || titleBarTabs.right?.tabs.length > 0))) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: titleBarTabs.splitEnabled ? '4px' : '0', padding: '6px 8px 4px 8px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: titleBarTabs.splitEnabled ? '6px 0 4px 0' : '6px 8px 4px 8px', flexShrink: 0 }}>
                 {titleBarTabs.splitEnabled ? (
                   <>
                     <div
                       className="tab-bar-card"
-                      style={{ flex: `0 0 ${(titleBarTabs.splitRatio ?? 0.5) * 100}%`, margin: 0, minWidth: 0 }}
+                      style={tabCard1Style}
                       onMouseDown={() => layoutRef.current?.focusPane('left')}
                     >
                       <TabBar
@@ -1372,7 +1396,11 @@ function App() {
                     {/* Results-link toggle — lives HERE (between the two tab
                         bars) rather than on the pane splitter below, so it
                         doesn't widen the gap between panes. Icon only, no
-                        button chrome, to keep that gap minimal. */}
+                        button chrome, to keep that gap minimal. Its own
+                        width (16px) plus the 3px margins on each side of it
+                        above is exactly the 22px gap the editor cards below
+                        have (8px inset + 6px splitter + 8px inset) — see the
+                        tabCard*Style comment. */}
                     <button
                       className={`tab-link-btn${titleBarTabs.resultsLinked ? ' active' : ''}`}
                       onClick={() => layoutRef.current?.toggleResultsLinked()}
@@ -1384,7 +1412,7 @@ function App() {
                     </button>
                     <div
                       className="tab-bar-card"
-                      style={{ flex: `0 0 ${(1 - (titleBarTabs.splitRatio ?? 0.5)) * 100}%`, margin: 0, minWidth: 0 }}
+                      style={tabCard2Style}
                       onMouseDown={() => layoutRef.current?.focusPane('right')}
                     >
                       <TabBar

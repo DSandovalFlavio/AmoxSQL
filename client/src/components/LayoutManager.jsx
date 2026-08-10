@@ -17,6 +17,11 @@ const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 // the tab-restoration logic in TAB_STORAGE_KEY (that one recovers unsaved
 // work; this one is just window-dressing, safe to drop and re-default).
 const SPLIT_STORAGE_KEY = 'amoxsql-split-v1';
+// Must match .lm-splitter's CSS width exactly — used both to make the pane
+// slots below sum to exactly 100% (instead of overflowing by this much) and
+// by App.jsx's tab-bar-card pixel math, which needs to know precisely how
+// much horizontal space the splitter itself eats between the two panes.
+const SPLITTER_WIDTH = 6;
 // Per-file choice for multi-statement .sql files: 'script' | 'notebook'.
 // Keyed by file path so "don't ask again for this file" survives reloads.
 const SQL_FILE_PREFS_KEY = 'amoxsql-sql-file-prefs';
@@ -111,6 +116,25 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [runningQueryId, setRunningQueryId] = useState(null);
     const queryAbortControllerRef = useRef(null);
     const lmContainerRef = useRef(null);
+    // Real rendered width of .lm-container (== .lm-panes' width, since
+    // .lm-panes is its only flex:1 child with no siblings taking horizontal
+    // space). The tab bar row in App.jsx is a SEPARATE sibling DOM region
+    // with its own padding/margin model — pure CSS percentages can't be
+    // trusted to land the two rows' pane boundaries on the same pixel (the
+    // fixed-width overhead between the two panes differs: 6px splitter here
+    // vs gap+link-button+gap up there), so it gets this exact pixel width
+    // instead and computes matching pixel math. See App.jsx's tab-bar-card
+    // sizing.
+    const [lmPanesWidth, setLmPanesWidth] = useState(0);
+    useEffect(() => {
+        const el = lmContainerRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) setLmPanesWidth(entry.contentRect.width);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     // Drag & Drop State (declared here so stateRef below can reference it)
     const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
@@ -189,14 +213,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             // this component) can mirror the same width split as the editor
             // panes below it, and so the results-link toggle (also rendered in
             // App.jsx, between the two tab bars) can reflect current state.
+            // lmPanesWidth (px) is what lets App.jsx compute PIXEL-exact tab
+            // bar widths instead of trusting two differently-padded flex rows
+            // to agree on what "50%" means.
             splitRatio,
             resultsLinked,
+            lmPanesWidth,
         };
         const serialized = JSON.stringify(payload);
         if (serialized === lastNotifiedMetaRef.current) return;
         lastNotifiedMetaRef.current = serialized;
         onTabsChange(payload);
-    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane, splitRatio, resultsLinked, onTabsChange]);
+    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane, splitRatio, resultsLinked, lmPanesWidth, onTabsChange]);
 
     // --- Tab Persistence: Restore on mount ---
     useEffect(() => {
@@ -1592,7 +1620,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             <div className="lm-panes">
                 <div
                     className="lm-pane-slot"
-                    style={splitEnabled ? { flex: `0 0 ${splitRatio * 100}%` } : { flex: 1 }}
+                    style={splitEnabled ? { flex: `0 0 calc((100% - ${SPLITTER_WIDTH}px) * ${splitRatio})` } : { flex: 1 }}
                 >
                     <EditorPane
                         paneId="left"
@@ -1649,7 +1677,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         />
                         <div ref={splitGhostRef} className="lm-splitter-ghost" />
 
-                        <div className="lm-pane-slot" style={{ flex: `0 0 ${(1 - splitRatio) * 100}%` }}>
+                        <div className="lm-pane-slot" style={{ flex: `0 0 calc((100% - ${SPLITTER_WIDTH}px) * ${1 - splitRatio})` }}>
                             <EditorPane
                                 paneId="right"
                                 isActive={activePane === 'right'}
