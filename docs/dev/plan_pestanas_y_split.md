@@ -1,10 +1,10 @@
 # Plan — Interactividad de pestañas y modo pantalla dividida
 
-> **Estado: Fase 0, 1 y 2 IMPLEMENTADAS** (2026-08-10), rama `claude/tabs-split-ux`
+> **Estado: Fase 0, 1, 2, 3 y 4 IMPLEMENTADAS** (2026-08-10), rama `claude/tabs-split-ux`
 > (aún sin PR — por instrucción del usuario, solo commits por fase; el PR se abre
-> completo al final). Fase 3 (divisor arrastrable + alturas en fracción) y Fase 4
-> (enlace de resultados) siguen pendientes. Ver "Registro de implementación" al
-> final del documento.
+> completo cuando el usuario lo apruebe). Ver "Registro de implementación" al
+> final del documento. Fase 5 (recomendaciones — duplicar/ejecutar-ambos/comparar/
+> scroll sincronizado/etc.) sigue como backlog, no implementada.
 >
 > Origen: reporte del usuario — "al añadir una pestaña a la sección de la izquierda
 > en realidad aparece en la derecha", falta de menú contextual en pestañas, y
@@ -411,7 +411,43 @@ como…" disparado sobre una pestaña inactiva (con otra pestaña activa y con
 cambios sin guardar en el otro panel) guarda el archivo correcto sin tocar
 la pestaña activa.
 
-**Pendiente:** Fase 3 (divisor arrastrable entre paneles + alturas de
-resultados en fracción en vez de píxeles) y Fase 4 (botón de enlace de altura
-entre las dos áreas de resultados — el pedido original del usuario). El PR
-se abre cuando el usuario decida cerrar esta ronda de fases.
+### Fase 3 + 4 — commit `8045c31`
+
+**Fase 3.** Divisor vertical arrastrable entre paneles (antes 50/50 rígido),
+mismo patrón de línea fantasma que ya usaba `EditorPane` para no re-renderizar
+en cada `mousemove`. Doble clic resetea a 50/50. `resultsHeight`/`resultsWidth`
+(estado local en píxeles dentro de `EditorPane`) se reemplazan por un
+`resultsRatio` (0-1) controlado por `LayoutManager` y renderizado como
+porcentaje CSS — sobrevive a resize de ventana y a abrir/cerrar la barra de
+IA sin necesitar un `ResizeObserver`. Todo persiste en `amoxsql-split-v1`.
+
+**Fase 4 — el enlace de resultados, el pedido original del usuario.** Botón
+redondo (`LuLink`/`LuUnlink`) en el divisor vertical, aproximado a la altura
+donde arrancan los dos paneles de resultados. Enlazado por defecto en split:
+arrastrar el resizer de CUALQUIER panel actualiza la misma altura compartida
+en los dos. Al enlazar, el valor compartido adopta la proporción del panel
+activo (el otro anima hasta igualarlo); al desenlazar, ambos conservan el
+tamaño que tenían en ese momento — nada salta.
+
+**Bug encontrado y corregido durante la validación en navegador:** la
+restauración de la geometría del split usaba un efecto post-montaje + un ref
+de "restaurado", con una condición de carrera clásica — el ref se marcaba
+`true` en el mismo tick que las llamadas a `setState`, antes de que React las
+aplicara, así que el efecto de persistencia (que corre en el mismo commit de
+montaje) veía el ref ya en `true` pero con los valores POR DEFECTO todavía en
+su closure, y sobreescribía el `localStorage` recién leído con esos defaults.
+Se cambió a inicializadores perezosos de `useState` (leen `localStorage`
+sincrónicamente en el primer render, sin ventana de carrera posible).
+Confirmado con un ciclo completo: guardar dos archivos reales en ambos
+paneles, fijar una geometría distinta (proporción de split, enlace apagado,
+dos alturas de resultados diferentes), recargar la app entera, reabrir el
+proyecto — los cuatro valores sobreviven exactamente, no vuelven a defaults.
+
+---
+
+Con esto las cinco fases del plan original están implementadas. Fase 5
+(recomendaciones — duplicar-al-lado, ejecutar-ambos-paneles,
+comparar-con-el-otro-panel, scroll sincronizado, pestañas fijadas, split
+horizontal, menú de desbordamiento, `Ctrl+1`/`Ctrl+2`) queda como backlog para
+cuando el usuario quiera seguir. El PR se abre cuando decida cerrar esta
+ronda.
