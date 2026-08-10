@@ -198,6 +198,8 @@ function App() {
     lineNumbers: 'on',
     tabSize: 4,
     resultsFontSize: 13,
+    showRowNumbers: true,
+    stickyRowNumbers: true,
     defaultViewMode: 'table',
     mouseWheelZoom: true,
     bracketPairColorization: true,

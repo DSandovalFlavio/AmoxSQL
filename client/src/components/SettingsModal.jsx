@@ -1367,6 +1367,28 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             </div>
                                         </div>
                                         <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Show Row Numbers</span>
+                                                <p className="stg-row-desc">Añade una columna con el número de fila a la izquierda de la tabla</p>
+                                            </div>
+                                            <Toggle
+                                                on={editorSettings.showRowNumbers !== false}
+                                                onChange={() => onEditorSettingsChange?.({ showRowNumbers: editorSettings.showRowNumbers === false })}
+                                            />
+                                        </div>
+                                        {editorSettings.showRowNumbers !== false && (
+                                            <div className="stg-row">
+                                                <div>
+                                                    <span className="stg-row-label">Fijar Número de Fila</span>
+                                                    <p className="stg-row-desc">Mantiene la columna de número visible al desplazarte horizontalmente</p>
+                                                </div>
+                                                <Toggle
+                                                    on={editorSettings.stickyRowNumbers !== false}
+                                                    onChange={() => onEditorSettingsChange?.({ stickyRowNumbers: editorSettings.stickyRowNumbers === false })}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="stg-row">
                                             <span className="stg-row-label">Default Results View</span>
                                             <select
                                                 className="stg-select stg-select--w120"
