@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback, memo } from 'react';
-import { LuColumns2, LuMaximize2, LuLink, LuUnlink } from "react-icons/lu";
+import { LuColumns2, LuMaximize2 } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
 import { useToast } from './ToastProvider';
@@ -185,12 +185,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             splitEnabled,
             left: { tabs: leftMeta, activeTabId: leftActiveId },
             right: { tabs: rightMeta, activeTabId: rightActiveId },
+            // Split geometry — so the tab bar row (rendered in App.jsx, outside
+            // this component) can mirror the same width split as the editor
+            // panes below it, and so the results-link toggle (also rendered in
+            // App.jsx, between the two tab bars) can reflect current state.
+            splitRatio,
+            resultsLinked,
         };
         const serialized = JSON.stringify(payload);
         if (serialized === lastNotifiedMetaRef.current) return;
         lastNotifiedMetaRef.current = serialized;
         onTabsChange(payload);
-    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane, onTabsChange]);
+    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane, splitRatio, resultsLinked, onTabsChange]);
 
     // --- Tab Persistence: Restore on mount ---
     useEffect(() => {
@@ -904,6 +910,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // the chrome around a tab bar (not a specific tab) so that pane's
         // actions ("+", empty-state cards) target it correctly.
         focusPane: (pane) => setActivePane(pane),
+        // Results-link toggle — rendered in App.jsx (between the two tab bars,
+        // not on the pane splitter, see Fase 4 revision) but the state and the
+        // logic that decides what happens on toggle live here with the rest of
+        // the split geometry.
+        toggleResultsLinked: () => toggleResultsLinked(),
         // `tabId` should be the id captured when "Save As…" was first requested
         // (see App.jsx's pendingSaveTab). The save-as modal is async — the user
         // can switch the active pane while it's open — so re-deriving "the
@@ -1626,29 +1637,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 {splitEnabled && (
                     <>
                         {/* Vertical divider between the two panes. The results-link
-                            button (Fase 4) rides on top of it, roughly at the height
-                            where the two results panels begin — an approximation
-                            against the pane's full height (not each editor card's own
-                            header offset), simple and good enough to read as "this
-                            controls where these two split". */}
+                            toggle used to live here but made the gap between panes
+                            read as too wide — it now lives in App.jsx, between the
+                            two tab bars, where it doesn't affect this divider's
+                            width at all. */}
                         <div
                             className="lm-splitter"
                             onMouseDown={startSplitResize}
                             onDoubleClick={() => setSplitRatio(0.5)}
                             title="Arrastra para redimensionar · doble clic para 50/50"
-                        >
-                            <button
-                                className={`lm-results-link-btn${resultsLinked ? ' active' : ''}`}
-                                style={{ top: `${(1 - (resultsLinked ? linkedResultsRatio : (resultsRatios.left + resultsRatios.right) / 2)) * 100}%` }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onClick={toggleResultsLinked}
-                                title={resultsLinked ? 'Alturas de resultados enlazadas — clic para independizar' : 'Enlazar la altura de resultados entre los dos paneles'}
-                                aria-label={resultsLinked ? 'Unlink results panel heights' : 'Link results panel heights'}
-                                aria-pressed={resultsLinked}
-                            >
-                                {resultsLinked ? <LuLink size={12} /> : <LuUnlink size={12} />}
-                            </button>
-                        </div>
+                        />
                         <div ref={splitGhostRef} className="lm-splitter-ghost" />
 
                         <div className="lm-pane-slot" style={{ flex: `0 0 ${(1 - splitRatio) * 100}%` }}>

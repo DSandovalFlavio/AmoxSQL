@@ -38,7 +38,7 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
@@ -1354,12 +1354,12 @@ function App() {
           <div className="main-content">
             {/* Tab Bar Area — floating, only above editor + AI area, hidden when no tabs */}
             {titleBarTabs && (titleBarTabs.tabs.length > 0 || (titleBarTabs.splitEnabled && (titleBarTabs.left?.tabs.length > 0 || titleBarTabs.right?.tabs.length > 0))) && (
-              <div style={{ display: 'flex', gap: titleBarTabs.splitEnabled ? '16px' : '0', padding: '6px 8px 4px 8px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: titleBarTabs.splitEnabled ? '4px' : '0', padding: '6px 8px 4px 8px', flexShrink: 0 }}>
                 {titleBarTabs.splitEnabled ? (
                   <>
                     <div
                       className="tab-bar-card"
-                      style={{ flex: 1, margin: 0, minWidth: 0 }}
+                      style={{ flex: `0 0 ${(titleBarTabs.splitRatio ?? 0.5) * 100}%`, margin: 0, minWidth: 0 }}
                       onMouseDown={() => layoutRef.current?.focusPane('left')}
                     >
                       <TabBar
@@ -1369,9 +1369,22 @@ function App() {
                         {...leftTabBarHandlers}
                       />
                     </div>
+                    {/* Results-link toggle — lives HERE (between the two tab
+                        bars) rather than on the pane splitter below, so it
+                        doesn't widen the gap between panes. Icon only, no
+                        button chrome, to keep that gap minimal. */}
+                    <button
+                      className={`tab-link-btn${titleBarTabs.resultsLinked ? ' active' : ''}`}
+                      onClick={() => layoutRef.current?.toggleResultsLinked()}
+                      title={titleBarTabs.resultsLinked ? 'Alturas de resultados enlazadas — clic para independizar' : 'Enlazar la altura de resultados entre los dos paneles'}
+                      aria-label={titleBarTabs.resultsLinked ? 'Unlink results panel heights' : 'Link results panel heights'}
+                      aria-pressed={!!titleBarTabs.resultsLinked}
+                    >
+                      {titleBarTabs.resultsLinked ? <LuLink size={11} /> : <LuUnlink size={11} />}
+                    </button>
                     <div
                       className="tab-bar-card"
-                      style={{ flex: 1, margin: 0, minWidth: 0 }}
+                      style={{ flex: `0 0 ${(1 - (titleBarTabs.splitRatio ?? 0.5)) * 100}%`, margin: 0, minWidth: 0 }}
                       onMouseDown={() => layoutRef.current?.focusPane('right')}
                     >
                       <TabBar

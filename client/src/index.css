@@ -3755,6 +3755,10 @@ tr:hover .rt-td--pinned {
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
   gap: 8px;
+  /* Lets the @container rule below hide the timestamps once THIS bar (not
+     the viewport) gets too narrow for a split pane. */
+  container-type: inline-size;
+  container-name: ep-action-bar;
 }
 
 .ep-action-left,
@@ -3766,7 +3770,29 @@ tr:hover .rt-td--pinned {
 }
 
 .ep-action-right {
+  /* Allowed to shrink (unlike .ep-action-left's buttons, which keep their
+     natural size) so that when space runs out, the ONE shrinkable thing
+     inside it — the timestamps span — loses width instead of the whole
+     group overlapping .ep-action-left. This is the actual guarantee against
+     overlap; the @container rule below is just a cleaner "disappear before
+     it starts visibly clipping" on top of it. */
+  flex-shrink: 1;
+}
+
+.ep-action-ai {
+  /* Never shrinks — always fully visible and clickable. All the space
+     pressure in .ep-action-right lands on the timestamps above, never here. */
   flex-shrink: 0;
+}
+
+/* Hides the timestamps cleanly before they'd start visibly clipping —
+   measured against a REALISTIC string ("Edited 19s ago · Ran 53s ago"),
+   not the "—" placeholder it renders before anything has run. The
+   flex-shrink above is the actual safety net if this guess is ever off. */
+@container ep-action-bar (max-width: 760px) {
+  .ep-action-timestamps {
+    display: none;
+  }
 }
 
 /* Button group (run+analyze, save+dropdown) */
@@ -3894,6 +3920,14 @@ tr:hover .rt-td--pinned {
   font-size: var(--text-xs);
   color: var(--text-disabled);
   white-space: nowrap;
+  /* Real "Edited Xs ago · Ran Ys ago" text (not the placeholder "—" it
+     starts with) measured mid-overlap at bar widths well above a first
+     guess for the @container threshold below — so this can't rely on that
+     guess alone: it must be able to shrink all the way to nothing
+     regardless of exactly how long the current string is. */
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
 }
 
 /* AI toggle button */
@@ -4251,36 +4285,30 @@ tr:hover .rt-td--pinned {
   opacity: 0.8;
 }
 
-/* ── Results-link button (Fase 4) — anchored on the splitter, roughly at
-   the height where the two results panels begin. ── */
-.lm-results-link-btn {
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+/* ── Results-link toggle (Fase 4) — sits between the two tab bar strips,
+   icon only (no circle/background) so it doesn't widen that gap. ── */
+.tab-link-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  align-self: center;
+  width: 16px;
+  height: 16px;
   padding: 0;
-  background: var(--surface-overlay);
-  border: 1px solid var(--border-default);
+  background: none;
+  border: none;
   color: var(--text-tertiary);
   cursor: pointer;
-  z-index: 6;
-  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  transition: color var(--transition-fast);
 }
 
-.lm-results-link-btn:hover {
+.tab-link-btn:hover {
   color: var(--text-primary);
-  border-color: var(--accent-primary);
 }
 
-.lm-results-link-btn.active {
+.tab-link-btn.active {
   color: var(--accent-primary);
-  border-color: var(--accent-primary);
-  background: var(--accent-muted);
 }
 
 /* ── Shared: Context Menu / Dropdown (Linear style) ── */
