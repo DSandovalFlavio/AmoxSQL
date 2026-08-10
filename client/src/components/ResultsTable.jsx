@@ -24,7 +24,7 @@ const ROWNUM_WIDTH = 54;
 // match the `columnWidths[col] || 150` default used when resizing.
 const DEFAULT_COL_WIDTH = 150;
 
-const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null }) => {
+const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null }) => {
     const toast = useToast();
     // currentEditorQuery may be a string (notebook cells) or a getter function
     // (EditorPane passes a stable getter so typing doesn't break this memo).
@@ -624,6 +624,29 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                         <LuSearch size={12} />
                                     </span>
                                 </div>
+                            )}
+
+                            {/* Compare with the other split pane — skips the manual
+                                Store A step entirely: read the other pane's CURRENT
+                                results right now and open the compare modal in one
+                                click. Only worth showing when split is actually on. */}
+                            {splitEnabled && !storedForCompare && (
+                                <button
+                                    className="rt-action-btn"
+                                    onClick={() => {
+                                        const other = onGetOtherPaneResults ? onGetOtherPaneResults() : null;
+                                        if (!other) {
+                                            toast.info('El otro panel no tiene resultados para comparar todavía.');
+                                            return;
+                                        }
+                                        setStoredForCompare(other);
+                                        setCompareOpen(true);
+                                    }}
+                                    aria-label="Compare with the other pane"
+                                    title="Compara estos resultados con los del otro panel"
+                                >
+                                    <LuGitCompare size={12} /> Comparar con el otro panel
+                                </button>
                             )}
 
                             {/* Compare button */}

@@ -943,6 +943,22 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // logic that decides what happens on toggle live here with the rest of
         // the split geometry.
         toggleResultsLinked: () => toggleResultsLinked(),
+
+        // ─── Fase 5: split-aware shortcuts ───
+        // "I want to compare this query against a variant" — clone the
+        // ACTIVE tab (whichever pane that is) to the other pane. Ctrl+Shift+\.
+        duplicateActiveTabToOtherPane: () => {
+            const tab = getActiveTab();
+            if (tab) duplicateTabToOtherPane(tab.id);
+        },
+        // Run both panes' active SQL tab at once — an A/B comparison in one
+        // keystroke (Ctrl+Shift+Enter) instead of clicking Run twice.
+        runBothPanes: () => {
+            const lt = leftTabs.find(t => t.id === leftActiveId);
+            const rt = rightTabs.find(t => t.id === rightActiveId);
+            if (lt && lt.type === 'sql') executeQuery(lt.id, lt.content);
+            if (rt && rt.type === 'sql') executeQuery(rt.id, rt.content);
+        },
         // `tabId` should be the id captured when "Save As…" was first requested
         // (see App.jsx's pendingSaveTab). The save-as modal is async — the user
         // can switch the active pane while it's open — so re-deriving "the
@@ -1142,28 +1158,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             moveTabToPane(tabId, pane, target);
             setActivePane(target);
         },
-        // Clones the tab into the OTHER pane as a fresh, unsaved copy — same
-        // content, but its own path/dirty state, so editing one to try a SQL
-        // variant never silently overwrites the file the other copy still
-        // shows. This is the "compare a variant side by side" gesture.
-        duplicateTabToOtherPane: (tabId) => {
-            const pane = findTabPane(tabId);
-            if (!pane) return;
-            const tab = (pane === 'left' ? leftTabs : rightTabs).find(t => t.id === tabId);
-            if (!tab) return;
-            const target = pane === 'left' ? 'right' : 'left';
-            const clone = {
-                ...tab,
-                id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-                path: '',
-                dirty: true,
-                results: null, resultsQuery: null, resultsError: null, scriptRun: null, errorMarker: null,
-            };
-            setSplitEnabled(true);
-            if (target === 'left') { setLeftTabs(prev => [...prev, clone]); setLeftActiveId(clone.id); }
-            else { setRightTabs(prev => [...prev, clone]); setRightActiveId(clone.id); }
-            setActivePane(target);
-        },
+        // Delegates to the standalone function above.
+        duplicateTabToOtherPane,
         closeOtherTabs: (tabId) => {
             const pane = findTabPane(tabId);
             if (!pane) return;
@@ -1433,6 +1429,34 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     };
 
+    // Clones a tab into the OTHER pane as a fresh, unsaved copy — same
+    // content, but its own path/dirty state, so editing one to try a SQL
+    // variant never silently overwrites the file the other copy still shows.
+    // This is the "compare a variant side by side" gesture. A standalone
+    // function (not inline in useImperativeHandle) so BOTH the context
+    // menu's explicit-tabId version and the Ctrl+Shift+\ active-tab shortcut
+    // can call it directly — calling a sibling property of the SAME object
+    // literal by its bare name (as the old inline version tried) throws a
+    // ReferenceError, it's only reachable via `ref.current.xyz(...)`.
+    const duplicateTabToOtherPane = (tabId) => {
+        const pane = findTabPane(tabId);
+        if (!pane) return;
+        const tab = (pane === 'left' ? leftTabs : rightTabs).find(t => t.id === tabId);
+        if (!tab) return;
+        const target = pane === 'left' ? 'right' : 'left';
+        const clone = {
+            ...tab,
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+            path: '',
+            dirty: true,
+            results: null, resultsQuery: null, resultsError: null, scriptRun: null, errorMarker: null,
+        };
+        setSplitEnabled(true);
+        if (target === 'left') { setLeftTabs(prev => [...prev, clone]); setLeftActiveId(clone.id); }
+        else { setRightTabs(prev => [...prev, clone]); setRightActiveId(clone.id); }
+        setActivePane(target);
+    };
+
     // Tab Reordering — AND cross-pane move when the drop lands on the OTHER
     // pane's tab bar. Previously this only ever searched for the dragged tab
     // inside `paneId`'s own array, so dropping tab A (from the left pane)
@@ -1538,6 +1562,23 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     }, []);
     const handleLeftResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('left', ratio), [handleResultsRatioChange]);
     const handleRightResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('right', ratio), [handleResultsRatioChange]);
+
+    // Fase 5C: "Comparar con el otro panel" — deliberately NOT a reactive
+    // prop (that would mean passing the other pane's results object down on
+    // every render, defeating the G4 memoization that keeps each EditorPane
+    // from re-rendering when the OTHER pane changes). Instead this is a
+    // stable, on-demand getter: ResultsTable calls it only at the moment the
+    // user clicks the compare button, reading the other pane's CURRENT
+    // snapshot via stateRef at call time.
+    const getOtherPaneResults = useCallback((paneId) => {
+        const { leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
+        const otherPane = paneId === 'left' ? 'right' : 'left';
+        const tabs = otherPane === 'left' ? leftTabs : rightTabs;
+        const activeId = otherPane === 'left' ? leftActiveId : rightActiveId;
+        const tab = tabs.find(t => t.id === activeId);
+        if (!tab || !tab.results || !Array.isArray(tab.results.data) || tab.results.data.length === 0) return null;
+        return { data: tab.results.data, label: `${tab.name} (${tab.results.data.length} rows)` };
+    }, []);
 
     const toggleResultsLinked = useCallback(() => {
         setResultsLinked(prev => {
@@ -1659,6 +1700,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onPersistUiState={updateTab}
                         resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.left}
                         onResultsRatioChange={handleLeftResultsRatioChange}
+                        splitEnabled={splitEnabled}
+                        onGetOtherPaneResults={getOtherPaneResults}
                     />
                 </div>
 
@@ -1714,6 +1757,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                                 onPersistUiState={updateTab}
                                 resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.right}
                                 onResultsRatioChange={handleRightResultsRatioChange}
+                                splitEnabled={splitEnabled}
+                                onGetOtherPaneResults={getOtherPaneResults}
                             />
                         </div>
                     </>

@@ -418,6 +418,22 @@ function App() {
         layoutRef.current?.toggleSplit();
         return;
       }
+      // Duplicate active tab to the other pane: Ctrl+Shift+\ — the "compare
+      // a variant of this query" gesture, paired with Ctrl+\ (toggle split).
+      if (e.ctrlKey && e.shiftKey && e.key === '|') {
+        e.preventDefault();
+        layoutRef.current?.duplicateActiveTabToOtherPane();
+        return;
+      }
+      // Run both panes: Ctrl+Shift+R. NOT Ctrl+Shift+Enter — SqlNotebook
+      // already owns that globally for "Run All Cells" (its own window
+      // keydown listener, fires whenever any notebook tab is mounted), and
+      // window-level listeners don't stop each other via preventDefault.
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        layoutRef.current?.runBothPanes();
+        return;
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);

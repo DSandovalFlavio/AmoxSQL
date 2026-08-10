@@ -89,6 +89,8 @@ const EditorPane = ({
     onPersistUiState, // (pane, tabId, patch) -> persist view state to the tab (for AI session-awareness)
     resultsRatio = 0.35,       // 0-1 share of the pane the results panel takes (height when horizontal, width when vertical) — owned by LayoutManager so two split panes can link
     onResultsRatioChange,      // (ratio) -> commit the new ratio, called once on drag-release, never per mousemove
+    splitEnabled,              // boolean — split view is on (gates the "Comparar con el otro panel" button)
+    onGetOtherPaneResults,     // (paneId) -> {data, label} | null — on-demand snapshot of the OTHER pane's current results, NOT a reactive prop (see LayoutManager's getOtherPaneResults)
 }) => {
     const isVertical = editorLayout === 'vertical';
 
@@ -173,6 +175,14 @@ const EditorPane = ({
     // Stable getter for the live editor content — passed to ResultsTable instead
     // of the content string itself, so its memo survives keystrokes (G4).
     const getCurrentEditorQuery = useCallback(() => activeTabRef.current?.content || '', []);
+
+    // Stable wrapper around the on-demand getter — paneId never changes for a
+    // mounted EditorPane instance and onGetOtherPaneResults is itself stable,
+    // so this identity never changes either (keeps ResultsTable's memo intact).
+    const handleGetOtherPaneResults = useCallback(
+        () => (onGetOtherPaneResults ? onGetOtherPaneResults(paneId) : null),
+        [onGetOtherPaneResults, paneId]
+    );
 
     // Auto-update the pop-out window when results change
     useEffect(() => {
@@ -400,6 +410,8 @@ const EditorPane = ({
                                building (session-awareness). View state only — no dirty. */
                             onViewModeChange={onPersistUiState ? (m) => onPersistUiState(paneId, activeTab.id, { viewMode: m }) : undefined}
                             onConfigChange={onPersistUiState ? (cfg) => onPersistUiState(paneId, activeTab.id, { chartConfig: cfg }) : undefined}
+                            splitEnabled={splitEnabled}
+                            onGetOtherPaneResults={handleGetOtherPaneResults}
                         />
                     )}
 
