@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback, memo } from 'react';
-import { LuColumns2, LuMaximize2 } from "react-icons/lu";
+import { LuColumns2, LuMaximize2, LuLink, LuUnlink } from "react-icons/lu";
 import EditorPane from './EditorPane';
 import QueryPlanModal from './QueryPlanModal';
 import { useToast } from './ToastProvider';
@@ -13,9 +13,21 @@ import { invalidateSchema } from '../state/sidebarCache';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
+// Split geometry — kept in its OWN key so a schema change here never risks
+// the tab-restoration logic in TAB_STORAGE_KEY (that one recovers unsaved
+// work; this one is just window-dressing, safe to drop and re-default).
+const SPLIT_STORAGE_KEY = 'amoxsql-split-v1';
 // Per-file choice for multi-statement .sql files: 'script' | 'notebook'.
 // Keyed by file path so "don't ask again for this file" survives reloads.
 const SQL_FILE_PREFS_KEY = 'amoxsql-sql-file-prefs';
+
+const readSplitStorage = () => {
+    try {
+        return JSON.parse(localStorage.getItem(SPLIT_STORAGE_KEY) || '{}');
+    } catch {
+        return {};
+    }
+};
 
 const getSqlFilePref = (path) => {
     if (!path) return null;
@@ -39,6 +51,40 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
     const [activePane, setActivePane] = useState('left'); // 'left' or 'right'
+
+    // --- Split geometry (Fase 3/4) ---
+    // splitRatio: the LEFT pane's share of the horizontal space, 0.2-0.8.
+    // resultsRatios: each pane's own results-panel share (height when the
+    // editor is horizontal, width when vertical) — used only while UNlinked.
+    // linkedResultsRatio: the single shared value both panes use while linked.
+    // resultsLinked defaults to true: dragging one pane's results divider
+    // moves both, which is what you want the moment you're comparing two
+    // queries side by side — that's the whole point of opening a split.
+    //
+    // Restored via LAZY initializers (read localStorage synchronously on the
+    // very first render), not a post-mount effect — an effect-based restore
+    // raced against the persist effect: the "restored" flag flipped in the
+    // same tick as the setState calls, before React applied them, so the
+    // persist effect's THIS-render closure (still holding the OLD defaults)
+    // saw the flag already true and immediately overwrote the just-read
+    // saved values with those defaults. Lazy initializers have no such
+    // window — state is already correct on render 1.
+    const [splitRatio, setSplitRatio] = useState(() => {
+        const v = readSplitStorage().splitRatio;
+        return typeof v === 'number' ? v : 0.5;
+    });
+    const [resultsLinked, setResultsLinked] = useState(() => {
+        const v = readSplitStorage().resultsLinked;
+        return typeof v === 'boolean' ? v : true;
+    });
+    const [resultsRatios, setResultsRatios] = useState(() => {
+        const v = readSplitStorage().resultsRatios;
+        return { left: 0.35, right: 0.35, ...(v && typeof v === 'object' ? v : {}) };
+    });
+    const [linkedResultsRatio, setLinkedResultsRatio] = useState(() => {
+        const v = readSplitStorage().linkedResultsRatio;
+        return typeof v === 'number' ? v : 0.35;
+    });
 
     // Tabs State
     const [leftTabs, setLeftTabs] = useState([]);
@@ -77,6 +123,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     stateRef.current = {
         leftTabs, rightTabs, leftActiveId, rightActiveId, activePane, splitEnabled,
         queryVariables, draggedTab, runningQueryId,
+        resultsLinked, resultsRatios, linkedResultsRatio,
         editorSettings, onRequestSaveAs, onQueryResult, onDbChange,
         toast, dialog,
     };
@@ -194,6 +241,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             restoreAttemptedRef.current = true;
         });
     }, []); // Only on mount
+
+    // --- Split Geometry Persistence: save on change (restore is the lazy
+    // initializers above — nothing to do here on mount). ---
+    useEffect(() => {
+        try {
+            localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify({
+                splitRatio, resultsLinked, resultsRatios, linkedResultsRatio,
+            }));
+        } catch { /* ignore */ }
+    }, [splitRatio, resultsLinked, resultsRatios, linkedResultsRatio]);
 
     // Helpers — stable identities (read current state via stateRef)
     const getActiveTab = useCallback(() => {
@@ -1429,6 +1486,82 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const handleLeftFileDrop = useCallback((path) => handleQueryFile(path, 'left'), [handleQueryFile]);
     const handleRightFileDrop = useCallback((path) => handleQueryFile(path, 'right'), [handleQueryFile]);
 
+    // --- Results ratio (Fase 3/4) ---
+    // Called by EditorPane on drag-release with the new ratio (0-1). While
+    // linked, BOTH panes write to the same shared value; while unlinked, each
+    // pane keeps its own entry in `resultsRatios`.
+    const handleResultsRatioChange = useCallback((paneId, ratio) => {
+        if (stateRef.current.resultsLinked) {
+            setLinkedResultsRatio(ratio);
+        } else {
+            setResultsRatios(prev => ({ ...prev, [paneId]: ratio }));
+        }
+    }, []);
+    const handleLeftResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('left', ratio), [handleResultsRatioChange]);
+    const handleRightResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('right', ratio), [handleResultsRatioChange]);
+
+    const toggleResultsLinked = useCallback(() => {
+        setResultsLinked(prev => {
+            const next = !prev;
+            if (next) {
+                // Turning ON: adopt the ACTIVE pane's current ratio as the shared
+                // value, so the OTHER pane visibly animates to match it instead of
+                // jumping to some unrelated number.
+                const { activePane, resultsRatios } = stateRef.current;
+                setLinkedResultsRatio(resultsRatios[activePane] ?? 0.35);
+            } else {
+                // Turning OFF: both panes keep exactly the size they had while
+                // linked — nothing should visibly move at the moment of unlinking.
+                const shared = stateRef.current.linkedResultsRatio;
+                setResultsRatios({ left: shared, right: shared });
+            }
+            return next;
+        });
+    }, []);
+
+    // --- Vertical splitter between the two panes ---
+    const isResizingSplitRef = useRef(false);
+    const splitGhostRef = useRef(null);
+
+    const startSplitResize = useCallback((e) => {
+        e.preventDefault();
+        isResizingSplitRef.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        const rect = lmContainerRef.current?.getBoundingClientRect();
+        if (splitGhostRef.current && rect) {
+            splitGhostRef.current.style.display = 'block';
+            splitGhostRef.current.style.left = `${e.clientX - rect.left}px`;
+        }
+    }, []);
+
+    useEffect(() => {
+        const onMove = (e) => {
+            if (!isResizingSplitRef.current) return;
+            const rect = lmContainerRef.current?.getBoundingClientRect();
+            if (splitGhostRef.current && rect) {
+                splitGhostRef.current.style.left = `${e.clientX - rect.left}px`;
+            }
+        };
+        const onUp = (e) => {
+            if (!isResizingSplitRef.current) return;
+            isResizingSplitRef.current = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            if (splitGhostRef.current) splitGhostRef.current.style.display = 'none';
+            const rect = lmContainerRef.current?.getBoundingClientRect();
+            if (!rect || rect.width === 0) return;
+            const ratio = (e.clientX - rect.left) / rect.width;
+            setSplitRatio(Math.min(0.8, Math.max(0.2, ratio)));
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        return () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+    }, []);
+
     return (
         <div
             ref={lmContainerRef}
@@ -1446,54 +1579,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             )}
 
             <div className="lm-panes">
-                <EditorPane
-                    paneId="left"
-                    isActive={activePane === 'left'}
-                    tabs={leftTabs}
-                    activeTabId={leftActiveId}
-                    onTabClick={handleLeftTabClick}
-                    onPaneFocus={handleLeftPaneFocus}
-                    onTabClose={handleTabClose}
-                    onContentChange={handleContentChange}
-                    onConversationChange={handleConversationChange}
-                    onRunQuery={executeQuery}
-                    onSave={handleSaveActive}
-                    onAnalyze={handleAnalyzeActive}
-                    onDbChange={onDbChange}
-                    theme={theme}
-                    editorLayout={editorLayout}
-                    editorSettings={editorSettings}
-                    variables={queryVariables}
-                    onVariablesChange={setQueryVariables}
-                    onDragStart={handleDragStart}
-                    onReorder={handleReorder}
-                    onFileDrop={handleLeftFileDrop}
-                    onCreateNew={handleLeftCreateNew}
-                    onRequestSaveAs={handlePaneRequestSaveAs}
-                    showAiSidebar={showAiSidebar}
-                    onToggleAi={onToggleAi}
-                    onOpenFile={handleLeftFileDrop}
-                    availableTables={availableTables}
-                    onExportNotebook={onExportNotebook}
-                    onExportAmoxvis={onExportAmoxvis}
-                    isRunning={!!runningQueryId}
-                    onCancelQuery={cancelQuery}
-                    onShowHistory={onShowHistorySidebar}
-                    onOpenAmoxvisAsSql={openAmoxvisAsSql}
-                    onPersistUiState={updateTab}
-                />
-
-                {splitEnabled && (
+                <div
+                    className="lm-pane-slot"
+                    style={splitEnabled ? { flex: `0 0 ${splitRatio * 100}%` } : { flex: 1 }}
+                >
                     <EditorPane
-                        paneId="right"
-                        isActive={activePane === 'right'}
-                        tabs={rightTabs}
-                        activeTabId={rightActiveId}
-                        onTabClick={handleRightTabClick}
-                        onPaneFocus={handleRightPaneFocus}
+                        paneId="left"
+                        isActive={activePane === 'left'}
+                        tabs={leftTabs}
+                        activeTabId={leftActiveId}
+                        onTabClick={handleLeftTabClick}
+                        onPaneFocus={handleLeftPaneFocus}
                         onTabClose={handleTabClose}
                         onContentChange={handleContentChange}
-                    onConversationChange={handleConversationChange}
+                        onConversationChange={handleConversationChange}
                         onRunQuery={executeQuery}
                         onSave={handleSaveActive}
                         onAnalyze={handleAnalyzeActive}
@@ -1505,20 +1604,93 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onVariablesChange={setQueryVariables}
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}
-                        onFileDrop={handleRightFileDrop}
-                        onCreateNew={handleRightCreateNew}
+                        onFileDrop={handleLeftFileDrop}
+                        onCreateNew={handleLeftCreateNew}
                         onRequestSaveAs={handlePaneRequestSaveAs}
                         showAiSidebar={showAiSidebar}
                         onToggleAi={onToggleAi}
-                        onOpenFile={handleRightFileDrop}
+                        onOpenFile={handleLeftFileDrop}
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
                         onExportAmoxvis={onExportAmoxvis}
                         isRunning={!!runningQueryId}
                         onCancelQuery={cancelQuery}
+                        onShowHistory={onShowHistorySidebar}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}
                         onPersistUiState={updateTab}
+                        resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.left}
+                        onResultsRatioChange={handleLeftResultsRatioChange}
                     />
+                </div>
+
+                {splitEnabled && (
+                    <>
+                        {/* Vertical divider between the two panes. The results-link
+                            button (Fase 4) rides on top of it, roughly at the height
+                            where the two results panels begin — an approximation
+                            against the pane's full height (not each editor card's own
+                            header offset), simple and good enough to read as "this
+                            controls where these two split". */}
+                        <div
+                            className="lm-splitter"
+                            onMouseDown={startSplitResize}
+                            onDoubleClick={() => setSplitRatio(0.5)}
+                            title="Arrastra para redimensionar · doble clic para 50/50"
+                        >
+                            <button
+                                className={`lm-results-link-btn${resultsLinked ? ' active' : ''}`}
+                                style={{ top: `${(1 - (resultsLinked ? linkedResultsRatio : (resultsRatios.left + resultsRatios.right) / 2)) * 100}%` }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={toggleResultsLinked}
+                                title={resultsLinked ? 'Alturas de resultados enlazadas — clic para independizar' : 'Enlazar la altura de resultados entre los dos paneles'}
+                                aria-label={resultsLinked ? 'Unlink results panel heights' : 'Link results panel heights'}
+                                aria-pressed={resultsLinked}
+                            >
+                                {resultsLinked ? <LuLink size={12} /> : <LuUnlink size={12} />}
+                            </button>
+                        </div>
+                        <div ref={splitGhostRef} className="lm-splitter-ghost" />
+
+                        <div className="lm-pane-slot" style={{ flex: `0 0 ${(1 - splitRatio) * 100}%` }}>
+                            <EditorPane
+                                paneId="right"
+                                isActive={activePane === 'right'}
+                                tabs={rightTabs}
+                                activeTabId={rightActiveId}
+                                onTabClick={handleRightTabClick}
+                                onPaneFocus={handleRightPaneFocus}
+                                onTabClose={handleTabClose}
+                                onContentChange={handleContentChange}
+                                onConversationChange={handleConversationChange}
+                                onRunQuery={executeQuery}
+                                onSave={handleSaveActive}
+                                onAnalyze={handleAnalyzeActive}
+                                onDbChange={onDbChange}
+                                theme={theme}
+                                editorLayout={editorLayout}
+                                editorSettings={editorSettings}
+                                variables={queryVariables}
+                                onVariablesChange={setQueryVariables}
+                                onDragStart={handleDragStart}
+                                onReorder={handleReorder}
+                                onFileDrop={handleRightFileDrop}
+                                onCreateNew={handleRightCreateNew}
+                                onRequestSaveAs={handlePaneRequestSaveAs}
+                                showAiSidebar={showAiSidebar}
+                                onToggleAi={onToggleAi}
+                                onOpenFile={handleRightFileDrop}
+                                availableTables={availableTables}
+                                onExportNotebook={onExportNotebook}
+                                onExportAmoxvis={onExportAmoxvis}
+                                isRunning={!!runningQueryId}
+                                onCancelQuery={cancelQuery}
+                                onOpenAmoxvisAsSql={openAmoxvisAsSql}
+                                onPersistUiState={updateTab}
+                                resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.right}
+                                onResultsRatioChange={handleRightResultsRatioChange}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
 

@@ -4205,6 +4205,84 @@ tr:hover .rt-td--pinned {
   overflow: hidden;
 }
 
+.lm-pane-slot {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Vertical splitter between the two split panes (Fase 3) ── */
+.lm-splitter {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.lm-splitter::after {
+  content: '';
+  width: 3px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  transition: background var(--transition-fast), width var(--transition-fast);
+}
+
+.lm-splitter:hover::after,
+.lm-splitter:active::after {
+  background: var(--accent-primary);
+  width: 4px;
+}
+
+.lm-splitter-ghost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  display: none;
+  background-color: var(--accent-primary);
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* ── Results-link button (Fase 4) — anchored on the splitter, roughly at
+   the height where the two results panels begin. ── */
+.lm-results-link-btn {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  z-index: 6;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.lm-results-link-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.lm-results-link-btn.active {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background: var(--accent-muted);
+}
+
 /* ── Shared: Context Menu / Dropdown (Linear style) ── */
 
 .ctx-menu {

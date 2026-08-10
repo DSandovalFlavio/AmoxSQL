@@ -87,11 +87,11 @@ const EditorPane = ({
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
     onOpenAmoxvisAsSql, // (tab) -> switch amoxvis tab to SQL editor mode
     onPersistUiState, // (pane, tabId, patch) -> persist view state to the tab (for AI session-awareness)
+    resultsRatio = 0.35,       // 0-1 share of the pane the results panel takes (height when horizontal, width when vertical) — owned by LayoutManager so two split panes can link
+    onResultsRatioChange,      // (ratio) -> commit the new ratio, called once on drag-release, never per mousemove
 }) => {
     const isVertical = editorLayout === 'vertical';
 
-    const [resultsHeight, setResultsHeight] = useState(300);
-    const [resultsWidth, setResultsWidth] = useState(500);
     const isResizing = useRef(false);
     const containerRef = useRef(null);
     const ghostRef = useRef(null);
@@ -222,25 +222,21 @@ const EditorPane = ({
             ghostRef.current.style.display = 'none';
         }
 
+        const container = containerRef.current;
+        if (!container || !onResultsRatioChange) return;
+        const rect = container.getBoundingClientRect();
+
         if (isVertical) {
             // Vertical layout: resize width from the right
-            const container = containerRef.current;
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
             const newWidth = rect.right - e.clientX;
-            if (newWidth >= 200 && newWidth <= rect.width - 200) {
-                setResultsWidth(newWidth);
-            }
+            const clamped = Math.min(Math.max(newWidth, 200), Math.max(200, rect.width - 200));
+            if (rect.width > 0) onResultsRatioChange(clamped / rect.width);
         } else {
             // Horizontal layout (default): resize height relative to the container, not window
-            const container = containerRef.current;
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
             const newHeight = rect.bottom - e.clientY;
             const maxHeight = rect.height * 0.80; // Never exceed 80% of the container
-            if (newHeight >= 50 && newHeight <= maxHeight) {
-                setResultsHeight(newHeight);
-            }
+            const clamped = Math.min(Math.max(newHeight, 50), maxHeight);
+            if (rect.height > 0) onResultsRatioChange(clamped / rect.height);
         }
     };
 
@@ -763,10 +759,14 @@ const EditorPane = ({
                             onMouseDown={startResizing}
                         />
 
-                        {/* Results Card — rounded container for results */}
+                        {/* Results Card — rounded container for results. Sized as a
+                            PERCENTAGE (not px) of the pane so it survives window
+                            resizes and AI-sidebar toggles without a resize observer,
+                            and so LayoutManager can drive two panes to the same
+                            fraction when their results heights are linked. */}
                         <div
                             className={`ep-results${isVertical ? ' vertical' : ''}`}
-                            style={isVertical ? { width: resultsWidth } : { height: resultsHeight }}
+                            style={isVertical ? { width: `${resultsRatio * 100}%` } : { height: `${resultsRatio * 100}%` }}
                         >
                             {resultsContent}
                         </div>
