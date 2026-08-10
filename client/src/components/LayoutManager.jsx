@@ -1330,7 +1330,6 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 <EditorPane
                     paneId="left"
                     isActive={activePane === 'left'}
-                    splitEnabled={splitEnabled}
                     tabs={leftTabs}
                     activeTabId={leftActiveId}
                     onTabClick={handleLeftTabClick}
@@ -1369,7 +1368,6 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     <EditorPane
                         paneId="right"
                         isActive={activePane === 'right'}
-                        splitEnabled={splitEnabled}
                         tabs={rightTabs}
                         activeTabId={rightActiveId}
                         onTabClick={handleRightTabClick}

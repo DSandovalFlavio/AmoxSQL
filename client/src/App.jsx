@@ -1246,7 +1246,7 @@ function App() {
                 {titleBarTabs.splitEnabled ? (
                   <>
                     <div
-                      className={`tab-bar-card${titleBarTabs.paneId === 'left' ? ' active' : ''}`}
+                      className="tab-bar-card"
                       style={{ flex: 1, margin: 0, minWidth: 0 }}
                       onMouseDown={() => layoutRef.current?.focusPane('left')}
                     >
@@ -1258,7 +1258,7 @@ function App() {
                       />
                     </div>
                     <div
-                      className={`tab-bar-card${titleBarTabs.paneId === 'right' ? ' active' : ''}`}
+                      className="tab-bar-card"
                       style={{ flex: 1, margin: 0, minWidth: 0 }}
                       onMouseDown={() => layoutRef.current?.focusPane('right')}
                     >

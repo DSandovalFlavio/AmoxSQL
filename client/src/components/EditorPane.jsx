@@ -58,7 +58,6 @@ const EditorPane = ({
     activeTabId,
     onTabClick,
     onPaneFocus,      // () -> mark this pane active even when it has no tabs
-    splitEnabled,     // boolean — split view is on (drives the active-pane affordance)
     onTabClose,
     onContentChange, // (tabId, newContent)
     onConversationChange, // (tabId, convId) — Deep Dive: remember the conversation without marking dirty
@@ -334,7 +333,7 @@ const EditorPane = ({
     if (!activeTab) {
         return (
             <div
-                className={`ep-container${splitEnabled && isActive ? ' active' : ''}`}
+                className="ep-container"
                 onClickCapture={() => onPaneFocus && onPaneFocus()}
             >
                 <div className="ep-empty-state">
@@ -431,7 +430,7 @@ const EditorPane = ({
 
     return (
         <div
-            className={`ep-container${splitEnabled && isActive ? ' active' : ''}`}
+            className="ep-container"
             // An empty pane has no activeTabId, so onTabClick (which also flips
             // activePane as a side effect) had nothing to fire — clicking into
             // an empty pane could never make it the active one. onPaneFocus
