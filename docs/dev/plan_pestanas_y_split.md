@@ -1,10 +1,12 @@
 # Plan — Interactividad de pestañas y modo pantalla dividida
 
-> **Estado: Fase 0, 1, 2, 3 y 4 IMPLEMENTADAS** (2026-08-10), rama `claude/tabs-split-ux`
-> (aún sin PR — por instrucción del usuario, solo commits por fase; el PR se abre
-> completo cuando el usuario lo apruebe). Ver "Registro de implementación" al
-> final del documento. Fase 5 (recomendaciones — duplicar/ejecutar-ambos/comparar/
-> scroll sincronizado/etc.) sigue como backlog, no implementada.
+> **Estado: Fase 0, 1, 2, 3, 4 y 5 A/B/C IMPLEMENTADAS** (2026-08-10), rama
+> `claude/tabs-split-ux` (aún sin PR — por instrucción del usuario, solo commits
+> por fase; el PR se abre completo cuando el usuario lo apruebe). Ver "Registro
+> de implementación" al final del documento. Fase 5 D–H (scroll sincronizado,
+> pestañas fijadas, split horizontal, menú de desbordamiento, `Ctrl+1`/`Ctrl+2`)
+> queda como backlog — eran el alcance explícitamente descartado del plan
+> original para esta ronda.
 >
 > Origen: reporte del usuario — "al añadir una pestaña a la sección de la izquierda
 > en realidad aparece en la derecha", falta de menú contextual en pestañas, y
@@ -443,11 +445,65 @@ paneles, fijar una geometría distinta (proporción de split, enlace apagado,
 dos alturas de resultados diferentes), recargar la app entera, reabrir el
 proyecto — los cuatro valores sobreviven exactamente, no vuelven a defaults.
 
+### Ajustes de pulido tras feedback visual (commits `eb4f590`, `4e91dff`)
+
+Antes de seguir a Fase 5, dos rondas de feedback directo sobre capturas reales:
+
+1. El botón de enlace se movió del divisor vertical (entre editores) a un
+   icono suelto entre las dos cintas de pestañas, arriba — sin círculo ni
+   fondo, más pequeño. Vivir en el divisor lo obligaba a un círculo de 22px
+   que ensanchaba visualmente esa separación.
+2. El texto "Edited Xs ago · Ran Ys ago" se solapaba con los botones al
+   angostar un panel. Primer umbral de `@container` (560px) resultó
+   insuficiente al medir con texto REAL (no el placeholder "—" inicial) —
+   subido a 760px, más una capa de `flex-shrink`+`overflow:hidden` como red
+   de seguridad real contra el solape, sea cual sea el largo del texto.
+3. **Bug real encontrado después de "corregir" el punto 1**: las cintas de
+   pestañas quedaron visiblemente desalineadas de sus editores de abajo. La
+   fila de pestañas y la fila de paneles son regiones de DOM separadas con
+   modelos de padding/margin distintos (gap+botón vs. un splitter de 6px);
+   el mismo `splitRatio` como porcentaje CSS en ambas no garantiza que el
+   segundo panel de cada fila termine en el mismo píxel. Se resolvió
+   midiendo el ancho real de `.lm-panes` con `ResizeObserver` y calculando
+   en App.jsx el ancho en píxeles de cada tarjeta con la misma aritmética
+   exacta que usa LayoutManager — confirmado con un barrido de ratio
+   0.2–0.8, diferencia de 0px en cada punto.
+
+### Fase 5 A/B/C — commit `1125e56`
+
+Las tres recomendaciones de mayor valor del plan original:
+
+- **A. Duplicar al otro panel** — `Ctrl+Shift+\`, mismo gesto que "Abrir una
+  copia al lado" del menú contextual (Fase 2), ahora también por teclado.
+- **B. Ejecutar ambos paneles** — `Ctrl+Shift+R` (NO `Ctrl+Shift+Enter`: ese
+  combo ya pertenece a `SqlNotebook` para "Run All Cells" — es un listener
+  global en `window`, con cualquier notebook montado se habría disparado
+  junto con el nuevo atajo).
+- **C. Comparar con el otro panel** — botón nuevo en `ResultsTable`, junto a
+  "Store A", visible solo en split. Lee el otro panel BAJO DEMANDA (callback
+  estable, no un prop reactivo — pasar los resultados del otro panel como
+  prop normal habría roto la memoización G4 que evita que un panel se
+  re-renderice cuando cambia el otro) y abre el modal de comparación en un
+  clic.
+
+**Bug real encontrado en pruebas**: la implementación de "duplicar" de la
+Fase 2 vivía como propiedad inline dentro del objeto de
+`useImperativeHandle`. El atajo nuevo la llamaba por su nombre a secas desde
+OTRA propiedad del mismo objeto — no es una referencia válida en JS
+(`ReferenceError` en cada `Ctrl+Shift+\`). Se extrajo a una función
+standalone en el cuerpo del componente (mismo patrón que
+`moveTabToPane`/`openAmoxvisAsSql`), reutilizada por ambos.
+
+Validado en el navegador: `Ctrl+Shift+\` duplica y activa split;
+`Ctrl+Shift+R` ejecuta las dos queries (contenido distinto por panel)
+simultáneamente, confirmado por los datos reales de cada tabla; "Comparar
+con el otro panel" abre el modal en un clic con el otro panel como lado A.
+
 ---
 
-Con esto las cinco fases del plan original están implementadas. Fase 5
-(recomendaciones — duplicar-al-lado, ejecutar-ambos-paneles,
-comparar-con-el-otro-panel, scroll sincronizado, pestañas fijadas, split
-horizontal, menú de desbordamiento, `Ctrl+1`/`Ctrl+2`) queda como backlog para
-cuando el usuario quiera seguir. El PR se abre cuando decida cerrar esta
-ronda.
+Con esto, Fase 0 a 5 (A/B/C) del plan original están implementadas. Fase 5
+D–H (scroll sincronizado, pestañas fijadas, split horizontal, menú de
+desbordamiento, `Ctrl+1`/`Ctrl+2`) queda como backlog — era el alcance
+explícitamente descartado para esta ronda ("Fase 5 D–H: Backlog, según qué se
+sienta más necesario al usarlo"). El PR se abre cuando el usuario decida
+cerrar esta ronda.
