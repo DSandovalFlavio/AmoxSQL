@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert, LuPin, LuPinOff, LuX } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
@@ -17,6 +17,12 @@ const CELL_BUDGET = 15000;
 const WIDE_THRESHOLD = 150;
 // Max columns rendered at once for a wide result (paginated horizontally).
 const MAX_VISIBLE_COLS = 60;
+// Width of the row-number gutter, in px. Must match .rt-rownum-th/.rt-rownum-td
+// in index.css — the sticky offsets of pinned columns are stacked on top of it.
+const ROWNUM_WIDTH = 54;
+// Fallback column width used by both the <th> and the sticky offset math. Must
+// match the `columnWidths[col] || 150` default used when resizing.
+const DEFAULT_COL_WIDTH = 150;
 
 const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null }) => {
     const toast = useToast();
@@ -63,6 +69,14 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const [columnPage, setColumnPage] = useState(0); // which MAX_VISIBLE_COLS window is showing (when no manual selection)
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [columnPickerSearch, setColumnPickerSearch] = useState('');
+
+    // --- Pinned columns ---
+    // Order is insertion order; the render orders them by their position in the
+    // table so the sticky offsets stack in the same order the user sees.
+    const [pinnedColumns, setPinnedColumns] = useState([]);
+
+    // --- Cell peek (triple-click a cell to read long text in full) ---
+    const [cellPeek, setCellPeek] = useState(null); // { column, text, x, y }
 
     // --- Column Context Menu State ---
     const [contextMenu, setContextMenu] = useState(null); // { x, y, column }
@@ -141,9 +155,19 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
         };
     }, [contextMenu]);
 
+    // --- Cell Peek Dismiss (Escape) ---
+    useEffect(() => {
+        if (!cellPeek) return;
+        const onKey = (e) => { if (e.key === 'Escape') setCellPeek(null); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [cellPeek]);
+
     // Reset page when data changes
     useEffect(() => {
         setCurrentPage(1);
+        setPinnedColumns([]);
+        setCellPeek(null);
         setGlobalSearch('');
         setSortConfig(null);
         setColumnFilters({});
@@ -246,11 +270,22 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
     const isWide = columns.length > WIDE_THRESHOLD;
     const totalColumnPages = Math.max(1, Math.ceil(columns.length / MAX_VISIBLE_COLS));
     const safeColumnPage = Math.min(columnPage, totalColumnPages - 1);
-    const visibleColumns = (selectedColumns && selectedColumns.size > 0)
+    const windowedColumns = (selectedColumns && selectedColumns.size > 0)
         ? columns.filter(c => selectedColumns.has(c))
         : (isWide
             ? columns.slice(safeColumnPage * MAX_VISIBLE_COLS, safeColumnPage * MAX_VISIBLE_COLS + MAX_VISIBLE_COLS)
             : columns);
+    // A pinned column stays rendered even when the window/selection moves past
+    // it — otherwise pinning a column and then paging the window would silently
+    // drop the very column the user asked to keep in sight. Set lookups keep
+    // this O(n) on a 2700-column result.
+    const visibleColumns = pinnedColumns.length > 0
+        ? (() => {
+            const inWindow = new Set(windowedColumns);
+            const pinned = new Set(pinnedColumns);
+            return columns.filter(c => inWindow.has(c) || pinned.has(c));
+        })()
+        : windowedColumns;
 
     const toggleColumn = (col) => {
         setSelectedColumns(prev => {
@@ -260,6 +295,51 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
             if (base.has(col)) base.delete(col); else base.add(col);
             return base;
         });
+    };
+
+    // --- Row-number gutter + pinned columns ---
+    const showRowNumbers = editorSettings.showRowNumbers !== false;
+    // When off, the gutter still shows but scrolls away with the rest of the table.
+    const rowNumSticky = showRowNumbers && editorSettings.stickyRowNumbers !== false && !isReportMode;
+
+    const colWidthOf = (c) => columnWidths[c] || DEFAULT_COL_WIDTH;
+
+    // A pinned column is sticky on BOTH edges at once: `left` keeps it from
+    // scrolling off to the left, `right` keeps it from scrolling off to the
+    // right. The browser clamps to whichever constraint the column is currently
+    // violating, which is exactly the "drags along and parks on the edge it was
+    // about to leave" behaviour — first column parks left, last column parks
+    // right, a middle column flips sides depending on the scroll direction.
+    // Offsets stack in visual order so several pinned columns never overlap.
+    const pinnedOrdered = visibleColumns.filter(c => pinnedColumns.includes(c));
+    const stickyOffsets = {};
+    let accLeft = rowNumSticky ? ROWNUM_WIDTH : 0;
+    for (const c of pinnedOrdered) {
+        stickyOffsets[c] = { left: accLeft, right: 0 };
+        accLeft += colWidthOf(c);
+    }
+    let accRight = 0;
+    for (let i = pinnedOrdered.length - 1; i >= 0; i--) {
+        stickyOffsets[pinnedOrdered[i]].right = accRight;
+        accRight += colWidthOf(pinnedOrdered[i]);
+    }
+
+    const pinStyleFor = (col, base) => {
+        const o = stickyOffsets[col];
+        if (!o) return base;
+        return { ...base, position: 'sticky', left: o.left, right: o.right };
+    };
+
+    const togglePin = (col) => {
+        setPinnedColumns(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
+    };
+
+    const openCellPeek = (e, col, val) => {
+        const text = (val === null || val === undefined)
+            ? ''
+            : (typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val));
+        const rect = e.currentTarget.getBoundingClientRect();
+        setCellPeek({ column: col, text, x: rect.left, y: rect.bottom });
     };
 
     // Page-size options never let the user pick something that would blow the
@@ -702,18 +782,28 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                     <table className="rt-table" style={{ fontSize: `${editorSettings.resultsFontSize || 13}px` }}>
                         <thead className="rt-thead">
                             <tr>
+                                {showRowNumbers && (
+                                    <th
+                                        className={`rt-th rt-rownum-th${rowNumSticky ? ' rt-th--pinned' : ''}`}
+                                        style={rowNumSticky ? { width: ROWNUM_WIDTH, position: 'sticky', left: 0 } : { width: ROWNUM_WIDTH }}
+                                        title="Row number"
+                                    >
+                                        <div className="rt-th-inner rt-rownum-inner">#</div>
+                                    </th>
+                                )}
                                 {visibleColumns.map((col) => {
                                     const isSorted = sortConfig?.key === col;
+                                    const isPinned = !!stickyOffsets[col];
                                     return (
                                         <th
                                             key={col}
-                                            className="rt-th"
+                                            className={`rt-th${isPinned ? ' rt-th--pinned' : ''}`}
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 setContextMenu({ x: e.clientX, y: e.clientY, column: col });
                                             }}
-                                            style={{ width: columnWidths[col] || 150 }}
+                                            style={pinStyleFor(col, { width: colWidthOf(col) })}
                                         >
                                             <div className="rt-th-inner" onClick={() => handleSort(col)} title="Click to sort">
                                                 <div className="rt-th-col">
@@ -722,6 +812,15 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                                         <span className="rt-th-type">{types[col]}</span>
                                                     )}
                                                 </div>
+                                                <button
+                                                    className={`rt-th-pin${isPinned ? ' active' : ''}`}
+                                                    onClick={(e) => { e.stopPropagation(); togglePin(col); }}
+                                                    title={isPinned ? 'Desfijar columna' : 'Fijar columna'}
+                                                    aria-label={isPinned ? `Unpin column ${col}` : `Pin column ${col}`}
+                                                    aria-pressed={isPinned}
+                                                >
+                                                    {isPinned ? <LuPinOff size={11} /> : <LuPin size={11} />}
+                                                </button>
                                                 <span className="rt-th-sort">
                                                     {isSorted && (sortConfig.direction === 'asc' ? <LuChevronUp size={10} /> : <LuChevronDown size={10} />)}
                                                 </span>
@@ -736,8 +835,18 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             </tr>
                             {showFilters && !isReportMode && (
                                 <tr>
+                                    {showRowNumbers && (
+                                        <td
+                                            className={`rt-filter-cell rt-rownum-filter${rowNumSticky ? ' rt-th--pinned' : ''}`}
+                                            style={rowNumSticky ? { position: 'sticky', left: 0 } : undefined}
+                                        />
+                                    )}
                                     {visibleColumns.map((col) => (
-                                        <td key={`filter-${col}`} className="rt-filter-cell">
+                                        <td
+                                            key={`filter-${col}`}
+                                            className={`rt-filter-cell${stickyOffsets[col] ? ' rt-th--pinned' : ''}`}
+                                            style={pinStyleFor(col, undefined)}
+                                        >
                                             <input
                                                 type="text"
                                                 className="rt-filter-input"
@@ -754,10 +863,25 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                             {currentData.length > 0 ? (
                                 currentData.map((row, rowIndex) => (
                                     <tr key={rowIndex}>
+                                        {showRowNumbers && (
+                                            <td
+                                                className={`rt-td rt-rownum-td${rowNumSticky ? ' rt-td--pinned' : ''}`}
+                                                style={rowNumSticky ? { position: 'sticky', left: 0 } : undefined}
+                                            >
+                                                {startIndex + rowIndex + 1}
+                                            </td>
+                                        )}
                                         {visibleColumns.map((col) => (
                                             <td
                                                 key={`${rowIndex}-${col}`}
-                                                className="rt-td"
+                                                className={`rt-td${stickyOffsets[col] ? ' rt-td--pinned' : ''}`}
+                                                style={pinStyleFor(col, undefined)}
+                                                // Triple-click opens the cell peek: long text (an LLM answer, a
+                                                // JSON blob) is unreadable in a one-line ellipsised cell.
+                                                onClick={(e) => {
+                                                    if (e.detail < 3) return;
+                                                    openCellPeek(e, col, row ? row[col] : null);
+                                                }}
                                                 // Tooltip text is computed lazily, only for the cell actually
                                                 // hovered — not on every render for every cell. With a wide
                                                 // result (thousands of columns) computing this eagerly for
@@ -777,7 +901,7 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={visibleColumns.length} className="rt-empty">
+                                    <td colSpan={visibleColumns.length + (showRowNumbers ? 1 : 0)} className="rt-empty">
                                         No matching records found.
                                     </td>
                                 </tr>
@@ -844,6 +968,12 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                         <LuClipboardCopy size={13} /> Copy All Column Names
                     </div>
                     <div className="column-context-menu-separator" />
+                    <div className="column-context-menu-item" onClick={() => { togglePin(contextMenu.column); setContextMenu(null); }}>
+                        {pinnedColumns.includes(contextMenu.column)
+                            ? <><LuPinOff size={13} /> Desfijar columna</>
+                            : <><LuPin size={13} /> Fijar columna</>}
+                    </div>
+                    <div className="column-context-menu-separator" />
                     <div className="column-context-menu-item" onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'asc' }); setContextMenu(null); }}>
                         <LuChevronUp size={13} /> Sort Ascending
                     </div>
@@ -851,6 +981,49 @@ const ResultsTable = ({ data, types, executionTime, query, currentEditorQuery, o
                         <LuChevronDown size={13} /> Sort Descending
                     </div>
                 </div>
+            )}
+
+            {/* Cell Peek — full, selectable, multi-line view of one cell's value.
+                Opened with a triple-click on the cell. */}
+            {cellPeek && (
+                <>
+                    <div className="rt-cell-peek-backdrop" onClick={() => setCellPeek(null)} />
+                    <div
+                        className="rt-cell-peek"
+                        style={{
+                            left: Math.max(8, Math.min(cellPeek.x, window.innerWidth - 448)),
+                            top: Math.max(8, Math.min(cellPeek.y + 4, window.innerHeight - 268)),
+                        }}
+                    >
+                        <div className="rt-cell-peek-head">
+                            <span className="rt-cell-peek-col" title={cellPeek.column}>{cellPeek.column}</span>
+                            <span className="rt-cell-peek-len">{cellPeek.text.length.toLocaleString()} chars</span>
+                            <button
+                                className="rt-cell-peek-btn"
+                                onClick={() => { navigator.clipboard.writeText(cellPeek.text); toast.info('Contenido copiado'); }}
+                                title="Copiar contenido"
+                                aria-label="Copy cell content"
+                            >
+                                <LuClipboardCopy size={12} />
+                            </button>
+                            <button
+                                className="rt-cell-peek-btn"
+                                onClick={() => setCellPeek(null)}
+                                title="Cerrar (Esc)"
+                                aria-label="Close"
+                            >
+                                <LuX size={12} />
+                            </button>
+                        </div>
+                        <textarea
+                            className="rt-cell-peek-body"
+                            readOnly
+                            value={cellPeek.text}
+                            autoFocus
+                            spellCheck={false}
+                        />
+                    </div>
+                </>
             )}
         </div>
     );
