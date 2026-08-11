@@ -57,6 +57,7 @@ const EditorPane = ({
     tabs,
     activeTabId,
     onTabClick,
+    onPaneFocus,      // () -> mark this pane active even when it has no tabs
     onTabClose,
     onContentChange, // (tabId, newContent)
     onConversationChange, // (tabId, convId) — Deep Dive: remember the conversation without marking dirty
@@ -86,11 +87,13 @@ const EditorPane = ({
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
     onOpenAmoxvisAsSql, // (tab) -> switch amoxvis tab to SQL editor mode
     onPersistUiState, // (pane, tabId, patch) -> persist view state to the tab (for AI session-awareness)
+    resultsRatio = 0.35,       // 0-1 share of the pane the results panel takes (height when horizontal, width when vertical) — owned by LayoutManager so two split panes can link
+    onResultsRatioChange,      // (ratio) -> commit the new ratio, called once on drag-release, never per mousemove
+    splitEnabled,              // boolean — split view is on (gates the "Comparar con el otro panel" button)
+    onGetOtherPaneResults,     // (paneId) -> {data, label} | null — on-demand snapshot of the OTHER pane's current results, NOT a reactive prop (see LayoutManager's getOtherPaneResults)
 }) => {
     const isVertical = editorLayout === 'vertical';
 
-    const [resultsHeight, setResultsHeight] = useState(300);
-    const [resultsWidth, setResultsWidth] = useState(500);
     const isResizing = useRef(false);
     const containerRef = useRef(null);
     const ghostRef = useRef(null);
@@ -173,6 +176,14 @@ const EditorPane = ({
     // of the content string itself, so its memo survives keystrokes (G4).
     const getCurrentEditorQuery = useCallback(() => activeTabRef.current?.content || '', []);
 
+    // Stable wrapper around the on-demand getter — paneId never changes for a
+    // mounted EditorPane instance and onGetOtherPaneResults is itself stable,
+    // so this identity never changes either (keeps ResultsTable's memo intact).
+    const handleGetOtherPaneResults = useCallback(
+        () => (onGetOtherPaneResults ? onGetOtherPaneResults(paneId) : null),
+        [onGetOtherPaneResults, paneId]
+    );
+
     // Auto-update the pop-out window when results change
     useEffect(() => {
         if (!isPoppedOut || !activeTab?.results) return;
@@ -221,25 +232,21 @@ const EditorPane = ({
             ghostRef.current.style.display = 'none';
         }
 
+        const container = containerRef.current;
+        if (!container || !onResultsRatioChange) return;
+        const rect = container.getBoundingClientRect();
+
         if (isVertical) {
             // Vertical layout: resize width from the right
-            const container = containerRef.current;
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
             const newWidth = rect.right - e.clientX;
-            if (newWidth >= 200 && newWidth <= rect.width - 200) {
-                setResultsWidth(newWidth);
-            }
+            const clamped = Math.min(Math.max(newWidth, 200), Math.max(200, rect.width - 200));
+            if (rect.width > 0) onResultsRatioChange(clamped / rect.width);
         } else {
             // Horizontal layout (default): resize height relative to the container, not window
-            const container = containerRef.current;
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
             const newHeight = rect.bottom - e.clientY;
             const maxHeight = rect.height * 0.80; // Never exceed 80% of the container
-            if (newHeight >= 50 && newHeight <= maxHeight) {
-                setResultsHeight(newHeight);
-            }
+            const clamped = Math.min(Math.max(newHeight, 50), maxHeight);
+            if (rect.height > 0) onResultsRatioChange(clamped / rect.height);
         }
     };
 
@@ -331,7 +338,10 @@ const EditorPane = ({
 
     if (!activeTab) {
         return (
-            <div className="ep-container">
+            <div
+                className="ep-container"
+                onClickCapture={() => onPaneFocus && onPaneFocus()}
+            >
                 <div className="ep-empty-state">
                     <p className="ep-empty-subtitle">Create a new file to get started</p>
                     <div className="ep-empty-cards">
@@ -400,6 +410,8 @@ const EditorPane = ({
                                building (session-awareness). View state only — no dirty. */
                             onViewModeChange={onPersistUiState ? (m) => onPersistUiState(paneId, activeTab.id, { viewMode: m }) : undefined}
                             onConfigChange={onPersistUiState ? (cfg) => onPersistUiState(paneId, activeTab.id, { chartConfig: cfg }) : undefined}
+                            splitEnabled={splitEnabled}
+                            onGetOtherPaneResults={handleGetOtherPaneResults}
                         />
                     )}
 
@@ -427,7 +439,14 @@ const EditorPane = ({
     return (
         <div
             className="ep-container"
-            onClickCapture={() => onTabClick && activeTabId && onTabClick(activeTabId)}
+            // An empty pane has no activeTabId, so onTabClick (which also flips
+            // activePane as a side effect) had nothing to fire — clicking into
+            // an empty pane could never make it the active one. onPaneFocus
+            // covers that case directly.
+            onClickCapture={() => {
+                if (activeTabId && onTabClick) onTabClick(activeTabId);
+                else if (onPaneFocus) onPaneFocus();
+            }}
             onDragEnter={(e) => {
                 if (e.dataTransfer.types.includes('Files')) {
                     e.preventDefault();
@@ -752,10 +771,14 @@ const EditorPane = ({
                             onMouseDown={startResizing}
                         />
 
-                        {/* Results Card — rounded container for results */}
+                        {/* Results Card — rounded container for results. Sized as a
+                            PERCENTAGE (not px) of the pane so it survives window
+                            resizes and AI-sidebar toggles without a resize observer,
+                            and so LayoutManager can drive two panes to the same
+                            fraction when their results heights are linked. */}
                         <div
                             className={`ep-results${isVertical ? ' vertical' : ''}`}
-                            style={isVertical ? { width: resultsWidth } : { height: resultsHeight }}
+                            style={isVertical ? { width: `${resultsRatio * 100}%` } : { height: `${resultsRatio * 100}%` }}
                         >
                             {resultsContent}
                         </div>

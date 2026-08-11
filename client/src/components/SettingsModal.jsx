@@ -102,8 +102,10 @@ const SHORTCUT_SECTIONS = [
         items: [
             { keys: 'Ctrl + Enter', description: 'Run Query / Run Cell' },
             { keys: 'F5', description: 'Run Query (alias)' },
+            { keys: 'Ctrl + Alt + Enter', description: 'Run Only the Statement Under the Cursor' },
             { keys: 'Ctrl + Shift + A', description: 'Analyze Query Plan (EXPLAIN)' },
             { keys: 'Ctrl + Shift + Enter', description: 'Run All Cells (Notebooks)' },
+            { keys: 'Ctrl + Shift + R', description: 'Run Both Split Panes' },
         ]
     },
     {
@@ -115,6 +117,8 @@ const SHORTCUT_SECTIONS = [
             { keys: 'Ctrl + L', description: 'Toggle Assist' },
             { keys: 'Ctrl + Shift + E', description: 'Focus File Explorer' },
             { keys: 'Ctrl + Shift + D', description: 'Focus Database Explorer' },
+            { keys: 'Ctrl + \\', description: 'Toggle Split View' },
+            { keys: 'Ctrl + Shift + \\', description: 'Duplicate Active Tab to the Other Pane' },
         ]
     },
     {

@@ -38,7 +38,7 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
@@ -73,6 +73,14 @@ function App() {
 
   // Tab bar state — synced from LayoutManager for rendering in WindowTitleBar
   const [titleBarTabs, setTitleBarTabs] = useState(null);
+  // Read by stable (deps-less) callbacks below that need the LATEST tab
+  // metadata without becoming unstable themselves every time a tab changes.
+  const titleBarTabsRef = useRef(null);
+  titleBarTabsRef.current = titleBarTabs;
+
+  // Tab context menu — {x, y, tabId, paneId}. Rendered here (not inside
+  // TabBar) so TabBar's memo isn't defeated by menu-open re-renders.
+  const [tabContextMenu, setTabContextMenu] = useState(null);
 
   // File Management State
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -410,6 +418,22 @@ function App() {
         layoutRef.current?.toggleSplit();
         return;
       }
+      // Duplicate active tab to the other pane: Ctrl+Shift+\ — the "compare
+      // a variant of this query" gesture, paired with Ctrl+\ (toggle split).
+      if (e.ctrlKey && e.shiftKey && e.key === '|') {
+        e.preventDefault();
+        layoutRef.current?.duplicateActiveTabToOtherPane();
+        return;
+      }
+      // Run both panes: Ctrl+Shift+R. NOT Ctrl+Shift+Enter — SqlNotebook
+      // already owns that globally for "Run All Cells" (its own window
+      // keydown listener, fires whenever any notebook tab is mounted), and
+      // window-level listeners don't stop each other via preventDefault.
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        layoutRef.current?.runBothPanes();
+        return;
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -490,10 +514,114 @@ function App() {
       const p = layoutRef.current?.getTabBarProps(pane);
       if (p?.onCreateNew) p.onCreateNew(type);
     },
-  }), []);
+    onTabContextMenu: (e, tabId, paneId) => {
+      setTabContextMenu({ x: e.clientX, y: e.clientY, tabId, paneId: pane ?? paneId });
+    },
+    onTabRename: (tabId) => requestTabRename(tabId),
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
   const leftTabBarHandlers = useMemo(() => makeTabBarHandlers('left'), [makeTabBarHandlers]);
   const rightTabBarHandlers = useMemo(() => makeTabBarHandlers('right'), [makeTabBarHandlers]);
   const singleTabBarHandlers = useMemo(() => makeTabBarHandlers(undefined), [makeTabBarHandlers]);
+
+  // Tab metadata lookup for the context menu — reads the LATEST tabs via the
+  // ref above, not the closed-over `titleBarTabs`, so this stays a stable
+  // dependency for `requestTabRename` below (referenced from the deps-less
+  // `makeTabBarHandlers`, which must never go stale).
+  const findTabMeta = useCallback((tabId) => {
+    const tbt = titleBarTabsRef.current;
+    if (!tbt) return null;
+    return tbt.left?.tabs.find(t => t.id === tabId) || tbt.right?.tabs.find(t => t.id === tabId) || null;
+  }, []);
+
+  // Shared by the context menu's "Renombrar" item AND double-clicking a tab
+  // label. An unsaved tab (no path yet) has nothing on disk to rename —
+  // redirect straight to Save As instead.
+  const requestTabRename = useCallback(async (tabId) => {
+    const meta = findTabMeta(tabId);
+    if (!meta) return;
+    if (!meta.path) {
+      layoutRef.current?.requestSaveAsForTab(tabId);
+      return;
+    }
+    const newName = await dialog.promptAsync({
+      title: 'Renombrar archivo',
+      message: `Nuevo nombre para "${meta.name}"`,
+      defaultValue: meta.name,
+      validate: (v) => (!v.trim() ? 'El nombre no puede estar vacío' : null),
+    });
+    if (!newName || newName.trim() === meta.name) return;
+    const result = await layoutRef.current?.renameTab(tabId, newName.trim());
+    if (result && !result.success) {
+      toast.error(`No se pudo renombrar: ${result.error}`);
+    }
+  }, [findTabMeta, dialog, toast]);
+
+  // Dismiss the tab context menu on outside click / scroll — same pattern as
+  // ResultsTable's column context menu.
+  useEffect(() => {
+    if (!tabContextMenu) return;
+    const dismiss = () => setTabContextMenu(null);
+    window.addEventListener('click', dismiss);
+    window.addEventListener('contextmenu', dismiss);
+    window.addEventListener('scroll', dismiss, true);
+    return () => {
+      window.removeEventListener('click', dismiss);
+      window.removeEventListener('contextmenu', dismiss);
+      window.removeEventListener('scroll', dismiss, true);
+    };
+  }, [tabContextMenu]);
+
+  const handleTabMenuAction = (action) => {
+    const menu = tabContextMenu;
+    setTabContextMenu(null);
+    if (!menu) return;
+    const { tabId, paneId } = menu;
+    const meta = findTabMeta(tabId);
+
+    switch (action) {
+      case 'rename':
+        requestTabRename(tabId);
+        break;
+      case 'save':
+        layoutRef.current?.saveTab(tabId);
+        break;
+      case 'saveAs':
+        layoutRef.current?.requestSaveAsForTab(tabId);
+        break;
+      case 'copyPath':
+        if (meta?.path) navigator.clipboard.writeText(meta.path);
+        break;
+      case 'reveal': {
+        if (meta?.path && window.electronAPI?.showItemInFolder) {
+          const base = projectPath.replace(/\\/g, '/').replace(/\/+$/, '');
+          window.electronAPI.showItemInFolder(`${base}/${meta.path}`);
+        }
+        break;
+      }
+      case 'moveToOtherPane':
+        layoutRef.current?.moveTabToOtherPane(tabId);
+        break;
+      case 'duplicate':
+        layoutRef.current?.duplicateTabToOtherPane(tabId);
+        break;
+      case 'close': {
+        const p = layoutRef.current?.getTabBarProps(paneId);
+        if (p) p.onTabClose(tabId);
+        break;
+      }
+      case 'closeOthers':
+        layoutRef.current?.closeOtherTabs(tabId);
+        break;
+      case 'closeToRight':
+        layoutRef.current?.closeTabsToRight(tabId);
+        break;
+      case 'closeAll':
+        layoutRef.current?.closeAllTabsInPane(paneId);
+        break;
+      default:
+        break;
+    }
+  };
 
   const handleSwitchProject = useCallback((path) => {
     setProjectPath(path);
@@ -790,12 +918,15 @@ function App() {
     const result = await performSave(filename, contentToSave);
 
     if (result.success) {
-      // Notify LayoutManager that the file is now saved with this path
-      layoutRef.current?.finishSaveAs(filename);
+      // Notify LayoutManager that the file is now saved with this path.
+      // Pass the tab id captured when Save As was first requested — the modal
+      // is async, so re-deriving "the active tab" here could target the wrong
+      // pane's tab if the user switched panes while the dialog was open.
+      layoutRef.current?.finishSaveAs(filename, pendingSaveTab?.id);
     }
 
     return result;
-  }, [pendingSaveContent, performSave]);
+  }, [pendingSaveContent, pendingSaveTab, performSave]);
 
   const handleExportNotebook = useCallback(async (title, query, markdownContext) => {
     const filename = `AI_Analysis_${Date.now()}.sqlnb`;
@@ -957,6 +1088,30 @@ function App() {
       </div>
     );
   }
+
+  // Tab-bar-card widths in split mode, computed in PIXELS from LayoutManager's
+  // measured .lm-panes width — NOT CSS percentages. This row and the editor
+  // panes below it are separate DOM regions with different padding/margin
+  // models (this row had its own padding + a gap + the link button between
+  // cards; the editor panes just have a 6px splitter), so the same
+  // `splitRatio` as a plain percentage lands each row's second pane at a
+  // different pixel — visibly misaligned tab bar vs. editor card underneath
+  // it. Matching the exact arithmetic LayoutManager uses for its own pane
+  // slots (minus the splitter width, minus each editor card's own 8px inset)
+  // is what actually keeps them lined up as you drag the divider.
+  const TAB_SPLITTER_WIDTH = 6; // must match LayoutManager's SPLITTER_WIDTH / .lm-splitter
+  const TAB_CARD_INSET = 8;     // must match .ep-inner's horizontal padding
+  const tabSplitRatio = titleBarTabs?.splitRatio ?? 0.5;
+  const tabPanesWidth = titleBarTabs?.lmPanesWidth || 0;
+  const tabGeometryReady = tabPanesWidth > (TAB_SPLITTER_WIDTH + TAB_CARD_INSET * 4);
+  const tabSlot1Width = (tabPanesWidth - TAB_SPLITTER_WIDTH) * tabSplitRatio;
+  const tabSlot2Width = (tabPanesWidth - TAB_SPLITTER_WIDTH) * (1 - tabSplitRatio);
+  const tabCard1Style = tabGeometryReady
+    ? { flex: '0 0 auto', width: tabSlot1Width - TAB_CARD_INSET * 2, marginLeft: TAB_CARD_INSET, marginRight: 3, minWidth: 0 }
+    : { flex: `0 0 ${tabSplitRatio * 100}%`, margin: 0, minWidth: 0 };
+  const tabCard2Style = tabGeometryReady
+    ? { flex: '0 0 auto', width: tabSlot2Width - TAB_CARD_INSET * 2, marginLeft: 3, marginRight: TAB_CARD_INSET, minWidth: 0 }
+    : { flex: `0 0 ${(1 - tabSplitRatio) * 100}%`, margin: 0, minWidth: 0 };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
@@ -1239,10 +1394,14 @@ function App() {
           <div className="main-content">
             {/* Tab Bar Area — floating, only above editor + AI area, hidden when no tabs */}
             {titleBarTabs && (titleBarTabs.tabs.length > 0 || (titleBarTabs.splitEnabled && (titleBarTabs.left?.tabs.length > 0 || titleBarTabs.right?.tabs.length > 0))) && (
-              <div style={{ display: 'flex', gap: titleBarTabs.splitEnabled ? '16px' : '0', padding: '6px 8px 4px 8px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: titleBarTabs.splitEnabled ? '6px 0 4px 0' : '6px 8px 4px 8px', flexShrink: 0 }}>
                 {titleBarTabs.splitEnabled ? (
                   <>
-                    <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+                    <div
+                      className="tab-bar-card"
+                      style={tabCard1Style}
+                      onMouseDown={() => layoutRef.current?.focusPane('left')}
+                    >
                       <TabBar
                         tabs={titleBarTabs.left?.tabs || []}
                         activeTabId={titleBarTabs.left?.activeTabId}
@@ -1250,7 +1409,28 @@ function App() {
                         {...leftTabBarHandlers}
                       />
                     </div>
-                    <div className="tab-bar-card" style={{ flex: 1, margin: 0, minWidth: 0 }}>
+                    {/* Results-link toggle — lives HERE (between the two tab
+                        bars) rather than on the pane splitter below, so it
+                        doesn't widen the gap between panes. Icon only, no
+                        button chrome, to keep that gap minimal. Its own
+                        width (16px) plus the 3px margins on each side of it
+                        above is exactly the 22px gap the editor cards below
+                        have (8px inset + 6px splitter + 8px inset) — see the
+                        tabCard*Style comment. */}
+                    <button
+                      className={`tab-link-btn${titleBarTabs.resultsLinked ? ' active' : ''}`}
+                      onClick={() => layoutRef.current?.toggleResultsLinked()}
+                      title={titleBarTabs.resultsLinked ? 'Alturas de resultados enlazadas — clic para independizar' : 'Enlazar la altura de resultados entre los dos paneles'}
+                      aria-label={titleBarTabs.resultsLinked ? 'Unlink results panel heights' : 'Link results panel heights'}
+                      aria-pressed={!!titleBarTabs.resultsLinked}
+                    >
+                      {titleBarTabs.resultsLinked ? <LuLink size={11} /> : <LuUnlink size={11} />}
+                    </button>
+                    <div
+                      className="tab-bar-card"
+                      style={tabCard2Style}
+                      onMouseDown={() => layoutRef.current?.focusPane('right')}
+                    >
                       <TabBar
                         tabs={titleBarTabs.right?.tabs || []}
                         activeTabId={titleBarTabs.right?.activeTabId}
@@ -1272,6 +1452,68 @@ function App() {
               </div>
             )}
 
+            {/* Tab Context Menu — right-click on a tab */}
+            {tabContextMenu && (() => {
+              const meta = findTabMeta(tabContextMenu.tabId);
+              const paneTabs = tabContextMenu.paneId === 'left' ? titleBarTabs?.left?.tabs : titleBarTabs?.right?.tabs;
+              const idxInPane = paneTabs ? paneTabs.findIndex(t => t.id === tabContextMenu.tabId) : -1;
+              const hasTabsToRight = idxInPane >= 0 && idxInPane < (paneTabs.length - 1);
+              const hasOtherTabs = (paneTabs?.length || 0) > 1;
+              const canReveal = !!(meta?.path && window.electronAPI?.showItemInFolder);
+              return (
+                <div
+                  className="column-context-menu"
+                  style={{ position: 'fixed', top: tabContextMenu.y, left: tabContextMenu.x, zIndex: 99999 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('rename')}>
+                    <LuPencil size={13} /> Renombrar…
+                  </div>
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('save')}>
+                    <LuSave size={13} /> Guardar
+                  </div>
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('saveAs')}>
+                    <LuSave size={13} /> Guardar como…
+                  </div>
+                  {meta?.path && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('copyPath')}>
+                      <LuClipboardCopy size={13} /> Copiar ruta
+                    </div>
+                  )}
+                  {canReveal && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('reveal')}>
+                      <LuFolderOpen size={13} /> Revelar en el explorador
+                    </div>
+                  )}
+                  <div className="column-context-menu-separator" />
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('moveToOtherPane')}>
+                    <LuArrowLeftRight size={13} /> {tabContextMenu.paneId === 'left' ? 'Mover al panel derecho' : 'Mover al panel izquierdo'}
+                  </div>
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('duplicate')}>
+                    <LuCopyPlus size={13} /> Abrir una copia al lado
+                  </div>
+                  <div className="column-context-menu-separator" />
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('close')}>
+                    <LuX size={13} /> Cerrar
+                  </div>
+                  {hasOtherTabs && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeOthers')}>
+                      <LuX size={13} /> Cerrar las demás
+                    </div>
+                  )}
+                  {hasTabsToRight && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeToRight')}>
+                      <LuX size={13} /> Cerrar las de la derecha
+                    </div>
+                  )}
+                  {hasOtherTabs && (
+                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeAll')}>
+                      <LuX size={13} /> Cerrar todas
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Content Area containing Editor AND AI Sidebar */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

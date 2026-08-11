@@ -58,6 +58,14 @@ ipcMain.handle('shell:openExternal', async (_event, url) => {
     }
 });
 
+// IPC Handler: Reveal a file in the OS file manager (Explorer/Finder) —
+// used by the tab context menu's "Reveal in Explorer".
+ipcMain.handle('shell:showItemInFolder', (_event, itemPath) => {
+    if (typeof itemPath === 'string' && itemPath) {
+        shell.showItemInFolder(path.resolve(itemPath));
+    }
+});
+
 // IPC Handler: Window controls
 ipcMain.on('window-control:minimize', () => {
     if (mainWindow) mainWindow.minimize();

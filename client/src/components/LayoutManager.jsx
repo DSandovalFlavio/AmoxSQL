@@ -13,9 +13,26 @@ import { invalidateSchema } from '../state/sidebarCache';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
+// Split geometry — kept in its OWN key so a schema change here never risks
+// the tab-restoration logic in TAB_STORAGE_KEY (that one recovers unsaved
+// work; this one is just window-dressing, safe to drop and re-default).
+const SPLIT_STORAGE_KEY = 'amoxsql-split-v1';
+// Must match .lm-splitter's CSS width exactly — used both to make the pane
+// slots below sum to exactly 100% (instead of overflowing by this much) and
+// by App.jsx's tab-bar-card pixel math, which needs to know precisely how
+// much horizontal space the splitter itself eats between the two panes.
+const SPLITTER_WIDTH = 6;
 // Per-file choice for multi-statement .sql files: 'script' | 'notebook'.
 // Keyed by file path so "don't ask again for this file" survives reloads.
 const SQL_FILE_PREFS_KEY = 'amoxsql-sql-file-prefs';
+
+const readSplitStorage = () => {
+    try {
+        return JSON.parse(localStorage.getItem(SPLIT_STORAGE_KEY) || '{}');
+    } catch {
+        return {};
+    }
+};
 
 const getSqlFilePref = (path) => {
     if (!path) return null;
@@ -39,6 +56,40 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Layout State
     const [splitEnabled, setSplitEnabled] = useState(false);
     const [activePane, setActivePane] = useState('left'); // 'left' or 'right'
+
+    // --- Split geometry (Fase 3/4) ---
+    // splitRatio: the LEFT pane's share of the horizontal space, 0.2-0.8.
+    // resultsRatios: each pane's own results-panel share (height when the
+    // editor is horizontal, width when vertical) — used only while UNlinked.
+    // linkedResultsRatio: the single shared value both panes use while linked.
+    // resultsLinked defaults to true: dragging one pane's results divider
+    // moves both, which is what you want the moment you're comparing two
+    // queries side by side — that's the whole point of opening a split.
+    //
+    // Restored via LAZY initializers (read localStorage synchronously on the
+    // very first render), not a post-mount effect — an effect-based restore
+    // raced against the persist effect: the "restored" flag flipped in the
+    // same tick as the setState calls, before React applied them, so the
+    // persist effect's THIS-render closure (still holding the OLD defaults)
+    // saw the flag already true and immediately overwrote the just-read
+    // saved values with those defaults. Lazy initializers have no such
+    // window — state is already correct on render 1.
+    const [splitRatio, setSplitRatio] = useState(() => {
+        const v = readSplitStorage().splitRatio;
+        return typeof v === 'number' ? v : 0.5;
+    });
+    const [resultsLinked, setResultsLinked] = useState(() => {
+        const v = readSplitStorage().resultsLinked;
+        return typeof v === 'boolean' ? v : true;
+    });
+    const [resultsRatios, setResultsRatios] = useState(() => {
+        const v = readSplitStorage().resultsRatios;
+        return { left: 0.35, right: 0.35, ...(v && typeof v === 'object' ? v : {}) };
+    });
+    const [linkedResultsRatio, setLinkedResultsRatio] = useState(() => {
+        const v = readSplitStorage().linkedResultsRatio;
+        return typeof v === 'number' ? v : 0.35;
+    });
 
     // Tabs State
     const [leftTabs, setLeftTabs] = useState([]);
@@ -64,6 +115,26 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Query Cancellation State
     const [runningQueryId, setRunningQueryId] = useState(null);
     const queryAbortControllerRef = useRef(null);
+    const lmContainerRef = useRef(null);
+    // Real rendered width of .lm-container (== .lm-panes' width, since
+    // .lm-panes is its only flex:1 child with no siblings taking horizontal
+    // space). The tab bar row in App.jsx is a SEPARATE sibling DOM region
+    // with its own padding/margin model — pure CSS percentages can't be
+    // trusted to land the two rows' pane boundaries on the same pixel (the
+    // fixed-width overhead between the two panes differs: 6px splitter here
+    // vs gap+link-button+gap up there), so it gets this exact pixel width
+    // instead and computes matching pixel math. See App.jsx's tab-bar-card
+    // sizing.
+    const [lmPanesWidth, setLmPanesWidth] = useState(0);
+    useEffect(() => {
+        const el = lmContainerRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) setLmPanesWidth(entry.contentRect.width);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     // Drag & Drop State (declared here so stateRef below can reference it)
     const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
@@ -76,6 +147,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     stateRef.current = {
         leftTabs, rightTabs, leftActiveId, rightActiveId, activePane, splitEnabled,
         queryVariables, draggedTab, runningQueryId,
+        resultsLinked, resultsRatios, linkedResultsRatio,
         editorSettings, onRequestSaveAs, onQueryResult, onDbChange,
         toast, dialog,
     };
@@ -137,12 +209,22 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             splitEnabled,
             left: { tabs: leftMeta, activeTabId: leftActiveId },
             right: { tabs: rightMeta, activeTabId: rightActiveId },
+            // Split geometry — so the tab bar row (rendered in App.jsx, outside
+            // this component) can mirror the same width split as the editor
+            // panes below it, and so the results-link toggle (also rendered in
+            // App.jsx, between the two tab bars) can reflect current state.
+            // lmPanesWidth (px) is what lets App.jsx compute PIXEL-exact tab
+            // bar widths instead of trusting two differently-padded flex rows
+            // to agree on what "50%" means.
+            splitRatio,
+            resultsLinked,
+            lmPanesWidth,
         };
         const serialized = JSON.stringify(payload);
         if (serialized === lastNotifiedMetaRef.current) return;
         lastNotifiedMetaRef.current = serialized;
         onTabsChange(payload);
-    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane, onTabsChange]);
+    }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled, activePane, splitRatio, resultsLinked, lmPanesWidth, onTabsChange]);
 
     // --- Tab Persistence: Restore on mount ---
     useEffect(() => {
@@ -194,6 +276,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         });
     }, []); // Only on mount
 
+    // --- Split Geometry Persistence: save on change (restore is the lazy
+    // initializers above — nothing to do here on mount). ---
+    useEffect(() => {
+        try {
+            localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify({
+                splitRatio, resultsLinked, resultsRatios, linkedResultsRatio,
+            }));
+        } catch { /* ignore */ }
+    }, [splitRatio, resultsLinked, resultsRatios, linkedResultsRatio]);
+
     // Helpers — stable identities (read current state via stateRef)
     const getActiveTab = useCallback(() => {
         const { activePane, leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
@@ -202,6 +294,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         } else {
             return rightTabs.find(t => t.id === rightActiveId);
         }
+    }, []);
+
+    // Which pane actually owns a tab, by id — the source of truth for actions
+    // that must land on the pane the tab lives in, NOT whichever pane happens
+    // to be active right now (that distinction is the root cause behind most
+    // of the "my tab went to the wrong side" reports).
+    const findTabPane = useCallback((tabId) => {
+        const { leftTabs, rightTabs } = stateRef.current;
+        if (leftTabs.some(t => t.id === tabId)) return 'left';
+        if (rightTabs.some(t => t.id === tabId)) return 'right';
+        return null;
     }, []);
 
     const updateTab = useCallback((pane, tabId, updates) => {
@@ -258,6 +361,36 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 setActiveId(null);
             }
         }
+    }, []);
+
+    // Bulk close (used by the tab context menu's "Close Others / To the Right /
+    // All") — confirms once, listing every unsaved file, before discarding any
+    // of them. A single-tab close (handleTabClose above, and the "x" button)
+    // stays silent, matching its existing behavior.
+    const closeTabsWithConfirm = useCallback(async (pane, tabsToClose) => {
+        if (!tabsToClose || tabsToClose.length === 0) return;
+        const dirtyOnes = tabsToClose.filter(t => t.dirty);
+        if (dirtyOnes.length > 0) {
+            const { dialog } = stateRef.current;
+            const ok = await dialog.confirmAsync({
+                title: dirtyOnes.length === 1 ? 'Cerrar sin guardar' : `Cerrar ${dirtyOnes.length} archivos sin guardar`,
+                message: `Se perderán los cambios de: ${dirtyOnes.map(t => t.name).join(', ')}`,
+                confirmLabel: 'Cerrar de todos modos',
+                destructive: true,
+            });
+            if (!ok) return;
+        }
+        const idsToClose = new Set(tabsToClose.map(t => t.id));
+        const setTabs = pane === 'left' ? setLeftTabs : setRightTabs;
+        const setActiveId = pane === 'left' ? setLeftActiveId : setRightActiveId;
+        const currentActiveId = pane === 'left' ? stateRef.current.leftActiveId : stateRef.current.rightActiveId;
+        setTabs(prev => {
+            const remaining = prev.filter(t => !idsToClose.has(t.id));
+            if (idsToClose.has(currentActiveId)) {
+                setActiveId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
+            }
+            return remaining;
+        });
     }, []);
 
     // Parse DuckDB error messages to extract line/column for inline highlighting
@@ -535,9 +668,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, [getActiveTab, executeQuery]);
 
-    const handleSaveActive = useCallback(async (isSilent = false) => {
-        const { onRequestSaveAs, activePane, toast } = stateRef.current;
-        const tab = getActiveTab();
+    // Shared by the global Save trigger (always the active tab) AND the tab
+    // context menu's "Guardar" (an EXPLICIT tab, which may not be active).
+    // Resolves the pane via findTabPane, not `activePane` — an inactive tab
+    // being saved from the context menu can live in either pane.
+    const saveTabInternal = useCallback(async (tab, isSilent = false) => {
+        const { onRequestSaveAs, toast } = stateRef.current;
         if (!tab || !tab.dirty) return;
 
         if (!tab.path) {
@@ -548,6 +684,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
             return;
         }
+
+        const pane = findTabPane(tab.id);
+        if (!pane) return;
 
         try {
             let saveContent = tab.content;
@@ -564,7 +703,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             });
 
             if (response.ok) {
-                updateTab(activePane, tab.id, { dirty: false });
+                updateTab(pane, tab.id, { dirty: false });
                 if (tab.path) clearDraft(tab.path);
                 if (!isSilent) toast.success("Saved!");
             } else {
@@ -575,7 +714,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             console.error("Error saving: " + e.message);
             if (!isSilent) toast.error("Error saving: " + e.message);
         }
-    }, [getActiveTab, updateTab]);
+    }, [findTabPane, updateTab]);
+
+    const handleSaveActive = useCallback((isSilent = false) => saveTabInternal(getActiveTab(), isSilent), [getActiveTab, saveTabInternal]);
 
     const handleAnalyzeActive = useCallback(async (mode) => {
         const tab = getActiveTab();
@@ -627,8 +768,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, [getActiveTab]);
 
-    // Extracted createNew so it can be passed to EditorPanes + exposed via ref
-    const createNew = useCallback((type, initialContent) => {
+    // Extracted createNew so it can be passed to EditorPanes + exposed via ref.
+    // `targetPane` is explicit ('left'|'right') when the caller knows exactly
+    // which pane triggered the action (e.g. that pane's own "+" button or its
+    // empty-state card) — it must win over `activePane`, which only serves as
+    // the fallback for actions with no specific origin (keyboard shortcuts,
+    // the command palette, sidebar actions).
+    const createNew = useCallback((type, initialContent, targetPane) => {
         const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb'
             : (type === 'chain' || type === 'sqlchain') ? 'sqlchain'
             : type;
@@ -657,13 +803,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             results: null,
             dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving' && normalizedType !== 'dbt-lineage'
         };
-        if (stateRef.current.activePane === 'left') {
+        const pane = targetPane || stateRef.current.activePane;
+        if (pane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
             setLeftActiveId(newTab.id);
         } else {
             setRightTabs(prev => [...prev, newTab]);
             setRightActiveId(newTab.id);
         }
+        setActivePane(pane);
     }, []);
 
     // Expose methods to parent
@@ -682,7 +830,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 onTabClose: handleTabClose,
                 onDragStart: handleDragStart,
                 onReorder: handleReorder,
-                onCreateNew: createNew,
+                // Bound to THIS pane — the "+" button in the left tab bar must
+                // always create in the left pane, regardless of which pane is
+                // currently active. See createNew's targetPane param.
+                onCreateNew: (type, initialContent) => createNew(type, initialContent, targetPane),
                 paneId: targetPane,
             };
         },
@@ -783,17 +934,50 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             else setRightActiveId(tabs[nextIdx].id);
         },
         toggleSplit: () => setSplitEnabled(v => !v),
-        finishSaveAs: (newPath) => {
-            // Update the active tab's path
+        // Focus a pane without touching its tabs — used when the user clicks
+        // the chrome around a tab bar (not a specific tab) so that pane's
+        // actions ("+", empty-state cards) target it correctly.
+        focusPane: (pane) => setActivePane(pane),
+        // Results-link toggle — rendered in App.jsx (between the two tab bars,
+        // not on the pane splitter, see Fase 4 revision) but the state and the
+        // logic that decides what happens on toggle live here with the rest of
+        // the split geometry.
+        toggleResultsLinked: () => toggleResultsLinked(),
+
+        // ─── Fase 5: split-aware shortcuts ───
+        // "I want to compare this query against a variant" — clone the
+        // ACTIVE tab (whichever pane that is) to the other pane. Ctrl+Shift+\.
+        duplicateActiveTabToOtherPane: () => {
             const tab = getActiveTab();
-            if (tab) {
-                const updates = {
-                    path: newPath,
-                    name: newPath.split(/[/\\]/).pop(),
-                    dirty: false
-                };
-                updateTab(activePane, tab.id, updates);
-            }
+            if (tab) duplicateTabToOtherPane(tab.id);
+        },
+        // Run both panes' active SQL tab at once — an A/B comparison in one
+        // keystroke (Ctrl+Shift+Enter) instead of clicking Run twice.
+        runBothPanes: () => {
+            const lt = leftTabs.find(t => t.id === leftActiveId);
+            const rt = rightTabs.find(t => t.id === rightActiveId);
+            if (lt && lt.type === 'sql') executeQuery(lt.id, lt.content);
+            if (rt && rt.type === 'sql') executeQuery(rt.id, rt.content);
+        },
+        // `tabId` should be the id captured when "Save As…" was first requested
+        // (see App.jsx's pendingSaveTab). The save-as modal is async — the user
+        // can switch the active pane while it's open — so re-deriving "the
+        // active tab" at completion time can silently rewrite the WRONG tab's
+        // path. Falls back to the current active tab only for older/other
+        // callers that don't pass an id.
+        finishSaveAs: (newPath, tabId) => {
+            const { leftTabs, rightTabs } = stateRef.current;
+            const tab = tabId
+                ? (leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId))
+                : getActiveTab();
+            if (!tab) return;
+            const pane = findTabPane(tab.id) || stateRef.current.activePane;
+            const updates = {
+                path: newPath,
+                name: newPath.split(/[/\\]/).pop(),
+                dirty: false
+            };
+            updateTab(pane, tab.id, updates);
         },
 
         // --- Standalone handleQueryFile function (used by imperative handle + DnD) ---
@@ -932,7 +1116,68 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         },
 
         // Switch an amoxvis tab to SQL editor mode
-        handleOpenAmoxvisAsSql: (tab) => openAmoxvisAsSql(tab)
+        handleOpenAmoxvisAsSql: (tab) => openAmoxvisAsSql(tab),
+
+        // ─── Tab context menu operations (Fase 2) ───
+        // All of these take an EXPLICIT tabId — never `activePane`/"the active
+        // tab" — since the context menu can be opened on any tab, active or not.
+        saveTab: (tabId) => {
+            const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+            if (tab) saveTabInternal(tab);
+        },
+        requestSaveAsForTab: (tabId) => {
+            const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+            if (tab && onRequestSaveAs) onRequestSaveAs(tab.content, tab);
+        },
+        renameTab: async (tabId, newName) => {
+            const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+            if (!tab) return { success: false, error: 'Tab not found' };
+            if (!tab.path) return { success: false, error: 'unsaved' };
+            const dir = tab.path.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+            const newPath = dir ? `${dir}/${newName}` : newName;
+            if (newPath === tab.path) return { success: true };
+            try {
+                const response = await fetch(`${API_BASE}/api/file/rename`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldPath: tab.path, newPath }),
+                });
+                const data = await response.json();
+                if (!response.ok) return { success: false, error: data.error || 'Rename failed' };
+                updateTab(findTabPane(tabId), tabId, { path: newPath, name: newName });
+                return { success: true };
+            } catch (err) {
+                return { success: false, error: err.message };
+            }
+        },
+        moveTabToOtherPane: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const target = pane === 'left' ? 'right' : 'left';
+            setSplitEnabled(true);
+            moveTabToPane(tabId, pane, target);
+            setActivePane(target);
+        },
+        // Delegates to the standalone function above.
+        duplicateTabToOtherPane,
+        closeOtherTabs: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const tabs = pane === 'left' ? leftTabs : rightTabs;
+            closeTabsWithConfirm(pane, tabs.filter(t => t.id !== tabId));
+        },
+        closeTabsToRight: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const tabs = pane === 'left' ? leftTabs : rightTabs;
+            const idx = tabs.findIndex(t => t.id === tabId);
+            if (idx === -1) return;
+            closeTabsWithConfirm(pane, tabs.slice(idx + 1));
+        },
+        closeAllTabsInPane: (paneId) => {
+            const tabs = paneId === 'left' ? leftTabs : rightTabs;
+            closeTabsWithConfirm(paneId, tabs);
+        },
     }));
 
     // Standalone helper: open an amoxvis tab in SQL editor mode
@@ -951,7 +1196,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             initialChartConfig: config
         };
 
-        const pane = stateRef.current.activePane;
+        // The "Edit with SQL" button lives inside the amoxvis tab itself — the
+        // new SQL tab must land in the SAME pane, not whichever pane happens
+        // to be active (they can differ once split panes are independently
+        // clickable, see the empty-pane focus fix below).
+        const pane = findTabPane(tab.id) || stateRef.current.activePane;
         if (pane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
             setLeftActiveId(newTab.id);
@@ -961,15 +1210,19 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
 
         executeQuery(newTab.id, query);
-    }, [executeQuery]);
+    }, [executeQuery, findTabPane]);
 
     // --- handleQueryFile: Standalone function for DnD + imperative handle ---
-    const handleQueryFile = useCallback(async (filePath) => {
+    // `targetPane` lets a caller that knows exactly where the drop happened
+    // (an OS file dropped onto ONE specific EditorPane) override the default
+    // of "whichever pane is currently active".
+    const handleQueryFile = useCallback(async (filePath, targetPane) => {
         if (!filePath || typeof filePath !== 'string') {
             console.warn('[handleQueryFile] Called with invalid path:', filePath);
             return;
         }
-        const { leftTabs, rightTabs, activePane } = stateRef.current;
+        const { leftTabs, rightTabs, activePane: currentActivePane } = stateRef.current;
+        const activePane = targetPane || currentActivePane;
         const fileName = filePath.split(/[/\\]/).pop();
         const normalizedPath = filePath.replace(/\\/g, '/');
         const lowerName = fileName.toLowerCase();
@@ -983,13 +1236,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     const type = lowerName.endsWith('.sqlnb') ? 'sqlnb' : lowerName.endsWith('.sqlchain') ? 'sqlchain' : lowerName.endsWith('.md') ? 'md' : 'sql';
                     const existing = [...leftTabs, ...rightTabs].find(t => t.path === filePath);
                     if (existing) {
-                        if (leftTabs.find(t => t.id === existing.id)) setLeftActiveId(existing.id);
-                        else setRightActiveId(existing.id);
+                        if (leftTabs.find(t => t.id === existing.id)) { setLeftActiveId(existing.id); setActivePane('left'); }
+                        else { setRightActiveId(existing.id); setActivePane('right'); }
                         return;
                     }
                     const newTab = { id: Date.now().toString(), path: filePath, name: fileName, type, content: data.content, results: null, dirty: false };
                     if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
                     else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
+                    setActivePane(activePane);
                 }
             } catch (e) { console.error('[DnD] Failed to open SQL file:', e); }
             return;
@@ -1043,6 +1297,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const newTab = { id: Date.now().toString(), path: '', name: `${fileName}.sql`, type: 'sql', content, results: null, dirty: true };
         if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
         else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
+        setActivePane(activePane);
 
         // Auto-execute preview for CSV/Parquet files
         if (!lowerName.endsWith('.xlsx') && !lowerName.endsWith('.xls')) {
@@ -1077,11 +1332,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         e.preventDefault();
         if (!draggedTab) return;
 
-        const width = window.innerWidth;
-        const x = e.clientX;
-        const edgeThreshold = 100; // px
+        // Measured against THIS container, not window.innerWidth — the file
+        // explorer (left) and AI sidebar (right, when open) eat into the
+        // window width, so a window-relative edge threshold could fall
+        // entirely inside those sidebars and never be reachable by the mouse.
+        const rect = lmContainerRef.current?.getBoundingClientRect();
+        if (!rect || rect.width === 0) return;
+        const width = rect.width;
+        const x = e.clientX - rect.left;
+        const edgeThreshold = Math.min(100, width * 0.15);
 
-        // ... (rest of logic is fine)
         // Global Edge Detection (Priority)
         if (x > width - edgeThreshold) {
             setDragOverZone('right-edge');
@@ -1169,20 +1429,92 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     };
 
-    // Tab Reordering (Intra-pane)
+    // Clones a tab into the OTHER pane as a fresh, unsaved copy — same
+    // content, but its own path/dirty state, so editing one to try a SQL
+    // variant never silently overwrites the file the other copy still shows.
+    // This is the "compare a variant side by side" gesture. A standalone
+    // function (not inline in useImperativeHandle) so BOTH the context
+    // menu's explicit-tabId version and the Ctrl+Shift+\ active-tab shortcut
+    // can call it directly — calling a sibling property of the SAME object
+    // literal by its bare name (as the old inline version tried) throws a
+    // ReferenceError, it's only reachable via `ref.current.xyz(...)`.
+    const duplicateTabToOtherPane = (tabId) => {
+        const pane = findTabPane(tabId);
+        if (!pane) return;
+        const tab = (pane === 'left' ? leftTabs : rightTabs).find(t => t.id === tabId);
+        if (!tab) return;
+        const target = pane === 'left' ? 'right' : 'left';
+        const clone = {
+            ...tab,
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+            path: '',
+            dirty: true,
+            results: null, resultsQuery: null, resultsError: null, scriptRun: null, errorMarker: null,
+        };
+        setSplitEnabled(true);
+        if (target === 'left') { setLeftTabs(prev => [...prev, clone]); setLeftActiveId(clone.id); }
+        else { setRightTabs(prev => [...prev, clone]); setRightActiveId(clone.id); }
+        setActivePane(target);
+    };
+
+    // Tab Reordering — AND cross-pane move when the drop lands on the OTHER
+    // pane's tab bar. Previously this only ever searched for the dragged tab
+    // inside `paneId`'s own array, so dropping tab A (from the left pane)
+    // onto the right pane's tab bar silently did nothing — the tab bar isn't
+    // even inside `.lm-panes`'s DOM subtree, so the left/right-edge drop
+    // zones never fire for it either. This was the most commonly attempted
+    // gesture ("drag a tab onto the other side's bar") and the one most
+    // likely to feel broken.
     const handleReorder = useCallback((dragTabId, targetTabId, paneId) => {
-        const sourceId = dragTabId || stateRef.current.draggedTab?.tabId;
-        if (!sourceId || sourceId === targetTabId) return;
+        const { draggedTab, leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
+        const sourceId = dragTabId || draggedTab?.tabId;
+        if (!sourceId) return;
+        const sourcePane = draggedTab?.sourcePane
+            || (leftTabs.some(t => t.id === sourceId) ? 'left' : (rightTabs.some(t => t.id === sourceId) ? 'right' : null));
+        if (!sourcePane) return;
 
+        if (sourcePane !== paneId) {
+            const sourceTabs = sourcePane === 'left' ? leftTabs : rightTabs;
+            const tabToMove = sourceTabs.find(t => t.id === sourceId);
+            if (!tabToMove) return;
+
+            const setSourceTabs = sourcePane === 'left' ? setLeftTabs : setRightTabs;
+            const sourceActiveId = sourcePane === 'left' ? leftActiveId : rightActiveId;
+            const setSourceActiveId = sourcePane === 'left' ? setLeftActiveId : setRightActiveId;
+            const setTargetTabs = paneId === 'left' ? setLeftTabs : setRightTabs;
+            const setTargetActiveId = paneId === 'left' ? setLeftActiveId : setRightActiveId;
+
+            const newSource = sourceTabs.filter(t => t.id !== sourceId);
+            setSourceTabs(newSource);
+            if (sourceActiveId === sourceId) {
+                setSourceActiveId(newSource.length > 0 ? newSource[newSource.length - 1].id : null);
+            }
+
+            // Insert at the target tab's position, or at the end when dropped
+            // on empty bar space (targetTabId null, or a stale id — e.g. the
+            // bar had zero tabs).
+            setTargetTabs(prev => {
+                const targetIdx = targetTabId ? prev.findIndex(t => t.id === targetTabId) : -1;
+                const insertAt = targetIdx === -1 ? prev.length : targetIdx;
+                const next = [...prev];
+                next.splice(insertAt, 0, tabToMove);
+                return next;
+            });
+            setTargetActiveId(sourceId);
+            setActivePane(paneId);
+            return;
+        }
+
+        // Same-pane reorder. A null targetTabId (dropped on empty bar space,
+        // past the last tab) means "move to the end".
+        if (sourceId === targetTabId) return;
         const setTabs = paneId === 'left' ? setLeftTabs : setRightTabs;
-
         setTabs(prev => {
             const tabs = [...prev];
             const dragIdx = tabs.findIndex(t => t.id === sourceId);
-            const targetIdx = tabs.findIndex(t => t.id === targetTabId);
-
-            if (dragIdx === -1 || targetIdx === -1) return prev;
-
+            if (dragIdx === -1) return prev;
+            const targetIdx = targetTabId ? tabs.findIndex(t => t.id === targetTabId) : tabs.length - 1;
+            if (targetIdx === -1) return prev;
             const [removed] = tabs.splice(dragIdx, 1);
             tabs.splice(targetIdx, 0, removed);
             return tabs;
@@ -1200,8 +1532,119 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (onRequestSaveAs) onRequestSaveAs('', getActiveTab());
     }, [getActiveTab]);
 
+    // A click anywhere in an EMPTY pane must still be able to focus it — with
+    // no tab active, `EditorPane`'s onClickCapture (which fires onTabClick)
+    // had nothing to call, so an empty pane could never become the active one
+    // and every action from it (its own "+" cards included) silently landed
+    // in the OTHER pane instead.
+    const handleLeftPaneFocus = useCallback(() => setActivePane('left'), []);
+    const handleRightPaneFocus = useCallback(() => setActivePane('right'), []);
+
+    // Bound to a specific pane so each pane's "+" / empty-state actions always
+    // create there, never wherever `activePane` happens to be.
+    const handleLeftCreateNew = useCallback((type, initialContent) => createNew(type, initialContent, 'left'), [createNew]);
+    const handleRightCreateNew = useCallback((type, initialContent) => createNew(type, initialContent, 'right'), [createNew]);
+
+    // Same reasoning for an OS file dropped onto one specific pane's drop zone.
+    const handleLeftFileDrop = useCallback((path) => handleQueryFile(path, 'left'), [handleQueryFile]);
+    const handleRightFileDrop = useCallback((path) => handleQueryFile(path, 'right'), [handleQueryFile]);
+
+    // --- Results ratio (Fase 3/4) ---
+    // Called by EditorPane on drag-release with the new ratio (0-1). While
+    // linked, BOTH panes write to the same shared value; while unlinked, each
+    // pane keeps its own entry in `resultsRatios`.
+    const handleResultsRatioChange = useCallback((paneId, ratio) => {
+        if (stateRef.current.resultsLinked) {
+            setLinkedResultsRatio(ratio);
+        } else {
+            setResultsRatios(prev => ({ ...prev, [paneId]: ratio }));
+        }
+    }, []);
+    const handleLeftResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('left', ratio), [handleResultsRatioChange]);
+    const handleRightResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('right', ratio), [handleResultsRatioChange]);
+
+    // Fase 5C: "Comparar con el otro panel" — deliberately NOT a reactive
+    // prop (that would mean passing the other pane's results object down on
+    // every render, defeating the G4 memoization that keeps each EditorPane
+    // from re-rendering when the OTHER pane changes). Instead this is a
+    // stable, on-demand getter: ResultsTable calls it only at the moment the
+    // user clicks the compare button, reading the other pane's CURRENT
+    // snapshot via stateRef at call time.
+    const getOtherPaneResults = useCallback((paneId) => {
+        const { leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
+        const otherPane = paneId === 'left' ? 'right' : 'left';
+        const tabs = otherPane === 'left' ? leftTabs : rightTabs;
+        const activeId = otherPane === 'left' ? leftActiveId : rightActiveId;
+        const tab = tabs.find(t => t.id === activeId);
+        if (!tab || !tab.results || !Array.isArray(tab.results.data) || tab.results.data.length === 0) return null;
+        return { data: tab.results.data, label: `${tab.name} (${tab.results.data.length} rows)` };
+    }, []);
+
+    const toggleResultsLinked = useCallback(() => {
+        setResultsLinked(prev => {
+            const next = !prev;
+            if (next) {
+                // Turning ON: adopt the ACTIVE pane's current ratio as the shared
+                // value, so the OTHER pane visibly animates to match it instead of
+                // jumping to some unrelated number.
+                const { activePane, resultsRatios } = stateRef.current;
+                setLinkedResultsRatio(resultsRatios[activePane] ?? 0.35);
+            } else {
+                // Turning OFF: both panes keep exactly the size they had while
+                // linked — nothing should visibly move at the moment of unlinking.
+                const shared = stateRef.current.linkedResultsRatio;
+                setResultsRatios({ left: shared, right: shared });
+            }
+            return next;
+        });
+    }, []);
+
+    // --- Vertical splitter between the two panes ---
+    const isResizingSplitRef = useRef(false);
+    const splitGhostRef = useRef(null);
+
+    const startSplitResize = useCallback((e) => {
+        e.preventDefault();
+        isResizingSplitRef.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        const rect = lmContainerRef.current?.getBoundingClientRect();
+        if (splitGhostRef.current && rect) {
+            splitGhostRef.current.style.display = 'block';
+            splitGhostRef.current.style.left = `${e.clientX - rect.left}px`;
+        }
+    }, []);
+
+    useEffect(() => {
+        const onMove = (e) => {
+            if (!isResizingSplitRef.current) return;
+            const rect = lmContainerRef.current?.getBoundingClientRect();
+            if (splitGhostRef.current && rect) {
+                splitGhostRef.current.style.left = `${e.clientX - rect.left}px`;
+            }
+        };
+        const onUp = (e) => {
+            if (!isResizingSplitRef.current) return;
+            isResizingSplitRef.current = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            if (splitGhostRef.current) splitGhostRef.current.style.display = 'none';
+            const rect = lmContainerRef.current?.getBoundingClientRect();
+            if (!rect || rect.width === 0) return;
+            const ratio = (e.clientX - rect.left) / rect.width;
+            setSplitRatio(Math.min(0.8, Math.max(0.2, ratio)));
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        return () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+    }, []);
+
     return (
         <div
+            ref={lmContainerRef}
             className="lm-container"
             onDragOver={handleGlobalDragOver}
             onDrop={handleGlobalDrop}
@@ -1216,52 +1659,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             )}
 
             <div className="lm-panes">
-                <EditorPane
-                    paneId="left"
-                    isActive={activePane === 'left'}
-                    tabs={leftTabs}
-                    activeTabId={leftActiveId}
-                    onTabClick={handleLeftTabClick}
-                    onTabClose={handleTabClose}
-                    onContentChange={handleContentChange}
-                    onConversationChange={handleConversationChange}
-                    onRunQuery={executeQuery}
-                    onSave={handleSaveActive}
-                    onAnalyze={handleAnalyzeActive}
-                    onDbChange={onDbChange}
-                    theme={theme}
-                    editorLayout={editorLayout}
-                    editorSettings={editorSettings}
-                    variables={queryVariables}
-                    onVariablesChange={setQueryVariables}
-                    onDragStart={handleDragStart}
-                    onReorder={handleReorder}
-                    onFileDrop={handleQueryFile}
-                    onCreateNew={createNew}
-                    onRequestSaveAs={handlePaneRequestSaveAs}
-                    showAiSidebar={showAiSidebar}
-                    onToggleAi={onToggleAi}
-                    onOpenFile={handleQueryFile}
-                    availableTables={availableTables}
-                    onExportNotebook={onExportNotebook}
-                    onExportAmoxvis={onExportAmoxvis}
-                    isRunning={!!runningQueryId}
-                    onCancelQuery={cancelQuery}
-                    onShowHistory={onShowHistorySidebar}
-                    onOpenAmoxvisAsSql={openAmoxvisAsSql}
-                    onPersistUiState={updateTab}
-                />
-
-                {splitEnabled && (
+                <div
+                    className="lm-pane-slot"
+                    style={splitEnabled ? { flex: `0 0 calc((100% - ${SPLITTER_WIDTH}px) * ${splitRatio})` } : { flex: 1 }}
+                >
                     <EditorPane
-                        paneId="right"
-                        isActive={activePane === 'right'}
-                        tabs={rightTabs}
-                        activeTabId={rightActiveId}
-                        onTabClick={handleRightTabClick}
+                        paneId="left"
+                        isActive={activePane === 'left'}
+                        tabs={leftTabs}
+                        activeTabId={leftActiveId}
+                        onTabClick={handleLeftTabClick}
+                        onPaneFocus={handleLeftPaneFocus}
                         onTabClose={handleTabClose}
                         onContentChange={handleContentChange}
-                    onConversationChange={handleConversationChange}
+                        onConversationChange={handleConversationChange}
                         onRunQuery={executeQuery}
                         onSave={handleSaveActive}
                         onAnalyze={handleAnalyzeActive}
@@ -1273,20 +1684,84 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onVariablesChange={setQueryVariables}
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}
-                        onFileDrop={handleQueryFile}
-                        onCreateNew={createNew}
+                        onFileDrop={handleLeftFileDrop}
+                        onCreateNew={handleLeftCreateNew}
                         onRequestSaveAs={handlePaneRequestSaveAs}
                         showAiSidebar={showAiSidebar}
                         onToggleAi={onToggleAi}
-                        onOpenFile={handleQueryFile}
+                        onOpenFile={handleLeftFileDrop}
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
                         onExportAmoxvis={onExportAmoxvis}
                         isRunning={!!runningQueryId}
                         onCancelQuery={cancelQuery}
+                        onShowHistory={onShowHistorySidebar}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}
                         onPersistUiState={updateTab}
+                        resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.left}
+                        onResultsRatioChange={handleLeftResultsRatioChange}
+                        splitEnabled={splitEnabled}
+                        onGetOtherPaneResults={getOtherPaneResults}
                     />
+                </div>
+
+                {splitEnabled && (
+                    <>
+                        {/* Vertical divider between the two panes. The results-link
+                            toggle used to live here but made the gap between panes
+                            read as too wide — it now lives in App.jsx, between the
+                            two tab bars, where it doesn't affect this divider's
+                            width at all. */}
+                        <div
+                            className="lm-splitter"
+                            onMouseDown={startSplitResize}
+                            onDoubleClick={() => setSplitRatio(0.5)}
+                            title="Arrastra para redimensionar · doble clic para 50/50"
+                        />
+                        <div ref={splitGhostRef} className="lm-splitter-ghost" />
+
+                        <div className="lm-pane-slot" style={{ flex: `0 0 calc((100% - ${SPLITTER_WIDTH}px) * ${1 - splitRatio})` }}>
+                            <EditorPane
+                                paneId="right"
+                                isActive={activePane === 'right'}
+                                tabs={rightTabs}
+                                activeTabId={rightActiveId}
+                                onTabClick={handleRightTabClick}
+                                onPaneFocus={handleRightPaneFocus}
+                                onTabClose={handleTabClose}
+                                onContentChange={handleContentChange}
+                                onConversationChange={handleConversationChange}
+                                onRunQuery={executeQuery}
+                                onSave={handleSaveActive}
+                                onAnalyze={handleAnalyzeActive}
+                                onDbChange={onDbChange}
+                                theme={theme}
+                                editorLayout={editorLayout}
+                                editorSettings={editorSettings}
+                                variables={queryVariables}
+                                onVariablesChange={setQueryVariables}
+                                onDragStart={handleDragStart}
+                                onReorder={handleReorder}
+                                onFileDrop={handleRightFileDrop}
+                                onCreateNew={handleRightCreateNew}
+                                onRequestSaveAs={handlePaneRequestSaveAs}
+                                showAiSidebar={showAiSidebar}
+                                onToggleAi={onToggleAi}
+                                onOpenFile={handleRightFileDrop}
+                                availableTables={availableTables}
+                                onExportNotebook={onExportNotebook}
+                                onExportAmoxvis={onExportAmoxvis}
+                                isRunning={!!runningQueryId}
+                                onCancelQuery={cancelQuery}
+                                onOpenAmoxvisAsSql={openAmoxvisAsSql}
+                                onPersistUiState={updateTab}
+                                resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.right}
+                                onResultsRatioChange={handleRightResultsRatioChange}
+                                splitEnabled={splitEnabled}
+                                onGetOtherPaneResults={getOtherPaneResults}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
 
