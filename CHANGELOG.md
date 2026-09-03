@@ -5,6 +5,42 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [4.1.0] — 2026-09-03
+
+### El área de trabajo — pantalla dividida de verdad, resultados que aguantan todo y DuckLake real
+
+Si la 4.0 fue sobre la IA, esta es sobre **dónde trabajas**: el modo de pantalla dividida deja de ser decorativo y se vuelve un espacio real de dos paneles, la tabla de resultados sobrevive a datasets que antes trababan la app, y `.ducklake` por fin abre lo que debe abrir.
+
+#### Pantalla dividida y pestañas
+- **Cada panel es suyo.** Antes, crear un archivo, soltar un CSV o guardar como… en el panel derecho podía terminar afectando al izquierdo: las acciones usaban el "panel activo" en vez del panel donde hiciste el gesto. Ahora cada acción sabe de qué panel viene. También se corrigió que un panel vacío no pudiera recibir el foco, y que arrastrar una pestaña entre paneles la insertara en la posición correcta (incluyendo soltarla en el espacio vacío de la cinta).
+- **Divisor arrastrable.** Puedes redimensionar los dos paneles arrastrando la separación, y la proporción se recuerda entre sesiones. Las cintas de pestañas se ajustan al pixel con sus editores.
+- **Altura de resultados enlazada.** Un botón entre las dos cintas de pestañas enlaza (o desenlaza) la altura del área de resultados de ambos paneles, para compararlos a la misma escala.
+- **Menú contextual de pestañas** (clic derecho): renombrar (o doble clic en el nombre), guardar, guardar como, copiar ruta, revelar en el explorador, mover al otro panel, abrir una copia al lado, y cerrar — las demás, las de la derecha, o todas.
+- **Comparar entre paneles.** Botón "Comparar con el otro panel" en resultados, que toma directamente el resultado del panel de al lado.
+- **Atajos nuevos**: `Ctrl+Shift+\` duplica la pestaña activa al otro panel, `Ctrl+Shift+R` ejecuta ambos paneles a la vez. Documentados junto a `Ctrl+\` (dividir) y `Ctrl+Alt+Enter` (ejecutar sentencia bajo el cursor) en Ajustes.
+- El texto de "Editado / Última ejecución" se oculta solo cuando el panel se angosta, en vez de encimarse con los botones.
+
+#### La tabla de resultados
+- **Resultados MUY anchos ya no traban la app.** Caso real: un Excel de ~350 MB con **2700 columnas** congelaba el editor al abrirlo. El pipeline asumía "muchas filas, pocas columnas" y aquí era al revés (50 filas × 2700 columnas = 135 000 celdas, cada una calculando su tooltip en cada render). Ahora: tamaño de página adaptativo por presupuesto de celdas, tooltips calculados solo al pasar el cursor, ventaneo de columnas (máx. 60 visibles con paginador horizontal), selector de columnas con buscador, y un aviso de "Resultado muy ancho". El export y el portapapeles siguen usando **todas** las columnas — solo cambia lo que se dibuja.
+- **Número de fila** en un gutter a la izquierda, sticky al desplazarse. Configurable en Ajustes → Editor → Results.
+- **Columnas fijables** desde un pin en el encabezado: una columna fijada se estaciona contra el borde por el que iba a salir (izquierda, derecha, o cambiando de lado según el scroll), y varias se apilan sin encimarse.
+- **Peek de celda**: triple clic sobre una celda abre el contenido completo en multilínea, seleccionable y copiable — para textos largos o JSON que la celda trunca.
+- La barra de resultados ahora dice también cuántas columnas: *"1,234 results × 8 columns (12ms)"*.
+
+#### Panel de referencia de funciones DuckDB
+Nuevo panel en la barra lateral (junto a Snippets) para cuando no recuerdas cómo se llama una función o qué parámetros lleva: buscador por nombre y descripción, filtro por categoría, y ficha con **firma completa**, tipo de retorno, descripción y ejemplos, con botones de copiar. Mezcla `duckdb_functions()` del motor con las 95 fichas curadas que viajan en el instalador, así que **funciona sin conexión**. Las funciones de tabla con decenas de parámetros (como `read_csv`) muestran una firma compacta y la lista de parámetros en su propia sección.
+
+#### DuckLake, de verdad
+El soporte previo solo reconocía la extensión en los listados: la conexión nunca usaba el prefijo `ducklake:`, así que abría el `.ducklake` como una base DuckDB normal y te mostraba las tablas de metadatos en vez de las lógicas. Ahora se detecta el formato, se hace `INSTALL`/`LOAD` de la extensión y se attacha con `DATA_PATH` correcto; el catálogo interno (`__ducklake_metadata_*`) queda oculto tanto en el explorador como para la IA; y el historial de queries y la persistencia de conversaciones se saltan en modo lakehouse, para no escribir esquemas de AmoxSQL dentro de tus datos.
+
+#### Correcciones
+- **Imágenes en Markdown**: las rutas relativas (`./assets/foo.png`) no cargaban porque el preview corre en el origen de la app, no en la carpeta del `.md`. Nuevo endpoint que sirve el archivo con su tipo correcto.
+- **Mermaid recortaba las últimas letras** dentro de los nodos: medía el texto con su fuente por defecto y lo dibujaba con la de la app (más ancha), así que la caja quedaba corta.
+- **Pan del diagrama en pantalla completa**: el gesto lo robaba el arrastre nativo de la imagen.
+- **Data Profiler**: los hallazgos fluyen en grid (antes una sola columna larguísima), el scroll ya no salta al inicio al expandir una columna, y los tooltips de las gráficas muestran el porcentaje del total y se leen en tema oscuro.
+
+---
+
 ## [4.0.0] — 2026-07-23
 
 ### La IA local, reinventada — rápida, experta en DuckDB y consciente de tu sesión
