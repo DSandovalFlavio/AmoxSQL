@@ -77,6 +77,35 @@ class ChainExecutor extends EventEmitter {
 
     // --- Path helpers ---
 
+    /**
+     * Fase 6 — picks xAxisKey/yAxisKeys for a Chart/Report node, honoring any
+     * explicit config first. Uses DESCRIBE (cheap — no rows materialized) to
+     * read the query's column names/types, then falls back to the first
+     * column as the axis and the first numeric column as the value — the
+     * same auto-detect heuristic DataVisualizer.jsx already applies client
+     * side when a chart is opened with no axes configured, so a chart the
+     * pipeline writes unattended looks the same as one a person would have
+     * picked by hand on first open.
+     */
+    async resolveChartAxes(dbManager, query, config) {
+        if (config.xAxisKey && config.yAxisKeys) {
+            const yAxisKeys = Array.isArray(config.yAxisKeys)
+                ? config.yAxisKeys
+                : String(config.yAxisKeys).split(',').map(s => s.trim()).filter(Boolean);
+            if (yAxisKeys.length > 0) return { xAxisKey: config.xAxisKey, yAxisKeys };
+        }
+        const cols = await dbManager.query(`DESCRIBE ${query}`);
+        const numericTypeRe = /^(TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|FLOAT|DOUBLE|DECIMAL|REAL)/i;
+        const names = cols.map(c => c.column_name);
+        const numeric = cols.filter(c => numericTypeRe.test(c.column_type || '')).map(c => c.column_name);
+        const xAxisKey = config.xAxisKey || names[0] || '';
+        const fallbackY = numeric.find(n => n !== xAxisKey) || names.find(n => n !== xAxisKey) || names[0] || '';
+        const yAxisKeys = config.yAxisKeys
+            ? (Array.isArray(config.yAxisKeys) ? config.yAxisKeys : String(config.yAxisKeys).split(',').map(s => s.trim()).filter(Boolean))
+            : (fallbackY ? [fallbackY] : []);
+        return { xAxisKey, yAxisKeys };
+    }
+
     resolvePath(projectPath, filePath) {
         if (!filePath) return '';
         // Already absolute
@@ -395,8 +424,10 @@ class ChainExecutor extends EventEmitter {
             return { schema: resultSummary?.schema || null, table: resultSummary?.table || node.config?.tableName || null };
         }
 
-        // Assert and checkpoint are pass-through: forward the upstream output
-        if (node.type === 'assert' || node.type === 'checkpoint') {
+        // Assert, checkpoint, chart and report are pass-through: none of them
+        // create a new table, so downstream nodes should still see whatever
+        // was upstream of them.
+        if (node.type === 'assert' || node.type === 'checkpoint' || node.type === 'chart' || node.type === 'report') {
             if (resultSummary.table) return { table: resultSummary.table };
             return upstreamOutputs[0] || null;
         }
@@ -806,6 +837,10 @@ class ChainExecutor extends EventEmitter {
             case 'checkpoint':
             case 'notification':
                 return null;
+            case 'chart':
+                return `-- chart: writes a .amoxvis file (no table output)`;
+            case 'report':
+                return `-- report: writes a notebook or deck file (no table output)`;
             default:
                 return null;
         }
@@ -1820,6 +1855,101 @@ class ChainExecutor extends EventEmitter {
                 sql = `-- Notification: ${message}`;
                 resultType = 'unknown';
                 resultSummary = { message, type: notifType };
+                break;
+            }
+
+            // Fase 6 — Data Flow cierra el círculo. A pipeline today can only
+            // end in a file, a table, or a checkpoint someone has to go look
+            // at. These two node types let it end in something that IS the
+            // deliverable: a saved chart, or a notebook/deck built around it —
+            // same artifacts Story Flow and Report Flow already produce, just
+            // reachable from a scheduled/re-run pipeline instead of by hand.
+            case 'chart': {
+                if (!config.outputPath) throw new Error('Chart node: output .amoxvis path is required');
+                let query = config.query || '';
+                if (!query && upstreamOutputs.length > 0) query = this.outputToQuery(upstreamOutputs[0]);
+                if (!query) throw new Error('Chart node has no query and no upstream data source connected');
+
+                const { xAxisKey, yAxisKeys } = await this.resolveChartAxes(dbManager, query, config);
+                const outputPath = config.outputPath.endsWith('.amoxvis') ? config.outputPath : `${config.outputPath}.amoxvis`;
+                const fullPath = this.resolvePath(projectPath, outputPath);
+                const outDir = path.dirname(fullPath);
+                if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+                const chartConfig = {
+                    chartType: config.chartType || 'bar',
+                    xAxisKey,
+                    yAxisKeys,
+                    chartTitle: config.chartTitle || '',
+                    query,
+                };
+                fs.writeFileSync(fullPath, JSON.stringify(chartConfig, null, 2), 'utf-8');
+
+                sql = `-- Chart: wrote ${outputPath} from\n${query}`;
+                resultType = 'chart_created';
+                resultSummary = { path: outputPath, chartType: chartConfig.chartType, xAxisKey, yAxisKeys };
+                break;
+            }
+
+            case 'report': {
+                if (!config.outputPath) throw new Error('Report node: output path is required');
+                let query = config.query || '';
+                if (!query && upstreamOutputs.length > 0) query = this.outputToQuery(upstreamOutputs[0]);
+                if (!query) throw new Error('Report node has no query and no upstream data source connected');
+
+                const reportType = config.outputType === 'deck' ? 'deck' : 'notebook';
+                const title = config.title || 'Report';
+
+                if (reportType === 'notebook') {
+                    const outputPath = config.outputPath.endsWith('.sqlnb') ? config.outputPath : `${config.outputPath}.sqlnb`;
+                    const fullPath = this.resolvePath(projectPath, outputPath);
+                    const outDir = path.dirname(fullPath);
+                    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+                    // Same v3.0 cell shape the app's own "create notebook from
+                    // selection" writes — a markdown title cell + one SQL cell.
+                    // No cached result: opening it and hitting Run All is the
+                    // same guided empty state every other fresh notebook has.
+                    const notebook = {
+                        version: '3.0',
+                        cells: [
+                            { id: 'title', type: 'markdown', content: `# ${title}\n\nGenerated by the "${config._nodeLabel || 'Report'}" node in this pipeline.` },
+                            { id: 'query', type: 'code', content: query },
+                        ],
+                        environment: {},
+                    };
+                    fs.writeFileSync(fullPath, JSON.stringify(notebook, null, 2), 'utf-8');
+                    sql = `-- Report (notebook): wrote ${outputPath}`;
+                    resultType = 'report_created';
+                    resultSummary = { path: outputPath, outputType: 'notebook' };
+                } else {
+                    // Deck: materialize a chart .amoxvis alongside the deck (same
+                    // axis auto-resolution as the Chart node above) and reference
+                    // it from a single chart-full slide.
+                    const { xAxisKey, yAxisKeys } = await this.resolveChartAxes(dbManager, query, config);
+                    const deckOutputPath = config.outputPath.endsWith('.amoxdeck') ? config.outputPath : `${config.outputPath}.amoxdeck`;
+                    const deckFullPath = this.resolvePath(projectPath, deckOutputPath);
+                    const deckDir = path.dirname(deckFullPath);
+                    if (!fs.existsSync(deckDir)) fs.mkdirSync(deckDir, { recursive: true });
+
+                    const chartRelPath = deckOutputPath.replace(/\.amoxdeck$/, '.amoxvis').replace(/\\/g, '/');
+                    const chartFullPath = this.resolvePath(projectPath, chartRelPath);
+                    const chartConfig = {
+                        chartType: config.chartType || 'bar',
+                        xAxisKey,
+                        yAxisKeys,
+                        chartTitle: config.chartTitle || title,
+                        query,
+                    };
+                    fs.writeFileSync(chartFullPath, JSON.stringify(chartConfig, null, 2), 'utf-8');
+
+                    const deckMarkdown = `---\ntitle: ${title}\ntheme: dark\naspect: "16:9"\n---\n\n<!-- layout: title -->\n# ${title}\n\n## Generated by pipeline\n\n---\n\n<!-- layout: chart-full -->\n\`\`\`amoxchart\nsrc: ${chartRelPath}\n\`\`\`\n`;
+                    fs.writeFileSync(deckFullPath, deckMarkdown, 'utf-8');
+
+                    sql = `-- Report (deck): wrote ${deckOutputPath} + ${chartRelPath}`;
+                    resultType = 'report_created';
+                    resultSummary = { path: deckOutputPath, outputType: 'deck', chartPath: chartRelPath };
+                }
                 break;
             }
 

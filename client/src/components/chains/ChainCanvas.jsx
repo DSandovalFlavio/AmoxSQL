@@ -47,6 +47,8 @@ import GSheetReadNode from './nodes/GSheetReadNode';
 import AiEnrichNode from './nodes/AiEnrichNode';
 import SchemaValidationNode from './nodes/SchemaValidationNode';
 import NotificationNode from './nodes/NotificationNode';
+import ChartNode from './nodes/ChartNode';
+import ReportNode from './nodes/ReportNode';
 import { NODE_TYPES } from './chainNodeTypes';
 import { hasCycle, generateNodeId, generateEdgeId, resolveThemeColor } from './chainUtils';
 
@@ -83,6 +85,8 @@ const nodeTypes = {
     ai_enrich: AiEnrichNode,
     schema_validation: SchemaValidationNode,
     notification: NotificationNode,
+    chart: ChartNode,
+    report: ReportNode,
 };
 
 const ChainCanvas = ({

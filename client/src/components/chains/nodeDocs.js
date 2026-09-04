@@ -345,6 +345,30 @@ export const NODE_DOCS = {
         examples: ['Export to s3://reports/out.parquet.', 'Partition by year, region for a data lake.'],
         tips: ['When Partition By is set, the path is treated as a directory, not a single file.'],
     },
+    chart: {
+        summary: 'Save the upstream data as a chart (.amoxvis).',
+        whatItDoes: 'Writes a Story Flow chart config referencing the upstream query, so the pipeline itself produces something visual — not just a table someone has to go query. X/Y axes auto-pick from the query\'s columns when left blank.',
+        io: { in: '1 upstream (or a manual query).', out: 'A .amoxvis file; passes the upstream data through unchanged for anything connected after it.' },
+        options: [
+            { name: 'Output Path', desc: 'Where the .amoxvis is written, e.g. charts/sales.amoxvis.' },
+            { name: 'Chart Type / Axes / Title', desc: 'Same fields as Story Flow — leave axes blank to auto-pick.' },
+        ],
+        examples: ['End a cleaning pipeline with a chart of the result instead of a bare table.'],
+        tips: ['Open the resulting .amoxvis in Story Flow any time to refine it by hand — re-running the pipeline overwrites it with the same query, not your manual edits.'],
+    },
+    report: {
+        summary: 'Turn the upstream data into a notebook or a one-slide deck.',
+        whatItDoes: 'Writes either a .sqlnb with one SQL cell, or a .amoxdeck with a title slide and one chart-full slide (which also writes the chart as its own .amoxvis) — so a scheduled pipeline can end in something ready to open and read, not a table someone has to remember to check.',
+        io: { in: '1 upstream (or a manual query).', out: 'A .sqlnb or .amoxdeck file (+ a .amoxvis alongside it in deck mode); passes the upstream data through unchanged.' },
+        options: [
+            { name: 'Output Type', desc: 'notebook (.sqlnb) or deck (.amoxdeck).' },
+            { name: 'Title', desc: 'Heading text — used as the notebook\'s title or the deck\'s title slide.' },
+            { name: 'Chart Type / Axes / Title', desc: 'Deck mode only — same fields as the Chart node.' },
+            { name: 'Output Path', desc: 'Where the file is written.' },
+        ],
+        examples: ['End a weekly pipeline with reports/weekly_sales.amoxdeck instead of a table nobody opens.'],
+        tips: ['Notebook mode writes the query unexecuted — open it and Run All when you want fresh numbers.'],
+    },
 
     // ── Quality & Control ────────────────────────────────────────
     assert: {

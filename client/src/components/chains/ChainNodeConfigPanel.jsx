@@ -246,6 +246,14 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                     <ExportFileConfig config={config} onChange={updateConfig} />
                 )}
 
+                {node.data.nodeType === 'chart' && (
+                    <ChartNodeConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'report' && (
+                    <ReportNodeConfig config={config} onChange={updateConfig} />
+                )}
+
                 {node.data.nodeType === 'checkpoint' && (
                     <CheckpointConfig config={config} onChange={updateConfig} />
                 )}
@@ -788,6 +796,131 @@ const ExportFileConfig = ({ config, onChange }) => {
                         Comma-separated columns. When set, the output path is treated as a directory of partitioned files (e.g. <code>year=2025/…</code>).
                     </p>
                 </>
+            )}
+        </div>
+    );
+};
+
+// Shared by ChartNodeConfig and ReportNodeConfig (deck mode) — chart type +
+// axis fields. Left blank, xAxisKey/yAxisKeys auto-resolve server-side from
+// the query's columns (first column as X, first numeric column as Y) — the
+// same heuristic DataVisualizer.jsx uses client-side, so a chart the
+// pipeline writes unattended looks like one a person would have picked.
+const ChartAxisFields = ({ config, onChange }) => (
+    <>
+        <label>Chart Type</label>
+        <select
+            value={config.chartType || 'bar'}
+            onChange={(e) => onChange('chartType', e.target.value)}
+            className="chain-config-select"
+        >
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+            <option value="area">Area</option>
+            <option value="pie">Pie</option>
+            <option value="donut">Donut</option>
+        </select>
+        <label>X Axis <span className="chain-config-optional">(optional — auto-picked)</span></label>
+        <input
+            type="text"
+            value={config.xAxisKey || ''}
+            onChange={(e) => onChange('xAxisKey', e.target.value)}
+            placeholder="column name"
+            className="chain-config-input"
+        />
+        <label>Y Axis <span className="chain-config-optional">(optional — auto-picked)</span></label>
+        <input
+            type="text"
+            value={config.yAxisKeys || ''}
+            onChange={(e) => onChange('yAxisKeys', e.target.value)}
+            placeholder="column name(s), comma-separated"
+            className="chain-config-input"
+        />
+        <label>Chart Title <span className="chain-config-optional">(optional)</span></label>
+        <input
+            type="text"
+            value={config.chartTitle || ''}
+            onChange={(e) => onChange('chartTitle', e.target.value)}
+            placeholder="Sales by region"
+            className="chain-config-input"
+        />
+    </>
+);
+
+const ChartNodeConfig = ({ config, onChange }) => (
+    <div className="chain-config-section">
+        <label>SQL Query <span className="chain-config-optional">(optional — auto-resolved from upstream)</span></label>
+        <textarea
+            value={config.query || ''}
+            onChange={(e) => onChange('query', e.target.value)}
+            placeholder="SELECT region, SUM(sales) FROM clean_sales GROUP BY region"
+            className="chain-config-textarea chain-config-sql"
+            rows={3}
+        />
+        {!config.query && (
+            <p className="chain-config-hint chain-config-hint-info">
+                <LuLightbulb size={12} />{' '}Leave empty to chart the connected upstream node's output.
+            </p>
+        )}
+        <ChartAxisFields config={config} onChange={onChange} />
+        <label>Output Path (.amoxvis)</label>
+        <input
+            type="text"
+            value={config.outputPath || ''}
+            onChange={(e) => onChange('outputPath', e.target.value)}
+            placeholder="charts/sales_by_region.amoxvis"
+            className="chain-config-input"
+        />
+    </div>
+);
+
+const ReportNodeConfig = ({ config, onChange }) => {
+    const outputType = config.outputType === 'deck' ? 'deck' : 'notebook';
+    return (
+        <div className="chain-config-section">
+            <label>SQL Query <span className="chain-config-optional">(optional — auto-resolved from upstream)</span></label>
+            <textarea
+                value={config.query || ''}
+                onChange={(e) => onChange('query', e.target.value)}
+                placeholder="SELECT region, SUM(sales) FROM clean_sales GROUP BY region"
+                className="chain-config-textarea chain-config-sql"
+                rows={3}
+            />
+            {!config.query && (
+                <p className="chain-config-hint chain-config-hint-info">
+                    <LuLightbulb size={12} />{' '}Leave empty to report on the connected upstream node's output.
+                </p>
+            )}
+            <label>Output Type</label>
+            <select
+                value={outputType}
+                onChange={(e) => onChange('outputType', e.target.value)}
+                className="chain-config-select"
+            >
+                <option value="notebook">Notebook (.sqlnb) — one SQL cell</option>
+                <option value="deck">Deck (.amoxdeck) — one chart slide</option>
+            </select>
+            <label>Title</label>
+            <input
+                type="text"
+                value={config.title || ''}
+                onChange={(e) => onChange('title', e.target.value)}
+                placeholder="Weekly Sales Report"
+                className="chain-config-input"
+            />
+            {outputType === 'deck' && <ChartAxisFields config={config} onChange={onChange} />}
+            <label>Output Path {outputType === 'deck' ? '(.amoxdeck)' : '(.sqlnb)'}</label>
+            <input
+                type="text"
+                value={config.outputPath || ''}
+                onChange={(e) => onChange('outputPath', e.target.value)}
+                placeholder={outputType === 'deck' ? 'reports/weekly_sales.amoxdeck' : 'reports/weekly_sales.sqlnb'}
+                className="chain-config-input"
+            />
+            {outputType === 'deck' && (
+                <p className="chain-config-hint">
+                    Also writes the chart it references as a standalone .amoxvis next to the deck.
+                </p>
             )}
         </div>
     );
@@ -1784,6 +1917,17 @@ const generateSqlPreview = (nodeType, config) => {
             if (at === 'unique') return `-- Assertion: unique values\nSELECT COUNT(*) - COUNT(DISTINCT "${c.column || '?'}")\nFROM "${tbl}"\n-- Fails if result > 0`;
             if (at === 'custom_query') return c.query || null;
             return null;
+        }
+        case 'chart': {
+            const q = c.query || 'SELECT * FROM <upstream_table>';
+            const out = c.outputPath || '<output>.amoxvis';
+            return `-- Writes ${out} (chart config JSON, not a table)\n${q}`;
+        }
+        case 'report': {
+            const q = c.query || 'SELECT * FROM <upstream_table>';
+            const out = c.outputPath || (c.outputType === 'deck' ? '<output>.amoxdeck' : '<output>.sqlnb');
+            const kind = c.outputType === 'deck' ? 'deck + its chart' : 'notebook';
+            return `-- Writes ${out} (${kind}, not a table)\n${q}`;
         }
         default:
             return null;

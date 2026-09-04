@@ -48,6 +48,8 @@ TRANSFORM (single upstream unless noted)
 OUTPUT
 - create_table     config: { tableName, query? }
 - export_file      config: { outputPath (local path OR s3://… / gs://…), format: csv|parquet|xlsx|json, partitionBy?: [string], query? }   // query optional; partitionBy writes a partitioned directory
+- chart            config: { outputPath (.amoxvis), chartType: bar|line|area|pie|donut, xAxisKey?, yAxisKeys?, chartTitle?, query? }   // axes optional — auto-picked from the query's columns
+- report           config: { outputPath (.sqlnb or .amoxdeck), outputType: notebook|deck, title?, chartType?, xAxisKey?, yAxisKeys?, chartTitle?, query? }   // deck mode also writes a .amoxvis next to it; chart fields only apply in deck mode
 CONTROL
 - assert            config: { assertType: not_empty|row_count_gt|no_nulls|unique|custom_query, column?, threshold?, query? }
 - schema_validation config: { expectedColumns: [{ name, type }], strict }
@@ -59,7 +61,7 @@ const NODE_TYPES = [
     'import_file', 'import_folder', 'http_fetch', 'bucket_read', 'gsheet_read', 'table_ref', 'sql_inline', 'sql_file',
     'filter', 'select_columns', 'add_column', 'group_aggregate', 'join_tables', 'merge_tables',
     'sort', 'deduplicate', 'type_cast', 'window_functions', 'pivot', 'unpivot', 'clean', 'date_ops', 'flatten', 'ai_enrich',
-    'sample', 'rename_table', 'create_table', 'export_file', 'assert', 'schema_validation',
+    'sample', 'rename_table', 'create_table', 'export_file', 'chart', 'report', 'assert', 'schema_validation',
     'checkpoint', 'notification',
 ];
 

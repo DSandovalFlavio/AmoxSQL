@@ -46,6 +46,22 @@ export function validateNode(node, edges = []) {
             break;
         }
 
+        case 'chart': {
+            if (!config.outputPath?.trim()) errors.push('Output .amoxvis path is required');
+            if (!config.query?.trim() && !hasUpstream) {
+                errors.push('No upstream node connected and no manual query — nothing to chart');
+            }
+            break;
+        }
+
+        case 'report': {
+            if (!config.outputPath?.trim()) errors.push('Output path is required');
+            if (!config.query?.trim() && !hasUpstream) {
+                errors.push('No upstream node connected and no manual query — nothing to report on');
+            }
+            break;
+        }
+
         case 'sql_file': {
             if (!config.filePath?.trim()) errors.push('SQL file path is required — select or create a .sql file');
             break;

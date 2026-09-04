@@ -1,6 +1,6 @@
 # Auditoría de continuidad entre formatos — AmoxSQL
 
-> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1, Fase 2 (parcial), Fase 3, Fase 4 (4/5) y Fase 5 implementadas** (2026-09-03/04, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fase 6 sin empezar.
+> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Las 6 fases del plan implementadas** (2026-09-03/04, rama `claude/continuidad-formatos`) — Fase 1 completa, Fase 2 parcial (3/5), Fase 3 completa, Fase 4 parcial (4/5), Fase 5 completa, Fase 6 completa. Ver registro de cada una al final del documento.
 > **Pregunta que la origina**: cuando un análisis avanza de una query a un gráfico, a un notebook, a una presentación — ¿qué pasa con los archivos que quedan atrás? ¿El usuario sabe cuál es "el bueno"? ¿Los saltos entre formatos son fluidos o hay que rehacer trabajo?
 
 ---
@@ -460,3 +460,32 @@ El plan original pedía "tabla" y "cita destacada" como elementos nuevos del sli
   5. Export PowerPoint sobre ese mismo deck (con imagen + notas + un chart-placeholder que apunta a un archivo inexistente, heredado de la plantilla de partida): completa sin colgarse; el chart roto cae al mensaje de error por-slide ya existente, sin tumbar el resto del export.
   6. Tabla GFM y blockquote insertados a mano en el prose de un slide → ambos renderizan correctamente en Design view sin cambio de código.
 - **Sin verificar directamente**: el contenido real del `.pptx` descargado (no hay acceso al sistema de archivos de descargas de este navegador de pruebas) — se verificó que `slide.addNotes()` se invoca con el texto correcto cuando hay notas, y que el export completa sin error; no se abrió el archivo resultante en PowerPoint.
+
+---
+
+## 13. Registro de implementación — Fase 6 (última fase)
+
+**Implementada 2026-09-04**, rama `claude/continuidad-formatos`. Los dos puntos del plan original, completos.
+
+### Qué se construyó
+
+Toda la ejecución de un pipeline vive en el servidor (`server/ChainExecutor.js`) — el cliente solo dibuja el DAG y dispara `POST /api/chains/run`. Cada tipo de nodo genera SQL de verdad, ejecutado directo contra DuckDB (`export_file` es literalmente un `COPY (query) TO ...`). Un nodo Chart no encaja en ese modelo — no hay un `COPY` que escriba un `.amoxvis` — así que ambos nodos nuevos entran en la rama de nodos con efectos secundarios propios (junto a `notification`/`checkpoint`), no en la de generación de SQL.
+
+**Nodo Chart.** Toma la query (propia o auto-resuelta del nodo aguas arriba, mismo patrón que `export_file`/`create_table`), decide `xAxisKey`/`yAxisKeys` si no se configuraron a mano, y escribe un `.amoxvis` de verdad. Para decidir los ejes sin materializar el resultado completo, usa `DESCRIBE <query>` de DuckDB (barato, sin filas) y aplica la misma heurística que ya usa `DataVisualizer.jsx` en el cliente: primera columna como X, primera columna numérica como Y — así un gráfico que el pipeline escribe sin que nadie lo mire se ve igual que uno que alguien habría armado a mano al abrirlo por primera vez.
+
+**Nodo Report.** Reutiliza esa misma resolución de ejes. En modo **Notebook**, escribe un `.sqlnb` v3.0 con una celda de texto (título) y una celda SQL (la query) — sin resultado cacheado, el mismo estado inicial guiado que ya tiene cualquier notebook nuevo: se abre y se corre. En modo **Deck**, materializa el gráfico como un `.amoxvis` propio junto al deck y escribe un `.amoxdeck` de dos slides (portada + `chart-full`) referenciándolo — construido a mano con template strings en el servidor (el parser/serializador del deck vive en el cliente; no vale la pena importarlo al runtime del servidor para dos slides fijos).
+
+**Cierra el círculo real**: ambos nodos son pass-through (`extractOutputRef` los trata igual que `assert`/`checkpoint` — no crean tabla nueva, lo que sigue aguas abajo ve exactamente lo mismo que tenía antes), así que un pipeline puede seguir transformando datos DESPUÉS de un Chart/Report, o terminar ahí mismo.
+
+**Integración completa, no solo el motor**: registro en `chainNodeTypes.js` (categoría Output, junto a Create Table/Export File), tarjetas de nodo (`ChartNode.jsx`/`ReportNode.jsx`, mismo patrón resumen-de-una-línea que `ExportFileNode.jsx`), panel de configuración con los mismos campos, reglas de validación (`chainValidation.js`), fichas de ayuda (`nodeDocs.js`), vista previa de "SQL" en el panel, y el contrato que el generador de cadenas por IA usa para no inventar tipos de nodo (`server/ai/chainGenerator.js`) — para que la IA también pueda proponer terminar un pipeline en un gráfico o un reporte cuando el usuario se lo pida en lenguaje natural.
+
+### Validación
+
+- `node -c server/ChainExecutor.js` y `pnpm run client:build` limpios.
+- Probado en vivo, de punta a punta, con un pipeline real: **Import File (ventas.csv) → Chart** y **Import File → Report**, conectados y ejecutados con `Run All` contra el motor DuckDB real (no mockeado).
+  1. Primer intento falló en validación — el `.sqlchain` no estaba guardado (`chainFile` nulo, columna `NOT NULL` en la tabla de runs) — corregido guardando el chain antes de correr; queda documentado porque es una restricción real del motor de ejecución, no un bug introducido aquí.
+  2. `Run All` completó los 3 nodos con marca verde. Confirmado en disco: `charts/ventas_by_region.amoxvis` con `xAxisKey: "region"`, `yAxisKeys: ["ventas"]` — **auto-resueltos correctamente** sin configurar nada a mano — y `query: "SELECT * FROM \"ventas_data\""` (la tabla real que dejó el Import File).
+  3. Nodo Report en modo **deck**: confirmado `reports/ventas_report.amoxdeck` (front-matter + slide de portada + slide `chart-full`) y `reports/ventas_report.amoxvis` junto a él, con `chartTitle` heredado del título del nodo.
+  4. Reconfigurado el mismo nodo Report a modo **notebook** y vuelto a correr: `reports/ventas_notebook.sqlnb` con la celda de texto y la celda SQL correctas, JSON v3.0 válido.
+  5. **Abiertos ambos artefactos en la app real** (no solo inspeccionados como texto): el `.amoxvis` abre en Story Flow y renderiza el bar chart real con los 4 valores correctos; el `.amoxdeck` abre en el Studio, muestra "2 slides", el título "Ventas Report", y el slide 2 renderiza el mismo gráfico — incluyendo el panel de notas del orador de la Fase 5 funcionando sin fricción sobre un deck que el propio pipeline escribió.
+- **Nota de metodología, no de producto**: la mitad del tiempo de esta validación se fue en un error propio de mis scripts de prueba (`label.parentElement.querySelector('input')` devolvía el PRIMER input de toda la sección de config, no el que sigue a esa etiqueta específica, porque todos los campos son hermanos bajo un mismo contenedor) — varios valores terminaron escritos en el campo vecino equivocado antes de corregir el script a `label.nextElementSibling`. No es un bug de la UI real (un usuario con mouse nunca tropieza con esto); quedó documentado para no repetir la misma confusión en una futura sesión de pruebas contra este panel.
