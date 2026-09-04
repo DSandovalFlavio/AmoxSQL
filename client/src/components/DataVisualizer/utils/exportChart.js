@@ -206,13 +206,17 @@ export const copyChartToClipboard = async (element) => {
 
 /**
  * Save chart configuration as .amoxvis file via API.
+ * @param {string} [source] - Path to the .sql file this query came from, if
+ *   any (Fase 3 — procedencia). Purely additive metadata: a chart without it
+ *   behaves exactly as before — self-contained, query embedded, no link back.
  */
-export const saveChartConfig = async (filename, config, query = '') => {
+export const saveChartConfig = async (filename, config, query = '', source = null) => {
     if (!filename.endsWith('.amoxvis')) {
         filename += '.amoxvis';
     }
 
     const payload = { ...config, query };
+    if (source) payload.source = source;
 
     try {
         const response = await fetch(`${API_BASE}/api/file`, {

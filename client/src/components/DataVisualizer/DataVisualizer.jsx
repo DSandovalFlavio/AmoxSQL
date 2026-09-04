@@ -56,7 +56,7 @@ const TABS = [
 ];
 
 // ─── Component ───────────────────────────────────────────────
-const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialChartConfig = null, onConfigChange = null, isActive = true }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true }) => {
     // ── State ──
     const {
         state, setField, setFields, loadConfig, resetConfig,
@@ -286,10 +286,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
     }, [processedData, state.chartTitle]);
 
     const performSaveConfig = useCallback(async (filename) => {
-        const result = await saveChartConfig(filename, getConfigForSave(), query);
+        // sourcePath links the new .amoxvis back to the .sql file this query
+        // came from (Fase 3 — procedencia), so editing the query later can
+        // go to that file instead of a copy embedded in the chart. Only set
+        // for charts built from a saved .sql tab — an ad-hoc/notebook query
+        // has no such file to point at.
+        const result = await saveChartConfig(filename, getConfigForSave(), query, sourcePath);
         if (result.success) setIsSaveModalOpen(false);
         return result;
-    }, [getConfigForSave, query]);
+    }, [getConfigForSave, query, sourcePath]);
 
     const handleGenerateStory = useCallback(async () => {
         if (!data || data.length === 0 || !state.xAxisKey || !state.yAxisKeys?.[0]) return null;

@@ -3536,6 +3536,38 @@ app.get('/api/files/find-by-extension', (req, res) => {
     }
 });
 
+/**
+ * GET /api/charts/using-source?path=queries/ventas.sql
+ * Fase 3 — procedencia, the reverse lookup: which .amoxvis charts link back
+ * to this .sql file (their `source` field). Scans project-relative here
+ * (server-side, one directory walk + N small JSON reads) rather than having
+ * the client fetch every .amoxvis and check client-side.
+ */
+app.get('/api/charts/using-source', (req, res) => {
+    const sourcePath = req.query.path;
+    if (!sourcePath) return res.status(400).json({ error: 'path is required' });
+    const normalized = sourcePath.replace(/\\/g, '/');
+
+    try {
+        const amoxvisFiles = findFilesByExtension(ROOT_DIR, '.amoxvis');
+        const matches = [];
+        for (const f of amoxvisFiles) {
+            try {
+                const fullPath = path.join(ROOT_DIR, f.path);
+                const config = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                if ((config.source || '').replace(/\\/g, '/') === normalized) {
+                    matches.push({ name: f.name, path: f.path });
+                }
+            } catch {
+                // Skip unreadable/malformed .amoxvis — not this endpoint's job to report that.
+            }
+        }
+        res.json(matches);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // applyRowLimit lives in ./_sqlUtils (shared with ai/tools.js execute_sql).
 
 app.post('/api/query', async (req, res) => {

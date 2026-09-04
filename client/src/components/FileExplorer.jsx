@@ -72,6 +72,12 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     const [previewFilePath, setPreviewFilePath] = useState(null);
     const [aiContextFile, setAiContextFile] = useState(null); // { path, name } for Export for AI
     const [exportSqlQuery, setExportSqlQuery] = useState(null); // string SQL for "Export results…" on a .sql file
+    const [linkedChartsLoading, setLinkedChartsLoading] = useState(false);
+    // Fase 3 — procedencia, reverse lookup: { x, y, charts: [{name, path}] }
+    // popover listing the .amoxvis files linked to a .sql file, opened from
+    // its context menu when there's more than one (a single match opens
+    // directly, no popover needed).
+    const [linkedChartsMenu, setLinkedChartsMenu] = useState(null);
     const [exportSqlLoading, setExportSqlLoading] = useState(false);
 
     // Column Copy Loading State
@@ -115,8 +121,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     }, [refreshTrigger]);
 
     useEffect(() => {
-        // Close context menu on click outside
-        const handleClick = () => setContextMenu(null);
+        // Close context menu (and the linked-charts popover) on click outside
+        const handleClick = () => { setContextMenu(null); setLinkedChartsMenu(null); };
         window.addEventListener('click', handleClick);
         return () => window.removeEventListener('click', handleClick);
     }, []);
@@ -964,6 +970,36 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             {exportSqlLoading ? <LuLoader size={14} className="spin" /> : <LuFileSpreadsheet size={14} />} Export results...
                         </div>
                     )}
+                    {/* .sql — Fase 3 reverse lookup: which charts point back at this query */}
+                    {contextMenu.file.name.match(/\.sql$/i) && (
+                        <div
+                            onClick={async (e) => {
+                                if (linkedChartsLoading) return;
+                                const filePath = contextMenu.file.path;
+                                const anchor = { x: contextMenu.x, y: contextMenu.y };
+                                setContextMenu(null);
+                                setLinkedChartsLoading(true);
+                                try {
+                                    const res = await fetch(`${API_BASE}/api/charts/using-source?path=${encodeURIComponent(filePath)}`);
+                                    const charts = await res.json();
+                                    if (!Array.isArray(charts) || charts.length === 0) {
+                                        setAlertData({ isOpen: true, message: 'No charts are linked to this query yet.', title: 'Charts using this query', type: 'info' });
+                                    } else if (charts.length === 1) {
+                                        onEditChart && onEditChart(charts[0].path);
+                                    } else {
+                                        setLinkedChartsMenu({ ...anchor, charts });
+                                    }
+                                } catch (err) {
+                                    setAlertData({ isOpen: true, message: 'Failed to look up linked charts: ' + err.message, title: 'Error', type: 'error' });
+                                } finally {
+                                    setLinkedChartsLoading(false);
+                                }
+                            }}
+                            className="context-menu-item"
+                        >
+                            {linkedChartsLoading ? <LuLoader size={14} className="spin" /> : <LuChartBar size={14} />} Charts using this query...
+                        </div>
+                    )}
                     {contextMenu.file.isDirectory && (
                         <div onClick={() => onImportFile(contextMenu.file.path, true)} className="context-menu-item">
                             <LuDatabase size={14} /> Import Folder to Database...
@@ -1035,6 +1071,31 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.name); setContextMenu(null); }} className="context-menu-item">
                         <LuType size={14} /> Copy Name
                     </div>
+                </div>
+            )}
+
+            {/* Fase 3 — procedencia, reverse lookup popover: which charts are
+                linked to the .sql file just right-clicked. Only shown when
+                there's more than one match (a single match opens directly). */}
+            {linkedChartsMenu && (
+                <div style={{
+                    position: 'fixed', top: linkedChartsMenu.y, left: linkedChartsMenu.x, zIndex: 1000,
+                    minWidth: '220px', maxWidth: '320px',
+                    backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
+                    borderRadius: '6px', boxShadow: 'var(--shadow-md)', padding: '4px', fontSize: '13px',
+                }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ padding: '4px 8px', color: 'var(--text-tertiary)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' }}>
+                        {linkedChartsMenu.charts.length} charts use this query
+                    </div>
+                    {linkedChartsMenu.charts.map((c) => (
+                        <div
+                            key={c.path}
+                            onClick={() => { onEditChart && onEditChart(c.path); setLinkedChartsMenu(null); }}
+                            className="context-menu-item"
+                        >
+                            <LuChartBar size={14} /> {c.name}
+                        </div>
+                    ))}
                 </div>
             )}
 

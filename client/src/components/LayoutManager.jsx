@@ -837,67 +837,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 paneId: targetPane,
             };
         },
-        openFile: async (path, content, type, options = {}) => {
-            const pane = activePane === 'left' ? leftTabs : rightTabs;
-            const existing = pane.find(t => t.path === path);
-
-            if (existing) {
-                if (activePane === 'left') setLeftActiveId(existing.id);
-                else setRightActiveId(existing.id);
-            } else {
-                // Check for an unsaved draft and offer recovery
-                const draft = getDraft(path);
-                let finalContent = content;
-                if (draft && draft.content !== content) {
-                    const fileName = path.split(/[/\\]/).pop();
-                    toast.info(
-                        `Unsaved draft found for ${fileName}`,
-                        {
-                            action: {
-                                label: 'Recover',
-                                onClick: () => {
-                                    // Update content in the tab after it's created
-                                    const allTabs = [...leftTabs, ...rightTabs];
-                                    const t = allTabs.find(tb => tb.path === path);
-                                    if (t) {
-                                        const p = leftTabs.find(tb => tb.id === t.id) ? 'left' : 'right';
-                                        updateTab(p, t.id, { content: draft.content, dirty: true });
-                                    }
-                                    clearDraft(path);
-                                }
-                            }
-                        }
-                    );
-                }
-                let initialChartConfig = null;
-                if (type === 'amoxvis' || path.endsWith('.amoxvis')) {
-                    try {
-                        initialChartConfig = JSON.parse(finalContent);
-                    } catch (e) {
-                        console.warn('Failed to parse amoxvis content:', e);
-                    }
-                }
-
-                const newTab = {
-                    id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-                    path: path,
-                    name: path.split(/[/\\]/).pop(),
-                    type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : path.endsWith('.amoxvis') ? 'amoxvis' : 'sql'),
-                    content: finalContent,
-                    results: null,
-                    dirty: false,
-                    readOnly: options.readOnly || false,
-                    initialChartConfig: initialChartConfig,
-                };
-                if (activePane === 'left') {
-                    setLeftTabs(prev => [...prev, newTab]);
-                    setLeftActiveId(newTab.id);
-                } else {
-                    setRightTabs(prev => [...prev, newTab]);
-                    setRightActiveId(newTab.id);
-                }
-            }
-        },
+        openFile,
         createNew,
         // Open a Deep Dive conversation in a tab: focus an existing tab bound to
         // this conversation if one is open, otherwise create a new one. A null
@@ -1085,6 +1025,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 if (data.error) throw new Error(data.error);
 
                 const config = JSON.parse(data.content);
+
+                // Fase 3 — procedencia: same routing as opening the chart tab
+                // and hitting "Edit SQL" — a linked chart opens its actual
+                // source file, not a copy bound to the .amoxvis.
+                if (config.source) {
+                    const sourceRes = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(config.source)}`);
+                    const sourceData = await sourceRes.json();
+                    if (!sourceData.error) {
+                        await openFile(config.source, sourceData.content, 'sql', {}, activePane);
+                        return;
+                    }
+                    // Source unreadable (moved/deleted) — fall through to the embedded-copy behavior.
+                }
+
                 const query = config.query || 'SELECT * FROM ... LIMIT 100;';
 
                 const newTab = {
@@ -1181,10 +1135,105 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     }));
 
     // Standalone helper: open an amoxvis tab in SQL editor mode
-    const openAmoxvisAsSql = useCallback((tab) => {
-        const config = tab.chartConfig || tab.initialChartConfig || {};
-        const query = config.query || 'SELECT * FROM ... LIMIT 100;';
+    // Standalone (not inline in useImperativeHandle) so other standalone
+    // functions in this component — e.g. openAmoxvisAsSql's source-file
+    // routing — can call it directly. An arrow-function PROPERTY inside the
+    // object returned by useImperativeHandle is only reachable externally as
+    // ref.current.openFile(...); a sibling in this file can't call it by
+    // bare name (see duplicateTabToOtherPane's history for the same fix).
+    const openFile = useCallback(async (path, content, type, options = {}, targetPane) => {
+        const { activePane: currentActivePane, leftTabs, rightTabs, toast } = stateRef.current;
+        const activePane = targetPane || currentActivePane;
+        const pane = activePane === 'left' ? leftTabs : rightTabs;
+        const existing = pane.find(t => t.path === path);
 
+        if (existing) {
+            if (activePane === 'left') setLeftActiveId(existing.id);
+            else setRightActiveId(existing.id);
+        } else {
+            // Check for an unsaved draft and offer recovery
+            const draft = getDraft(path);
+            let finalContent = content;
+            if (draft && draft.content !== content) {
+                const fileName = path.split(/[/\\]/).pop();
+                toast.info(
+                    `Unsaved draft found for ${fileName}`,
+                    {
+                        action: {
+                            label: 'Recover',
+                            onClick: () => {
+                                // Update content in the tab after it's created
+                                const allTabs = [...stateRef.current.leftTabs, ...stateRef.current.rightTabs];
+                                const t = allTabs.find(tb => tb.path === path);
+                                if (t) {
+                                    const p = stateRef.current.leftTabs.find(tb => tb.id === t.id) ? 'left' : 'right';
+                                    updateTab(p, t.id, { content: draft.content, dirty: true });
+                                }
+                                clearDraft(path);
+                            }
+                        }
+                    }
+                );
+            }
+            let initialChartConfig = null;
+            if (type === 'amoxvis' || path.endsWith('.amoxvis')) {
+                try {
+                    initialChartConfig = JSON.parse(finalContent);
+                } catch (e) {
+                    console.warn('Failed to parse amoxvis content:', e);
+                }
+            }
+
+            const newTab = {
+                id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+                path: path,
+                name: path.split(/[/\\]/).pop(),
+                type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : path.endsWith('.amoxvis') ? 'amoxvis' : 'sql'),
+                content: finalContent,
+                results: null,
+                dirty: false,
+                readOnly: options.readOnly || false,
+                initialChartConfig: initialChartConfig,
+            };
+            if (activePane === 'left') {
+                setLeftTabs(prev => [...prev, newTab]);
+                setLeftActiveId(newTab.id);
+            } else {
+                setRightTabs(prev => [...prev, newTab]);
+                setRightActiveId(newTab.id);
+            }
+        }
+    }, [updateTab]);
+
+    const openAmoxvisAsSql = useCallback(async (tab) => {
+        const config = tab.chartConfig || tab.initialChartConfig || {};
+        // The "Edit with SQL" button lives inside the amoxvis tab itself — the
+        // opened tab must land in the SAME pane, not whichever pane happens to
+        // be active (they can differ once split panes are independently
+        // clickable, see the empty-pane focus fix below).
+        const pane = findTabPane(tab.id) || stateRef.current.activePane;
+
+        // Fase 3 — procedencia: when this chart is linked to a source .sql
+        // file, "Edit SQL" opens THAT file directly, so edits land on the
+        // file the query actually came from instead of a copy embedded in
+        // the .amoxvis. Without a link (older charts, or ones built from an
+        // ad-hoc query with no saved source), fall back to the original
+        // behavior — a synthetic tab bound to the .amoxvis itself, saving
+        // back into its embedded query.
+        if (config.source) {
+            try {
+                const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(config.source)}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                await openFile(config.source, data.content, 'sql', {}, pane);
+                return;
+            } catch (err) {
+                stateRef.current.toast.error(`Could not open source file: ${err.message}`);
+                // Fall through to the embedded-copy behavior below.
+            }
+        }
+
+        const query = config.query || 'SELECT * FROM ... LIMIT 100;';
         const newTab = {
             id: Date.now().toString(),
             path: tab.path,
@@ -1196,11 +1245,6 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             initialChartConfig: config
         };
 
-        // The "Edit with SQL" button lives inside the amoxvis tab itself — the
-        // new SQL tab must land in the SAME pane, not whichever pane happens
-        // to be active (they can differ once split panes are independently
-        // clickable, see the empty-pane focus fix below).
-        const pane = findTabPane(tab.id) || stateRef.current.activePane;
         if (pane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
             setLeftActiveId(newTab.id);
@@ -1210,7 +1254,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
 
         executeQuery(newTab.id, query);
-    }, [executeQuery, findTabPane]);
+    }, [executeQuery, findTabPane, openFile]);
 
     // --- handleQueryFile: Standalone function for DnD + imperative handle ---
     // `targetPane` lets a caller that knows exactly where the drop happened

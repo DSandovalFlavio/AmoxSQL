@@ -397,6 +397,7 @@ const EditorPane = ({
                             types={activeTab.results.types}
                             executionTime={activeTab.results.executionTime}
                             query={activeTab.resultsQuery || activeTab.content}
+                            sourcePath={activeTab.type === 'sql' ? activeTab.path : null}
                             currentEditorQuery={getCurrentEditorQuery}
                             onDbChange={onDbChange}
                             initialChartConfig={activeTab.initialChartConfig}

@@ -1,6 +1,6 @@
 # Auditoría de continuidad entre formatos — AmoxSQL
 
-> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1 y Fase 2 (parcial) implementadas** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 3-6 sin empezar.
+> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1, Fase 2 (parcial) y Fase 3 implementadas** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 4-6 sin empezar.
 > **Pregunta que la origina**: cuando un análisis avanza de una query a un gráfico, a un notebook, a una presentación — ¿qué pasa con los archivos que quedan atrás? ¿El usuario sabe cuál es "el bueno"? ¿Los saltos entre formatos son fluidos o hay que rehacer trabajo?
 
 ---
@@ -352,3 +352,39 @@ El plan original (sección 6) asumía una carpeta `reports/` para los documentos
   - Gráfico de barras → PowerPoint: completa; único warning es de pptxgenjs por color de serie no fijado (`chartColors: []`) — el mismo warning que ya produce el export del deck con la misma configuración, no es una regresión.
   - Notebook (celda de texto + celda SQL sin gráfico, modo tabla) → PowerPoint: completa correctamente (confirmado por estado del DOM, no solo por lectura visual — una primera lectura de pantalla capturada a mitad del export, que toma unos segundos en dev por cargar los chunks de pptxgenjs sin bundlear, se leyó erróneamente como "colgado").
 - **Sin probar**: notebook con una celda mostrando gráfico (rama nativa vs. imagen dentro del propio notebook) — se validó la lógica de esa rama por separado en el gráfico suelto de Story Flow (mismo `officeChartMapper`), pero no la combinación completa dentro de una celda de notebook.
+
+---
+
+## 10. Registro de implementación — Fase 3
+
+**Implementada 2026-09-03**, rama `claude/continuidad-formatos`. Los cuatro puntos del plan original, completos.
+
+### Qué se construyó
+
+**El campo `source`.** Al guardar un gráfico como `.amoxvis` desde una pestaña `.sql` guardada, el `.amoxvis` gana un campo `source` con la ruta de ese archivo — además de la query embebida, que se mantiene exactamente igual que antes (compatibilidad total hacia atrás: un `.amoxvis` sin `source` se comporta como siempre). El hilo va `EditorPane` (conoce la ruta de la pestaña activa) → `ResultsTable` → `DataVisualizer` → `saveChartConfig`. Un gráfico creado desde un notebook o una query ad-hoc sin guardar simplemente no lleva `source` — no hay archivo real al que apuntar.
+
+**Detección de desincronía.** Al abrir un `.amoxvis` con `source`, se compara una vez (al montar, no en vivo/con sondeo) el contenido actual del archivo fuente contra la query con la que se guardó el gráfico. Si difieren, aparece un aviso discreto — no modal — con dos acciones:
+- **"Traer los cambios"**: adopta la query del archivo fuente, re-ejecuta, dirty el tab — el usuario guarda cuando quiera, como cualquier otra edición.
+- **"Desvincular"**: la query embebida se queda tal cual está; solo se cae el vínculo (y con él, futuras comprobaciones de desincronía).
+
+**"Edit SQL" abre el archivo real.** Antes, tanto el botón dentro del `.amoxvis` como "Edit with SQL" del menú contextual del explorador creaban una pestaña sintética `Edit: x.amoxvis` que, al guardar, reescribía la query DENTRO del `.amoxvis` — nunca tocaba un `.sql` de verdad. Ahora, si hay `source`, se abre (o enfoca, si ya está abierto) el archivo fuente real. Sin `source`, sigue exactamente el comportamiento anterior. Se corrigieron ambos puntos de entrada (el botón del propio tab y el ítem del menú contextual del explorador).
+
+**Camino de vuelta.** Nuevo endpoint `GET /api/charts/using-source?path=...` (recorre los `.amoxvis` del proyecto server-side, sin que el cliente tenga que descargar cada uno). Desde el menú contextual de un `.sql`, "Charts using this query...": sin coincidencias avisa que no hay ninguna, con una coincidencia abre el gráfico directo, con varias muestra un popover para elegir.
+
+### Una deuda técnica pagada de paso
+
+`openFile` — la función que abre/enfoca cualquier pestaña — vivía como una propiedad inline dentro del objeto de `useImperativeHandle`, exactamente el mismo patrón que ya había causado un `ReferenceError` real en la Fase 5 anterior (una función hermana no puede llamarla por su nombre corto). La rutina de "Edit SQL abre el archivo fuente" necesitaba llamarla desde dentro del propio componente, así que se extrajo a una función standalone — mismo arreglo que `duplicateTabToOtherPane` en su momento, misma causa raíz.
+
+### Validación
+
+- `pnpm run client:build` limpio; `node -c server/index.js` limpio.
+- Probado en vivo, de punta a punta, con un proyecto de prueba (`.sql` pre-escrito, sin depender de escribir en Monaco):
+  1. Query → gráfico → Save as .amoxvis: `source: "ventas.sql"` confirmado en el archivo en disco.
+  2. Abrir el gráfico: aparece la píldora "🔀 ventas.sql"; sin aviso de desincronía (nada cambió aún).
+  3. "Edit SQL": enfoca la pestaña **ventas.sql ya existente** — no crea una copia. Confirmado que NO aparece ningún tab "Edit: ...".
+  4. Se edita `ventas.sql` **fuera de la app** (simulando otra sesión/editor externo), se cierra y reabre la pestaña del gráfico: aparece el aviso de desincronía.
+  5. "Traer los cambios": el gráfico se re-renderiza con los datos nuevos (verificado que los valores realmente cambiaron, no solo el texto de la query), el aviso desaparece, la pestaña queda dirty. Ctrl+S → confirmado en disco que la query se actualizó **y** `source` se preservó.
+  6. Repetido el ciclo con otro cambio externo, esta vez "Desvincular": confirmado en disco que el campo `source` desapareció tras guardar, sin tocar la query.
+  7. Menú contextual de `ventas.sql` → "Charts using this query...": con una sola coincidencia, abre (enfoca) el gráfico directamente. Confirmado también contra el endpoint por separado.
+- **Sin probar en vivo**: el popover de "varios gráficos" (2+ coincidencias) — sí se probó el caso de una coincidencia y la lógica del servidor por separado (devuelve un array; el popover es un `.map()` directo sobre ese array, riesgo bajo).
+- **Nota de metodología, no de producto**: durante la prueba, un primer intento de "cerrar y reabrir" la pestaña del gráfico no cerró realmente el tab (un clic de coordenadas falló su objetivo) — el chequeo de desincronía, que corre una vez al montar, correctamente NO se re-disparó sobre la pestaña ya montada. Confirmado con inspección directa del DOM y corregido cerrando el tab de verdad antes de continuar. Documentado aquí porque es exactamente el comportamiento esperado de un chequeo "al montar, no en vivo" — no un bug.
