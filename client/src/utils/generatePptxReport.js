@@ -29,6 +29,11 @@ import { isNativeChartType, buildNativeChartSpec, buildComboChartSpec } from './
 const remarkProcessor = unified().use(remarkParse).use(remarkGfm);
 
 const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
+// Speaker notes (Fase 5 — el slide como lienzo): same fenced-block convention
+// as deckTemplates.js's NOTES_FENCE_RE, kept as a local copy here rather than
+// importing — same "each export module is self-contained" pattern already
+// used for AMOXCHART_FENCE_RE above.
+const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
 
 const SLIDE_W = 13.333; // LAYOUT_WIDE (16:9 widescreen), inches
 const SLIDE_H = 7.5;
@@ -192,6 +197,19 @@ export async function generatePptxReport(deck, { chartMode = 'native', slideCard
                 slideDef.markdown.slice(chartMatch.index + chartMatch[0].length)
             ).trim();
         }
+
+        // Strip the notes fence out of the visible text too — it belongs in
+        // the PowerPoint's Notes pane, not on the slide itself.
+        let speakerNotes = '';
+        const notesMatch = textMarkdown.match(NOTES_FENCE_RE);
+        if (notesMatch) {
+            speakerNotes = notesMatch[1].replace(/\n$/, '');
+            textMarkdown = (
+                textMarkdown.slice(0, notesMatch.index) +
+                textMarkdown.slice(notesMatch.index + notesMatch[0].length)
+            ).trim();
+        }
+        if (speakerNotes.trim()) slide.addNotes(speakerNotes);
 
         const textBox = boxes.text || boxes.full;
         const table = firstMarkdownTable(textMarkdown);

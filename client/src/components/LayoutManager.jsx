@@ -785,6 +785,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
                 : normalizedType === 'md' ? 'Untitled.md'
                 : normalizedType === 'amoxdeck' ? 'Untitled.amoxdeck'
+                : normalizedType === 'amoxvis' ? 'Untitled.amoxvis'
                 : normalizedType === 'er-diagram' ? (initialContent ? `ER · ${initialContent}` : 'ER Diagram')
                 : normalizedType === 'datadiving' ? 'Deep Dive'
                 : normalizedType === 'dbt-lineage' ? 'DBT Lineage'
@@ -796,12 +797,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 ? JSON.stringify({ version: '1.0', name: 'New Chain', description: '', nodes: [], edges: [], variables: {} }, null, 2)
                 : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...'
                 : normalizedType === 'amoxdeck' ? DECK_STARTER_TEMPLATE
+                // Blank config, no query yet — AmoxvisPane's own empty state
+                // ("No query" + Edit SQL) already guides the user from here;
+                // nothing new needed there.
+                : normalizedType === 'amoxvis' ? JSON.stringify({ chartType: 'bar', query: '' }, null, 2)
                 : normalizedType === 'er-diagram' ? ''
                 : normalizedType === 'datadiving' ? ''
                 : normalizedType === 'dbt-lineage' ? ''
                 : 'SELECT 1;'),
             results: null,
-            dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving' && normalizedType !== 'dbt-lineage'
+            dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving' && normalizedType !== 'dbt-lineage',
+            initialChartConfig: normalizedType === 'amoxvis' ? { chartType: 'bar', query: '' } : undefined,
         };
         const pane = targetPane || stateRef.current.activePane;
         if (pane === 'left') {

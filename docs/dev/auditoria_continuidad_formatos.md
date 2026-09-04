@@ -1,6 +1,6 @@
 # Auditoría de continuidad entre formatos — AmoxSQL
 
-> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1, Fase 2 (parcial), Fase 3 y Fase 4 (4/5) implementadas** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 5-6 sin empezar.
+> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1, Fase 2 (parcial), Fase 3, Fase 4 (4/5) y Fase 5 implementadas** (2026-09-03/04, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fase 6 sin empezar.
 > **Pregunta que la origina**: cuando un análisis avanza de una query a un gráfico, a un notebook, a una presentación — ¿qué pasa con los archivos que quedan atrás? ¿El usuario sabe cuál es "el bueno"? ¿Los saltos entre formatos son fluidos o hay que rehacer trabajo?
 
 ---
@@ -428,3 +428,35 @@ Arreglado con la misma comprobación que ya usa el exportador de Word/PowerPoint
   3. Gráfico en Story Flow → "Add to new presentation" → modal con título dinámico correcto → deck nuevo de 1 slide, chart-full, con el gráfico recién guardado renderizando datos reales.
   4. Historial de queries → ícono "Save as .sql file" → tab nuevo con la query exacta → Save As → "File saved successfully" → confirmado en disco (`cat` del archivo) con el contenido correcto, y el tab correcto (no uno ajeno) quedó apuntando al nuevo path.
 - El bug de falso-positivo de "Convert to Deck" (arriba) se encontró y arregló DURANTE esta misma validación, no después.
+
+---
+
+## 12. Registro de implementación — Fase 5
+
+**Implementada 2026-09-04**, rama `claude/continuidad-formatos`.
+
+### Qué se construyó
+
+**Notas del orador.** Nuevo panel colapsable bajo el lienzo de cada slide en Design view ("Speaker notes"). Se guardan como un bloque cercado ` ```notes ... ``` ` — no un comentario HTML — para que texto multilínea con cualquier contenido (incluido un `-->` literal) sobreviva el ida y vuelta sin escapar nada; es la misma técnica que ya usa el bloque `amoxchart`. Al exportar a PowerPoint se escriben como notas nativas reales (`slide.addNotes(...)`), no como texto en la diapositiva.
+
+**Imágenes.** Cuarta pestaña "Images" en el panel lateral del Studio, junto a Slides/Layouts/Charts. Lista cada imagen del proyecto (recorre varias extensiones, ya que el endpoint solo acepta una a la vez) y al hacer clic inserta `![](ruta)` en el texto del slide activo — **ruta relativa a la raíz del proyecto**, la misma convención que ya usan las referencias a `.amoxvis`, no relativa a la carpeta del propio `.amoxdeck`. Esto evitó tener que propagar el `filePath` del deck a través de `SlideDesigner` → `EditableProse` → `MarkdownPreview`: con la base de resolución de rutas vacía, una ruta raíz-relativa ya resuelve correctamente tal cual.
+
+**New Deck / New Chart en la paleta de comandos.** Cierra la asimetría exacta que señalaba la auditoría. "New Chart" reveló que `createNew('amoxvis')` nunca había tenido un caso propio: caía al genérico y creaba un tab llamado `Untitled.sql` con contenido SQL plano en vez de JSON — inofensivo mientras nadie lo guardara, pero corrupto en cuanto se guardara como `.amoxvis`. Se agregó el caso que faltaba (nombre, contenido JSON válido, `initialChartConfig`), con el mismo patrón que ya tenía `amoxdeck`.
+
+### Ya funcionaba — verificado, no reconstruido
+
+El plan original pedía "tabla" y "cita destacada" como elementos nuevos del slide. Antes de construir nada se verificó en vivo: `MarkdownPreview` (lo que ya renderiza el texto de cada slide) ya trae `remark-gfm` y un componente de `blockquote` con estilo propio — una tabla GFM y un `> texto` ya renderizan correctamente hoy, sin ningún cambio. Confirmado con una prueba en vivo insertando ambos en un slide real. No se construyó nada para esto porque ya existía; documentarlo aquí es para que quede claro que no es un olvido.
+
+**Dos gráficos por slide** y **fila de KPIs** quedaron fuera de este pase — el modelo actual (`splitSlideContent`/`buildSlideRaw`) asume un slide con a lo más un chart; soportar varios habría tocado el parser, el exportador de PPTX y el editor visual a la vez, para un caso de uso menos frecuente que los tres anteriores.
+
+### Validación
+
+- `pnpm run client:build` limpio.
+- Probado en vivo, de punta a punta:
+  1. Paleta de comandos → "New Chart" → tab `.amoxvis` en blanco con el estado vacío correcto ("No query") → "Edit SQL" → placeholder `SELECT * FROM ... LIMIT 100;` en un tab `.sql` nuevo (no corrupto).
+  2. Paleta de comandos → "New Report Flow Deck" → deck de 3 slides con el panel "Speaker notes (empty)" visible desde el primer momento.
+  3. Notas: escritas en el slide 1, confirmadas en Source view como bloque ` ```notes ``` ` bien formado, después de la prosa; confirmado que **no** aparecen en Present view (el fix de `SlidePreview.jsx` evita que se rendericen como bloque de código visible).
+  4. Panel Images: `logo.png` listado, insertado con un clic, `<img>` resuelto de verdad (`naturalWidth: 1024`, `complete: true`) contra `/api/file/raw?path=logo.png` — no un ícono roto.
+  5. Export PowerPoint sobre ese mismo deck (con imagen + notas + un chart-placeholder que apunta a un archivo inexistente, heredado de la plantilla de partida): completa sin colgarse; el chart roto cae al mensaje de error por-slide ya existente, sin tumbar el resto del export.
+  6. Tabla GFM y blockquote insertados a mano en el prose de un slide → ambos renderizan correctamente en Design view sin cambio de código.
+- **Sin verificar directamente**: el contenido real del `.pptx` descargado (no hay acceso al sistema de archivos de descargas de este navegador de pruebas) — se verificó que `slide.addNotes()` se invoca con el texto correcto cuando hay notas, y que el export completa sin error; no se abrió el archivo resultante en PowerPoint.

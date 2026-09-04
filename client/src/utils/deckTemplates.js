@@ -13,6 +13,10 @@ import { parseAmoxChartBlock } from './deckParser';
 
 const CHART_PLACEHOLDER = 'charts/example.amoxvis';
 const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
+// Speaker notes (Fase 5): a fenced block, not an HTML comment, so multi-line
+// notes containing arbitrary text (including a literal `-->`) round-trip
+// without escaping — same reasoning as the amoxchart block above.
+const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
 
 /** Body markdown (WITHOUT the layout directive) seeded for each layout. */
 export const DECK_LAYOUT_TEMPLATES = {
@@ -61,6 +65,11 @@ export function buildChartBlock(src) {
     return '```amoxchart\nsrc: ' + (src || CHART_PLACEHOLDER) + '\n```';
 }
 
+/** A fenced notes block holding this slide's speaker notes verbatim. */
+export function buildNotesBlock(notes) {
+    return '```notes\n' + notes + '\n```';
+}
+
 /**
  * A complete slide chunk (layout directive + starter body) ready to be
  * inserted as a new slide. `content` is emitted without a directive since it
@@ -74,28 +83,44 @@ export function buildSlideSnippet(layout) {
 
 /**
  * Splits a slide's body markdown (layout directive already stripped by the
- * parser) into its editable prose and its single chart reference. In this
- * visual model a slide holds at most one chart; extra amoxchart blocks (if a
- * user hand-authored them in Source view) are left inside `prose` untouched.
+ * parser) into its editable prose, its single chart reference, and its
+ * speaker notes. In this visual model a slide holds at most one chart and
+ * one notes block; extra amoxchart/notes blocks (if a user hand-authored
+ * them in Source view) are left inside `prose` untouched.
  */
 export function splitSlideContent(markdown) {
-    const m = (markdown || '').match(AMOXCHART_FENCE_RE);
-    if (!m) return { prose: (markdown || '').trim(), chartSrc: null };
-    const chartSrc = parseAmoxChartBlock(m[1]).src || null;
-    const prose = (markdown.slice(0, m.index) + markdown.slice(m.index + m[0].length)).trim();
-    return { prose, chartSrc };
+    let rest = markdown || '';
+    let chartSrc = null;
+    let notes = '';
+
+    const chartMatch = rest.match(AMOXCHART_FENCE_RE);
+    if (chartMatch) {
+        chartSrc = parseAmoxChartBlock(chartMatch[1]).src || null;
+        rest = rest.slice(0, chartMatch.index) + rest.slice(chartMatch.index + chartMatch[0].length);
+    }
+    const notesMatch = rest.match(NOTES_FENCE_RE);
+    if (notesMatch) {
+        notes = notesMatch[1].replace(/\n$/, '');
+        rest = rest.slice(0, notesMatch.index) + rest.slice(notesMatch.index + notesMatch[0].length);
+    }
+
+    return { prose: rest.trim(), chartSrc, notes };
 }
 
 /**
- * Rebuilds a slide's raw chunk (directive + prose + optional chart block) from
- * its parts — the write-side counterpart to splitSlideContent. `content` emits
- * no directive since it's the parser default.
+ * Rebuilds a slide's raw chunk (directive + prose + optional chart block +
+ * optional notes block) from its parts — the write-side counterpart to
+ * splitSlideContent. `content` emits no directive since it's the parser
+ * default. Notes are appended last so they never interrupt the prose/chart
+ * reading order in Source view.
  */
-export function buildSlideRaw({ layout, prose, chartSrc }) {
+export function buildSlideRaw({ layout, prose, chartSrc, notes }) {
     const directive = layout && layout !== 'content' ? `<!-- layout: ${layout} -->\n` : '';
     const parts = [];
     const trimmedProse = (prose || '').trim();
     if (trimmedProse) parts.push(trimmedProse);
     if (chartSrc) parts.push(buildChartBlock(chartSrc));
+    const trimmedNotes = (notes || '').trim();
+    if (trimmedNotes) parts.push(buildNotesBlock(trimmedNotes));
     return `${directive}${parts.join('\n\n')}`.trim();
 }
