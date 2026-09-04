@@ -814,6 +814,29 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         setActivePane(pane);
     }, []);
 
+    // Fase 4 — historial a archivo: creates a real new .sql tab for this
+    // query and requests Save As on THAT tab directly (its own local newTab
+    // object, never read back from state) — chaining createNew() then a
+    // separate getActiveTab()-based save call here would race, since the
+    // setState calls above don't apply until the next render and a second
+    // ref call in the same synchronous click handler would still see the
+    // OLD active tab.
+    const saveHistoryQueryAsFile = useCallback((query) => {
+        const { onRequestSaveAs, activePane } = stateRef.current;
+        const newTab = {
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+            path: '', name: 'Untitled.sql', type: 'sql', content: query, results: null, dirty: true,
+        };
+        if (activePane === 'left') {
+            setLeftTabs(prev => [...prev, newTab]);
+            setLeftActiveId(newTab.id);
+        } else {
+            setRightTabs(prev => [...prev, newTab]);
+            setRightActiveId(newTab.id);
+        }
+        if (onRequestSaveAs) onRequestSaveAs(query, newTab);
+    }, []);
+
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
         // Expose tab state for rendering TabBar in WindowTitleBar
@@ -839,6 +862,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         },
         openFile,
         createNew,
+        saveHistoryQueryAsFile,
         // Open a Deep Dive conversation in a tab: focus an existing tab bound to
         // this conversation if one is open, otherwise create a new one. A null
         // convId always opens a fresh (empty) Deep Dive conversation.

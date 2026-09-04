@@ -1064,6 +1064,9 @@ function App() {
 
   // ── Stable callbacks for sidebar panels (so their memo() is effective on nav) ──
   const handleCreateSqlTab = useCallback((sql) => layoutRef.current?.createNew('sql', sql), []);
+  // Fase 4 — historial a archivo: crea un tab .sql nuevo con esta query y
+  // dispara Save As directo, en vez de solo insertarla en un tab sin ruta.
+  const handleSaveHistoryQueryAsFile = useCallback((sql) => layoutRef.current?.saveHistoryQueryAsFile(sql), []);
   const handleQueryFileTab = useCallback((path) => layoutRef.current?.handleQueryFile(path), []);
   const handleEditChartTab = useCallback((path) => layoutRef.current?.handleEditChart(path), []);
   const handleEditChartWithSqlTab = useCallback((path) => layoutRef.current?.handleEditChartWithSql(path), []);
@@ -1303,6 +1306,7 @@ function App() {
                   onPreviewFile={handleQueryFileTab}
                   onEditChart={handleEditChartTab}
                   onEditChartWithSql={handleEditChartWithSqlTab}
+                  onCreateNotebookFromFiles={(payload) => layoutRef.current?.createNew('sqlnb', payload)}
                   refreshTrigger={fileRefreshTrigger}
                 />
               </div>
@@ -1350,7 +1354,7 @@ function App() {
 
             {visitedSidebarTabs.has('history') && (
               <div className={activeSidebarTab === 'history' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'history' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <QueryHistoryPanel onSelect={handleCreateSqlTab} />
+                <QueryHistoryPanel onSelect={handleCreateSqlTab} onSaveAsFile={handleSaveHistoryQueryAsFile} />
               </div>
             )}
 

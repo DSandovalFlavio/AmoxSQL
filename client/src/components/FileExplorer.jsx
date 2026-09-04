@@ -17,7 +17,7 @@ import ExportAiContextModal from './ExportAiContextModal';
 import ExportDataModal from './ExportDataModal';
 import GSheetsSection from './GSheetsSection';
 
-const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -567,6 +567,54 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
     const getSelectedFileObjects = () => sortedFiles.filter(f => selectedFiles.has(f.path));
 
+    // Fase 4 — consolidar: turn a multi-selection of .sql / .amoxvis / .md
+    // files into one notebook. Each becomes a cell in the SAME order they're
+    // listed in the explorer; the notebook opens unsaved in the editor (the
+    // editor itself is the preview — the user reviews/reorders/saves from
+    // there, same as any other new file) rather than a bespoke dialog.
+    const [creatingNotebook, setCreatingNotebook] = useState(false);
+    const createNotebookFromSelection = async (files) => {
+        if (creatingNotebook || !onCreateNotebookFromFiles) return;
+        const supported = files.filter(f => !f.isDirectory && /\.(sql|amoxvis|md)$/i.test(f.name));
+        if (supported.length === 0) {
+            setAlertData({ isOpen: true, title: 'Create Notebook', type: 'info', message: 'None of the selected files can become notebook cells — pick .sql, .amoxvis, or .md files.' });
+            return;
+        }
+        setCreatingNotebook(true);
+        try {
+            const cells = [];
+            for (const f of supported) {
+                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(f.path)}`);
+                const data = await res.json();
+                if (data.error) continue; // skip unreadable files rather than failing the whole batch
+                const id = Date.now().toString() + Math.random().toString(36).slice(2, 8);
+                if (f.name.toLowerCase().endsWith('.amoxvis')) {
+                    let config = {};
+                    try { config = JSON.parse(data.content); } catch { /* malformed — falls through with empty query */ }
+                    const { query, ...chartConfig } = config;
+                    cells.push({ id, type: 'code', content: query || '', state: { chartConfig, viewMode: 'chart' } });
+                } else if (f.name.toLowerCase().endsWith('.md')) {
+                    cells.push({ id, type: 'markdown', content: data.content });
+                } else {
+                    cells.push({ id, type: 'code', content: data.content });
+                }
+            }
+            if (cells.length === 0) {
+                setAlertData({ isOpen: true, title: 'Create Notebook', type: 'error', message: 'Could not read any of the selected files.' });
+                return;
+            }
+            const payload = JSON.stringify({ version: '3.0', cells, environment: {} }, null, 2);
+            onCreateNotebookFromFiles(payload);
+            setContextMenu(null);
+            setSelectedFiles(new Set());
+            setMultiSelectMode(false);
+        } catch (err) {
+            setAlertData({ isOpen: true, title: 'Create Notebook', type: 'error', message: err.message });
+        } finally {
+            setCreatingNotebook(false);
+        }
+    };
+
     // --- Clipboard Cut/Copy/Paste ---
     const cutFiles = (filesToCut) => {
         setClipboardFiles(filesToCut.map(f => ({ path: f.path, name: f.name, isDirectory: f.isDirectory })));
@@ -880,6 +928,18 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     padding: '4px',
 
                 }}>
+                    {/* ── Multi-selection: consolidate into a notebook (Fase 4) ── */}
+                    {selectedFiles.size > 1 && selectedFiles.has(contextMenu.file.path) && onCreateNotebookFromFiles && (
+                        <>
+                            <div
+                                onClick={() => createNotebookFromSelection(getSelectedFileObjects())}
+                                className="context-menu-item"
+                            >
+                                {creatingNotebook ? <LuLoader size={14} className="spin" /> : <LuBookOpen size={14} />} Create Notebook from Selection ({selectedFiles.size})
+                            </div>
+                            <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
+                        </>
+                    )}
                     {/* ── Type-specific actions ── */}
                     {contextMenu.file.name.match(/\.(csv|tsv|parquet|json|xlsx|xls)$/i) && (
                         <div onClick={() => onImportFile(contextMenu.file.path, false)} className="context-menu-item">

@@ -1,6 +1,6 @@
 # Auditoría de continuidad entre formatos — AmoxSQL
 
-> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1, Fase 2 (parcial) y Fase 3 implementadas** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 4-6 sin empezar.
+> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1, Fase 2 (parcial), Fase 3 y Fase 4 (4/5) implementadas** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 5-6 sin empezar.
 > **Pregunta que la origina**: cuando un análisis avanza de una query a un gráfico, a un notebook, a una presentación — ¿qué pasa con los archivos que quedan atrás? ¿El usuario sabe cuál es "el bueno"? ¿Los saltos entre formatos son fluidos o hay que rehacer trabajo?
 
 ---
@@ -388,3 +388,43 @@ El plan original (sección 6) asumía una carpeta `reports/` para los documentos
   7. Menú contextual de `ventas.sql` → "Charts using this query...": con una sola coincidencia, abre (enfoca) el gráfico directamente. Confirmado también contra el endpoint por separado.
 - **Sin probar en vivo**: el popover de "varios gráficos" (2+ coincidencias) — sí se probó el caso de una coincidencia y la lógica del servidor por separado (devuelve un array; el popover es un `.map()` directo sobre ese array, riesgo bajo).
 - **Nota de metodología, no de producto**: durante la prueba, un primer intento de "cerrar y reabrir" la pestaña del gráfico no cerró realmente el tab (un clic de coordenadas falló su objetivo) — el chequeo de desincronía, que corre una vez al montar, correctamente NO se re-disparó sobre la pestaña ya montada. Confirmado con inspección directa del DOM y corregido cerrando el tab de verdad antes de continuar. Documentado aquí porque es exactamente el comportamiento esperado de un chequeo "al montar, no en vivo" — no un bug.
+
+---
+
+## 11. Registro de implementación — Fase 4 (4 de 5)
+
+**Implementada 2026-09-03**, rama `claude/continuidad-formatos`. Cuatro de los cinco puntos del plan; "unificar variables" queda fuera, explícitamente.
+
+### Qué se construyó
+
+**Multi-selección → notebook.** El explorador ya tenía multi-selección (Ctrl+clic) para cortar/copiar/borrar; le faltaba una acción de consolidación. Nuevo ítem en el menú contextual, "Create Notebook from Selection (N)", visible solo cuando el archivo clicado es parte de una selección de 2+. Cada `.sql` se vuelve una celda de código, cada `.md` una celda de texto, cada `.amoxvis` una celda de código **con su gráfico ya configurado** — la query embebida como contenido de la celda y el resto del config en `state.chartConfig` / `state.viewMode: 'chart'`, aprovechando que el formato v3.0 del notebook ya sabe guardar y restaurar exactamente esa forma por celda. El notebook resultante abre **sin guardar** — el propio editor de notebook (reordenable, editable) es la vista previa; no se construyó un diálogo aparte.
+
+**Notebook → deck.** Botón "Convert to Deck" junto a los exports existentes. Cada celda de texto se vuelve un slide `content`; cada celda SQL **mostrando un gráfico en este momento** se vuelve un slide `chart-full`, materializando ese gráfico como un `.amoxvis` nuevo bajo `charts/` (con la query de la celda embebida — no es el mismo vínculo `source` de la Fase 3, porque no hay un `.sql` real al que apuntar). Las celdas SQL en vista tabla no tienen equivalente en el modelo de slides del deck — se omiten, sin perderse: siguen intactas en el notebook. Reutiliza `buildSlideRaw`/`serializeDeck` de los propios helpers del deck, no lógica nueva de serialización.
+
+**Gráfico → "Add to new presentation".** Nuevo botón en el panel Export de Story Flow. Como un slide de deck necesita referenciar un `.amoxvis` real en disco, la acción reutiliza el flujo de guardado existente (mismo modal, título dinámico "Save Chart — then add to a new presentation") y, una vez guardado, arma un deck de un slide alrededor de ese archivo y lo abre sin guardar. Deliberadamente solo "crear un deck nuevo" — "añadir a un deck existente" queda fuera de este pase (ver más abajo).
+
+**Historial → archivo.** Tercer ícono en cada fila del panel de historial (junto a bookmark y copiar): "Save as .sql file". Crea un tab `.sql` real con esa query y dispara Save As directo sobre ESE tab — no sobre "el tab activo", evitando a propósito una carrera real que existía en el código ya escrito (`finishSaveAs` cae a `getActiveTab()` cuando no se le pasa un id, así que encadenar `createNew()` + una función que lee el tab activo habría podido renombrar sobre disco un tab completamente distinto si el usuario no estaba parado en uno relevante).
+
+### Diferido a propósito
+
+**Unificar variables** (environment del notebook ↔ variables del deck) no se tocó. Es un refactor transversal de dos sistemas que hoy funcionan de forma independiente y estable; tocarlo sin una razón inmediata (ninguna de las conversiones de este pase lo necesitaba) arriesgaba romper cualquiera de los dos por una ganancia que hoy nadie pidió.
+
+**"Añadir a un deck existente"** (en vez de crear uno nuevo) tampoco se hizo — habría necesitado un selector de decks nuevo (sin componente existente que reutilizar) más lógica de parseo/inserción/re-serializado sobre un archivo ajeno. "Crear uno nuevo" cubre el gesto central que la auditoría señalaba (hoy no hay ningún camino desde el gráfico hacia una presentación) con una fracción del riesgo.
+
+### Un bug real, encontrado en la propia prueba en vivo
+
+La primera versión de "Convert to Deck" decidía si una celda "tiene gráfico" mirando si `cellStates[cell.id].chartConfig` existía. Probado en vivo, produjo slides de gráfico para **celdas que nunca se pusieron en vista de gráfico** — 2 de 2 celdas SQL de la prueba, ambas en tabla, generaron un `.amoxvis` cada una.
+
+Causa raíz: `DataVisualizer` queda montado (solo oculto por CSS) detrás de la vista de tabla para que cambiar de pestaña sea instantáneo — y un efecto ya existente ahí (el mismo de `keepalive-stale-derived-state`, ver memoria del proyecto) auto-detecta ejes en cuanto llegan resultados con columnas, lo cual dispara `onConfigChange` sin que el usuario haya mirado el gráfico nunca. La sola presencia de `chartConfig` no significa "esta celda tiene un gráfico".
+
+Arreglado con la misma comprobación que ya usa el exportador de Word/PowerPoint del notebook: si hay un `.recharts-wrapper` de verdad en el DOM bajo `[data-cell-id]` en ESTE momento. Re-probado con una celda en vista tabla y otra en vista gráfico: el deck resultante trajo exactamente 2 slides — el de texto y el del gráfico real, sin el falso positivo.
+
+### Validación
+
+- `pnpm run client:build` limpio.
+- Probado en vivo, de punta a punta, con un proyecto de prueba (`.sql`/`.md` pre-escritos):
+  1. 3 archivos seleccionados (`.md` + 2 `.sql`) → "Create Notebook from Selection (3)" → notebook con 3 celdas en el orden correcto, contenido exacto por celda.
+  2. Notebook con 1 celda de texto + 1 celda SQL puesta en vista de gráfico → "Convert to Deck" → deck de 2 slides; el slide de gráfico renderiza los datos reales (no un placeholder), confirmando que el `.amoxvis` materializado es válido.
+  3. Gráfico en Story Flow → "Add to new presentation" → modal con título dinámico correcto → deck nuevo de 1 slide, chart-full, con el gráfico recién guardado renderizando datos reales.
+  4. Historial de queries → ícono "Save as .sql file" → tab nuevo con la query exacta → Save As → "File saved successfully" → confirmado en disco (`cat` del archivo) con el contenido correcto, y el tab correcto (no uno ajeno) quedó apuntando al nuevo path.
+- El bug de falso-positivo de "Convert to Deck" (arriba) se encontró y arregló DURANTE esta misma validación, no después.

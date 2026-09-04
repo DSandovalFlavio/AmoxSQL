@@ -1,11 +1,11 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, memo, useDeferredValue } from 'react';
-import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuX } from 'react-icons/lu';
+import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuX, LuFilePlus } from 'react-icons/lu';
 
 /**
  * QueryHistoryPanel — Sidebar panel for browsing query history and bookmarks.
  */
-const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
+const QueryHistoryPanel = ({ onSelect, onInsertQuery, onSaveAsFile, onClose }) => {
     // Support both onSelect (legacy) and onInsertQuery (new spec) callbacks
     const handleSelect = (query) => {
         if (onInsertQuery) onInsertQuery(query);
@@ -171,6 +171,15 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onClose }) => {
                         >
                             <LuClipboard size={11} />
                         </span>
+                        {onSaveAsFile && (
+                            <span
+                                onClick={(e) => { e.stopPropagation(); onSaveAsFile(query); }}
+                                title="Save as .sql file"
+                                className="qh-action-btn"
+                            >
+                                <LuFilePlus size={11} />
+                            </span>
+                        )}
                     </div>
                 </div>
                 {/* SQL Preview */}

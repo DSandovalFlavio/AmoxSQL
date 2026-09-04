@@ -24,7 +24,7 @@ const ROWNUM_WIDTH = 54;
 // match the `columnWidths[col] || 150` default used when resizing.
 const DEFAULT_COL_WIDTH = 150;
 
-const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null }) => {
+const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null }) => {
     const toast = useToast();
     // currentEditorQuery may be a string (notebook cells) or a getter function
     // (EditorPane passes a stable getter so typing doesn't break this memo).
@@ -949,7 +949,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                 {/* Chart */}
                 <div className={`rt-panel chart${viewMode === 'chart' ? ' visible' : ' hidden'}`}>
-                    <DataVisualizer data={data} isReportMode={isReportMode} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} />
+                    <DataVisualizer data={data} isReportMode={isReportMode} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} />
                 </div>
 
                 {/* Profile */}

@@ -26,6 +26,8 @@ import { useChartState } from './useChartState';
 import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES } from './constants';
 import { processChartData, isDateColumn, computeHeadline } from './utils/dataProcessing';
 import { exportChartAsPng, exportChartAsSvg, exportChartAsPptx, saveChartConfig, copyChartToClipboard } from './utils/exportChart';
+import { buildSlideRaw } from '../../utils/deckTemplates';
+import { serializeDeck } from '../../utils/deckParser';
 import { renderRichText } from './utils/richText';
 import { getLegendTextColors } from './utils/legendColors';
 import InlineLegend from './InlineLegend';
@@ -56,7 +58,7 @@ const TABS = [
 ];
 
 // ─── Component ───────────────────────────────────────────────
-const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null }) => {
     // ── State ──
     const {
         state, setField, setFields, loadConfig, resetConfig,
@@ -285,6 +287,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         URL.revokeObjectURL(url);
     }, [processedData, state.chartTitle]);
 
+    // 'save' — the plain "Save as .amoxvis" flow. 'presentation' — Fase 4:
+    // "Add to new presentation" reuses the same save step (a deck slide has
+    // to reference a real .amoxvis file, so there's no way around saving
+    // one) and then, once it exists on disk, builds a one-slide deck around
+    // it and opens that as a new unsaved tab for the user to name and save.
+    const [saveIntent, setSaveIntent] = useState('save');
+
     const performSaveConfig = useCallback(async (filename) => {
         // sourcePath links the new .amoxvis back to the .sql file this query
         // came from (Fase 3 — procedencia), so editing the query later can
@@ -292,9 +301,18 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         // for charts built from a saved .sql tab — an ad-hoc/notebook query
         // has no such file to point at.
         const result = await saveChartConfig(filename, getConfigForSave(), query, sourcePath);
-        if (result.success) setIsSaveModalOpen(false);
+        if (result.success) {
+            setIsSaveModalOpen(false);
+            if (saveIntent === 'presentation' && onCreateNew) {
+                const chartPath = filename.endsWith('.amoxvis') ? filename : `${filename}.amoxvis`;
+                const title = (state.chartTitle || chartPath.split(/[/\\]/).pop().replace(/\.amoxvis$/, '')).replace(/[^\w\s-]+/g, '');
+                const frontMatterText = `---\ntitle: ${title}\ntheme: dark\naspect: "16:9"\n---`;
+                const deckMarkdown = serializeDeck(frontMatterText, [{ raw: buildSlideRaw({ layout: 'chart-full', chartSrc: chartPath }) }]);
+                onCreateNew('amoxdeck', deckMarkdown);
+            }
+        }
         return result;
-    }, [getConfigForSave, query, sourcePath]);
+    }, [getConfigForSave, query, sourcePath, saveIntent, onCreateNew, state.chartTitle]);
 
     const handleGenerateStory = useCallback(async () => {
         if (!data || data.length === 0 || !state.xAxisKey || !state.yAxisKeys?.[0]) return null;
@@ -340,7 +358,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 onClose={() => setIsSaveModalOpen(false)}
                 onSave={performSaveConfig}
                 initialName="my_chart.amoxvis"
-                title="Save Chart Layout"
+                title={saveIntent === 'presentation' ? 'Save Chart — then add to a new presentation' : 'Save Chart Layout'}
                 placeholder="my_chart.amoxvis"
                 hideDescription={true}
             />
@@ -460,7 +478,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                                 onExportSvg={handleExportSvg}
                                 onExportPptx={handleExportPptx}
                                 isExportingPptx={isExportingPptx}
-                                onOpenSave={() => setIsSaveModalOpen(true)}
+                                onOpenSave={() => { setSaveIntent('save'); setIsSaveModalOpen(true); }}
+                                onAddToPresentation={onCreateNew ? () => { setSaveIntent('presentation'); setIsSaveModalOpen(true); } : null}
                                 onLoadFile={() => fileInputRef.current.click()}
                                 onCopy={handleCopy}
                                 onPasteJson={() => setIsPasteJsonOpen(true)}

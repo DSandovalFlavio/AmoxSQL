@@ -14,7 +14,7 @@ import DataVisualizer from './DataVisualizer';
 import { useToast } from './ToastProvider';
 
 
-const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) => {
+const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onCreateNew }) => {
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -383,6 +383,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange }) =
                         query={currentQuery}
                         initialChartConfig={config}
                         onConfigChange={handleConfigChange}
+                        onCreateNew={onCreateNew}
                     />
                 )}
 

@@ -3,7 +3,7 @@
  * Story Flow stage ⑥: tamaño de lienzo + formato de export + archivo de config.
  */
 import { memo } from 'react';
-import { LuDownload, LuSave, LuUpload, LuCopy, LuClipboardPaste, LuFileImage, LuMonitorPlay, LuLoaderCircle } from 'react-icons/lu';
+import { LuDownload, LuSave, LuUpload, LuCopy, LuClipboardPaste, LuFileImage, LuMonitorPlay, LuLoaderCircle, LuPresentation } from 'react-icons/lu';
 import { Section } from './shared';
 import { EXPORT_PRESETS } from '../constants';
 
@@ -17,7 +17,7 @@ const btnStyle = {
 
 const iconStyle = { marginRight: 6, verticalAlign: 'middle' };
 
-const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx, onOpenSave, onLoadFile, onCopy, onPasteJson, onExportData, chartRef }) => {
+const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx, onOpenSave, onAddToPresentation, onLoadFile, onCopy, onPasteJson, onExportData, chartRef }) => {
     return (
         <>
             <Section title="Clipboard">
@@ -84,6 +84,14 @@ const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx
                     <span><LuClipboardPaste size={12} style={iconStyle} />Paste JSON from AI</span>
                 </button>
             </Section>
+
+            {onAddToPresentation && (
+                <Section title="Presentation">
+                    <button onClick={onAddToPresentation} style={btnStyle} className="dv-export-item" title="Saves this chart, then opens a new one-slide Report Flow deck around it">
+                        <span><LuPresentation size={12} style={iconStyle} />Add to new presentation</span>
+                    </button>
+                </Section>
+            )}
         </>
     );
 });
