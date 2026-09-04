@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-09-04
 **Alcance:** interfaz del studio de chains (`client/src/components/chains/`) + los endpoints que la alimentan (`server/index.js`, `server/ChainExecutor.js`).
-**Estado:** auditoría completa + plan de 6 fases. Mockup en [`mockup_dataflow_ux.html`](mockup_dataflow_ux.html).
+**Estado:** auditoría completa + plan de 6 fases. Mockup en [`mockup_dataflow_ux.html`](mockup_dataflow_ux.html). **Fase 0 implementada** (servidor) — ver §7.
 
 > Recordatorio de naming: el studio se llama **Data Flow**; los archivos siguen siendo `.sqlchain` y el código interno sigue diciendo "chain". Este documento usa "Data Flow" para la interfaz y "chain" para el modelo de datos.
 
@@ -264,3 +264,34 @@ Sin esto, el panel derecho solo puede mostrar resultados de corridas y el redise
 ## 6. Mockup
 
 [`mockup_dataflow_ux.html`](mockup_dataflow_ux.html) — HTML autocontenido, abrible en cualquier navegador. Usa los tokens reales del tema oscuro de AmoxSQL y los colores reales de los tipos de nodo. Es interactivo: se puede seleccionar nodos, cambiar de pestaña en el inspector y abrir el popover de configuración, para poder juzgar el flujo antes de escribir código de producción.
+
+---
+
+## 7. Registro de implementación — Fase 0
+
+**Qué se construyó** (todo en `server/ChainExecutor.js` y `server/index.js`; cero cambios de frontend, tal como estaba acotada la fase):
+
+- **`ChainExecutor.compileNodeQuery(chainDef, nodeId, opts)`** — compila la consulta que produce la salida de UN nodo, sin ejecutar ni materializar nada. Recorre los ancestros del nodo y, para cada uno que sea "SELECT-shaped" (`SELECT_SHAPED_TYPES`: fuentes locales, `sql_inline`/`sql_file` cuando el cuerpo es un SELECT/WITH, y todos los transforms de una sola entrada o de N entradas), lo convierte en una **CTE con nombre** (`WITH cte_x AS (...)`) en vez de una subconsulta anidada.
+- **`ChainExecutor.inlineNodeBody`** + **`bareSelectBody`** — le quitan a `buildNodeSql` (ya existente) el envoltorio `CREATE OR REPLACE TABLE "x" AS ` para dejar el `SELECT` puro reutilizable dentro de una CTE. Cero duplicación de las ~40 ramas de `buildNodeSql`: se reutiliza tal cual.
+- **Punto de corte explícito**: un nodo que no puede ser SELECT-shaped (sink, `http_fetch`/`bucket_read`/`gsheet_read`/`ai_enrich` — red o LLM — o `clean`, que solo resuelve contra el esquema en vivo) usa su **tabla física de la última corrida** en vez de intentar inlinearlo, y ahí se corta la cadena de CTEs. Nunca se dispara una llamada de red o de LLM automáticamente por escribir en un campo.
+- **`POST /api/chains/node-sql`** (nuevo) — el SQL compilado de un nodo.
+- **`POST /api/chains/schema/infer`** (reescrito, misma URL) — antes resolvía columnas leyendo la tabla física del PRIMER padre (por eso los menús salían vacíos hasta ejecutar todo). Ahora compila y hace `DESCRIBE` sobre **cada** padre — en vivo, sin ejecutar, a cualquier profundidad — con fallback a la tabla materializada cuando el padre no es inlinable.
+- **`POST /api/chains/preview-node`** (reescrito, misma URL) — intenta primero el compilado en vivo (`SELECT * FROM (compilado) LIMIT n`); si el nodo no es inlinable, cae a su tabla materializada, igual que antes. Contrato de respuesta extendido de forma aditiva con `source: 'live' | 'materialized'` — no rompe a los consumidores actuales.
+
+**Por qué CTEs y no subconsultas anidadas** (pregunta que hizo el usuario antes de arrancar la fase, y que cambió el diseño): con subconsultas anidadas, un nodo con *fan-out* — dos hijos que comparten el mismo padre — duplica el SQL completo del padre una vez por cada hijo, y eso se compone con la profundidad (un DAG de 4 niveles con fan-out en cada nivel crece exponencial en el tamaño del texto). Con CTEs, cada ancestro se resuelve **una sola vez** (memoizado por `nodeId`) sin importar cuántos descendientes lo referencian — el texto compilado crece lineal en el número de ancestros, no en el número de rutas. Verificado en pruebas (§ Validación): una cadena con un nodo compartido por dos hijos que a su vez confluyen en un `join_tables` produce el CTE del ancestro compartido **exactamente una vez**.
+
+**Poda de CTEs no usadas**: un nodo puede ser de un tipo potencialmente inlinable pero fallar en la práctica (`join_tables` con menos de 2 orígenes conectados, `sql_inline` cuyo cuerpo no es un SELECT). Antes de saber que fallaría ya se habían recorrido sus padres. Dos medidas para que el SQL final nunca muestre CTEs muertas: (1) un nodo cuyo tipo *nunca* puede ser SELECT-shaped corta la recursión antes de tocar a sus padres; (2) al final, una pasada de alcance (`needed`/`stack`) desde la CTE raíz elimina cualquier CTE que quedó sin referenciar.
+
+**Diferido a propósito**: sin cambios de frontend — la Fase 1-3 son las que conectan esto a la interfaz (barra de acciones del nodo, panel derecho permanente, popover de configuración). Este cimiento ya deja los tres endpoints funcionando y probados; conectarlos es trabajo de UI puro.
+
+**Bug real encontrado y corregido en el camino**: los operadores `>`, `>=`, `<`, `<=` y `BETWEEN` del nodo Filter interpolaban el valor **sin comillas** — `fecha >= 2026-01-01` se parseaba como aritmética (`2026 - 1 - 1`) en vez de una comparación de fecha, no solo en el compilador nuevo sino también en `executeNode` (el camino de ejecución real, `ChainExecutor.js` línea ~1408 antes del fix). Cualquier chain existente que filtrara una columna de fecha o de texto con un operador de comparación producía SQL roto o un resultado silenciosamente incorrecto. Corregido con `filterValueLiteral()`: deja el valor sin comillas solo si es un número puro, lo cita en cualquier otro caso (DuckDB castea implícitamente un string citado a `DATE`/`TIMESTAMP` en una comparación). Aplicado en los dos lugares que construían la cláusula `WHERE` (`buildNodeSql` y `executeNode`).
+
+**Validación** (servidor standalone en un proyecto descartable, sin abrir la app real, puerto y proyecto verificados antes de arrancar):
+
+- Cadena de 4 nodos (`import_file → filter → group_aggregate → sort`) **jamás ejecutada**: `schema/infer`, `node-sql` y `preview-node` devolvieron columnas y filas correctas para los 3 nodos derivados, a cualquier profundidad. `preview-node` en el filtro: 6 de 8 filas (fecha ≥ 2026-01-01), agregado: 5 categorías con sumas correctas, orden: descendente por `total_sales` correcto.
+- **Fan-out real**: un nodo (`import_file`) alimentando a dos hijos (`filter` con distinta condición cada uno) que confluyen en un `join_tables` — el CTE del padre compartido aparece **1 sola vez** en el SQL compilado.
+- **`join_tables` con columnas distintas por lado** (`add_column` distinto en cada rama) — `schema/infer` sobre el nodo de join devuelve las columnas de **ambos** lados (`left_flag` y `right_flag` presentes), no solo del primer padre — corrige H17 de la auditoría.
+- **Nodo aislado, nunca conectado, nunca ejecutado**: los 3 endpoints degradan con gracia (`columns: []`, `available: false` con mensaje claro) — no hay excepción sin capturar.
+- **Nodo no-inlinable (`clean`) nunca ejecutado, con un nodo `sort` después**: `node-sql` del `sort` corta correctamente en `clean` (referencia su tabla física hipotética) y — tras el fix de poda — el SQL final **no** incluye la CTE del import que quedó huérfana.
+- **Ejecución real de la misma cadena de 4 nodos** (vía `/api/chains/run`, no solo compilar): completó con éxito, y el conteo de filas en cada paso (8 → 6 → 5 → 5) coincide exactamente con lo que había predicho el preview en vivo antes de correr — la propiedad más importante: lo que se previsualiza es lo que se ejecuta.
+- Verificado que el arreglo del filtro no rompe la ejecución real (antes del fix, la cadena de arriba fallaba al ejecutarse de verdad, no solo al previsualizar).

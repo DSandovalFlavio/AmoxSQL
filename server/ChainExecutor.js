@@ -521,6 +521,20 @@ class ChainExecutor extends EventEmitter {
     }
 
     /**
+     * SQL literal for a filter condition's comparison value: bare when it's a plain
+     * number (so a numeric column compares numerically), single-quoted otherwise —
+     * DuckDB implicitly casts a quoted string to DATE/TIMESTAMP/etc. in a comparison,
+     * so this covers dates and other non-numeric columns without knowing the column's
+     * type. Used for >, >=, <, <=, BETWEEN — the operators that used to interpolate
+     * the raw value unquoted, which turned a date filter like `fecha >= 2026-01-01`
+     * into integer arithmetic (2026 - 1 - 1) instead of a date comparison.
+     */
+    filterValueLiteral(value) {
+        const v = String(value ?? '');
+        return /^-?\d+(\.\d+)?$/.test(v) ? v : `'${v.replace(/'/g, "''")}'`;
+    }
+
+    /**
      * Resolve a join node's key pairs. Prefers the new composite `keys: [{left,right}]`,
      * falls back to the legacy single `leftKey`/`rightKey` for older .sqlchain files.
      */
@@ -724,11 +738,11 @@ class ChainExecutor extends EventEmitter {
                     switch (c.operator) {
                         case 'IS NULL': return `${col} IS NULL`;
                         case 'IS NOT NULL': return `${col} IS NOT NULL`;
-                        case '>': case '>=': case '<': case '<=': return `${col} ${c.operator} ${c.value}`;
+                        case '>': case '>=': case '<': case '<=': return `${col} ${c.operator} ${this.filterValueLiteral(c.value)}`;
                         case 'LIKE': return `${col} LIKE '${(c.value || '').replace(/'/g, "''")}'`;
                         case 'NOT LIKE': return `${col} NOT LIKE '${(c.value || '').replace(/'/g, "''")}'`;
                         case 'IN': { const vals = (c.value || '').split(',').map(v => `'${v.trim().replace(/'/g, "''")}'`).join(', '); return `${col} IN (${vals})`; }
-                        case 'BETWEEN': return `${col} BETWEEN ${c.value} AND ${c.value2}`;
+                        case 'BETWEEN': return `${col} BETWEEN ${this.filterValueLiteral(c.value)} AND ${this.filterValueLiteral(c.value2)}`;
                         default: return `${col} ${c.operator || '='} '${(c.value || '').replace(/'/g, "''")}'`;
                     }
                 }).join(` ${connector} `);
@@ -906,6 +920,191 @@ class ChainExecutor extends EventEmitter {
             }
         }
         return lines.join('\n');
+    }
+
+    // --- Live compile (Fase 0 — "el nodo se ve sin ejecutar") ---
+    // Not every node type is well-defined without materializing something first:
+    // network fetches (http_fetch/bucket_read/gsheet_read), LLM calls (ai_enrich),
+    // and `clean`, whose transforms only resolve against the live schema at run
+    // time. These are excluded from live inlining ON PURPOSE (see SELECT_SHAPED_TYPES
+    // below) — never re-run automatically just to fill in a dropdown or a preview.
+
+    /**
+     * Strip a `CREATE OR REPLACE TABLE/TEMP VIEW "x" AS ` wrapper off buildNodeSql's
+     * output, leaving the bare SELECT body usable inside a CTE. Returns null when the
+     * text isn't SELECT-shaped (a comment-only emission like `clean` or an unmet
+     * precondition like `join_tables` with <2 sources) — the caller treats that as
+     * "not inlinable" and falls back to whatever this node last materialized.
+     */
+    bareSelectBody(sql) {
+        if (!sql) return null;
+        const stripped = sql.replace(/^CREATE OR REPLACE (?:TABLE|TEMP VIEW)\s+"[^"]*"\s+AS\s+/i, '');
+        const forCheck = stripped.replace(/^(--[^\n]*\n)+/, '').trim();
+        if (!/^(select|with)\b/i.test(forCheck)) return null;
+        return stripped;
+    }
+
+    /**
+     * Node types whose buildNodeSql output is a pure, cheap-to-recompute SELECT —
+     * safe to inline into a CTE and re-run on every keystroke. table_ref is handled
+     * separately (buildNodeSql returns null for it by design). Everything else
+     * (sinks, side-effecting nodes, network/LLM sources, `clean`) is excluded;
+     * compileNodeQuery falls back to that node's last materialized output instead.
+     */
+    static get SELECT_SHAPED_TYPES() {
+        return new Set([
+            'sql_inline', 'sql_file', 'import_file', 'import_folder',
+            'filter', 'select_columns', 'add_column', 'sort', 'deduplicate',
+            'type_cast', 'window_functions', 'date_ops', 'flatten',
+            'pivot', 'unpivot', 'group_aggregate', 'merge_tables', 'join_tables',
+            'sample',
+        ]);
+    }
+
+    /**
+     * The bare SELECT body a node would contribute as a CTE, given its parents'
+     * already-resolved source fragments. Returns { sql, inlinable }. Only called
+     * for SELECT_SHAPED_TYPES — table_ref and everything else are resolved
+     * directly in compileNodeQuery without needing this.
+     */
+    inlineNodeBody(node, sources, chainFile, vars, projectPath) {
+        if (!ChainExecutor.SELECT_SHAPED_TYPES.has(node.type)) return { sql: null, inlinable: false };
+        const raw = this.buildNodeSql(node, sources, chainFile, vars, projectPath);
+        const body = this.bareSelectBody(raw);
+        return body ? { sql: body, inlinable: true } : { sql: null, inlinable: false };
+    }
+
+    /**
+     * Compile the query that produces ONE node's own output, without executing or
+     * materializing anything — the foundation for live preview/schema/SQL-view in
+     * the chain editor (Fase 0 of docs/dev/auditoria_dataflow_ux.md).
+     *
+     * Every SELECT-shaped ancestor becomes exactly one named CTE, referenced by
+     * name from wherever it's needed — NOT a nested subquery. That matters for any
+     * DAG with fan-out: a node with two children would otherwise have its whole
+     * upstream tree duplicated in the SQL text once per child (and again for each
+     * of ITS ancestors, compounding with depth). CTEs keep the compiled text linear
+     * in the number of ancestor nodes regardless of how many times each is reused,
+     * and let DuckDB decide how to execute/share the shared subplans.
+     *
+     * Walking stops at the first ancestor that isn't SELECT-shaped (a sink, a
+     * network/LLM source, or `clean`) — that ancestor's last materialized table is
+     * referenced directly instead, so the portion of the chain below the cut point
+     * still compiles live and only the portion above it depends on a previous run.
+     *
+     * Returns:
+     *   { sql, inlinable: true }                                  — fully live
+     *   { sql, inlinable: false, materialized: true, cutNodeId }  — node itself
+     *       isn't SELECT-shaped, but has a physical table from a previous run
+     *   { sql: null, inlinable: false, materialized: false, reason }
+     *       — nothing usable is available yet
+     */
+    compileNodeQuery(chainDef, nodeId, { chainFile = '', vars: varsIn = {}, projectPath = '' } = {}) {
+        const { nodes = [], edges = [] } = chainDef;
+        const vars = { ...(chainDef.variables || {}), ...(varsIn || {}) };
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        const parentMap = new Map(nodes.map(n => [n.id, []]));
+        for (const e of edges) if (parentMap.has(e.target)) parentMap.get(e.target).push(e.source);
+
+        const cteName = (id) => `cte_${String(id).replace(/[^a-zA-Z0-9_]/g, '_')}`;
+        const ctes = [];             // ordered so each entry only references earlier ones
+        const resolved = new Map();  // nodeId -> { kind: 'cte' | 'table' | 'none', ref? }
+        const visiting = new Set();  // cycle guard — the UI already blocks cycles on connect,
+                                      // this just keeps a malformed/hand-edited chain from recursing forever
+
+        const materializedFallback = (node) => {
+            const ref = this.staticOutputRef(node, chainFile);
+            return ref && ref.table
+                ? { kind: 'table', ref: ref.schema ? `"${ref.schema}"."${ref.table}"` : `"${ref.table}"` }
+                : { kind: 'none' };
+        };
+
+        const resolve = (id) => {
+            if (resolved.has(id)) return resolved.get(id);
+            const node = nodeMap.get(id);
+            if (!node || visiting.has(id)) {
+                const r = { kind: 'none' };
+                resolved.set(id, r);
+                return r;
+            }
+
+            // table_ref has no upstream to walk.
+            if (node.type === 'table_ref') {
+                const c = this.applyVars(node.config || {}, vars);
+                const r = c.tableName
+                    ? { kind: 'table', ref: c.schema ? `"${c.schema}"."${c.tableName}"` : `"${c.tableName}"` }
+                    : { kind: 'none' };
+                resolved.set(id, r);
+                return r;
+            }
+
+            // A node whose type can never be SELECT-shaped doesn't need its ancestors
+            // walked at all — go straight to what it last materialized. Otherwise a
+            // sink or a network/LLM/`clean` node would still pull its entire upstream
+            // tree into `ctes` as CTEs the final SQL never ends up referencing.
+            if (!ChainExecutor.SELECT_SHAPED_TYPES.has(node.type)) {
+                const r = materializedFallback(node);
+                resolved.set(id, r);
+                return r;
+            }
+
+            visiting.add(id);
+            const parentIds = parentMap.get(id) || [];
+            const parentResults = parentIds.map(resolve);
+            visiting.delete(id);
+
+            const sources = parentIds
+                .map((pid, i) => {
+                    const pr = parentResults[i];
+                    if (pr.kind === 'cte') return `SELECT * FROM ${cteName(pid)}`;
+                    if (pr.kind === 'table') return `SELECT * FROM ${pr.ref}`;
+                    return null;
+                })
+                .filter(Boolean);
+
+            const { sql: body, inlinable } = this.inlineNodeBody(node, sources, chainFile, vars, projectPath);
+            if (inlinable && body) {
+                ctes.push({ name: cteName(id), sql: body });
+                const r = { kind: 'cte' };
+                resolved.set(id, r);
+                return r;
+            }
+            const r = materializedFallback(node);
+            resolved.set(id, r);
+            return r;
+        };
+
+        const target = resolve(nodeId);
+        if (target.kind === 'cte') {
+            // A node that IS select-shaped but fails to inline (join_tables with <2
+            // sources, sql_inline with a non-SELECT body, …) still had its parents
+            // walked before that was known — prune whatever ended up unreferenced so
+            // the compiled text only ever shows what the final query actually reads.
+            const byName = new Map(ctes.map(c => [c.name, c]));
+            const rootName = cteName(nodeId);
+            const needed = new Set([rootName]);
+            const stack = [rootName];
+            while (stack.length) {
+                const c = byName.get(stack.pop());
+                if (!c) continue;
+                for (const otherName of byName.keys()) {
+                    if (!needed.has(otherName) && c.sql.includes(otherName)) {
+                        needed.add(otherName);
+                        stack.push(otherName);
+                    }
+                }
+            }
+            const used = ctes.filter(c => needed.has(c.name));
+            const withClause = used.map(c => `${c.name} AS (\n${c.sql}\n)`).join(',\n');
+            return { sql: `WITH ${withClause}\nSELECT * FROM ${rootName}`, inlinable: true };
+        }
+        if (target.kind === 'table') {
+            return { sql: `SELECT * FROM ${target.ref}`, inlinable: false, materialized: true, cutNodeId: nodeId };
+        }
+        return {
+            sql: null, inlinable: false, materialized: false, cutNodeId: null,
+            reason: 'No upstream data available yet — connect a source, or run this node once.',
+        };
     }
 
     // --- Node Execution ---
@@ -1256,10 +1455,10 @@ class ChainExecutor extends EventEmitter {
                     switch (c.operator) {
                         case '=': return `${col} = '${(c.value || '').replace(/'/g, "''")}'`;
                         case '!=': return `${col} != '${(c.value || '').replace(/'/g, "''")}'`;
-                        case '>': return `${col} > ${c.value}`;
-                        case '>=': return `${col} >= ${c.value}`;
-                        case '<': return `${col} < ${c.value}`;
-                        case '<=': return `${col} <= ${c.value}`;
+                        case '>': return `${col} > ${this.filterValueLiteral(c.value)}`;
+                        case '>=': return `${col} >= ${this.filterValueLiteral(c.value)}`;
+                        case '<': return `${col} < ${this.filterValueLiteral(c.value)}`;
+                        case '<=': return `${col} <= ${this.filterValueLiteral(c.value)}`;
                         case 'LIKE': return `${col} LIKE '${(c.value || '').replace(/'/g, "''")}'`;
                         case 'NOT LIKE': return `${col} NOT LIKE '${(c.value || '').replace(/'/g, "''")}'`;
                         case 'IS NULL': return `${col} IS NULL`;
@@ -1268,7 +1467,7 @@ class ChainExecutor extends EventEmitter {
                             const vals = (c.value || '').split(',').map(v => `'${v.trim().replace(/'/g, "''")}'`).join(', ');
                             return `${col} IN (${vals})`;
                         }
-                        case 'BETWEEN': return `${col} BETWEEN ${c.value} AND ${c.value2}`;
+                        case 'BETWEEN': return `${col} BETWEEN ${this.filterValueLiteral(c.value)} AND ${this.filterValueLiteral(c.value2)}`;
                         default: return `${col} = '${(c.value || '').replace(/'/g, "''")}'`;
                     }
                 });
