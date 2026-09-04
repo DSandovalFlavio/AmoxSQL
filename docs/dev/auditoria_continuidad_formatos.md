@@ -1,0 +1,295 @@
+# Auditoría de continuidad entre formatos — AmoxSQL
+
+> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. Plan de implementación al final, sin empezar.
+> **Pregunta que la origina**: cuando un análisis avanza de una query a un gráfico, a un notebook, a una presentación — ¿qué pasa con los archivos que quedan atrás? ¿El usuario sabe cuál es "el bueno"? ¿Los saltos entre formatos son fluidos o hay que rehacer trabajo?
+
+---
+
+## 1. El mapa de artefactos
+
+AmoxSQL tiene **seis artefactos de usuario** y **cinco formatos de salida**. Este es el mapa real, verificado en código:
+
+### Artefactos (viven en el proyecto)
+
+| Artefacto | Extensión | Qué contiene | Dónde se edita |
+|---|---|---|---|
+| Query | `.sql` | Texto SQL | SqlEditor (Monaco) |
+| Notebook | `.sqlnb` + `.sqlnb.state.json` | Celdas (SQL / Texto / Input) + environment; el sidecar guarda resultados y configs de gráfico | SqlNotebook |
+| Gráfico | `.amoxvis` | JSON de config **+ la query embebida** | Story Flow (DataVisualizer) |
+| Presentación | `.amoxdeck` | Markdown con front-matter + slides separados por `---` + bloques ` ```amoxchart ` que apuntan a un `.amoxvis` | Report Flow Studio |
+| Pipeline | `.sqlchain` | Grafo de nodos (Data Flow) | ChainEditor |
+| Documento | `.md` | Markdown con mermaid, KaTeX, imágenes | MarkdownEditor |
+
+### Salidas (salen del proyecto)
+
+| Salida | Desde dónde | Nativo/editable |
+|---|---|---|
+| PNG | Story Flow | imagen |
+| Imagen al portapapeles | Story Flow | imagen |
+| CSV de datos procesados | Story Flow | datos |
+| HTML self-contained | Notebook | — |
+| Word `.docx` | Notebook | texto nativo, gráficos como imagen |
+| PowerPoint `.pptx` | Report Flow deck | **gráficos nativos editables** (11 tipos) |
+| CSV / Parquet / Excel | Editor (Export) y Data Flow | datos |
+
+---
+
+## 2. La matriz de transiciones
+
+Filas = de dónde vengo. Columnas = a dónde quiero ir. Verificado leyendo el código, no supuesto.
+
+| ↓ desde \ hacia → | `.sql` | `.sqlnb` | `.amoxvis` | `.amoxdeck` | PNG | Word | PPT | PDF |
+|---|---|---|---|---|---|---|---|---|
+| **`.sql`** | — | ⚠️ solo multi-statement | ✅ vía resultados | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **`.sqlnb`** | ❌ | — | ✅ por celda (oculto) | ❌ | ❌ | ✅ | ❌ | ⚠️ vía Print |
+| **`.amoxvis`** | ⚠️ "Edit SQL" edita la copia | ❌ | — | ⚠️ solo desde el deck | ✅ | ❌ | ❌ | ❌ |
+| **`.amoxdeck`** | ❌ | ❌ | ❌ | — | ❌ | ❌ | ✅ | ❌ |
+| **`.sqlchain`** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Leyenda**: ✅ existe y es directo · ⚠️ existe pero con una salvedad importante · ❌ no existe
+
+Lo que salta a la vista: **la diagonal de consolidación está vacía**. No hay forma de subir de nivel (query → notebook → deck) sin rehacer el trabajo a mano. Y las salidas son mutuamente excluyentes: el único camino a PowerPoint pasa por un deck, el único camino a Word pasa por un notebook.
+
+---
+
+## 3. Los 25 escenarios
+
+Cada uno con el veredicto de lo que hoy pasa realmente.
+
+### Arranque y descubrimiento
+
+**1. Abro un Excel suelto y quiero mirarlo.**
+✅ **Fluido.** Clic derecho en el explorador → *Direct Query* genera un `SELECT * FROM read_xlsx(...)`. También *Quick Preview* y *Import to Database*. Este arranque está bien resuelto.
+
+**2. Tengo 8 CSV en una carpeta y quiero entenderlos juntos.**
+⚠️ **A medias.** *Import Folder* existe como nodo de Data Flow, pero desde el explorador hay que importar uno por uno. No hay "explorar esta carpeta como dataset".
+
+**3. Ya iteré la query 6 veces y llegué al resultado.**
+✅ **Fluido dentro del editor.** El historial (`amox_query_history`) guarda todo, hay panel de historial y bookmarks.
+❌ **Pero**: una query del historial no se puede convertir en archivo con un clic. Se copia y se pega.
+
+### De la query al gráfico — el escenario que originó esta auditoría
+
+**4. Tengo el resultado y quiero graficarlo.**
+✅ **Fluido.** El toggle tabla/gráfico está en la misma barra de resultados. No hay que salir ni guardar nada. Story Flow abre con los datos ya cargados.
+
+**5. Hago el gráfico. ¿Qué pasa con mi `.sql`?**
+❌ **Aquí está el problema de fondo.** Al guardar como `.amoxvis`, la query se **copia dentro** del archivo de gráfico (`saveChartConfig` mete `query` en el JSON). El `.amoxvis` **no guarda ninguna referencia al `.sql` del que salió**.
+
+Consecuencias concretas:
+- Quedas con **dos archivos que contienen la misma query** y nada te dice cuál es el bueno.
+- Si editas el `.sql`, el gráfico **no se entera nunca**. El botón *Reload* del gráfico recarga el `.amoxvis` desde disco — no la query original.
+- Si editas la query desde el gráfico (*Edit SQL*), estás editando **la copia**, y el `.sql` original queda desactualizado en silencio.
+- A los tres meses no sabes si `ventas.sql` y `ventas_chart.amoxvis` siguen diciendo lo mismo.
+
+**Respuesta directa a tu pregunta**: sí, mantienes los dos archivos, y sí, los vas a necesitar los dos — pero el producto no te ayuda a saberlo ni a mantenerlos sincronizados.
+
+**6. ¿Y si solo quiero el gráfico y tiro el `.sql`?**
+✅ Funciona: el `.amoxvis` es autosuficiente, re-ejecuta su query al abrirlo. Pero pierdes el archivo con el que iterabas, y editar SQL dentro del panel de gráfico es mucho peor que en el editor.
+
+**7. Le añado el storytelling (takeaway, anotaciones, énfasis).**
+✅ **Fluido y bien resuelto.** La etapa ⑤ Story del flujo de 6 etapas es de lo mejor construido del producto.
+
+**8. Lo descargo como PNG para compartirlo.**
+⚠️ **Funciona pero se siente ajeno.** El PNG sale por la descarga del navegador, con nombre autogenerado tipo `chart_bar_1080p_1756891234567.png`, a la carpeta de Descargas del sistema.
+
+Lo que esto rompe:
+- No hay diálogo para elegir dónde guardarlo, aunque Electron ya expone diálogos nativos.
+- El nombre no dice nada del análisis.
+- El proyecto tiene una carpeta canónica **`charts/`** (la crea el Workspace Wizard) que **ningún export usa**.
+- Terminas con el análisis en el proyecto y los entregables en Descargas.
+
+**9. Quiero el gráfico en vectorial (SVG) para imprimir o retocar.**
+❌ **No existe.** El comentario en `ExportPanel.jsx` lo dice literal: *"SVG / Clipboard / PPTX llegan en la fase 6"*. El portapapeles sí llegó; SVG y PPTX no.
+
+**10. Quiero pegar ese gráfico en un PowerPoint que ya tengo, editable.**
+❌ **No se puede desde el gráfico.** Y esto duele especialmente porque **el motor ya existe y es bueno**: `officeChartMapper.js` mapea 11 tipos de gráfico (barras en 6 variantes, línea, área, dona, pastel, combo) a gráficos **nativos de PowerPoint** — doble clic en PowerPoint y se abre la tabla de datos.
+
+Pero ese motor **solo se alcanza desde un deck**. Para llevar un gráfico a PowerPoint editable hoy tienes que: crear un `.amoxdeck` → insertar el gráfico en un slide → entrar a vista Present → exportar el deck completo → abrir el `.pptx` → copiar el gráfico → pegarlo en tu presentación real. Seis pasos para lo que debería ser uno.
+
+*(Salvedad honesta y documentada: en modo nativo se pierden las capas de storytelling — anotaciones, líneas de referencia, KPI destacado — porque la API de gráficos de PowerPoint no tiene equivalente. Los tipos sin mapeo nativo — dispersión, burbuja, heatmap, treemap, embudo, cascada — caen a imagen.)*
+
+### Consolidar el análisis
+
+**11. Tengo 5 `.sql` en una carpeta que son un análisis. Quiero volverlos un notebook.**
+❌ **No existe.** El explorador **sí tiene multi-selección** (`selectedFiles`, `multiSelectMode`, con Ctrl+C/Ctrl+X/Supr/F2), pero las únicas acciones masivas son copiar, cortar y borrar. No hay "crear notebook con estos".
+
+La única conversión a notebook que existe en todo el producto es la de un `.sql` **multi-statement**, y solo aparece dentro del diálogo que salta al ejecutarlo.
+
+**12. Lo mismo pero mezclando queries y gráficos.**
+❌ **No existe**, y sería más valioso todavía: un `.amoxvis` ya trae query + config, es exactamente una celda de notebook con su gráfico.
+
+**13. Hice un gráfico dentro de una celda de notebook. ¿Lo puedo reusar?**
+⚠️ **Sí, pero está escondido.** El gráfico de celda vive en el sidecar `.sqlnb.state.json`, no como `.amoxvis`. La celda pasa `query` al visualizador, así que *Save as .amoxvis* del panel Export **sí funciona** — pero está enterrado en la etapa ⑥ del panel lateral del gráfico. Nadie lo encuentra sin que se lo digan.
+
+**14. Tengo el notebook listo y lo quiero como slides.**
+❌ **No existe.** Y la conversión es casi mecánica: cada celda markdown es el texto de un slide, cada celda SQL con gráfico es un `content-chart`. Hoy hay que crear el deck vacío y rehacerlo a mano.
+
+**15. Notebook → Word.**
+✅ **Existe y es bueno.** Texto nativo, tablas GFM nativas, gráficos como imagen. Botón visible en la barra.
+
+**16. Notebook → PowerPoint.**
+❌ **No existe**, aunque el notebook tiene modo *Present* y el motor de PPTX está a un import de distancia.
+
+**17. Notebook → PDF.**
+⚠️ Solo vía *Print* del navegador.
+
+### La presentación
+
+**18. Quiero añadir elementos a un slide para que se vea mejor.**
+⚠️ **Muy limitado.** El Report Flow Studio (vista Design) edita **un slide a la vez**, con dos piezas: prosa markdown editable al clic, y **un** slot de gráfico. Los layouts son 5 (`title`, `content`, `content-chart`, `chart-full`, `two-col`).
+
+No hay: insertar imagen, dos gráficos en un slide, tabla de KPIs, formas, cajas de texto libres, ni notas del orador. Si tu presentación necesita algo que no sea "texto + un gráfico", el deck se te queda corto.
+
+**19. El deck completo a PowerPoint editable.**
+✅ **Existe y es la joya del producto.** Gráficos nativos donde hay mapeo, texto como runs nativos, tablas GFM como tablas nativas, y un menú para elegir nativo vs. imagen. *(Salvedad real: el modo imagen exige estar en vista Present, porque captura el DOM montado.)*
+
+**20. El deck a Word o PDF.**
+❌ **No existe.** Asimetría pura: el notebook exporta a Word pero no a PPT; el deck a PPT pero no a Word.
+
+**21. Es el reporte del mes. Quiero re-ejecutarlo con datos nuevos.**
+✅ **Bien resuelto en deck.** *Refresh all* re-ejecuta cada `.amoxvis` contra la base actual, y el export a PPT re-consulta siempre en fresco. Las `variables` del front-matter se inyectan.
+⚠️ **Pero** las variables del deck y el `environment` del notebook son **dos sistemas distintos** que no se hablan.
+
+### El pipeline
+
+**22. Tengo un Data Flow que limpia datos. Quiero graficar el resultado.**
+❌ **Callejón sin salida.** Data Flow tiene 30+ nodos, y sus salidas son: `export_file`, `create_table`, `checkpoint`, `notification`. **No hay nodo de gráfico ni de reporte.** Un pipeline no puede terminar en una historia — tienes que salir, abrir un editor y volver a consultar la tabla que dejó.
+
+**23. Data Flow → notebook.**
+❌ No existe.
+
+### La IA
+
+**24. Le pido a la IA que me grafique algo.**
+✅ **Bien resuelto.** `display_chart` produce un gráfico y el bloque de chat ofrece *"Save as .amoxvis and open it in the Story Flow editor"* — la IA es hoy el **único** camino de creación que aterriza directo en un artefacto del proyecto.
+
+**25. Comparto el análisis con un colega. ¿Qué le mando?**
+⚠️ **No está claro y el producto no ayuda.** Si le mandas el `.amoxdeck`, necesita los `.amoxvis` referenciados por ruta relativa, la base de datos, y AmoxSQL. Si le mandas el `.pptx`, se lleva los gráficos editables pero pierde la trazabilidad. No hay "empaquetar el análisis" ni un export que se explique solo.
+
+---
+
+## 4. Las seis causas estructurales
+
+Los 25 escenarios anteriores no son 25 problemas. Son seis:
+
+### Causa 1 — El vínculo entre artefactos es una copia, no una referencia
+
+`.amoxvis` guarda la query embebida y **ninguna referencia** a su origen. No hay procedencia en ningún formato: el deck referencia gráficos por ruta, pero el gráfico no referencia su query, y el notebook no referencia nada.
+
+**Consecuencia**: el usuario acumula archivos que se solapan sin saber cuál manda, y las ediciones se pierden en silencio en la dirección equivocada.
+
+### Causa 2 — La matriz de export es asimétrica y está incompleta
+
+Cada formato construyó su propio export en su propio momento:
+
+- Notebook → HTML, Word
+- Deck → PowerPoint
+- Gráfico → PNG, portapapeles, CSV
+- Editor `.sql` → nada
+
+**Ninguna de las tres casillas comparte código de destino.** El resultado es que *dónde puedes exportar* depende de *dónde estabas parado*, no de lo que quieres lograr.
+
+### Causa 3 — Todos los entregables salen por la carpeta de Descargas
+
+Ningún export usa el diálogo nativo de Electron ni escribe dentro del proyecto. Todos hacen `link.download = <nombre-autogenerado>`. Y existe una carpeta `charts/` canónica que nada usa.
+
+**Consecuencia**: el trabajo vive en el proyecto, los entregables viven en Descargas, y no hay forma de reconstruir cuál salió de cuál.
+
+### Causa 4 — No hay conversiones, solo creación desde cero
+
+Una sola conversión existe en todo el producto (`.sql` multi-statement → notebook) y está escondida en un diálogo. Consolidar trabajo disperso es copiar y pegar a mano.
+
+### Causa 5 — Data Flow no cierra el círculo
+
+Es el único modo que no puede producir nada visual ni narrativo. Termina en datos y obliga a salir.
+
+### Causa 6 — El vocabulario de creación es incompleto
+
+La paleta de comandos ofrece *New SQL Query*, *New Notebook*, *New Chain* — pero **no** *New Deck* ni *New Chart*, aunque ambos existen como formatos de primera clase.
+
+---
+
+## 5. Cómo se ve esto para cada perfil
+
+**Analista de datos** (el perfil mayoritario). Vive en el tramo query → gráfico → presentación. Le pegan de lleno las causas 1, 2 y 3: hace el gráfico, no sabe qué hacer con su `.sql`, el PNG se le pierde en Descargas y para meter el gráfico en su PowerPoint del lunes tiene que dar seis pasos. **Es quien más gana con las fases 1 y 2 del plan.**
+
+**Científico de datos**. Vive en el notebook. Le pega la causa 4 (no puede consolidar sus queries sueltas) y la 2 (su notebook no llega a slides). Quiere el notebook como fuente de verdad y todo lo demás derivado de él.
+
+**Ingeniero de datos**. Vive en Data Flow y en scripts `.sql`. Le pega la causa 5 de lleno: su pipeline no puede reportar nada. Y le pega la 1, porque es quien más sufre cuando dos archivos dicen cosas distintas.
+
+---
+
+## 6. Plan de implementación
+
+Seis fases, ordenadas por relación valor/esfuerzo. Cada una es entregable por sí sola.
+
+### Fase 1 — El entregable aterriza donde trabajas
+
+*Ataca la causa 3. Es la de mejor ratio: mucho alivio, poco código.*
+
+- **Diálogo nativo de guardado** para PNG, HTML, Word y PowerPoint, vía `electronAPI` (ya existe el puente, ya se usa para abrir proyectos).
+- **Carpeta por defecto dentro del proyecto**: `charts/` para PNG, `reports/` para documentos. Crearlas si no están.
+- **Nombres derivados del artefacto**, no del reloj: `ventas_por_region.png`, no `chart_bar_1080p_1756891234567.png`.
+- **Toast con "Revelar en el explorador"** al terminar — ya existe el IPC `shell:showItemInFolder` (se añadió en la Fase 2 de pestañas).
+- Recordar la última carpeta usada por tipo de export.
+
+### Fase 2 — Un solo menú Exportar, igual en todos los formatos
+
+*Ataca la causa 2. El grueso es reutilizar motores que ya existen.*
+
+- Componente único `ExportMenu` con el mismo vocabulario en editor, notebook, gráfico y deck.
+- **Gráfico → PowerPoint** (un slide, gráfico nativo). Es importar `officeChartMapper` desde Story Flow: el motor ya está escrito y probado.
+- **Gráfico → SVG**, cerrando la deuda que el propio código declara.
+- **Notebook → PowerPoint**, reutilizando el generador del deck (una celda markdown + su gráfico ≈ un slide `content-chart`).
+- **Deck → Word y HTML**, reutilizando los generadores del notebook.
+- **PDF de verdad** en notebook y deck, no vía Print.
+
+Al terminar esta fase la matriz de export queda completa y simétrica: los cuatro artefactos llegan a los cinco destinos.
+
+### Fase 3 — Procedencia: el vínculo deja de ser una copia
+
+*Ataca la causa 1. La más profunda; toca formato de archivo, así que va después de las dos anteriores.*
+
+- `.amoxvis` gana un campo `source` (`queries/ventas.sql`) además de la query embebida — **compatible hacia atrás**: sin `source` se comporta exactamente como hoy.
+- **Detección de desincronía**: si el `.sql` fuente cambió, el gráfico muestra un aviso discreto con dos acciones: *Traer los cambios* o *Desvincular*.
+- **Camino de vuelta**: desde un `.sql`, un indicador de "3 gráficos usan esta query" que los lista y los abre.
+- *Edit SQL* dentro del gráfico pasa a abrir **el archivo fuente** cuando hay vínculo, en vez de la copia.
+- El deck ya referencia bien sus gráficos: esto extiende ese modelo un nivel hacia abajo.
+
+### Fase 4 — Consolidar: las conversiones que faltan
+
+*Ataca la causa 4. Es lo que más preguntaste.*
+
+- **Multi-selección → notebook**: seleccionas `.sql`, `.amoxvis` y `.md` en el explorador, clic derecho, *"Crear notebook con estos archivos"*. Cada `.sql` es una celda SQL, cada `.amoxvis` una celda SQL con su gráfico ya configurado, cada `.md` una celda de texto. Orden = orden de selección, reordenable después.
+- **Notebook → deck**: *"Convertir a presentación"*. Celda markdown = texto del slide; celda SQL con gráfico = layout `content-chart`; el gráfico se materializa como `.amoxvis` en `charts/`. Con vista previa antes de escribir.
+- **Gráfico → "Añadir a presentación…"**: elige un `.amoxdeck` existente o crea uno. Hoy la relación solo funciona tirando desde el deck; falta empujar desde el gráfico.
+- **Historial → archivo**: convertir una query del historial en `.sql` con un clic.
+- **Unificar variables**: el `environment` del notebook y las `variables` del deck pasan a ser el mismo mecanismo, para que la conversión no las pierda.
+
+### Fase 5 — El slide como lienzo
+
+*Ataca la causa 6 en su versión más visible.*
+
+- Elementos nuevos en el Design view: **imagen**, **dos gráficos**, **fila de KPIs**, **tabla**, **cita destacada**.
+- **Notas del orador** por slide, exportadas como notas nativas del `.pptx`.
+- Más layouts: `two-charts`, `kpi-row`, `section-divider`, `quote`.
+- *New Deck* y *New Chart* en la paleta de comandos, para cerrar la asimetría del vocabulario.
+
+### Fase 6 — Data Flow cierra el círculo
+
+*Ataca la causa 5.*
+
+- **Nodo Chart**: toma la tabla de salida y produce un `.amoxvis`.
+- **Nodo Report**: produce un notebook o un deck a partir del pipeline.
+- Con esto, un pipeline programado puede terminar en un reporte actualizado en vez de en una tabla que alguien tiene que ir a mirar.
+
+---
+
+## 7. Qué NO propone este plan
+
+Para que el alcance quede honesto:
+
+- **No propone unificar los formatos en uno solo.** Que `.sql`, `.sqlnb`, `.amoxvis` y `.amoxdeck` sean archivos distintos está bien: cada uno tiene un editor propio y un ciclo de vida propio. El problema no es que sean varios, es que no se conocen entre sí.
+- **No propone un editor de slides libre estilo lienzo con posicionamiento absoluto.** El modelo markdown-first del deck es una fortaleza (diffea en git, la IA lo puede escribir, se re-serializa sin pérdida). La Fase 5 añade elementos dentro de ese modelo, no lo reemplaza.
+- **No toca el motor de gráficos nativos de PowerPoint** más allá de exponerlo desde más sitios. Sus límites (11 tipos, sin overlays de storytelling) están documentados y son razonables.
