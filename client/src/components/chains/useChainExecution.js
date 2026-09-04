@@ -17,6 +17,15 @@ export function useChainExecution() {
 
     const pollRef = useRef(null);
     const sseRef = useRef(null);
+    // Nodes already turned into a log line this run — SSE already logs each
+    // node as it completes, but /api/chains/run runs the chain to completion
+    // BEFORE responding, so a chain that finishes before the client gets that
+    // response (any small local chain — i.e. almost always) never has an SSE
+    // connection open to hear those events at all. The fallback below
+    // reconstructs the same log lines from the persisted node_runs once,
+    // right after start; this set stops it from re-adding them if a live SSE
+    // connection (a slower chain) logs the same node again on top.
+    const loggedNodeIdsRef = useRef(new Set());
 
     const stopPolling = useCallback(() => {
         if (pollRef.current) {
@@ -53,6 +62,7 @@ export function useChainExecution() {
                     } else if (data.type === 'node_sql') {
                         addLog({ type: 'sql', nodeId: data.nodeId, nodeLabel: data.nodeLabel, message: data.sql, timestamp: data.timestamp });
                     } else if (data.type === 'node_complete') {
+                        loggedNodeIdsRef.current.add(data.nodeId);
                         const rowCount = data.rowCount !== undefined ? ` → ${Number(data.rowCount).toLocaleString()} rows` : '';
                         const dur = data.durationMs ? ` (${data.durationMs < 1000 ? `${data.durationMs}ms` : `${(data.durationMs/1000).toFixed(1)}s`})` : '';
                         const dest = data.table ? ` → ${data.table}` : data.path ? ` → ${data.path}` : '';
@@ -68,6 +78,7 @@ export function useChainExecution() {
                             },
                         }));
                     } else if (data.type === 'node_error') {
+                        loggedNodeIdsRef.current.add(data.nodeId);
                         addLog({ type: 'error', nodeId: data.nodeId, nodeLabel: data.nodeLabel, message: data.error, timestamp: data.timestamp });
                         setNodeStatuses(prev => ({
                             ...prev,
@@ -116,6 +127,25 @@ export function useChainExecution() {
                     durationMs: nr.duration_ms,
                     errorMessage: nr.error_message,
                 };
+
+                // Backfill this node's log lines once — mirrors what the SSE
+                // node_sql/node_complete/node_error handlers would have logged,
+                // for nodes SSE never got a chance to report (see loggedNodeIdsRef).
+                if ((nr.status === 'success' || nr.status === 'failed') && !loggedNodeIdsRef.current.has(nr.node_id)) {
+                    loggedNodeIdsRef.current.add(nr.node_id);
+                    if (nr.sql_executed) {
+                        addLog({ type: 'sql', nodeId: nr.node_id, nodeLabel: nr.node_label, message: nr.sql_executed, timestamp: nr.started_at });
+                    }
+                    if (nr.status === 'success') {
+                        const summary = nr.result_summary ? JSON.parse(nr.result_summary) : null;
+                        const rowCount = summary?.rowCount !== undefined ? ` → ${Number(summary.rowCount).toLocaleString()} rows` : '';
+                        const dur = nr.duration_ms ? ` (${nr.duration_ms < 1000 ? `${nr.duration_ms}ms` : `${(nr.duration_ms / 1000).toFixed(1)}s`})` : '';
+                        const dest = summary?.table ? ` → ${summary.table}` : summary?.path ? ` → ${summary.path}` : '';
+                        addLog({ type: 'success', nodeId: nr.node_id, nodeLabel: nr.node_label, message: `${nr.node_label}${rowCount}${dest}${dur}`, timestamp: nr.finished_at });
+                    } else {
+                        addLog({ type: 'error', nodeId: nr.node_id, nodeLabel: nr.node_label, message: nr.error_message, timestamp: nr.finished_at });
+                    }
+                }
             }
             setNodeStatuses(statuses);
             setRunStatus(data.run?.status || null);
@@ -133,7 +163,7 @@ export function useChainExecution() {
         } catch (err) {
             console.error('[Chain] Poll error:', err);
         }
-    }, [stopPolling]);
+    }, [stopPolling, addLog]);
 
     const startRun = useCallback(async (chainDef, chainFile, { mode = 'full', startNodeId = null } = {}) => {
         try {
@@ -142,6 +172,7 @@ export function useChainExecution() {
             setRunStatus('running');
             setProgress({ completed: 0, total: chainDef.nodes?.length || 0 });
             setLogs([]);
+            loggedNodeIdsRef.current = new Set();
 
             const res = await fetch(`${API_BASE}/run`, {
                 method: 'POST',
@@ -204,6 +235,7 @@ export function useChainExecution() {
         setIsRunning(false);
         setProgress({ completed: 0, total: 0 });
         setLogs([]);
+        loggedNodeIdsRef.current = new Set();
         stopPolling();
         stopSSE();
     }, [stopPolling, stopSSE]);

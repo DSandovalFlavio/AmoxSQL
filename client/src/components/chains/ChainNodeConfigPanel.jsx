@@ -1,46 +1,25 @@
 /**
- * ChainNodeConfigPanel — Right-side config panel for the selected node.
- * Displays editable label, description, and type-specific configuration fields.
+ * ChainNodeConfigPanel — the node's own config fields (label, description,
+ * type-specific settings). Fase 3 of docs/dev/auditoria_dataflow_ux.md moved
+ * this out of a fixed right-side drawer into a popover anchored to the node
+ * (see ChainNodeConfigPopover) — this component is now just its CONTENT.
+ * Everything that used to live in this panel's own tabs (input/output schema,
+ * output preview, validation detail, node docs) moved to ChainInspector,
+ * which is permanently visible instead of appearing only while a node is
+ * selected — see docs/dev/auditoria_dataflow_ux.md §4.3.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
-    LuX, LuFileCode2, LuPlus, LuExternalLink, LuTrash2, LuMinus,
-    LuCode, LuChevronDown, LuChevronRight, LuCopy, LuFolderOpen, LuLightbulb
+    LuChevronDown, LuChevronRight, LuCode, LuCopy, LuExternalLink,
+    LuFolderOpen, LuLightbulb, LuMinus, LuPlus,
 } from 'react-icons/lu';
-import { NODE_TYPES } from './chainNodeTypes';
 import Combobox from './_Combobox';
-import { computeOutputColumns } from './nodeLineage';
-import { validateNode } from './chainValidation';
-import NodeDocView from './NodeDocView';
-import { LuCircleAlert, LuTriangleAlert, LuCheck } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 
-// Renders a list of columns ({ name, type?, from? }) with a dimmed right-hand hint.
-const ColumnRows = ({ columns, hintKey = 'type' }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
-        {columns.map((c, i) => (
-            <div key={`${c.name}-${i}`} style={{
-                display: 'flex', justifyContent: 'space-between', gap: 8,
-                padding: '4px 8px', borderRadius: 4, background: 'var(--surface-raised)', fontSize: 12,
-            }}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-active)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                {c[hintKey] && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>{c[hintKey]}</span>}
-            </div>
-        ))}
-    </div>
-);
-
-const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFile, onOpenFile, sqlFiles = [], chainDefinition, chainFile }) => {
+const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sqlFiles = [], chainDefinition, chainFile }) => {
     const [availableTables, setAvailableTables] = useState([]);
     const [projectFiles, setProjectFiles] = useState([]);
     const [upstreamColumns, setUpstreamColumns] = useState([]);
-    const [activeTab, setActiveTab] = useState('basic');
-    const [previewData, setPreviewData] = useState(null);
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [panelWidth, setPanelWidth] = useState(() => {
-        const v = Number(localStorage.getItem('amoxsql-chain-config-width'));
-        return v >= 260 ? v : 300;
-    });
 
     // Available tables/views for table autocomplete.
     useEffect(() => {
@@ -70,7 +49,8 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
 
     // Upstream columns for the selected node (column autocomplete). Re-fetched when the
     // selected node, the chain file, or the connection topology changes — so reconnecting
-    // nodes refreshes suggestions (edgesSig is a stable value-compared string).
+    // nodes refreshes suggestions (edgesSig is a stable value-compared string). Fase 0's
+    // schema/infer compiles-and-DESCRIBEs live now, so this fills in without running.
     const nodeId = node?.id;
     const edgesSig = JSON.stringify((chainDefinition && chainDefinition.edges) || []);
     useEffect(() => {
@@ -88,43 +68,12 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nodeId, chainFile, edgesSig]);
 
-    // Node output preview (only when the Preview tab is open). Resolves the node's
-    // physical output table server-side; available after the node has run.
-    useEffect(() => {
-        if (activeTab !== 'preview' || !nodeId || !chainDefinition) return;
-        let cancelled = false;
-        setPreviewLoading(true);
-        fetch(`${API_BASE}/api/chains/preview-node`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nodeId, chainDefinition, chainFile: chainFile || '', limit: 50 }),
-        })
-            .then(r => r.json())
-            .then(d => { if (!cancelled) setPreviewData(d); })
-            .catch(() => { if (!cancelled) setPreviewData({ available: false }); })
-            .finally(() => { if (!cancelled) setPreviewLoading(false); });
-        return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, nodeId, chainFile, edgesSig]);
-
-    useEffect(() => {
-        localStorage.setItem('amoxsql-chain-config-width', String(panelWidth));
-    }, [panelWidth]);
-
-    // Clean up an in-progress panel resize if the panel unmounts mid-drag.
-    const resizeCleanupRef = useRef(null);
-    useEffect(() => () => { resizeCleanupRef.current?.(); }, []);
-
     if (!node) return null;
 
-    const nodeType = NODE_TYPES[node.data.nodeType] || NODE_TYPES.sql_file;
-    const Icon = nodeType.icon;
     const config = node.data.config || {};
     const tableOptions = availableTables.map(t => ({ value: t.name, hint: t.type === 'VIEW' ? 'view' : (t.schema && t.schema !== 'main' ? t.schema : undefined) }));
     const columnOptions = upstreamColumns.map(c => ({ value: c.name, hint: c.type }));
     const fileOptions = projectFiles.map(f => ({ value: f }));
-    const outputColumns = computeOutputColumns(node.data.nodeType, config, upstreamColumns);
-    const nodeValidation = validateNode(node, (chainDefinition && chainDefinition.edges) || []);
 
     const updateField = (field, value) => {
         onUpdate(node.id, { [field]: value });
@@ -140,59 +89,8 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
         onUpdate(node.id, { config: { ...config, ...patch } });
     };
 
-    const startResize = (e) => {
-        e.preventDefault();
-        const startX = e.clientX;
-        const startW = panelWidth;
-        const onMove = (ev) => setPanelWidth(Math.min(680, Math.max(260, startW + (startX - ev.clientX))));
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            document.body.style.userSelect = '';
-            resizeCleanupRef.current = null;
-        };
-        resizeCleanupRef.current = onUp;
-        document.body.style.userSelect = 'none';
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    };
-
     return (
-        <div className="chain-config-panel" style={{ width: panelWidth, minWidth: panelWidth, position: 'relative' }}>
-            <div
-                onMouseDown={startResize}
-                title="Drag to resize panel"
-                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, cursor: 'ew-resize', zIndex: 6 }}
-            />
-            {/* Header */}
-            <div className="chain-config-header">
-                <div className="chain-config-header-left">
-                    <Icon size={14} style={{ color: nodeType.color.accent }} />
-                    <span>{nodeType.label}</span>
-                </div>
-                <button className="chain-config-close" onClick={onClose}>
-                    <LuX size={14} />
-                </button>
-            </div>
-
-            {/* Tabs — segmented control */}
-            <div style={{ padding: '8px 12px', flexShrink: 0 }}>
-                <div className="seg">
-                    {['basic', 'schema', 'preview', 'validation', 'info'].map(t => (
-                        <button
-                            key={t}
-                            onClick={() => setActiveTab(t)}
-                            className={`seg-item${activeTab === t ? ' seg-item--active' : ''}`}
-                            style={{ textTransform: 'capitalize' }}
-                        >
-                            {t}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="chain-config-body">
-                {activeTab === 'basic' && (<>
+        <div className="chain-config-body chain-config-popover-body">
                 {/* Label */}
                 <div className="chain-config-field">
                     <label>Name</label>
@@ -362,122 +260,10 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onDelete, onClose, onCreateSqlFi
                     <NotificationConfig config={config} onChange={updateConfig} />
                 )}
 
-                {/* SQL Preview */}
+                {/* SQL Preview — this node's own clause, from its config alone (no
+                    network round-trip). The Inspector's SQL tab shows the full
+                    compiled chain up to this node; this is the quick, local one. */}
                 <SqlPreview nodeType={node.data.nodeType} config={config} />
-
-                <div className="chain-config-separator" />
-
-                {/* Delete */}
-                <button className="chain-config-delete" onClick={() => onDelete(node.id)}>
-                    <LuTrash2 size={13} />
-                    <span>Delete Node</span>
-                </button>
-                </>)}
-
-                {activeTab === 'schema' && (
-                    <>
-                        <div className="chain-config-section">
-                            <label>Input Columns</label>
-                            {upstreamColumns.length === 0 ? (
-                                <p className="chain-config-hint">
-                                    No upstream columns detected yet. Connect a data source, or run the
-                                    chain so derived columns become available.
-                                </p>
-                            ) : (
-                                <ColumnRows columns={upstreamColumns} hintKey="type" />
-                            )}
-                        </div>
-                        <div className="chain-config-section">
-                            <label>Output Columns</label>
-                            {outputColumns === null ? (
-                                <p className="chain-config-hint">
-                                    Output shape depends on the data for this node — run the chain to
-                                    see the resulting columns.
-                                </p>
-                            ) : outputColumns.length === 0 ? (
-                                <p className="chain-config-hint">
-                                    Configure this node to define its output columns.
-                                </p>
-                            ) : (
-                                <ColumnRows columns={outputColumns} hintKey="from" />
-                            )}
-                        </div>
-                    </>
-                )}
-
-                {activeTab === 'preview' && (
-                    <div className="chain-config-section">
-                        <label>Output Preview</label>
-                        {previewLoading ? (
-                            <p className="chain-config-hint">Loading…</p>
-                        ) : !previewData?.available ? (
-                            <p className="chain-config-hint">
-                                No materialized output yet. Run the chain (or up to this node) to preview its result.
-                            </p>
-                        ) : (previewData.rows || []).length === 0 ? (
-                            <p className="chain-config-hint">Output table is empty (0 rows).</p>
-                        ) : (
-                            <div style={{ overflowX: 'auto', border: '1px solid var(--border-default)', borderRadius: 6, marginTop: 4 }}>
-                                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-                                    <thead>
-                                        <tr>
-                                            {previewData.columns.map(c => (
-                                                <th key={c.name} style={{ position: 'sticky', top: 0, textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-active)', whiteSpace: 'nowrap' }}>{c.name}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {previewData.rows.map((row, ri) => (
-                                            <tr key={ri}>
-                                                {previewData.columns.map(c => (
-                                                    <td key={c.name} style={{ padding: '3px 8px', borderBottom: '1px solid var(--border-default)', color: 'var(--text-secondary)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                        {row[c.name] === null || row[c.name] === undefined ? <span style={{ opacity: 0.4 }}>null</span> : String(row[c.name])}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                {previewData.totalRows > previewData.rows.length && (
-                                    <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)' }}>
-                                        Showing {previewData.rows.length} of {Number(previewData.totalRows).toLocaleString()} rows
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {activeTab === 'validation' && (
-                    <div className="chain-config-section">
-                        <label>Validation</label>
-                        {nodeValidation.errors.length === 0 && nodeValidation.warnings.length === 0 ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
-                                <LuCheck size={13} style={{ color: 'var(--color-success)' }} /> No issues — this node is ready.
-                            </div>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                                {nodeValidation.errors.map((e, i) => (
-                                    <div key={`e${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--color-error)' }}>
-                                        <LuCircleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> <span>{e}</span>
-                                    </div>
-                                ))}
-                                {nodeValidation.warnings.map((w, i) => (
-                                    <div key={`w${i}`} style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--color-warning)' }}>
-                                        <LuTriangleAlert size={13} style={{ flexShrink: 0, marginTop: 1 }} /> <span>{w}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {activeTab === 'info' && (
-                    <div className="chain-config-section">
-                        <NodeDocView typeId={node.data.nodeType} showHeader={false} />
-                    </div>
-                )}
-            </div>
         </div>
     );
 };

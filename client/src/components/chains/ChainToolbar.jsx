@@ -4,7 +4,7 @@
  */
 import {
     LuPlay, LuSquare, LuHistory, LuFileDown, LuFileUp,
-    LuLayoutDashboard, LuSave, LuChevronRight, LuChevronLeft,
+    LuLayoutDashboard, LuSave,
     LuTrash2, LuTerminal, LuTriangleAlert, LuCircleAlert, LuFileCode2, LuVariable, LuInfo
 } from 'react-icons/lu';
 
@@ -13,8 +13,6 @@ const ChainToolbar = ({
     isRunning,
     runStatus,
     onRun,
-    onRunFromNode,
-    onRunToNode,
     onCancel,
     onSave,
     onExportYaml,
@@ -26,7 +24,6 @@ const ChainToolbar = ({
     onToggleLogs,
     onShowGuide,
     onClearStatus,
-    selectedNodeId,
     isDirty,
     errorCount = 0,
     warningCount = 0,
@@ -92,27 +89,6 @@ const ChainToolbar = ({
                             <LuPlay size={14} />
                             <span>Run All</span>
                         </button>
-
-                        {selectedNodeId && (
-                            <>
-                                <button
-                                    className="chain-toolbar-btn"
-                                    onClick={() => onRunFromNode(selectedNodeId)}
-                                    title="Run from selected node forward"
-                                >
-                                    <LuChevronRight size={14} />
-                                    <span>From Here</span>
-                                </button>
-                                <button
-                                    className="chain-toolbar-btn"
-                                    onClick={() => onRunToNode(selectedNodeId)}
-                                    title="Run up to selected node"
-                                >
-                                    <LuChevronLeft size={14} />
-                                    <span>To Here</span>
-                                </button>
-                            </>
-                        )}
 
                         {runStatus && runStatus !== 'running' && (
                             <button

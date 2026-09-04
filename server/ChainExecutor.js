@@ -1028,6 +1028,18 @@ class ChainExecutor extends EventEmitter {
                 return r;
             }
 
+            // A disabled node is a transparent passthrough here too, mirroring run()
+            // — the compiled preview should show what the chain will actually produce
+            // with this node switched off, not what it would produce if it ran.
+            if (node.disabled) {
+                visiting.add(id);
+                const parentIds = parentMap.get(id) || [];
+                const r = parentIds.length ? resolve(parentIds[0]) : { kind: 'none' };
+                visiting.delete(id);
+                resolved.set(id, r);
+                return r;
+            }
+
             // table_ref has no upstream to walk.
             if (node.type === 'table_ref') {
                 const c = this.applyVars(node.config || {}, vars);
@@ -1056,7 +1068,7 @@ class ChainExecutor extends EventEmitter {
             const sources = parentIds
                 .map((pid, i) => {
                     const pr = parentResults[i];
-                    if (pr.kind === 'cte') return `SELECT * FROM ${cteName(pid)}`;
+                    if (pr.kind === 'cte') return `SELECT * FROM ${pr.name}`;
                     if (pr.kind === 'table') return `SELECT * FROM ${pr.ref}`;
                     return null;
                 })
@@ -1064,8 +1076,9 @@ class ChainExecutor extends EventEmitter {
 
             const { sql: body, inlinable } = this.inlineNodeBody(node, sources, chainFile, vars, projectPath);
             if (inlinable && body) {
-                ctes.push({ name: cteName(id), sql: body });
-                const r = { kind: 'cte' };
+                const name = cteName(id);
+                ctes.push({ name, sql: body });
+                const r = { kind: 'cte', name };
                 resolved.set(id, r);
                 return r;
             }
@@ -1080,8 +1093,11 @@ class ChainExecutor extends EventEmitter {
             // sources, sql_inline with a non-SELECT body, …) still had its parents
             // walked before that was known — prune whatever ended up unreferenced so
             // the compiled text only ever shows what the final query actually reads.
+            // `target.name` (not cteName(nodeId)) is the real root: a disabled node
+            // resolves to whichever ancestor's CTE it passed through to, which may
+            // not be its own.
             const byName = new Map(ctes.map(c => [c.name, c]));
-            const rootName = cteName(nodeId);
+            const rootName = target.name;
             const needed = new Set([rootName]);
             const stack = [rootName];
             while (stack.length) {
@@ -2180,6 +2196,13 @@ class ChainExecutor extends EventEmitter {
             activeNodeIds = this.getDownstreamNodes(startNodeId, edges, allNodeIds);
         } else if (mode === 'to_node' && startNodeId) {
             activeNodeIds = this.getUpstreamNodes(startNodeId, edges, allNodeIds);
+        } else if (mode === 'only_node' && startNodeId) {
+            // Re-run just this one node against whatever its parents already
+            // materialized (their last run, or a static source) — no ancestor
+            // re-executes. resolveUpstreamOutputs falls back to staticOutputRef
+            // for any parent not in this run, same mechanism partial runs
+            // already rely on.
+            activeNodeIds = new Set([startNodeId]);
         } else {
             activeNodeIds = allNodeIds;
         }
@@ -2273,6 +2296,24 @@ class ChainExecutor extends EventEmitter {
 
                     // Resolve upstream outputs for this node
                     const upstreamOutputs = this.resolveUpstreamOutputs(nodeId, fullParentMap, nodeOutputs, nodeMap, chainFile);
+
+                    // A disabled node is a transparent passthrough: it doesn't execute,
+                    // and whatever was upstream of it flows straight to its children —
+                    // marked 'success' (not 'skipped') so the allParentsOk check above
+                    // doesn't cascade-skip everything downstream of it.
+                    if (node.disabled) {
+                        if (upstreamOutputs[0]) nodeOutputs.set(nodeId, upstreamOutputs[0]);
+                        await chainPersistence.updateNodeRun(dbManager, nodeRunId, {
+                            status: 'success', durationMs: 0, resultType: 'disabled',
+                            resultSummary: { message: 'Disabled — passed through unchanged' },
+                        });
+                        nodeStatuses.set(nodeId, 'success');
+                        completedCount++;
+                        this.emitLog(runId, { type: 'node_complete', nodeId, nodeLabel: node.label || node.id, durationMs: 0, resultType: 'disabled' });
+                        this.emitLog(runId, { type: 'run_progress', completed: completedCount, total: activeNodes.length });
+                        await chainPersistence.updateRunStatus(dbManager, runId, { status: 'running', completedNodes: completedCount });
+                        continue;
+                    }
 
                     // Mark as running
                     await chainPersistence.updateNodeRun(dbManager, nodeRunId, { status: 'running' });

@@ -15,7 +15,10 @@ import { useDialog } from '../dialogs/DialogProvider';
 import ChainCanvas from './ChainCanvas';
 import ChainToolbar from './ChainToolbar';
 import ChainNodePalette from './ChainNodePalette';
-import ChainNodeConfigPanel from './ChainNodeConfigPanel';
+import ChainNodeConfigPopover from './ChainNodeConfigPopover';
+import ChainInspector from './ChainInspector';
+import NodeActionMenu from './NodeActionMenu';
+import NodeDocView from './NodeDocView';
 import ChainHistoryPanel from './ChainHistoryPanel';
 import ChainVariablesPanel from './ChainVariablesPanel';
 import ChainAiPrompt from './ChainAiPrompt';
@@ -67,6 +70,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 description: n.description || '',
                 nodeType: n.type,
                 config: n.config || {},
+                disabled: !!n.disabled,
             },
         })), [initialChain]);
 
@@ -98,6 +102,16 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [aiLoading, setAiLoading] = useState(false);
     const [showTemplateGallery, setShowTemplateGallery] = useState(() => initialNodes.length === 0);
     const [showGuide, setShowGuide] = useState(false);
+
+    // Fase 1-3 (docs/dev/auditoria_dataflow_ux.md): the node carries its own
+    // actions now, so the config editor is a popover anchored to whichever
+    // node is being configured, not tied 1:1 to selection — and the
+    // inspector stays visible for whichever node is selected OR pinned.
+    const [configPopoverNodeId, setConfigPopoverNodeId] = useState(null);
+    const [pinnedNodeId, setPinnedNodeId] = useState(null);
+    const [inspectorTab, setInspectorTab] = useState('data');
+    const [nodeMenu, setNodeMenu] = useState(null); // { nodeId, x, y }
+    const [nodeDocsFor, setNodeDocsFor] = useState(null); // typeId
     const isDraggingRef = useRef(false);
 
     // Execution hook
@@ -135,6 +149,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 description: n.data.description,
                 position: n.position,
                 config: n.data.config || {},
+                disabled: !!n.data.disabled,
             })),
             edges: edges.map(e => ({
                 id: e.id,
@@ -193,12 +208,19 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     }, [nodes, edges, toast]);
 
     // --- Node selection ---
+    // Selecting a node only updates what the (always-visible) inspector shows —
+    // it does NOT open the config popover. Configuring is its own explicit
+    // action (the node's action bar, its "…" menu, or a double-click) so
+    // clicking around the canvas to look at data never pops up a form.
     const onNodeClick = useCallback((event, node) => {
         setSelectedNode(node);
+        setConfigPopoverNodeId(prev => (prev && prev !== node.id ? null : prev));
     }, []);
 
     const onPaneClick = useCallback(() => {
         setSelectedNode(null);
+        setConfigPopoverNodeId(null);
+        setNodeMenu(null);
     }, []);
 
     // --- Drag and drop from palette ---
@@ -266,26 +288,21 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     }, []);
 
     // --- Node update ---
+    const applyNodeUpdates = (data, updates) => {
+        const newData = { ...data };
+        if (updates.label !== undefined) newData.label = updates.label;
+        if (updates.description !== undefined) newData.description = updates.description;
+        if (updates.config !== undefined) newData.config = updates.config;
+        if (updates.disabled !== undefined) newData.disabled = updates.disabled;
+        return newData;
+    };
+
     const updateNode = useCallback((nodeId, updates) => {
         setNodes((nds) =>
-            nds.map((n) => {
-                if (n.id !== nodeId) return n;
-                const newData = { ...n.data };
-                if (updates.label !== undefined) newData.label = updates.label;
-                if (updates.description !== undefined) newData.description = updates.description;
-                if (updates.config !== undefined) newData.config = updates.config;
-                return { ...n, data: newData };
-            })
+            nds.map((n) => (n.id === nodeId ? { ...n, data: applyNodeUpdates(n.data, updates) } : n))
         );
         // Update selectedNode reference
-        setSelectedNode(prev => {
-            if (!prev || prev.id !== nodeId) return prev;
-            const newData = { ...prev.data };
-            if (updates.label !== undefined) newData.label = updates.label;
-            if (updates.description !== undefined) newData.description = updates.description;
-            if (updates.config !== undefined) newData.config = updates.config;
-            return { ...prev, data: newData };
-        });
+        setSelectedNode(prev => (prev && prev.id === nodeId ? { ...prev, data: applyNodeUpdates(prev.data, updates) } : prev));
     }, []);
 
     // --- Node delete ---
@@ -293,6 +310,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         setNodes((nds) => nds.filter((n) => n.id !== nodeId));
         setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
         setSelectedNode(null);
+        setConfigPopoverNodeId(prev => (prev === nodeId ? null : prev));
+        setPinnedNodeId(prev => (prev === nodeId ? null : prev));
     }, []);
 
     // --- Validation (recomputed on every node/edge change, skipped during drag) ---
@@ -300,11 +319,13 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const errorCount = useMemo(() => countErrors(validationResults), [validationResults]);
     const warningCount = useMemo(() => countWarnings(validationResults), [validationResults]);
 
-    // Stable refs so that the nodesWithValidation memo doesn't re-fire just because
-    // callbacks (setPreviewTable) have a new identity.
-    const setPreviewTableRef = useRef(setPreviewTable);
-    setPreviewTableRef.current = setPreviewTable;
-    const onPreviewCallback = useCallback((tbl) => setPreviewTableRef.current(tbl), []);
+    // Stable ref so the nodesWithValidation memo doesn't re-fire just because the
+    // action handler's own dependencies (nodes, execution, …) change identity —
+    // the ref always holds the freshest closure (assigned near the bottom of this
+    // component, after the handlers it calls are defined), the callback threaded
+    // into node.data never does.
+    const nodeActionRef = useRef(null);
+    const onActionCallback = useCallback((action, id, coords) => nodeActionRef.current?.(action, id, coords), []);
 
     // Merge validation + execution status into node data.
     // We keep a frozen copy while dragging so position updates don't trigger
@@ -319,7 +340,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     ...n.data,
                     validationErrors: v?.errors || [],
                     validationWarnings: v?.warnings || [],
-                    onPreview: onPreviewCallback,
+                    onAction: onActionCallback,
                     status: execution.nodeStatuses[n.id]?.status || n.data.status,
                     resultType: execution.nodeStatuses[n.id]?.resultType || n.data.resultType,
                     resultSummary: execution.nodeStatuses[n.id]?.resultSummary || n.data.resultSummary,
@@ -331,7 +352,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         frozenNodesWithValidation.current = result;
         return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [nodes, validationResults, execution.nodeStatuses, onPreviewCallback]);
+    }, [nodes, validationResults, execution.nodeStatuses, onActionCallback]);
 
     const onNodeDragStart = useCallback(() => { isDraggingRef.current = true; }, []);
     const onNodeDragStop = useCallback(() => { isDraggingRef.current = false; }, []);
@@ -363,6 +384,110 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         const result = await execution.startRun(chainDef, filePath, { mode: 'to_node', startNodeId: nodeId });
         if (result?.error) toast.error(`Chain failed: ${result.error}`);
     }, [serialize, filePath, execution, toast]);
+
+    // Re-runs just this one node against whatever its parents last produced —
+    // no ancestor re-executes (server-side mode: 'only_node', Fase 1).
+    const handleRunOnlyNode = useCallback(async (nodeId) => {
+        setLogCollapsed(false);
+        const chainDef = serialize();
+        const result = await execution.startRun(chainDef, filePath, { mode: 'only_node', startNodeId: nodeId });
+        if (result?.error) toast.error(`Chain failed: ${result.error}`);
+    }, [serialize, filePath, execution, toast]);
+
+    // --- Node-level actions (Fase 1): duplicate, disable, rename ---
+    // Both handlers below read `nodes` from the outer closure rather than from
+    // inside a setNodes(updater) callback — React 18 StrictMode double-invokes
+    // updater functions in dev to catch impure reducers, and a side effect
+    // inside one (setSelectedNode, or updateNode's own setNodes/setSelectedNode)
+    // would then fire twice: duplicate ended up selecting a stale copy the
+    // committed nodes array didn't actually contain, and disable would have
+    // silently toggled on then back off.
+    const handleDuplicateNode = useCallback((nodeId) => {
+        const src = nodes.find(n => n.id === nodeId);
+        if (!src) return;
+        const copy = {
+            id: generateNodeId(),
+            type: src.type,
+            position: { x: src.position.x + 40, y: src.position.y + 40 },
+            data: {
+                ...src.data,
+                label: src.data.label ? `${src.data.label} copy` : src.data.label,
+                config: JSON.parse(JSON.stringify(src.data.config || {})),
+            },
+        };
+        setNodes((nds) => [...nds, copy]);
+        setSelectedNode(copy);
+    }, [nodes]);
+
+    const handleToggleDisable = useCallback((nodeId) => {
+        const src = nodes.find(n => n.id === nodeId);
+        if (src) updateNode(nodeId, { disabled: !src.data.disabled });
+    }, [nodes, updateNode]);
+
+    const handleRenameNode = useCallback(async (nodeId) => {
+        const current = nodes.find(n => n.id === nodeId);
+        if (!current) return;
+        const name = await dialog.promptAsync({
+            title: 'Rename node',
+            message: '',
+            placeholder: current.data.label || 'Node name',
+            confirmLabel: 'Rename',
+        });
+        if (name === null || name === undefined || !name.trim()) return;
+        updateNode(nodeId, { label: name.trim() });
+    }, [nodes, dialog, updateNode]);
+
+    // --- Node action bar / "…" menu / right-click dispatch ---
+    // Reassigned every render (not itself a hook) so it always closes over the
+    // latest state — the STABLE identity threaded into node.data is
+    // onActionCallback above, which just forwards here through the ref.
+    nodeActionRef.current = (action, nodeId, coords) => {
+        const target = nodes.find(n => n.id === nodeId) || null;
+        switch (action) {
+            case 'configure':
+                setSelectedNode(target);
+                setConfigPopoverNodeId(nodeId);
+                break;
+            case 'run-from':
+                handleRunFromNode(nodeId);
+                break;
+            case 'run-to':
+                handleRunToNode(nodeId);
+                break;
+            case 'view-data':
+                setSelectedNode(target);
+                setInspectorTab('data');
+                break;
+            case 'menu':
+                setSelectedNode(target);
+                setNodeMenu({ nodeId, x: coords?.x || 0, y: coords?.y || 0 });
+                break;
+            default:
+                break;
+        }
+    };
+
+    const handleMenuAction = useCallback((action) => {
+        const nodeId = nodeMenu?.nodeId;
+        if (!nodeId) return;
+        switch (action) {
+            case 'run-only': handleRunOnlyNode(nodeId); break;
+            case 'view-sql':
+                setSelectedNode(nodes.find(n => n.id === nodeId) || null);
+                setInspectorTab('sql');
+                break;
+            case 'duplicate': handleDuplicateNode(nodeId); break;
+            case 'toggle-disable': handleToggleDisable(nodeId); break;
+            case 'rename': handleRenameNode(nodeId); break;
+            case 'docs': {
+                const n = nodes.find(n => n.id === nodeId);
+                if (n) setNodeDocsFor(n.data.nodeType);
+                break;
+            }
+            case 'delete': deleteNode(nodeId); break;
+            default: break;
+        }
+    }, [nodeMenu, nodes, handleRunOnlyNode, handleDuplicateNode, handleToggleDisable, handleRenameNode, deleteNode]);
 
     // --- YAML export/import ---
     const handleExportYaml = useCallback(() => {
@@ -593,6 +718,12 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         })));
     }, []);
 
+    // The inspector follows the selection unless a node is pinned; the config
+    // popover is independent of both (only open while explicitly configuring).
+    const inspectorNodeId = pinnedNodeId || selectedNode?.id || null;
+    const inspectorNode = inspectorNodeId ? (nodes.find(n => n.id === inspectorNodeId) || null) : null;
+    const configPopoverNode = configPopoverNodeId ? (nodes.find(n => n.id === configPopoverNodeId) || null) : null;
+
     return (
         <div className="chain-editor" ref={reactFlowWrapper}>
             <ChainToolbar
@@ -600,8 +731,6 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 isRunning={execution.isRunning}
                 runStatus={execution.runStatus}
                 onRun={handleRun}
-                onRunFromNode={handleRunFromNode}
-                onRunToNode={handleRunToNode}
                 onCancel={execution.cancelRun}
                 onSave={handleSave}
                 onExportYaml={handleExportYaml}
@@ -613,7 +742,6 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 onToggleLogs={() => setLogCollapsed(v => !v)}
                 onShowGuide={() => setShowGuide(true)}
                 onClearStatus={execution.clearStatus}
-                selectedNodeId={selectedNode?.id}
                 isDirty={isDirty}
                 errorCount={errorCount}
                 warningCount={warningCount}
@@ -647,19 +775,40 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     hasNodes={nodes.length > 0}
                 />
 
-                {selectedNode && (
-                    <ChainNodeConfigPanel
-                        node={selectedNode}
+                {configPopoverNode && (
+                    <ChainNodeConfigPopover
+                        node={configPopoverNode}
                         onUpdate={updateNode}
-                        onDelete={deleteNode}
-                        onClose={() => setSelectedNode(null)}
                         onCreateSqlFile={handleCreateSqlFile}
                         onOpenFile={handleOpenFile}
                         sqlFiles={sqlFiles}
                         chainDefinition={serialize()}
                         chainFile={filePath}
+                        onClose={() => setConfigPopoverNodeId(null)}
                     />
                 )}
+
+                {nodeMenu && (
+                    <NodeActionMenu
+                        x={nodeMenu.x}
+                        y={nodeMenu.y}
+                        disabled={!!nodes.find(n => n.id === nodeMenu.nodeId)?.data.disabled}
+                        onAction={handleMenuAction}
+                        onClose={() => setNodeMenu(null)}
+                    />
+                )}
+
+                <ChainInspector
+                    node={inspectorNode}
+                    chainDefinition={serialize()}
+                    chainFile={filePath}
+                    logs={execution.logs}
+                    pinned={!!pinnedNodeId}
+                    onTogglePin={() => setPinnedNodeId(p => (p ? null : (selectedNode?.id || null)))}
+                    activeTab={inspectorTab}
+                    onTabChange={setInspectorTab}
+                    onOpenFullPreview={setPreviewTable}
+                />
 
                 <ChainHistoryPanel
                     chainFile={filePath}
@@ -749,6 +898,18 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                             <LuInfo size={16} /> Data Flow
                         </h2>
                         <DataFlowGuide />
+                    </div>
+                </div>
+            )}
+
+            {/* Node documentation — reachable from a node's "…" menu, same view the palette's "?" uses */}
+            {nodeDocsFor && (
+                <div className="chain-doc-modal-backdrop" onClick={() => setNodeDocsFor(null)}>
+                    <div className="chain-doc-modal" onClick={(e) => e.stopPropagation()}>
+                        <button className="chain-doc-modal-close" onClick={() => setNodeDocsFor(null)} aria-label="Close">
+                            <LuX size={15} />
+                        </button>
+                        <NodeDocView typeId={nodeDocsFor} />
                     </div>
                 </div>
             )}

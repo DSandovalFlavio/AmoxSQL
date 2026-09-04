@@ -453,6 +453,7 @@ export const RESULT_TYPE_LABELS = {
     assertion_passed: 'Assertion Passed',
     extension_installed: 'Extension Installed',
     extension_loaded: 'Extension Loaded',
+    disabled: 'Disabled — passthrough',
     unknown: 'Executed',
 };
 
