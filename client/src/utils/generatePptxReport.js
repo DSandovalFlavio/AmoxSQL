@@ -64,7 +64,7 @@ function walkInlineToRuns(nodes, style, runs) {
     }
 }
 
-function markdownToTextRuns(markdown) {
+export function markdownToTextRuns(markdown) {
     const tree = remarkProcessor.parse(markdown || '');
     const runs = [];
     for (const node of tree.children || []) {
@@ -148,7 +148,10 @@ async function captureChartImage(el) {
 }
 
 // ── Layout → slide region coordinates (inches) ─────────────────────────────
-function layoutBoxes(layout) {
+// Exported: also used by generateNotebookPptxReport.js, which reuses the
+// exact same slide geometry so a notebook export and a deck export of an
+// equivalent chart+text pairing come out sized the same way.
+export function layoutBoxes(layout) {
     const full = { x: MARGIN, y: MARGIN, w: SLIDE_W - MARGIN * 2, h: SLIDE_H - MARGIN * 2 };
     if (layout === 'content-chart' || layout === 'two-col') {
         const colW = (SLIDE_W - MARGIN * 2 - COL_GAP) / 2;

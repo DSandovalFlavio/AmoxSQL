@@ -1,6 +1,6 @@
 # Auditoría de continuidad entre formatos — AmoxSQL
 
-> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1 implementada** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 2-6 sin empezar.
+> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1 y Fase 2 (parcial) implementadas** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 3-6 sin empezar.
 > **Pregunta que la origina**: cuando un análisis avanza de una query a un gráfico, a un notebook, a una presentación — ¿qué pasa con los archivos que quedan atrás? ¿El usuario sabe cuál es "el bueno"? ¿Los saltos entre formatos son fluidos o hay que rehacer trabajo?
 
 ---
@@ -324,3 +324,31 @@ El plan original (sección 6) asumía una carpeta `reports/` para los documentos
 - App levantada en dev (Vite + Express) contra un proyecto de prueba: carga sin errores de consola propios del cambio; se confirmó en vivo que el Workspace Wizard scaffoldea `charts/` y `exports/` con esos nombres exactos.
 - Lógica de slug del nombre de archivo verificada por separado (títulos con acentos/símbolos, título vacío) — produce nombres válidos en todos los casos.
 - **Sin verificar end-to-end**: el diálogo nativo `will-download` solo existe dentro de una ventana real de Electron — este entorno de pruebas es un navegador Chromium plano (`window.electronAPI` no existe ahí), así que el disparo real del diálogo, el guardado en `charts/`/`exports/`, y el toast de "Revelar en el explorador" no se pudieron ejercitar de punta a punta aquí. El código sigue exactamente el patrón ya probado de los handlers `dialog:selectFolder`/`dialog:saveFile` existentes en el mismo archivo. Queda pendiente una prueba manual en la app real antes de dar la fase por completamente cerrada.
+
+---
+
+## 9. Registro de implementación — Fase 2 (parcial)
+
+**Implementada 2026-09-03**, rama `claude/continuidad-formatos`. De los cinco puntos del plan original, se hicieron tres; dos quedan explícitamente diferidos (ver abajo) — se prefirió entregar tres piezas completas y probadas a cinco a medias.
+
+### Qué se construyó
+
+**Gráfico → PowerPoint** (`DataVisualizer/utils/exportChart.js`: `exportChartAsPptx`; botón nuevo en `ExportPanel.jsx`, sección "Other formats"). Un slide, gráfico nativo editable cuando el tipo tiene mapeo (reutiliza `isNativeChartType`/`buildNativeChartSpec`/`buildComboChartSpec` de `officeChartMapper.js` — el MISMO motor que ya usa el export del deck, sin duplicar lógica), imagen PNG como fallback para los tipos sin mapeo (dispersión, burbuja, heatmap, etc.). Cierra el escenario 10 de la auditoría: antes tomaba 6 pasos (crear deck → insertar → Present → exportar deck → abrir pptx → copiar/pegar); ahora es un clic desde el propio gráfico.
+
+**Gráfico → SVG** (`exportChartAsSvg` en el mismo archivo). Extrae el `<svg>` que Recharts ya renderiza (`.recharts-surface`), no una captura rasterizada. El problema real a resolver: los ejes/grid/texto usan `fill="var(--text-primary)"` — colores por variable CSS que solo significan algo dentro de la hoja de estilos de la app. Un archivo `.svg` extraído con `var()` sin resolver se abre en negro/transparente en Illustrator o un navegador cualquiera. Se camina el árbol clonado elemento por elemento y se reemplaza cada `var()` por su valor computado (`getComputedStyle`) antes de serializar — el archivo resultante es 100% portable. Cierra el escenario 9 (la deuda que el propio código declaraba: *"SVG / Clipboard / PPTX llegan en la fase 6"*).
+
+**Notebook → PowerPoint** (`client/src/utils/generateNotebookPptxReport.js`, nuevo módulo; botón junto a Export HTML/Word en `SqlNotebook.jsx`). Un slide por celda: markdown → texto, SQL con gráfico → gráfico nativo (mismo mecanismo que el del gráfico suelto, usando el `chartConfig` que ya vive en el sidecar de la celda — sin DOM, sin re-fetch) con imagen como fallback (reutilizando la técnica de captura DOM ya probada en `generateWordReport.js`), SQL sin gráfico → **tabla nativa de PowerPoint** en vez de perderse — el propio modelo de slides del deck no tiene layout de tabla, así que esto es una capacidad nueva, no solo una migración. Reutiliza `markdownToTextRuns` y `layoutBoxes` de `generatePptxReport.js` (se exportaron esas dos funciones, antes privadas) para que un notebook y un deck exportados salgan con la misma geometría de slide. Cierra el escenario 16.
+
+### Qué se difirió — y por qué
+
+- **Deck → Word/HTML**: reutilizar los generadores del notebook requiere que el DOM del deck exponga los mismos `data-cell-id` de los que depende `captureCellChart`/`detectCellViewMode` en `generateWordReport.js` — el deck no tiene ese enganche hoy. Es factible (añadir el atributo en la vista Present del `SlideDesigner`/`AmoxChartEmbed` y adaptar la forma de los datos), pero es una pieza separada con su propio riesgo, no una extensión trivial de lo ya hecho aquí.
+- **PDF de verdad** (no vía `Print` del navegador): la vía limpia es `webContents.printToPDF()` de Electron sobre una `BrowserWindow` oculta cargada con el mismo HTML que ya genera `generateHtmlReport.js`, seguido de un diálogo de guardado nativo (esa parte SÍ se beneficiaría de la intercepción de Fase 1, pero `printToPDF` devuelve un buffer directo, no dispara `will-download`, así que necesita su propio cableado IPC). Se dejó fuera de este pase por ser la pieza de mayor plomería nueva (ciclo de vida de ventana oculta, IPC de ida y vuelta) de las cinco.
+
+### Validación
+
+- `pnpm run client:build` limpio.
+- Probado en vivo (dev, proyecto de prueba con `.sql` y `.sqlnb` pre-escritos en disco para no depender de escribir en Monaco, que en este entorno de automatización tiene fricción con el nuevo backend de entrada de Monaco — `native-edit-context`, no relacionado con este cambio):
+  - Gráfico de barras → SVG: sin error de consola.
+  - Gráfico de barras → PowerPoint: completa; único warning es de pptxgenjs por color de serie no fijado (`chartColors: []`) — el mismo warning que ya produce el export del deck con la misma configuración, no es una regresión.
+  - Notebook (celda de texto + celda SQL sin gráfico, modo tabla) → PowerPoint: completa correctamente (confirmado por estado del DOM, no solo por lectura visual — una primera lectura de pantalla capturada a mitad del export, que toma unos segundos en dev por cargar los chunks de pptxgenjs sin bundlear, se leyó erróneamente como "colgado").
+- **Sin probar**: notebook con una celda mostrando gráfico (rama nativa vs. imagen dentro del propio notebook) — se validó la lógica de esa rama por separado en el gráfico suelto de Story Flow (mismo `officeChartMapper`), pero no la combinación completa dentro de una celda de notebook.

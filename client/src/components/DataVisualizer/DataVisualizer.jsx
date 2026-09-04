@@ -25,7 +25,7 @@ import AlertDialog from '../AlertDialog';
 import { useChartState } from './useChartState';
 import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES } from './constants';
 import { processChartData, isDateColumn, computeHeadline } from './utils/dataProcessing';
-import { exportChartAsPng, saveChartConfig, copyChartToClipboard } from './utils/exportChart';
+import { exportChartAsPng, exportChartAsSvg, exportChartAsPptx, saveChartConfig, copyChartToClipboard } from './utils/exportChart';
 import { renderRichText } from './utils/richText';
 import { getLegendTextColors } from './utils/legendColors';
 import InlineLegend from './InlineLegend';
@@ -226,6 +226,29 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
         }
         setShowExportMenu(false);
     }, [state.chartType, state.chartTitle]);
+
+    const handleExportSvg = useCallback(() => {
+        try {
+            exportChartAsSvg(chartRef.current, state.chartType, state.chartTitle);
+        } catch (err) {
+            setAlertData({ isOpen: true, title: 'SVG', type: 'error', message: err.message || 'Could not export chart as SVG.' });
+        }
+        setShowExportMenu(false);
+    }, [state.chartType, state.chartTitle]);
+
+    const [isExportingPptx, setIsExportingPptx] = useState(false);
+    const handleExportPptx = useCallback(async () => {
+        if (isExportingPptx) return;
+        setIsExportingPptx(true);
+        try {
+            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.chartType, state.chartTitle);
+        } catch (err) {
+            setAlertData({ isOpen: true, title: 'PowerPoint', type: 'error', message: err.message || 'Could not export chart as PowerPoint.' });
+        } finally {
+            setIsExportingPptx(false);
+        }
+        setShowExportMenu(false);
+    }, [isExportingPptx, getConfigForSave, processedData, state.chartType, state.chartTitle]);
 
     const handleCopy = useCallback(async () => {
         try {
@@ -429,6 +452,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
                         {activeTab === 'export' && (
                             <ExportPanel
                                 onExport={handleDownload}
+                                onExportSvg={handleExportSvg}
+                                onExportPptx={handleExportPptx}
+                                isExportingPptx={isExportingPptx}
                                 onOpenSave={() => setIsSaveModalOpen(true)}
                                 onLoadFile={() => fileInputRef.current.click()}
                                 onCopy={handleCopy}

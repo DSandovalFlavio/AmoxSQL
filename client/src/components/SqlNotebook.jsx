@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import NotebookCell from './NotebookCell';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuFileType2, LuLoaderCircle, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuFileType2, LuMonitorPlay, LuLoaderCircle, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
 import { injectEnvironmentVariables as injectEnvVars } from '../utils/injectEnvironmentVariables';
 import { splitSqlStatements } from '../utils/sqlSplitter';
@@ -34,6 +34,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         : '';
     const [isFullView, setIsFullView] = useState(false);
     const [isExportingWord, setIsExportingWord] = useState(false);
+    const [isExportingPptx, setIsExportingPptx] = useState(false);
 
     // First-run Notebooks tour (rendered by the global OnboardingHost)
     useEffect(() => {
@@ -591,6 +592,27 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                         >
                             {isExportingWord ? <LuLoaderCircle size={13} className="spin" /> : <LuFileType2 size={13} />}
                             {isExportingWord ? 'Exporting…' : 'Export Word'}
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (isExportingPptx) return;
+                                setIsExportingPptx(true);
+                                try {
+                                    const { generateNotebookPptxReport } = await import('../utils/generateNotebookPptxReport');
+                                    await generateNotebookPptxReport(cells, results, hideCodeInReport, cellStates, reportBaseName);
+                                } catch (err) {
+                                    console.error('PowerPoint export failed:', err);
+                                } finally {
+                                    setIsExportingPptx(false);
+                                }
+                            }}
+                            className="snb-btn snb-btn--accent"
+                            title="Export as PowerPoint"
+                            disabled={isExportingPptx}
+                            style={{ opacity: isExportingPptx ? 0.6 : 1 }}
+                        >
+                            {isExportingPptx ? <LuLoaderCircle size={13} className="spin" /> : <LuMonitorPlay size={13} />}
+                            {isExportingPptx ? 'Exporting…' : 'Export PowerPoint'}
                         </button>
                     </>
                 )}

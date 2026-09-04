@@ -75,12 +75,7 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
         // collide before the user gets to the save dialog).
         const pngFile = outputCanvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
-        const titleSlug = titleHint.trim()
-            ? titleHint.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60)
-            : '';
-        downloadLink.download = titleSlug
-            ? `${titleSlug}.png`
-            : `chart_${chartType}_${Date.now()}.png`;
+        downloadLink.download = `${slugTitle(titleHint, chartType)}.png`;
         downloadLink.href = pngFile;
         downloadLink.click();
 
@@ -89,6 +84,102 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
         console.error('Export failed:', err);
         throw err;
     }
+};
+
+function slugTitle(titleHint, chartType) {
+    const titleSlug = (titleHint || '').trim()
+        ? titleHint.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60)
+        : '';
+    return titleSlug || `chart_${chartType}_${Date.now()}`;
+}
+
+/**
+ * Export the chart's own SVG drawing (axes, marks, legend — not the title/
+ * takeaway HTML around it) as a standalone, portable .svg file.
+ *
+ * Recharts renders colors as CSS custom properties (`fill="var(--text-
+ * primary)"`) so they repaint live with the app's theme — meaningful only
+ * inside this page's stylesheet cascade. A raw var() reference in an
+ * extracted file resolves to nothing. Every element's fill/stroke/color is
+ * walked and, where it references a variable, replaced with its resolved
+ * computed value, so the file renders correctly in Illustrator, Figma, or a
+ * plain browser tab with no dependency on AmoxSQL's CSS.
+ */
+export const exportChartAsSvg = (element, chartType = 'chart', titleHint = '') => {
+    if (!element) throw new Error('No chart element to export.');
+    const liveSvg = element.querySelector('svg.recharts-surface') || element.querySelector('svg');
+    if (!liveSvg) throw new Error('No chart drawing found to export as SVG.');
+
+    const clone = liveSvg.cloneNode(true);
+    const originalNodes = liveSvg.querySelectorAll('*');
+    const cloneNodes = clone.querySelectorAll('*');
+    const VAR_PROPS = ['fill', 'stroke', 'color'];
+    originalNodes.forEach((origEl, i) => {
+        const cloneEl = cloneNodes[i];
+        if (!cloneEl) return;
+        const computed = getComputedStyle(origEl);
+        VAR_PROPS.forEach((prop) => {
+            const attr = origEl.getAttribute(prop);
+            if (attr && attr.includes('var(')) {
+                const resolved = computed[prop];
+                if (resolved) cloneEl.setAttribute(prop, resolved);
+            }
+        });
+    });
+
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--surface-base').trim() || '#ffffff';
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bgRect.setAttribute('width', '100%');
+    bgRect.setAttribute('height', '100%');
+    bgRect.setAttribute('fill', bgColor);
+    clone.insertBefore(bgRect, clone.firstChild);
+
+    const svgString = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.download = `${slugTitle(titleHint, chartType)}.svg`;
+    downloadLink.href = url;
+    downloadLink.click();
+    URL.revokeObjectURL(url);
+};
+
+/**
+ * Export the chart as a single-slide PowerPoint, native and editable where
+ * the chart type has a pptxgenjs mapping (double-click in PowerPoint opens
+ * its data grid), falling back to a PNG snapshot otherwise.
+ */
+export const exportChartAsPptx = async (element, config, data, chartType = 'chart', titleHint = '') => {
+    const [{ default: PptxGenJS }, { isNativeChartType, buildNativeChartSpec, buildComboChartSpec }] = await Promise.all([
+        import('pptxgenjs'),
+        import('../../../utils/officeChartMapper'),
+    ]);
+
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE';
+    const title = titleHint?.trim() || 'AmoxSQL Chart';
+    pptx.title = title;
+    const slide = pptx.addSlide();
+    const box = { x: 0.5, y: 0.5, w: 12.33, h: 6.5 };
+
+    const useNative = isNativeChartType(chartType) && data?.length > 0;
+    if (useNative) {
+        if (chartType === 'combo') {
+            const { multiSpec, sharedOptions } = buildComboChartSpec(config, data, []);
+            const typedSpec = multiSpec.map((m) => ({ ...m, type: pptx.ChartType[m.type] }));
+            slide.addChart(typedSpec, null, { ...box, ...sharedOptions });
+        } else {
+            const spec = buildNativeChartSpec(config, data, []);
+            slide.addChart(pptx.ChartType[spec.pptxType], spec.data, { ...box, ...spec.options });
+        }
+    } else if (element) {
+        const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--surface-base').trim() || '#ffffff';
+        const canvas = await html2canvas(element, { backgroundColor: bgColor, scale: 2, logging: false, useCORS: true, ignoreElements: (el) => el.tagName === 'BUTTON' });
+        slide.addImage({ data: canvas.toDataURL('image/png'), ...box, sizing: { type: 'contain', w: box.w, h: box.h } });
+    }
+
+    await pptx.writeFile({ fileName: `${slugTitle(titleHint, chartType)}.pptx` });
 };
 
 /**
