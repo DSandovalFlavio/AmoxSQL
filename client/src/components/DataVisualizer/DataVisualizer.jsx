@@ -220,12 +220,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', initialCh
 
     const handleDownload = useCallback(async (preset) => {
         try {
-            await exportChartAsPng(chartRef.current, preset, state.chartType);
+            await exportChartAsPng(chartRef.current, preset, state.chartType, state.chartTitle);
         } catch {
             setAlertData({ isOpen: true, message: 'Could not export chart.' });
         }
         setShowExportMenu(false);
-    }, [state.chartType]);
+    }, [state.chartType, state.chartTitle]);
 
     const handleCopy = useCallback(async () => {
         try {

@@ -24,6 +24,14 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     // View modes
     const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'report'
     const [hideCodeInReport, setHideCodeInReport] = useState(false);
+
+    // Report exports (HTML/Word) are named after the notebook itself, so the
+    // deliverable reads as this notebook's artifact instead of an anonymous
+    // dated file. Falls back to the generators' own default for an unsaved
+    // notebook (no filePath yet).
+    const reportBaseName = filePath
+        ? filePath.split(/[/\\]/).pop().replace(/\.sqlnb$/i, '')
+        : '';
     const [isFullView, setIsFullView] = useState(false);
     const [isExportingWord, setIsExportingWord] = useState(false);
 
@@ -557,7 +565,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                             <LuPrinter size={13} /> Print
                         </button>
                         <button
-                            onClick={() => generateHtmlReport(cells, results, hideCodeInReport)}
+                            onClick={() => generateHtmlReport(cells, results, hideCodeInReport, reportBaseName)}
                             className="snb-btn snb-btn--accent"
                             title="Export as HTML Report"
                         >
@@ -569,7 +577,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                                 setIsExportingWord(true);
                                 try {
                                     const { generateWordReport } = await import('../utils/generateWordReport');
-                                    await generateWordReport(cells, results, hideCodeInReport, cellStates);
+                                    await generateWordReport(cells, results, hideCodeInReport, cellStates, reportBaseName);
                                 } catch (err) {
                                     console.error('Word export failed:', err);
                                 } finally {

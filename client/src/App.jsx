@@ -190,6 +190,27 @@ function App() {
     }
   }, []);
 
+  // Tell main.js the current project root, so exported files (chart PNG,
+  // HTML/Word/PPT reports) default their Save As dialog into this project's
+  // charts/ or reports/ folder instead of the OS Downloads folder.
+  useEffect(() => {
+    if (projectPath && window.electronAPI?.setProjectRoot) {
+      window.electronAPI.setProjectRoot(projectPath);
+    }
+  }, [projectPath]);
+
+  // Toast + "Reveal in Explorer" once an export finishes saving.
+  useEffect(() => {
+    if (!window.electronAPI?.onDownloadCompleted) return;
+    return window.electronAPI.onDownloadCompleted(({ path: savedPath, filename }) => {
+      toast.success(`Guardado: ${filename}`, {
+        action: window.electronAPI?.showItemInFolder
+          ? { label: 'Revelar en el explorador', onClick: () => window.electronAPI.showItemInFolder(savedPath) }
+          : undefined,
+      });
+    });
+  }, [toast]);
+
   const [editorSettings, setEditorSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('amoxsql-editor-settings');

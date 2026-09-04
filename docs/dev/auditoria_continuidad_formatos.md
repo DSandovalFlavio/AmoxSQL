@@ -1,6 +1,6 @@
 # Auditoría de continuidad entre formatos — AmoxSQL
 
-> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. Plan de implementación al final, sin empezar.
+> **Estado**: auditoría completa (2026-09-03), sobre `main` en v4.1.0. **Fase 1 implementada** (2026-09-03, rama `claude/continuidad-formatos`) — ver registro al final del documento. Fases 2-6 sin empezar.
 > **Pregunta que la origina**: cuando un análisis avanza de una query a un gráfico, a un notebook, a una presentación — ¿qué pasa con los archivos que quedan atrás? ¿El usuario sabe cuál es "el bueno"? ¿Los saltos entre formatos son fluidos o hay que rehacer trabajo?
 
 ---
@@ -293,3 +293,34 @@ Para que el alcance quede honesto:
 - **No propone unificar los formatos en uno solo.** Que `.sql`, `.sqlnb`, `.amoxvis` y `.amoxdeck` sean archivos distintos está bien: cada uno tiene un editor propio y un ciclo de vida propio. El problema no es que sean varios, es que no se conocen entre sí.
 - **No propone un editor de slides libre estilo lienzo con posicionamiento absoluto.** El modelo markdown-first del deck es una fortaleza (diffea en git, la IA lo puede escribir, se re-serializa sin pérdida). La Fase 5 añade elementos dentro de ese modelo, no lo reemplaza.
 - **No toca el motor de gráficos nativos de PowerPoint** más allá de exponerlo desde más sitios. Sus límites (11 tipos, sin overlays de storytelling) están documentados y son razonables.
+
+---
+
+## 8. Registro de implementación — Fase 1
+
+**Implementada 2026-09-03**, rama `claude/continuidad-formatos`.
+
+### Qué se construyó
+
+Un único punto de intercepción en Electron (`session.on('will-download', ...)` en `electron/main.js`) resuelve las cuatro piezas de la Fase 1 a la vez para los tres exports que ya existían (PNG del gráfico, HTML/Word del notebook) y para el PPTX del deck (que también sale por descarga de navegador — `pptxgenjs` genera un Blob y lo descarga vía `<a download>`, igual que los otros tres):
+
+- **Diálogo nativo de guardado**: `item.setSaveDialogOptions(...)` dispara el diálogo "Guardar como" del sistema operativo. Solo actúa sobre extensiones `png`/`docx`/`pptx`/`html`; cualquier otra (csv, json, xlsx, parquet — ya servidas por sus propios endpoints de servidor, no por descarga de navegador) sigue el comportamiento por defecto de Electron, sin tocar.
+- **Carpeta por defecto dentro del proyecto**: PNG entra a `charts/`, los documentos a `exports/` — **los mismos ids canónicos que ya scaffoldea el Workspace Wizard** (`server/projectScaffolder.js: SCAFFOLD_FOLDERS`), no una convención nueva. La carpeta se crea si falta.
+- **Recordar la última carpeta usada por tipo**, persistido en `<userData>/export-folders.json` — sobrevive a reinicios de la app.
+- **Aviso con «Revelar en el explorador»**: `electron/main.js` avisa al renderer cuando termina de guardar (`export:download-completed`); `App.jsx` muestra un toast con esa acción, reutilizando `electronAPI.showItemInFolder` (el mismo mecanismo del menú contextual de pestañas).
+- **Nombres derivados del artefacto**: el PNG de Story Flow ahora usa el título del gráfico si existe (`ventas_por_region.png`), con fallback a `chart_<tipo>_<timestamp>` solo cuando no hay título (para no colisionar en silencio). El HTML/Word del notebook usa el nombre del propio archivo `.sqlnb` cuando está guardado.
+
+### Corrección encontrada durante la implementación
+
+El plan original (sección 6) asumía una carpeta `reports/` para los documentos. Al abrir el Workspace Wizard real para probar, la carpeta canónica que el producto ya scaffoldea se llama **`exports/`** (`SCAFFOLD_FOLDERS` en `server/projectScaffolder.js`, id `'exports'`, label "Exports — Generated reports and exports"). Se corrigió antes de escribir el código — de haber seguido el plan tal cual, la Fase 1 habría introducido una segunda convención de carpetas en paralelo a la que el producto ya tiene.
+
+### Archivos tocados
+
+`electron/main.js`, `electron/preload.js`, `client/src/App.jsx`, `client/src/components/DataVisualizer/DataVisualizer.jsx`, `client/src/components/DataVisualizer/utils/exportChart.js`, `client/src/components/SqlNotebook.jsx`, `client/src/utils/generateHtmlReport.js`, `client/src/utils/generateWordReport.js`.
+
+### Validación
+
+- `pnpm run client:build` limpio, sin errores.
+- App levantada en dev (Vite + Express) contra un proyecto de prueba: carga sin errores de consola propios del cambio; se confirmó en vivo que el Workspace Wizard scaffoldea `charts/` y `exports/` con esos nombres exactos.
+- Lógica de slug del nombre de archivo verificada por separado (títulos con acentos/símbolos, título vacío) — produce nombres válidos en todos los casos.
+- **Sin verificar end-to-end**: el diálogo nativo `will-download` solo existe dentro de una ventana real de Electron — este entorno de pruebas es un navegador Chromium plano (`window.electronAPI` no existe ahí), así que el disparo real del diálogo, el guardado en `charts/`/`exports/`, y el toast de "Revelar en el explorador" no se pudieron ejercitar de punta a punta aquí. El código sigue exactamente el patrón ya probado de los handlers `dialog:selectFolder`/`dialog:saveFile` existentes en el mismo archivo. Queda pendiente una prueba manual en la app real antes de dar la fase por completamente cerrada.

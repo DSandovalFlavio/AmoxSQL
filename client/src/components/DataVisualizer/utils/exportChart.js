@@ -9,9 +9,12 @@ import html2canvas from 'html2canvas-pro';
  * @param {HTMLElement} element - The chart container DOM element
  * @param {object} preset - { label, width, height }
  * @param {string} chartType - Chart type name for filename
+ * @param {string} [titleHint] - The chart's own title, if set — used for the
+ *   filename so it reads as an artifact of the analysis instead of an
+ *   opaque timestamp. Falls back to the chart type when there's no title.
  * @returns {Promise<void>}
  */
-export const exportChartAsPng = async (element, preset, chartType = 'chart') => {
+export const exportChartAsPng = async (element, preset, chartType = 'chart', titleHint = '') => {
     if (!element) return;
 
     const targetWidth = preset?.width || 1920;
@@ -66,11 +69,18 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart') => 
 
         ctx.drawImage(canvas, drawX, drawY, drawW, drawH);
 
-        // Download
+        // Download — named after the chart's own title when it has one
+        // ("ventas_por_region.png"), falling back to the chart type plus a
+        // timestamp only when untitled (so repeated exports don't silently
+        // collide before the user gets to the save dialog).
         const pngFile = outputCanvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
-        const safeName = presetLabel.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-        downloadLink.download = `chart_${chartType}_${safeName}_${Date.now()}.png`;
+        const titleSlug = titleHint.trim()
+            ? titleHint.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60)
+            : '';
+        downloadLink.download = titleSlug
+            ? `${titleSlug}.png`
+            : `chart_${chartType}_${Date.now()}.png`;
         downloadLink.href = pngFile;
         downloadLink.click();
 
