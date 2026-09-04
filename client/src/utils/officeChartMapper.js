@@ -55,6 +55,28 @@ function legendPos(position) {
 }
 
 /**
+ * The palette slice one chart group's series occupy, indexed by their
+ * position in the chart's overall series order — so the second group of a
+ * split chart continues the palette instead of restarting at colour #1, and
+ * each series keeps the exact colour the app drew it with.
+ *
+ * This also side-steps a pptxgenjs behaviour that is easy to mistake for a
+ * bug: a bar group holding a SINGLE series and a palette of more than one
+ * colour is treated as "one series, colour the data points" — it emits a
+ * <c:dPt> per point, so every category comes out a different colour and the
+ * series colour is lost. Handing each group only its own colours keeps a
+ * lone series at length 1 and that path stays off.
+ */
+function colorsForKeys(keys, allKeys, colors) {
+    const palette = (colors || []).map(stripHash).filter(Boolean);
+    if (!palette.length) return undefined;
+    return keys.map((key) => {
+        const i = allKeys.indexOf(key);
+        return palette[(i < 0 ? 0 : i) % palette.length];
+    });
+}
+
+/**
  * Category-labels + one-series-per-yAxisKey (or per distinct splitByKey
  * value) — the shape pptxgenjs's addChart(type, data, options) expects.
  */
@@ -102,7 +124,18 @@ export function buildNativeChartSpec(config, data, colors) {
     if (mapping.barDir) options.barDir = mapping.barDir;
     if (mapping.barGrouping) options.barGrouping = mapping.barGrouping;
 
-    return { pptxType: mapping.pptxType, data: buildChartSeriesData(data, config), options };
+    const series = buildChartSeriesData(data, config);
+    // A lone BAR series handed a multi-colour palette makes pptxgenjs colour
+    // each data point instead of the series (see colorsForKeys) — which is
+    // precisely what barColorMode 'dimension' asks for, and wrong for the
+    // default 'series' mode, where every bar shares one colour. Pie/donut
+    // colour per slice through a different code path and aren't touched.
+    if (mapping.barDir && series.length === 1 && config.barColorMode !== 'dimension') {
+        const palette = (colors || []).map(stripHash).filter(Boolean);
+        if (palette.length) options.chartColors = [palette[0]];
+    }
+
+    return { pptxType: mapping.pptxType, data: series, options };
 }
 
 /**
@@ -112,13 +145,28 @@ export function buildNativeChartSpec(config, data, colors) {
  * axis id #2 but never actually defines that axis, so PowerPoint gets a
  * chart XML with a dangling axis reference and silently collapses both
  * series onto the single axis that *is* defined (the same crushed-bars
- * symptom this function exists to avoid). Call this to add the two empty
- * placeholder entries; the axes still inherit format/gridline options from
- * the shared options object itself.
+ * symptom the dual-axis split exists to avoid).
+ *
+ * The second category axis has to exist as well — pptxgenjs hard-wires the
+ * secondary value axis to cross AXIS_ID_CATEGORY_SECONDARY — but it must
+ * not be *drawn*, or PowerPoint renders a second row of category labels
+ * under the first. Hiding it is what a real Excel dual-axis chart does too.
+ * The secondary value axis also drops its gridlines so the plot keeps one
+ * set instead of two overlapping grids.
  */
 function withSecondaryAxisDeclared(sharedOptions) {
-    return { ...sharedOptions, valAxes: [{}, {}], catAxes: [{}, {}] };
+    return {
+        ...sharedOptions,
+        valAxes: [{}, { valGridLine: { style: 'none' } }],
+        catAxes: [{}, { catAxisHidden: true }],
+    };
 }
+
+// Bars on the secondary axis sit in the same category slot as the primary
+// ones (PowerPoint has no cross-axis clustering), so they're drawn narrower
+// — a wider gap — to stay readable in front of the primary bars instead of
+// hiding them. Adjustable afterwards in PowerPoint like any native chart.
+const SECONDARY_BAR_GAP_PCT = 420;
 
 /**
  * Same chart type on two axes (e.g. a bar chart with a rightYAxisKey mixing
@@ -145,16 +193,28 @@ function buildDualAxisChartSpec(config, data, colors, mapping) {
     if (mapping.barDir) groupOptions.barDir = mapping.barDir;
     if (mapping.barGrouping) groupOptions.barGrouping = mapping.barGrouping;
 
+    const split = leftKeys.length > 0 && rightKeys.length > 0;
     const multiSpec = [];
-    if (leftKeys.length) multiSpec.push({ type: mapping.pptxType, data: seriesFor(leftKeys), options: { ...groupOptions } });
+    if (leftKeys.length) {
+        multiSpec.push({
+            type: mapping.pptxType,
+            data: seriesFor(leftKeys),
+            options: { ...groupOptions, chartColors: colorsForKeys(leftKeys, yAxisKeys, colors) },
+        });
+    }
     if (rightKeys.length) {
         multiSpec.push({
             type: mapping.pptxType,
             data: seriesFor(rightKeys),
-            options: { ...groupOptions, secondaryValAxis: true, secondaryCatAxis: true },
+            options: {
+                ...groupOptions,
+                chartColors: colorsForKeys(rightKeys, yAxisKeys, colors),
+                ...(split ? { secondaryValAxis: true, secondaryCatAxis: true } : {}),
+                ...(split && mapping.barDir ? { barGapWidthPct: SECONDARY_BAR_GAP_PCT } : {}),
+            },
         });
     }
-    const sharedOptions = leftKeys.length && rightKeys.length
+    const sharedOptions = split
         ? withSecondaryAxisDeclared(baseChartOptions(config, colors))
         : baseChartOptions(config, colors);
     return { multiSpec, sharedOptions };
@@ -182,12 +242,21 @@ export function buildComboChartSpec(config, data, colors) {
         ? withSecondaryAxisDeclared(baseChartOptions(config, colors))
         : baseChartOptions(config, colors);
     const multiSpec = [];
-    if (barKeys.length) multiSpec.push({ type: 'bar', data: seriesFor(barKeys), options: { barGrouping: 'clustered' } });
+    if (barKeys.length) {
+        multiSpec.push({
+            type: 'bar',
+            data: seriesFor(barKeys),
+            options: { barGrouping: 'clustered', chartColors: colorsForKeys(barKeys, yAxisKeys, colors) },
+        });
+    }
     if (lineKeys.length) {
         multiSpec.push({
             type: 'line',
             data: seriesFor(lineKeys),
-            options: usesSecondaryAxis ? { secondaryValAxis: true, secondaryCatAxis: true } : {},
+            options: {
+                chartColors: colorsForKeys(lineKeys, yAxisKeys, colors),
+                ...(usesSecondaryAxis ? { secondaryValAxis: true, secondaryCatAxis: true } : {}),
+            },
         });
     }
     return { multiSpec, sharedOptions };
