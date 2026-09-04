@@ -24,7 +24,8 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import { injectEnvironmentVariables } from './injectEnvironmentVariables';
 import { parseAmoxChartBlock } from './deckParser';
-import { isNativeChartType, buildNativeChartSpec, buildComboChartSpec } from './officeChartMapper';
+import { isNativeChartType, buildNativeSlideChartSpec } from './officeChartMapper';
+import { COLOR_PALETTES } from '../components/DataVisualizer/constants';
 
 const remarkProcessor = unified().use(remarkParse).use(remarkGfm);
 
@@ -234,12 +235,12 @@ export async function generatePptxReport(deck, { chartMode = 'native', slideCard
                 const useNative = chartMode === 'native' && isNativeChartType(config.chartType) && data.length > 0;
 
                 if (useNative) {
-                    if (config.chartType === 'combo') {
-                        const { multiSpec, sharedOptions } = buildComboChartSpec(config, data, []);
-                        const typedSpec = multiSpec.map((m) => ({ ...m, type: pptx.ChartType[m.type] }));
-                        slide.addChart(typedSpec, null, { ...chartBox, ...sharedOptions });
-                    } else {
-                        const spec = buildNativeChartSpec(config, data, []);
+                    const colors = COLOR_PALETTES[config.colorTheme] || COLOR_PALETTES.default;
+                    const spec = buildNativeSlideChartSpec(config, data, colors);
+                    if (spec?.multi) {
+                        const typedSpec = spec.multiSpec.map((m) => ({ ...m, type: pptx.ChartType[m.type] }));
+                        slide.addChart(typedSpec, null, { ...chartBox, ...spec.sharedOptions });
+                    } else if (spec) {
                         slide.addChart(pptx.ChartType[spec.pptxType], spec.data, { ...chartBox, ...spec.options });
                     }
                 } else {

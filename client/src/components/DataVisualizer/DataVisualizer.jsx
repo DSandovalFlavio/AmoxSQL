@@ -243,14 +243,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         if (isExportingPptx) return;
         setIsExportingPptx(true);
         try {
-            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.chartType, state.chartTitle);
+            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.chartType, state.chartTitle, activeColors);
         } catch (err) {
             setAlertData({ isOpen: true, title: 'PowerPoint', type: 'error', message: err.message || 'Could not export chart as PowerPoint.' });
         } finally {
             setIsExportingPptx(false);
         }
         setShowExportMenu(false);
-    }, [isExportingPptx, getConfigForSave, processedData, state.chartType, state.chartTitle]);
+    }, [isExportingPptx, getConfigForSave, processedData, state.chartType, state.chartTitle, activeColors]);
 
     const handleCopy = useCallback(async () => {
         try {

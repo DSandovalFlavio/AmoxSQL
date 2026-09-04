@@ -150,8 +150,8 @@ export const exportChartAsSvg = (element, chartType = 'chart', titleHint = '') =
  * the chart type has a pptxgenjs mapping (double-click in PowerPoint opens
  * its data grid), falling back to a PNG snapshot otherwise.
  */
-export const exportChartAsPptx = async (element, config, data, chartType = 'chart', titleHint = '') => {
-    const [{ default: PptxGenJS }, { isNativeChartType, buildNativeChartSpec, buildComboChartSpec }] = await Promise.all([
+export const exportChartAsPptx = async (element, config, data, chartType = 'chart', titleHint = '', colors = []) => {
+    const [{ default: PptxGenJS }, { isNativeChartType, buildNativeSlideChartSpec }] = await Promise.all([
         import('pptxgenjs'),
         import('../../../utils/officeChartMapper'),
     ]);
@@ -165,12 +165,11 @@ export const exportChartAsPptx = async (element, config, data, chartType = 'char
 
     const useNative = isNativeChartType(chartType) && data?.length > 0;
     if (useNative) {
-        if (chartType === 'combo') {
-            const { multiSpec, sharedOptions } = buildComboChartSpec(config, data, []);
-            const typedSpec = multiSpec.map((m) => ({ ...m, type: pptx.ChartType[m.type] }));
-            slide.addChart(typedSpec, null, { ...box, ...sharedOptions });
-        } else {
-            const spec = buildNativeChartSpec(config, data, []);
+        const spec = buildNativeSlideChartSpec(config, data, colors);
+        if (spec?.multi) {
+            const typedSpec = spec.multiSpec.map((m) => ({ ...m, type: pptx.ChartType[m.type] }));
+            slide.addChart(typedSpec, null, { ...box, ...spec.sharedOptions });
+        } else if (spec) {
             slide.addChart(pptx.ChartType[spec.pptxType], spec.data, { ...box, ...spec.options });
         }
     } else if (element) {
