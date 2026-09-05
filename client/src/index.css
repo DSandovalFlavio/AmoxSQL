@@ -13482,6 +13482,67 @@ tr:hover td {
   margin: 0 4px;
 }
 
+/* ── AI prompt bar — second toolbar row (docs/dev/auditoria_dataflow_ux.md
+   feedback: used to float over the canvas as a detached pill, covering
+   whatever node was underneath it; moved here for a permanent, non-
+   overlapping home). Deliberately quieter than Run All — a bordered
+   button, not a solid accent fill — so it reads as a secondary tool next
+   to the primary run action in the row above, not a competing CTA. */
+.chain-ai-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-default);
+  min-height: 34px;
+}
+
+.chain-ai-bar-icon {
+  color: var(--accent-color-user);
+  flex-shrink: 0;
+}
+
+.chain-ai-bar-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-active);
+  font-size: 12px;
+}
+
+.chain-ai-bar-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.chain-ai-bar-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+.chain-ai-bar-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.chain-ai-bar-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 /* ── Chain Node (Base) ──
    Nodes expose only --node-accent (category color, mode-neutral) and
    optionally --node-border-override (states/errors). Background and border
@@ -13710,10 +13771,13 @@ tr:hover td {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
+  padding: 0;
+  border-radius: 0;
   display: grid;
   place-items: center;
   background: transparent;
   border: none;
+  outline: none;
   color: var(--text-tertiary);
   cursor: pointer;
   z-index: 5;

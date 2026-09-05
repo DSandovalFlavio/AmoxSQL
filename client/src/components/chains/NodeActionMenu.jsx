@@ -43,7 +43,7 @@ const NodeActionMenu = ({ x, y, disabled, onAction, onClose }) => {
     ];
 
     return createPortal(
-        <div ref={ref} className="chain-node-menu" style={{ left, top }}>
+        <div ref={ref} className="chain-node-menu" style={{ left, top }} onWheel={(e) => e.stopPropagation()}>
             {items.map((it, i) => (
                 <div key={it.id}>
                     {it.id === 'delete' && <div className="chain-node-menu-sep" />}

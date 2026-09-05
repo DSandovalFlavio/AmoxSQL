@@ -53,7 +53,12 @@ const NodeTypePicker = ({ x, y, onPick, onClose }) => {
     const top = Math.min(y + 8, window.innerHeight - h - 8);
 
     return createPortal(
-        <div ref={ref} className="chain-typepicker" style={{ left: Math.max(8, left), top }}>
+        <div
+            ref={ref}
+            className="chain-typepicker"
+            style={{ left: Math.max(8, left), top }}
+            onWheel={(e) => e.stopPropagation()}
+        >
             <div className="chain-typepicker-search">
                 <LuSearch size={12} />
                 <input

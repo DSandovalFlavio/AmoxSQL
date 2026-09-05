@@ -954,6 +954,12 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 progress={execution.progress}
             />
 
+            <ChainAiPrompt
+                onGenerate={handleAiGenerate}
+                loading={aiLoading}
+                hasNodes={nodes.length > 0}
+            />
+
             <div className="chain-editor-body">
                 <ChainNodePalette
                     collapsed={paletteCollapsed}
@@ -973,12 +979,6 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     onNodeDragStart={onNodeDragStart}
                     onNodeDragStop={onNodeDragStop}
                     nodeStatuses={execution.nodeStatuses}
-                />
-
-                <ChainAiPrompt
-                    onGenerate={handleAiGenerate}
-                    loading={aiLoading}
-                    hasNodes={nodes.length > 0}
                 />
 
                 {configPopoverNode && (
