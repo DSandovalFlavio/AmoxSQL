@@ -5,6 +5,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [4.2.0] — 2026-09-05
+
+### Data Flow se vuelve accionable, y el análisis deja de quedar atrapado en un solo formato
+
+Dos historias grandes en esta versión: **Data Flow** (el estudio de pipelines) pasa de un lienzo donde solo se conectaban cajas a uno donde cada nodo se configura, previsualiza y ejecuta sin salir de sí mismo; y el trabajo deja de quedar atrapado en el formato donde nació — un gráfico sabe de qué `.sql` salió, un notebook se convierte en deck, y un pipeline puede terminar en un gráfico o un reporte en vez de solo en una tabla.
+
+#### Data Flow — el nodo se vuelve accionable
+- **Compilar sin materializar.** Cada nodo puede mostrar sus datos, esquema y SQL compilado sin haber ejecutado nada — encadenando a sus padres como CTEs en vez de exigir una tabla física primero.
+- **La barra de acciones vive en el nodo**: Configurar · Ejecutar hasta aquí · Ejecutar desde aquí · Ver datos · menú (Ejecutar solo este, Ver SQL, Duplicar, Deshabilitar, Renombrar, Documentación, Eliminar) — ya no hace falta ir al toolbar ni esperar una corrida completa para actuar sobre un nodo.
+- **Panel derecho permanente** con cuatro pestañas (Datos/Esquema/SQL/Log) que siguen la selección, con opción de fijar un nodo para compararlo mientras navegas a otro. La configuración del nodo se abre en un popover anclado a él mismo, no en un cajón fijo.
+- **Añadir y conectar sin fricción**: botón "+" en la salida de un nodo para el siguiente paso, arrastrar un nodo desde la paleta con otro seleccionado lo auto-conecta, soltar sobre una conexión existente la intercala, "Ordenar todo" (antes "Layout") es deshacible, y la paleta de 34 tipos de nodo tiene buscador.
+- **Estado honesto**: un nodo cuyo resultado quedó desactualizado por un cambio de configuración (propio o de un nodo aguas arriba) se marca visualmente, y una corrida parcial ya no borra el estado de los nodos fuera de su alcance.
+- **El asistente de IA para generar pipelines** se movió del canvas (donde flotaba encima de los nodos) a una segunda fila del toolbar, sin competir visualmente con "Run All".
+
+#### Continuidad entre formatos
+- **Los exports aterrizan donde trabajas**: PNG de gráfico, Word/HTML de notebook y PPT de deck ahora piden dónde guardar (con carpeta por defecto dentro del proyecto) en vez de caer en silencio a Descargas con un nombre autogenerado.
+- **Menú Exportar unificado**: un gráfico suelto exporta a PowerPoint nativo (editable) o SVG; un notebook exporta a PowerPoint completo (una diapositiva por celda).
+- **Procedencia real**: guardar un gráfico desde una pestaña `.sql` guardada deja un vínculo a su origen. Si el `.sql` cambia después, el gráfico avisa y ofrece traer los cambios o desvincularse — "Edit SQL" abre el archivo real, no una copia.
+- **Conversiones que faltaban**: selección múltiple de archivos → notebook, notebook → deck (con gráficos materializados), gráfico suelto → nueva presentación, y una fila del historial de queries → archivo `.sql`.
+- **El slide como lienzo**: notas del orador (exportadas como notas reales de PowerPoint), panel de imágenes, y "New Deck"/"New Chart" en la paleta de comandos.
+- **Data Flow cierra el círculo**: nuevos nodos Chart y Report — un pipeline puede terminar en un `.amoxvis` real o en un notebook/deck, con ejes auto-resueltos cuando no se configuran a mano.
+
+#### Gráficos nativos de PowerPoint
+- Los colores ahora vienen del tema real del gráfico (antes caían al paleta por defecto de PowerPoint) y un eje secundario (p. ej. ingresos vs. conteo de transacciones) se dibuja como eje independiente de verdad — antes ambas series colapsaban al mismo eje y la de menor rango casi desaparecía.
+- El gráfico exportado ahora se ve como en la app: eje de categorías duplicado oculto, colores por serie en vez de por categoría (el error que pintaba cada barra de un color distinto), y las barras del eje secundario ya no tapan las del primario.
+
+---
+
 ## [4.1.0] — 2026-09-03
 
 ### El área de trabajo — pantalla dividida de verdad, resultados que aguantan todo y DuckLake real
