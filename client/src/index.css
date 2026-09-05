@@ -13694,10 +13694,18 @@ tr:hover td {
   background: var(--border-default);
 }
 
-/* Fase 4 — "+" quick-add on the output handle */
+/* Fase 4 — "+" quick-add, sitting clear of the output handle.
+   The handle (.react-flow__handle-right, from @xyflow/react's base
+   stylesheet) is centered exactly ON the node's right edge — ~12px wide
+   (8px + our 2px border from .chain-handle), spanning roughly -6px to
+   +6px from the edge. This button used to start at right:-13px (an 18px
+   circle spanning roughly -5px to +13px), overlapping nearly the whole
+   handle and rendering as one fused, illegible cluster instead of two
+   distinct controls. Pushed further out so there's a clear gap after
+   the handle's edge instead of sitting on top of it. */
 .chain-node-quickadd {
   position: absolute;
-  right: -13px;
+  right: -32px;
   top: 50%;
   transform: translateY(-50%);
   width: 18px;
