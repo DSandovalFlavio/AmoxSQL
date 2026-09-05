@@ -13710,19 +13710,16 @@ tr:hover td {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--surface-overlay);
-  border: 1px dashed var(--border-strong);
+  background: transparent;
+  border: none;
   color: var(--text-tertiary);
   cursor: pointer;
   z-index: 5;
 }
 
 .chain-node-quickadd:hover {
-  border-style: solid;
-  border-color: var(--accent-primary);
   color: var(--accent-primary);
 }
 
