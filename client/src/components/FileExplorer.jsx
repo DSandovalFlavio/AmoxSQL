@@ -17,7 +17,7 @@ import ExportAiContextModal from './ExportAiContextModal';
 import ExportDataModal from './ExportDataModal';
 import GSheetsSection from './GSheetsSection';
 
-const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -72,6 +72,12 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     const [previewFilePath, setPreviewFilePath] = useState(null);
     const [aiContextFile, setAiContextFile] = useState(null); // { path, name } for Export for AI
     const [exportSqlQuery, setExportSqlQuery] = useState(null); // string SQL for "Export results…" on a .sql file
+    const [linkedChartsLoading, setLinkedChartsLoading] = useState(false);
+    // Fase 3 — procedencia, reverse lookup: { x, y, charts: [{name, path}] }
+    // popover listing the .amoxvis files linked to a .sql file, opened from
+    // its context menu when there's more than one (a single match opens
+    // directly, no popover needed).
+    const [linkedChartsMenu, setLinkedChartsMenu] = useState(null);
     const [exportSqlLoading, setExportSqlLoading] = useState(false);
 
     // Column Copy Loading State
@@ -115,8 +121,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
     }, [refreshTrigger]);
 
     useEffect(() => {
-        // Close context menu on click outside
-        const handleClick = () => setContextMenu(null);
+        // Close context menu (and the linked-charts popover) on click outside
+        const handleClick = () => { setContextMenu(null); setLinkedChartsMenu(null); };
         window.addEventListener('click', handleClick);
         return () => window.removeEventListener('click', handleClick);
     }, []);
@@ -561,6 +567,54 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
 
     const getSelectedFileObjects = () => sortedFiles.filter(f => selectedFiles.has(f.path));
 
+    // Fase 4 — consolidar: turn a multi-selection of .sql / .amoxvis / .md
+    // files into one notebook. Each becomes a cell in the SAME order they're
+    // listed in the explorer; the notebook opens unsaved in the editor (the
+    // editor itself is the preview — the user reviews/reorders/saves from
+    // there, same as any other new file) rather than a bespoke dialog.
+    const [creatingNotebook, setCreatingNotebook] = useState(false);
+    const createNotebookFromSelection = async (files) => {
+        if (creatingNotebook || !onCreateNotebookFromFiles) return;
+        const supported = files.filter(f => !f.isDirectory && /\.(sql|amoxvis|md)$/i.test(f.name));
+        if (supported.length === 0) {
+            setAlertData({ isOpen: true, title: 'Create Notebook', type: 'info', message: 'None of the selected files can become notebook cells — pick .sql, .amoxvis, or .md files.' });
+            return;
+        }
+        setCreatingNotebook(true);
+        try {
+            const cells = [];
+            for (const f of supported) {
+                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(f.path)}`);
+                const data = await res.json();
+                if (data.error) continue; // skip unreadable files rather than failing the whole batch
+                const id = Date.now().toString() + Math.random().toString(36).slice(2, 8);
+                if (f.name.toLowerCase().endsWith('.amoxvis')) {
+                    let config = {};
+                    try { config = JSON.parse(data.content); } catch { /* malformed — falls through with empty query */ }
+                    const { query, ...chartConfig } = config;
+                    cells.push({ id, type: 'code', content: query || '', state: { chartConfig, viewMode: 'chart' } });
+                } else if (f.name.toLowerCase().endsWith('.md')) {
+                    cells.push({ id, type: 'markdown', content: data.content });
+                } else {
+                    cells.push({ id, type: 'code', content: data.content });
+                }
+            }
+            if (cells.length === 0) {
+                setAlertData({ isOpen: true, title: 'Create Notebook', type: 'error', message: 'Could not read any of the selected files.' });
+                return;
+            }
+            const payload = JSON.stringify({ version: '3.0', cells, environment: {} }, null, 2);
+            onCreateNotebookFromFiles(payload);
+            setContextMenu(null);
+            setSelectedFiles(new Set());
+            setMultiSelectMode(false);
+        } catch (err) {
+            setAlertData({ isOpen: true, title: 'Create Notebook', type: 'error', message: err.message });
+        } finally {
+            setCreatingNotebook(false);
+        }
+    };
+
     // --- Clipboard Cut/Copy/Paste ---
     const cutFiles = (filesToCut) => {
         setClipboardFiles(filesToCut.map(f => ({ path: f.path, name: f.name, isDirectory: f.isDirectory })));
@@ -874,6 +928,18 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     padding: '4px',
 
                 }}>
+                    {/* ── Multi-selection: consolidate into a notebook (Fase 4) ── */}
+                    {selectedFiles.size > 1 && selectedFiles.has(contextMenu.file.path) && onCreateNotebookFromFiles && (
+                        <>
+                            <div
+                                onClick={() => createNotebookFromSelection(getSelectedFileObjects())}
+                                className="context-menu-item"
+                            >
+                                {creatingNotebook ? <LuLoader size={14} className="spin" /> : <LuBookOpen size={14} />} Create Notebook from Selection ({selectedFiles.size})
+                            </div>
+                            <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
+                        </>
+                    )}
                     {/* ── Type-specific actions ── */}
                     {contextMenu.file.name.match(/\.(csv|tsv|parquet|json|xlsx|xls)$/i) && (
                         <div onClick={() => onImportFile(contextMenu.file.path, false)} className="context-menu-item">
@@ -964,6 +1030,36 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             {exportSqlLoading ? <LuLoader size={14} className="spin" /> : <LuFileSpreadsheet size={14} />} Export results...
                         </div>
                     )}
+                    {/* .sql — Fase 3 reverse lookup: which charts point back at this query */}
+                    {contextMenu.file.name.match(/\.sql$/i) && (
+                        <div
+                            onClick={async (e) => {
+                                if (linkedChartsLoading) return;
+                                const filePath = contextMenu.file.path;
+                                const anchor = { x: contextMenu.x, y: contextMenu.y };
+                                setContextMenu(null);
+                                setLinkedChartsLoading(true);
+                                try {
+                                    const res = await fetch(`${API_BASE}/api/charts/using-source?path=${encodeURIComponent(filePath)}`);
+                                    const charts = await res.json();
+                                    if (!Array.isArray(charts) || charts.length === 0) {
+                                        setAlertData({ isOpen: true, message: 'No charts are linked to this query yet.', title: 'Charts using this query', type: 'info' });
+                                    } else if (charts.length === 1) {
+                                        onEditChart && onEditChart(charts[0].path);
+                                    } else {
+                                        setLinkedChartsMenu({ ...anchor, charts });
+                                    }
+                                } catch (err) {
+                                    setAlertData({ isOpen: true, message: 'Failed to look up linked charts: ' + err.message, title: 'Error', type: 'error' });
+                                } finally {
+                                    setLinkedChartsLoading(false);
+                                }
+                            }}
+                            className="context-menu-item"
+                        >
+                            {linkedChartsLoading ? <LuLoader size={14} className="spin" /> : <LuChartBar size={14} />} Charts using this query...
+                        </div>
+                    )}
                     {contextMenu.file.isDirectory && (
                         <div onClick={() => onImportFile(contextMenu.file.path, true)} className="context-menu-item">
                             <LuDatabase size={14} /> Import Folder to Database...
@@ -1035,6 +1131,31 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.name); setContextMenu(null); }} className="context-menu-item">
                         <LuType size={14} /> Copy Name
                     </div>
+                </div>
+            )}
+
+            {/* Fase 3 — procedencia, reverse lookup popover: which charts are
+                linked to the .sql file just right-clicked. Only shown when
+                there's more than one match (a single match opens directly). */}
+            {linkedChartsMenu && (
+                <div style={{
+                    position: 'fixed', top: linkedChartsMenu.y, left: linkedChartsMenu.x, zIndex: 1000,
+                    minWidth: '220px', maxWidth: '320px',
+                    backgroundColor: 'var(--surface-overlay)', border: '1px solid var(--border-default)',
+                    borderRadius: '6px', boxShadow: 'var(--shadow-md)', padding: '4px', fontSize: '13px',
+                }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ padding: '4px 8px', color: 'var(--text-tertiary)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' }}>
+                        {linkedChartsMenu.charts.length} charts use this query
+                    </div>
+                    {linkedChartsMenu.charts.map((c) => (
+                        <div
+                            key={c.path}
+                            onClick={() => { onEditChart && onEditChart(c.path); setLinkedChartsMenu(null); }}
+                            className="context-menu-item"
+                        >
+                            <LuChartBar size={14} /> {c.name}
+                        </div>
+                    ))}
                 </div>
             )}
 

@@ -423,7 +423,7 @@ async function markdownToDocxNodes(markdown) {
  * @param {boolean} hideCode - Whether SQL code blocks should be hidden
  * @param {Object} cellStates - Map of cellId → { resultHeight, ... } (the height the user drag-resized the cell to)
  */
-export async function generateWordReport(cells, results, hideCode = false, cellStates = {}) {
+export async function generateWordReport(cells, results, hideCode = false, cellStates = {}, baseName = '') {
     const docChildren = [
         new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: 'AmoxSQL Report' })], spacing: { after: 80 } }),
         new Paragraph({ children: [new TextRun({ text: `Generated on ${new Date().toLocaleString()}`, color: '888888', size: 18 })], spacing: { after: 320 } }),
@@ -516,7 +516,7 @@ export async function generateWordReport(cells, results, hideCode = false, cellS
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `amoxsql_report_${new Date().toISOString().slice(0, 10)}.docx`;
+    link.download = `${baseName || 'amoxsql_report_' + new Date().toISOString().slice(0, 10)}.docx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

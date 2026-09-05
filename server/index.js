@@ -3536,6 +3536,38 @@ app.get('/api/files/find-by-extension', (req, res) => {
     }
 });
 
+/**
+ * GET /api/charts/using-source?path=queries/ventas.sql
+ * Fase 3 — procedencia, the reverse lookup: which .amoxvis charts link back
+ * to this .sql file (their `source` field). Scans project-relative here
+ * (server-side, one directory walk + N small JSON reads) rather than having
+ * the client fetch every .amoxvis and check client-side.
+ */
+app.get('/api/charts/using-source', (req, res) => {
+    const sourcePath = req.query.path;
+    if (!sourcePath) return res.status(400).json({ error: 'path is required' });
+    const normalized = sourcePath.replace(/\\/g, '/');
+
+    try {
+        const amoxvisFiles = findFilesByExtension(ROOT_DIR, '.amoxvis');
+        const matches = [];
+        for (const f of amoxvisFiles) {
+            try {
+                const fullPath = path.join(ROOT_DIR, f.path);
+                const config = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                if ((config.source || '').replace(/\\/g, '/') === normalized) {
+                    matches.push({ name: f.name, path: f.path });
+                }
+            } catch {
+                // Skip unreadable/malformed .amoxvis — not this endpoint's job to report that.
+            }
+        }
+        res.json(matches);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // applyRowLimit lives in ./_sqlUtils (shared with ai/tools.js execute_sql).
 
 app.post('/api/query', async (req, res) => {
@@ -5382,7 +5414,10 @@ app.get('/api/chains/preview/:tableName', async (req, res) => {
     }
 });
 
-// Preview a node's OWN output (resolves its physical table; available only after it has run)
+// Preview a node's OWN output. Fase 0 (docs/dev/auditoria_dataflow_ux.md) — tries a
+// live compile first (CTEs over the node's ancestors, nothing materialized, no run
+// required), falling back to whatever the node last materialized when it — or an
+// ancestor it depends on — isn't SELECT-shaped (a sink, a network/LLM source, `clean`).
 app.post('/api/chains/preview-node', async (req, res) => {
     const { nodeId, chainDefinition, chainFile } = req.body;
     const limit = Math.min(parseInt(req.body.limit) || 50, 200);
@@ -5390,32 +5425,36 @@ app.post('/api/chains/preview-node', async (req, res) => {
     try {
         const node = (chainDefinition.nodes || []).find(n => n.id === nodeId);
         if (!node) return res.json({ available: false });
-        const ref = chainExecutor.staticOutputRef(node, chainFile || '');
-        const table = ref && ref.table;
-        if (!table) return res.json({ available: false });
-        const safeTable = table.replace(/[^a-zA-Z0-9_\-.]/g, '');
-        // Resolve schema (the output ref may carry it; else catalog lookup preferring main)
-        let schema = ref.schema || null;
-        if (!schema) {
-            const found = await dbManager.query(
-                `SELECT table_schema FROM information_schema.tables WHERE table_name = '${safeTable.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
-            );
-            schema = found[0]?.table_schema || null;
-        }
-        if (!schema) return res.json({ available: false, table });
-        const qref = `"${schema}"."${safeTable}"`;
-        const rows = await dbManager.query(`SELECT * FROM ${qref} LIMIT ${limit}`);
-        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM ${qref}`);
+
+        const compiled = chainExecutor.compileNodeQuery(chainDefinition, nodeId, {
+            chainFile: chainFile || '', projectPath: ROOT_DIR,
+        });
+        if (!compiled.sql) return res.json({ available: false, reason: compiled.reason });
+        if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(dbManager); } catch {} }
+
+        const wrapped = `SELECT * FROM (${compiled.sql}) AS _amox_preview`;
+        const rows = await dbManager.query(`${wrapped} LIMIT ${limit}`);
+        const countResult = await dbManager.query(`SELECT COUNT(*) AS cnt FROM (${compiled.sql}) AS _amox_count`);
         const columns = rows.length > 0
             ? Object.keys(rows[0]).map(k => ({ name: k, type: typeof rows[0][k] === 'number' ? 'number' : 'string' }))
-            : [];
-        res.json({ available: true, table, columns, rows, totalRows: countResult[0]?.cnt || 0 });
+            : (await dbManager.query(`DESCRIBE ${compiled.sql}`)).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
+        res.json({
+            available: true,
+            source: compiled.inlinable ? 'live' : 'materialized',
+            table: compiled.materialized ? (chainExecutor.staticOutputRef(node, chainFile || '')?.table || null) : null,
+            columns, rows, totalRows: countResult[0]?.cnt || 0,
+        });
     } catch (err) {
         res.json({ available: false, error: err.message });
     }
 });
 
-// Infer schema for a node (upstream schema propagation)
+// Infer the columns available to a node from its upstream parent(s). Fase 0 — compiles
+// each parent's own query (CTEs, not a materialized table lookup) and DESCRIBEs it, so
+// columns show up as soon as a source is connected, at any depth, without running the
+// chain. Falls back to a parent's last materialized table when it isn't SELECT-shaped.
+// Checks every parent edge (not just the first), so join_tables/merge_tables now surface
+// both/all sides' columns instead of only the first upstream node's.
 app.post('/api/chains/schema/infer', async (req, res) => {
     const { nodeId, chainDefinition, chainFile } = req.body;
     if (!nodeId || !chainDefinition) return res.status(400).json({ error: 'nodeId and chainDefinition required' });
@@ -5424,48 +5463,51 @@ app.post('/api/chains/schema/infer', async (req, res) => {
         const node = nodes.find(n => n.id === nodeId);
         if (!node) return res.status(404).json({ error: 'Node not found' });
 
-        // Walk upstream to find most direct source with schema
-        const parentEdges = edges.filter(e => e.target === nodeId);
-        if (parentEdges.length === 0) return res.json({ columns: [] });
+        const parentIds = edges.filter(e => e.target === nodeId).map(e => e.source);
+        if (parentIds.length === 0) return res.json({ columns: [] });
 
-        const parentId = parentEdges[0].source;
-        const parentNode = nodes.find(n => n.id === parentId);
-        if (!parentNode) return res.json({ columns: [] });
-
-        let columns = [];
-        const cfg = parentNode.config || {};
-
-        if (parentNode.type === 'import_file' && cfg.sourcePath) {
-            const fullPath = chainExecutor.resolvePath(ROOT_DIR, cfg.sourcePath);
-            if (fs.existsSync(fullPath)) {
-                const fileType = cfg.fileType || chainExecutor.detectFileType(cfg.sourcePath);
-                let sql;
-                if (fileType === 'parquet') sql = `DESCRIBE SELECT * FROM read_parquet('${fullPath.replace(/\\/g, '/')}') LIMIT 0`;
-                else if (fileType === 'json') sql = `DESCRIBE SELECT * FROM read_json_auto('${fullPath.replace(/\\/g, '/')}') LIMIT 0`;
-                else if (fileType === 'xlsx') {
-                    try { await dbManager.query("INSTALL spatial; LOAD spatial;"); } catch {}
-                    sql = `DESCRIBE SELECT * FROM read_xlsx('${fullPath.replace(/\\/g, '/')}') LIMIT 0`;
-                } else sql = `DESCRIBE SELECT * FROM read_csv('${fullPath.replace(/\\/g, '/')}', auto_detect=true, header=true) LIMIT 0`;
-                try {
-                    const result = await dbManager.query(sql);
-                    columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
-                } catch {}
-            }
-        } else {
-            // Any other node — resolve its physical output table (derived nodes use the
-            // deterministic "__chain_*" name post-A1) and describe it. Available once that
-            // node has run at least once; before that, columns come back empty.
-            const ref = chainExecutor.staticOutputRef(parentNode, chainFile || '');
-            const tname = ref && ref.table;
-            if (tname) {
-                try {
-                    const result = await dbManager.query(`DESCRIBE SELECT * FROM "${tname}" LIMIT 0`);
-                    columns = (result || []).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
-                } catch {}
-            }
+        const seen = new Set();
+        const columns = [];
+        for (const parentId of parentIds) {
+            const compiled = chainExecutor.compileNodeQuery(chainDefinition, parentId, {
+                chainFile: chainFile || '', projectPath: ROOT_DIR,
+            });
+            if (!compiled.sql) continue;
+            if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(dbManager); } catch {} }
+            try {
+                const result = await dbManager.query(`DESCRIBE ${compiled.sql}`);
+                for (const r of (result || [])) {
+                    const name = r.column_name || r.name;
+                    if (!name || seen.has(name)) continue;
+                    seen.add(name);
+                    columns.push({ name, type: r.column_type || r.type });
+                }
+            } catch {}
         }
 
         res.json({ columns });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// The SQL compiled for one node's own output — a live CTE chain when possible, or the
+// SELECT over its last materialized table. Fase 0's third leg: "ver el SQL de este nodo"
+// without exporting the whole chain to a file.
+app.post('/api/chains/node-sql', (req, res) => {
+    const { nodeId, chainDefinition, chainFile } = req.body;
+    if (!nodeId || !chainDefinition) return res.status(400).json({ error: 'nodeId and chainDefinition required' });
+    try {
+        const node = (chainDefinition.nodes || []).find(n => n.id === nodeId);
+        if (!node) return res.status(404).json({ error: 'Node not found' });
+        const compiled = chainExecutor.compileNodeQuery(chainDefinition, nodeId, {
+            chainFile: chainFile || '', projectPath: ROOT_DIR,
+        });
+        res.json({
+            sql: compiled.sql,
+            source: compiled.inlinable ? 'live' : (compiled.materialized ? 'materialized' : 'none'),
+            reason: compiled.reason || null,
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

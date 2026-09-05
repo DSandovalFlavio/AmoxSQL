@@ -13482,6 +13482,67 @@ tr:hover td {
   margin: 0 4px;
 }
 
+/* ── AI prompt bar — second toolbar row (docs/dev/auditoria_dataflow_ux.md
+   feedback: used to float over the canvas as a detached pill, covering
+   whatever node was underneath it; moved here for a permanent, non-
+   overlapping home). Deliberately quieter than Run All — a bordered
+   button, not a solid accent fill — so it reads as a secondary tool next
+   to the primary run action in the row above, not a competing CTA. */
+.chain-ai-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-default);
+  min-height: 34px;
+}
+
+.chain-ai-bar-icon {
+  color: var(--accent-color-user);
+  flex-shrink: 0;
+}
+
+.chain-ai-bar-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-active);
+  font-size: 12px;
+}
+
+.chain-ai-bar-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.chain-ai-bar-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+.chain-ai-bar-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.chain-ai-bar-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 /* ── Chain Node (Base) ──
    Nodes expose only --node-accent (category color, mode-neutral) and
    optionally --node-border-override (states/errors). Background and border
@@ -13593,6 +13654,23 @@ tr:hover td {
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* Fase 5 — the config changed since this result was produced */
+.chain-node-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  width: 100%;
+  margin-bottom: 3px;
+}
+
 .chain-node-error {
   display: flex;
   align-items: flex-start;
@@ -13626,6 +13704,273 @@ tr:hover td {
 /* Spin animation */
 .chain-node-spin {
   animation: spin 1s linear infinite;
+}
+
+/* ── Node action bar (Fase 1 — docs/dev/auditoria_dataflow_ux.md) ──
+   Floats above the node on hover/select: the actions the user needs live
+   where their attention already is, instead of a toolbar far away. */
+.chain-node-actionbar {
+  position: absolute;
+  left: 50%;
+  top: -34px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  box-shadow: var(--shadow-lg);
+  white-space: nowrap;
+  z-index: 20;
+}
+
+.chain-node-actionbar button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.chain-node-actionbar button:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-node-actionbar-key {
+  color: var(--accent-primary) !important;
+}
+
+.chain-node-actionbar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--border-default);
+}
+
+/* Fase 4 — "+" quick-add, sitting clear of the output handle.
+   The handle (.react-flow__handle-right, from @xyflow/react's base
+   stylesheet) is centered exactly ON the node's right edge — ~12px wide
+   (8px + our 2px border from .chain-handle), spanning roughly -6px to
+   +6px from the edge. This button used to start at right:-13px (an 18px
+   circle spanning roughly -5px to +13px), overlapping nearly the whole
+   handle and rendering as one fused, illegible cluster instead of two
+   distinct controls. Pushed further out so there's a clear gap after
+   the handle's edge instead of sitting on top of it. */
+.chain-node-quickadd {
+  position: absolute;
+  right: -32px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  z-index: 5;
+}
+
+.chain-node-quickadd:hover {
+  color: var(--accent-primary);
+}
+
+/* Disabled node — a transparent passthrough, dimmed to read as "off" */
+.chain-node-disabled {
+  opacity: 0.5;
+}
+
+.chain-node-disabled-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+
+/* ── Node "…" / right-click menu ── */
+.chain-node-menu {
+  position: fixed;
+  min-width: 178px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 10001;
+}
+
+.chain-node-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.chain-node-menu-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-node-menu-item-danger {
+  color: var(--color-error-text);
+}
+
+.chain-node-menu-item-danger:hover {
+  background: var(--color-error-bg);
+}
+
+.chain-node-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-default);
+}
+
+/* ── Node type picker (Fase 4 — the "+" quick-add menu) ── */
+.chain-typepicker {
+  position: fixed;
+  width: 230px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 10001;
+  overflow: hidden;
+}
+
+.chain-typepicker-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.chain-typepicker-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.chain-typepicker-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.chain-typepicker-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.chain-typepicker-cat {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  padding: 7px 8px 3px;
+}
+
+.chain-typepicker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.chain-typepicker-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-typepicker-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--surface-inset);
+  flex-shrink: 0;
+}
+
+/* ── Config popover (Fase 3) — anchored to the node instead of a fixed drawer ── */
+.chain-config-popover {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  z-index: 10000;
+  overflow: hidden;
+}
+
+.chain-config-popover-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--surface-overlay);
+  transform: rotate(45deg);
+}
+
+.chain-config-popover-arrow-below {
+  top: -5px;
+  border-left: 1px solid var(--border-strong);
+  border-top: 1px solid var(--border-strong);
+}
+
+.chain-config-popover-arrow-above {
+  bottom: -5px;
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.chain-config-popover-scroll {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.chain-config-popover-body {
+  padding: 12px;
 }
 
 /* ── Node Palette ── */
@@ -13669,6 +14014,36 @@ tr:hover td {
 .chain-palette-toggle {
   color: var(--text-tertiary);
   font-size: 14px;
+}
+
+.chain-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 8px 0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.chain-palette-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.chain-palette-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
 }
 
 .chain-palette-list {
@@ -14358,6 +14733,267 @@ tr:hover td {
   color: var(--text-tertiary);
   font-style: italic;
 }
+
+/* ── Inspector (Fase 2) — permanent right panel; never conditionally
+   mounted, so it never depends on the chain having run. ── */
+.chain-inspector {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border-default);
+  overflow: hidden;
+}
+
+.chain-inspector-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 6;
+}
+
+.chain-inspector-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.chain-inspector-empty p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.chain-inspector-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chain-inspector-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-inspector-pinned-tag {
+  font-size: 9px;
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 3px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.chain-inspector-pin {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+}
+
+.chain-inspector-pin:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.chain-inspector-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chain-inspector-subbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chain-inspector-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.chain-inspector-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.chain-inspector-chip-live {
+  color: var(--color-success-text);
+  border-color: color-mix(in oklch, var(--color-success) 40%, transparent);
+}
+
+.chain-inspector-chip-mat {
+  color: var(--text-secondary);
+}
+
+.chain-inspector-openfull {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chain-inspector-openfull:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.chain-inspector-table-wrap {
+  overflow: auto;
+  flex: 1;
+}
+
+.chain-inspector-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+}
+
+.chain-inspector-table thead th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  padding: 5px 9px;
+  background: var(--surface-inset);
+  color: var(--text-active);
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.chain-inspector-table tbody td {
+  padding: 4px 9px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-inspector-table tbody tr:hover td {
+  background: var(--hover-bg);
+}
+
+.chain-inspector-null {
+  opacity: 0.45;
+  font-style: italic;
+}
+
+.chain-inspector-schema {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chain-inspector-schema-section label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 5px;
+}
+
+.chain-inspector-schema-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  color: var(--text-active);
+}
+
+.chain-inspector-schema-row:nth-child(odd) {
+  background: var(--surface-inset);
+}
+
+.chain-inspector-schema-type {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.chain-inspector-sql {
+  margin: 0;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  white-space: pre;
+  overflow: auto;
+  flex: 1;
+}
+
+.chain-inspector-log {
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.9;
+  overflow: auto;
+}
+
+.chain-inspector-log-line {
+  display: flex;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.chain-inspector-log-time {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.chain-inspector-log-error { color: var(--color-error-text); }
+.chain-inspector-log-success { color: var(--color-success-text); }
+.chain-inspector-log-sql { color: var(--text-tertiary); font-style: italic; }
 
 /* ── History Panel ── */
 .chain-history-panel {

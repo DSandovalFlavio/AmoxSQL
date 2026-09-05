@@ -4,14 +4,16 @@ import ReactDOM from 'react-dom';
 import NotebookCell from './NotebookCell';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
-import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuFileType2, LuLoaderCircle, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX } from "react-icons/lu";
+import { LuPenLine, LuFileText, LuPrinter, LuPlus, LuEyeOff, LuEye, LuFileCode, LuFileType2, LuMonitorPlay, LuLoaderCircle, LuMaximize2, LuMinimize2, LuSettings2, LuCirclePlay, LuSquare, LuSave, LuBot, LuX, LuPresentation } from "react-icons/lu";
 import { generateHtmlReport } from '../utils/generateHtmlReport';
 import { injectEnvironmentVariables as injectEnvVars } from '../utils/injectEnvironmentVariables';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 import { parseNotebookContent, parseNotebookEnvironment, serializeNotebookContent } from '../utils/notebookParser';
+import { buildSlideRaw } from '../utils/deckTemplates';
+import { serializeDeck } from '../utils/deckParser';
 import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 
-const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, onToggleAi, showAiSidebar }) => {
+const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, onToggleAi, showAiSidebar, onCreateNew }) => {
     const [cells, setCells] = useState([]);
     const [results, setResults] = useState({});
 
@@ -24,8 +26,95 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     // View modes
     const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'report'
     const [hideCodeInReport, setHideCodeInReport] = useState(false);
+
+    // Report exports (HTML/Word) are named after the notebook itself, so the
+    // deliverable reads as this notebook's artifact instead of an anonymous
+    // dated file. Falls back to the generators' own default for an unsaved
+    // notebook (no filePath yet).
+    const reportBaseName = filePath
+        ? filePath.split(/[/\\]/).pop().replace(/\.sqlnb$/i, '')
+        : '';
     const [isFullView, setIsFullView] = useState(false);
     const [isExportingWord, setIsExportingWord] = useState(false);
+    const [isExportingPptx, setIsExportingPptx] = useState(false);
+    const [isConvertingToDeck, setIsConvertingToDeck] = useState(false);
+
+    // A cell's chartConfig is populated as soon as results with columns
+    // arrive — DataVisualizer stays mounted (just CSS-hidden) behind the
+    // table view so switching tabs is instant, and an effect there
+    // auto-picks x/y axes the moment real data shows up, which counts as a
+    // config change whether or not anyone ever looked at the chart. So
+    // chartConfig presence alone doesn't mean "this cell has a chart" — the
+    // live DOM (is a .recharts-wrapper actually showing right now) is the
+    // only real signal, same check the Word and PowerPoint exporters use.
+    const detectCellViewMode = (cellId) => {
+        const cellEl = document.querySelector(`[data-cell-id="${cellId}"]`);
+        if (!cellEl) return 'table';
+        return cellEl.querySelector('.recharts-wrapper') ? 'chart' : 'table';
+    };
+
+    // Fase 4 — consolidar: notebook → Report Flow deck. Markdown cells become
+    // text slides; SQL cells currently showing a chart become chart-full
+    // slides, materializing that chart as a standalone .amoxvis under
+    // charts/ (a deck references charts by file, same as one built by hand
+    // in Story Flow — this is NOT the same link as Fase 3's `source`, since
+    // there's no .sql file for a notebook cell to link back to). Plain SQL
+    // cells (table view, no chart) have no deck-slide equivalent — skipped
+    // here, not lost: they stay exactly as they are in the notebook.
+    const handleConvertToDeck = useCallback(async () => {
+        if (isConvertingToDeck) return;
+        setIsConvertingToDeck(true);
+        try {
+            const baseName = (reportBaseName || 'notebook').replace(/[^\w-]+/g, '_');
+            const slides = [];
+            let chartIndex = 0;
+            let chartsFolderEnsured = false;
+
+            for (const cell of cells) {
+                if (cell.type === 'markdown') {
+                    if (!cell.content?.trim()) continue;
+                    slides.push({ raw: buildSlideRaw({ layout: 'content', prose: cell.content }) });
+                    continue;
+                }
+                if (cell.type !== 'code') continue;
+                const chartConfig = cellStates?.[cell.id]?.chartConfig;
+                const result = results[cell.id];
+                if (!chartConfig || !(result?.data?.length > 0) || detectCellViewMode(cell.id) !== 'chart') continue;
+
+                if (!chartsFolderEnsured) {
+                    await fetch(`${API_BASE}/api/folder`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: 'charts' }),
+                    });
+                    chartsFolderEnsured = true;
+                }
+                chartIndex += 1;
+                const chartFilename = `charts/${baseName}_${chartIndex}.amoxvis`;
+                await fetch(`${API_BASE}/api/file`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: chartFilename, content: JSON.stringify({ ...chartConfig, query: cell.content }, null, 2) }),
+                });
+                slides.push({ raw: buildSlideRaw({ layout: 'chart-full', chartSrc: chartFilename }) });
+            }
+
+            if (slides.length === 0) {
+                setAlertTitle('Convert to Deck');
+                setAlertMessage('No text or chart cells to convert — write some markdown or build a chart on a SQL cell first.');
+                setAlertOpen(true);
+                return;
+            }
+
+            const frontMatterText = `---\ntitle: ${baseName}\ntheme: dark\naspect: "16:9"\n---`;
+            const deckMarkdown = serializeDeck(frontMatterText, slides);
+            onCreateNew && onCreateNew('amoxdeck', deckMarkdown);
+        } catch (err) {
+            setAlertTitle('Convert to Deck');
+            setAlertMessage('Conversion failed: ' + err.message);
+            setAlertOpen(true);
+        } finally {
+            setIsConvertingToDeck(false);
+        }
+    }, [cells, results, cellStates, reportBaseName, onCreateNew, isConvertingToDeck]);
 
     // First-run Notebooks tour (rendered by the global OnboardingHost)
     useEffect(() => {
@@ -43,6 +132,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
     // Alert dialog
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
+    const [alertTitle, setAlertTitle] = useState('Dependency Error');
 
     // Batch execution state
     const [isRunningBatch, setIsRunningBatch] = useState(false);
@@ -557,7 +647,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                             <LuPrinter size={13} /> Print
                         </button>
                         <button
-                            onClick={() => generateHtmlReport(cells, results, hideCodeInReport)}
+                            onClick={() => generateHtmlReport(cells, results, hideCodeInReport, reportBaseName)}
                             className="snb-btn snb-btn--accent"
                             title="Export as HTML Report"
                         >
@@ -569,7 +659,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                                 setIsExportingWord(true);
                                 try {
                                     const { generateWordReport } = await import('../utils/generateWordReport');
-                                    await generateWordReport(cells, results, hideCodeInReport, cellStates);
+                                    await generateWordReport(cells, results, hideCodeInReport, cellStates, reportBaseName);
                                 } catch (err) {
                                     console.error('Word export failed:', err);
                                 } finally {
@@ -584,6 +674,39 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
                             {isExportingWord ? <LuLoaderCircle size={13} className="spin" /> : <LuFileType2 size={13} />}
                             {isExportingWord ? 'Exporting…' : 'Export Word'}
                         </button>
+                        <button
+                            onClick={async () => {
+                                if (isExportingPptx) return;
+                                setIsExportingPptx(true);
+                                try {
+                                    const { generateNotebookPptxReport } = await import('../utils/generateNotebookPptxReport');
+                                    await generateNotebookPptxReport(cells, results, hideCodeInReport, cellStates, reportBaseName);
+                                } catch (err) {
+                                    console.error('PowerPoint export failed:', err);
+                                } finally {
+                                    setIsExportingPptx(false);
+                                }
+                            }}
+                            className="snb-btn snb-btn--accent"
+                            title="Export as PowerPoint"
+                            disabled={isExportingPptx}
+                            style={{ opacity: isExportingPptx ? 0.6 : 1 }}
+                        >
+                            {isExportingPptx ? <LuLoaderCircle size={13} className="spin" /> : <LuMonitorPlay size={13} />}
+                            {isExportingPptx ? 'Exporting…' : 'Export PowerPoint'}
+                        </button>
+                        {onCreateNew && (
+                            <button
+                                onClick={handleConvertToDeck}
+                                className="snb-btn snb-btn--ghost"
+                                title="Turn this notebook into a Report Flow deck — text cells become slides, charted SQL cells become chart slides"
+                                disabled={isConvertingToDeck}
+                                style={{ opacity: isConvertingToDeck ? 0.6 : 1 }}
+                            >
+                                {isConvertingToDeck ? <LuLoaderCircle size={13} className="spin" /> : <LuPresentation size={13} />}
+                                {isConvertingToDeck ? 'Converting…' : 'Convert to Deck'}
+                            </button>
+                        )}
                     </>
                 )}
 
@@ -705,7 +828,7 @@ const SqlNotebook = ({ content, onChange, onRunQuery, onSave, filePath = null, o
         <AlertDialog
             isOpen={alertOpen}
             onClose={() => setAlertOpen(false)}
-            title="Dependency Error"
+            title={alertTitle}
             message={alertMessage}
             type="error"
         />

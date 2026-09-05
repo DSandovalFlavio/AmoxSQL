@@ -8,15 +8,17 @@
  * Slides / Layouts / Charts. Its Layouts/Charts actions operate on the ACTIVE
  * slide in the Design view.
  */
-import { LuLayers, LuLayoutTemplate, LuChartBar, LuPanelLeftClose, LuPanelLeftOpen } from 'react-icons/lu';
+import { LuLayers, LuLayoutTemplate, LuChartBar, LuImage, LuPanelLeftClose, LuPanelLeftOpen } from 'react-icons/lu';
 import SlidesPanel from './panels/SlidesPanel';
 import LayoutsPanel from './panels/LayoutsPanel';
 import ChartsPanel from './panels/ChartsPanel';
+import ImagesPanel from './panels/ImagesPanel';
 
 const TABS = [
     { key: 'slides', icon: LuLayers, title: 'Slides' },
     { key: 'layouts', icon: LuLayoutTemplate, title: 'Layouts' },
     { key: 'charts', icon: LuChartBar, title: 'Charts' },
+    { key: 'images', icon: LuImage, title: 'Images' },
 ];
 
 const DeckSidePanel = ({
@@ -32,6 +34,7 @@ const DeckSidePanel = ({
     onAddSlide,
     onApplyLayout,
     onInsertChart,
+    onInsertImage,
 }) => {
     if (collapsed) {
         return (
@@ -81,6 +84,7 @@ const DeckSidePanel = ({
                 )}
                 {activePanel === 'layouts' && <LayoutsPanel onApplyLayout={onApplyLayout} activeLayout={activeLayout} />}
                 {activePanel === 'charts' && <ChartsPanel onInsertChart={onInsertChart} />}
+                {activePanel === 'images' && <ImagesPanel onInsertImage={onInsertImage} />}
             </div>
         </div>
     );

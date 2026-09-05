@@ -24,11 +24,17 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import { injectEnvironmentVariables } from './injectEnvironmentVariables';
 import { parseAmoxChartBlock } from './deckParser';
-import { isNativeChartType, buildNativeChartSpec, buildComboChartSpec } from './officeChartMapper';
+import { isNativeChartType, buildNativeSlideChartSpec } from './officeChartMapper';
+import { COLOR_PALETTES } from '../components/DataVisualizer/constants';
 
 const remarkProcessor = unified().use(remarkParse).use(remarkGfm);
 
 const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
+// Speaker notes (Fase 5 — el slide como lienzo): same fenced-block convention
+// as deckTemplates.js's NOTES_FENCE_RE, kept as a local copy here rather than
+// importing — same "each export module is self-contained" pattern already
+// used for AMOXCHART_FENCE_RE above.
+const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
 
 const SLIDE_W = 13.333; // LAYOUT_WIDE (16:9 widescreen), inches
 const SLIDE_H = 7.5;
@@ -64,7 +70,7 @@ function walkInlineToRuns(nodes, style, runs) {
     }
 }
 
-function markdownToTextRuns(markdown) {
+export function markdownToTextRuns(markdown) {
     const tree = remarkProcessor.parse(markdown || '');
     const runs = [];
     for (const node of tree.children || []) {
@@ -148,7 +154,10 @@ async function captureChartImage(el) {
 }
 
 // ── Layout → slide region coordinates (inches) ─────────────────────────────
-function layoutBoxes(layout) {
+// Exported: also used by generateNotebookPptxReport.js, which reuses the
+// exact same slide geometry so a notebook export and a deck export of an
+// equivalent chart+text pairing come out sized the same way.
+export function layoutBoxes(layout) {
     const full = { x: MARGIN, y: MARGIN, w: SLIDE_W - MARGIN * 2, h: SLIDE_H - MARGIN * 2 };
     if (layout === 'content-chart' || layout === 'two-col') {
         const colW = (SLIDE_W - MARGIN * 2 - COL_GAP) / 2;
@@ -190,6 +199,19 @@ export async function generatePptxReport(deck, { chartMode = 'native', slideCard
             ).trim();
         }
 
+        // Strip the notes fence out of the visible text too — it belongs in
+        // the PowerPoint's Notes pane, not on the slide itself.
+        let speakerNotes = '';
+        const notesMatch = textMarkdown.match(NOTES_FENCE_RE);
+        if (notesMatch) {
+            speakerNotes = notesMatch[1].replace(/\n$/, '');
+            textMarkdown = (
+                textMarkdown.slice(0, notesMatch.index) +
+                textMarkdown.slice(notesMatch.index + notesMatch[0].length)
+            ).trim();
+        }
+        if (speakerNotes.trim()) slide.addNotes(speakerNotes);
+
         const textBox = boxes.text || boxes.full;
         const table = firstMarkdownTable(textMarkdown);
         // With a table present, split the text box: prose on top, table below.
@@ -213,12 +235,12 @@ export async function generatePptxReport(deck, { chartMode = 'native', slideCard
                 const useNative = chartMode === 'native' && isNativeChartType(config.chartType) && data.length > 0;
 
                 if (useNative) {
-                    if (config.chartType === 'combo') {
-                        const { multiSpec, sharedOptions } = buildComboChartSpec(config, data, []);
-                        const typedSpec = multiSpec.map((m) => ({ ...m, type: pptx.ChartType[m.type] }));
-                        slide.addChart(typedSpec, null, { ...chartBox, ...sharedOptions });
-                    } else {
-                        const spec = buildNativeChartSpec(config, data, []);
+                    const colors = COLOR_PALETTES[config.colorTheme] || COLOR_PALETTES.default;
+                    const spec = buildNativeSlideChartSpec(config, data, colors);
+                    if (spec?.multi) {
+                        const typedSpec = spec.multiSpec.map((m) => ({ ...m, type: pptx.ChartType[m.type] }));
+                        slide.addChart(typedSpec, null, { ...chartBox, ...spec.sharedOptions });
+                    } else if (spec) {
                         slide.addChart(pptx.ChartType[spec.pptxType], spec.data, { ...chartBox, ...spec.options });
                     }
                 } else {

@@ -9,7 +9,7 @@ import {
     LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle,
     LuTableProperties, LuArrowLeftRight, LuGalleryVerticalEnd, LuRows3,
     LuGlobe, LuWandSparkles, LuLayoutList, LuBell, LuRadar, LuCalendarClock, LuBraces,
-    LuCloud, LuSheet, LuSparkles
+    LuCloud, LuSheet, LuSparkles, LuChartBar, LuPresentation
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -347,6 +347,28 @@ export const NODE_TYPES = {
         },
         defaultConfig: { notifType: 'toast', message: '', logFilePath: '', webhookUrl: '' },
     },
+
+    chart: {
+        id: 'chart',
+        label: 'Chart',
+        description: 'Save the upstream data as a chart (.amoxvis)',
+        icon: LuChartBar,
+        color: {
+            accent: 'oklch(0.65 0.15 300)',
+        },
+        defaultConfig: { query: '', outputPath: '', chartType: 'bar', xAxisKey: '', yAxisKeys: '', chartTitle: '' },
+    },
+
+    report: {
+        id: 'report',
+        label: 'Report',
+        description: 'Turn the upstream data into a notebook or a one-slide deck',
+        icon: LuPresentation,
+        color: {
+            accent: 'oklch(0.65 0.15 320)',
+        },
+        defaultConfig: { query: '', outputPath: '', outputType: 'notebook', title: '', chartType: 'bar', xAxisKey: '', yAxisKeys: '', chartTitle: '' },
+    },
 };
 
 export const NODE_TYPE_LIST = Object.values(NODE_TYPES);
@@ -396,7 +418,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'output',
         label: 'Output',
-        types: ['create_table', 'export_file'],
+        types: ['create_table', 'export_file', 'chart', 'report'],
     },
     {
         id: 'quality_control',
@@ -431,6 +453,7 @@ export const RESULT_TYPE_LABELS = {
     assertion_passed: 'Assertion Passed',
     extension_installed: 'Extension Installed',
     extension_loaded: 'Extension Loaded',
+    disabled: 'Disabled — passthrough',
     unknown: 'Executed',
 };
 

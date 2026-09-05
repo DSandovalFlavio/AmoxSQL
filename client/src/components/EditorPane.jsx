@@ -397,7 +397,9 @@ const EditorPane = ({
                             types={activeTab.results.types}
                             executionTime={activeTab.results.executionTime}
                             query={activeTab.resultsQuery || activeTab.content}
+                            sourcePath={activeTab.type === 'sql' ? activeTab.path : null}
                             currentEditorQuery={getCurrentEditorQuery}
+                            onCreateNew={onCreateNew}
                             onDbChange={onDbChange}
                             initialChartConfig={activeTab.initialChartConfig}
                             initialViewMode={activeTab.viewMode}
@@ -491,6 +493,7 @@ const EditorPane = ({
                                 onSave={onSave}
                                 onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
                                 onConfigChange={(config) => onContentChange(activeTab.id, JSON.stringify(config, null, 2))}
+                                onCreateNew={onCreateNew}
                             />
                         </Suspense>
                     </div>
@@ -581,6 +584,7 @@ const EditorPane = ({
                             filePath={activeTab.path || null}
                             onToggleAi={onToggleAi}
                             showAiSidebar={showAiSidebar}
+                            onCreateNew={onCreateNew}
                         />
                         </Suspense>
                     </div>

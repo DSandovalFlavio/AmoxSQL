@@ -18,6 +18,11 @@ import { parseAmoxChartBlock } from '../../utils/deckParser';
 
 const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
 const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
+// Speaker notes (Fase 5) live in a fenced block same as the chart — but they
+// are for the presenter, never the audience. Stripped once below, before any
+// of the layout branches see the markdown, so a notes block can never
+// render as a literal code block on screen.
+const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
 
 function useChartRenderer(variables, refreshToken) {
     return useMemo(() => (raw) => {
@@ -28,12 +33,13 @@ function useChartRenderer(variables, refreshToken) {
 
 const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, theme }) => {
     const chartRenderer = useChartRenderer(variables, refreshToken);
+    const visibleMarkdown = slide.markdown.replace(NOTES_FENCE_RE, '').trim();
 
     if (slide.layout === 'content-chart') {
-        const match = slide.markdown.match(AMOXCHART_FENCE_RE);
+        const match = visibleMarkdown.match(AMOXCHART_FENCE_RE);
         if (match) {
-            const before = slide.markdown.slice(0, match.index).trim();
-            const after = slide.markdown.slice(match.index + match[0].length).trim();
+            const before = visibleMarkdown.slice(0, match.index).trim();
+            const after = visibleMarkdown.slice(match.index + match[0].length).trim();
             const parsed = parseAmoxChartBlock(match[1]);
             return (
                 <div className="deck-slide deck-slide--content-chart">
@@ -50,8 +56,8 @@ const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, the
         // Layout declared but no chart block present — fall back to plain content below.
     }
 
-    if (slide.layout === 'two-col' && COL_BREAK_RE.test(slide.markdown)) {
-        const [left, right = ''] = slide.markdown.split(COL_BREAK_RE);
+    if (slide.layout === 'two-col' && COL_BREAK_RE.test(visibleMarkdown)) {
+        const [left, right = ''] = visibleMarkdown.split(COL_BREAK_RE);
         return (
             <div className="deck-slide deck-slide--two-col">
                 <div className="deck-slide-col">
@@ -66,7 +72,7 @@ const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, the
 
     return (
         <div className={`deck-slide deck-slide--${slide.layout}`}>
-            <MarkdownPreview content={slide.markdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
+            <MarkdownPreview content={visibleMarkdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
         </div>
     );
 };

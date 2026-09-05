@@ -1,10 +1,9 @@
 /**
  * ExportPanel — "Ship it".
  * Story Flow stage ⑥: tamaño de lienzo + formato de export + archivo de config.
- * (SVG / Clipboard / PPTX llegan en la fase 6; por ahora PNG + .amoxvis.)
  */
 import { memo } from 'react';
-import { LuDownload, LuSave, LuUpload, LuCopy, LuClipboardPaste } from 'react-icons/lu';
+import { LuDownload, LuSave, LuUpload, LuCopy, LuClipboardPaste, LuFileImage, LuMonitorPlay, LuLoaderCircle, LuPresentation } from 'react-icons/lu';
 import { Section } from './shared';
 import { EXPORT_PRESETS } from '../constants';
 
@@ -18,7 +17,7 @@ const btnStyle = {
 
 const iconStyle = { marginRight: 6, verticalAlign: 'middle' };
 
-const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, onPasteJson, onExportData, chartRef }) => {
+const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx, onOpenSave, onAddToPresentation, onLoadFile, onCopy, onPasteJson, onExportData, chartRef }) => {
     return (
         <>
             <Section title="Clipboard">
@@ -54,6 +53,26 @@ const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, onPasteJso
                 </button>
             </Section>
 
+            {(onExportSvg || onExportPptx) && (
+                <Section title="Other formats">
+                    {onExportSvg && (
+                        <button onClick={onExportSvg} style={btnStyle} className="dv-export-item">
+                            <span><LuFileImage size={12} style={iconStyle} />Vector image (SVG)</span>
+                        </button>
+                    )}
+                    {onExportPptx && (
+                        <button onClick={onExportPptx} disabled={isExportingPptx} style={{ ...btnStyle, opacity: isExportingPptx ? 0.6 : 1 }} className="dv-export-item">
+                            <span>
+                                {isExportingPptx
+                                    ? <LuLoaderCircle size={12} style={iconStyle} className="spin" />
+                                    : <LuMonitorPlay size={12} style={iconStyle} />}
+                                {isExportingPptx ? 'Exporting…' : 'PowerPoint (editable)'}
+                            </span>
+                        </button>
+                    )}
+                </Section>
+            )}
+
             <Section title="Configuration file">
                 <button onClick={onOpenSave} style={btnStyle} className="dv-export-item">
                     <span><LuSave size={12} style={iconStyle} />Save as .amoxvis</span>
@@ -65,6 +84,14 @@ const ExportPanel = memo(({ onExport, onOpenSave, onLoadFile, onCopy, onPasteJso
                     <span><LuClipboardPaste size={12} style={iconStyle} />Paste JSON from AI</span>
                 </button>
             </Section>
+
+            {onAddToPresentation && (
+                <Section title="Presentation">
+                    <button onClick={onAddToPresentation} style={btnStyle} className="dv-export-item" title="Saves this chart, then opens a new one-slide Report Flow deck around it">
+                        <span><LuPresentation size={12} style={iconStyle} />Add to new presentation</span>
+                    </button>
+                </Section>
+            )}
         </>
     );
 });

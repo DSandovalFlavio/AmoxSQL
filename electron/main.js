@@ -5,6 +5,7 @@
  */
 const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // ─── Single instance lock ─────────────────────────────────────────────────────
 // Prevents opening the same .duckdb file from two instances simultaneously,
@@ -65,6 +66,42 @@ ipcMain.handle('shell:showItemInFolder', (_event, itemPath) => {
         shell.showItemInFolder(path.resolve(itemPath));
     }
 });
+
+// ─── Export downloads: native Save dialog + project-relative defaults ─────────
+// The renderer reports its current project root here (see 'project:set-root')
+// so the `will-download` handler below can default exports into the project
+// (charts/ for images, reports/ for documents) instead of the OS Downloads
+// folder. Kept synchronous and main-process-local — no HTTP round-trip to the
+// server needed at download time.
+let currentProjectRoot = null;
+ipcMain.on('project:set-root', (_event, rootPath) => {
+    currentProjectRoot = (typeof rootPath === 'string' && rootPath) ? rootPath : null;
+});
+
+// Which project subfolder each export type defaults into — the same
+// canonical folder ids the Workspace Wizard scaffolds (server/projectScaffolder.js:
+// SCAFFOLD_FOLDERS), so an export lands next to the .amoxvis/.sqlnb it came
+// from instead of inventing a new folder convention. Anything not listed
+// here (csv/json/parquet/xlsx — already routed through their own
+// project-relative server endpoints, not the browser download path) is left
+// untouched: no dialog, default Electron download behavior.
+const EXPORT_SUBFOLDER = { png: 'charts', docx: 'exports', pptx: 'exports', html: 'exports' };
+
+// Last folder actually used per export extension, persisted across restarts
+// so "Save As" remembers where you put the last chart/report even after a
+// full app restart.
+const exportFoldersFile = () => path.join(app.getPath('userData'), 'export-folders.json');
+let lastExportFolders = {};
+try {
+    lastExportFolders = JSON.parse(fs.readFileSync(exportFoldersFile(), 'utf8'));
+} catch { /* first run, or file doesn't exist yet — start empty */ }
+
+function rememberExportFolder(ext, folder) {
+    lastExportFolders[ext] = folder;
+    try {
+        fs.writeFileSync(exportFoldersFile(), JSON.stringify(lastExportFolders, null, 2));
+    } catch { /* non-critical — just won't remember across restarts */ }
+}
 
 // IPC Handler: Window controls
 ipcMain.on('window-control:minimize', () => {
@@ -127,6 +164,52 @@ const createWindow = () => {
         },
         autoHideMenuBar: true,
         backgroundColor: '#0F1012'
+    });
+
+    // === EXPORT DOWNLOADS ===
+    // Every export in the app (chart PNG, HTML/Word report, PowerPoint deck)
+    // goes out as a plain browser download (`<a download>` on a data:/blob:
+    // URL). Left alone, Electron saves those silently to the OS Downloads
+    // folder with whatever auto-generated name the export code picked — the
+    // work stays in the project, the deliverable ends up somewhere else with
+    // no trace of which analysis produced it.
+    //
+    // Intercepting `will-download` once here fixes that for all of them at
+    // once: a native Save As dialog, defaulted into the project's charts/ or
+    // reports/ folder (or wherever the user last saved that type), with the
+    // suggested filename the export code already chose.
+    mainWindow.webContents.session.on('will-download', (_event, item) => {
+        const suggestedName = item.getFilename();
+        const ext = path.extname(suggestedName).toLowerCase().replace('.', '');
+        const subfolder = EXPORT_SUBFOLDER[ext];
+        if (!subfolder) return; // not one of ours — default Electron behavior
+
+        let targetDir = lastExportFolders[ext];
+        if (!targetDir && currentProjectRoot) {
+            targetDir = path.join(currentProjectRoot, subfolder);
+        }
+        if (targetDir) {
+            try { fs.mkdirSync(targetDir, { recursive: true }); } catch { /* best-effort */ }
+        }
+
+        item.setSaveDialogOptions({
+            title: 'Guardar como',
+            defaultPath: targetDir ? path.join(targetDir, suggestedName) : suggestedName,
+            filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+        });
+
+        item.once('done', (_doneEvent, state) => {
+            if (state !== 'completed') return;
+            const savedPath = item.getSavePath();
+            if (!savedPath) return;
+            rememberExportFolder(ext, path.dirname(savedPath));
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('export:download-completed', {
+                    path: savedPath,
+                    filename: path.basename(savedPath),
+                });
+            }
+        });
     });
 
     // === ZOOM SYSTEM ===

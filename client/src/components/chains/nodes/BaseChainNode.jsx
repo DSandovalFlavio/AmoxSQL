@@ -1,11 +1,17 @@
 /**
  * BaseChainNode — Shared layout for all chain node types.
  * Provides: handles, status indicator, type badge, label, description,
- * result badge, validation indicators, and data preview button.
+ * result badge, validation indicators, and the node's own action bar
+ * (Fase 1 of docs/dev/auditoria_dataflow_ux.md — the actions the user needs
+ * live ON the node, not in a toolbar far away or a menu that only appears
+ * after a full run).
  */
 import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { LuCheck, LuX, LuLoader, LuMinus, LuCircleAlert, LuTriangleAlert, LuEye } from 'react-icons/lu';
+import {
+    LuCheck, LuX, LuLoader, LuMinus, LuCircleAlert, LuTriangleAlert,
+    LuSlidersHorizontal, LuChevronRight, LuChevronLeft, LuEye, LuEllipsis, LuPause, LuHistory, LuPlus,
+} from 'react-icons/lu';
 import { NODE_TYPES, STATUS_COLORS, RESULT_TYPE_LABELS } from '../chainNodeTypes';
 
 const statusIcons = {
@@ -16,7 +22,7 @@ const statusIcons = {
     skipped: <LuMinus size={12} />,
 };
 
-const BaseChainNode = ({ data, selected }) => {
+const BaseChainNode = ({ id, data, selected }) => {
     const nodeType = NODE_TYPES[data.nodeType] || NODE_TYPES.sql_file;
     const Icon = nodeType.icon;
     const status = data.status || 'pending';
@@ -24,6 +30,12 @@ const BaseChainNode = ({ data, selected }) => {
     const resultType = data.resultType;
     const resultSummary = data.resultSummary;
     const durationMs = data.durationMs;
+    const disabled = !!data.disabled;
+    // The result badge below (check/rows/table name) reflects whatever config
+    // was in effect the last time this node actually ran — stale means the
+    // config has since changed (here or upstream) and that badge is no longer
+    // trustworthy (Fase 5 — H15 of the audit: "the interface was lying").
+    const stale = !!data.stale && (status === 'success' || status === 'failed');
 
     const validationErrors = data.validationErrors || [];
     const validationWarnings = data.validationWarnings || [];
@@ -31,25 +43,57 @@ const BaseChainNode = ({ data, selected }) => {
     const hasWarnings = validationWarnings.length > 0 && !hasErrors;
 
     const [showValidation, setShowValidation] = useState(false);
+    const [hovered, setHovered] = useState(false);
+    const showActionBar = (selected || hovered) && !data.isDragging;
 
     // The default node bg/border derive from --node-accent + the theme surfaces
     // in CSS (legible in both light and dark). These states override the border.
     let borderOverride = null;
-    if (status !== 'pending') borderOverride = statusColor.border;
+    if (stale) borderOverride = 'var(--color-warning)';
+    else if (status !== 'pending') borderOverride = statusColor.border;
     else if (hasErrors) borderOverride = 'var(--color-error)';
     else if (hasWarnings) borderOverride = 'var(--color-warning)';
 
-    const canPreview = status === 'success' && resultSummary?.table;
+    const act = (action) => (e) => {
+        e.stopPropagation();
+        data.onAction?.(action, id, { x: e.clientX, y: e.clientY });
+    };
 
     return (
         <div
-            className={`chain-node ${selected ? 'chain-node-selected' : ''} ${hasErrors ? 'chain-node-invalid' : ''}`}
+            className={`chain-node ${selected ? 'chain-node-selected' : ''} ${hasErrors ? 'chain-node-invalid' : ''} ${disabled ? 'chain-node-disabled' : ''}`}
             style={{
                 '--node-accent': nodeType.color.accent,
                 ...(borderOverride ? { '--node-border-override': borderOverride } : {}),
                 '--status-bg': statusColor.bg,
             }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); data.onAction?.('menu', id, { x: e.clientX, y: e.clientY }); }}
+            onDoubleClick={(e) => { e.stopPropagation(); data.onAction?.('configure', id); }}
         >
+            {showActionBar && (
+                <div className="chain-node-actionbar" onClick={(e) => e.stopPropagation()}>
+                    <button className="chain-node-actionbar-key" onClick={act('configure')} title="Configure this node">
+                        <LuSlidersHorizontal size={11} /><span>Configure</span>
+                    </button>
+                    <span className="chain-node-actionbar-sep" />
+                    <button onClick={act('run-to')} title="Run up to this node">
+                        <LuChevronLeft size={11} /><span>To here</span>
+                    </button>
+                    <button onClick={act('run-from')} title="Run from this node forward">
+                        <LuChevronRight size={11} /><span>From here</span>
+                    </button>
+                    <span className="chain-node-actionbar-sep" />
+                    <button onClick={act('view-data')} title="View this node's data">
+                        <LuEye size={11} />
+                    </button>
+                    <button onClick={act('menu')} title="More actions">
+                        <LuEllipsis size={13} />
+                    </button>
+                </div>
+            )}
+
             <Handle type="target" position={Position.Left} className="chain-handle" />
 
             {/* Header */}
@@ -60,6 +104,12 @@ const BaseChainNode = ({ data, selected }) => {
                 </div>
 
                 <div className="chain-node-header-right">
+                    {disabled && (
+                        <span className="chain-node-disabled-badge" title="Disabled — passes its input through unchanged">
+                            <LuPause size={10} />
+                        </span>
+                    )}
+
                     {/* Validation indicator */}
                     {status === 'pending' && (hasErrors || hasWarnings) && (
                         <button
@@ -71,17 +121,6 @@ const BaseChainNode = ({ data, selected }) => {
                                 ? <LuCircleAlert size={11} />
                                 : <LuTriangleAlert size={11} />
                             }
-                        </button>
-                    )}
-
-                    {/* Preview button */}
-                    {canPreview && (
-                        <button
-                            className="chain-node-preview-btn"
-                            onClick={(e) => { e.stopPropagation(); data.onPreview?.(resultSummary.table); }}
-                            title={`Preview: ${resultSummary.table}`}
-                        >
-                            <LuEye size={11} />
                         </button>
                     )}
 
@@ -119,6 +158,11 @@ const BaseChainNode = ({ data, selected }) => {
             {/* Result badge */}
             {resultType && status === 'success' && (
                 <div className="chain-node-result">
+                    {stale && (
+                        <span className="chain-node-stale-badge" title="The configuration changed after this result — re-run to refresh it">
+                            <LuHistory size={9} /><span>outdated</span>
+                        </span>
+                    )}
                     <span className="chain-node-result-type">
                         {RESULT_TYPE_LABELS[resultType] || resultType}
                     </span>
@@ -166,6 +210,16 @@ const BaseChainNode = ({ data, selected }) => {
             )}
 
             <Handle type="source" position={Position.Right} className="chain-handle" />
+            {showActionBar && (
+                <button
+                    className="chain-node-quickadd"
+                    onClick={act('quick-add')}
+                    title="Add a step from here"
+                    aria-label={`Add a step after ${data.label || nodeType.label}`}
+                >
+                    <LuPlus size={12} />
+                </button>
+            )}
         </div>
     );
 };

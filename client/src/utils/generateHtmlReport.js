@@ -438,8 +438,11 @@ function buildTableHtml(data) {
  * @param {Array} cells - Array of { id, type, content }
  * @param {Object} results - Map of cellId → { data, executionTime, error }
  * @param {boolean} hideCode - Whether SQL code blocks should be hidden
+ * @param {string} [baseName] - Filename (without extension), typically the
+ *   source notebook's own name, so the report reads as its artifact instead
+ *   of an anonymous dated file.
  */
-export async function generateHtmlReport(cells, results, hideCode = false) {
+export async function generateHtmlReport(cells, results, hideCode = false, baseName = '') {
   const theme = detectTheme();
   const sections = [];
   const tocItems = [];
@@ -508,7 +511,7 @@ export async function generateHtmlReport(cells, results, hideCode = false) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `amoxsql_report_${new Date().toISOString().slice(0, 10)}.html`;
+  link.download = `${baseName || 'amoxsql_report_' + new Date().toISOString().slice(0, 10)}.html`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

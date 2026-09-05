@@ -132,13 +132,13 @@ const DeckEditor = ({
         setActiveSlideIndex(deck.slides.length);
     }, [content, onChange, deck.slides.length]);
 
-    /** Patch one slide (prose / layout / chartSrc) and re-serialize losslessly. */
+    /** Patch one slide (prose / layout / chartSrc / notes) and re-serialize losslessly. */
     const updateSlideAt = useCallback((index, patch) => {
         const slide = deck.slides[index];
         if (!slide) {
             // No slide to patch (e.g. empty deck) — seed one carrying the patch.
             const layout = patch.layout || 'content';
-            const raw = buildSlideRaw({ layout, prose: patch.prose || '', chartSrc: patch.chartSrc || null });
+            const raw = buildSlideRaw({ layout, prose: patch.prose || '', chartSrc: patch.chartSrc || null, notes: patch.notes || '' });
             onChange(serializeDeck(deck.frontMatterText, [{ raw }]));
             setActiveSlideIndex(0);
             return;
@@ -148,12 +148,14 @@ const DeckEditor = ({
             layout: patch.layout !== undefined ? patch.layout : slide.layout,
             prose: patch.prose !== undefined ? patch.prose : current.prose,
             chartSrc: patch.chartSrc !== undefined ? patch.chartSrc : current.chartSrc,
+            notes: patch.notes !== undefined ? patch.notes : current.notes,
         });
         const nextSlides = deck.slides.map((s, i) => (i === index ? { ...s, raw } : s));
         onChange(serializeDeck(deck.frontMatterText, nextSlides));
     }, [deck, onChange]);
 
     const handleEditProse = useCallback((prose) => updateSlideAt(activeSlideIndex, { prose }), [updateSlideAt, activeSlideIndex]);
+    const handleEditNotes = useCallback((notes) => updateSlideAt(activeSlideIndex, { notes }), [updateSlideAt, activeSlideIndex]);
     const handleApplyLayout = useCallback((layout) => updateSlideAt(activeSlideIndex, { layout }), [updateSlideAt, activeSlideIndex]);
     const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { chartSrc: null }), [updateSlideAt, activeSlideIndex]);
 
@@ -165,6 +167,17 @@ const DeckEditor = ({
         const patch = { chartSrc: src };
         if (slide && slide.layout === 'content') patch.layout = 'content-chart';
         updateSlideAt(activeSlideIndex, patch);
+    }, [deck.slides, activeSlideIndex, updateSlideAt]);
+
+    // Fase 5 — el slide como lienzo: append an image reference to the active
+    // slide's prose (project-root-relative path, same convention as chart
+    // references — see ImagesPanel). Never replaces existing prose; a slide
+    // can carry more than one image, unlike the single chart slot.
+    const handleInsertImage = useCallback((path) => {
+        const slide = deck.slides[activeSlideIndex];
+        const current = slide ? splitSlideContent(slide.markdown) : { prose: '' };
+        const sep = current.prose.trim() ? '\n\n' : '';
+        updateSlideAt(activeSlideIndex, { prose: `${current.prose}${sep}![](${path})` });
     }, [deck.slides, activeSlideIndex, updateSlideAt]);
 
     const handleAddSlide = useCallback(() => appendSlide('content'), [appendSlide]);
@@ -363,6 +376,7 @@ const DeckEditor = ({
                         onAddSlide={handleAddSlide}
                         onApplyLayout={handleApplyLayout}
                         onInsertChart={handleInsertChart}
+                        onInsertImage={handleInsertImage}
                     />
 
                     <div className="deck-main">
@@ -422,6 +436,7 @@ const DeckEditor = ({
                                     theme={theme}
                                     onOpenFile={onOpenFile}
                                     onEditProse={handleEditProse}
+                                    onEditNotes={handleEditNotes}
                                     onRemoveChart={handleRemoveChart}
                                     onRequestAddChart={requestAddChart}
                                     onPrev={() => goToSlide(activeSlideIndex - 1)}

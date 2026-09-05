@@ -11,6 +11,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveFileDialog: (opts) => ipcRenderer.invoke('dialog:saveFile', opts),
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
     showItemInFolder: (itemPath) => ipcRenderer.invoke('shell:showItemInFolder', itemPath),
+    // Lets main.js default export downloads (chart PNG, HTML/Word/PPT
+    // reports) into the current project's charts/ or reports/ folder.
+    setProjectRoot: (rootPath) => ipcRenderer.send('project:set-root', rootPath),
+    onDownloadCompleted: (callback) => {
+        const handler = (_event, data) => callback(data);
+        ipcRenderer.on('export:download-completed', handler);
+        return () => ipcRenderer.removeListener('export:download-completed', handler);
+    },
     windowControl: {
         minimize: () => ipcRenderer.send('window-control:minimize'),
         maximize: () => ipcRenderer.send('window-control:maximize'),

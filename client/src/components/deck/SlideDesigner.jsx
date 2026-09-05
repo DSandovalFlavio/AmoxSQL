@@ -11,7 +11,7 @@
  * JSON).
  */
 import { useState, useEffect } from 'react';
-import { LuChevronLeft, LuChevronRight, LuChartBar, LuX, LuPencilLine } from 'react-icons/lu';
+import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
@@ -84,6 +84,34 @@ function ChartSlot({ chartSrc, variables, refreshToken, onRemove, onRequestAdd }
     );
 }
 
+/** Collapsible speaker-notes strip below the canvas — exported as native
+ *  notes in the .pptx (see generatePptxReport.js's slide.addNotes call). */
+function NotesPanel({ notes, onCommit }) {
+    const [open, setOpen] = useState(false);
+    const [draft, setDraft] = useState(notes);
+
+    useEffect(() => { if (!open) setDraft(notes); }, [notes, open]);
+
+    return (
+        <div className={`deck-notes-panel${open ? ' deck-notes-panel--open' : ''}`}>
+            <button type="button" className="deck-notes-toggle" onClick={() => setOpen((v) => !v)}>
+                <LuNotebookPen size={13} />
+                <span>Speaker notes{notes.trim() ? '' : ' (empty)'}</span>
+                {open ? <LuChevronUp size={13} /> : <LuChevronDown size={13} />}
+            </button>
+            {open && (
+                <textarea
+                    className="deck-notes-editor"
+                    value={draft}
+                    placeholder="Notes for the presenter — not shown on the slide, exported into the PowerPoint's Notes pane."
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => { if (draft !== notes) onCommit(draft); }}
+                />
+            )}
+        </div>
+    );
+}
+
 const SlideDesigner = ({
     slide,
     index,
@@ -94,12 +122,13 @@ const SlideDesigner = ({
     theme,
     onOpenFile,
     onEditProse,
+    onEditNotes,
     onRemoveChart,
     onRequestAddChart,
     onPrev,
     onNext,
 }) => {
-    const { prose, chartSrc } = splitSlideContent(slide.markdown);
+    const { prose, chartSrc, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
     const meta = DECK_LAYOUT_META[layout];
 
@@ -160,6 +189,8 @@ const SlideDesigner = ({
             <div className="deck-design-canvas" style={{ aspectRatio }}>
                 {body}
             </div>
+
+            {onEditNotes && <NotesPanel notes={notes} onCommit={onEditNotes} />}
         </div>
     );
 };

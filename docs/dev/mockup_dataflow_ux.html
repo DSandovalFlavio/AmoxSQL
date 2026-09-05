@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Flow — mockup de la interfaz propuesta</title>
+<style>
+:root{
+  --surface-base:    oklch(0.145 0.006 270);
+  --surface-raised:  oklch(0.175 0.008 270);
+  --surface-overlay: oklch(0.195 0.008 270);
+  --surface-inset:   oklch(0.160 0.007 270);
+  --border-subtle:  rgba(255,255,255,.06);
+  --border-default: rgba(255,255,255,.10);
+  --border-strong:  rgba(255,255,255,.16);
+  --text-primary:   rgba(255,255,255,.92);
+  --text-secondary: rgba(255,255,255,.56);
+  --text-tertiary:  rgba(255,255,255,.36);
+  --accent:         oklch(0.905 0.155 195);
+  --accent-soft:    color-mix(in oklch, var(--accent) 16%, transparent);
+  --ok:    oklch(0.72 0.16 150);
+  --warn:  oklch(0.78 0.14 85);
+  --err:   oklch(0.68 0.19 25);
+  --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  --sans: -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:var(--sans); font-size:13px;
+  background:var(--surface-base); color:var(--text-secondary);
+  overflow:hidden;
+}
+button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.i.sm{width:12px;height:12px}
+svg.i.xs{width:11px;height:11px}
+
+/* ── annotation banner ───────────────────────────────── */
+.note{
+  padding:9px 16px; background:var(--accent-soft);
+  border-bottom:1px solid var(--border-default);
+  color:var(--text-primary); font-size:12px;
+  display:flex; align-items:center; gap:9px;
+}
+.note b{color:var(--accent);font-weight:600}
+.note .tag{
+  margin-left:auto; font-family:var(--mono); font-size:10px;
+  color:var(--text-tertiary); letter-spacing:.04em;
+}
+
+/* ── shell ───────────────────────────────────────────── */
+.shell{display:flex;flex-direction:column;height:100%}
+.body{flex:1;display:flex;min-height:0}
+
+/* ── toolbar ─────────────────────────────────────────── */
+.toolbar{
+  display:flex;align-items:center;gap:8px;
+  height:42px;padding:0 12px;flex:none;
+  background:var(--surface-raised);
+  border-bottom:1px solid var(--border-default);
+}
+.brand{font-weight:600;color:var(--text-primary);letter-spacing:-.01em}
+.sep{color:var(--text-tertiary)}
+.fname{color:var(--text-primary)}
+.dirty{color:var(--warn)}
+.tbtn{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:6px;
+  border:1px solid var(--border-default);
+  color:var(--text-secondary);
+}
+.tbtn:hover{background:var(--surface-overlay);color:var(--text-primary)}
+.tbtn.primary{
+  background:var(--accent);border-color:var(--accent);
+  color:oklch(0.16 0.02 240);font-weight:600;
+}
+.tbtn.ghost{border-color:transparent}
+.toolbar .center{margin:0 auto;display:flex;gap:6px}
+.toolbar .right{display:flex;gap:2px;align-items:center}
+.tsep{width:1px;height:18px;background:var(--border-default);margin:0 5px}
+
+/* ── palette ─────────────────────────────────────────── */
+.palette{
+  width:186px;flex:none;display:flex;flex-direction:column;
+  background:var(--surface-raised);
+  border-right:1px solid var(--border-default);
+}
+.palette-head{
+  padding:9px 11px;font-size:11px;font-weight:600;
+  color:var(--text-primary);letter-spacing:.03em;text-transform:uppercase;
+  border-bottom:1px solid var(--border-subtle);
+}
+.search{
+  margin:8px 9px;display:flex;align-items:center;gap:7px;
+  padding:5px 8px;border-radius:6px;
+  background:var(--surface-inset);border:1px solid var(--border-default);
+  color:var(--text-tertiary);font-size:12px;
+}
+.search .new{
+  margin-left:auto;font-size:9px;font-family:var(--mono);
+  color:var(--accent);border:1px solid var(--accent);
+  border-radius:3px;padding:0 3px;
+}
+.palette-list{overflow-y:auto;padding:0 7px 10px}
+.pcat{
+  font-size:10px;color:var(--text-tertiary);
+  padding:9px 4px 4px;letter-spacing:.05em;text-transform:uppercase;
+}
+.pitem{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 6px;border-radius:5px;font-size:12px;
+  color:var(--text-secondary);cursor:grab;
+}
+.pitem:hover{background:var(--surface-overlay);color:var(--text-primary)}
+.pdot{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;flex:none}
+
+/* ── canvas ──────────────────────────────────────────── */
+.canvas{
+  flex:1;min-width:0;position:relative;overflow:auto;
+  background:
+    radial-gradient(circle, rgba(255,255,255,.055) 1px, transparent 1px) 0 0/18px 18px,
+    var(--surface-base);
+}
+.wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.wires path{stroke:var(--border-strong);stroke-width:2;fill:none}
+.wires path.hot{stroke:var(--accent);opacity:.85}
+
+/* ── node ────────────────────────────────────────────── */
+.node{
+  position:absolute;width:150px;
+  background:var(--surface-raised);
+  border:1px solid var(--border-default);
+  border-left:3px solid var(--accent-node);
+  border-radius:8px;padding:8px 10px 9px;
+  cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,.4);
+}
+.node:hover{border-color:var(--border-strong)}
+.node.sel{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px var(--accent-soft),0 4px 14px rgba(0,0,0,.5);
+}
+.node.stale{border-color:color-mix(in oklch,var(--warn) 55%,transparent)}
+.nhead{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.nbadge{
+  display:flex;align-items:center;gap:4px;
+  font-size:9px;font-weight:600;letter-spacing:.03em;
+  padding:2px 5px;border-radius:4px;
+  background:var(--accent-node);color:oklch(0.15 0.02 270);
+}
+.nstatus{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px}
+.nstatus.ok{color:var(--ok)}
+.nstatus.warn{color:var(--warn)}
+.nstatus.idle{color:var(--text-tertiary)}
+.nlabel{color:var(--text-primary);font-weight:600;font-size:12.5px;margin-bottom:2px}
+.nsum{font-size:10.5px;color:var(--text-tertiary);font-family:var(--mono);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nres{
+  margin-top:6px;padding-top:6px;border-top:1px solid var(--border-subtle);
+  display:flex;gap:6px;font-size:10px;color:var(--text-secondary);
+}
+.nres .rows{color:var(--ok)}
+.port{
+  position:absolute;top:50%;width:9px;height:9px;border-radius:50%;
+  background:var(--surface-overlay);border:2px solid var(--border-strong);
+  transform:translateY(-50%);
+}
+.port.in{left:-6px}
+.port.out{right:-6px}
+
+/* node action bar — the core of Fase 1 */
+.nbar{
+  position:absolute;top:-32px;left:50%;transform:translateX(-50%);
+  display:flex;gap:1px;padding:3px;
+  background:var(--surface-overlay);
+  border:1px solid var(--border-strong);
+  border-radius:7px;white-space:nowrap;
+  box-shadow:0 4px 14px rgba(0,0,0,.55);
+}
+.nbar button{
+  display:flex;align-items:center;gap:4px;
+  padding:4px 7px;border-radius:4px;font-size:11px;color:var(--text-secondary);
+}
+.nbar button:hover{background:var(--surface-raised);color:var(--text-primary)}
+.nbar button.key{color:var(--accent)}
+.nbar .vsep{width:1px;background:var(--border-default);margin:2px 2px}
+
+/* the "+" quick-add on the output handle — Fase 4 */
+.plus{
+  position:absolute;right:-26px;top:50%;transform:translateY(-50%);
+  width:20px;height:20px;border-radius:50%;
+  background:var(--surface-overlay);border:1px dashed var(--border-strong);
+  color:var(--text-tertiary);display:grid;place-items:center;
+}
+.plus:hover{border-style:solid;border-color:var(--accent);color:var(--accent)}
+
+/* ── anchored config popover — Fase 3 ─────────────────── */
+.pop{
+  position:absolute;width:274px;z-index:40;
+  background:var(--surface-overlay);
+  border:1px solid var(--border-strong);
+  border-radius:9px;
+  box-shadow:0 12px 34px rgba(0,0,0,.6);
+}
+.pop-head{
+  display:flex;align-items:center;gap:7px;
+  padding:9px 11px;border-bottom:1px solid var(--border-default);
+}
+.pop-head .t{color:var(--text-primary);font-weight:600;font-size:12px}
+.pop-head .acts{margin-left:auto;display:flex;gap:2px;color:var(--text-tertiary)}
+.pop-head .acts button:hover{color:var(--text-primary)}
+.pop-body{padding:10px 11px 12px;display:flex;flex-direction:column;gap:9px}
+.f label{display:block;font-size:10.5px;color:var(--text-tertiary);margin-bottom:3px}
+.f .ctl{
+  width:100%;padding:5px 8px;border-radius:5px;font-size:12px;
+  background:var(--surface-inset);border:1px solid var(--border-default);
+  color:var(--text-primary);font-family:var(--mono);
+  display:flex;align-items:center;
+}
+.f .ctl.sel-ctl{justify-content:space-between;color:var(--text-primary)}
+.f .ctl .live{
+  font-family:var(--sans);font-size:9px;color:var(--ok);
+  border:1px solid color-mix(in oklch,var(--ok) 40%,transparent);
+  border-radius:3px;padding:0 4px;margin-left:6px;
+}
+.pop-foot{
+  padding:8px 11px;border-top:1px solid var(--border-default);
+  font-size:10.5px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;
+}
+.pop::before{
+  content:"";position:absolute;left:28px;top:-6px;
+  width:10px;height:10px;transform:rotate(45deg);
+  background:var(--surface-overlay);
+  border-left:1px solid var(--border-strong);
+  border-top:1px solid var(--border-strong);
+}
+
+/* ── inspector — Fase 2 ───────────────────────────────── */
+.inspector{
+  width:400px;flex:none;display:flex;flex-direction:column;min-width:0;
+  background:var(--surface-raised);
+  border-left:1px solid var(--border-default);
+}
+.grip{
+  position:absolute;left:0;top:0;bottom:0;width:4px;cursor:col-resize;
+}
+.ins-head{
+  padding:9px 12px;border-bottom:1px solid var(--border-subtle);
+  display:flex;align-items:center;gap:7px;flex:none;
+}
+.ins-head .ttl{color:var(--text-primary);font-weight:600;font-size:12.5px}
+.ins-head .pin{margin-left:auto;color:var(--text-tertiary)}
+.ins-head .pin:hover{color:var(--text-primary)}
+.tabs{display:flex;gap:2px;padding:6px 8px 0;flex:none;border-bottom:1px solid var(--border-default)}
+.tab{
+  padding:6px 11px;border-radius:6px 6px 0 0;font-size:12px;
+  color:var(--text-tertiary);border:1px solid transparent;border-bottom:none;
+}
+.tab:hover{color:var(--text-secondary)}
+.tab.on{
+  color:var(--text-primary);background:var(--surface-inset);
+  border-color:var(--border-default);
+}
+.ins-sub{
+  display:flex;align-items:center;gap:7px;flex:none;
+  padding:7px 12px;font-size:11px;color:var(--text-tertiary);
+  border-bottom:1px solid var(--border-subtle);
+}
+.chip{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;padding:1px 6px;border-radius:9px;
+  border:1px solid var(--border-default);
+}
+.chip.live{color:var(--ok);border-color:color-mix(in oklch,var(--ok) 40%,transparent)}
+.chip.mat{color:var(--text-secondary)}
+.chip.stale{color:var(--warn);border-color:color-mix(in oklch,var(--warn) 45%,transparent)}
+.ins-body{flex:1;overflow:auto;min-height:0}
+
+table{border-collapse:collapse;width:100%;font-size:11.5px}
+thead th{
+  position:sticky;top:0;text-align:left;font-weight:600;
+  padding:6px 10px;color:var(--text-secondary);
+  background:var(--surface-inset);
+  border-bottom:1px solid var(--border-default);
+  white-space:nowrap;
+}
+thead th .ty{display:block;font-size:9px;color:var(--text-tertiary);font-weight:400;font-family:var(--mono)}
+tbody td{
+  padding:5px 10px;border-bottom:1px solid var(--border-subtle);
+  color:var(--text-secondary);white-space:nowrap;
+}
+tbody td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+tbody tr:hover td{background:var(--surface-inset)}
+
+pre.sql{
+  margin:0;padding:12px;font-family:var(--mono);font-size:11.5px;
+  line-height:1.65;color:var(--text-secondary);white-space:pre;
+  overflow-x:auto;
+}
+pre.sql .k{color:var(--accent)}
+pre.sql .s{color:oklch(0.78 0.13 140)}
+pre.sql .c{color:var(--text-tertiary);font-style:italic}
+
+.schema{padding:10px 12px}
+.sch-h{font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--text-tertiary);margin:8px 0 6px}
+.sch-r{
+  display:flex;align-items:center;gap:8px;padding:4px 7px;border-radius:5px;
+  font-size:11.5px;font-family:var(--mono);color:var(--text-secondary);
+}
+.sch-r:nth-child(odd){background:var(--surface-inset)}
+.sch-r .ty{margin-left:auto;color:var(--text-tertiary);font-size:10.5px}
+.sch-r .new{color:var(--ok);font-family:var(--sans);font-size:9px;
+  border:1px solid color-mix(in oklch,var(--ok) 40%,transparent);
+  border-radius:3px;padding:0 4px}
+
+.log{padding:8px 12px;font-family:var(--mono);font-size:11px;line-height:1.85}
+.log .t{color:var(--text-tertiary)}
+.log .ok{color:var(--ok)}
+.log .dim{color:var(--text-tertiary)}
+
+/* ── footnote strip ──────────────────────────────────── */
+.foot{
+  flex:none;display:flex;align-items:center;gap:14px;
+  padding:6px 14px;font-size:11px;color:var(--text-tertiary);
+  background:var(--surface-raised);border-top:1px solid var(--border-default);
+}
+.foot .k{
+  display:inline-flex;align-items:center;gap:5px;
+}
+.foot b{color:var(--accent);font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- icon sprite (Lucide-style paths) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+ <g id="i-play"><polygon points="6 3 20 12 6 21 6 3"/></g>
+ <g id="i-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></g>
+ <g id="i-layout"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></g>
+ <g id="i-var"><path d="M8 21s-4-3-4-9 4-9 4-9M16 3s4 3 4 9-4 9-4 9"/><path d="M9 9h1l2 6h1"/><path d="M15 9l-5 6"/></g>
+ <g id="i-term"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></g>
+ <g id="i-hist"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></g>
+ <g id="i-down"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></g>
+ <g id="i-code"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></g>
+ <g id="i-search"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.7" y2="16.7"/></g>
+ <g id="i-sliders"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></g>
+ <g id="i-eye"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></g>
+ <g id="i-more"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></g>
+ <g id="i-toleft"><polyline points="15 18 9 12 15 6"/><line x1="4" y1="4" x2="4" y2="20"/></g>
+ <g id="i-fromright"><polyline points="9 6 15 12 9 18"/><line x1="20" y1="4" x2="20" y2="20"/></g>
+ <g id="i-check"><polyline points="20 6 9 17 4 12"/></g>
+ <g id="i-alert"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12" y2="16.6"/></g>
+ <g id="i-plus"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></g>
+ <g id="i-pin"><line x1="12" y1="17" x2="12" y2="22"/><path d="M9 2h6l-1 6 3 3v2H7v-2l3-3z"/></g>
+ <g id="i-expand"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></g>
+ <g id="i-x"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></g>
+ <g id="i-file"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></g>
+ <g id="i-filter"><polygon points="22 3 2 3 10 12.5 10 19 14 21 14 12.5 22 3"/></g>
+ <g id="i-group"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></g>
+ <g id="i-chart"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="11" width="4" height="8"/><rect x="11" y="5" width="4" height="14"/><rect x="17" y="14" width="4" height="5"/></g>
+ <g id="i-sort"><path d="M11 5h10M11 9h7M11 13h4"/><polyline points="3 8 6 5 9 8"/><line x1="6" y1="5" x2="6" y2="19"/></g>
+ <g id="i-clock"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></g>
+</defs>
+</svg>
+
+<div class="shell">
+
+  <div class="note">
+    <svg class="i"><use href="#i-alert"/></svg>
+    <span><b>Mockup — no es la app.</b> Propuesta de interfaz para Data Flow. Haz clic en cualquier nodo, en las pestañas del panel derecho, o en el engrane del nodo seleccionado.</span>
+    <span class="tag">docs/dev/auditoria_dataflow_ux.md</span>
+  </div>
+
+  <!-- ── toolbar ─────────────────────────────────────── -->
+  <div class="toolbar">
+    <span class="brand">Data Flow</span>
+    <span class="sep">/</span>
+    <span class="fname">ventas_pipeline.sqlchain</span>
+    <span class="dirty">*</span>
+    <button class="tbtn ghost" style="margin-left:4px"><svg class="i"><use href="#i-save"/></svg>Guardar</button>
+
+    <div class="center">
+      <button class="tbtn primary"><svg class="i"><use href="#i-play"/></svg>Ejecutar todo</button>
+    </div>
+
+    <div class="right">
+      <button class="tbtn ghost"><svg class="i"><use href="#i-layout"/></svg>Ordenar todo</button>
+      <button class="tbtn ghost"><svg class="i"><use href="#i-var"/></svg>Variables</button>
+      <div class="tsep"></div>
+      <button class="tbtn ghost"><svg class="i"><use href="#i-down"/></svg>Exportar</button>
+      <button class="tbtn ghost"><svg class="i"><use href="#i-term"/></svg>Logs</button>
+      <button class="tbtn ghost"><svg class="i"><use href="#i-hist"/></svg>Historial</button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- ── palette ───────────────────────────────────── -->
+    <div class="palette">
+      <div class="palette-head">Nodos</div>
+      <div class="search">
+        <svg class="i sm"><use href="#i-search"/></svg>
+        <span>Buscar…</span>
+        <span class="new">nuevo</span>
+      </div>
+      <div class="palette-list">
+        <div class="pcat">Fuentes</div>
+        <div class="pitem"><span class="pdot" style="background:color-mix(in oklch,oklch(.65 .15 155) 22%,transparent)"><svg class="i sm" style="color:oklch(.65 .15 155)"><use href="#i-file"/></svg></span>Importar archivo</div>
+        <div class="pitem"><span class="pdot" style="background:color-mix(in oklch,oklch(.65 .15 155) 22%,transparent)"><svg class="i sm" style="color:oklch(.65 .15 155)"><use href="#i-file"/></svg></span>Referencia a tabla</div>
+        <div class="pcat">Filtrar y ordenar</div>
+        <div class="pitem"><span class="pdot" style="background:color-mix(in oklch,oklch(.65 .15 35) 22%,transparent)"><svg class="i sm" style="color:oklch(.65 .15 35)"><use href="#i-filter"/></svg></span>Filtrar</div>
+        <div class="pitem"><span class="pdot" style="background:color-mix(in oklch,oklch(.65 .15 170) 22%,transparent)"><svg class="i sm" style="color:oklch(.65 .15 170)"><use href="#i-sort"/></svg></span>Ordenar</div>
+        <div class="pcat">Reagrupar</div>
+        <div class="pitem"><span class="pdot" style="background:color-mix(in oklch,oklch(.65 .15 290) 22%,transparent)"><svg class="i sm" style="color:oklch(.65 .15 290)"><use href="#i-group"/></svg></span>Agrupar y agregar</div>
+        <div class="pcat">Salidas</div>
+        <div class="pitem"><span class="pdot" style="background:color-mix(in oklch,oklch(.65 .15 300) 22%,transparent)"><svg class="i sm" style="color:oklch(.65 .15 300)"><use href="#i-chart"/></svg></span>Gráfico</div>
+      </div>
+    </div>
+
+    <!-- ── canvas ────────────────────────────────────── -->
+    <div class="canvas" id="canvas">
+      <svg class="wires">
+        <path d="M 156 170 C 166 170, 166 170, 176 170"/>
+        <path class="hot" d="M 326 170 C 336 170, 336 170, 346 170"/>
+        <path d="M 496 170 C 506 170, 506 170, 516 170"/>
+      </svg>
+
+      <!-- node 1 — done -->
+      <div class="node" data-node="src" style="--accent-node:oklch(.65 .15 155);left:6px;top:120px">
+        <span class="port in"></span><span class="port out"></span>
+        <div class="nhead">
+          <span class="nbadge"><svg class="i xs"><use href="#i-file"/></svg>Importar</span>
+          <span class="nstatus ok"><svg class="i xs"><use href="#i-check"/></svg>0.4 s</span>
+        </div>
+        <div class="nlabel">ventas.csv</div>
+        <div class="nsum">data/ventas.csv → ventas</div>
+        <div class="nres"><span class="rows">241,908 filas</span><span>· 5 columnas</span></div>
+      </div>
+
+      <!-- node 2 — selected -->
+      <div class="node sel" data-node="filter" style="--accent-node:oklch(.65 .15 35);left:176px;top:120px">
+        <span class="port in"></span><span class="port out"></span>
+
+        <!-- Fase 1: the node's own action bar -->
+        <div class="nbar">
+          <button class="key" data-act="cfg"><svg class="i xs"><use href="#i-sliders"/></svg>Configurar</button>
+          <span class="vsep"></span>
+          <button><svg class="i xs"><use href="#i-toleft"/></svg>Hasta aquí</button>
+          <button><svg class="i xs"><use href="#i-fromright"/></svg>Desde aquí</button>
+          <span class="vsep"></span>
+          <button title="Ver datos"><svg class="i xs"><use href="#i-eye"/></svg></button>
+          <button title="Más acciones"><svg class="i xs"><use href="#i-more"/></svg></button>
+        </div>
+
+        <div class="nhead">
+          <span class="nbadge"><svg class="i xs"><use href="#i-filter"/></svg>Filtrar</span>
+          <span class="nstatus ok"><svg class="i xs"><use href="#i-check"/></svg>0.1 s</span>
+        </div>
+        <div class="nlabel">Solo 2026</div>
+        <div class="nsum">fecha &gt;= '2026-01-01'</div>
+        <div class="nres"><span class="rows">86,412 filas</span><span>· 5 columnas</span></div>
+      </div>
+
+      <!-- node 3 — stale -->
+      <div class="node stale" data-node="agg" style="--accent-node:oklch(.65 .15 290);left:346px;top:120px">
+        <span class="port in"></span><span class="port out"></span>
+        <div class="nhead">
+          <span class="nbadge"><svg class="i xs"><use href="#i-group"/></svg>Agrupar</span>
+          <span class="nstatus warn" title="La configuración cambió después de la última corrida"><svg class="i xs"><use href="#i-clock"/></svg>obsoleto</span>
+        </div>
+        <div class="nlabel">Por categoría</div>
+        <div class="nsum">GROUP BY category · SUM, COUNT</div>
+        <div class="nres"><span>8 filas</span><span>· 3 columnas</span></div>
+      </div>
+
+      <!-- node 4 — never run -->
+      <div class="node" data-node="chart" style="--accent-node:oklch(.65 .15 300);left:516px;top:120px">
+        <span class="port in"></span><span class="port out"></span>
+        <button class="plus" title="Añadir el siguiente nodo desde aquí"><svg class="i xs"><use href="#i-plus"/></svg></button>
+        <div class="nhead">
+          <span class="nbadge"><svg class="i xs"><use href="#i-chart"/></svg>Gráfico</span>
+          <span class="nstatus idle">sin ejecutar</span>
+        </div>
+        <div class="nlabel">Ventas por categoría</div>
+        <div class="nsum">charts/ventas_categoria.amoxvis</div>
+        <div class="nres"><span>barras · 2 series</span></div>
+      </div>
+
+      <!-- Fase 3: config popover anchored to the selected node -->
+      <div class="pop" id="pop" style="left:176px;top:235px;display:none">
+        <div class="pop-head">
+          <svg class="i sm" style="color:oklch(.65 .15 35)"><use href="#i-filter"/></svg>
+          <span class="t">Filtrar</span>
+          <span class="acts">
+            <button title="Expandir en el panel derecho"><svg class="i sm"><use href="#i-expand"/></svg></button>
+            <button title="Cerrar" id="popx"><svg class="i sm"><use href="#i-x"/></svg></button>
+          </span>
+        </div>
+        <div class="pop-body">
+          <div class="f">
+            <label>Etiqueta</label>
+            <div class="ctl">Solo 2026</div>
+          </div>
+          <div class="f">
+            <label>Columna</label>
+            <div class="ctl sel-ctl"><span>fecha</span><span class="live">5 columnas en vivo</span></div>
+          </div>
+          <div class="f">
+            <label>Operador · Valor</label>
+            <div class="ctl">&gt;=&nbsp;&nbsp;'2026-01-01'</div>
+          </div>
+        </div>
+        <div class="pop-foot">
+          <svg class="i sm"><use href="#i-check"/></svg>
+          Las columnas salen del esquema compilado — sin ejecutar el chain.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── inspector ─────────────────────────────────── -->
+    <div class="inspector" style="position:relative">
+      <div class="grip" title="Arrastra para redimensionar"></div>
+
+      <div class="ins-head">
+        <svg class="i sm" id="insIcon" style="color:oklch(.65 .15 35)"><use href="#i-filter"/></svg>
+        <span class="ttl" id="insTitle">Solo 2026</span>
+        <button class="pin" title="Fijar este nodo en el panel"><svg class="i sm"><use href="#i-pin"/></svg></button>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button class="tab on" data-tab="data">Datos</button>
+        <button class="tab" data-tab="schema">Esquema</button>
+        <button class="tab" data-tab="sql">SQL</button>
+        <button class="tab" data-tab="log">Log</button>
+      </div>
+
+      <div class="ins-sub" id="insSub"></div>
+      <div class="ins-body" id="insBody"></div>
+    </div>
+
+  </div>
+
+  <div class="foot">
+    <span class="k"><b>Fase 1</b> barra de acciones sobre el nodo</span>
+    <span class="k"><b>Fase 2</b> panel derecho permanente</span>
+    <span class="k"><b>Fase 3</b> configuración anclada al nodo</span>
+    <span class="k"><b>Fase 4</b> "+" para añadir y conectar</span>
+    <span class="k"><b>Fase 5</b> marca de obsoleto</span>
+  </div>
+</div>
+
+<script>
+const NODES = {
+  src: {
+    title:'ventas.csv', icon:'#i-file', accent:'oklch(.65 .15 155)',
+    source:'live', rows:'241,908 filas · 5 columnas',
+    cols:[['fecha','DATE'],['category','VARCHAR'],['monto','DECIMAL'],['cantidad','INTEGER'],['cliente_id','VARCHAR']],
+    inCols:null,
+    data:[
+      ['2026-01-04','Portátiles','18,420.00','3','C-10422'],
+      ['2026-01-04','Teléfonos','9,110.50','7','C-88101'],
+      ['2026-01-05','Auriculares','1,240.00','12','C-23984'],
+      ['2026-01-05','Monitores','6,900.00','4','C-10422'],
+      ['2026-01-06','Pilas','188.00','40','C-55019'],
+      ['2026-01-06','Portátiles','21,300.00','2','C-71223'],
+    ],
+    sql:`<span class="c">-- Nodo: ventas.csv (import_file)</span>
+<span class="k">SELECT</span> * <span class="k">FROM</span> read_csv(
+  <span class="s">'data/ventas.csv'</span>,
+  auto_detect = <span class="k">true</span>, header = <span class="k">true</span>
+)`,
+    log:[['09:41:02','ok','Importado → ventas'],['09:41:02','dim','241,908 filas · 0.4 s']],
+    cfg:{name:'Importar archivo', fields:[
+      ['Archivo','data/ventas.csv',null],
+      ['Tabla destino','ventas',null],
+      ['Formato','csv','detectado']]},
+  },
+  filter: {
+    title:'Solo 2026', icon:'#i-filter', accent:'oklch(.65 .15 35)',
+    source:'live', rows:'86,412 filas · 5 columnas',
+    cols:[['fecha','DATE'],['category','VARCHAR'],['monto','DECIMAL'],['cantidad','INTEGER'],['cliente_id','VARCHAR']],
+    inCols:[['fecha','DATE'],['category','VARCHAR'],['monto','DECIMAL'],['cantidad','INTEGER'],['cliente_id','VARCHAR']],
+    data:[
+      ['2026-01-04','Portátiles','18,420.00','3','C-10422'],
+      ['2026-01-04','Teléfonos','9,110.50','7','C-88101'],
+      ['2026-01-05','Auriculares','1,240.00','12','C-23984'],
+      ['2026-01-05','Monitores','6,900.00','4','C-10422'],
+      ['2026-01-06','Pilas','188.00','40','C-55019'],
+      ['2026-01-06','Portátiles','21,300.00','2','C-71223'],
+    ],
+    sql:`<span class="c">-- Nodo: Solo 2026 (filter) — compilado, sin materializar</span>
+<span class="k">SELECT</span> * <span class="k">FROM</span> (
+  <span class="k">SELECT</span> * <span class="k">FROM</span> read_csv(
+    <span class="s">'data/ventas.csv'</span>,
+    auto_detect = <span class="k">true</span>, header = <span class="k">true</span>
+  )
+)
+<span class="k">WHERE</span> fecha &gt;= <span class="s">'2026-01-01'</span>`,
+    log:[['09:41:03','ok','Filtrado → 86,412 filas'],['09:41:03','dim','0.1 s']],
+    cfg:{name:'Filtrar', fields:[
+      ['Etiqueta','Solo 2026',null],
+      ['Columna','fecha','5 columnas en vivo'],
+      ['Operador · Valor',"&gt;=&nbsp;&nbsp;'2026-01-01'",null]]},
+  },
+  agg: {
+    title:'Por categoría', icon:'#i-group', accent:'oklch(.65 .15 290)',
+    source:'stale', rows:'8 filas · 3 columnas',
+    cols:[['category','VARCHAR'],['total_sales','DECIMAL'],['transacciones','BIGINT']],
+    inCols:[['fecha','DATE'],['category','VARCHAR'],['monto','DECIMAL'],['cantidad','INTEGER'],['cliente_id','VARCHAR']],
+    newCols:['total_sales','transacciones'],
+    data:[
+      ['Portátiles','68,041,220.00','50,118'],
+      ['Teléfonos','50,220,110.00','80,004'],
+      ['Monitores','35,900,400.00','135,220'],
+      ['Auriculares','22,010,900.00','270,415'],
+      ['Televisores','8,120,000.00','26,004'],
+      ['Pilas','1,102,400.00','230,881'],
+    ],
+    sql:`<span class="c">-- Nodo: Por categoría (group_aggregate) — compilado</span>
+<span class="k">SELECT</span>
+  category,
+  <span class="k">SUM</span>(monto)  <span class="k">AS</span> total_sales,
+  <span class="k">COUNT</span>(*)    <span class="k">AS</span> transacciones
+<span class="k">FROM</span> (
+  <span class="k">SELECT</span> * <span class="k">FROM</span> (
+    <span class="k">SELECT</span> * <span class="k">FROM</span> read_csv(
+      <span class="s">'data/ventas.csv'</span>,
+      auto_detect = <span class="k">true</span>, header = <span class="k">true</span>
+    )
+  )
+  <span class="k">WHERE</span> fecha &gt;= <span class="s">'2026-01-01'</span>
+)
+<span class="k">GROUP BY</span> category`,
+    log:[['09:41:04','ok','Agrupado → 8 filas'],['09:38:—','dim','la configuración cambió después de esta corrida']],
+    cfg:{name:'Agrupar y agregar', fields:[
+      ['Agrupar por','category','5 columnas en vivo'],
+      ['Agregación 1','SUM(monto) → total_sales',null],
+      ['Agregación 2','COUNT(*) → transacciones',null]]},
+  },
+  chart: {
+    title:'Ventas por categoría', icon:'#i-chart', accent:'oklch(.65 .15 300)',
+    source:'none', rows:'sin ejecutar',
+    cols:[['category','VARCHAR'],['total_sales','DECIMAL'],['transacciones','BIGINT']],
+    inCols:[['category','VARCHAR'],['total_sales','DECIMAL'],['transacciones','BIGINT']],
+    data:null,
+    sql:`<span class="c">-- Nodo: Ventas por categoría (chart)</span>
+<span class="c">-- Escribe charts/ventas_categoria.amoxvis a partir de:</span>
+<span class="k">SELECT</span> category, total_sales, transacciones
+<span class="k">FROM</span> <span class="s">"__chain_agg_a71f"</span>`,
+    log:[['—','dim','este nodo todavía no se ha ejecutado']],
+    cfg:{name:'Gráfico', fields:[
+      ['Salida','charts/ventas_categoria.amoxvis',null],
+      ['Eje X','category','3 columnas en vivo'],
+      ['Series','total_sales, transacciones',null]]},
+  },
+};
+
+let current = 'filter', tab = 'data';
+
+const chip = s => ({
+  live:'<span class="chip live"><svg class="i xs"><use href="#i-check"/></svg>en vivo · sin ejecutar</span>',
+  materialized:'<span class="chip mat">de la última corrida</span>',
+  stale:'<span class="chip stale"><svg class="i xs"><use href="#i-clock"/></svg>obsoleto · la config cambió</span>',
+  none:'<span class="chip">sin datos todavía</span>',
+}[s]);
+
+function renderPop(){
+  const n = NODES[current];
+  const pop = document.getElementById('pop');
+  pop.querySelector('.pop-head svg').style.color = n.accent;
+  pop.querySelector('.pop-head svg').innerHTML = '<use href="'+n.icon+'"/>';
+  pop.querySelector('.pop-head .t').textContent = n.cfg.name;
+  pop.querySelector('.pop-body').innerHTML = n.cfg.fields.map(f =>
+    '<div class="f"><label>'+f[0]+'</label><div class="ctl'+(f[2]?' sel-ctl':'')+'">'
+    + '<span>'+f[1]+'</span>'
+    + (f[2] ? '<span class="live">'+f[2]+'</span>' : '')
+    + '</div></div>').join('');
+}
+
+function render(){
+  const n = NODES[current];
+  renderPop();
+  document.getElementById('insTitle').textContent = n.title;
+  const ic = document.getElementById('insIcon');
+  ic.style.color = n.accent;
+  ic.innerHTML = '<use href="'+n.icon+'"/>';
+
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('on', t.dataset.tab === tab));
+
+  const sub = document.getElementById('insSub');
+  const body = document.getElementById('insBody');
+
+  if (tab === 'data'){
+    sub.innerHTML = chip(n.source) + '<span style="margin-left:auto">' + n.rows + '</span>';
+    if (!n.data){
+      body.innerHTML = '<div style="padding:26px 16px;text-align:center;color:var(--text-tertiary);font-size:12px;line-height:1.7">'
+        + 'Este nodo escribe un archivo, no una tabla.<br>Usa <b style="color:var(--text-secondary)">Ejecutar hasta aquí</b> para producirlo.</div>';
+    } else {
+      body.innerHTML = '<table><thead><tr>'
+        + n.cols.map(c => '<th>'+c[0]+'<span class="ty">'+c[1]+'</span></th>').join('')
+        + '</tr></thead><tbody>'
+        + n.data.map(r => '<tr>' + r.map((v,i) =>
+            '<td class="'+(/^[\d,.\s]+$/.test(v)?'num':'')+'">'+v+'</td>').join('') + '</tr>').join('')
+        + '</tbody></table>';
+    }
+  }
+
+  if (tab === 'schema'){
+    sub.innerHTML = '<span>entrada → salida</span>';
+    let h = '<div class="schema">';
+    if (n.inCols){
+      h += '<div class="sch-h">Entrada</div>';
+      h += n.inCols.map(c => '<div class="sch-r">'+c[0]+'<span class="ty">'+c[1]+'</span></div>').join('');
+    }
+    h += '<div class="sch-h">Salida</div>';
+    h += n.cols.map(c => '<div class="sch-r">'+c[0]
+      + ((n.newCols||[]).includes(c[0]) ? '<span class="new">nueva</span>' : '')
+      + '<span class="ty">'+c[1]+'</span></div>').join('');
+    body.innerHTML = h + '</div>';
+  }
+
+  if (tab === 'sql'){
+    sub.innerHTML = '<span>SQL compilado de este nodo</span>'
+      + '<span style="margin-left:auto"><span class="chip">copiar</span></span>';
+    body.innerHTML = '<pre class="sql">' + n.sql + '</pre>';
+  }
+
+  if (tab === 'log'){
+    sub.innerHTML = '<span>solo las líneas de este nodo</span>';
+    body.innerHTML = '<div class="log">' + n.log.map(l =>
+      '<div><span class="t">'+l[0]+'</span>  <span class="'+l[1]+'">'+l[2]+'</span></div>').join('') + '</div>';
+  }
+}
+
+document.querySelectorAll('.node').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target.closest('.nbar') || e.target.closest('.plus')) return;
+    document.querySelectorAll('.node').forEach(n => n.classList.remove('sel'));
+    el.classList.add('sel');
+    // the action bar lives on whichever node is selected
+    document.querySelectorAll('.nbar').forEach(b => b.remove());
+    el.insertAdjacentHTML('afterbegin', document.getElementById('barTpl').innerHTML);
+    bindBar();
+    document.getElementById('pop').style.display = 'none';
+    current = el.dataset.node;
+    render();
+  });
+});
+
+function bindBar(){
+  document.querySelectorAll('[data-act="cfg"]').forEach(b => {
+    b.onclick = ev => {
+      ev.stopPropagation();
+      const node = b.closest('.node');
+      const pop = document.getElementById('pop');
+      const open = pop.style.display !== 'none';
+      pop.style.display = open ? 'none' : 'block';
+      if (!open){
+        pop.style.left = node.offsetLeft + 'px';
+        pop.style.top  = (node.offsetTop + node.offsetHeight + 14) + 'px';
+      }
+    };
+  });
+}
+bindBar();
+
+document.getElementById('popx').onclick = e => {
+  e.stopPropagation();
+  document.getElementById('pop').style.display = 'none';
+};
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab');
+  if (!t) return;
+  tab = t.dataset.tab;
+  render();
+});
+
+render();
+</script>
+
+<template id="barTpl">
+  <div class="nbar">
+    <button class="key" data-act="cfg"><svg class="i xs"><use href="#i-sliders"/></svg>Configurar</button>
+    <span class="vsep"></span>
+    <button><svg class="i xs"><use href="#i-toleft"/></svg>Hasta aquí</button>
+    <button><svg class="i xs"><use href="#i-fromright"/></svg>Desde aquí</button>
+    <span class="vsep"></span>
+    <button title="Ver datos"><svg class="i xs"><use href="#i-eye"/></svg></button>
+    <button title="Más acciones"><svg class="i xs"><use href="#i-more"/></svg></button>
+  </div>
+</template>
+
+</body>
+</html>
