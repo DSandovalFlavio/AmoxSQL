@@ -10,7 +10,7 @@ import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import {
     LuCheck, LuX, LuLoader, LuMinus, LuCircleAlert, LuTriangleAlert,
-    LuSlidersHorizontal, LuChevronRight, LuChevronLeft, LuEye, LuEllipsis, LuPause,
+    LuSlidersHorizontal, LuChevronRight, LuChevronLeft, LuEye, LuEllipsis, LuPause, LuHistory, LuPlus,
 } from 'react-icons/lu';
 import { NODE_TYPES, STATUS_COLORS, RESULT_TYPE_LABELS } from '../chainNodeTypes';
 
@@ -31,6 +31,11 @@ const BaseChainNode = ({ id, data, selected }) => {
     const resultSummary = data.resultSummary;
     const durationMs = data.durationMs;
     const disabled = !!data.disabled;
+    // The result badge below (check/rows/table name) reflects whatever config
+    // was in effect the last time this node actually ran — stale means the
+    // config has since changed (here or upstream) and that badge is no longer
+    // trustworthy (Fase 5 — H15 of the audit: "the interface was lying").
+    const stale = !!data.stale && (status === 'success' || status === 'failed');
 
     const validationErrors = data.validationErrors || [];
     const validationWarnings = data.validationWarnings || [];
@@ -44,7 +49,8 @@ const BaseChainNode = ({ id, data, selected }) => {
     // The default node bg/border derive from --node-accent + the theme surfaces
     // in CSS (legible in both light and dark). These states override the border.
     let borderOverride = null;
-    if (status !== 'pending') borderOverride = statusColor.border;
+    if (stale) borderOverride = 'var(--color-warning)';
+    else if (status !== 'pending') borderOverride = statusColor.border;
     else if (hasErrors) borderOverride = 'var(--color-error)';
     else if (hasWarnings) borderOverride = 'var(--color-warning)';
 
@@ -152,6 +158,11 @@ const BaseChainNode = ({ id, data, selected }) => {
             {/* Result badge */}
             {resultType && status === 'success' && (
                 <div className="chain-node-result">
+                    {stale && (
+                        <span className="chain-node-stale-badge" title="The configuration changed after this result — re-run to refresh it">
+                            <LuHistory size={9} /><span>outdated</span>
+                        </span>
+                    )}
                     <span className="chain-node-result-type">
                         {RESULT_TYPE_LABELS[resultType] || resultType}
                     </span>
@@ -199,6 +210,16 @@ const BaseChainNode = ({ id, data, selected }) => {
             )}
 
             <Handle type="source" position={Position.Right} className="chain-handle" />
+            {showActionBar && (
+                <button
+                    className="chain-node-quickadd"
+                    onClick={act('quick-add')}
+                    title="Add a step from here"
+                    aria-label={`Add a step after ${data.label || nodeType.label}`}
+                >
+                    <LuPlus size={12} />
+                </button>
+            )}
         </div>
     );
 };

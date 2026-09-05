@@ -147,7 +147,12 @@ export function useChainExecution() {
                     }
                 }
             }
-            setNodeStatuses(statuses);
+            // Merge, don't replace — a partial run's /status only returns node_runs
+            // for the nodes actually in scope (server-side activeNodes), so a
+            // wholesale setNodeStatuses(statuses) here would erase the still-valid
+            // success/failed state of every node OUTSIDE this run's scope the
+            // instant the first poll response arrives (H19 of the audit).
+            setNodeStatuses(prev => ({ ...prev, ...statuses }));
             setRunStatus(data.run?.status || null);
 
             if (data.run) {
@@ -168,7 +173,11 @@ export function useChainExecution() {
     const startRun = useCallback(async (chainDef, chainFile, { mode = 'full', startNodeId = null } = {}) => {
         try {
             setIsRunning(true);
-            setNodeStatuses({});
+            // Only a full run starts from a blank slate — a partial run
+            // (from/to/only a node) leaves every node outside its scope exactly
+            // as it was, so the canvas keeps showing what's still valid instead
+            // of flashing every card back to pending (H19 of the audit).
+            if (mode === 'full') setNodeStatuses({});
             setRunStatus('running');
             setProgress({ completed: 0, total: chainDef.nodes?.length || 0 });
             setLogs([]);

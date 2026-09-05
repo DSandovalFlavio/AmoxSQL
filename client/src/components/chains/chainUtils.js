@@ -99,6 +99,31 @@ export function computeAutoLayout(nodes, edges) {
 }
 
 /**
+ * Where a single new node should land relative to the node it's connecting
+ * from — directly to its right, nudged down past any existing node it would
+ * otherwise overlap (Fase 4 — "layout incremental": adding one node repositions
+ * only that node, unlike computeAutoLayout above which reflows everything).
+ */
+export function computeIncrementalPosition(sourceNode, allNodes) {
+    const NODE_W = 220;
+    const NODE_H = 90;
+    const GAP_X = 100;
+    const GAP_Y = 30;
+
+    const x = sourceNode.position.x + NODE_W + GAP_X;
+    let y = sourceNode.position.y;
+    const collides = (testY) => allNodes.some(n =>
+        Math.abs(n.position.x - x) < NODE_W * 0.6 && Math.abs(n.position.y - testY) < NODE_H * 0.6
+    );
+    let guard = 0;
+    while (collides(y) && guard < 30) {
+        y += NODE_H + GAP_Y;
+        guard++;
+    }
+    return { x, y };
+}
+
+/**
  * Generate an empty .sqlchain template
  */
 export function createEmptyChain(name = 'New Chain') {

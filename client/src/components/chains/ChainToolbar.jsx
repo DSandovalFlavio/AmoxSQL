@@ -106,9 +106,9 @@ const ChainToolbar = ({
 
             {/* Right: Tools */}
             <div className="chain-toolbar-right">
-                <button className="chain-toolbar-btn-tool" onClick={onAutoLayout} title="Auto-layout: reorganize nodes">
+                <button className="chain-toolbar-btn-tool" onClick={onAutoLayout} title="Arrange all nodes — undoable">
                     <LuLayoutDashboard size={16} />
-                    <span>Layout</span>
+                    <span>Arrange All</span>
                 </button>
                 <button className="chain-toolbar-btn-tool" onClick={onToggleVariables} title="Define chain variables — reference as ${name} in any node">
                     <LuVariable size={16} />

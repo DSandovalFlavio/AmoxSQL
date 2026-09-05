@@ -13593,6 +13593,23 @@ tr:hover td {
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* Fase 5 — the config changed since this result was produced */
+.chain-node-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  width: 100%;
+  margin-bottom: 3px;
+}
+
 .chain-node-error {
   display: flex;
   align-items: flex-start;
@@ -13677,6 +13694,30 @@ tr:hover td {
   background: var(--border-default);
 }
 
+/* Fase 4 — "+" quick-add on the output handle */
+.chain-node-quickadd {
+  position: absolute;
+  right: -13px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-overlay);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  z-index: 5;
+}
+
+.chain-node-quickadd:hover {
+  border-style: solid;
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
 /* Disabled node — a transparent passthrough, dimmed to read as "off" */
 .chain-node-disabled {
   opacity: 0.5;
@@ -13732,6 +13773,91 @@ tr:hover td {
   height: 1px;
   margin: 4px 6px;
   background: var(--border-default);
+}
+
+/* ── Node type picker (Fase 4 — the "+" quick-add menu) ── */
+.chain-typepicker {
+  position: fixed;
+  width: 230px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 10001;
+  overflow: hidden;
+}
+
+.chain-typepicker-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.chain-typepicker-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.chain-typepicker-list {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.chain-typepicker-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.chain-typepicker-cat {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  padding: 7px 8px 3px;
+}
+
+.chain-typepicker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.chain-typepicker-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-typepicker-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--surface-inset);
+  flex-shrink: 0;
 }
 
 /* ── Config popover (Fase 3) — anchored to the node instead of a fixed drawer ── */
@@ -13817,6 +13943,36 @@ tr:hover td {
 .chain-palette-toggle {
   color: var(--text-tertiary);
   font-size: 14px;
+}
+
+.chain-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 8px 0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.chain-palette-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.chain-palette-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
 }
 
 .chain-palette-list {
