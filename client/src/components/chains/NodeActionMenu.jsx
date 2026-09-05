@@ -15,14 +15,21 @@ const NodeActionMenu = ({ x, y, disabled, onAction, onClose }) => {
     useEffect(() => {
         const onDocClick = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
         const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        // Ignore scrolls that originate inside the menu itself — a capture-
+        // phase 'scroll' listener on window sees every scroll in the tree
+        // regardless of bubbling, so without this guard, a menu that ever
+        // grows scrollable content would close itself on its own first
+        // pixel of internal scroll (see NodeTypePicker, which hit exactly
+        // this).
+        const onScroll = (e) => { if (ref.current && ref.current.contains(e.target)) return; onClose(); };
         document.addEventListener('mousedown', onDocClick, true);
         document.addEventListener('keydown', onKey);
-        window.addEventListener('scroll', onClose, true);
+        window.addEventListener('scroll', onScroll, true);
         window.addEventListener('resize', onClose);
         return () => {
             document.removeEventListener('mousedown', onDocClick, true);
             document.removeEventListener('keydown', onKey);
-            window.removeEventListener('scroll', onClose, true);
+            window.removeEventListener('scroll', onScroll, true);
             window.removeEventListener('resize', onClose);
         };
     }, [onClose]);

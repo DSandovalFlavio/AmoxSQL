@@ -21,14 +21,22 @@ const NodeTypePicker = ({ x, y, onPick, onClose }) => {
         inputRef.current?.focus();
         const onDocClick = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
         const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        // Close when the page/canvas BEHIND the popover scrolls (its anchor
+        // point would go stale) — but not when the scroll originated inside
+        // the popover itself. A capture-phase 'scroll' listener on window
+        // intercepts every scroll in the tree regardless of bubbling (plain
+        // element scrolls don't bubble, capture doesn't care), so without
+        // this check, scrolling the type list closes the popover on its own
+        // first pixel of movement.
+        const onScroll = (e) => { if (ref.current && ref.current.contains(e.target)) return; onClose(); };
         document.addEventListener('mousedown', onDocClick, true);
         document.addEventListener('keydown', onKey);
-        window.addEventListener('scroll', onClose, true);
+        window.addEventListener('scroll', onScroll, true);
         window.addEventListener('resize', onClose);
         return () => {
             document.removeEventListener('mousedown', onDocClick, true);
             document.removeEventListener('keydown', onKey);
-            window.removeEventListener('scroll', onClose, true);
+            window.removeEventListener('scroll', onScroll, true);
             window.removeEventListener('resize', onClose);
         };
     }, [onClose]);
