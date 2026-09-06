@@ -687,7 +687,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-secondary)' }}>
                     Files
                 </span>
                 <div className="fe-header-actions">
@@ -891,10 +891,8 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                             <div key={groupLabel}>
                                 <div style={{
                                     padding: '6px 10px 2px',
-                                    fontSize: '10px',
-                                    fontWeight: 700,
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.06em',
+                                    fontSize: '11px',
+                                    fontWeight: 600,
                                     color: 'var(--text-muted)',
                                     userSelect: 'none',
                                     marginTop: '8px',

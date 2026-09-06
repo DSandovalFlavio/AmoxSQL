@@ -12,11 +12,14 @@
      • New: syntax, type, typography, spacing, radius tokens
      ═══════════════════════════════════════════════════════════════ */
 
-  /* ── Surface Hierarchy (oklch — lowest → highest elevation) ── */
-  --surface-base:    oklch(0.145 0.006 270);   /* ≈ #111214 */
-  --surface-raised:  oklch(0.175 0.008 270);   /* ≈ #191B1F */
-  --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
-  --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
+  /* ── Surface Hierarchy (oklch — lowest → highest elevation) ──
+     El croma subió (.006→.012) para que los neutros se lean como elegidos y no
+     como gris puro. Es imperceptible como "color" y perceptible como intención;
+     los temas con superficies en hex (onyx, amoxdark) no se ven afectados. */
+  --surface-base:    oklch(0.145 0.012 270);   /* ≈ #101216 */
+  --surface-raised:  oklch(0.175 0.014 270);   /* ≈ #181A20 */
+  --surface-overlay: oklch(0.195 0.014 270);   /* ≈ #1E2027 */
+  --surface-inset:   oklch(0.160 0.013 270);   /* ≈ #14161B */
 
   /* Monaco code-editor canvas bg: left UNSET on purpose. Only Obsidian/Onyx set
      it (below) to swap the editor bg; every other theme's editor falls back to
@@ -24,8 +27,12 @@
      var(--surface-base)) in monacoTheme.js. Defining it here as
      var(--surface-base) would NOT re-resolve per theme through the probe. */
 
-  /* ── Border System (opacity-based for consistency) ── */
-  --border-subtle:  rgba(255, 255, 255, 0.06);
+  /* ── Border System (opacity-based for consistency) ──
+     `subtle` subió de .06 a .085: sobre una base de L .145 el valor anterior
+     quedaba por debajo del umbral perceptual y las regiones no se distinguían.
+     NOTA: theme-amoxdark mantiene .06 a propósito — ahí la separación es por
+     elevación y no por líneas (ver el comentario en su bloque). */
+  --border-subtle:  rgba(255, 255, 255, 0.085);
   --border-default: rgba(255, 255, 255, 0.10);
   --border-strong:  rgba(255, 255, 255, 0.16);
 
@@ -257,6 +264,23 @@ body {
   --accent-subtle:     color-mix(in oklch, var(--accent-primary) 8%, transparent);
   --focus-ring:        color-mix(in oklch, var(--accent-primary) 35%, transparent);
   --accent-color-user: var(--accent-primary);
+
+  /* ── Resplandor del fondo (consumido por .app-container) ──
+     Van AQUÍ y no en :root por la misma razón que los derivados del acento:
+     --glow-strength-2 se deriva de --glow-strength, y una custom property que
+     contiene var() resuelve en el elemento donde se DECLARA. En :root se
+     congelaría en el valor por defecto y la preferencia del usuario (fase 2,
+     que se aplicará como estilo inline sobre body) no llegaría al segundo halo.
+     La fase 2 solo sobrescribe estos valores; .app-container no se toca. */
+  --glow-x:  3%;   --glow-y:  -8%;
+  --glow-x2: 26%;  --glow-y2: -4%;
+  --glow-strength:   30%;
+  --glow-strength-2: calc(var(--glow-strength) * 0.43);
+}
+
+/* En claro el mismo porcentaje pesa mucho más y ensucia el fondo. */
+.mode-light {
+  --glow-strength: 12%;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -331,7 +355,10 @@ body {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   height: var(--titlebar-height);
-  background: var(--surface-inset);
+  /* Transparente a propósito: deja pasar el resplandor de .app-container.
+     Ojo — la barra es hermana de .app-container, no hija, así que hereda el
+     fondo del body; ver la regla de body más abajo. */
+  background: transparent;
   color: var(--text-disabled);
   user-select: none;
   border-bottom: none;
@@ -361,8 +388,6 @@ body {
 .window-title-bar .app-title {
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
   opacity: 0.7;
 }
 
@@ -817,7 +842,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --surface-inset:   #08090a;
   --monaco-editor-bg: #111214;   /* editor shows Obsidian's neutral (swapped) */
 
-  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-subtle:  rgba(255, 255, 255, 0.085);
   --border-default: rgba(255, 255, 255, 0.10);
   --border-strong:  rgba(255, 255, 255, 0.16);
 
@@ -1955,6 +1980,31 @@ body {
   display: flex;
 }
 
+/* ── Resplandor de acento (F1) ──
+   El resplandor NO vive en la barra de ventana: vive AQUÍ, en el fondo de la
+   aplicación, detrás de todas las tarjetas. Sube desde detrás del panel lateral
+   y atraviesa la barra, que se limita a dejarlo pasar (background: transparent).
+   Como .left-panel-card y .main-content son opacas, el acento solo asoma por la
+   barra, por el canal de 6px entre regiones y por los bordes — de ahí que esta
+   fase dependa de que ambas sean tarjetas.
+
+   Va en .app-shell y no en .app-container porque la barra de ventana es HERMANA
+   de .app-container, no hija: sobre el contenedor el resplandor nunca llegaría a
+   la barra.
+
+   Los cuatro tokens de posición y los dos de fuerza quedan parametrizados desde
+   ya: la fase 2 solo les cambiará el valor, sin volver a tocar esta regla. */
+.app-shell {
+  background:
+    radial-gradient(52% 42% at var(--glow-x) var(--glow-y),
+      color-mix(in oklch, var(--accent-primary) var(--glow-strength), transparent) 0%,
+      transparent 68%),
+    radial-gradient(30% 26% at var(--glow-x2) var(--glow-y2),
+      color-mix(in oklch, var(--accent-primary) var(--glow-strength-2), transparent) 0%,
+      transparent 72%),
+    var(--surface-base);
+}
+
 .app-container {
   display: flex;
   width: 100%;
@@ -1980,7 +2030,10 @@ body {
 .activity-bar {
   width: 48px;
   min-width: 48px;
-  background-color: transparent;
+  /* Un paso POR DEBAJO de la tarjeta que lo contiene (--surface-raised): el rail
+     se hunde y el panel lateral se lee como una superficie aparte, sin depender
+     de un borde. Antes era `transparent` y ambos compartían el mismo plano. */
+  background-color: var(--surface-base);
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -2130,10 +2183,8 @@ body {
 .sidebar-header {
   padding: 8px 14px;
   font-weight: var(--weight-semibold);
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
   border-bottom: 1px solid var(--border-subtle);
   background-color: transparent;
   display: flex;
@@ -2499,12 +2550,19 @@ body {
   border-color: color-mix(in oklch, var(--accent-primary) 45%, transparent);
 }
 
+/* Simétrico a .left-panel-card: el área principal también es una tarjeta, con su
+   propio canal de 6px. Ese canal es lo que deja ver el fondo de la aplicación
+   entre regiones — y por donde asoma el resplandor de acento (ver .app-container). */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: var(--surface-inset);
+  box-sizing: border-box;   /* no hay box-sizing global: el borde debe entrar en el ancho */
+  background-color: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin: 6px;
 }
 
 /* ── Toolbar — Linear: compact, minimal chrome ── */
@@ -8042,8 +8100,6 @@ tr:hover .rt-td--pinned {
   gap: 6px;
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
   color: var(--text-tertiary);
 }
 
@@ -8708,7 +8764,6 @@ tr:hover .rt-td--pinned {
 .db-header-title {
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
@@ -9220,6 +9275,8 @@ td {
   text-align: left;
 }
 
+/* Caja normal: los nombres de columna son datos del usuario, no etiquetas de
+   sistema. Forzarlos a mayúsculas deformaba identificadores reales. */
 th {
   background-color: var(--surface-raised);
   position: sticky;
@@ -9227,8 +9284,6 @@ th {
   color: var(--text-secondary);
   font-weight: var(--weight-semibold);
   font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
   z-index: 1;
   border-top: none;
 }
@@ -11969,8 +12024,6 @@ tr:hover td {
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
 }
 
 /* DBT Sub-Navigation Tabs */
@@ -13547,9 +13600,13 @@ tr:hover td {
    Nodes expose only --node-accent (category color, mode-neutral) and
    optionally --node-border-override (states/errors). Background and border
    are DERIVED from the accent + theme surfaces so they react to dark/light. */
+/* La tarjeta es NEUTRA. El color de categoría (--node-accent) vive solo en el
+   icono, el badge y el handle: informa en vez de decorar. Antes la tarjeta se
+   bañaba con un 7% del acento de categoría y el lienzo se leía como un mosaico.
+   --node-border-override se conserva: los estados de error sí tiñen el borde. */
 .chain-node {
-  background: color-mix(in oklch, var(--node-accent, var(--accent-primary)) 7%, var(--surface-raised));
-  border: 1px solid var(--node-border-override, color-mix(in oklch, var(--node-accent, var(--accent-primary)) 30%, var(--border-default)));
+  background: var(--surface-raised);
+  border: 1px solid var(--node-border-override, var(--border-default));
   border-radius: 10px;
   padding: 8px 12px;
   min-width: 180px;
@@ -13597,7 +13654,7 @@ tr:hover td {
 .chain-node-duration {
   font-size: 9px;
   opacity: 0.7;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-sans);
 }
 
 .chain-node-label {
@@ -13622,7 +13679,7 @@ tr:hover td {
 .chain-node-config-summary {
   font-size: 10px;
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-sans);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -13651,7 +13708,7 @@ tr:hover td {
 .chain-node-result-detail {
   font-size: 9px;
   color: var(--text-tertiary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-sans);
 }
 
 /* Fase 5 — the config changed since this result was produced */
@@ -14003,8 +14060,6 @@ tr:hover td {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .chain-palette-collapsed .chain-palette-title {
@@ -15383,8 +15438,6 @@ tr:hover td {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .chain-log-count {
@@ -17522,8 +17575,6 @@ tr:hover td {
   gap: 6px;
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
   color: var(--text-tertiary);
 }
 

@@ -1081,7 +1081,7 @@ function App() {
 
   if (appPhase === PHASE.WELCOME) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+      <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
         <WindowTitleBar
           projectPath=""
           currentDb=""
@@ -1137,8 +1137,10 @@ function App() {
     ? { flex: '0 0 auto', width: tabSlot2Width - TAB_CARD_INSET * 2, marginLeft: 3, marginRight: TAB_CARD_INSET, minWidth: 0 }
     : { flex: `0 0 ${(1 - tabSplitRatio) * 100}%`, margin: 0, minWidth: 0 };
 
+  // .app-shell es el padre común de la barra de ventana y del contenido: ahí vive
+  // el resplandor de acento del fondo, y la barra (transparente) lo deja pasar.
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+    <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
       <WindowTitleBar
         projectPath={projectPath}
         currentDb={currentDb}

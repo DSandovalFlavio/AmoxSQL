@@ -241,7 +241,7 @@ const ExtensionExplorer = () => {
             {/* Header */}
             <div className="sidebar-header">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LuPackage size={14} /> EXTENSIONS
+                    <LuPackage size={14} /> Extensions
                 </span>
                 <div className="fe-header-actions">
                     <button
