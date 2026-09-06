@@ -290,6 +290,19 @@ body {
      congelaría en el valor por defecto y la preferencia del usuario (fase 2,
      que se aplicará como estilo inline sobre body) no llegaría al segundo halo.
      La fase 2 solo sobrescribe estos valores; .app-container no se toca. */
+  /* -- Degradado del logo, derivado del acento --
+     Los colores oficiales de la marca son #00ECFF (cian, el que manda) y
+     #0068FF (azul). Lo que se conserva NO son esos dos colores sino la RELACION
+     entre ellos, medida en oklch: el segundo stop esta a L -0.293, C +0.092 y
+     H +55.4 grados del primero. Aplicando ese mismo delta al acento activo, el
+     logo cambia de color pero mantiene el degradado tal como esta disenado.
+     El primer stop es el acento tal cual; el segundo se deriva con sintaxis de
+     color relativo, que parte de --accent-primary sea cual sea su formato (hex,
+     oklch o lo que fije el tema). La L se acota por abajo para que un acento ya
+     oscuro no produzca un segundo stop casi negro. */
+  --logo-grad-a: var(--accent-primary);
+  --logo-grad-b: #0068FF;   /* respaldo si no hay color relativo; se pisa abajo */
+
   --glow-x:  3%;   --glow-y:  -8%;
   --glow-x2: 26%;  --glow-y2: -4%;
 
@@ -312,6 +325,17 @@ body.glow-tc { --glow-x: 50%; --glow-y:  -8%;  --glow-x2: 28%; --glow-y2: -4%;  
 body.glow-tr { --glow-x: 97%; --glow-y:  -8%;  --glow-x2: 74%; --glow-y2: -4%;  }
 body.glow-bl { --glow-x:  3%; --glow-y: 108%;  --glow-x2: 26%; --glow-y2: 104%; }
 body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; }
+
+/* El segundo stop del logo, derivado del acento. Va en @supports porque la
+   sintaxis de color relativo es reciente; sin ella queda el respaldo #0068FF. */
+@supports (color: oklch(from white l c h)) {
+  body {
+    --logo-grad-b: oklch(from var(--accent-primary)
+                         max(0.30, calc(l - 0.293))
+                         calc(c + 0.092)
+                         calc(h + 55.4));
+  }
+}
 
 /* En claro el mismo porcentaje pesa mucho más y ensucia el fondo: se escala al
    40% de lo que haya pedido el usuario, conservando su intención relativa. */

@@ -1,5 +1,10 @@
 import React from 'react';
 
+// El degradado NO lleva los colores de marca fijos: toma --logo-grad-a/-b, que
+// derivan del acento activo conservando la relacion oklch entre los dos stops
+// originales (#00ECFF y #0068FF). El diseno del degradado se mantiene; solo
+// cambia el color. Ver el bloque de tokens en index.css.
+//
 // El viewBox va CEÑIDO al trazo. Los paths ocupan x 115-285 e y 60-285 (el 60 y
 // el 270 son los vértices de las curvas cuadráticas, no sus puntos de control),
 // así que el 0 0 400 400 original dejaba la marca pequeña y desplazada hacia
@@ -18,8 +23,8 @@ const Logo = ({ width = 360, height = 360, className, style }) => {
         >
             <defs>
                 <linearGradient id="neonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: '#00ECFF', stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: '#0068FF', stopOpacity: 1 }} />
+                    <stop offset="0%" style={{ stopColor: 'var(--logo-grad-a)', stopOpacity: 1 }} />
+                    <stop offset="100%" style={{ stopColor: 'var(--logo-grad-b)', stopOpacity: 1 }} />
                 </linearGradient>
                 <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
                     <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
