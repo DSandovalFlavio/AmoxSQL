@@ -15,18 +15,12 @@ const RECENT_KEY = 'amoxsql-recent-projects';
 // cuadrado y centrado en (200, 172.5) con lado 260, más el margen del grosor de
 // trazo: la marca llena la caja y queda centrada de verdad.
 //
-// Mantiene el degradado de la marca (no currentColor): con el acento tomaba el
-// color del tema y dejaba de leerse como el logo de AmoxSQL. Sin el glow, que a
-// este tamaño solo emborrona.
+// Va en currentColor a propósito: AQUI la marca sigue al acento (.wtb-appmenu lo
+// fija), a diferencia de la bienvenida, que conserva el degradado de marca. Sin
+// el glow, que a este tamaño solo emborrona.
 const LogoMark = ({ size = 18 }) => (
   <svg width={size} height={size} viewBox="70 42 260 260" aria-hidden="true">
-    <defs>
-      <linearGradient id="wtb-logo-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#00ECFF" />
-        <stop offset="100%" stopColor="#0068FF" />
-      </linearGradient>
-    </defs>
-    <g stroke="url(#wtb-logo-grad)" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" fill="none">
+    <g stroke="currentColor" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" fill="none">
       <path d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285" />
       <path d="M 130 210 Q 200 330 270 210" />
     </g>

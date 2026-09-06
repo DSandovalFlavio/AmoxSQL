@@ -386,10 +386,19 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
 }
 
 /* ── Window Title Bar ── */
+/* Centrado OPTICO, no geometrico.
+   Centrar el contenido dentro de la propia barra deja los elementos altos: bajo
+   la barra hay un canal de 6px antes de que empiecen las tarjetas del shell, asi
+   que el hueco visible por debajo es 6 (barra) + 6 (canal) frente a 6 por arriba.
+   La banda que el ojo lee va del borde de la ventana al borde de las tarjetas:
+   40 + 6 = 46px. Con box-sizing de borde y 6px de padding superior, el centro del
+   contenido cae en 6 + (40-6)/2 = 23px, que es justo la mitad de esa banda. */
 .window-title-bar {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
+  box-sizing: border-box;
+  padding-top: 6px;
   height: var(--titlebar-height);
   /* Transparente a propósito: deja pasar el resplandor de .app-container.
      Ojo — la barra es hermana de .app-container, no hija, así que hereda el
