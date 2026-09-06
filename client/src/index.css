@@ -2016,25 +2016,29 @@ body {
 /* ── Activity Bar — Linear-style icon rail ──
    Centered pill hover, accent left indicator, refined spacing. */
 /* ── Left Panel Card — wraps Activity Bar + Sidebar ── */
+/* Contenedor SIN superficie propia: el rail y el panel lateral son dos tarjetas
+   independientes con un canal entre ellas (el margin-right del rail). Antes era
+   una sola tarjeta y la separación dependía de un borde interior.
+   No lleva gap: el tirador de redimensionado va pegado al panel, no separado. */
 .left-panel-card {
   display: flex;
   flex-shrink: 0;
-  background-color: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  background-color: transparent;
+  border: none;
   margin: 6px 0 6px 6px;
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
 }
 
 .activity-bar {
   width: 48px;
   min-width: 48px;
-  /* Un paso POR DEBAJO de la tarjeta que lo contiene (--surface-raised): el rail
-     se hunde y el panel lateral se lee como una superficie aparte, sin depender
-     de un borde. Antes era `transparent` y ambos compartían el mismo plano. */
+  /* Tarjeta propia, un paso POR DEBAJO del panel lateral. La separación viene
+     del canal de 6px (margin-right) y no de un borde interior compartido. */
   background-color: var(--surface-base);
-  border-right: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin-right: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2144,8 +2148,9 @@ body {
 /* ── Sidebar Panel — collapsible ── */
 .sidebar {
   width: 280px;
-  background-color: transparent;
-  border-right: none;
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   padding-top: 6px;
@@ -2160,6 +2165,7 @@ body {
   width: 0;
   opacity: 0;
   padding: 0;
+  border-width: 0;   /* si no, al colapsar queda una rendija de 2px de borde */
   pointer-events: none;
 }
 
@@ -2550,19 +2556,16 @@ body {
   border-color: color-mix(in oklch, var(--accent-primary) 45%, transparent);
 }
 
-/* Simétrico a .left-panel-card: el área principal también es una tarjeta, con su
-   propio canal de 6px. Ese canal es lo que deja ver el fondo de la aplicación
-   entre regiones — y por donde asoma el resplandor de acento (ver .app-container). */
+/* SIN tarjeta propia: el lado derecho ya tiene las suyas (.tab-bar-card,
+   .ep-editor-card y la de resultados). Envolverlas en otra caja añadía una
+   cuarta capa que no aportaba nada. Transparente para que el resplandor de
+   .app-shell asome por los huecos que esas tarjetas dejan entre sí. */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-sizing: border-box;   /* no hay box-sizing global: el borde debe entrar en el ancho */
-  background-color: var(--surface-base);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  margin: 6px;
+  background-color: transparent;
 }
 
 /* ── Toolbar — Linear: compact, minimal chrome ── */
