@@ -5,6 +5,7 @@
  */
 import { API_BASE } from './api.js';
 import { themeClassFor, modeClassFor } from './theme.js';
+import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
@@ -336,6 +337,23 @@ function App() {
     setEffectiveAccentL(Number.isFinite(v) ? v : 0.73);
     syncMonacoTheme();
   }, [accentL, accentColor]);
+
+  // Degradado del logo. Se calcula en JS y no en CSS porque hacen falta dos cosas
+  // que una hoja de estilos no puede expresar: buscar el croma maximo dentro del
+  // gamut sRGB para cada tono (busqueda binaria) y rotar el tono hacia el azul
+  // por el camino corto sin pasarse de largo. Ver utils/logoGradient.js.
+  useEffect(() => {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;opacity:0;pointer-events:none';
+    probe.style.color = 'var(--accent-primary)';
+    document.body.appendChild(probe);
+    const stops = deriveLogoStops(getComputedStyle(probe).color);
+    probe.remove();
+    if (stops) {
+      document.body.style.setProperty('--logo-grad-a', stops.a);
+      document.body.style.setProperty('--logo-grad-b', stops.b);
+    }
+  }, [accentColor, accentL, theme]);
 
   // Esquina del resplandor del fondo.
   useEffect(() => {
