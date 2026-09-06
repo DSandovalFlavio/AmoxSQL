@@ -6,15 +6,29 @@ import {
 
 const RECENT_KEY = 'amoxsql-recent-projects';
 
-// La marca de AmoxSQL a tamaño de icono: los mismos paths que Logo.jsx, sin el
-// gradiente ni el glow (a 16px no se leen y solo ensucian).
-const LogoMark = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 400 400" aria-hidden="true">
-    <g transform="translate(50, 0) scale(0.8)">
-      <g stroke="currentColor" strokeWidth="26" strokeLinecap="round" strokeLinejoin="round" fill="none">
-        <path d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285" />
-        <path d="M 130 210 Q 200 330 270 210" />
-      </g>
+// La marca de AmoxSQL a tamaño de icono: los mismos paths que Logo.jsx.
+//
+// El viewBox va CEÑIDO al trazo real, no al 0 0 400 400 del original. Los paths
+// ocupan x 115-285 e y 60-285 (el 60 y el 270 son los vértices de las curvas
+// cuadráticas, que no coinciden con sus puntos de control), así que en un lienzo
+// de 400 la marca queda pequeña y descentrada hacia arriba. Aquí el cuadro es
+// cuadrado y centrado en (200, 172.5) con lado 260, más el margen del grosor de
+// trazo: la marca llena la caja y queda centrada de verdad.
+//
+// Mantiene el degradado de la marca (no currentColor): con el acento tomaba el
+// color del tema y dejaba de leerse como el logo de AmoxSQL. Sin el glow, que a
+// este tamaño solo emborrona.
+const LogoMark = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="70 42 260 260" aria-hidden="true">
+    <defs>
+      <linearGradient id="wtb-logo-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#00ECFF" />
+        <stop offset="100%" stopColor="#0068FF" />
+      </linearGradient>
+    </defs>
+    <g stroke="url(#wtb-logo-grad)" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" fill="none">
+      <path d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285" />
+      <path d="M 130 210 Q 200 330 270 210" />
     </g>
   </svg>
 );
@@ -80,7 +94,7 @@ const WindowTitleBar = ({
             aria-haspopup="menu"
             aria-expanded={openMenu === 'app'}
           >
-            <LogoMark size={16} />
+            <LogoMark size={18} />
           </button>
 
           {openMenu === 'app' && (
