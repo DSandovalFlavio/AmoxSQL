@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rediseño visual — mockup comparativo</title>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   MOCKUP — Rediseño visual de AmoxSQL
+   Cada propuesta del discovery es un interruptor independiente.
+   Los tokens replican client/src/index.css.
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  /* acento paramétrico — los sliders escriben aquí.
+     L es AJUSTABLE POR EL USUARIO: default .730, rango .600–.950 */
+  --acc-l: 0.730;
+  --acc-c: 0.155;
+  --acc-h: 195;
+  --accent: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+  --accent-subtle: color-mix(in oklch, var(--accent) 14%, transparent);
+  --accent-muted:  color-mix(in oklch, var(--accent) 22%, transparent);
+
+  /* croma de los neutros — el interruptor "tint" lo sube */
+  --neutral-c: 0.006;
+
+  /* resplandor del fondo — AJUSTABLE POR EL USUARIO (F2.2 y F2.3 del plan) */
+  --glow-x: 3%;  --glow-y: -8%;
+  --glow-x2: 26%; --glow-y2: -4%;
+  --glow-strength: 30%;
+  --glow-strength-2: calc(var(--glow-strength) * 0.43);
+
+  --surface-base:    oklch(0.145 var(--neutral-c) 270);
+  --surface-raised:  oklch(0.175 var(--neutral-c) 270);
+  --surface-overlay: oklch(0.195 var(--neutral-c) 270);
+  --surface-inset:   oklch(0.160 var(--neutral-c) 270);
+
+  --border-subtle:  rgba(255,255,255,.06);
+  --border-default: rgba(255,255,255,.10);
+  --border-strong:  rgba(255,255,255,.16);
+
+  --text-primary:   rgba(255,255,255,.92);
+  --text-secondary: rgba(255,255,255,.56);
+  --text-tertiary:  rgba(255,255,255,.36);
+  --text-disabled:  rgba(255,255,255,.20);
+
+  --ok:   oklch(0.72 0.19 155);
+  --warn: oklch(0.75 0.16 70);
+  --err:  oklch(0.65 0.22 25);
+
+  --mono: ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,monospace;
+  --sans: "Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+
+  /* variables que los interruptores conmutan */
+  --titlebar-bg: var(--surface-inset);
+  --rail-bg: transparent;
+  --panel-bg: transparent;
+  --results-bg: transparent;
+  --shell-gap: 0px;
+  --shell-radius: 0px;
+  --shell-border: transparent;
+  --label-case: uppercase;
+  --label-track: .08em;
+  --node-fill: color-mix(in oklch, var(--node-accent) 7%, var(--surface-raised));
+  --node-stroke: color-mix(in oklch, var(--node-accent) 30%, var(--border-default));
+}
+
+/* ── interruptores ──────────────────────────────────── */
+body[data-tint="1"]    { --neutral-c: 0.013; }
+body[data-borders="1"] { --border-subtle: rgba(255,255,255,.085); }
+/* ── P2.1 (corregida) — el resplandor NO vive en la barra de ventana.
+   Vive en el FONDO de la aplicación, anclado arriba a la izquierda, y sube
+   desde detrás del panel lateral atravesando la barra. La barra se vuelve
+   transparente y solo lo deja pasar; los paneles opacos lo tapan, así que
+   el acento solo asoma por la barra, los canales entre tarjetas y los bordes. */
+body[data-grad="1"] .frame{
+  background:
+    radial-gradient(52% 42% at var(--glow-x) var(--glow-y),
+      color-mix(in oklch, var(--accent) var(--glow-strength), transparent) 0%, transparent 68%),
+    radial-gradient(30% 26% at var(--glow-x2) var(--glow-y2),
+      color-mix(in oklch, var(--accent) var(--glow-strength-2), transparent) 0%, transparent 72%),
+    var(--surface-base);
+}
+/* presets de esquina — F2.2 del plan */
+body[data-corner="tl"]{ --glow-x:3%;  --glow-y:-8%;  --glow-x2:26%; --glow-y2:-4%; }
+body[data-corner="tc"]{ --glow-x:50%; --glow-y:-8%;  --glow-x2:28%; --glow-y2:-4%; }
+body[data-corner="tr"]{ --glow-x:97%; --glow-y:-8%;  --glow-x2:74%; --glow-y2:-4%; }
+body[data-corner="bl"]{ --glow-x:3%;  --glow-y:108%; --glow-x2:26%; --glow-y2:104%; }
+body[data-corner="br"]{ --glow-x:97%; --glow-y:108%; --glow-x2:74%; --glow-y2:104%; }
+body[data-grad="1"] .titlebar{ background:transparent; }
+body[data-elev="1"]{ --rail-bg: var(--surface-base); --panel-bg: var(--surface-raised); --results-bg: var(--surface-raised); }
+body[data-cards="1"]{ --shell-gap: 6px; --shell-radius: 8px; --shell-border: var(--border-subtle); }
+body[data-case="1"] { --label-case: none; --label-track: 0; }
+body[data-flat="1"] { --node-fill: var(--surface-raised); --node-stroke: var(--border-default); }
+
+body[data-mode="before"] .only-after  { display:none !important; }
+body[data-mode="after"]  .only-before { display:none !important; }
+
+/* ── base ───────────────────────────────────────────── */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:var(--sans); font-size:13px;
+  background:#08090b; color:var(--text-secondary); overflow:hidden;
+  display:flex; flex-direction:column;
+}
+button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+svg.i{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+svg.i.sm{width:13px;height:13px}
+svg.i.xs{width:11px;height:11px}
+
+/* ══ PANEL DE CONTROL ══════════════════════════════════ */
+.ctl{
+  flex:none; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  padding:10px 16px; background:#101115;
+  border-bottom:1px solid rgba(255,255,255,.09);
+}
+.ctl-brand{ display:flex; align-items:center; gap:8px; font-weight:650; color:#fff; font-size:12px; letter-spacing:.02em; }
+.ctl-brand svg{width:17px;height:17px}
+.ctl-group{ display:flex; align-items:center; gap:7px; }
+.ctl-lbl{ font-size:10px; text-transform:uppercase; letter-spacing:.09em; color:rgba(255,255,255,.32); font-weight:600; }
+.seg{ display:inline-flex; background:#191b20; border:1px solid rgba(255,255,255,.09); border-radius:7px; padding:2px; gap:2px; }
+.seg button{ padding:4px 11px; border-radius:5px; font-size:12px; color:rgba(255,255,255,.55); transition:.14s; }
+.seg button:hover{ color:#fff; }
+.seg button.on{ background:var(--accent); color:#06181c; font-weight:600; }
+.seg.mode button.on{ background:rgba(255,255,255,.14); color:#fff; }
+.chips{ display:flex; gap:5px; flex-wrap:wrap; }
+.chip{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 9px; border-radius:20px; font-size:11px;
+  background:#191b20; border:1px solid rgba(255,255,255,.09);
+  color:rgba(255,255,255,.5); transition:.14s; white-space:nowrap;
+}
+.chip:hover{ border-color:rgba(255,255,255,.2); color:rgba(255,255,255,.8); }
+.chip .dot{ width:6px;height:6px;border-radius:50%; background:rgba(255,255,255,.18); transition:.14s; }
+.chip.on{ background:color-mix(in oklch, var(--accent) 15%, #191b20); border-color:color-mix(in oklch, var(--accent) 42%, transparent); color:#fff; }
+.chip.on .dot{ background:var(--accent); box-shadow:0 0 7px var(--accent); }
+.sl{ display:flex; align-items:center; gap:7px; font-size:11px; color:rgba(255,255,255,.45); }
+.sl input{ width:96px; accent-color:var(--accent); }
+.sl b{ font-family:var(--mono); font-size:10px; color:var(--accent); min-width:34px; }
+.swatch{ width:15px;height:15px;border-radius:4px;background:var(--accent); border:1px solid rgba(255,255,255,.2); }
+
+/* ══ ESCENARIO ═════════════════════════════════════════ */
+.stage{ flex:1; min-height:0; position:relative; background:#08090b; padding:14px; }
+.screen{ position:absolute; inset:14px; display:none; }
+.screen.on{ display:flex; flex-direction:column; }
+.frame{
+  flex:1; min-height:0; display:flex; flex-direction:column;
+  background:var(--surface-base); border-radius:10px; overflow:hidden;
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 24px 70px rgba(0,0,0,.6);
+}
+
+/* ══ BARRA DE VENTANA ══════════════════════════════════ */
+.titlebar{
+  flex:none; height:34px; display:grid; grid-template-columns:auto 1fr auto;
+  align-items:center; background:var(--titlebar-bg); transition:background .25s;
+}
+body[data-mode="after"] .titlebar{ height:38px; }
+.tb-left{ display:flex; align-items:center; gap:9px; padding-left:12px; min-width:80px; }
+.tb-wordmark{ font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--text-disabled); }
+.tb-logo{ width:18px;height:18px; display:grid;place-items:center; border-radius:5px; transition:.14s; }
+.tb-logo:hover{ background:rgba(255,255,255,.08); }
+.tb-logo svg{ width:16px;height:16px; }
+.crumb{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); padding:3px 7px; border-radius:6px; }
+.crumb:hover{ background:rgba(255,255,255,.06); color:var(--text-primary); }
+.crumb .sep{ color:var(--text-disabled); }
+.crumb .db{ color:var(--text-tertiary); }
+.badge-rw{
+  font-size:9px; font-weight:700; letter-spacing:.05em; padding:1px 5px; border-radius:3px;
+  background:color-mix(in oklch, var(--ok) 20%, transparent); color:oklch(0.8 0.15 155);
+}
+.tb-center{ display:flex; align-items:center; justify-content:center; }
+.wsw{ display:flex;align-items:center;gap:6px; font-size:12px; color:var(--text-secondary); padding:3px 8px; border-radius:6px; }
+.wsw:hover{ background:rgba(255,255,255,.06); }
+.tb-actions{ display:flex; align-items:center; gap:14px; }
+.tb-grp{ display:flex; align-items:center; gap:2px; }
+.tb-sep{ width:1px; height:15px; background:var(--border-subtle); }
+.tb-btn{
+  display:flex;align-items:center;gap:6px; height:25px; padding:0 9px; border-radius:6px;
+  color:var(--text-secondary); font-size:12px; transition:.14s;
+}
+.tb-btn:hover{ background:rgba(255,255,255,.08); color:var(--text-primary); }
+.tb-btn.run{ color:var(--ok); }
+.tb-btn.ai{ color:var(--accent); }
+
+/* ── candidatos para el centro de la barra ── */
+body[data-center="vacio"]    .ctr-omnibox,  body[data-center="vacio"]    .ctr-contexto { display:none; }
+body[data-center="omnibox"]  .ctr-contexto, body[data-center="omnibox"]  .ctr-vacio    { display:none; }
+body[data-center="contexto"] .ctr-omnibox,  body[data-center="contexto"] .ctr-vacio    { display:none; }
+
+.omnibox{
+  display:flex; align-items:center; gap:8px; width:min(420px, 42vw);
+  height:25px; padding:0 9px; border-radius:7px;
+  background:color-mix(in oklch, var(--surface-base) 55%, transparent);
+  border:1px solid var(--border-subtle); color:var(--text-tertiary); font-size:12px;
+  transition:.15s;
+}
+.omnibox:hover{ border-color:var(--border-default); color:var(--text-secondary); background:color-mix(in oklch, var(--surface-base) 75%, transparent); }
+.omnibox .kbd{
+  margin-left:auto; font-family:var(--mono); font-size:9.5px; padding:1px 5px; border-radius:4px;
+  background:rgba(255,255,255,.08); color:var(--text-tertiary); letter-spacing:.02em;
+}
+.ctr-contexto{ display:flex; align-items:center; gap:12px; }
+.ctx-chip{
+  display:flex; align-items:center; gap:6px; height:23px; padding:0 9px; border-radius:20px;
+  font-size:11.5px; color:var(--text-secondary);
+  background:color-mix(in oklch, var(--surface-base) 55%, transparent);
+  border:1px solid var(--border-subtle);
+}
+.ctx-chip .led{ width:6px;height:6px;border-radius:50%;background:var(--ok); flex:none; }
+.ctx-chip.busy .led{ background:var(--warn); animation:pulse 1.3s ease-in-out infinite; }
+.ctx-chip .ms{ color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
+.ctx-chip .stop{ margin-left:2px; color:var(--text-tertiary); display:grid;place-items:center; }
+.ctx-chip .stop:hover{ color:var(--err); }
+@keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+.wctl{ display:flex; }
+.wctl button{ width:44px;height:34px; display:grid;place-items:center; color:var(--text-disabled); }
+.wctl button:hover{ background:rgba(255,255,255,.09); color:var(--text-primary); }
+.wctl button.x:hover{ background:#c0392b; color:#fff; }
+
+/* ══ SHELL ═════════════════════════════════════════════ */
+.shell{ flex:1; min-height:0; display:flex; gap:var(--shell-gap); padding:var(--shell-gap); transition:gap .25s,padding .25s; }
+.pane{ background:var(--panel-bg); border:1px solid var(--shell-border); border-radius:var(--shell-radius); transition:background .25s,border-color .25s,border-radius .25s; }
+
+.rail{
+  flex:none; width:46px; background:var(--rail-bg);
+  border:1px solid var(--shell-border); border-radius:var(--shell-radius);
+  display:flex; flex-direction:column; align-items:center; padding:6px 0; gap:2px;
+  transition:background .25s,border-color .25s,border-radius .25s;
+}
+body:not([data-cards="1"]) .rail{ border:none; border-right:1px solid var(--border-subtle); }
+.rail button{
+  width:38px;height:38px; display:grid;place-items:center; border-radius:7px;
+  color:var(--text-tertiary); position:relative; transition:.14s;
+}
+.rail button:hover{ color:var(--text-primary); background:rgba(255,255,255,.06); }
+.rail button.on{ color:var(--accent); background:var(--accent-subtle); }
+.rail button.on::before{
+  content:''; position:absolute; left:-6px; top:50%; transform:translateY(-50%);
+  width:3px;height:16px;border-radius:2px;background:var(--accent);
+}
+.rail .spacer{ flex:1; }
+.rail .div{ width:22px;height:1px;background:var(--border-subtle);margin:4px 0; }
+
+.side{ flex:none; width:246px; display:flex; flex-direction:column; overflow:hidden; }
+body:not([data-cards="1"]) .side{ border:none; }
+.side-hd{
+  flex:none; display:flex; align-items:center; justify-content:space-between;
+  padding:11px 12px 9px;
+}
+.side-hd h3{
+  margin:0; font-size:11px; font-weight:600; color:var(--text-secondary);
+  text-transform:var(--label-case); letter-spacing:var(--label-track); transition:.2s;
+}
+body[data-case="1"] .side-hd h3{ font-size:12px; color:var(--text-primary); }
+.side-hd .acts{ display:flex; gap:1px; }
+.side-hd .acts button{ width:22px;height:22px;display:grid;place-items:center;border-radius:5px;color:var(--text-tertiary); }
+.side-hd .acts button:hover{ background:rgba(255,255,255,.07); color:var(--text-primary); }
+.search{
+  margin:0 10px 8px; display:flex;align-items:center;gap:7px;
+  padding:6px 9px; border-radius:6px; background:var(--surface-inset);
+  border:1px solid var(--border-subtle); color:var(--text-tertiary); font-size:12px;
+}
+.side-body{ flex:1; overflow:hidden; padding:0 6px 8px; }
+.grp{
+  display:flex;align-items:center;gap:6px; padding:9px 6px 5px;
+  font-size:10px; font-weight:600; color:var(--text-tertiary);
+  text-transform:var(--label-case); letter-spacing:var(--label-track); transition:.2s;
+}
+body[data-case="1"] .grp{ font-size:11px; }
+.grp .n{ margin-left:auto; color:var(--text-disabled); font-variant-numeric:tabular-nums; }
+.row{
+  display:flex;align-items:center;gap:8px; padding:5px 7px; border-radius:6px;
+  font-size:12.5px; color:var(--text-secondary); cursor:default;
+}
+.row:hover{ background:rgba(255,255,255,.05); color:var(--text-primary); }
+.row .sz{ margin-left:auto; font-size:10px; color:var(--text-disabled); }
+body[data-case="1"] .row .sz{ font-family:var(--sans); }
+body:not([data-case="1"]) .row .sz{ font-family:var(--mono); }
+.row .ic{ color:var(--text-tertiary); }
+.row.file .ic{ color:color-mix(in oklch, var(--accent) 60%, var(--text-tertiary)); }
+
+.main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:var(--shell-gap); }
+.editor{ flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+.tabs{ flex:none; display:flex; align-items:center; gap:2px; padding:5px 8px; }
+.tab{
+  display:flex;align-items:center;gap:7px; padding:5px 11px; border-radius:6px;
+  font-size:12.5px; color:var(--text-tertiary);
+}
+.tab.on{ background:var(--surface-overlay); color:var(--text-primary); }
+.tab .dirty{ width:6px;height:6px;border-radius:50%;background:var(--accent); }
+.etoolbar{
+  flex:none; display:flex;align-items:center;gap:7px; padding:5px 10px;
+  border-bottom:1px solid var(--border-subtle);
+}
+.ebtn{
+  display:flex;align-items:center;gap:6px; padding:4px 10px; border-radius:6px;
+  font-size:12px; color:var(--text-secondary); border:1px solid var(--border-subtle);
+}
+.ebtn:hover{ background:rgba(255,255,255,.06); color:var(--text-primary); }
+.ebtn.primary{ background:var(--accent); color:#06181c; border-color:transparent; font-weight:600; }
+.ebtn.ghost{ border-color:transparent; }
+.etoolbar .right{ margin-left:auto; display:flex;align-items:center;gap:9px; font-size:11px; color:var(--text-tertiary); }
+.code{
+  flex:1; min-height:0; padding:12px 0 0;
+  font-family:var(--mono); font-size:13px; line-height:1.7;
+  background:var(--surface-base);
+}
+.code .ln{ display:flex; gap:16px; padding:0 14px; }
+.code .num{ color:var(--text-disabled); user-select:none; min-width:14px; text-align:right; }
+.kw{ color:oklch(0.72 0.12 280); } .num2{ color:oklch(0.78 0.11 60); } .pn{ color:var(--text-secondary); }
+
+.results{ flex:none; height:216px; display:flex; flex-direction:column; overflow:hidden; background:var(--results-bg); }
+.rtabs{ flex:none; display:flex;align-items:center;gap:6px; padding:7px 10px; border-bottom:1px solid var(--border-subtle); }
+.rtab{ display:flex;align-items:center;gap:6px; padding:4px 10px; border-radius:6px; font-size:12px; color:var(--text-tertiary); }
+.rtab.on{ background:var(--accent-subtle); color:var(--accent); }
+.rtabs .meta{ margin-left:12px; font-size:11px; color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
+.rtabs .right{ margin-left:auto; display:flex; gap:6px; }
+.rtabs .right .ebtn{ font-size:11px; padding:3px 8px; }
+table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+th{
+  text-align:left; padding:7px 14px; font-weight:600; color:var(--text-tertiary);
+  font-size:10px; text-transform:var(--label-case); letter-spacing:var(--label-track);
+  border-bottom:1px solid var(--border-subtle); transition:.2s;
+}
+body[data-case="1"] th{ font-size:11px; color:var(--text-secondary); }
+th .t{ display:block; font-size:9px; color:var(--text-disabled); font-weight:500; margin-top:2px; font-family:var(--mono); text-transform:none; letter-spacing:0; }
+td{ padding:7px 14px; color:var(--text-primary); font-variant-numeric:tabular-nums; border-bottom:1px solid var(--border-subtle); }
+td.idx{ color:var(--text-disabled); width:44px; }
+
+.statusbar{
+  flex:none; height:24px; display:flex; align-items:center; gap:14px;
+  padding:0 12px; font-size:11px; color:var(--text-tertiary);
+  background:var(--surface-inset); border-top:1px solid var(--border-subtle);
+}
+.statusbar .right{ margin-left:auto; display:flex; gap:14px; }
+.statusbar .live{ display:flex;align-items:center;gap:5px; }
+.statusbar .live::before{ content:''; width:6px;height:6px;border-radius:50%;background:var(--ok); }
+
+/* ══ BIENVENIDA ════════════════════════════════════════ */
+.wel{ flex:1; min-height:0; display:flex; }
+/* — antes: columna centrada — */
+.wel-before{
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  padding-top:8vh; overflow:hidden; background:var(--surface-base);
+}
+.wel-before .logo-xl{ margin-bottom:-42px; }
+.wel-before h1{ font-size:34px; font-weight:700; color:var(--text-primary); margin:0; letter-spacing:1px; }
+.wel-before h1 span{ color:var(--accent); }
+.wel-before .tag{ font-size:13px; color:var(--text-tertiary); margin-top:7px; font-style:italic; }
+.wel-before .col{ width:520px; max-width:90%; margin-top:28px; display:flex; flex-direction:column; gap:14px; }
+.card{
+  background:var(--surface-raised); border:1px solid var(--border-default);
+  border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.5);
+}
+.wel-before .card.step{ padding:22px; }
+.wel-before .card.collapsed{ padding:14px 18px; display:flex;align-items:center;gap:9px; color:var(--text-tertiary); }
+.wel-before h2{ margin:0 0 13px; font-size:15px; color:var(--text-primary); font-weight:600; }
+.wel-before .dead{
+  margin-top:auto; margin-bottom:0; width:100%; text-align:center;
+  padding:10px; font-size:11px; color:var(--text-disabled);
+  border-top:1px dashed rgba(255,255,255,.09);
+}
+/* — después: partido 50/50 — */
+.wel-after{ flex:1; display:grid; grid-template-columns:1fr 1fr; min-height:0; }
+.wel-l{ display:flex; flex-direction:column; padding:44px 52px 26px; min-height:0; background:var(--surface-base); }
+.wel-brand{ display:flex; align-items:center; gap:11px; }
+.wel-brand svg{ width:30px;height:30px; }
+.wel-brand .nm{ font-size:21px; font-weight:700; color:var(--text-primary); letter-spacing:.4px; }
+.wel-brand .nm span{ color:var(--accent); }
+.wel-l .tag{ font-size:12.5px; color:var(--text-tertiary); margin:7px 0 30px 41px; }
+.fld-lbl{ font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:7px; display:block; }
+.fld{ display:flex; gap:8px; }
+.fld input{
+  flex:1; padding:9px 12px; border-radius:7px; border:1px solid var(--border-default);
+  background:var(--surface-inset); color:var(--text-primary); font-size:13px;
+  font-family:inherit; outline:none;
+}
+.fld input:focus{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-subtle); }
+.fld button{
+  padding:9px 12px; border-radius:7px; border:1px solid var(--border-default);
+  background:var(--surface-overlay); color:var(--accent); display:grid;place-items:center;
+}
+.wel-cta{
+  margin-top:11px; width:100%; padding:9px; border-radius:7px;
+  background:var(--accent); color:#06181c; font-weight:600; font-size:13px;
+}
+.rec-hd{
+  display:flex;align-items:center; gap:8px; margin:30px 0 4px;
+  font-size:11px; font-weight:600; color:var(--text-tertiary);
+  text-transform:var(--label-case); letter-spacing:var(--label-track);
+}
+body[data-case="1"] .rec-hd{ font-size:12px; color:var(--text-secondary); }
+.rec-hd .clear{ margin-left:auto; font-size:11px; color:var(--text-disabled); text-transform:none; letter-spacing:0; }
+.rec{ flex:1; min-height:0; overflow:auto; margin:0 -8px; padding:4px 0; }
+.rec-item{
+  display:flex; align-items:center; gap:11px; width:100%;
+  padding:9px 8px; border-radius:8px; text-align:left; transition:.14s;
+}
+.rec-item:hover{ background:rgba(255,255,255,.05); }
+.rec-item .ic{ color:var(--text-tertiary); }
+.rec-item:hover .ic{ color:var(--accent); }
+.rec-item .txt{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.rec-item .nm{ font-size:13px; color:var(--text-primary); }
+.rec-item .pt{ font-size:11px; color:var(--text-disabled); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rec-item .when{ margin-left:auto; font-size:11px; color:var(--text-tertiary); white-space:nowrap; }
+.wel-foot{ flex:none; display:flex; align-items:center; gap:9px; padding-top:16px; border-top:1px solid var(--border-subtle); font-size:11px; color:var(--text-tertiary); }
+.wel-r{ position:relative; background:oklch(0.115 var(--neutral-c) 270); overflow:hidden; }
+.wel-r canvas{ position:absolute; inset:0; width:100%; height:100%; }
+.wel-r .glow{
+  position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(60% 55% at 50% 45%, color-mix(in oklch, var(--accent) 9%, transparent) 0%, transparent 72%);
+}
+.wel-r .cap{
+  position:absolute; left:0; right:0; bottom:26px; text-align:center;
+  font-size:11px; color:var(--text-disabled); letter-spacing:.1em; text-transform:uppercase;
+}
+
+/* ══ DATA FLOW ═════════════════════════════════════════ */
+.flow{ flex:1; min-height:0; display:flex; flex-direction:column; }
+.ftoolbar{ flex:none; display:flex;align-items:center;gap:7px; padding:7px 11px; border-bottom:1px solid var(--border-subtle); background:var(--surface-raised); }
+.ftoolbar .right{ margin-left:auto; display:flex;gap:6px; }
+.canvas{
+  flex:1; min-height:0; position:relative; overflow:hidden;
+  background:
+    radial-gradient(circle at center, var(--border-subtle) 1px, transparent 1px) 0 0/17px 17px,
+    var(--surface-base);
+}
+.nodes{ position:absolute; inset:0; padding:34px 40px; display:flex; align-items:flex-start; gap:56px; }
+.node{
+  position:relative; width:214px; border-radius:10px; padding:9px 12px;
+  background:var(--node-fill); border:1px solid var(--node-stroke);
+  transition:background .25s,border-color .25s;
+}
+.node.sel{ box-shadow:0 0 0 2px var(--accent), 0 8px 30px rgba(0,0,0,.6); }
+.node-hd{ display:flex;align-items:center;gap:7px; margin-bottom:5px; }
+.node-badge{
+  display:inline-flex;align-items:center;gap:4px; padding:1px 6px; border-radius:4px;
+  font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  background:var(--node-accent); color:#06181c;
+}
+.node-ic{ color:var(--node-accent); display:grid;place-items:center; }
+.node-nm{ font-size:12.5px; font-weight:600; color:var(--text-primary); }
+.node-hd .right{ margin-left:auto; display:flex;align-items:center;gap:6px; }
+.node-ms{ font-size:10px; color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
+body:not([data-case="1"]) .node-ms{ font-family:var(--mono); }
+.node-run{ width:19px;height:19px;display:grid;place-items:center;border-radius:5px;color:var(--ok); }
+.node-run:hover{ background:rgba(255,255,255,.09); }
+.node-desc{ font-size:10.5px; color:var(--text-tertiary); margin-bottom:5px; }
+.node-cfg{
+  font-family:var(--mono); font-size:10px; color:var(--text-secondary);
+  padding:3px 6px; background:var(--surface-inset); border-radius:4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.node-fields{ display:flex; flex-direction:column; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid var(--border-subtle); }
+.nf-lbl{ font-size:10px; font-weight:600; color:var(--text-secondary); margin-bottom:3px; display:block; }
+.nf-in{
+  width:100%; padding:5px 8px; border-radius:5px; font-size:11px;
+  background:var(--surface-inset); border:1px solid var(--border-subtle);
+  color:var(--text-primary); font-family:var(--mono); outline:none;
+}
+.nf-in:focus{ border-color:var(--accent); }
+.nf-sel{ display:flex;align-items:center;justify-content:space-between; padding:5px 8px; border-radius:5px; font-size:11px; background:var(--surface-inset); border:1px solid var(--border-subtle); color:var(--text-primary); }
+.node-more{
+  display:flex;align-items:center;justify-content:center;gap:5px; width:100%;
+  margin-top:7px; padding-top:6px; border-top:1px solid var(--border-subtle);
+  font-size:10px; color:var(--text-tertiary);
+}
+.node-more:hover{ color:var(--accent); }
+.port{ position:absolute; width:9px;height:9px;border-radius:50%; background:var(--node-accent); border:2px solid var(--surface-base); }
+.port.l{ left:-5px; } .port.r{ right:-5px; top:50%; transform:translateY(-50%); }
+.port-lbl{ position:absolute; left:9px; font-size:9.5px; color:var(--text-tertiary); white-space:nowrap; }
+.wire{ position:absolute; inset:0; pointer-events:none; }
+.wire path{ fill:none; stroke:var(--border-strong); stroke-width:1.6; }
+.fzoom{
+  position:absolute; right:14px; bottom:14px; display:flex; align-items:center; gap:1px;
+  background:var(--surface-overlay); border:1px solid var(--border-default);
+  border-radius:8px; padding:3px; box-shadow:0 4px 14px rgba(0,0,0,.45);
+}
+.fzoom button{ width:26px;height:26px;display:grid;place-items:center;border-radius:5px;color:var(--text-tertiary); }
+.fzoom button:hover{ background:rgba(255,255,255,.08); color:var(--text-primary); }
+.fzoom .pct{ padding:0 8px; font-size:11px; color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+.ftoast{
+  position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px; padding:7px 14px; border-radius:8px;
+  font-size:12px; color:oklch(0.82 0.16 155);
+  background:color-mix(in oklch, var(--ok) 13%, var(--surface-overlay));
+  border:1px solid color-mix(in oklch, var(--ok) 32%, transparent);
+}
+
+/* ══ NOTA AL PIE ═══════════════════════════════════════ */
+.hint{
+  flex:none; padding:7px 16px; font-size:11px; color:rgba(255,255,255,.3);
+  background:#101115; border-top:1px solid rgba(255,255,255,.07);
+  display:flex; align-items:center; gap:8px;
+}
+.hint b{ color:var(--accent); font-weight:600; }
+.hint .k{
+  font-family:var(--mono); font-size:10px; padding:1px 5px; border-radius:3px;
+  background:rgba(255,255,255,.07); color:rgba(255,255,255,.55);
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body data-mode="before" data-center="omnibox" data-corner="tl" data-grad="0" data-elev="0" data-cards="0" data-case="0" data-borders="0" data-tint="0" data-flat="0">
+
+<!-- ═══ PANEL DE CONTROL ═══════════════════════════════ -->
+<div class="ctl">
+  <div class="ctl-brand">
+    <svg viewBox="0 0 400 400"><g transform="translate(50,0) scale(0.8)"><g stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M135 285Q125 290 115 275L185 75Q200 45 215 75L285 275Q275 290 265 285"/><path d="M130 210Q200 330 270 210"/></g></g></svg>
+    Mockup del rediseño
+  </div>
+
+  <div class="ctl-group">
+    <span class="ctl-lbl">Pantalla</span>
+    <div class="seg" id="screens">
+      <button data-screen="shell" class="on">Shell IDE</button>
+      <button data-screen="welcome">Bienvenida</button>
+      <button data-screen="flow">Data Flow</button>
+    </div>
+  </div>
+
+  <div class="ctl-group">
+    <span class="ctl-lbl">Vista</span>
+    <div class="seg mode" id="modes">
+      <button data-mode="before" class="on">Antes</button>
+      <button data-mode="after">Después</button>
+    </div>
+  </div>
+
+  <div class="ctl-group">
+    <span class="ctl-lbl">Cambios</span>
+    <div class="chips" id="flags">
+      <button class="chip" data-flag="grad"   title="P2.1 — gradiente tintado con el acento en la barra de ventana"><i class="dot"></i>Gradiente</button>
+      <button class="chip" data-flag="elev"   title="P3.1 — usar la escala de superficies en el shell"><i class="dot"></i>Elevación</button>
+      <button class="chip" data-flag="cards"  title="P3.2 — paneles como tarjetas con canal de fondo"><i class="dot"></i>Tarjetas</button>
+      <button class="chip" data-flag="borders"title="P3.3 — --border-subtle de .06 a .085"><i class="dot"></i>Bordes</button>
+      <button class="chip" data-flag="case"   title="P3.4 — encabezados en caja normal, sin mayúsculas ni tracking"><i class="dot"></i>Caja normal</button>
+      <button class="chip" data-flag="tint"   title="P4.2 — croma de los neutros de .006 a .013"><i class="dot"></i>Neutros</button>
+      <button class="chip" data-flag="flat"   title="P6.2 — nodos planos, el color solo en icono y puerto"><i class="dot"></i>Nodos planos</button>
+    </div>
+  </div>
+
+  <div class="ctl-group">
+    <span class="ctl-lbl">Centro barra</span>
+    <div class="seg" id="centers">
+      <button data-center="vacio">Vacío</button>
+      <button data-center="omnibox" class="on">Omnibox</button>
+      <button data-center="contexto">Contexto</button>
+    </div>
+  </div>
+
+  <div class="ctl-group">
+    <span class="ctl-lbl">Resplandor</span>
+    <div class="seg" id="corners">
+      <button data-corner="tl" class="on" title="Superior izquierda">◤</button>
+      <button data-corner="tc" title="Superior centro">▲</button>
+      <button data-corner="tr" title="Superior derecha">◥</button>
+      <button data-corner="bl" title="Inferior izquierda">◣</button>
+      <button data-corner="br" title="Inferior derecha">◢</button>
+    </div>
+    <label class="sl"><input type="range" id="glowS" min="0" max="50" step="1" value="30"><b id="glowSv">30 %</b></label>
+  </div>
+
+  <div class="ctl-group">
+    <span class="ctl-lbl">Acento</span>
+    <div class="swatch"></div>
+    <label class="sl">L<input type="range" id="accL" min="0.60" max="0.95" step="0.005" value="0.730"><b id="accLv">.730</b></label>
+    <label class="sl">H<input type="range" id="accH" min="0" max="360" step="1" value="195"><b id="accHv">195</b></label>
+  </div>
+</div>
+
+<!-- ═══ ESCENARIO ══════════════════════════════════════ -->
+<div class="stage">
+
+  <!-- ── SHELL IDE ─────────────────────────────────── -->
+  <section class="screen on" id="s-shell">
+    <div class="frame">
+
+      <div class="titlebar">
+        <!-- ANTES -->
+        <div class="tb-left only-before"><span class="tb-wordmark">AmoxSQL</span></div>
+        <div class="tb-center only-before">
+          <div class="wsw">
+            <svg class="i sm" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg>
+            <span style="color:var(--text-primary)">Curso_SQL</span>
+            <span style="color:var(--text-disabled)">·</span>
+            <span class="badge-rw">RW</span>
+            <span style="color:var(--text-tertiary)">curso_sql.duckdb</span>
+            <svg class="i xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+
+        <!-- DESPUÉS -->
+        <div class="tb-left only-after">
+          <button class="tb-logo" title="Menú de aplicación">
+            <svg viewBox="0 0 400 400"><g transform="translate(50,0) scale(0.8)"><g stroke="var(--accent)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M135 285Q125 290 115 275L185 75Q200 45 215 75L285 275Q275 290 265 285"/><path d="M130 210Q200 330 270 210"/></g></g></svg>
+          </button>
+          <button class="crumb">
+            <span style="color:var(--text-primary);font-weight:550">Curso_SQL</span>
+            <span class="sep">›</span>
+            <span class="db">curso_sql.duckdb</span>
+            <span class="badge-rw">RW</span>
+            <svg class="i xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        </div>
+        <div class="tb-center only-after">
+          <div class="ctr-vacio"></div>
+          <button class="ctr-omnibox omnibox">
+            <svg class="i sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            Comandos, archivos, tablas…
+            <span class="kbd">Ctrl K</span>
+          </button>
+          <div class="ctr-contexto">
+            <div class="ctx-chip"><span class="led"></span>curso_sql.duckdb<span class="ms">· 4 tablas</span></div>
+            <button class="tb-btn ai"><svg class="i sm" viewBox="0 0 24 24"><path d="m12 3 2.2 6.3L20.5 11l-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-1.7L12 3Z"/></svg>Assist</button>
+          </div>
+        </div>
+
+        <div class="wctl">
+          <button><svg width="11" height="11" viewBox="0 0 12 12"><rect fill="currentColor" width="10" height="1" x="1" y="6"/></svg></button>
+          <button><svg width="11" height="11" viewBox="0 0 12 12"><path fill="currentColor" d="M2,2 L10,2 L10,10 L2,10 L2,2 Z M3,3 L9,3 L9,9 L3,9 L3,3 Z"/></svg></button>
+          <button class="x"><svg width="11" height="11" viewBox="0 0 12 12"><path stroke="currentColor" stroke-width="1.2" d="M1,1 L11,11 M1,11 L11,1"/></svg></button>
+        </div>
+      </div>
+
+      <div class="shell">
+        <nav class="rail">
+          <button class="on"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg></button>
+          <button><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+          <button><svg class="i" viewBox="0 0 24 24"><path d="M20 7 9 18l-5-5"/><circle cx="18" cy="6" r="3"/></svg></button>
+          <button><svg class="i" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></button>
+          <button><svg class="i" viewBox="0 0 24 24"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>
+          <button><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></button>
+          <button><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
+          <div class="div"></div>
+          <button><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v6M20 8v5a4 4 0 0 1-4 4h-4"/></svg></button>
+          <button><svg class="i" viewBox="0 0 24 24"><path d="m12 3 2.2 6.3L20.5 11l-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-1.7L12 3Z"/></svg></button>
+          <div class="spacer"></div>
+          <button><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-2.8-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.5 15H3a2 2 0 1 1 0-4h.2A1.6 1.6 0 0 0 4.3 8.2l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1Z"/></svg></button>
+        </nav>
+
+        <aside class="side pane">
+          <div class="side-hd">
+            <h3>Files</h3>
+            <div class="acts">
+              <button><svg class="i sm" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg></button>
+              <button><svg class="i sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+              <button><svg class="i sm" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg></button>
+            </div>
+          </div>
+          <div class="search"><svg class="i sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search files…</div>
+          <div class="side-body">
+            <div class="grp">Folders<span class="n">9</span></div>
+            <div class="row"><svg class="i sm ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg>Data</div>
+            <div class="row"><svg class="i sm ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg>Diagramas</div>
+            <div class="row"><svg class="i sm ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg>exports</div>
+            <div class="row"><svg class="i sm ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg>Queries</div>
+            <div class="grp">Amoxvis<span class="n">1</span></div>
+            <div class="row file"><svg class="i sm ic" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>my_chart.amoxvis<span class="sz">2.8 KB</span></div>
+            <div class="grp">SQL<span class="n">2</span></div>
+            <div class="row file"><svg class="i sm ic" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg>dataset.csv.sql<span class="sz">298 B</span></div>
+            <div class="row file"><svg class="i sm ic" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg>Untitled.sql<span class="sz">188 B</span></div>
+            <div class="grp">Sqlchain<span class="n">1</span></div>
+            <div class="row file"><svg class="i sm ic" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v6M20 8v5a4 4 0 0 1-4 4h-4"/></svg>test.sqlchain<span class="sz">115 B</span></div>
+          </div>
+        </aside>
+
+        <div class="main">
+          <div class="editor pane">
+            <div class="tabs">
+              <div class="tab on">Untitled.sql <span class="dirty"></span></div>
+              <div class="tab">ventas.sqlnb</div>
+            </div>
+            <div class="etoolbar">
+              <button class="ebtn primary"><svg class="i sm" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3Z" fill="currentColor" stroke="none"/></svg>Run</button>
+              <button class="ebtn"><svg class="i sm" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save</button>
+              <button class="ebtn"><svg class="i sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>Export</button>
+              <button class="ebtn ghost"><svg class="i sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
+              <button class="ebtn"><svg class="i sm" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg>Variables</button>
+              <div class="right"><span>Edited · Ran 3m ago</span></div>
+            </div>
+            <div class="code">
+              <div class="ln"><span class="num">1</span><span><span class="kw">SELECT</span> <span class="num2">1</span><span class="pn">;</span></span></div>
+            </div>
+          </div>
+
+          <div class="results pane">
+            <div class="rtabs">
+              <div class="rtab on"><svg class="i sm" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg>Table</div>
+              <div class="rtab"><svg class="i sm" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Chart</div>
+              <div class="rtab"><svg class="i sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 9 9h-9V3Z"/></svg>Profile</div>
+              <div class="rtab"><svg class="i sm" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z"/></svg>Filters</div>
+              <span class="meta">1 result · 1 column (7.67 ms)</span>
+              <div class="right">
+                <button class="ebtn"><svg class="i xs" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>Pop-out</button>
+                <button class="ebtn"><svg class="i xs" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>Download</button>
+              </div>
+            </div>
+            <table>
+              <thead><tr><th style="width:44px">#</th><th>1<span class="t">INTEGER</span></th></tr></thead>
+              <tbody><tr><td class="idx">1</td><td>1</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="statusbar">
+        <span class="live">DuckDB · in-process</span>
+        <span>curso_sql.duckdb</span>
+        <div class="right"><span>UTF-8</span><span>SQL</span><span>Ln 1, Col 10</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── BIENVENIDA ────────────────────────────────── -->
+  <section class="screen" id="s-welcome">
+    <div class="frame">
+      <div class="titlebar">
+        <div class="tb-left"><span class="tb-wordmark">AmoxSQL</span></div>
+        <div class="tb-center"></div>
+        <div class="wctl">
+          <button><svg width="11" height="11" viewBox="0 0 12 12"><rect fill="currentColor" width="10" height="1" x="1" y="6"/></svg></button>
+          <button><svg width="11" height="11" viewBox="0 0 12 12"><path fill="currentColor" d="M2,2 L10,2 L10,10 L2,10 L2,2 Z M3,3 L9,3 L9,9 L3,9 L3,3 Z"/></svg></button>
+          <button class="x"><svg width="11" height="11" viewBox="0 0 12 12"><path stroke="currentColor" stroke-width="1.2" d="M1,1 L11,11 M1,11 L11,1"/></svg></button>
+        </div>
+      </div>
+
+      <div class="wel">
+        <!-- ANTES -->
+        <div class="wel-before only-before">
+          <div class="logo-xl">
+            <svg width="190" height="190" viewBox="0 0 400 400">
+              <defs>
+                <linearGradient id="g1" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#00ECFF"/><stop offset="100%" stop-color="#0068FF"/>
+                </linearGradient>
+                <filter id="gl1" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <g transform="translate(50,0) scale(0.8)"><g stroke="url(#g1)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#gl1)">
+                <path d="M135 285Q125 290 115 275L185 75Q200 45 215 75L285 275Q275 290 265 285"/><path d="M130 210Q200 330 270 210"/>
+              </g></g>
+            </svg>
+          </div>
+          <h1>Amox<span>SQL</span></h1>
+          <p class="tag">The Modern Codex for Local Data Analysis</p>
+          <div class="col">
+            <div class="card step">
+              <h2>Step 1: Open Workspace</h2>
+              <label class="fld-lbl">Project Path</label>
+              <div class="fld">
+                <input value="C:/Users/flavi/Documents/Curso_SQL" readonly>
+                <button><svg class="i" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg></button>
+              </div>
+              <button class="wel-cta">Open Workspace</button>
+              <div class="rec-hd">Recent<span class="clear">Clear</span></div>
+              <div style="max-height:96px;overflow:hidden">
+                <button class="rec-item"><svg class="i sm ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="txt"><span class="nm">Curso_SQL</span></span><span class="when">hace 2 h</span></button>
+                <button class="rec-item"><svg class="i sm ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="txt"><span class="nm">Ventas_2026</span></span><span class="when">ayer</span></button>
+              </div>
+            </div>
+            <div class="card collapsed"><svg class="i sm" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/></svg>Step 2: Connect Database</div>
+          </div>
+          <div class="dead">↑ ~340 px de decoración antes del primer campo · ~1360 px de ancho sin usar · los recientes comparten <code>maxHeight: 60vh</code> con el formulario</div>
+        </div>
+
+        <!-- DESPUÉS -->
+        <div class="wel-after only-after">
+          <div class="wel-l">
+            <div class="wel-brand">
+              <svg viewBox="0 0 400 400"><g transform="translate(50,0) scale(0.8)"><g stroke="var(--accent)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M135 285Q125 290 115 275L185 75Q200 45 215 75L285 275Q275 290 265 285"/><path d="M130 210Q200 330 270 210"/></g></g></svg>
+              <span class="nm">Amox<span>SQL</span></span>
+            </div>
+            <p class="tag">The Modern Codex for Local Data Analysis</p>
+
+            <label class="fld-lbl">Open a workspace</label>
+            <div class="fld">
+              <input value="C:/Users/flavi/Documents/Curso_SQL" readonly>
+              <button><svg class="i" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg></button>
+            </div>
+            <button class="wel-cta">Open Workspace</button>
+
+            <div class="rec-hd">Recent<span class="clear">Clear</span></div>
+            <div class="rec">
+              <button class="rec-item"><svg class="i ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg><span class="txt"><span class="nm">Curso_SQL</span><span class="pt">C:/Users/flavi/Documents/Curso_SQL</span></span><span class="when">hace 2 h</span></button>
+              <button class="rec-item"><svg class="i ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg><span class="txt"><span class="nm">Ventas_2026</span><span class="pt">D:/Analitica/Ventas_2026</span></span><span class="when">ayer</span></button>
+              <button class="rec-item"><svg class="i ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg><span class="txt"><span class="nm">Bench_duck</span><span class="pt">D:/Lab/Bench_duck</span></span><span class="when">hace 3 días</span></button>
+              <button class="rec-item"><svg class="i ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg><span class="txt"><span class="nm">Padron_2025</span><span class="pt">D:/INEGI/Padron_2025</span></span><span class="when">la semana pasada</span></button>
+              <button class="rec-item"><svg class="i ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg><span class="txt"><span class="nm">Cohortes_app</span><span class="pt">D:/Producto/Cohortes_app</span></span><span class="when">hace 2 semanas</span></button>
+              <button class="rec-item"><svg class="i ic" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg><span class="txt"><span class="nm">Lakehouse_demo</span><span class="pt">D:/Lab/Lakehouse_demo</span></span><span class="when">hace 1 mes</span></button>
+            </div>
+
+            <div class="wel-foot">
+              <svg class="i sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-2.8-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.5 15H3a2 2 0 1 1 0-4h.2A1.6 1.6 0 0 0 4.3 8.2l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1Z"/></svg>
+              Settings <span style="margin-left:auto">v4.2.0</span>
+            </div>
+          </div>
+          <div class="wel-r">
+            <canvas id="morph"></canvas>
+            <div class="glow"></div>
+            <div class="cap">tabla · gráfico · flujo · notebook</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DATA FLOW ─────────────────────────────────── -->
+  <section class="screen" id="s-flow">
+    <div class="frame">
+      <div class="titlebar">
+        <div class="tb-left only-before"><span class="tb-wordmark">AmoxSQL</span></div>
+        <div class="tb-center only-before"><div class="wsw"><svg class="i sm" viewBox="0 0 24 24"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-7.5L10 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"/></svg><span style="color:var(--text-primary)">Curso_SQL</span></div></div>
+        <div class="tb-left only-after">
+          <button class="tb-logo"><svg viewBox="0 0 400 400"><g transform="translate(50,0) scale(0.8)"><g stroke="var(--accent)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M135 285Q125 290 115 275L185 75Q200 45 215 75L285 275Q275 290 265 285"/><path d="M130 210Q200 330 270 210"/></g></g></svg></button>
+          <button class="crumb"><span style="color:var(--text-primary);font-weight:550">Curso_SQL</span><span class="sep">›</span><span class="db">ventas.sqlchain</span></button>
+        </div>
+        <div class="tb-center only-after">
+          <div class="ctr-vacio"></div>
+          <button class="ctr-omnibox omnibox">
+            <svg class="i sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            Comandos, archivos, tablas…
+            <span class="kbd">Ctrl K</span>
+          </button>
+          <div class="ctr-contexto">
+            <div class="ctx-chip busy"><span class="led"></span>Ejecutando flujo<span class="ms">· nodo 2 de 3</span><button class="stop"><svg class="i xs" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg></button></div>
+            <button class="tb-btn ai"><svg class="i sm" viewBox="0 0 24 24"><path d="m12 3 2.2 6.3L20.5 11l-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-1.7L12 3Z"/></svg>Assist</button>
+          </div>
+        </div>
+        <div class="wctl">
+          <button><svg width="11" height="11" viewBox="0 0 12 12"><rect fill="currentColor" width="10" height="1" x="1" y="6"/></svg></button>
+          <button><svg width="11" height="11" viewBox="0 0 12 12"><path fill="currentColor" d="M2,2 L10,2 L10,10 L2,10 L2,2 Z M3,3 L9,3 L9,9 L3,9 L3,3 Z"/></svg></button>
+          <button class="x"><svg width="11" height="11" viewBox="0 0 12 12"><path stroke="currentColor" stroke-width="1.2" d="M1,1 L11,11 M1,11 L11,1"/></svg></button>
+        </div>
+      </div>
+
+      <div class="flow">
+        <div class="ftoolbar">
+          <button class="ebtn primary"><svg class="i sm" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3Z" fill="currentColor" stroke="none"/></svg>Run All</button>
+          <button class="ebtn"><svg class="i sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add node</button>
+          <button class="ebtn"><svg class="i sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Arrange</button>
+          <div class="right">
+            <button class="ebtn"><svg class="i sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</button>
+          </div>
+        </div>
+
+        <div class="canvas">
+          <svg class="wire" id="wires"></svg>
+          <div class="nodes">
+
+            <!-- nodo 1 -->
+            <div class="node" style="--node-accent:oklch(0.72 0.14 250)">
+              <div class="node-hd">
+                <span class="only-before node-badge">source</span>
+                <span class="only-after node-ic"><svg class="i sm" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+                <span class="node-nm">ventas_raw</span>
+                <span class="right">
+                  <span class="only-after node-ms">12 ms</span>
+                  <button class="only-after node-run"><svg class="i xs" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3Z" fill="currentColor" stroke="none"/></svg></button>
+                  <span class="only-before" style="color:var(--ok)"><svg class="i xs" viewBox="0 0 24 24"><path d="M20 7 9 18l-5-5"/></svg></span>
+                </span>
+              </div>
+              <div class="node-desc">Lee el CSV de origen</div>
+              <div class="only-before node-cfg">path=data/ventas.csv, header=true, delim…</div>
+              <div class="only-after node-fields">
+                <div><label class="nf-lbl">File</label><div class="nf-in">data/ventas.csv</div></div>
+              </div>
+              <div class="port r"></div>
+            </div>
+
+            <!-- nodo 2 — expandido en "después" -->
+            <div class="node sel" style="--node-accent:oklch(0.78 0.15 155)">
+              <div class="node-hd">
+                <span class="only-before node-badge">transform</span>
+                <span class="only-after node-ic"><svg class="i sm" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z"/></svg></span>
+                <span class="node-nm">filtrar_2026</span>
+                <span class="right">
+                  <span class="only-after node-ms">48 ms</span>
+                  <button class="only-after node-run"><svg class="i xs" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3Z" fill="currentColor" stroke="none"/></svg></button>
+                  <span class="only-before" style="color:var(--ok)"><svg class="i xs" viewBox="0 0 24 24"><path d="M20 7 9 18l-5-5"/></svg></span>
+                </span>
+              </div>
+              <div class="node-desc">Filtra por año y región</div>
+              <div class="only-before node-cfg">where=anio = 2026 AND region IN ('N…</div>
+              <div class="only-after node-fields">
+                <div><label class="nf-lbl">Input</label><div class="nf-sel">ventas_raw<svg class="i xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div></div>
+                <div><label class="nf-lbl">Where</label><div class="nf-in">anio = 2026 AND region IN ('N','S')</div></div>
+                <div><label class="nf-lbl">Limit</label><div class="nf-in">—</div></div>
+              </div>
+              <button class="only-after node-more"><svg class="i xs" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>Contraer</button>
+              <div class="port l" style="top:50%;transform:translateY(-50%)"></div>
+              <div class="port r"></div>
+            </div>
+
+            <!-- nodo 3 -->
+            <div class="node" style="--node-accent:oklch(0.80 0.14 85)">
+              <div class="node-hd">
+                <span class="only-before node-badge">output</span>
+                <span class="only-after node-ic"><svg class="i sm" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
+                <span class="node-nm">grafico_mes</span>
+                <span class="right">
+                  <span class="only-after node-ms">6 ms</span>
+                  <button class="only-after node-run"><svg class="i xs" viewBox="0 0 24 24"><path d="m6 3 14 9-14 9V3Z" fill="currentColor" stroke="none"/></svg></button>
+                  <span class="only-before" style="color:var(--ok)"><svg class="i xs" viewBox="0 0 24 24"><path d="M20 7 9 18l-5-5"/></svg></span>
+                </span>
+              </div>
+              <div class="node-desc">Barras por mes</div>
+              <div class="only-before node-cfg">x=mes, y=total, type=bar, palette=de…</div>
+              <div class="only-after node-fields">
+                <div><label class="nf-lbl">Chart</label><div class="nf-sel">Barras<svg class="i xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div></div>
+              </div>
+              <button class="only-after node-more"><svg class="i xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>2 campos más</button>
+              <div class="port l" style="top:50%;transform:translateY(-50%)"></div>
+            </div>
+          </div>
+
+          <div class="only-after ftoast"><svg class="i sm" viewBox="0 0 24 24"><path d="M20 7 9 18l-5-5"/></svg>Flujo ejecutado · 66 ms</div>
+          <div class="only-after fzoom">
+            <button><svg class="i sm" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+            <span class="pct">100 %</span>
+            <button><svg class="i sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button><svg class="i sm" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="hint">
+  <span><b>Antes / Después</b> conmuta todos los cambios a la vez.</span>
+  <span class="k">·</span>
+  <span>Los chips activan cada propuesta <b>por separado</b> — enciéndelos de uno en uno para juzgar cuál aporta.</span>
+  <span class="k">·</span>
+  <span><b>L</b> pasa a ser un ajuste del usuario: default <span class="k">.730</span>, rango <span class="k">.600</span>–<span class="k">.950</span>.</span>
+  <span class="k">·</span>
+  <span>El gradiente ahora nace <b>detrás del panel lateral</b> y sube — la barra solo lo deja pasar.</span>
+</div>
+
+<script>
+(() => {
+  const body = document.body;
+  const FLAGS = ['grad','elev','cards','case','borders','tint','flat'];
+
+  const syncChips = () => document.querySelectorAll('#flags .chip')
+    .forEach(c => c.classList.toggle('on', body.dataset[c.dataset.flag] === '1'));
+
+  // Antes / Después → conmuta todos los interruptores a la vez
+  document.querySelectorAll('#modes button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#modes button').forEach(x => x.classList.toggle('on', x === b));
+    const after = b.dataset.mode === 'after';
+    body.dataset.mode = b.dataset.mode;
+    FLAGS.forEach(f => body.dataset[f] = after ? '1' : '0');
+    syncChips();
+    drawWires();
+  });
+
+  // chips individuales
+  document.querySelectorAll('#flags .chip').forEach(c => c.onclick = () => {
+    body.dataset[c.dataset.flag] = body.dataset[c.dataset.flag] === '1' ? '0' : '1';
+    syncChips();
+    drawWires();
+  });
+
+  /* ── cables del flujo: se calculan desde la posición real de los puertos,
+        para que sigan a los nodos cuando cambian de alto (expandir/contraer). ── */
+  const wires = document.getElementById('wires');
+  const drawWires = () => {
+    // ojo: los elementos SVG no tienen offsetParent — hay que medir el rect.
+    if (!wires) return;
+    const box = wires.getBoundingClientRect();
+    if (!box.width) return;
+    const nodes = [...document.querySelectorAll('#s-flow .node')];
+    const d = [];
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const a = nodes[i].querySelector('.port.r'), b = nodes[i + 1].querySelector('.port.l');
+      if (!a || !b) continue;
+      const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      const x1 = ra.left + ra.width / 2 - box.left, y1 = ra.top + ra.height / 2 - box.top;
+      const x2 = rb.left + rb.width / 2 - box.left, y2 = rb.top + rb.height / 2 - box.top;
+      const c = Math.max(26, (x2 - x1) * 0.5);
+      d.push(`<path d="M ${x1} ${y1} C ${x1 + c} ${y1}, ${x2 - c} ${y2}, ${x2} ${y2}"/>`);
+    }
+    wires.innerHTML = d.join('');
+  };
+  new ResizeObserver(drawWires).observe(document.getElementById('s-flow'));
+
+  // esquina del resplandor
+  document.querySelectorAll('#corners button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#corners button').forEach(x => x.classList.toggle('on', x === b));
+    body.dataset.corner = b.dataset.corner;
+  });
+
+  // fuerza del resplandor — ojo: color-mix necesita el '%' en el token
+  const GS = document.getElementById('glowS'), GSv = document.getElementById('glowSv');
+  GS.oninput = () => {
+    document.documentElement.style.setProperty('--glow-strength', GS.value + '%');
+    GSv.textContent = GS.value + ' %';
+  };
+
+  // candidato para el centro de la barra
+  document.querySelectorAll('#centers button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#centers button').forEach(x => x.classList.toggle('on', x === b));
+    body.dataset.center = b.dataset.center;
+  });
+
+  // pantallas
+  document.querySelectorAll('#screens button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#screens button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 's-' + b.dataset.screen));
+    resize();
+    drawWires();
+  });
+
+  // sliders de acento
+  const L = document.getElementById('accL'), H = document.getElementById('accH');
+  const Lv = document.getElementById('accLv'), Hv = document.getElementById('accHv');
+  const applyAccent = () => {
+    document.documentElement.style.setProperty('--acc-l', L.value);
+    document.documentElement.style.setProperty('--acc-h', H.value);
+    Lv.textContent = (+L.value).toFixed(3).replace(/^0/, '');
+    Hv.textContent = H.value;
+    accentCache = null;
+  };
+  L.oninput = H.oninput = applyAccent;
+
+  /* ══ Animación de partículas — un solo sistema que se transforma ══
+     El logo se muestrea del path SVG real (el mismo de Logo.jsx). */
+  const N = 430;
+  const cv = document.getElementById('morph');
+  const ctx = cv.getContext('2d');
+  let W = 0, Ht = 0, dpr = 1, accentCache = null;
+
+  const getAccent = () => (accentCache ??= getComputedStyle(document.documentElement)
+    .getPropertyValue('--accent').trim() || '#00ECFF');
+
+  // — muestreo del logo real —
+  const sampleLogo = () => {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 400 400');
+    svg.style.cssText = 'position:absolute;width:0;height:0;opacity:0';
+    const ds = ['M135 285Q125 290 115 275L185 75Q200 45 215 75L285 275Q275 290 265 285',
+                'M130 210Q200 330 270 210'];
+    const paths = ds.map(d => { const p = document.createElementNS(ns, 'path'); p.setAttribute('d', d); svg.appendChild(p); return p; });
+    document.body.appendChild(svg);
+    const lens = paths.map(p => p.getTotalLength());
+    const total = lens.reduce((a, b) => a + b, 0);
+    const pts = [];
+    paths.forEach((p, i) => {
+      const n = Math.round(N * lens[i] / total);
+      for (let k = 0; k < n; k++) {
+        const pt = p.getPointAtLength(lens[i] * k / n);
+        // el <g> del logo aplica translate(50,0) scale(0.8)
+        pts.push([(pt.x * 0.8 + 50) / 400, (pt.y * 0.8) / 400]);
+      }
+    });
+    svg.remove();
+    return pts;
+  };
+
+  const pad = (v, lo, hi) => lo + v * (hi - lo);
+
+  // — formas procedurales, todas normalizadas 0..1 —
+  const shapeTable = () => { const p = [], cols = 7, rows = 9;
+    for (let i = 0; i < N; i++) { const c = i % cols, r = (i / cols | 0) % rows;
+      p.push([pad(c / (cols - 1), .2, .8) + (r === 0 ? 0 : 0), pad(r / (rows - 1), .18, .82)]); } return p; };
+
+  const shapeBars = () => { const p = [], nb = 6, hs = [.45, .72, .38, .95, .6, .82];
+    for (let i = 0; i < N; i++) { const b = i % nb, t = (i / nb | 0) / (N / nb);
+      const x = pad(b / (nb - 1), .2, .8), h = hs[b];
+      p.push([x + (Math.random() - .5) * .045, pad(1 - t * h, .78, .78 - .6 * h) ]); } return p; };
+
+  const shapeGraph = () => { const p = [], hubs = [[.26,.3],[.26,.7],[.5,.5],[.75,.28],[.75,.72]];
+    const edges = [[0,2],[1,2],[2,3],[2,4]];
+    for (let i = 0; i < N; i++) {
+      if (i % 3 === 0) { const e = edges[(i / 3 | 0) % edges.length], t = ((i / 3 | 0) / (N / 3 / edges.length) % 1);
+        p.push([hubs[e[0]][0] + (hubs[e[1]][0] - hubs[e[0]][0]) * t, hubs[e[0]][1] + (hubs[e[1]][1] - hubs[e[0]][1]) * t]);
+      } else { const h = hubs[i % hubs.length], a = i * 2.4, r = .052 + (i % 7) * .004;
+        p.push([h[0] + Math.cos(a) * r, h[1] + Math.sin(a) * r * 1.15]); } } return p; };
+
+  const shapeNotebook = () => { const p = [], cells = [[.22,.5],[.22,.34],[.22,.22]];
+    for (let i = 0; i < N; i++) { const c = i % 3, box = cells[c], t = (i / 3 | 0) / (N / 3);
+      const w = .56, h = .17, y0 = .16 + c * .24;
+      const per = t * 2 * (w + h);
+      let x, y;
+      if (per < w) { x = box[0] + per; y = y0; }
+      else if (per < w + h) { x = box[0] + w; y = y0 + (per - w); }
+      else if (per < 2 * w + h) { x = box[0] + w - (per - w - h); y = y0 + h; }
+      else { x = box[0]; y = y0 + h - (per - 2 * w - h); }
+      p.push([x, y]); } return p; };
+
+  const norm = (pts) => { const o = []; for (let i = 0; i < N; i++) o.push(pts[i % pts.length]); return o; };
+  const SHAPES = [norm(sampleLogo()), norm(shapeTable()), norm(shapeBars()), norm(shapeGraph()), norm(shapeNotebook())];
+
+  const P = Array.from({ length: N }, (_, i) => ({
+    x: SHAPES[0][i][0], y: SHAPES[0][i][1],
+    fx: SHAPES[0][i][0], fy: SHAPES[0][i][1],
+    tx: SHAPES[0][i][0], ty: SHAPES[0][i][1],
+    d: Math.random() * .35, s: .8 + Math.random() * 1.3
+  }));
+
+  let si = 0, t0 = performance.now(), holding = true;
+  const HOLD = 2600, MORPH = 1500;
+  const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  const resize = () => {
+    if (!cv.offsetParent) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cv.clientWidth; Ht = cv.clientHeight;
+    cv.width = W * dpr; cv.height = Ht * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  new ResizeObserver(resize).observe(cv);
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const frame = (now) => {
+    requestAnimationFrame(frame);
+    if (!cv.offsetParent || !W) return;
+
+    const el = now - t0;
+    if (!reduce) {
+      if (holding && el > HOLD) {
+        holding = false; t0 = now; si = (si + 1) % SHAPES.length;
+        P.forEach((p, i) => { p.fx = p.x; p.fy = p.y; p.tx = SHAPES[si][i][0]; p.ty = SHAPES[si][i][1]; });
+      } else if (!holding && el > MORPH) { holding = true; t0 = now; }
+    }
+
+    ctx.clearRect(0, 0, W, Ht);
+    // el lienzo es cuadrado y centrado, con un poco de margen
+    const S = Math.min(W, Ht) * .68, ox = (W - S) / 2, oy = (Ht - S) / 2;
+    const acc = getAccent();
+    const prog = holding ? 1 : Math.min(1, el / MORPH);
+
+    for (let i = 0; i < N; i++) {
+      const p = P[i];
+      if (!holding) {
+        const k = Math.min(1, Math.max(0, (prog - p.d * .5) / (1 - p.d * .5)));
+        const e = ease(k);
+        p.x = p.fx + (p.tx - p.fx) * e;
+        p.y = p.fy + (p.ty - p.fy) * e;
+      }
+      const drift = holding ? Math.sin(now / 1400 + i) * .0012 : 0;
+      ctx.globalAlpha = .3 + (i % 5) * .13;
+      ctx.fillStyle = acc;
+      ctx.beginPath();
+      ctx.arc(ox + (p.x + drift) * S, oy + (p.y + drift) * S, p.s, 0, 6.2832);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  applyAccent();
+  requestAnimationFrame(frame);
+  setTimeout(resize, 60);
+})();
+</script>
+</body>
+</html>
