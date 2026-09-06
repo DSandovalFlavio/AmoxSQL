@@ -235,7 +235,7 @@
   --radius-full: 9999px;
 
   /* ── Window Title Bar (Electron) ── */
-  --titlebar-height: 32px;
+  --titlebar-height: 36px;   /* 32px quedaba apretado para el omnibox */
 
   /* ═══════════════════════════════════════════════
      LEGACY ALIASES — backward compat with inline styles
@@ -412,8 +412,9 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
 }
 
 .window-title-bar .wtb-left {
-  padding-left: 12px;
-  min-width: 80px;
+  padding-left: 8px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .window-title-bar .wtb-center {
@@ -421,62 +422,131 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   overflow: visible;
 }
 
-.window-title-bar .app-title {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  opacity: 0.7;
-}
 
-/* ── Workspace Widget (center of title bar) ── */
-.wtb-workspace-area {
-  -webkit-app-region: no-drag;
+/* ── Slot izquierdo: menú de aplicación + breadcrumb ── */
+.wtb-menu-anchor {
+  -webkit-app-region: no-drag;   /* dentro de .drag-region: recuperar el clic */
   position: relative;
   display: flex;
   align-items: center;
-  gap: 2px;
+  min-width: 0;
 }
 
-.wtb-workspace-widget {
+.wtb-appmenu {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.wtb-appmenu:hover,
+.wtb-appmenu--open { background: var(--hover-bg); }
+
+.wtb-crumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
+  height: 24px;
+  padding: 0 8px;
   border: none;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  cursor: pointer;
-  border-radius: var(--radius-md);
   font-family: var(--font-sans);
   font-size: var(--text-xs);
-  transition: background var(--transition-fast), color var(--transition-fast);
-  height: 22px;
+  cursor: pointer;
   white-space: nowrap;
+  min-width: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.wtb-workspace-widget:hover {
-  background: var(--hover-bg);
+.wtb-crumb:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.wtb-crumb-project {
   color: var(--text-primary);
-}
-
-.wtb-workspace-icon {
-  color: var(--accent-primary);
-  flex-shrink: 0;
-}
-
-.wtb-workspace-name {
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-  max-width: 160px;
+  font-weight: var(--weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.wtb-dot-separator {
+.wtb-crumb-sep { color: var(--text-disabled); }
+
+.wtb-crumb-db {
   color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* ── Slot central: omnibox ──
+   Abre la paleta de comandos, que hasta ahora solo existía como Ctrl+Shift+P.
+   El texto dice "commands" y nada más: la búsqueda de archivos y esquema llega
+   en la fase 8 y prometerla antes sería peor que no tener el campo. */
+.wtb-omnibox {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(420px, 40vw);
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--surface-base) 55%, transparent);
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.wtb-omnibox:hover {
+  background: color-mix(in oklch, var(--surface-base) 78%, transparent);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.wtb-omnibox-icon { flex: none; }
+
+.wtb-omnibox-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wtb-omnibox-kbd {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.mode-light .wtb-omnibox-kbd { background: rgba(0, 0, 0, 0.07); }
+
+.wtb-dropdown-item-key {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-disabled);
+}
+
+/* ── Workspace Widget (center of title bar) ── */
+
+
+
+
+
 
 .wtb-mode-badge {
   font-size: 9px;
@@ -504,13 +574,6 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   border-color: var(--border-default);
 }
 
-.wtb-db-name {
-  font-size: var(--text-xxs);
-  color: var(--text-tertiary);
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .wtb-chevron {
   color: var(--text-tertiary);
@@ -522,32 +585,16 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   transform: rotate(180deg);
 }
 
-.wtb-close-workspace {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
-  padding: 0;
-}
 
-.wtb-close-workspace:hover {
-  background: var(--color-destructive-bg);
-  color: var(--color-destructive-text);
-}
 
 /* ── Workspace Dropdown ── */
 .wtb-dropdown {
   position: absolute;
   top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  /* Anclado a la izquierda: los dos menús (aplicación y workspace) cuelgan del
+     slot izquierdo. Centrado, como estaba cuando el widget vivía en el centro
+     de la barra, se saldría por el borde de la ventana. */
+  left: 0;
   min-width: 260px;
   max-width: 360px;
   background: var(--surface-overlay);

@@ -186,7 +186,7 @@ Clave: `amoxsql-glow-corner`. Nota de diseño: las opciones inferiores **no toca
 
 ---
 
-## FASE 3 — Barra de ventana
+## FASE 3 — Barra de ventana ✅ IMPLEMENTADA (2026-09-06)
 
 **Objetivo**: que el slot izquierdo deje de ser espacio muerto y que el centro tenga una razón de existir.
 
@@ -209,6 +209,26 @@ Pero el omnibox **no es solo un cambio de barra** — necesita un índice que no
 - **F8 (aparte)**: la búsqueda real sobre archivos y esquema.
 
 Placeholder en F3: `Buscar comandos…`. No prometer archivos ni tablas antes de que existan — un campo que dice "tablas" y no las encuentra es peor que no tenerlo.
+
+> **Notas de implementación.**
+> - `MenuBar.jsx` **se borró en vez de reciclarse**. Traía emojis (dos, y el
+>   proyecto los prohíbe), un cierre por clic-fuera que su propio comentario
+>   admitía incompleto, y solo tres acciones. El menú se escribió de cero con
+>   iconos Lucide: paleta, ajustes, atajos y recargar ventana.
+> - El dropdown estaba centrado (`left: 50%; transform: translateX(-50%)`),
+>   que funcionaba con el widget en el centro de la barra. Con los dos menús
+>   colgando del slot izquierdo se salía por el borde, así que la regla base
+>   pasó a `left: 0`.
+> - Los dos menús comparten un solo estado (`'app' | 'workspace' | null`) y un
+>   único cierre por clic-fuera que ignora los clics dentro de cualquiera de los
+>   dos. Con un listener por menú, abrir uno cerraría al otro a destiempo.
+> - **Se quitó la X suelta de cerrar workspace.** El dropdown conserva "Close
+>   Workspace"; una X pegada al breadcrumb, arriba a la izquierda, se confunde
+>   con cerrar la aplicación. Coincide con el mockup aprobado.
+> - `-webkit-app-region` **no se puede verificar en un navegador normal** (es de
+>   Electron): el valor calculado sale siempre `no-drag`. Se comprobó que las
+>   reglas están bien en la hoja de estilos — `.drag-region` en `drag`, y los
+>   anclajes nuevos y el omnibox en `no-drag`.
 
 **Aceptación**: el menú de aplicación abre y sus acciones funcionan; el breadcrumb conserva el dropdown de recientes y el cierre de workspace; `Ctrl+K` y `Ctrl+Shift+P` abren la misma paleta; la zona de arrastre de la ventana sigue funcionando (`-webkit-app-region`) y los elementos interactivos siguen marcados `no-drag`.
 

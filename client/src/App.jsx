@@ -391,6 +391,14 @@ function App() {
       // Zoom is handled by Electron main process (before-input-event)
       // React only receives the result via IPC 'zoom:changed'
 
+      // Command Palette: Ctrl+K — alias visible del Ctrl+Shift+P de siempre.
+      // Es el atajo que anuncia el omnibox de la barra, y el que hace que la
+      // paleta deje de ser un secreto de teclado.
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+        return;
+      }
       // Command Palette: Ctrl+Shift+P
       if (e.ctrlKey && e.shiftKey && e.key === 'P') {
         e.preventDefault();
@@ -1147,6 +1155,9 @@ function App() {
           currentDb=""
           readOnly={false}
           onCloseProject={handleCloseProject}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
         <WelcomeScreen 
@@ -1214,6 +1225,9 @@ function App() {
         currentDb={currentDb}
         readOnly={dbReadOnly}
         onCloseProject={handleCloseProject}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
         onSwitchProject={handleSwitchProject}
       />
 
