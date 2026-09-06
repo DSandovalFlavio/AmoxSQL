@@ -164,6 +164,34 @@ function App() {
   // Theme State
   const [theme, setTheme] = useState(() => localStorage.getItem('amoxsql-theme') || 'dark');
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
+  // Luminosidad del acento. null = sin personalizar, se usa la L propia del preset.
+  // Guardarla como null en vez de un número evita aplanar la rampa amox-2..amox-10,
+  // que varía L y tono a la vez: cada preset conserva su identidad hasta que el
+  // usuario decide apartarse de ella.
+  const [accentL, setAccentL] = useState(() => {
+    const v = parseFloat(localStorage.getItem('amoxsql-accent-l'));
+    return Number.isFinite(v) ? v : null;
+  });
+  // L efectiva (la del override si lo hay, si no la propia del preset). Se calcula
+  // aquí y no en el modal de ajustes: React corre los efectos de hijo ANTES que
+  // los del padre, así que el modal leería el estilo calculado antes de que este
+  // componente hubiera cambiado la clase o quitado el override — y mostraría el
+  // valor anterior.
+  const [effectiveAccentL, setEffectiveAccentL] = useState(0.73);
+  // Resplandor del fondo: esquina y fuerza.
+  const [glowCorner, setGlowCorner] = useState(() => localStorage.getItem('amoxsql-glow-corner') || 'tl');
+  const [glowStrength, setGlowStrength] = useState(() => {
+    const v = parseInt(localStorage.getItem('amoxsql-glow-strength'), 10);
+    return Number.isFinite(v) ? v : 30;
+  });
+  // Cambiar de preset devuelve el slider a la L propia de ese acento. Se hace en
+  // el manejador y NO en un efecto sobre accentColor: en StrictMode los efectos
+  // corren dos veces al montar y la segunda pasada borraba la preferencia
+  // guardada. Atarlo a la acción del usuario en vez de al ciclo de vida lo evita.
+  const handleAccentChange = useCallback((id) => {
+    setAccentColor(id);
+    setAccentL(null);
+  }, []);
   const [interfaceFont, setInterfaceFont] = useState(() => localStorage.getItem('amoxsql-ui-font') || 'manrope'); // interface font (separate from editor font)
   const [editorLayout, setEditorLayout] = useState(() => localStorage.getItem('amoxsql-editor-layout') || 'horizontal'); // 'horizontal' | 'vertical'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -290,6 +318,38 @@ function App() {
     // The accent changes --accent-primary → re-theme Monaco (cursor/highlight).
     syncMonacoTheme();
   }, [accentColor]);
+
+  // Luminosidad del acento. Se aplica como estilo inline sobre body para ganarle
+  // a la clase .accent-*; al quitarla reaparece la L propia del preset.
+  // Depende también de accentColor: al cambiar de preset sin override activo, la
+  // L efectiva cambia aunque accentL siga siendo null. Va declarado DESPUÉS del
+  // efecto del acento, así que la clase ya está puesta cuando se lee.
+  useEffect(() => {
+    if (accentL == null) {
+      document.body.style.removeProperty('--acc-l');
+      localStorage.removeItem('amoxsql-accent-l');
+    } else {
+      document.body.style.setProperty('--acc-l', String(accentL));
+      localStorage.setItem('amoxsql-accent-l', String(accentL));
+    }
+    const v = parseFloat(getComputedStyle(document.body).getPropertyValue('--acc-l'));
+    setEffectiveAccentL(Number.isFinite(v) ? v : 0.73);
+    syncMonacoTheme();
+  }, [accentL, accentColor]);
+
+  // Esquina del resplandor del fondo.
+  useEffect(() => {
+    localStorage.setItem('amoxsql-glow-corner', glowCorner);
+    [...document.body.classList].filter(c => c.startsWith('glow-')).forEach(c => document.body.classList.remove(c));
+    document.body.classList.add(`glow-${glowCorner}`);
+  }, [glowCorner]);
+
+  // Fuerza del resplandor. Se escribe --glow-strength-user (no el efectivo), para
+  // que el modo claro pueda seguir escalándolo y no se ensucie el fondo.
+  useEffect(() => {
+    localStorage.setItem('amoxsql-glow-strength', String(glowStrength));
+    document.body.style.setProperty('--glow-strength-user', `${glowStrength}%`);
+  }, [glowStrength]);
 
   useEffect(() => {
     localStorage.setItem('amoxsql-editor-layout', editorLayout);
@@ -1101,7 +1161,15 @@ function App() {
           currentTheme={theme}
           onThemeChange={setTheme}
           currentAccent={accentColor}
-          onAccentChange={setAccentColor}
+          onAccentChange={handleAccentChange}
+          accentL={accentL}
+          effectiveAccentL={effectiveAccentL}
+          isLightMode={modeClassFor(theme) === 'mode-light'}
+          onAccentLChange={setAccentL}
+          glowCorner={glowCorner}
+          onGlowCornerChange={setGlowCorner}
+          glowStrength={glowStrength}
+          onGlowStrengthChange={setGlowStrength}
           currentInterfaceFont={interfaceFont}
           onInterfaceFontChange={setInterfaceFont}
           currentLayout={editorLayout}
@@ -1619,7 +1687,15 @@ function App() {
           currentTheme={theme}
           onThemeChange={setTheme}
           currentAccent={accentColor}
-          onAccentChange={setAccentColor}
+          onAccentChange={handleAccentChange}
+          accentL={accentL}
+          effectiveAccentL={effectiveAccentL}
+          isLightMode={modeClassFor(theme) === 'mode-light'}
+          onAccentLChange={setAccentL}
+          glowCorner={glowCorner}
+          onGlowCornerChange={setGlowCorner}
+          glowStrength={glowStrength}
+          onGlowStrengthChange={setGlowStrength}
           currentInterfaceFont={interfaceFont}
           onInterfaceFontChange={setInterfaceFont}
           currentLayout={editorLayout}

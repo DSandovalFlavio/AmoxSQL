@@ -92,7 +92,7 @@ Las variables se dejan **parametrizadas desde el inicio** aunque en F1 tengan va
 
 ---
 
-## FASE 2 — Iluminación configurable
+## FASE 2 — Iluminación configurable ✅ IMPLEMENTADA (2026-09-06)
 
 **Objetivo**: que el usuario module la luz. Tres controles nuevos, una sola sección de ajustes ("Iluminación", junto al selector de acento).
 
@@ -152,6 +152,33 @@ Clave: `amoxsql-glow-corner`. Nota de diseño: las opciones inferiores **no toca
 `0%` lo apaga por completo — no hace falta un interruptor aparte de encendido/apagado. En `.mode-light` el mismo porcentaje pesa más, así que el token debe escalarse (~40% del valor) o guardarse por modo.
 
 > `color-mix()` acepta una custom property como porcentaje siempre que resuelva a un `<percentage>` **con el símbolo `%` incluido**. Guardar `30`, no `0.30`, y concatenar el `%` al escribir el token.
+
+> **Notas de implementación.**
+> - Los presets resultaron ser **17**, no 16, y hay **44** declaraciones de
+>   `--accent-primary` en total. Las otras 27 son overrides **por tema**
+>   (`.theme-nord:not([class*="accent-"])`, `.theme-mist`, y una tabla completa
+>   de variantes claras tipo `.theme-amoxlight.accent-sage`). No se tocaron: su
+>   especificidad (≥ 0-1-0) gana sobre `body` (0-0-1), así que conservan su color
+>   afinado a mano y el ajuste de L **no les aplica**. Eso es lo correcto — en
+>   claro el acento necesita una L baja para contrastar y los offsets respecto al
+>   oscuro no son constantes (van de 0.16 a 0.28), no hay fórmula que los replique.
+>   Consecuencia: **el control es de modo oscuro**. En claro se muestra
+>   deshabilitado con una línea que explica por qué.
+> - La fuerza del resplandor se partió en dos tokens: `--glow-strength-user` (lo
+>   que fija el usuario) y `--glow-strength` (el efectivo, que `.mode-light`
+>   escala al 40%). Con un solo token, la preferencia del usuario pisaba la
+>   corrección de claro.
+> - `accentL` se guarda como `null` cuando no está personalizado, en vez de un
+>   número. Así la rampa `amox-2..amox-10` conserva su identidad hasta que el
+>   usuario decide apartarse de ella.
+> - **Dos bugs encontrados al validar**, ambos de ciclo de vida de React:
+>   (a) el modal leía el estilo calculado para mostrar la L efectiva, pero React
+>   corre los efectos de hijo **antes** que los del padre, así que leía el valor
+>   anterior; se movió el cálculo a `App`, que es quien manda sobre las clases.
+>   (b) el "salto al cambiar de preset" estaba en un efecto con un ref de montaje;
+>   en **StrictMode los efectos corren dos veces** y la segunda pasada borraba la
+>   preferencia guardada al recargar. Se ató a la acción del usuario
+>   (`handleAccentChange`) en vez de al ciclo de vida.
 
 **Riesgos**: la descomposición de los 16 presets es el punto frágil de todo el plan — un error ahí reaparece como "todos los acentos se ven iguales". Verificar los 16 uno por uno tras el cambio.
 

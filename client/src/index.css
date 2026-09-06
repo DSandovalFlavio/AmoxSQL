@@ -43,14 +43,28 @@
   --text-disabled:  rgba(255, 255, 255, 0.20);
 
   /* ── Accent Color ──
-     Only --accent-primary lives here (the default hue). The DERIVED accent tokens
-     (muted/subtle/focus-ring/color-user) are NOT declared on :root on purpose:
-     a custom property whose value is `var(--accent-primary)` resolves at its
-     DECLARING element, and :root is <html> — the accent class lives on <body>,
-     so a :root-declared derivation would freeze on the default hue and never
-     follow a picked accent. The single derivador lives on `body`/`.mode-light`
-     (see the `body` block below) which DO carry the accent class. */
-  --accent-primary: oklch(0.905 0.155 195);    /* Cyan default */
+     El acento se declara DESCOMPUESTO en sus tres componentes oklch, no como un
+     color ya compuesto. La composición (--accent-primary) ocurre una sola vez en
+     `body`. Motivo: la luminosidad es un ajuste del usuario, y para poder
+     sobrescribir SOLO la L sin tocar tono ni croma, la L tiene que ser un token
+     propio. Cada clase .accent-* redefine estos tres; la preferencia del usuario
+     se aplica como estilo inline sobre body y gana a la clase.
+
+     Los tokens DERIVADOS (muted/subtle/focus-ring/color-user) y la propia
+     composición NO pueden vivir en :root: una custom property cuyo valor es
+     `var(...)` resuelve en el elemento donde se DECLARA, y :root es <html>,
+     que no lleva la clase de acento. Declararlos ahí los congelaría en el
+     acento por defecto y todos los acentos volverían a verse cian — el bug
+     exacto del PR #70. El único derivador vive en `body`/`.mode-light`.
+
+     Nota: los temas que fijan su propio acento (.theme-nord, .theme-mist, las
+     variantes .theme-amoxlight.accent-*, etc.) siguen declarando --accent-primary
+     directamente. Su especificidad (>= 0-1-0) gana sobre `body` (0-0-1), así que
+     conservan su color afinado a mano y el ajuste de L no les aplica: en claro
+     el acento necesita una L baja para contrastar y forzarla lo rompería. */
+  --acc-l: 0.730;    /* luminosidad — AJUSTABLE por el usuario (.600 – .950) */
+  --acc-c: 0.155;    /* croma */
+  --acc-h: 195;      /* tono — cian por defecto */
 
   /* ── Interaction States ── */
   --hover-bg:   rgba(255, 255, 255, 0.06);
@@ -260,6 +274,10 @@
    <body>) overrides the washes with softer light values.
    ═══════════════════════════════════════════════ */
 body {
+  /* Composición única del acento a partir de los tres componentes. Va aquí y no
+     en :root porque body es quien lleva la clase .accent-*. */
+  --accent-primary:    oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+
   --accent-muted:      color-mix(in oklch, var(--accent-primary) 18%, transparent);
   --accent-subtle:     color-mix(in oklch, var(--accent-primary) 8%, transparent);
   --focus-ring:        color-mix(in oklch, var(--accent-primary) 35%, transparent);
@@ -274,13 +292,31 @@ body {
      La fase 2 solo sobrescribe estos valores; .app-container no se toca. */
   --glow-x:  3%;   --glow-y:  -8%;
   --glow-x2: 26%;  --glow-y2: -4%;
-  --glow-strength:   30%;
+
+  /* --glow-strength-user es lo que fija el usuario (0%–50%, default 30%); se
+     aplica como estilo inline sobre body. --glow-strength es el valor EFECTIVO,
+     que el modo claro escala. Separarlos evita que la preferencia del usuario
+     pise la corrección de claro y ensucie el fondo. */
+  --glow-strength:   var(--glow-strength-user, 30%);
   --glow-strength-2: calc(var(--glow-strength) * 0.43);
 }
 
-/* En claro el mismo porcentaje pesa mucho más y ensucia el fondo. */
+/* ── Esquina del resplandor — AJUSTABLE por el usuario ──
+   Presets de posición, no coordenadas libres. Cada uno fija los cuatro tokens
+   de golpe (el halo secundario acompaña al principal). Van sobre body, que es
+   donde App.jsx estampa la clase.
+   Ojo: las dos opciones inferiores NO tocan la barra de ventana — el resplandor
+   sale por detrás de la barra de estado. Es otro efecto, no un fallo. */
+body.glow-tl { --glow-x:  3%; --glow-y:  -8%;  --glow-x2: 26%; --glow-y2: -4%;  }
+body.glow-tc { --glow-x: 50%; --glow-y:  -8%;  --glow-x2: 28%; --glow-y2: -4%;  }
+body.glow-tr { --glow-x: 97%; --glow-y:  -8%;  --glow-x2: 74%; --glow-y2: -4%;  }
+body.glow-bl { --glow-x:  3%; --glow-y: 108%;  --glow-x2: 26%; --glow-y2: 104%; }
+body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; }
+
+/* En claro el mismo porcentaje pesa mucho más y ensucia el fondo: se escala al
+   40% de lo que haya pedido el usuario, conservando su intención relativa. */
 .mode-light {
-  --glow-strength: 12%;
+  --glow-strength: calc(var(--glow-strength-user, 30%) * 0.4);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -781,47 +817,47 @@ body {
    ═══════════════════════════════════════════════ */
 
 .accent-linear {
-  --accent-primary: oklch(0.53 0.14 277);     /* Linear Blue */
+  --acc-l: 0.53; --acc-c: 0.14; --acc-h: 277;   /* Linear Blue */     /* Linear Blue */
 }
 
 .accent-islands {
-  --accent-primary: #548af7;                  /* Islands Blue — JetBrains Dark */
+  --acc-l: 0.650; --acc-c: 0.173; --acc-h: 262.7;   /* Islands Blue (era #548af7) */                  /* Islands Blue — JetBrains Dark */
 }
 
 .accent-amox-2 {
-  --accent-primary: oklch(0.89 0.150 195);    /* ≈ #00F5FF */
+  --acc-l: 0.89; --acc-c: 0.150; --acc-h: 195;   /* ~ #00F5FF */    /* ≈ #00F5FF */
 }
 
 .accent-amox-3 {
-  --accent-primary: oklch(0.88 0.145 197);    /* ≈ #00ECFF */
+  --acc-l: 0.88; --acc-c: 0.145; --acc-h: 197;   /* ~ #00ECFF */    /* ≈ #00ECFF */
 }
 
 .accent-amox-4 {
-  --accent-primary: oklch(0.85 0.140 202);    /* ≈ #00DAFF */
+  --acc-l: 0.85; --acc-c: 0.140; --acc-h: 202;   /* ~ #00DAFF */    /* ≈ #00DAFF */
 }
 
 .accent-amox-5 {
-  --accent-primary: oklch(0.82 0.135 212);    /* ≈ #00C8FF */
+  --acc-l: 0.82; --acc-c: 0.135; --acc-h: 212;   /* ~ #00C8FF */    /* ≈ #00C8FF */
 }
 
 .accent-amox-6 {
-  --accent-primary: oklch(0.77 0.140 228);    /* ≈ #00B6FF */
+  --acc-l: 0.77; --acc-c: 0.140; --acc-h: 228;   /* ~ #00B6FF */    /* ≈ #00B6FF */
 }
 
 .accent-amox-7 {
-  --accent-primary: oklch(0.72 0.155 245);    /* ≈ #00A3FF */
+  --acc-l: 0.72; --acc-c: 0.155; --acc-h: 245;   /* ~ #00A3FF */    /* ≈ #00A3FF */
 }
 
 .accent-amox-8 {
-  --accent-primary: oklch(0.66 0.170 255);    /* ≈ #0090FF */
+  --acc-l: 0.66; --acc-c: 0.170; --acc-h: 255;   /* ~ #0090FF */    /* ≈ #0090FF */
 }
 
 .accent-amox-9 {
-  --accent-primary: oklch(0.61 0.190 262);    /* ≈ #007CFF */
+  --acc-l: 0.61; --acc-c: 0.190; --acc-h: 262;   /* ~ #007CFF */    /* ≈ #007CFF */
 }
 
 .accent-amox-10 {
-  --accent-primary: oklch(0.56 0.210 268);    /* ≈ #0068FF */
+  --acc-l: 0.56; --acc-c: 0.210; --acc-h: 268;   /* ~ #0068FF */    /* ≈ #0068FF */
 }
 
 /* Obsidian ⇄ Onyx: swap ONLY the Monaco code-editor canvas background — each
@@ -1321,27 +1357,27 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
    Muted, professional tones for dark themes
    ═══════════════════════════════════════════════ */
 .accent-sage {
-  --accent-primary: oklch(0.72 0.10 155);     /* Muted sage green */
+  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 155;   /* Muted sage green */     /* Muted sage green */
 }
 
 .accent-amber {
-  --accent-primary: oklch(0.78 0.12 75);      /* Warm amber/gold */
+  --acc-l: 0.78; --acc-c: 0.12; --acc-h: 75;   /* Warm amber/gold */      /* Warm amber/gold */
 }
 
 .accent-rose {
-  --accent-primary: oklch(0.68 0.14 15);      /* Muted rose/coral */
+  --acc-l: 0.68; --acc-c: 0.14; --acc-h: 15;   /* Muted rose/coral */      /* Muted rose/coral */
 }
 
 .accent-lavender {
-  --accent-primary: oklch(0.70 0.12 300);     /* Soft lavender/purple */
+  --acc-l: 0.70; --acc-c: 0.12; --acc-h: 300;   /* Soft lavender/purple */     /* Soft lavender/purple */
 }
 
 .accent-steel {
-  --accent-primary: oklch(0.68 0.06 250);     /* Cool steel blue-grey */
+  --acc-l: 0.68; --acc-c: 0.06; --acc-h: 250;   /* Cool steel blue-grey */     /* Cool steel blue-grey */
 }
 
 .accent-copper {
-  --accent-primary: oklch(0.72 0.10 50);      /* Warm copper/terracotta */
+  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 50;   /* Warm copper/terracotta */      /* Warm copper/terracotta */
 }
 
 /* ═══════════════════════════════════════════════
@@ -11539,6 +11575,45 @@ tr:hover td {
 .stg-sponsor-btn:hover {
   filter: brightness(1.1);
 }
+
+/* ── Selector de esquina del resplandor ──
+   Cada botón es una miniatura de la ventana con un punto en la esquina desde la
+   que nace el resplandor: el nombre solo no dice que las inferiores iluminan la
+   barra de estado en vez de la de ventana. */
+.stg-glow-corner {
+  position: relative;
+  width: 34px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.stg-glow-corner:hover { border-color: var(--border-strong); }
+
+.stg-glow-corner--active {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.stg-glow-dot {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-primary) 0%, transparent 70%);
+  opacity: 0.85;
+}
+
+.stg-glow-dot--tl { top: -7px; left: -7px; }
+.stg-glow-dot--tc { top: -7px; left: 50%; transform: translateX(-50%); }
+.stg-glow-dot--tr { top: -7px; right: -7px; }
+.stg-glow-dot--bl { bottom: -7px; left: -7px; }
+.stg-glow-dot--br { bottom: -7px; right: -7px; }
 
 .stg-link-btn {
   display: flex;
