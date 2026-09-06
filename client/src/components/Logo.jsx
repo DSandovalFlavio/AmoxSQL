@@ -1,11 +1,17 @@
 import React from 'react';
 
+// El viewBox va CEÑIDO al trazo. Los paths ocupan x 115-285 e y 60-285 (el 60 y
+// el 270 son los vértices de las curvas cuadráticas, no sus puntos de control),
+// así que el 0 0 400 400 original dejaba la marca pequeña y desplazada hacia
+// arriba dentro de su propia caja — muy visible al usarla a tamaños chicos.
+// Cuadro cuadrado de lado 290 centrado en (200, 173): centra el trazo y deja
+// margen suficiente para que el desenfoque del glow no se recorte.
 const Logo = ({ width = 360, height = 360, className, style }) => {
     return (
         <svg
             width={width}
             height={height}
-            viewBox="0 0 400 400"
+            viewBox="55 28 290 290"
             xmlns="http://www.w3.org/2000/svg"
             className={className}
             style={style}
@@ -24,11 +30,9 @@ const Logo = ({ width = 360, height = 360, className, style }) => {
                 </filter>
             </defs>
 
-            <g transform="translate(50, 0) scale(0.8)">
-                <g stroke="url(#neonGradient)" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" filter="url(#neonGlow)">
-                    <path d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285" />
-                    <path d="M 130 210 Q 200 330 270 210" />
-                </g>
+            <g stroke="url(#neonGradient)" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" filter="url(#neonGlow)">
+                <path d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285" />
+                <path d="M 130 210 Q 200 330 270 210" />
             </g>
         </svg>
     );

@@ -234,7 +234,7 @@ Placeholder en F3: `Buscar comandos…`. No prometer archivos ni tablas antes de
 
 ---
 
-## FASE 4 — Bienvenida 50/50
+## FASE 4 — Bienvenida 50/50 ✅ IMPLEMENTADA (2026-09-06)
 
 **Objetivo**: eliminar los ~340px de decoración previa al primer campo y devolverle el alto a los proyectos recientes.
 
@@ -247,6 +247,21 @@ Placeholder en F3: `Buscar comandos…`. No prometer archivos ni tablas antes de
 | 4.3 | Marca | Logo de 250×250 con `marginBottom: -55px` (`WelcomeScreen.jsx:141-142`) → marca de 32px **en línea** con el wordmark. |
 | 4.4 | Recientes | Sacarlos de la tarjeta del Paso 1 y volverlos la lista principal con `flex: 1; overflow: auto`. Eliminar el `maxHeight: 60vh` compartido (`WelcomeScreen.jsx:171`). Mostrar nombre y ruta apilados, más la fecha a la derecha. |
 | 4.5 | Panel derecho | Lienzo a sangre con esquinas interiores redondeadas. En F4 basta un fondo con el resplandor de F1; la animación llega en F5. |
+
+> **Notas de implementacion.**
+> - `Logo.jsx` arrastraba el mismo viewBox descentrado que la marca de la barra:
+>   0 0 400 400 para un trazo que solo ocupa x 115-285 e y 60-285. A 32px se
+>   notaba mucho. Se cine a un cuadro de lado 290 centrado en (200, 173), con
+>   margen suficiente para que el glow no se recorte. Solo se usa en la
+>   bienvenida (dos veces), asi que el cambio no tiene efectos colaterales.
+> - El `<form>` NO usa `display: contents` para repartir sus hijos en la columna
+>   flex: eso saca al form del arbol de accesibilidad. Es un hijo flex normal con
+>   su propia direccion de columna.
+> - `.ws-step2 > * { flex: none; }` es necesario: en un contenedor en columna,
+>   flex-shrink actua sobre la ALTURA, y sin el la fila de pestanas se aplastaba
+>   y quedaba recortada cuando el alto apretaba.
+> - Medido a 1080p: el primer campo queda a 198px del borde (antes ~340px de
+>   decoracion) y caben 13 recientes sin scroll — el criterio pedia 6.
 
 **Riesgos**: el flujo de dos pasos (workspace → base de datos) y `WorkspaceWizard.jsx` tienen que seguir funcionando. Verificar también con ventana angosta: por debajo de ~900px conviene colapsar a una sola columna y ocultar el panel derecho.
 
