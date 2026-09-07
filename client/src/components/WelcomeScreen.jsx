@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { LuFolderOpen, LuSettings, LuClock, LuTrash2, LuSparkles, LuBrain, LuRocket, LuPencil, LuFolder } from "react-icons/lu";
 import Logo from './Logo';
 import AlertDialog from './AlertDialog';
+import LogoMorph from './welcome/LogoMorph';
 
 const RECENT_KEY = 'amoxsql-recent-projects';
 
@@ -313,9 +314,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
 
             {/* ── Mitad derecha: el lienzo. En la F5 aloja la animación de partículas. ── */}
             <div className="ws-canvas">
-                <div className="ws-canvas-mark">
-                    <Logo width={190} height={190} />
-                </div>
+                <LogoMorph />
             </div>
 
             <AlertDialog

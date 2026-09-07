@@ -269,7 +269,7 @@ Placeholder en F3: `Buscar comandos…`. No prometer archivos ni tablas antes de
 
 ---
 
-## FASE 5 — Animación de partículas
+## FASE 5 — Animación de partículas ✅ IMPLEMENTADA (2026-09-06)
 
 **Objetivo**: el lienzo derecho de la bienvenida. Un **único sistema** que se transforma, no varias animaciones apiladas.
 
@@ -284,6 +284,30 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 | 5.3 | Color leído de `--accent-primary` en vivo, cacheado e invalidado al cambiar de acento. Así la animación sigue el acento y la L de F2. |
 | 5.4 | `prefers-reduced-motion: reduce` → congelar en el fotograma de la marca. `ResizeObserver` para el `devicePixelRatio` (tope 2). |
 | 5.5 | **Detener el `requestAnimationFrame` al salir de la bienvenida.** Es la fase con más riesgo de fuga: un bucle vivo tras entrar al IDE cuesta batería y CPU para siempre. |
+
+> **Notas de implementacion.**
+> - El color NO sale de `--accent-primary` como decia el plan, sino del degradado
+>   del logo (`--logo-grad-a`/`-b`), interpolado por la altura de cada particula.
+>   Asi el enjambre se ve del mismo material que la marca. La paleta se precalcula
+>   en 24 pasos y se revisa cada 500 ms, porque el acento puede cambiar desde
+>   ajustes sin que el componente se desmonte.
+> - Las generadoras de forma se calibraron para rendir 200-260 puntos (tabla 260,
+>   barras 258, grafo 214, notebook 204). Con muchos menos, `fit()` repetia cada
+>   posicion 4 o 5 veces y las particulas quedaban exactamente superpuestas: se
+>   veia como una reticula de puntos brillantes en vez de un enjambre.
+> - El muestreo del logo usa el viewBox nuevo (55 28 290 290) y las coordenadas
+>   crudas de los paths, no el `translate(50,0) scale(0.8)` que el plan mencionaba
+>   — ese wrapper desaparecio al cenir el viewBox en la fase 4.
+>
+> **Limite de verificacion.** El panel de navegador de la sesion no compone entre
+> llamadas, asi que `requestAnimationFrame` no dispara ni un frame (medido: 0 en
+> 1200 ms de reloj real, con `visibilityState` en visible) y `ResizeObserver`
+> tampoco entrega. **El ciclo de formas y el respeto a prefers-reduced-motion no
+> se pudieron ver en movimiento aqui.** Si se verifico: que las cinco formas se
+> generan y se leen (render estatico de cada una), que el lienzo se dimensiona y
+> pinta al forzar composicion (buffer 720x860, 4028 pixeles), y que al entrar al
+> IDE el canvas se desmonta, se llama a cancelAnimationFrame y el observador se
+> desconecta.
 
 **Aceptación**: la marca se reconoce claramente en el primer ciclo; con movimiento reducido queda estática; el bucle no sigue corriendo tras abrir un workspace (verificar en el panel de rendimiento).
 

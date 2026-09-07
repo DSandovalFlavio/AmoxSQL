@@ -13787,7 +13787,7 @@ tr:hover td {
 .ws-version { margin-left: auto; }
 
 /* ── Mitad derecha: el lienzo ──
-   En esta fase solo el resplandor; la animación de partículas llega en la F5. */
+   Aloja el sistema de partículas (LogoMorph); el resplandor le da el fondo. */
 .ws-canvas {
   position: relative;
   overflow: hidden;
@@ -13798,11 +13798,11 @@ tr:hover td {
     color-mix(in oklch, var(--surface-base) 88%, #000);
 }
 
-.ws-canvas-mark {
+.ws-morph {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
