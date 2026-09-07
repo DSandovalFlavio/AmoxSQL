@@ -5628,24 +5628,42 @@ app.post('/api/shutdown', async (_req, res) => {
     setTimeout(() => process.exit(0), 200);
 });
 
+/**
+ * Arranca el servidor, cayendo a un puerto libre si el preferido esta ocupado.
+ *
+ * OJO con el callback de app.listen(port, cb): Node lo invoca TAMBIEN cuando el
+ * listen falla, y ahi server.address() es null. La version anterior leia
+ * .port directamente sobre ese null, reventaba dentro de la emision del evento
+ * 'error' y abortaba el resto de sus manejadores — justo el que hacia el plan B.
+ * La promesa no se resolvia ni se rechazaba, asi que el proceso principal
+ * esperaba 30 segundos y mostraba "El servidor interno no respondio". Resultado:
+ * el respaldo de puerto no funciono nunca.
+ *
+ * Por eso aqui se escucha 'listening' de forma explicita en vez de usar el
+ * callback de listen, y 'error' se registra ANTES de que pueda dispararse.
+ */
 const startServer = (preferredPort = 3001) => {
     return new Promise((resolve, reject) => {
-        const server = app.listen(preferredPort, () => {
-            const actualPort = server.address().port;
+        const ready = (server) => {
+            const address = server.address();
+            if (!address) {
+                reject(new Error('El servidor dice estar escuchando pero no tiene direccion.'));
+                return;
+            }
+            const actualPort = address.port;
             console.log(`Server running at http://localhost:${actualPort}`);
             console.log(`Serving files from: ${ROOT_DIR}`);
 
             // Initialize AI schema in the background so DataDiving works without a
-            // project connected. Fire-and-forget — do NOT await here, the listen
-            // callback must stay synchronous so resolve() is called immediately and
-            // the Electron main process receives the 'ready' message without delay.
+            // project connected. Fire-and-forget — do NOT await here, so resolve()
+            // se llama de inmediato y el proceso principal recibe el 'ready' sin
+            // esperas.
             aiPersistence.initSchema(dbManager).catch(err =>
                 console.warn('[AI] Startup schema init warning (non-fatal):', err.message)
             );
 
-            // Re-activate extensions the user auto-loads. Fire-and-forget so the
-            // listen callback stays synchronous; dbManager re-LOADs them (and
-            // keeps re-LOADing on every reconnect) once seeded.
+            // Re-activate extensions the user auto-loads. Fire-and-forget igual;
+            // dbManager las vuelve a LOADear en cada reconexion una vez sembradas.
             (async () => {
                 try {
                     const names = getAutoloadExtensions();
@@ -5659,21 +5677,28 @@ const startServer = (preferredPort = 3001) => {
             })();
 
             resolve({ server, port: actualPort });
-        });
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                // Port busy — let OS pick a free one
-                console.warn(`[Server] Port ${preferredPort} in use, requesting OS-assigned port`);
-                const fallback = app.listen(0, () => {
-                    const actualPort = fallback.address().port;
-                    console.log(`Server running at http://localhost:${actualPort}`);
-                    console.log(`Serving files from: ${ROOT_DIR}`);
-                    resolve({ server: fallback, port: actualPort });
-                });
-                fallback.on('error', reject);
-            } else {
+        };
+
+        // Un intento de escucha. 'error' queda enganchado antes que nada, y los
+        // dos manejadores se excluyen: el que gane desengancha al otro.
+        const attempt = (port, onError) => {
+            const server = app.listen(port);
+            const fail = (err) => { server.removeListener('listening', ok); onError(err); };
+            const ok = () => { server.removeListener('error', fail); ready(server); };
+            server.once('error', fail);
+            server.once('listening', ok);
+        };
+
+        attempt(preferredPort, (err) => {
+            if (err.code !== 'EADDRINUSE') {
                 reject(err);
+                return;
             }
+            // Puerto ocupado (otra instancia, o cualquier otro programa): que el
+            // sistema nos de uno libre. El proceso principal se entera del puerto
+            // real por el mensaje 'ready', asi que no hay nada mas que ajustar.
+            console.warn(`[Server] Puerto ${preferredPort} ocupado — se pide uno libre al sistema.`);
+            attempt(0, reject);
         });
     });
 };
