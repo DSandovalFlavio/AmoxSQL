@@ -131,7 +131,7 @@ const SnippetsPanel = ({ onInsert }) => {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
             {/* Header */}
             <div className="sidebar-header">
-                <span>SQL Snippets</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><LuCode size={14} /> SQL Snippets</span>
                 <div className="fe-header-actions">
                     <button
                         className="fe-header-btn"

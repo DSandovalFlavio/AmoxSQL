@@ -8242,11 +8242,6 @@ tr:hover .rt-td--pinned {
 
 .vault-header {
   padding: 8px 14px;
-  font-weight: var(--weight-semibold);
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
   border-bottom: 1px solid var(--border-subtle);
   background-color: transparent;
   display: flex;
@@ -18601,4 +18596,54 @@ tr:hover td {
 .snb-btn--active:active {
   background: var(--accent-primary);
   filter: brightness(1.08);
+}
+
+
+/* ══ Titulos de los paneles del lateral ════════════════════════════════════
+   Cada panel se invento su propia clase de cabecera y acabaron con tres
+   tamanos (--text-xs, --text-sm, --text-md) y tres colores (terciario,
+   secundario, primario), mas dos en mayusculas con tracking — restos del
+   aspecto de consola que la fase 3.4 del rediseno no alcanzo porque uno de
+   ellos vive en otra hoja de estilos.
+
+   La pauta es la de .sidebar-header, que es la que ya usaban la mayoria:
+   --text-sm, semibold, secundario, caja normal. Se normaliza desde aqui en vez
+   de renombrar clases en ocho componentes: mismo resultado, sin tocar el JSX.
+
+   NO entran las cabeceras de PESTANA (Deep Dive, Chart Gallery): son otra
+   superficie, con su propia jerarquia.                                      */
+.sidebar-header,
+.db-header-title,
+.dbt-panel-header,
+.fnref-title,
+.vault-header-title,
+.git-panel-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* El icono acompana al titulo: mismo color y misma separacion en todos. */
+.sidebar-header > svg,
+.db-header-title > svg,
+.dbt-panel-header > svg,
+.fnref-title > svg,
+.vault-header-title > svg,
+.git-panel-title > svg,
+.sidebar-header > span > svg,
+.db-header-title > svg:first-child {
+  color: var(--text-secondary);
+  flex: none;
+}
+
+.db-header-title,
+.dbt-panel-header,
+.fnref-title,
+.vault-header-title,
+.git-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }

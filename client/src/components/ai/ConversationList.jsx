@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
-import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuPencil, LuCheck, LuEllipsisVertical } from 'react-icons/lu';
+import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuPencil, LuCheck, LuEllipsisVertical, LuSparkles } from "react-icons/lu";
 
 import { API_BASE as API } from '../../api.js';
 const PAGE_SIZE = 20;
@@ -206,8 +206,8 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
         <div className="ai-conv">
             {/* Header — matches the Files / DB sidebar sections */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Conversations
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <LuSparkles size={14} /> Conversations
                 </span>
                 <div className="fe-header-actions">
                     <button onClick={onNew} title="New Conversation" className="fe-header-btn">
