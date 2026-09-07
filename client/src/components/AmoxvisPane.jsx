@@ -8,6 +8,7 @@
  * - Switching to "Edit with SQL" mode (opens the same file as a SQL tab)
  */
 import { API_BASE } from '../api.js';
+import { splitSqlStatements } from '../utils/sqlSplitter';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { LuCode, LuLoader, LuChevronDown, LuChevronRight, LuSquare, LuRefreshCw, LuBookOpen, LuSave, LuGitBranch, LuUnlink } from 'react-icons/lu';
 import DataVisualizer from './DataVisualizer';
@@ -60,8 +61,20 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onC
                 const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(sourceLink)}`);
                 const fileData = await res.json();
                 if (cancelled || fileData.error) return;
-                if (fileData.content.trim() !== (config.query || '').trim()) {
-                    setSourceDrift({ sourceContent: fileData.content });
+                // Un .sql puede tener VARIAS sentencias, y la query de este
+                // grafico puede ser una de ellas —es lo que hace el selector al
+                // crearlo, y lo que hacias tu ejecutando una sola en el editor—.
+                // Comparar contra el archivo entero daba deriva siempre, desde el
+                // primer segundo. Hay deriva cuando la query ya no esta EN el
+                // archivo, no cuando el archivo tiene ademas otras cosas.
+                const actual = (config.query || '').trim();
+                const contenido = fileData.content || '';
+                const sigueEstando = contenido.trim() === actual
+                    || splitSqlStatements(contenido).some(
+                        st => st.raw.trim() === actual || st.code.trim() === actual
+                    );
+                if (!sigueEstando) {
+                    setSourceDrift({ sourceContent: contenido });
                 }
             } catch {
                 // Source file may have been moved/deleted — not treated as

@@ -18647,3 +18647,189 @@ tr:hover td {
   align-items: center;
   gap: 6px;
 }
+
+
+/* ══ Selector del .sql para un grafico nuevo ═══════════════════════════════
+   Buscador y no lista de botones: un proyecto con veinte .sql convertiria un
+   dialogo de opciones en un muro.                                          */
+.ssp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  display: grid;
+  place-items: center;
+  background: var(--overlay-bg);
+}
+
+.ssp {
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: min(520px, calc(100vh - 80px));
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-lg);
+}
+
+.ssp-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.ssp-head > svg { color: var(--accent-primary); flex: none; }
+
+.ssp-sub {
+  margin: 4px 0 12px;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+.ssp-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+}
+.ssp-search > svg { color: var(--text-tertiary); flex: none; }
+.ssp-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.ssp-list {
+  flex: 1;
+  min-height: 0;
+  margin: 10px -4px 0;
+  padding: 0 4px;
+  overflow-y: auto;
+}
+
+.ssp-empty {
+  padding: 18px 4px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+.ssp-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.ssp-item > svg { color: var(--accent-primary); flex: none; align-self: center; }
+.ssp-item--active { background: var(--hover-bg); color: var(--text-primary); }
+
+.ssp-item-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  flex: none;
+}
+
+/* La ruta se recorta por la IZQUIERDA: lo que distingue dos archivos con el
+   mismo nombre es la carpeta que los contiene, no el nombre repetido. */
+.ssp-item-path {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  direction: rtl;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ssp-blank {
+  margin-top: 12px;
+  padding: 8px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.ssp-blank:hover {
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+/* Segundo paso: elegir QUE sentencia del archivo. */
+.ssp-back {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.ssp-back:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.ssp-error {
+  margin: 0 0 10px;
+  padding: 7px 9px;
+  border-radius: var(--radius-md);
+  background: var(--feedback-error-bg, transparent);
+  border: 1px solid var(--feedback-error);
+  color: var(--feedback-error);
+  font-size: var(--text-xs);
+}
+
+.ssp-stmt {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 9px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.ssp-stmt-line {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+.ssp-stmt-code {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
