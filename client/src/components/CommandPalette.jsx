@@ -4,14 +4,33 @@ import {
     LuBot, LuDatabase, LuFolder, LuPuzzle, LuHistory,
     LuCode, LuBookOpen, LuSearch, LuActivity, LuCommand,
     LuKeyboard, LuGitBranch, LuZap, LuLifeBuoy,
-    LuPresentation, LuChartBar,
+    LuPresentation, LuChartBar, LuFile, LuTable, LuColumns3,
 } from 'react-icons/lu';
 import { TOURS, openTour } from './onboarding/tourRegistry';
+
+/**
+ * Puntua una coincidencia. Empezar por lo escrito vale mas que contenerlo, y
+ * entre dos que empiezan igual gana el nombre mas corto: buscando "ven" interesa
+ * antes `ventas` que `ventas_mensuales_consolidadas`. Sin esto, el orden lo
+ * decidia el del indice, que no significa nada para quien busca.
+ */
+const score = (text, q) => {
+    const t = text.toLowerCase();
+    const i = t.indexOf(q);
+    if (i === -1) return -1;
+    return (i === 0 ? 1000 : 500 - Math.min(i, 60)) - Math.min(t.length, 80);
+};
+
+const MAX_PER_GROUP = 12;
 
 const CommandPalette = ({
     isOpen,
     onClose,
     actions, // Array of { id, label, category, icon, shortcut, action }
+    files = [],          // [{ name, path }] — indice plano del proyecto
+    schema = [],         // [{ schema, tables: [{ name, columns: [{ column_name, data_type }] }] }]
+    onOpenFile,
+    onPreviewTable,
 }) => {
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -27,15 +46,91 @@ const CommandPalette = ({
         }
     }, [isOpen]);
 
-    // Fuzzy filter
+    // Los prefijos acotan la busqueda: ">" solo comandos, "#" solo tablas y
+    // columnas, y sin prefijo busca en todo. Son opcionales a proposito — quien
+    // no los conozca sigue encontrando lo mismo, solo que mezclado.
+    const raw = query.trim();
+    const mode = raw.startsWith('>') ? 'commands' : raw.startsWith('#') ? 'schema' : 'all';
+    const term = (mode === 'all' ? raw : raw.slice(1)).trim().toLowerCase();
+
     const filtered = useMemo(() => {
-        if (!query.trim()) return actions;
-        const q = query.toLowerCase();
-        return actions.filter(a =>
-            a.label.toLowerCase().includes(q) ||
-            (a.category && a.category.toLowerCase().includes(q))
-        );
-    }, [query, actions]);
+        const out = [];
+
+        if (mode !== 'schema') {
+            const cmds = term
+                ? actions
+                    .map(a => ({ a, s: Math.max(score(a.label, term), score(a.category || '', term) - 200) }))
+                    .filter(x => x.s > -1)
+                    .sort((x, y) => y.s - x.s)
+                    .map(x => x.a)
+                : actions;
+            // Sin nada escrito el usuario esta OJEANDO los comandos: se enseñan
+            // todos, como siempre. En cuanto escribe, se recorta como el resto.
+            out.push(...(term ? cmds.slice(0, MAX_PER_GROUP) : cmds));
+        }
+
+        // Archivos y esquema solo aparecen cuando hay algo que buscar: sin
+        // termino, volcar mil archivos no ayuda a nadie.
+        if (mode !== 'commands' && term) {
+            if (mode !== 'schema') {
+                out.push(...files
+                    .map(f => ({ f, s: Math.max(score(f.name, term), score(f.path, term) - 150) }))
+                    .filter(x => x.s > -1)
+                    .sort((x, y) => y.s - x.s)
+                    .slice(0, MAX_PER_GROUP)
+                    .map(({ f }) => ({
+                        id: `file:${f.path}`,
+                        label: f.name,
+                        detail: f.path,
+                        category: 'Files',
+                        icon: LuFile,
+                        action: () => onOpenFile?.(f.path),
+                    })));
+            }
+
+            const hits = [];
+            for (const sc of schema) {
+                for (const t of (sc.tables || [])) {
+                    const st = score(t.name, term);
+                    if (st > -1) {
+                        hits.push({
+                            s: st,
+                            item: {
+                                id: `table:${sc.schema}.${t.name}`,
+                                label: t.name,
+                                detail: sc.schema,
+                                category: 'Tables and columns',
+                                icon: LuTable,
+                                action: () => onPreviewTable?.(sc.schema, t.name),
+                            },
+                        });
+                    }
+                    for (const c of (t.columns || [])) {
+                        const cs = score(c.column_name, term);
+                        // La columna vale un poco menos que la tabla del mismo
+                        // nombre, pero es LO MAS UTIL de esta busqueda: encontrar
+                        // una columna sin saber en que tabla vive.
+                        if (cs > -1) {
+                            hits.push({
+                                s: cs - 60,
+                                item: {
+                                    id: `col:${sc.schema}.${t.name}.${c.column_name}`,
+                                    label: c.column_name,
+                                    detail: `${t.name} · ${c.data_type}`,
+                                    category: 'Tables and columns',
+                                    icon: LuColumns3,
+                                    action: () => onPreviewTable?.(sc.schema, t.name, c.column_name),
+                                },
+                            });
+                        }
+                    }
+                }
+            }
+            out.push(...hits.sort((a, b) => b.s - a.s).slice(0, MAX_PER_GROUP).map(h => h.item));
+        }
+
+        return out;
+    }, [mode, term, actions, files, schema, onOpenFile, onPreviewTable]);
 
     // Group by category
     const grouped = useMemo(() => {
@@ -103,7 +198,7 @@ const CommandPalette = ({
                     ref={inputRef}
                     className="command-palette-input"
                     type="text"
-                    placeholder="Type a command..."
+                    placeholder="Search commands, files, tables…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -111,7 +206,7 @@ const CommandPalette = ({
                 <div className="command-palette-list" ref={listRef}>
                     {flatList.length === 0 && (
                         <div className="command-palette-empty">
-                            No matching commands
+                            {term ? 'Nothing matches that' : 'No matching commands'}
                         </div>
                     )}
                     {Object.entries(grouped).map(([category, items]) => (
@@ -131,6 +226,9 @@ const CommandPalette = ({
                                             {Icon && <Icon size={15} />}
                                         </div>
                                         <span className="cmd-label">{item.label}</span>
+                                        {item.detail && (
+                                            <span className="cmd-detail">{item.detail}</span>
+                                        )}
                                         {item.shortcut && (
                                             <span className="cmd-shortcut">{item.shortcut}</span>
                                         )}
@@ -139,6 +237,13 @@ const CommandPalette = ({
                             })}
                         </div>
                     ))}
+                </div>
+                {/* Los prefijos se enseñan; un atajo que hay que adivinar no
+                    existe para quien no lo adivina. */}
+                <div className="command-palette-hint">
+                    <span><b>&gt;</b> commands</span>
+                    <span><b>#</b> tables and columns</span>
+                    <span>no prefix searches everything</span>
                 </div>
             </div>
         </div>

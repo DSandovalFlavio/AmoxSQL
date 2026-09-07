@@ -738,6 +738,26 @@ function App() {
 
   const handleCloseCommandPalette = useCallback(() => setIsCommandPaletteOpen(false), []);
 
+  // Lo que el omnibox busca ademas de comandos: los archivos del proyecto y el
+  // esquema de la conexion. Se piden AL ABRIR, sin caché ni indicador de carga:
+  // el disco y DuckDB son locales y responden en milisegundos, y una copia solo
+  // serviria para ensenar archivos o tablas que ya no existen.
+  const [paletteFiles, setPaletteFiles] = useState([]);
+  const [paletteSchema, setPaletteSchema] = useState([]);
+  useEffect(() => {
+    if (!isCommandPaletteOpen) return;
+    let cancelled = false;
+    fetch(`${API_BASE}/api/files/index`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setPaletteFiles(Array.isArray(d) ? d : []); })
+      .catch(() => { if (!cancelled) setPaletteFiles([]); });
+    fetch(`${API_BASE}/api/db/schemas`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setPaletteSchema(Array.isArray(d) ? d : []); })
+      .catch(() => { if (!cancelled) setPaletteSchema([]); });
+    return () => { cancelled = true; };
+  }, [isCommandPaletteOpen]);
+
   const commandPaletteActions = useMemo(() => {
     if (appPhase !== PHASE.IDE) return [];
     return [
@@ -1151,6 +1171,17 @@ function App() {
 
   // ── Stable callbacks for sidebar panels (so their memo() is effective on nav) ──
   const handleCreateSqlTab = useCallback((sql) => layoutRef.current?.createNew('sql', sql), []);
+
+  // Desde el omnibox: una tabla se previsualiza entera; una columna se
+  // previsualiza sola, porque si la buscaste por su nombre es ELLA lo que
+  // querias ver — y el resultado ya te dijo en que tabla vive, que es lo que no
+  // sabias. Se entrecomilla todo: hay nombres con mayusculas y espacios.
+  const handlePreviewFromPalette = useCallback((schemaName, tableName, columnName) => {
+    const q = (x) => `"${String(x).replace(/"/g, '""')}"`;
+    const target = schemaName ? `${q(schemaName)}.${q(tableName)}` : q(tableName);
+    const cols = columnName ? q(columnName) : '*';
+    handleCreateSqlTab(`SELECT ${cols} FROM ${target} LIMIT 100;`);
+  }, [handleCreateSqlTab]);
   // Fase 4 — historial a archivo: crea un tab .sql nuevo con esta query y
   // dispara Save As directo, en vez de solo insertarla en un tab sin ruta.
   const handleSaveHistoryQueryAsFile = useCallback((sql) => layoutRef.current?.saveHistoryQueryAsFile(sql), []);
@@ -1255,6 +1286,10 @@ function App() {
         isOpen={isCommandPaletteOpen}
         onClose={handleCloseCommandPalette}
         actions={commandPaletteActions}
+        files={paletteFiles}
+        schema={paletteSchema}
+        onOpenFile={handleFileOpen}
+        onPreviewTable={handlePreviewFromPalette}
       />
 
 

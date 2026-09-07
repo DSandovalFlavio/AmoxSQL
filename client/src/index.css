@@ -10577,6 +10577,38 @@ tr:hover td {
   letter-spacing: var(--tracking-wide);
 }
 
+/* El detalle dice DONDE esta el resultado: la ruta de un archivo, el esquema de
+   una tabla, la tabla y el tipo de una columna. Sin el, dos resultados con el
+   mismo nombre son indistinguibles. Se encoge antes que la etiqueta. */
+.cmd-detail {
+  margin-left: auto;
+  padding-left: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+/* Los prefijos se enseñan: un atajo que hay que adivinar no existe para quien
+   no lo adivina. */
+.command-palette-hint {
+  display: flex;
+  gap: 14px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+.command-palette-hint b {
+  color: var(--text-secondary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
+}
+
 .command-palette-empty {
   padding: 24px;
   text-align: center;

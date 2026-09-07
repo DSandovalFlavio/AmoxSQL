@@ -3523,7 +3523,12 @@ app.get('/api/folders', (req, res) => {
     }
 });
 
-/** Recursively collects files whose name ends with `ext` under srcPath, same node_modules/.git skip as getDirectories(). */
+/**
+ * Recursively collects files under srcPath, same node_modules/.git skip as
+ * getDirectories(). With `ext` filters by suffix; sin ext los devuelve todos
+ * —que es lo que necesita el indice del omnibox—, para no tener dos
+ * caminadores distintos diciendo cada uno que archivos tiene el proyecto.
+ */
 const findFilesByExtension = (srcPath, ext) => {
     let matches = [];
     let items;
@@ -3537,13 +3542,34 @@ const findFilesByExtension = (srcPath, ext) => {
         if (item.isDirectory()) {
             if (item.name === 'node_modules' || item.name === '.git') continue;
             matches = matches.concat(findFilesByExtension(itemFullPath, ext));
-        } else if (item.name.toLowerCase().endsWith(ext)) {
+        } else if (!ext || item.name.toLowerCase().endsWith(ext)) {
             const relativePath = path.relative(ROOT_DIR, itemFullPath).replace(/\\/g, '/');
             matches.push({ name: item.name, path: relativePath });
         }
     }
     return matches;
 };
+
+/**
+ * GET /api/files/index — todos los archivos del proyecto, en plano.
+ *
+ * Es el indice que busca el omnibox. Se descartan las carpetas ocultas (las que
+ * empiezan por punto): ahi viven la configuracion del proyecto y las cachés, y
+ * en una busqueda de archivos son ruido, no resultados.
+ *
+ * Sin caché a proposito: el disco es local y el recorrido de un proyecto normal
+ * es de milisegundos. Guardar una copia solo abriria la puerta a que el omnibox
+ * ensenara archivos que ya no existen.
+ */
+app.get('/api/files/index', (req, res) => {
+    try {
+        const files = findFilesByExtension(ROOT_DIR, null)
+            .filter(f => !f.path.split('/').some(seg => seg.startsWith('.')));
+        res.json(files);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // Always walks from ROOT_DIR (no user-supplied path segment), so there is no
 // path-traversal surface here — same trust boundary as GET /api/folders.
