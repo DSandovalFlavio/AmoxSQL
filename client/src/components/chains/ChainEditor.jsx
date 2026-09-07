@@ -100,6 +100,14 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [panelOpen, setPanelOpen] = useState(
         () => localStorage.getItem('amoxsql-chain-panel') !== '0'
     );
+    const [panelWidth, setPanelWidth] = useState(() => {
+        const v = Number(localStorage.getItem('amoxsql-chain-inspector-width'));
+        return v >= 320 ? v : 380;
+    });
+    useEffect(() => {
+        localStorage.setItem('amoxsql-chain-inspector-width', String(panelWidth));
+    }, [panelWidth]);
+
     // Anadir una FUENTE es lo unico que el "+" del nodo no cubre: una fuente no
     // toma entrada, asi que nunca es "el paso siguiente a este".
     const [sourcePicker, setSourcePicker] = useState(null); // { x, y }
@@ -975,7 +983,10 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         // encuadrar —react-flow no encuadra hasta haber MEDIDO los nodos—: en
         // ese caso no se toca la vista, porque desplazarla sin haber encuadrado
         // solo la descoloca.
-        const fitted = await fitView({ padding: 0.2, duration: 0 });
+        // maxZoom 1: con un solo nodo pequeno, encuadrar "a lo que quepa" se
+        // iba al zoom maximo (300 %) y la tarjeta se veia enorme. Acercar mas
+        // del tamano real nunca ayuda a leer un flujo.
+        const fitted = await fitView({ padding: 0.2, maxZoom: 1, duration: 0 });
         if (fitted === false) return;
         const vp = getViewport();
         setViewport({ ...vp, y: vp.y - BOTTOM_BAR_SAFE_AREA / 2 }, { duration: 220 });
@@ -1012,7 +1023,14 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 warningCount={warningCount}
             />
 
-            <div className="chain-editor-body">
+            {/* El ancho que ocupa la tarjeta de datos (0 si esta oculta) se
+                publica aqui: la barra flotante y el fondo de la configuracion
+                lo restan para centrarse en el espacio que de verdad queda
+                libre, en vez de quedar medio tapados por la tarjeta. */}
+            <div
+                className="chain-editor-body"
+                style={{ '--chain-panel-w': panelOpen ? `${panelWidth + 24}px` : '0px' }}
+            >
                 <ChainCanvas
                     nodes={nodesWithValidation}
                     edges={edges}
@@ -1102,6 +1120,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
 
                 <ChainInspector
                     open={panelOpen}
+                    width={panelWidth}
+                    onWidthChange={setPanelWidth}
                     node={inspectorNode}
                     chainDefinition={serialize()}
                     chainFile={filePath}

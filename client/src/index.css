@@ -14961,13 +14961,14 @@ tr:hover td {
 /* ── Inspector (Fase 2) — permanent right panel; never conditionally
    mounted, so it never depends on the chain having run. ── */
 /* Tarjeta FLOTANTE sobre el lienzo (fase 9), no una columna que lo parta en
-   dos. El hueco de abajo es el que ocupa la barra flotante: si llegara hasta
-   el borde, la barra le taparia las ultimas filas. */
+   dos. Llega hasta abajo: quien se aparta es la barra flotante, que se centra
+   en el espacio que esta tarjeta deja libre (--chain-panel-w). Recortar la
+   tarjeta para dejarle sitio a la barra desperdiciaba filas de datos. */
 .chain-inspector {
   position: absolute;
   right: 12px;
   top: 12px;
-  bottom: 106px;
+  bottom: 12px;
   z-index: 15;
   flex-shrink: 0;
   display: flex;
@@ -18071,6 +18072,22 @@ tr:hover td {
    flujo era el hueco del medio.
    ══════════════════════════════════════════════════════════════════════ */
 
+/* Los botones de icono de Data Flow tienen que soltarse de la regla global de
+   `button`, que trae relleno 5px 12px y borde. Como ademas son elementos flex,
+   su min-width automatico es el del contenido MAS ese relleno, asi que el
+   width explicito perdia y salian ovalados en vez de cuadrados. */
+.chain-header-help,
+.chain-inspector-icon,
+.chain-config-surface-x,
+.chain-bb-btn,
+.chain-bb-ai-send,
+.chain-bb-menu button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  flex: none;
+}
+
 /* ── Cabecera: una sola linea de identidad ── */
 .chain-header {
   flex-shrink: 0;
@@ -18192,9 +18209,12 @@ tr:hover td {
 }
 
 /* ── Configurar: el mismo nodo, expandido y centrado ── */
+/* El fondo se detiene donde empieza la tarjeta de datos, asi que el nodo
+   expandido queda centrado en la mitad que de verdad se ve. Con la tabla
+   oculta, --chain-panel-w es 0 y ocupa el lienzo entero. */
 .chain-config-backdrop {
   position: absolute;
-  inset: 0;
+  inset: 0 var(--chain-panel-w, 0px) 0 0;
   z-index: 40;
   display: grid;
   place-items: center;
@@ -18324,13 +18344,17 @@ tr:hover td {
 /* ── Barra flotante del lienzo ── */
 .chain-bottombar {
   position: absolute;
-  left: 50%;
+  /* Centrada en el hueco que deja la tarjeta de datos, no en el lienzo entero:
+     con la tabla abierta, un centro absoluto la dejaba medio tapada. Si la
+     tabla se oculta, --chain-panel-w vale 0 y vuelve al centro de todo. */
+  left: calc(50% - var(--chain-panel-w, 0px) / 2);
   bottom: 14px;
   transform: translateX(-50%);
+  transition: left 0.18s ease;
   z-index: 20;
   display: flex;
   flex-direction: column;
-  width: min(600px, calc(100% - 40px));
+  width: min(600px, calc(100% - var(--chain-panel-w, 0px) - 40px));
   border-radius: 13px;
   background: color-mix(in oklch, var(--surface-overlay) 93%, transparent);
   border: 1px solid var(--border-default);
@@ -18352,8 +18376,11 @@ tr:hover td {
 .chain-bb-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 5px 8px;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
   border-radius: 8px;
   font-size: 11px;
   color: var(--text-secondary);
@@ -18430,6 +18457,7 @@ tr:hover td {
   align-items: center;
   gap: 8px;
   width: 100%;
+  flex: 1 1 auto;
   padding: 6px 8px;
   border-radius: 6px;
   font-size: 11px;

@@ -34,29 +34,24 @@ const formatCell = (v) => {
 const ChainInspector = ({
     node, chainDefinition, chainFile, logs = [],
     pinned, onTogglePin, activeTab, onTabChange,
-    onOpenFullPreview, open = true,
+    onOpenFullPreview, open = true, width = 380, onWidthChange,
 }) => {
     const [schemaCols, setSchemaCols] = useState([]);
     const [previewData, setPreviewData] = useState(null);
     const [sqlInfo, setSqlInfo] = useState(null);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [width, setWidth] = useState(() => {
-        const v = Number(localStorage.getItem('amoxsql-chain-inspector-width'));
-        return v >= 320 ? v : 380;
-    });
+    // El ancho lo lleva el editor: la barra flotante y la superficie de
+    // configuracion se centran en el espacio que esta tarjeta deja libre, asi
+    // que necesitan conocerlo. Aqui solo se arrastra el tirador.
     const resizeCleanupRef = useRef(null);
-
-    useEffect(() => {
-        localStorage.setItem('amoxsql-chain-inspector-width', String(width));
-    }, [width]);
     useEffect(() => () => { resizeCleanupRef.current?.(); }, []);
 
     const startResize = (e) => {
         e.preventDefault();
         const startX = e.clientX;
         const startW = width;
-        const onMove = (ev) => setWidth(Math.min(720, Math.max(320, startW + (startX - ev.clientX))));
+        const onMove = (ev) => onWidthChange?.(Math.min(720, Math.max(320, startW + (startX - ev.clientX))));
         const onUp = () => {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);

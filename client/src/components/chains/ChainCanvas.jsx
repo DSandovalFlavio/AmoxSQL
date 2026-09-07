@@ -139,7 +139,7 @@ const ChainCanvas = ({
                 nodeTypes={nodeTypes}
                 defaultEdgeOptions={defaultEdgeOptions}
                 fitView
-                fitViewOptions={{ padding: 0.2 }}
+                fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
                 deleteKeyCode="Delete"
                 multiSelectionKeyCode="Shift"
                 snapToGrid
