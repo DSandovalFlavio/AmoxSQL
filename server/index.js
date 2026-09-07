@@ -87,36 +87,6 @@ app.get('/api/project/path', (req, res) => {
     res.json({ path: ROOT_DIR });
 });
 
-/**
- * ¿Hay algo que soltar antes de cambiar de proyecto?
- *
- * Reiniciar el motor cuesta ~600 ms: 200 de espera fija para que Windows suelte
- * el candado del archivo, y ~400 de volver a cargar las extensiones activadas en
- * una instancia recien creada (sobre un motor ya montado, un LOAD son 0-1 ms;
- * el precio es tenerlas que meter de nuevo cada vez que se tira la instancia).
- *
- * Y casi siempre no hay NADA que reiniciar: al abrir un proyecto desde la
- * bienvenida el motor acaba de arrancar y esta vacio. Se comprueba antes, con la
- * misma definicion de "tabla del usuario" que usa el resto del servidor, para no
- * pagar ese precio a cambio de nada.
- *
- * Las tablas en memoria si cuentan: si la sesion anterior creo alguna, dejarla
- * viva la colaria en el proyecto nuevo.
- */
-const engineHasUserState = async () => {
-    if (dbManager.getCurrentPath() !== ':memory:') return true;
-    try {
-        const rows = await dbManager.systemQuery(
-            `SELECT count(*) AS n FROM information_schema.tables WHERE ${userTablesWhereClause()}`,
-            { lane: 'meta' }
-        );
-        return Number(rows?.[0]?.n || 0) > 0;
-    } catch {
-        // Ante la duda, reiniciar: es lento, pero correcto.
-        return true;
-    }
-};
-
 app.post('/api/project/open', async (req, res) => {
     const { path: newPath } = req.body;
     if (!newPath) return res.status(400).json({ error: 'Path is required' });
@@ -125,12 +95,11 @@ app.post('/api/project/open', async (req, res) => {
     if (!fs.statSync(newPath).isDirectory()) return res.status(400).json({ error: 'Path is not a directory' });
 
     try {
-        // Solo se reinicia si hay algo que soltar — ver engineHasUserState().
-        if (await engineHasUserState()) {
-            await dbManager.reinitializeSystem();
-        } else {
-            console.log('[Project] Motor limpio: se abre el proyecto sin reiniciarlo.');
-        }
+        // Abrir una carpeta ya NO toca el motor. En el modelo actual la sesion
+        // empieza al elegir la base, y es connect() quien garantiza que arranca
+        // limpia (ver DatabaseManager.hasSessionState). Reiniciar tambien aqui
+        // era un resto del modelo viejo —workspace = carpeta, y cambiabas de base
+        // dentro de la sesion— y costaba ~620 ms en cada apertura.
 
         ROOT_DIR = newPath;
         process.chdir(ROOT_DIR);
@@ -574,6 +543,13 @@ app.post('/api/db/connect', async (req, res) => {
         }
 
         res.json({ success: true, path: dbManager.getCurrentPath() });
+
+        // Las extensiones se calientan DESPUES de responder: el usuario ya esta
+        // entrando al IDE mientras se cargan. Aqui es el unico punto donde de
+        // verdad no queda SQL del arranque por delante — los LOAD van por la
+        // conexion 'main' y DuckDB serializa sus sentencias, asi que lanzarlas
+        // antes solo movia la espera a lo siguiente de la cola.
+        dbManager.warmExtensions();
     } catch (err) {
         console.error("DB Connection Failed:", err);
         res.status(500).json({ error: 'Failed to connect to database', details: err.message });

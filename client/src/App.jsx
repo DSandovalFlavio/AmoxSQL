@@ -801,9 +801,11 @@ function App() {
       setCurrentDb(':memory:');
       setDbReadOnly(false);
     } else {
-      // Ensure clean slate
+      // /api/db/close responde cuando ya termino de soltar la base anterior, y
+      // connect() vuelve a comprobar por su cuenta que el motor arranca limpio.
+      // La espera fija de 200 ms que habia aqui era un "por si acaso" encima de
+      // algo ya esperado, y se llevaba el 75 % de lo que tardaba entrar.
       await fetch(`${API_BASE}/api/db/close`, { method: 'POST' });
-      await new Promise(r => setTimeout(r, 200));
 
       try {
         const response = await fetch(`${API_BASE}/api/db/connect`, {
