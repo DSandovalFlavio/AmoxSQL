@@ -313,6 +313,11 @@ body {
      pise la corrección de claro y ensucie el fondo. */
   --glow-strength:   var(--glow-strength-user, 30%);
   --glow-strength-2: calc(var(--glow-strength) * 0.43);
+
+  /* Bienvenida: halo del lienzo y tinte del panel derecho. En oscuro el panel no
+     se tinta (0%), solo se oscurece; en claro pasa lo contrario. */
+  --ws-glow: 14%;
+  --ws-panel-tint: 0%;
 }
 
 /* ── Esquina del resplandor — AJUSTABLE por el usuario ──
@@ -327,10 +332,20 @@ body.glow-tr { --glow-x: 97%; --glow-y:  -8%;  --glow-x2: 74%; --glow-y2: -4%;  
 body.glow-bl { --glow-x:  3%; --glow-y: 108%;  --glow-x2: 26%; --glow-y2: 104%; }
 body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; }
 
-/* En claro el mismo porcentaje pesa mucho más y ensucia el fondo: se escala al
-   40% de lo que haya pedido el usuario, conservando su intención relativa. */
+/* En claro el resplandor necesita MAS, no menos. Sobre un fondo casi negro un
+   halo funciona anadiendo luz y hay muchisimo margen hacia arriba; sobre una
+   superficie clara ese margen no existe, asi que un acento claro al 12% no
+   produce nada. Lo que se lee en claro no es luz emitida sino un velo de color,
+   y para eso hace falta subir la mezcla — los temas claros ya definen su acento
+   con una L baja, de modo que tinta en vez de blanquear. */
 .mode-light {
-  --glow-strength: calc(var(--glow-strength-user, 30%) * 0.4);
+  --glow-strength: calc(var(--glow-strength-user, 30%) * 0.8);
+  --ws-glow: 30%;        /* el halo del lienzo */
+  --ws-panel-tint: 10%;  /* el panel derecho se tinta en vez de solo oscurecerse:
+                            un panel gris no pega con nada, uno tintado se lee
+                            como decision de diseno */
+  --ws-canvas-l: 0.945;  /* medido: a 0.97 el panel quedaba solo un 8% mas oscuro
+                            que la izquierda, contra el 30% que da el oscuro */
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2133,10 +2148,11 @@ body {
   z-index: 0;
   pointer-events: none;
   border-left: 1px solid var(--border-subtle);
-  background: oklch(from var(--surface-base) calc(l * var(--ws-canvas-l, 0.72)) c h);
+  background: color-mix(in oklch,
+    var(--accent-primary) var(--ws-panel-tint),
+    oklch(from var(--surface-base) calc(l * var(--ws-canvas-l, 0.72)) c h));
 }
 
-.mode-light { --ws-canvas-l: 0.965; }
 
 @media (max-width: 900px) {
   .app-shell--welcome::before { display: none; }
@@ -13842,7 +13858,7 @@ tr:hover td {
   overflow: hidden;
   background:
     radial-gradient(58% 52% at 50% 44%,
-      color-mix(in oklch, var(--accent-primary) 14%, transparent) 0%, transparent 72%);
+      color-mix(in oklch, var(--accent-primary) var(--ws-glow), transparent) 0%, transparent 72%);
 }
 
 .ws-morph {

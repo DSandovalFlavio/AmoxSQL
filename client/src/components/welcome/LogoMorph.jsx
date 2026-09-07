@@ -158,7 +158,8 @@ const buildPalette = () => {
     const rawB = cs.getPropertyValue('--logo-grad-b').trim();
     const a = parseOklch(rawA);
     const b = parseOklch(rawB);
-    if (!a || !b) return { key: rawA + rawB, colors: new Array(STEPS).fill(rawA || '#00ECFF') };
+    const light = document.body.classList.contains('mode-light');
+    if (!a || !b) return { key: rawA + rawB, light, colors: new Array(STEPS).fill(rawA || '#00ECFF') };
 
     // Interpolación de tono por el camino corto, igual que hace oklch.
     let dH = b.H - a.H;
@@ -174,7 +175,7 @@ const buildPalette = () => {
             `${(a.H + dH * t).toFixed(1)})`
         );
     }
-    return { key: rawA + rawB, colors };
+    return { key: rawA + rawB, colors, light };
 };
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -268,10 +269,14 @@ const LogoMorph = () => {
                 // Deriva mínima en reposo para que no parezca una imagen fija.
                 const drift = holding && !reduce ? Math.sin(now / 1400 + i) * 0.0014 : 0;
 
+                // En claro las particulas no tienen el fondo oscuro que en oscuro
+                // las hace brillar, asi que se compensa con algo mas de cuerpo y
+                // opacidad; si no, el enjambre se pierde.
+                const boost = palette.light ? 1.35 : 1;
                 ctx.fillStyle = palette.colors[Math.min(STEPS - 1, Math.max(0, Math.round(p.y * (STEPS - 1))))];
-                ctx.globalAlpha = 0.35 + (i % 5) * 0.13;
+                ctx.globalAlpha = Math.min(1, (0.35 + (i % 5) * 0.13) * (palette.light ? 1.25 : 1));
                 ctx.beginPath();
-                ctx.arc(ox + (p.x + drift) * S, oy + (p.y + drift) * S, p.size, 0, Math.PI * 2);
+                ctx.arc(ox + (p.x + drift) * S, oy + (p.y + drift) * S, p.size * boost, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.globalAlpha = 1;
