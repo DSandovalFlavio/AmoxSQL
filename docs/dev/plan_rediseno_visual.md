@@ -4,9 +4,8 @@
 > **Contexto**: ver [`discovery_rediseno_visual.md`](./discovery_rediseno_visual.md) y el mockup interactivo [`mockup_rediseno_visual.html`](./mockup_rediseno_visual.html).
 > **Objetivo**: que la interfaz se sienta menos "matrix" y más moderna, sin perder la identidad.
 
-> **Estado (2026-09-07)**: fases **0 a 7 y 9 implementadas** en la rama
-> `claude/rediseno-visual`. Queda **solo la fase 8** (omnibox: búsqueda de
-> archivos y esquema). Nada mergeado a `main` todavía.
+> **Estado (2026-09-07)**: **todas las fases implementadas** (0 a 9) en la rama
+> `claude/rediseno-visual`. El rediseño está completo.
 
 Fases ordenadas por **riesgo ascendente / valor descendente**. Cada fase es entregable por sí sola, salvo la dependencia explícita de F1 sobre F0.
 
@@ -410,7 +409,7 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 
 ---
 
-## FASE 8 — Omnibox: archivos y esquema
+## FASE 8 — Omnibox: archivos y esquema ✅ IMPLEMENTADA (2026-09-07)
 
 > Depende de la F3.4, que ya deja el campo y el atajo en su sitio. Aquí solo cambia lo que hay **detrás**.
 
@@ -434,6 +433,40 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 ---
 
 ---
+
+### Notas de implementación (2026-09-07)
+
+`CommandPalette.jsx` pasa de filtrar una lista de comandos a mezclar tres
+fuentes con una puntuación común. El servidor gana `/api/files/index`, que
+reutiliza `findFilesByExtension` —al que ahora se le puede no pasar extensión—
+en vez de abrir un segundo caminador del proyecto.
+
+**Desvío del plan**: 8.5 pedía que una columna previsualizara *su tabla con la
+columna resaltada*. No hay forma de resaltar una columna en el editor de SQL, y
+fingirlo con `SELECT col, *` habría sido peor. Se previsualiza la columna sola:
+si la buscaste por su nombre es ella lo que querías ver, y el resultado ya te
+dijo en qué tabla vive, que era lo que no sabías.
+
+**Decisiones que conviene recordar**
+
+- **Sin caché.** El disco y DuckDB son locales; se consulta al abrir el
+  omnibox. Una copia solo serviría para enseñar archivos o tablas que ya no
+  existen — y evita además el problema de invalidarla al cambiar de base o
+  importar, que el plan daba por resuelto a mano.
+- **Archivos y esquema no aparecen sin término escrito.** Sin nada escrito el
+  usuario está ojeando los comandos; volcar mil archivos ahí no ayuda.
+- **Corte en 12 por grupo**, no virtualización (descartada en este proyecto).
+  El proyecto de prueba indexa 1233 archivos y el filtrado en el cliente ni se
+  nota.
+- La puntuación premia el prefijo sobre la contención y, a igualdad, el nombre
+  más corto. Sin ella el orden era el del índice, que no significa nada para
+  quien busca.
+
+**Comprobado en la app**: «README» da los dos archivos con su ruta;
+«id_cliente» encuentra la columna en las dos tablas que la tienen, con tabla y
+tipo; «#cli» filtra a esquema y «>theme» a comandos; pulsar una columna abre
+`SELECT "importe_total" FROM "main"."ventas" LIMIT 100;` y pulsar un archivo lo
+abre en una pestaña.
 
 ## FASE 9 — Data Flow, el reparto de la pantalla ✅ IMPLEMENTADA (2026-09-07)
 
