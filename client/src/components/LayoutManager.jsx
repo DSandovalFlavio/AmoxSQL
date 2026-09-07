@@ -7,6 +7,7 @@ import { useToast } from './ToastProvider';
 import { resolveVariables } from './VariablesBar';
 import AlertDialog from './AlertDialog';
 import { useDialog } from './dialogs/DialogProvider';
+import SqlSourcePicker from './SqlSourcePicker';
 import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 import { DECK_STARTER_TEMPLATE } from '../utils/deckParser';
 import { invalidateSchema } from '../state/sidebarCache';
@@ -774,10 +775,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // empty-state card) — it must win over `activePane`, which only serves as
     // the fallback for actions with no specific origin (keyboard shortcuts,
     // the command palette, sidebar actions).
-    const createNew = useCallback((type, initialContent, targetPane) => {
-        const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb'
-            : (type === 'chain' || type === 'sqlchain') ? 'sqlchain'
-            : type;
+    // Un grafico nuevo pregunta primero a que .sql se asocia; ver
+    // openChartFor(). El estado guarda en que panel hay que abrirlo.
+    const [chartSourceFor, setChartSourceFor] = useState(null);   // { targetPane } | null
+
+    const spawnTab = useCallback((normalizedType, initialContent, targetPane) => {
         const newTab = {
             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
             path: '',
@@ -807,7 +809,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : 'SELECT 1;'),
             results: null,
             dirty: normalizedType !== 'er-diagram' && normalizedType !== 'datadiving' && normalizedType !== 'dbt-lineage',
-            initialChartConfig: normalizedType === 'amoxvis' ? { chartType: 'bar', query: '' } : undefined,
+            // Un .amoxvis creado con contenido ya trae su query y su origen
+            // (ver openChartFor): se respeta en vez de pisarlo con el blanco.
+            initialChartConfig: normalizedType === 'amoxvis'
+                ? (() => { try { return JSON.parse(initialContent); } catch { return { chartType: 'bar', query: '' }; } })()
+                : undefined,
         };
         const pane = targetPane || stateRef.current.activePane;
         if (pane === 'left') {
@@ -819,6 +825,45 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
         setActivePane(pane);
     }, []);
+
+    const createNew = useCallback((type, initialContent, targetPane) => {
+        const normalizedType = (type === 'notebook' || type === 'sqlnb') ? 'sqlnb'
+            : (type === 'chain' || type === 'sqlchain') ? 'sqlchain'
+            : type;
+
+        // Un grafico sin query no puede enseñar nada, y llegar a una eran cuatro
+        // pasos: abrir el .sql, ejecutarlo, ir a graficos y guardar. Aqui se
+        // pregunta de entrada por el .sql al que se asocia, y son dos.
+        // Si ya viene con contenido (lo trae el propio selector, o quien cree un
+        // grafico ya resuelto) se abre directo, sin preguntar nada.
+        if (normalizedType === 'amoxvis' && !initialContent) {
+            setChartSourceFor({ targetPane: targetPane || stateRef.current.activePane });
+            return;
+        }
+
+        spawnTab(normalizedType, initialContent, targetPane);
+    }, [spawnTab]);
+
+    /**
+     * Abre el grafico con lo que devolvio el selector.
+     *
+     * `eleccion` es null (grafico en blanco) o { path, query }. El selector ya
+     * leyo el archivo y resolvio QUE sentencia usar, porque un .sql con varias
+     * consultas no es una query: meter el archivo entero daba "No data".
+     *
+     * Se guardan las dos cosas: `source` es la RUTA, que es lo que sostiene el
+     * vinculo de procedencia que AmoxvisPane ya sabe seguir —avisa si el archivo
+     * cambia despues, y deja desvincular—; y `query`, para que el grafico siga
+     * abriendo aunque el .sql desaparezca.
+     */
+    const openChartFor = useCallback((eleccion) => {
+        const targetPane = chartSourceFor?.targetPane;
+        setChartSourceFor(null);
+        const config = eleccion
+            ? { chartType: 'bar', query: eleccion.query || '', source: eleccion.path }
+            : { chartType: 'bar', query: '' };
+        spawnTab('amoxvis', JSON.stringify(config, null, 2), targetPane);
+    }, [chartSourceFor, spawnTab]);
 
     // Fase 4 — historial a archivo: creates a real new .sql tab for this
     // query and requests Save As on THAT tab directly (its own local newTab
@@ -1850,6 +1895,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 loading={planLoading}
                 onSetMode={(m) => handleAnalyzeActive(m)}
             />
+
+            {chartSourceFor && (
+                <SqlSourcePicker
+                    onPick={openChartFor}
+                    onClose={() => setChartSourceFor(null)}
+                />
+            )}
 
             <AlertDialog
                 isOpen={alertData.isOpen}
