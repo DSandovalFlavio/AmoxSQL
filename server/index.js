@@ -4378,6 +4378,81 @@ app.get('/api/functions/catalog', (req, res) => {
     }
 });
 
+/**
+ * GET /api/functions/usage — cuánto usas cada función, según tu historial.
+ *
+ * El panel de funciones ordenaba 965 entradas por orden alfabético, así que
+ * encontrar la que usas siempre costaba lo mismo que encontrar una que no has
+ * usado nunca. Esto da la señal para arreglarlo.
+ *
+ * La fuente es amoxsql_ai.query_history: las queries que REALMENTE ejecutaste,
+ * no lo que pulsaste en el panel. Vive dentro de la base del proyecto, así que
+ * el uso es por proyecto — que es lo correcto: las funciones de un proyecto de
+ * series temporales no son las de uno de texto.
+ *
+ * Se extrae todo lo que parezca una llamada `nombre(` y se cruza con el catálogo
+ * real; así `IN (`, `VALUES (` y demás palabras clave se caen solas sin
+ * necesidad de una lista negra que mantener.
+ */
+app.get('/api/functions/usage', async (req, res) => {
+    try {
+        const check = await dbManager.systemQuery(
+            "SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema = 'amoxsql_ai' AND table_name = 'query_history'"
+        );
+        if (!check[0] || check[0].cnt == 0) {
+            return res.json({ counts: {}, recent: [], queriesScanned: 0 });
+        }
+
+        // 1000 entradas es el mismo tope que usa el panel de historial. El
+        // historial se poda a 30 días, así que esto es "tus hábitos recientes",
+        // no un ranking histórico — y para recomendar es lo que interesa.
+        const rows = await dbManager.systemQuery(
+            'SELECT query, executed_at FROM amoxsql_ai.query_history ORDER BY executed_at DESC LIMIT 1000'
+        );
+
+        // Nombres canónicos conocidos, indexados en minúscula para comparar.
+        const conocidos = new Map();
+        const cache = loadFunctionsCache();
+        for (const fn of (cache?.functions || [])) {
+            if (fn.function_name) conocidos.set(String(fn.function_name).toLowerCase(), fn.function_name);
+        }
+        for (const nombre of Object.keys(loadCuratedDocs().functions || {})) {
+            if (!conocidos.has(nombre.toLowerCase())) conocidos.set(nombre.toLowerCase(), nombre);
+        }
+
+        const counts = {};
+        const recent = [];
+        const yaVisto = new Set();
+        const LLAMADA = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
+
+        for (const row of rows) {
+            const sql = String(row.query || '');
+            let m;
+            LLAMADA.lastIndex = 0;
+            const enEstaQuery = new Set();
+            while ((m = LLAMADA.exec(sql)) !== null) {
+                const canonico = conocidos.get(m[1].toLowerCase());
+                if (!canonico) continue;
+                counts[canonico] = (counts[canonico] || 0) + 1;
+                enEstaQuery.add(canonico);
+            }
+            // `rows` viene de la más reciente a la más antigua, así que el primer
+            // encuentro de cada nombre ya es su uso más reciente.
+            for (const nombre of enEstaQuery) {
+                if (yaVisto.has(nombre)) continue;
+                yaVisto.add(nombre);
+                recent.push(nombre);
+            }
+        }
+
+        res.json({ counts, recent, queriesScanned: rows.length });
+    } catch (err) {
+        console.error('[Functions] Usage error:', err);
+        // El panel funciona sin esto: se queda sin la parte de "lo tuyo".
+        res.json({ counts: {}, recent: [], queriesScanned: 0, degraded: true });
+    }
+});
+
 // GET /api/functions/coverage — Doc coverage stats
 app.get('/api/functions/coverage', (req, res) => {
     try {

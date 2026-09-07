@@ -336,3 +336,100 @@
     gap: 8px;
     color: var(--color-error);
 }
+
+/* ══ Lo tuyo, arriba ═══════════════════════════════════════════════════════
+   Hasta 20 funciones en cuatro grupos. Las dos primeras salen de tu historial
+   real de queries; las otras dos no dependen de él, para que un proyecto nuevo
+   no arranque con la sección vacía. */
+.fnref-controls { display: flex; align-items: center; gap: 6px; }
+
+.fnref-typesbtn {
+    display: grid; place-items: center;
+    width: 26px; height: 26px; padding: 0; flex: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.fnref-typesbtn:hover { color: var(--text-primary); background: var(--hover-bg); }
+.fnref-typesbtn--on { color: var(--accent-primary); border-color: var(--accent-primary); }
+
+.fnref-types {
+    flex: none;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--surface-inset);
+}
+.fnref-type-row { display: flex; align-items: flex-start; gap: 8px; }
+.fnref-type-txt { font-size: var(--text-xs); color: var(--text-tertiary); line-height: 1.5; }
+.fnref-type-txt b { color: var(--text-secondary); font-weight: var(--weight-medium); }
+
+.fnref-top {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 10px 10px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.fnref-top-head {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 5px;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    cursor: help;
+}
+.fnref-top-head > svg { color: var(--accent-primary); flex: none; }
+.fnref-top-items { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.fnref-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.fnref-chip:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.fnref-chip--active { border-color: var(--accent-primary); color: var(--accent-primary); }
+.fnref-chip-n {
+    font-family: var(--font-sans);
+    font-size: 9px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ══ El catálogo, agrupado ═════════════════════════════════════════════════ */
+.fnref-group { display: flex; flex-direction: column; }
+
+.fnref-group-head {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%;
+    padding: 7px 10px;
+    margin-top: 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    text-align: left;
+    cursor: pointer;
+}
+.fnref-group-head:hover { background: var(--hover-bg); color: var(--text-primary); }
+.fnref-group-head > svg { color: var(--text-tertiary); flex: none; }
+.fnref-group-label { flex: 1; min-width: 0; }
+.fnref-group-n {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* La explicación de la etapa: por qué existe ese grupo, no solo su nombre. */
+.fnref-group-desc {
+    margin: 0 10px 6px 28px;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    line-height: 1.5;
+}
