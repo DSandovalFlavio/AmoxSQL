@@ -121,6 +121,9 @@ const ChainCanvas = ({
         style: { stroke: theme.edge, strokeWidth: 2 },
     }), [theme.edge]);
 
+    // Sin el prop fitView de react-flow: encuadra contra el contenedor entero e
+    // ignora la tarjeta de datos, que tapa la franja derecha. El encuadre lo
+    // hace ChainEditor (fitVisible) contra el area que de verdad queda libre.
     return (
         <div className="chain-canvas-container">
             <ReactFlow
@@ -138,8 +141,6 @@ const ChainCanvas = ({
                 onMove={(_, viewport) => onZoomChange?.(viewport.zoom)}
                 nodeTypes={nodeTypes}
                 defaultEdgeOptions={defaultEdgeOptions}
-                fitView
-                fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
                 deleteKeyCode="Delete"
                 multiSelectionKeyCode="Shift"
                 snapToGrid

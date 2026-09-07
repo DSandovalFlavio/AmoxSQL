@@ -8,6 +8,10 @@ import {
     useNodesState,
     useEdgesState,
     useReactFlow,
+    useNodesInitialized,
+    useStore,
+    getNodesBounds,
+    getViewportForBounds,
     addEdge,
 } from '@xyflow/react';
 import { LuCheck, LuX, LuPause, LuInfo } from 'react-icons/lu';
@@ -48,7 +52,12 @@ import { API_BASE } from '../../api.js';
 const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) => {
     const toast = useToast();
     const dialog = useDialog();
-    const { screenToFlowPosition, fitView, getZoom, getViewport, setViewport } = useReactFlow();
+    const { screenToFlowPosition, getZoom, setViewport } = useReactFlow();
+    // Medidas reales del lienzo, de la propia tienda de react-flow: mas fiables
+    // que medir el DOM, y se actualizan solas al redimensionar.
+    const flowW = useStore((st) => st.width);
+    const flowH = useStore((st) => st.height);
+    const nodesInitialized = useNodesInitialized();
     const reactFlowWrapper = useRef(null);
 
     // Parse initial chain definition from file content
@@ -114,8 +123,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     // El zoom se lee de react-flow, que no notifica por si solo: lo refresca el
     // propio lienzo en cada movimiento de vista.
     const [zoom, setZoom] = useState(1);
-    // El lienzo monta con fitView, que casi nunca deja el zoom en 100 %: sin
-    // esto la barra mentiria hasta el primer movimiento de vista.
+    // El encuadre inicial casi nunca deja el zoom en 100 %: sin esto la barra
+    // mentiria hasta el primer movimiento de vista.
     useEffect(() => {
         const t = setTimeout(() => { try { setZoom(getZoom()); } catch { /* aun sin montar */ } }, 60);
         return () => clearTimeout(t);
@@ -972,25 +981,53 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         setChainMeta((m) => ({ ...m, name }));
     }, []);
 
-    // La barra flotante tapa la parte baja del lienzo, y fitView no sabe nada de
-    // ella: encuadra contra el alto completo y deja los ultimos nodos debajo. Se
-    // encuadra primero sin animar y despues se sube la vista media barra, que es
-    // lo que hace falta para centrar en el espacio que de verdad se ve.
-    const handleFitView = useCallback(async () => {
-        // fitView es ASINCRONO: sin esperarlo, getViewport devuelve la vista
-        // ANTERIOR y el desplazamiento de abajo se aplicaria sobre ella, con lo
-        // que el encuadre no llegaria a verse. Y devuelve false cuando no puede
-        // encuadrar —react-flow no encuadra hasta haber MEDIDO los nodos—: en
-        // ese caso no se toca la vista, porque desplazarla sin haber encuadrado
-        // solo la descoloca.
-        // maxZoom 1: con un solo nodo pequeno, encuadrar "a lo que quepa" se
-        // iba al zoom maximo (300 %) y la tarjeta se veia enorme. Acercar mas
-        // del tamano real nunca ayuda a leer un flujo.
-        const fitted = await fitView({ padding: 0.2, maxZoom: 1, duration: 0 });
-        if (fitted === false) return;
-        const vp = getViewport();
-        setViewport({ ...vp, y: vp.y - BOTTOM_BAR_SAFE_AREA / 2 }, { duration: 220 });
-    }, [fitView, getViewport, setViewport]);
+    // El area que de verdad se ve no es el lienzo entero: la tarjeta de datos
+    // tapa una franja a la derecha y la barra flotante otra abajo. fitView de
+    // react-flow encuadra contra el contenedor completo, asi que con la tabla
+    // abierta metia nodos justo debajo de ella. Aqui se calcula el encuadre a
+    // mano contra el rectangulo libre.
+    const fitVisible = useCallback((opts = {}) => {
+        if (!flowW || !flowH || nodes.length === 0) return false;
+        const bounds = getNodesBounds(nodes);
+        if (!bounds || !bounds.width || !bounds.height) return false;
+
+        const rightInset = panelOpen ? panelWidth + 24 : 0;
+        const w = flowW - rightInset;
+        const h = flowH - BOTTOM_BAR_SAFE_AREA;
+        if (w < 80 || h < 80) return false;
+
+        // maxZoom 1: acercar mas del tamano real nunca ayuda a leer un flujo, y
+        // con un solo nodo pequeno "lo que quepa" era el zoom maximo (300 %).
+        const vp = getViewportForBounds(bounds, w, h, 0.2, 1, 0.2);
+        // El rectangulo libre arranca en la esquina superior izquierda del
+        // lienzo, asi que el viewport no necesita desplazamiento adicional.
+        setViewport(vp, { duration: opts.duration ?? 220 });
+        // setViewport programatico no dispara onMove, asi que el indicador de la
+        // barra se quedaria con el zoom anterior.
+        setZoom(vp.zoom);
+        return true;
+    }, [flowW, flowH, nodes, panelOpen, panelWidth, setViewport]);
+
+    // Encuadre inicial: una vez por archivo, en cuanto react-flow ha MEDIDO los
+    // nodos (antes de eso no hay dimensiones que encuadrar). Lo hacemos aqui en
+    // vez de dejarselo al prop fitView de react-flow porque aquel encuadra
+    // contra el contenedor entero e ignora la tarjeta de datos.
+    const fittedForRef = useRef(null);
+    useEffect(() => {
+        if (!nodesInitialized) return;
+        if (fittedForRef.current === filePath) return;
+        if (fitVisible({ duration: 0 })) fittedForRef.current = filePath;
+    }, [nodesInitialized, filePath, fitVisible]);
+
+    // Abrir o cerrar la tabla cambia el espacio disponible: se reencuadra para
+    // que ningun nodo quede debajo de ella. Es respuesta a un gesto explicito
+    // del usuario, asi que mover la vista aqui es previsible.
+    const prevPanelOpenRef = useRef(panelOpen);
+    useEffect(() => {
+        if (prevPanelOpenRef.current === panelOpen) return;
+        prevPanelOpenRef.current = panelOpen;
+        if (fittedForRef.current !== null) fitVisible();
+    }, [panelOpen, fitVisible]);
 
     // Una fuente se coloca a la izquierda de todo y sin conectar: es un origen
     // nuevo del flujo, no un paso que siga a nada.
@@ -1103,7 +1140,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         setSourcePicker({ x: r.left + r.width / 2, y: r.top });
                     }}
                     onAutoLayout={handleAutoLayout}
-                    onFitView={handleFitView}
+                    onFitView={() => fitVisible()}
                     zoom={zoom}
                     panelOpen={panelOpen}
                     onTogglePanel={togglePanel}
