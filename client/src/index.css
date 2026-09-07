@@ -18535,3 +18535,60 @@ tr:hover td {
   background: var(--hover-bg);
   color: var(--text-primary);
 }
+
+/* ══ Hover de los botones de accion con relleno de acento ══════════════════
+   Misma correccion que .ws-cta, aplicada al resto.
+
+   Todos pintaban su relleno de acento en su regla base —una sola clase, 0-1-0—
+   sin declarar fondo en :hover. La regla global `button:hover` es 0-1-1, asi
+   que le ganaba y cambiaba el relleno por --hover-bg mientras el color de texto
+   seguia siendo el oscuro pensado para fondo brillante: el boton se volvia
+   negro e ilegible. Lo mismo con `button:active`.
+
+   El estado pasa a ser deliberado y coherente con la bienvenida: el hover
+   INVIERTE el boton —fondo oscuro, y texto, icono y contorno en el acento—.
+   Los iconos siguen al color porque react-icons pinta con currentColor.
+
+   El contorno se dibuja con `outline` y desplazamiento negativo, no con
+   `border`: estos botones tienen bordes distintos entre si —unos `none`, otros
+   de 1 px— y el outline vale igual para todos sin poder desplazar la
+   maquetacion de ninguno.
+
+   NO estan aqui los estados ACTIVOS (ver debajo): invertir un conmutador
+   encendido al pasar el raton lo haria parecer apagado.                     */
+.chain-bb-ai-send:hover:not(:disabled),
+.chain-bb-ai-send:active:not(:disabled),
+.chain-config-surface-done:hover:not(:disabled),
+.chain-config-surface-done:active:not(:disabled),
+.chain-history-resume:hover:not(:disabled),
+.chain-history-resume:active:not(:disabled),
+.chart-gallery-generate-btn:hover:not(:disabled),
+.chart-gallery-generate-btn:active:not(:disabled),
+.dbt-btn--primary:hover:not(:disabled),
+.dbt-btn--primary:active:not(:disabled),
+.ext-install-btn:hover:not(:disabled),
+.ext-install-btn:active:not(:disabled),
+.git-commit-btn:hover:not(:disabled),
+.git-commit-btn:active:not(:disabled),
+.snb-btn--accent:hover:not(:disabled),
+.snb-btn--accent:active:not(:disabled),
+.stg-btn--primary:hover:not(:disabled),
+.stg-btn--primary:active:not(:disabled),
+.vault-save-dropdown-btn:hover:not(:disabled),
+.vault-save-dropdown-btn:active:not(:disabled),
+.ww-btn-create:hover:not(:disabled),
+.ww-btn-create:active:not(:disabled) {
+  background: var(--surface-inset);
+  color: var(--accent-primary);
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
+}
+
+/* Conmutador ENCENDIDO (Assist abierto, modo presentacion). Aqui el hover no
+   debe invertir nada: solo hay que impedir que `button:hover` se lleve el
+   relleno, o el boton activo parecia apagarse al pasar por encima. */
+.snb-btn--active:hover,
+.snb-btn--active:active {
+  background: var(--accent-primary);
+  filter: brightness(1.08);
+}
