@@ -14227,6 +14227,18 @@ tr:hover td {
   margin-bottom: 4px;
 }
 
+/* Este contenedor NUNCA tuvo regla propia: era un div sin estilar, o sea
+   display:block. Sus hijos (el boton de validacion, el estado, y ahora el de
+   ejecutar) son todos block-level, asi que se apilaban en vertical. No se veia
+   porque hasta ahora rara vez habia mas de uno a la vez; al anadir el boton de
+   ejecutar quedaron dos y la cabecera crecio a dos filas al pasar el raton. */
+.chain-node-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
 /* El icono es el unico portador del color de categoria en la cabecera (junto al
    handle). Sustituye al badge relleno, que compettia con la etiqueta del nodo. */
 .chain-node-icon {
