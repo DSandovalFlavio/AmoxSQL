@@ -147,10 +147,13 @@ const ChainCanvas = ({
                 maxZoom={3}
                 proOptions={{ hideAttribution: true }}
             >
+                {/* Retícula más fina y menos separada: se lee como papel técnico
+                    en vez de como ruido de fondo. El paso sigue siendo divisor
+                    del snapGrid de 20 para que los nodos caigan sobre puntos. */}
                 <Background
                     variant={BackgroundVariant.Dots}
-                    gap={20}
-                    size={1}
+                    gap={10}
+                    size={0.8}
                     color={theme.dots}
                 />
                 <Controls

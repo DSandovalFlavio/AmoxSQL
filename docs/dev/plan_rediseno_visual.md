@@ -313,7 +313,7 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 
 ---
 
-## FASE 6 — Data Flow, pulido del nodo
+## FASE 6 — Data Flow, pulido del nodo ✅ IMPLEMENTADA (2026-09-06)
 
 **Objetivo**: las mejoras baratas del nodo. Los nodos planos ya entraron en F0.6.
 
@@ -326,6 +326,25 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 | 6.3 | Icono de categoría | Sustituir el badge de texto (`SOURCE`, `TRANSFORM`) por el icono Lucide de la categoría, coloreado con `--node-accent`. |
 | 6.4 | Retícula del lienzo | Calibrar `BackgroundVariant.Dots` (`ChainCanvas.jsx:151`): espaciado, tamaño y opacidad para que lea como papel técnico y no como ruido. |
 | 6.5 | Clúster de control | Zoom %, ajustar, bloquear y ayuda abajo a la derecha. Revisar antes qué trae ya react-flow para no duplicar. |
+
+> **Notas de implementacion — la fase se reencuadro contra la realidad del codigo.**
+>
+> - **6.5 (cluster de zoom) YA ESTABA HECHO.** ChainCanvas.jsx ya monta el
+>   Controls en bottom-right y el MiniMap en bottom-left de react-flow. El plan
+>   pedia revisarlo antes de duplicar; la respuesta es que no habia nada que hacer.
+> - **6.1 (puertos nombrados) NO SE IMPLEMENTO, y no deberia hacerse aqui.** No
+>   existe modelo de aridad: TODOS los tipos tienen exactamente un handle de
+>   entrada y uno de salida. Incluso merge_tables y join_tables reciben varios
+>   nodos por el MISMO handle y resuelven las tablas por nombre en su config.
+>   Etiquetar handles unicos como "Input"/"Output" no aporta nada; hacerlo de
+>   verdad exige anadir aridad a NODE_TYPES, handles con id, validacion por puerto
+>   y targetHandle en las aristas — o sea, migrar el formato .sqlchain. Eso es
+>   cambio de modelo de datos: pertenece a la fase 7, que ya lo toca.
+> - **La duracion ya estaba en la cabecera**, al contrario de lo que decia el plan.
+> - **Bug encontrado al validar**: la accion run-only existia solo en
+>   handleMenuAction (el despachador del menu contextual, que lee nodeMenu.nodeId).
+>   El boton nuevo despacha por nodeActionRef, que es OTRO switch, y ahi no estaba
+>   el caso: el boton no hacia nada, en silencio y sin error. Anadido tambien alli.
 
 **Riesgo**: la anatomía del nodo tiene un checklist de 8 puntos documentado; cualquier tipo nuevo o cambio estructural debe pasarlo o el render se rompe.
 

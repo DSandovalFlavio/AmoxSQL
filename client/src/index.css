@@ -14227,18 +14227,32 @@ tr:hover td {
   margin-bottom: 4px;
 }
 
-.chain-node-type-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--button-text-color);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+/* El icono es el unico portador del color de categoria en la cabecera (junto al
+   handle). Sustituye al badge relleno, que compettia con la etiqueta del nodo. */
+.chain-node-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--node-accent, var(--accent-primary));
 }
+
+/* Ejecutar solo este nodo. Aparece con la barra de acciones para no llenar de
+   botones un lienzo en reposo. */
+.chain-node-run {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-success-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.chain-node-run:hover { background: var(--hover-bg); }
 
 .chain-node-status {
   display: flex;
@@ -18532,3 +18546,4 @@ tr:hover td {
 .git-diff-add  { background: var(--color-success-bg); color: var(--color-success); }
 .git-diff-del  { background: var(--color-error-bg); color: var(--color-error); }
 .git-diff-hunk { background: var(--accent-subtle); color: var(--accent-primary); font-weight: 600; }
+

@@ -610,6 +610,14 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 setSelectedNode(target);
                 setConfigPopoverNodeId(nodeId);
                 break;
+            // 'run-only' vive tambien en handleMenuAction (menu contextual). Hace
+            // falta aqui porque el boton de la cabecera del nodo despacha por
+            // ESTE switch, no por aquel: son dos rutas distintas hacia la misma
+            // accion y omitir esta hacia que el boton no hiciera nada, en
+            // silencio y sin error.
+            case 'run-only':
+                handleRunOnlyNode(nodeId);
+                break;
             case 'run-from':
                 handleRunFromNode(nodeId);
                 break;
