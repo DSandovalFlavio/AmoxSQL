@@ -4,9 +4,11 @@
 > **Contexto**: ver [`discovery_rediseno_visual.md`](./discovery_rediseno_visual.md) y el mockup interactivo [`mockup_rediseno_visual.html`](./mockup_rediseno_visual.html).
 > **Objetivo**: que la interfaz se sienta menos "matrix" y más moderna, sin perder la identidad.
 
-> **Estado (2026-09-06)**: fases **0 a 7 implementadas** en la rama
-> `claude/rediseno-visual`. Queda **solo la fase 8** (omnibox: búsqueda de
-> archivos y esquema). Nada mergeado a `main` todavía.
+> **Estado (2026-09-07)**: fases **0 a 7 implementadas**; la revisión del
+> usuario abre una **fase 9** (reparto de la pantalla de Data Flow), maquetada
+> pero sin construir. Fases 0 a 7 en la rama
+> `claude/rediseno-visual`. Pendientes: la **fase 8** (omnibox: búsqueda de
+> archivos y esquema) y la **fase 9**. Nada mergeado a `main` todavía.
 
 Fases ordenadas por **riesgo ascendente / valor descendente**. Cada fase es entregable por sí sola, salvo la dependencia explícita de F1 sobre F0.
 
@@ -432,6 +434,61 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 **Aceptación**: escribir el nombre de una columna la encuentra sin saber en qué tabla vive; abrir un archivo desde el omnibox equivale a abrirlo desde el explorador; el orden de resultados es sensato con consultas de una y dos letras.
 
 ---
+
+---
+
+## FASE 9 — Data Flow, el reparto de la pantalla
+
+> **Origen**: revisión del usuario sobre las fases 6 y 7 ya construidas
+> (2026-09-07). El nodo mejoró, pero la pantalla alrededor no: sigue habiendo
+> demasiado cromo compitiendo con el lienzo, y configurar un nodo acabó
+> teniendo **tres formas distintas**. Esta fase revisa el reparto entero.
+> Maqueta en `mockup_rediseno_visual.html` → pantalla **Data Flow**.
+
+### El diagnóstico, en palabras del usuario
+
+1. Al abrir un flujo el nodo se ve **demasiado grande**.
+2. Hay **tres vistas** para configurar el mismo nodo — compacta, campos en
+   línea, y una ventana flotante que **se corta** según dónde esté el nodo. No
+   se entiende por qué hacen falta tres toques para lo mismo.
+3. La interfaz **no está a la par** de otros formatos de Amox (Story Flow como
+   referencia): demasiadas divisiones, botones y secciones mal ordenadas.
+4. Con el `+` del nodo, el **raíl de nodos de la izquierda sobra**. Lo único
+   que queda huérfano es *añadir una fuente* cuando el flujo no parte de un
+   solo archivo.
+5. El panel de datos gasta **tres filas de cabecera** (nombre · pestañas ·
+   estado y filas) antes de enseñar un dato. Cabe en una.
+6. En la cabecera, `DATA FLOW / New Chain` **no sirve para editar el nombre**.
+   Guardar sí hace falta.
+7. Cuantas más cosas hay, **menos espacio visual queda para construir el
+   flujo**.
+
+### Las decisiones
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 9.1 | **Dos vistas del lienzo y ninguna más**: el flujo entero, y el nodo en el que trabajas **expandido y centrado**. | Es la corrección directa de las tres vistas. Configurar deja de ser un sitio nuevo y pasa a ser un **estado** del mismo nodo. |
+| 9.2 | El nodo **compacto** es la forma por defecto: icono, nombre, tiempo y una línea de resumen. Nada más. | Responde a "se ve demasiado grande". El resumen ya dice lo que el nodo hace; el detalle se pide. |
+| 9.3 | Al configurar, el nodo **crece y se centra** en el lienzo, y el resto se atenúa. Se sale con `Esc`, con *Listo* o pulsando fuera. | Centrarlo es lo que garantiza que **quepa**: la ventana flotante se cortaba precisamente por nacer pegada al nodo. Que el tamaño sea grande deja de importar. |
+| 9.4 | **Fuera el raíl de nodos de la izquierda.** El `+` del puerto de salida cubre "añadir un paso"; queda un botón **Fuente** en la barra para el caso de un flujo con varios orígenes. | Es el mayor trozo de lienzo que se recupera, y el raíl duplicaba lo que el `+` ya hace mejor (en contexto, en el sitio donde va el nodo). |
+| 9.5 | **Barra flotante inferior** con lo que hoy está repartido arriba: ejecutar, herramientas de lienzo, fuente, ordenar, zoom, conmutar los datos, y un `…` para lo secundario (variables, SQL, exportar, importar, registro, historial). | Menos cromo fijo, y lo secundario deja de ocupar sitio permanente. Flota sobre el lienzo en vez de restarle altura. |
+| 9.6 | El **asistente vive en la misma barra**, como segunda fila. | Hoy es una franja propia a lo ancho de la pantalla. Al lado de las acciones se lee como una forma más de actuar sobre el flujo. |
+| 9.7 | El panel de datos pasa a **tarjeta flotante** a la derecha, con **una sola línea** de cabecera: estado · nombre · pestañas · nº de filas. | Recupera las dos filas que sobraban y deja de partir el lienzo en dos columnas duras. |
+| 9.8 | La cabecera se queda en **una línea de identidad**: nombre **editable en el sitio**, estado de guardado, y Guardar. | El nombre se edita donde se lee. Todo lo demás se fue a la barra inferior. |
+
+### Riesgos y límites
+
+- **La barra flotante tapa nodos.** Hay que reservar el alto de la barra al
+  ajustar la vista (`fit`) y al colocar nodos nuevos, o el usuario acabará
+  moviendo el lienzo cada vez.
+- **El estado expandido y el lienzo con zoom** pueden pelearse. La expansión
+  no debe depender del zoom del lienzo: es una capa por encima, no un nodo más
+  grande dentro del grafo.
+- **`Esc` ya lo usan otras cosas** (paleta de comandos, menús). El orden de
+  atención tiene que quedar claro: si hay un nodo expandido, `Esc` lo cierra a
+  él primero.
+- Quitar el raíl deja sin sitio la **búsqueda de nodos** por nombre. El `+`
+  debe traerla dentro (ya lo hace en la captura del usuario).
 
 ## Notas transversales
 
