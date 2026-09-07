@@ -17,7 +17,6 @@ import { LuCheck, LuX, LuPause, LuInfo } from 'react-icons/lu';
 import { useToast } from '../ToastProvider';
 import { useDialog } from '../dialogs/DialogProvider';
 import ChainCanvas from './ChainCanvas';
-import ChainHeader from './ChainHeader';
 import ChainBottomBar, { BOTTOM_BAR_SAFE_AREA } from './ChainBottomBar';
 import ChainNodeConfigSurface from './ChainNodeConfigSurface';
 import ChainInspector from './ChainInspector';
@@ -977,9 +976,19 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         });
     }, []);
 
-    const handleRename = useCallback((name) => {
-        setChainMeta((m) => ({ ...m, name }));
-    }, []);
+    // Renombrar ya no se hace en el sitio —no hay barra superior donde leer el
+    // nombre— sino desde el menu de Guardar, que es donde se piensa en el
+    // archivo. Un nombre vacio se descarta: dejaria el flujo sin identidad.
+    const handleRename = useCallback(async () => {
+        const name = await dialog.promptAsync({
+            title: 'Rename flow',
+            message: '',
+            placeholder: chainMeta.name || 'Flow name',
+            confirmLabel: 'Rename',
+        });
+        if (!name || !name.trim()) return;
+        setChainMeta((m) => ({ ...m, name: name.trim() }));
+    }, [dialog, chainMeta.name]);
 
     // El area que de verdad se ve no es el lienzo entero: la tarjeta de datos
     // tapa una franja a la derecha y la barra flotante otra abajo. fitView de
@@ -1053,16 +1062,6 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
 
     return (
         <div className="chain-editor" ref={reactFlowWrapper}>
-            <ChainHeader
-                chainName={chainMeta.name}
-                onRename={handleRename}
-                onSave={handleSave}
-                onShowGuide={() => setShowGuide(true)}
-                isDirty={isDirty}
-                errorCount={errorCount}
-                warningCount={warningCount}
-            />
-
             <div className="chain-editor-body">
                 {/* El lienzo y todo lo que flota SOBRE el viven en el mismo
                     contenedor, y la tabla es su hermana, no algo encima. Asi la
@@ -1152,6 +1151,11 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     onImportYaml={handleImportYaml}
                     onToggleLogs={() => setLogCollapsed(v => !v)}
                     onToggleHistory={() => setHistoryOpen(!historyOpen)}
+                    isDirty={isDirty}
+                    onSave={handleSave}
+                    onRename={handleRename}
+                    onShowGuide={() => setShowGuide(true)}
+                    warningCount={warningCount}
                     onGenerate={handleAiGenerate}
                     aiLoading={aiLoading}
                     hasNodes={nodes.length > 0}

@@ -18086,7 +18086,6 @@ tr:hover td {
    `button`, que trae relleno 5px 12px y borde. Como ademas son elementos flex,
    su min-width automatico es el del contenido MAS ese relleno, asi que el
    width explicito perdia y salian ovalados en vez de cuadrados. */
-.chain-header-help,
 .chain-inspector-icon,
 .chain-config-surface-x,
 .chain-bb-btn,
@@ -18096,126 +18095,6 @@ tr:hover td {
   border: none;
   background: transparent;
   flex: none;
-}
-
-/* ── Cabecera: una sola linea de identidad ── */
-.chain-header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.chain-header-studio {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--accent-primary);
-}
-
-.chain-header-help {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  color: var(--text-tertiary);
-}
-
-.chain-header-help:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-/* El nombre se edita donde se lee: el boton y el campo ocupan lo mismo, para
-   que al entrar en edicion no salte nada de sitio. */
-.chain-header-name,
-.chain-header-name-input {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text-primary);
-  border: 1px solid transparent;
-  background: transparent;
-}
-
-.chain-header-name:hover {
-  background: var(--surface-raised);
-  border-color: var(--border-default);
-}
-
-.chain-header-pencil {
-  color: var(--text-tertiary);
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.chain-header-name:hover .chain-header-pencil { opacity: 1; }
-
-.chain-header-name-input {
-  min-width: 180px;
-  background: var(--surface-inset);
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.chain-header-state {
-  font-size: 10.5px;
-  color: var(--text-tertiary);
-}
-
-.chain-header-state-dirty { color: var(--feedback-warning); }
-
-.chain-header-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border-radius: 20px;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-}
-
-.chain-header-badge-error {
-  color: var(--feedback-error);
-  background: color-mix(in oklch, var(--feedback-error) 14%, transparent);
-}
-
-.chain-header-badge-warn {
-  color: var(--feedback-warning);
-  background: color-mix(in oklch, var(--feedback-warning) 14%, transparent);
-}
-
-.chain-header-gap { margin-left: auto; }
-
-.chain-header-save {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 7px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  background: var(--surface-overlay);
-  border: 1px solid var(--border-subtle);
-}
-
-.chain-header-save:hover {
-  color: var(--text-primary);
-  border-color: var(--border-default);
-}
-
-.chain-header-save-dirty {
-  color: var(--accent-primary);
-  border-color: color-mix(in oklch, var(--accent-primary) 45%, transparent);
 }
 
 /* ── Configurar: el mismo nodo, expandido y centrado ── */
@@ -18357,7 +18236,7 @@ tr:hover td {
   z-index: 20;
   display: flex;
   flex-direction: column;
-  width: min(600px, calc(100% - 40px));
+  width: min(680px, calc(100% - 40px));
   border-radius: 13px;
   background: color-mix(in oklch, var(--surface-overlay) 93%, transparent);
   border: 1px solid var(--border-default);
@@ -18441,12 +18320,10 @@ tr:hover td {
   font-variant-numeric: tabular-nums;
 }
 
-.chain-bb-more-wrap { position: relative; }
-
 .chain-bb-menu {
   position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
+  right: 8px;
+  bottom: calc(100% + 4px);
   width: 158px;
   padding: 4px;
   border-radius: 10px;
@@ -18516,6 +18393,44 @@ tr:hover td {
 .chain-bb-ai-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Identidad del estudio: ya no hay barra superior donde ponerla. Qué flujo se
+   edita lo dice la pestaña del archivo, asi que aqui solo va el estudio. */
+.chain-bb-studio {
+  padding-left: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  white-space: nowrap;
+}
+
+.chain-bb-save-dirty {
+  color: var(--accent-primary);
+}
+
+/* El punto dice "hay cambios sin guardar" sin gastar una palabra. */
+.chain-bb-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+/* La flecha va pegada a Guardar: es su menu, no un boton aparte. */
+.chain-bb-caret {
+  min-width: 18px;
+  padding: 0 2px;
+  margin-left: -4px;
+}
+
+.chain-bb-menu-save {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 168px;
 }
 
 /* ── Datos: tarjeta flotante con UNA linea de cabecera ── */
