@@ -87,6 +87,36 @@ app.get('/api/project/path', (req, res) => {
     res.json({ path: ROOT_DIR });
 });
 
+/**
+ * ¿Hay algo que soltar antes de cambiar de proyecto?
+ *
+ * Reiniciar el motor cuesta ~600 ms: 200 de espera fija para que Windows suelte
+ * el candado del archivo, y ~400 de volver a cargar las extensiones activadas en
+ * una instancia recien creada (sobre un motor ya montado, un LOAD son 0-1 ms;
+ * el precio es tenerlas que meter de nuevo cada vez que se tira la instancia).
+ *
+ * Y casi siempre no hay NADA que reiniciar: al abrir un proyecto desde la
+ * bienvenida el motor acaba de arrancar y esta vacio. Se comprueba antes, con la
+ * misma definicion de "tabla del usuario" que usa el resto del servidor, para no
+ * pagar ese precio a cambio de nada.
+ *
+ * Las tablas en memoria si cuentan: si la sesion anterior creo alguna, dejarla
+ * viva la colaria en el proyecto nuevo.
+ */
+const engineHasUserState = async () => {
+    if (dbManager.getCurrentPath() !== ':memory:') return true;
+    try {
+        const rows = await dbManager.systemQuery(
+            `SELECT count(*) AS n FROM information_schema.tables WHERE ${userTablesWhereClause()}`,
+            { lane: 'meta' }
+        );
+        return Number(rows?.[0]?.n || 0) > 0;
+    } catch {
+        // Ante la duda, reiniciar: es lento, pero correcto.
+        return true;
+    }
+};
+
 app.post('/api/project/open', async (req, res) => {
     const { path: newPath } = req.body;
     if (!newPath) return res.status(400).json({ error: 'Path is required' });
@@ -95,8 +125,12 @@ app.post('/api/project/open', async (req, res) => {
     if (!fs.statSync(newPath).isDirectory()) return res.status(400).json({ error: 'Path is not a directory' });
 
     try {
-        // CLOSE and RE-INIT previous DB connections safely before switching context
-        await dbManager.reinitializeSystem();
+        // Solo se reinicia si hay algo que soltar — ver engineHasUserState().
+        if (await engineHasUserState()) {
+            await dbManager.reinitializeSystem();
+        } else {
+            console.log('[Project] Motor limpio: se abre el proyecto sin reiniciarlo.');
+        }
 
         ROOT_DIR = newPath;
         process.chdir(ROOT_DIR);
