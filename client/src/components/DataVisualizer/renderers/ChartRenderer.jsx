@@ -442,13 +442,31 @@ const ChartRenderer = memo(({
     const gridV = gridMode === 'both' || gridMode === 'vertical';
 
     // ── Dimension guard — prevent Recharts from entering broken -1 state ──
+    //
+    // La medida va en un ref DE FUNCION, no en un efecto. Con un efecto de
+    // montaje solo se intentaba UNA vez, y si ese primer render se iba por la
+    // rama de "No data to display" —cosa que pasa mientras los ejes aun no se
+    // han derivado— el contenedor no existia, el efecto se encontraba null, y
+    // como sus dependencias no volvian a cambiar NUNCA se reintentaba. Al
+    // llegar los datos el grafico ya se renderizaba, pero hasSize seguia en
+    // false y el lienzo se quedaba en blanco para siempre.
+    //
+    // Se veia al crear un grafico desde una query: los ejes se derivan un tick
+    // despues de montar, asi que el primer render siempre era el de "No data".
+    // Solo volvia a la vida guardando, cerrando la pestana y reabriendola, que
+    // es cuando la config ya trae ejes y el primer render si dibuja.
+    //
+    // Un ref de funcion se dispara CUANDO EL NODO ENTRA en el DOM, sea el
+    // render que sea, asi que no puede perderse ese momento.
     const containerRef = useRef(null);
+    const roRef = useRef(null);
     const [hasSize, setHasSize] = useState(!!forceDimensions);
 
-    useEffect(() => {
-        if (forceDimensions) return; // Skip measurement when dimensions are forced
-        const el = containerRef.current;
-        if (!el) return;
+    const setContainer = useCallback((el) => {
+        containerRef.current = el;
+        roRef.current?.disconnect();
+        roRef.current = null;
+        if (!el || forceDimensions) return;
         if (el.offsetWidth > 0 && el.offsetHeight > 0) {
             setHasSize(true);
             return;
@@ -458,11 +476,15 @@ const ChartRenderer = memo(({
             if (width > 0 && height > 0) {
                 setHasSize(true);
                 ro.disconnect();
+                roRef.current = null;
             }
         });
         ro.observe(el);
-        return () => ro.disconnect();
+        roRef.current = ro;
     }, [forceDimensions]);
+
+    // El observador sobrevive a los re-renders; solo se suelta al desmontar.
+    useEffect(() => () => roRef.current?.disconnect(), []);
 
     // ── ResponsiveContainer dimension props ──
     const rcWidth = forceDimensions ? forceDimensions.width : '100%';
@@ -474,7 +496,7 @@ const ChartRenderer = memo(({
     }
 
     const wrapChart = (content) => (
-        <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden', minWidth: 0, contain: 'layout paint' }}>
+        <div ref={setContainer} style={{ width: '100%', height: '100%', overflow: 'hidden', minWidth: 0, contain: 'layout paint' }}>
             {hasSize ? content : null}
         </div>
     );
