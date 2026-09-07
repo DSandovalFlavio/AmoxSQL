@@ -408,16 +408,21 @@ export default function FunctionReference() {
                                     {abierto && (
                                         <>
                                             {g.desc && <p className="fnref-group-desc">{g.desc}</p>}
-                                            {g.items.map(fn => (
-                                                <button
-                                                    key={fn.function_name}
-                                                    className={`fnref-item${selected?.function_name === fn.function_name ? ' fnref-item--active' : ''}`}
-                                                    onClick={() => setSelected(fn)}
-                                                >
-                                                    <span className="fnref-item-name">{fn.function_name}</span>
-                                                    {fn.function_type && <span className="fnref-item-type">{TYPE_LABEL[fn.function_type] || fn.function_type}</span>}
-                                                </button>
-                                            ))}
+                                            {/* Sangrados y con guía vertical: sin eso el grupo
+                                                parecía vacío y las funciones parecían una lista
+                                                suelta que venía después, no su contenido. */}
+                                            <div className="fnref-group-items">
+                                                {g.items.map(fn => (
+                                                    <button
+                                                        key={fn.function_name}
+                                                        className={`fnref-item${selected?.function_name === fn.function_name ? ' fnref-item--active' : ''}`}
+                                                        onClick={() => setSelected(fn)}
+                                                    >
+                                                        <span className="fnref-item-name">{fn.function_name}</span>
+                                                        {fn.function_type && <span className="fnref-item-type">{TYPE_LABEL[fn.function_type] || fn.function_type}</span>}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </>
                                     )}
                                 </div>
