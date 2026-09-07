@@ -3,9 +3,37 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
+
+// ─── Origen fijo de la interfaz ───────────────────────────────────────────────
+// La ventana NO puede cargarse desde http://localhost:<puerto>. Chromium guarda
+// localStorage por ORIGEN, y el puerto forma parte del origen: si el 3001 esta
+// ocupado el servidor coge otro, y la app arranca con un perfil vacio — tema,
+// acento, proyectos recientes y tutoriales vistos, todos "perdidos" (en realidad
+// intactos, pero bajo el origen anterior). Visto en un perfil real repartido en
+// seis origenes distintos.
+//
+// Antes de la 5.0.0 esto no se notaba porque el respaldo de puerto ni siquiera
+// funcionaba: la app no arrancaba y punto. Al arreglarlo, el fallo ruidoso se
+// convirtio en uno silencioso.
+//
+// La correccion es darle a la interfaz una direccion propia que no dependa de
+// ningun puerto. El servidor sigue en el puerto que sea; solo cambia desde donde
+// se carga la interfaz. Las llamadas a la API usan window.__API_PORT__, que ya
+// es una URL absoluta.
+const APP_SCHEME = 'amoxsql';
+const APP_ORIGIN = `${APP_SCHEME}://app`;
+
+// `standard` hace que el esquema tenga origen con host (sin el, no hay
+// localStorage); `secure` lo trata como contexto seguro. Tiene que registrarse
+// ANTES de que la app este lista, o no surte efecto.
+protocol.registerSchemesAsPrivileged([{
+    scheme: APP_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+}]);
 
 // ─── Single instance lock ─────────────────────────────────────────────────────
 // Prevents opening the same .duckdb file from two instances simultaneously,
@@ -264,8 +292,8 @@ const createWindow = () => {
             mainWindow.webContents.openDevTools();
         }
     } else {
-        console.log(`[Main] Loading content from http://localhost:${actualServerPort}`);
-        mainWindow.loadURL(`http://localhost:${actualServerPort}`)
+        console.log(`[Main] Loading content from ${APP_ORIGIN} (server on port ${actualServerPort})`);
+        mainWindow.loadURL(`${APP_ORIGIN}/index.html`)
             .catch(e => {
                 console.error("Failed to load app content:", e);
             });
@@ -284,9 +312,11 @@ ipcMain.handle('popout:open', async (_event, data) => {
 
     pendingPopoutData = data;
 
+    // Mismo origen que la ventana principal: si no, la emergente tendria su
+    // propio localStorage y sus propios ajustes.
     const baseUrl = !app.isPackaged
         ? 'http://localhost:5173'
-        : `http://localhost:${actualServerPort}`;
+        : `${APP_ORIGIN}/index.html`;
 
     popoutWindow = new BrowserWindow({
         width: 1000,
@@ -337,7 +367,39 @@ ipcMain.handle('popout:isPopout', (event) => {
 });
 
 // Start Server & App
+/**
+ * Sirve la interfaz compilada desde el esquema propio.
+ *
+ * Vite compila con rutas absolutas (base '/'), asi que un `/assets/x.js` llega
+ * aqui como amoxsql://app/assets/x.js y se resuelve contra client/dist. Todo lo
+ * que no sea un archivo real cae a index.html, que es lo que necesita una SPA
+ * para que recargar en una ruta interna no de un 404.
+ */
+const registerAppProtocol = () => {
+    const root = path.join(__dirname, '../client/dist');
+
+    protocol.handle(APP_SCHEME, async (request) => {
+        const { pathname } = new URL(request.url);
+        const rel = decodeURIComponent(pathname).replace(/^\/+/, '');
+        let file = path.join(root, rel);
+
+        // Nadie sale de client/dist por mucho ../ que ponga en la ruta.
+        if (!file.startsWith(root)) file = path.join(root, 'index.html');
+        if (!rel || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+            file = path.join(root, 'index.html');
+        }
+
+        try {
+            return await net.fetch(pathToFileURL(file).toString());
+        } catch (e) {
+            console.error('[Main] No se pudo servir', file, e);
+            return new Response('Not found', { status: 404 });
+        }
+    });
+};
+
 const initApp = () => {
+    registerAppProtocol();
     console.log("Starting Local Server in utility process...");
 
     serverProcess = utilityProcess.fork(

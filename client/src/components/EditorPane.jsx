@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown } from 'react-icons/lu';
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
@@ -354,6 +354,19 @@ const EditorPane = ({
                             <LuFilePlus size={24} />
                             <span className="ep-empty-card-title">SQL Notebook</span>
                             <span className="ep-empty-card-desc">Cells with code & markdown</span>
+                        </button>
+                        {/* Los estudios tenian el mismo hueco que el menu del "+":
+                            se podian crear desde hacia tiempo, pero aqui no se
+                            ofrecian. Mismos iconos que el explorador de archivos. */}
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('sqlchain')}>
+                            <LuGitBranch size={24} />
+                            <span className="ep-empty-card-title">Data Flow</span>
+                            <span className="ep-empty-card-desc">Pipelines as connected steps</span>
+                        </button>
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('amoxdeck')}>
+                            <LuPresentation size={24} />
+                            <span className="ep-empty-card-title">Report Flow</span>
+                            <span className="ep-empty-card-desc">Slides from your analyses</span>
                         </button>
                     </div>
                 </div>

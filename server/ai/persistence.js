@@ -21,6 +21,30 @@ const { s, j, n } = require('./_sqlHelpers');
  * user queries running on the 'main' lane. Falls back to the manager itself
  * when lanes are unavailable (e.g. test doubles).
  */
+/**
+ * Lee de una tabla de contabilidad que puede NO existir, y devuelve `fallback`
+ * en vez de reventar si falta.
+ *
+ * El esquema amoxsql_ai no siempre esta: /api/db/connect lo crea solo cuando la
+ * sesion es de escritura y no es un lakehouse —en solo lectura no se puede
+ * escribir en la base del usuario, y en DuckLake meteriamos nuestras tablas en
+ * su lago versionado—. En esas sesiones, abrir el Vault o el historial de
+ * conversaciones daba HTTP 500 con un error de SQL en crudo. Que no haya nada
+ * guardado no es un fallo: es la respuesta correcta, una lista vacia.
+ *
+ * Solo se traga el error de objeto inexistente. Cualquier otro —SQL mal escrito,
+ * base corrupta— sigue subiendo, que para eso es un error de verdad.
+ */
+async function readOrEmpty(promise, fallback = []) {
+    try {
+        return await promise;
+    } catch (err) {
+        const m = String(err?.message || err);
+        if (/does not exist|not found|Catalog Error/i.test(m)) return fallback;
+        throw err;
+    }
+}
+
 function aiLane(dbManager) {
     return (dbManager && typeof dbManager.lane === 'function') ? dbManager.lane('ai') : dbManager;
 }
@@ -273,13 +297,13 @@ class AiPersistence {
                 LIMIT ${n(limit)}
             `;
             if (offset > 0) query += ` OFFSET ${n(offset)}`;
-            return aiLane(dbManager).systemQuery(query);
+            return readOrEmpty(aiLane(dbManager).systemQuery(query));
         }
 
         let query = `SELECT * FROM amoxsql_ai.conversations c WHERE 1=1 ${modeClause}`;
         query += ` ORDER BY c.updated_at DESC LIMIT ${n(limit)}`;
         if (offset > 0) query += ` OFFSET ${n(offset)}`;
-        return aiLane(dbManager).systemQuery(query);
+        return readOrEmpty(aiLane(dbManager).systemQuery(query));
     }
 
     /**
@@ -756,7 +780,7 @@ class AiPersistence {
         query += ` ORDER BY updated_at DESC LIMIT ${n(limit)}`;
         if (offset > 0) query += ` OFFSET ${n(offset)}`;
 
-        const entries = await aiLane(dbManager).systemQuery(query);
+        const entries = await readOrEmpty(aiLane(dbManager).systemQuery(query));
         for (const e of entries) {
             if (e.result_snapshot) { try { e.result_snapshot = JSON.parse(e.result_snapshot); } catch {} }
             if (e.chart_config)    { try { e.chart_config    = JSON.parse(e.chart_config);    } catch {} }

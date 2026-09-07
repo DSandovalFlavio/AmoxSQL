@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, memo, useDeferredValue } from 'react';
-import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuX, LuFilePlus } from 'react-icons/lu';
+import { LuClipboard, LuStar, LuRefreshCw, LuSearch, LuX, LuFilePlus, LuHistory } from "react-icons/lu";
 
 /**
  * QueryHistoryPanel — Sidebar panel for browsing query history and bookmarks.
@@ -194,7 +194,7 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onSaveAsFile, onClose }) =
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
             {/* Header */}
             <div className="sidebar-header">
-                <span>Query History</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><LuHistory size={14} /> Query History</span>
                 <div className="fe-header-actions">
                     <button
                         className="fe-header-btn"

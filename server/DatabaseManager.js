@@ -77,10 +77,8 @@ class DatabaseManager {
             this.isDuckLake = false;
             console.log("[DB Manager] System DB initialized (Neo Client, lanes: " + LANES.join(', ') + ").");
 
-            // Re-LOAD any extensions the user had activated. The instance is
-            // brand new here, so a fresh reconnect/reset would otherwise leave
-            // them installed-but-unloaded.
-            await this.restoreExtensions();
+            // Las extensiones NO se recargan aqui: las arranca connect() cuando ya
+            // ha terminado con la conexion. Ver warmExtensions().
         } catch (e) {
             console.error("[DB Manager] FATAL: Could not init system DB", e);
         }
@@ -138,6 +136,31 @@ class DatabaseManager {
         if (!conn) return [];
         const reader = await conn.run(sql);
         return reader.getRowObjectsJson();
+    }
+
+    /**
+     * Arranca la recarga de extensiones SIN esperarla, y devuelve la promesa.
+     *
+     * Cargarlas cuesta ~390 ms de los ~620 de un reinicio, y no hace falta
+     * esperarlas para que la sesion sea usable: DuckDB trae
+     * autoload_known_extensions activo, asi que una consulta que necesite una
+     * extension conocida la carga sola si aun no llego. Adelantarlas es una
+     * optimizacion, no un requisito.
+     *
+     * OJO CON DONDE SE LLAMA. Los LOAD van por la conexion 'main', y DuckDB
+     * serializa las sentencias de una conexion: cualquier SQL que venga despues
+     * se encola detras de los cuatro LOAD y tarda lo mismo que si se esperaran,
+     * aunque en JavaScript no se este esperando nada. Medido dos veces: lanzandolo
+     * en _initSystem el ATTACH se encolaba (653 ms), y lanzandolo al final de
+     * connect() se encolaba la creacion de esquemas del endpoint (353 ms).
+     *
+     * Por eso lo llama el ENDPOINT, DESPUES de responder: ahi si es verdad que no
+     * queda nada del arranque de sesion por delante.
+     */
+    warmExtensions() {
+        this.extensionsReady = this.restoreExtensions()
+            .catch(e => console.warn('[DB Manager] Extension restore warning:', e?.message || e));
+        return this.extensionsReady;
     }
 
     /** Resolve a lane name to its connection; unknown lanes fall back to 'main'. */
@@ -223,6 +246,21 @@ class DatabaseManager {
     async _doReinitializeSystem() {
         console.log("[DB Manager] HARD RESET REQUESTED.");
 
+        // Las extensiones pueden estarse cargando por detras sobre la conexion
+        // 'main' (ver warmExtensions). Desmontarla con esos LOAD EN VUELO mata el
+        // proceso entero: es la misma clase de fallo que el bad_weak_ptr de dos
+        // reinicios concurrentes, un objeto nativo destruido mientras alguien lo
+        // sigue usando. Comprobado: sin esta espera, un reinicio justo despues de
+        // un connect tumbaba el servidor.
+        //
+        // Esperar aqui no devuelve el coste al arranque: solo lo paga quien
+        // reinicia inmediatamente despues de conectar, que es justo el caso en el
+        // que hay algo que soltar.
+        if (this.extensionsReady) {
+            try { await this.extensionsReady; } catch { /* warmExtensions ya reporto */ }
+            this.extensionsReady = null;
+        }
+
         // PASO NUEVO: Intentar cerrar lo que estaba abierto antes de reiniciar
         if (this.connections.main) {
             try {
@@ -252,6 +290,36 @@ class DatabaseManager {
         console.log("[DB Manager] Engine re-initialized.");
     }
 
+    /**
+     * ¿Queda algo de la sesion anterior? Una base adjunta, o tablas creadas en
+     * la sesion en memoria.
+     *
+     * Es la condicion para reiniciar el motor al empezar una sesion nueva. La
+     * condicion anterior era solo "¿hay un archivo adjunto?", y por eso las
+     * tablas creadas en una sesion en memoria SOBREVIVIAN a la siguiente sesion
+     * de archivo: seguian en memory.main, invisibles tras el USE del catalogo
+     * nuevo pero consultables. Comprobado con traza aislada.
+     *
+     * La definicion de "tabla del usuario" de aqui es a proposito mas GRUESA que
+     * la de userTablesWhereClause() del servidor: aquella decide que enseñar, y
+     * esta solo si el motor esta virgen. Ante la duda conviene reiniciar de mas.
+     */
+    async hasSessionState() {
+        if (this.attachedPath) return true;
+        try {
+            const rows = await this._rawQuery(
+                `SELECT count(*) AS n FROM information_schema.tables
+                 WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+                   AND table_schema NOT LIKE 'amoxsql%'
+                   AND table_schema NOT LIKE 'fts\\_%' ESCAPE '\\'`,
+                'meta'
+            );
+            return Number(rows?.[0]?.n || 0) > 0;
+        } catch {
+            return true;   // ante la duda, reiniciar: es lento pero correcto
+        }
+    }
+
     async connect(dbPath, rootDir, options = {}) {
         console.log(`[DB Manager] Request to attach: ${dbPath}`);
 
@@ -261,14 +329,18 @@ class DatabaseManager {
             fullPath = path.isAbsolute(dbPath) ? dbPath : path.join(rootDir, dbPath);
             fullPath = fullPath.replace(/\\/g, '/');
         }
-        // SI YA HAY UNA DB CONECTADA, PRIMERO REINICIAMOS LIMPIAMENTE
-        // Esto previene que se acumulen conexiones
-        if (this.attachedPath) {
+        // Una sesion nueva empieza limpia. Aqui es donde toca garantizarlo: en el
+        // modelo actual la sesion arranca al elegir la base, no al elegir la
+        // carpeta. Antes ademas lo hacia /api/project/open en cada apertura,
+        // reiniciando el motor tambien cuando no habia nada que soltar.
+        if (await this.hasSessionState()) {
             await this.reinitializeSystem();
-        } else if (fullPath === ':memory:') {
-            await this.reinitializeSystem();
-            return;
         }
+        // Con :memory: no hay nada que adjuntar: el motor recien reiniciado YA es
+        // la sesion en memoria. Antes se caia al ATTACH de abajo cuando se venia
+        // de un archivo, y dejaba un user_db adjunto sin archivo — un estado que
+        // no se parecia al de una sesion en memoria recien abierta.
+        if (fullPath === ':memory:') return;
 
         console.log(`[DB Manager] Request to attach: ${fullPath}`);
 

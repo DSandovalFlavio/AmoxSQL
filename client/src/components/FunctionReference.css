@@ -18,15 +18,16 @@
     flex-direction: column;
     gap: 8px;
 }
+/* Sin mayusculas ni tracking: es un titulo de panel, y todos siguen la misma
+   pauta (ver "Titulos de los paneles" en index.css). Este vivia en una hoja
+   aparte y por eso se quedo con el aspecto de consola de antes. */
 .fnref-title {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
 }
 
 .fnref-search {

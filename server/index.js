@@ -95,8 +95,11 @@ app.post('/api/project/open', async (req, res) => {
     if (!fs.statSync(newPath).isDirectory()) return res.status(400).json({ error: 'Path is not a directory' });
 
     try {
-        // CLOSE and RE-INIT previous DB connections safely before switching context
-        await dbManager.reinitializeSystem();
+        // Abrir una carpeta ya NO toca el motor. En el modelo actual la sesion
+        // empieza al elegir la base, y es connect() quien garantiza que arranca
+        // limpia (ver DatabaseManager.hasSessionState). Reiniciar tambien aqui
+        // era un resto del modelo viejo —workspace = carpeta, y cambiabas de base
+        // dentro de la sesion— y costaba ~620 ms en cada apertura.
 
         ROOT_DIR = newPath;
         process.chdir(ROOT_DIR);
@@ -540,6 +543,13 @@ app.post('/api/db/connect', async (req, res) => {
         }
 
         res.json({ success: true, path: dbManager.getCurrentPath() });
+
+        // Las extensiones se calientan DESPUES de responder: el usuario ya esta
+        // entrando al IDE mientras se cargan. Aqui es el unico punto donde de
+        // verdad no queda SQL del arranque por delante — los LOAD van por la
+        // conexion 'main' y DuckDB serializa sus sentencias, asi que lanzarlas
+        // antes solo movia la espera a lo siguiente de la cola.
+        dbManager.warmExtensions();
     } catch (err) {
         console.error("DB Connection Failed:", err);
         res.status(500).json({ error: 'Failed to connect to database', details: err.message });
