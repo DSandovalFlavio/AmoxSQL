@@ -8,9 +8,14 @@
  *
  * Las reglas de abajo NO se escribieron a ojo: se probaron contra el catálogo
  * real y se fueron afinando mirando qué quedaba sin clasificar. Reparto medido
- * sobre las 918 visibles: cargar 62, limpiar 47, texto 221, fechas 60,
- * números 74, estructuras 214, agregar 93, escribir 2, explorar 144, y solo 1
+ * sobre las 918 visibles: cargar 21, limpiar 47, texto 221, fechas 60,
+ * números 74, estructuras 214, agregar 93, escribir 2, explorar 185, y solo 1
  * sin etapa. La primera versión dejaba 636 en "otras".
+ *
+ * "Cargar datos" tuvo dos correcciones: llegó a listar 62 funciones porque una
+ * regla mandaba TODO lo de tipo `table` ahí, y así acababan dentro `checkpoint`,
+ * `enable_logging` o `parquet_schema` — un grupo que decía "cargar" y enseñaba
+ * cosas que no cargan nada. Ahora son 21 y todas leen datos de verdad.
  *
  * Es una heurística declarada, no una verdad. Manda el tipo del motor para la
  * agregación, luego el nombre (los patrones son inequívocos), luego la categoría
@@ -60,7 +65,7 @@ export const STAGES = [
     { id: 'estructuras', label: 'Listas y estructuras', desc: 'Listas, mapas, structs y JSON: los datos que no caben en una celda plana.' },
     { id: 'agregar', label: 'Agregar y analizar', desc: 'Resumir muchas filas en pocas, o calcular sobre una ventana de filas vecinas.' },
     { id: 'escribir', label: 'Escribir', desc: 'Sacar resultados a archivos.' },
-    { id: 'explorar', label: 'Explorar el entorno', desc: 'Ver qué hay: esquema, tipos, ajustes y extensiones del motor.' },
+    { id: 'explorar', label: 'Explorar el entorno', desc: 'El motor y los archivos por dentro: esquema, metadatos, ajustes, extensiones y registro.' },
     { id: 'otras', label: 'Otras', desc: 'Lo que no encaja limpiamente en ninguna de las anteriores.' },
 ];
 
@@ -72,9 +77,19 @@ export const STAGES = [
 export const isHidden = (fn) => /^[^a-zA-Z]/.test(fn.function_name || '');
 
 const REGLAS = [
+    // EL ORDEN IMPORTA: gana la primera que encaje. Estas dos van delante de las
+    // de carga a propósito, porque `parquet_metadata` e `iceberg_snapshots`
+    // empiezan igual que los cargadores de verdad pero no cargan nada: miran
+    // dentro del archivo. Lo mismo con mandar sobre el motor.
+    [/^(checkpoint$|force_checkpoint$|enable_|disable_|check_|truncate_|which_|test_|sql_auto_complete$|copy_dir$|summary$|repeat_row$|histogram_values$|query_table$|seq_scan$)/i, 'explorar'],
+    [/(_metadata$|_schema$|_stats$|_snapshots$|_list_files$|_transaction_version$|_table_properties$|_bloom_probe$|_pushdown_log|_to_ducklake$)/i, 'explorar'],
     [/^(write_|copy_to)/i, 'escribir'],
     [/^(read_|scan_|glob$|parquet_|csv_|iceberg_|delta_|sniff_)/i, 'cargar'],
     [/_scan$/i, 'cargar'],
+    // Mandar sobre el motor y mirar dentro de un archivo NO es cargar datos.
+    // `checkpoint`, `enable_logging` o `parquet_schema` son funciones de tipo
+    // `table`, y una regla que mandaba todo lo `table` a "cargar" las metía
+    // ahí: el grupo decía "Cargar datos" y enseñaba cosas que no cargan nada.
     [/^(duckdb_|pragma_|current_|has_|pg_|col_description$|obj_description$|shobj_description$|version$|typeof$|summarize$|database_size$|in_search_path$|txid_current$|session_user$|user$|getvariable$|stats$|index_scan|sleep_ms$|error$|vector_type$|can_cast_implicitly$|make_type$)/i, 'explorar'],
     [/^(trim$|ltrim$|rtrim$|replace$|regexp_replace$|ifnull$|nullif$|strip_accents$|nfc_normalize$|remove_null|translate$|parse_|try_|cast_to_type$|constant_or_null$|replace_type$|remap_struct$|to_|from_|switch$|alias$)/i, 'limpiar'],
     [/^(regexp_|str_|string_|starts_with$|ends_with$|contains$|levenshtein|jaro|jaccard|hamming|damerau|editdist|similarity|mismatches$|prefix$|suffix$|instr$|strpos$|position$|concat|upper$|ucase$|lower$|lcase$|substr|left|right|lpad$|rpad$|repeat$|reverse$|split|format|printf$|text$|excel_text$|chr$|ascii$|ord$|unicode$|length|len$|strlen$|char_|octet_length$|url_|base64|encode$|decode$|hex$|unhex$|bin$|unbin$|md5|sha|hash$|like_escape$|ilike_escape$|not_like_escape$|not_ilike_escape$|create_sort_key$|icu_|bar$)/i, 'texto'],
@@ -91,7 +106,10 @@ const POR_CATEGORIA = {
     Aggregate: 'agregar', Window: 'agregar', Utility: 'explorar',
 };
 
-const POR_TIPO = { aggregate: 'agregar', table: 'cargar', table_macro: 'cargar', pragma: 'explorar' };
+// OJO: `table` NO implica cargar. Una funcion de tabla puede leer un CSV
+// (read_csv) o mandar sobre el motor (checkpoint). Los cargadores de verdad los
+// reconoce la regla de nombres; el resto de lo `table` es cosa del entorno.
+const POR_TIPO = { aggregate: 'agregar', table: 'explorar', table_macro: 'explorar', pragma: 'explorar' };
 
 export function stageFor(fn) {
     // El motor manda para la agregación: string_agg es de agregar aunque su
