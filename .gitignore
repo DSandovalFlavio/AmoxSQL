@@ -154,3 +154,5 @@ plan/
 **/scratch*.js
 # Excepción: archivos de test legítimos versionados
 !**/testRunner.js
+# Caché por proyecto del catálogo de funciones (lo genera /api/functions/refresh)
+.amox/

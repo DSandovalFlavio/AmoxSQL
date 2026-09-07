@@ -2,7 +2,8 @@ import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { LuSearch, LuCopy, LuCheck, LuX, LuBookOpen, LuTriangleAlert, LuSquareFunction } from "react-icons/lu";
+import { LuSearch, LuCopy, LuCheck, LuX, LuBookOpen, LuTriangleAlert, LuSquareFunction, LuChevronDown, LuChevronRight, LuInfo, LuStar, LuTrendingUp, LuClock, LuCompass } from "react-icons/lu";
+import { TYPES, STAGES, stageFor, isHidden, STARTERS, discoveryPicks } from './functionTaxonomy';
 import './FunctionReference.css';
 
 /**
@@ -12,6 +13,21 @@ import './FunctionReference.css';
  * duckdb_functions() list with the curated docs bundled in the installer — so
  * this works fully offline. No DB write, no query execution: pure reference,
  * for when you're mid-query and forget a function's name or its parameters.
+ *
+ * Se ordena por SIGNIFICADO, no por alfabeto. Con 965 entradas en orden
+ * alfabético, encontrar la que usas siempre costaba lo mismo que encontrar una
+ * que no has usado nunca. Ahora hay dos capas:
+ *
+ *  - Arriba, hasta 20 funciones "tuyas": las más usadas y las más recientes
+ *    salen de tu historial real de queries (/api/functions/usage), no de lo que
+ *    pulsas aquí; más cinco para empezar y cinco de descubrimiento que rotan
+ *    por semana. Sin repetir entre grupos.
+ *  - Abajo, el catálogo entero agrupado por ETAPA del análisis —cargar,
+ *    limpiar, transformar, agregar, escribir— con el eje de dominio (String,
+ *    Date, Math) todavía disponible, porque para buscar "algo de fechas" sigue
+ *    siendo el mejor.
+ *
+ * La taxonomía vive en functionTaxonomy.js.
  */
 
 // Strip Monaco snippet placeholders (${1:foo} / $1) down to their label.
@@ -100,7 +116,10 @@ export default function FunctionReference() {
                 if (!cur) byName.set(f.function_name, f);
                 else if (!cur.documented && f.documented) byName.set(f.function_name, f);
             }
-            return [...byName.values()];
+            // Fuera operadores (%, &&, ->>) y plomeria del motor
+            // (__internal_compress_*): no son API para nadie, y al no empezar
+            // por letra salian LOS PRIMEROS en la lista alfabetica.
+            return [...byName.values()].filter(f => !isHidden(f));
         };
 
         const load = async ({ allowRefresh } = {}) => {
@@ -143,6 +162,26 @@ export default function FunctionReference() {
         };
     }, []);
 
+    // Agrupacion de la lista de abajo: por etapa del analisis (lo que pediste)
+    // o por dominio (lo que ya existia). Se recuerda porque es una preferencia
+    // de lectura, no parte de ningun archivo.
+    const [groupBy, setGroupBy] = useState(() => localStorage.getItem('amoxsql-fnref-groupby') || 'stage');
+    useEffect(() => { localStorage.setItem('amoxsql-fnref-groupby', groupBy); }, [groupBy]);
+    const [openStages, setOpenStages] = useState(() => new Set(['cargar', 'agregar']));
+    const [showTypes, setShowTypes] = useState(false);
+
+    // Tu uso real. Si falla, el bloque de arriba se queda con lo que no depende
+    // del historial (las de empezar y las de descubrimiento).
+    const [usage, setUsage] = useState({ counts: {}, recent: [] });
+    useEffect(() => {
+        let cancelled = false;
+        fetch(`${API_BASE}/api/functions/usage`)
+            .then(r => r.json())
+            .then(d => { if (!cancelled && d && !d.error) setUsage({ counts: d.counts || {}, recent: d.recent || [] }); })
+            .catch(() => { /* el panel funciona sin esto */ });
+        return () => { cancelled = true; };
+    }, []);
+
     const categories = useMemo(() => {
         const set = new Set();
         all.forEach(f => { if (f.category) set.add(f.category); });
@@ -167,6 +206,78 @@ export default function FunctionReference() {
         }
         return list;
     }, [all, q, category]);
+
+    /**
+     * Hasta 20 arriba, en cuatro grupos de cinco y SIN repetir entre ellos: si
+     * una funcion es de las que mas usas, no tiene sentido volver a ofrecertela
+     * como reciente ni como sugerencia. El orden de prioridad decide quien se
+     * queda con cual.
+     */
+    const destacadas = useMemo(() => {
+        const porNombre = new Map(all.map(f => [f.function_name, f]));
+        const disponibles = new Set(porNombre.keys());
+        const usadas = new Set([...Object.keys(usage.counts), ...usage.recent]);
+        const tomadas = new Set();
+
+        const tomar = (nombres, n = 5) => {
+            const out = [];
+            for (const nombre of nombres) {
+                if (out.length >= n) break;
+                if (tomadas.has(nombre)) continue;
+                const fn = porNombre.get(nombre);
+                if (!fn) continue;          // el catalogo manda: nada inventado
+                tomadas.add(nombre);
+                out.push(fn);
+            }
+            return out;
+        };
+
+        const masUsadas = Object.entries(usage.counts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([n]) => n);
+
+        return [
+            { id: 'usadas', label: 'Las que más usas', icon: LuTrendingUp,
+              hint: 'Contadas en tu historial de queries de este proyecto.',
+              items: tomar(masUsadas) },
+            { id: 'recientes', label: 'Últimas que usaste', icon: LuClock,
+              hint: 'Por orden de la última vez que aparecieron en una query.',
+              items: tomar(usage.recent) },
+            { id: 'empezar', label: 'Para empezar', icon: LuStar,
+              hint: 'El arranque típico de un análisis, útil desde el primer día.',
+              items: tomar(STARTERS) },
+            { id: 'descubrir', label: 'Para descubrir', icon: LuCompass,
+              hint: 'Rotan cada semana, y se saltan las que ya usas.',
+              items: tomar(discoveryPicks(disponibles, usadas)) },
+        ].filter(g => g.items.length > 0);
+    }, [all, usage]);
+
+    /**
+     * El catalogo de abajo, agrupado. Solo cuando no hay busqueda: buscando, lo
+     * util es una lista plana ordenada por relevancia, no repartida en secciones.
+     */
+    const grupos = useMemo(() => {
+        if (q.trim()) return null;
+        const mapa = new Map();
+        for (const fn of filtered) {
+            const clave = groupBy === 'stage' ? stageFor(fn) : (fn.category || 'Sin categoría');
+            if (!mapa.has(clave)) mapa.set(clave, []);
+            mapa.get(clave).push(fn);
+        }
+        if (groupBy === 'stage') {
+            return STAGES.filter(e => mapa.has(e.id))
+                .map(e => ({ id: e.id, label: e.label, desc: e.desc, items: mapa.get(e.id) }));
+        }
+        return [...mapa.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([k, items]) => ({ id: k, label: k, desc: '', items }));
+    }, [filtered, groupBy, q]);
+
+    const toggleStage = (id) => setOpenStages(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+    });
 
     // Description + examples for the selected function. Curated entries carry a
     // markdown `doc` with fenced SQL examples inside; engine-only entries just
@@ -210,12 +321,41 @@ export default function FunctionReference() {
                     />
                     {q && <button className="fnref-clear" onClick={() => { setQ(''); searchRef.current?.focus(); }} title="Clear"><LuX size={12} /></button>}
                 </div>
-                {categories.length > 1 && (
-                    <select className="fnref-cat" value={category} onChange={e => setCategory(e.target.value)}>
-                        {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'All categories' : c}</option>)}
+                <div className="fnref-controls">
+                    {categories.length > 1 && (
+                        <select className="fnref-cat" value={category} onChange={e => setCategory(e.target.value)}>
+                            {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'All categories' : c}</option>)}
+                        </select>
+                    )}
+                    {/* Dos ejes distintos: la ETAPA dice cuando la usas, el
+                        DOMINIO de que trata. Para "algo de fechas" sigue
+                        ganando el dominio, asi que se conservan los dos. */}
+                    <select className="fnref-cat" value={groupBy} onChange={e => setGroupBy(e.target.value)} title="Cómo agrupar el catálogo">
+                        <option value="stage">Por etapa</option>
+                        <option value="category">Por dominio</option>
                     </select>
-                )}
+                    <button
+                        className={`fnref-typesbtn${showTypes ? ' fnref-typesbtn--on' : ''}`}
+                        onClick={() => setShowTypes(v => !v)}
+                        title="Qué significa cada tipo"
+                    >
+                        <LuInfo size={13} />
+                    </button>
+                </div>
             </div>
+
+            {/* La etiqueta de tipo llevaba ahi desde siempre sin explicar que
+                queria decir SCALAR, MACRO o PRAGMA. */}
+            {showTypes && (
+                <div className="fnref-types">
+                    {Object.entries(TYPES).map(([id, t]) => (
+                        <div key={id} className="fnref-type-row">
+                            <span className="fnref-badge">{t.label}</span>
+                            <span className="fnref-type-txt"><b>{t.short}</b> {t.long}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {loading ? (
                 <div className="fnref-empty">Loading DuckDB functions…</div>
@@ -224,8 +364,65 @@ export default function FunctionReference() {
             ) : (
                 <div className="fnref-body">
                     <div className="fnref-list">
+                        {/* Lo tuyo, arriba. Buscando estorba: si escribes un
+                            nombre lo que quieres es el resultado, no atajos. */}
+                        {!q.trim() && destacadas.length > 0 && (
+                            <div className="fnref-top">
+                                {destacadas.map(g => (
+                                    <div key={g.id} className="fnref-top-group">
+                                        <div className="fnref-top-head" title={g.hint}>
+                                            <g.icon size={12} />
+                                            <span>{g.label}</span>
+                                        </div>
+                                        <div className="fnref-top-items">
+                                            {g.items.map(fn => (
+                                                <button
+                                                    key={fn.function_name}
+                                                    className={`fnref-chip${selected?.function_name === fn.function_name ? ' fnref-chip--active' : ''}`}
+                                                    onClick={() => setSelected(fn)}
+                                                    title={fn.description || fn.function_name}
+                                                >
+                                                    {fn.function_name}
+                                                    {g.id === 'usadas' && usage.counts[fn.function_name] > 0 && (
+                                                        <span className="fnref-chip-n">{usage.counts[fn.function_name]}</span>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="fnref-count">{filtered.length} function{filtered.length === 1 ? '' : 's'}</div>
-                        {filtered.map(fn => (
+
+                        {grupos ? grupos.map(g => {
+                            const abierto = openStages.has(g.id);
+                            return (
+                                <div key={g.id} className="fnref-group">
+                                    <button className="fnref-group-head" onClick={() => toggleStage(g.id)} aria-expanded={abierto}>
+                                        {abierto ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
+                                        <span className="fnref-group-label">{g.label}</span>
+                                        <span className="fnref-group-n">{g.items.length}</span>
+                                    </button>
+                                    {abierto && (
+                                        <>
+                                            {g.desc && <p className="fnref-group-desc">{g.desc}</p>}
+                                            {g.items.map(fn => (
+                                                <button
+                                                    key={fn.function_name}
+                                                    className={`fnref-item${selected?.function_name === fn.function_name ? ' fnref-item--active' : ''}`}
+                                                    onClick={() => setSelected(fn)}
+                                                >
+                                                    <span className="fnref-item-name">{fn.function_name}</span>
+                                                    {fn.function_type && <span className="fnref-item-type">{TYPE_LABEL[fn.function_type] || fn.function_type}</span>}
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        }) : filtered.map(fn => (
                             <button
                                 key={fn.function_name}
                                 className={`fnref-item${selected?.function_name === fn.function_name ? ' fnref-item--active' : ''}`}
