@@ -352,7 +352,7 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 
 ---
 
-## FASE 7 — Data Flow, nodos expandibles
+## FASE 7 — Data Flow, nodos expandibles ✅ IMPLEMENTADA (2026-09-06)
 
 **Objetivo**: la configuración vive **dentro** del nodo. Colapsado: cabecera + etiqueta + resumen. Expandido: los campos etiquetados reales; el nodo crece y las aristas se re-enrutan. Elimina el popover para los casos comunes.
 
@@ -365,6 +365,40 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 | 7.3 | Campos inline | Reutilizar los editores de campo que ya viven en `ChainNodeConfigPopover.jsx` en vez de duplicarlos. |
 | 7.4 | Degradación | Los nodos con muchos campos muestran los 2–3 principales y un "N campos más" que abre el panel completo. No todo cabe en una tarjeta. |
 | 7.5 | Popover | Se conserva para los tipos con configuración pesada. No se borra. |
+
+> **Notas de implementacion.**
+>
+> - **7.1 — el estado de expansion NO se guarda en el archivo.** Es estado de
+>   sesion (un Set de ids en ChainEditor). Razones: es una preferencia de lectura
+>   y no parte de la definicion del pipeline; guardarlo obligaria a migrar el
+>   formato .sqlchain; y marcaria el archivo como sucio cada vez que se abre o
+>   cierra una tarjeta. Se verifico que serialize() no lo arrastra: lee del array
+>   `nodes` crudo, mientras que `expanded` y `onConfigChange` se inyectan en el
+>   array derivado que consume el lienzo.
+> - **7.3 — NO se reutiliza ChainNodeConfigPanel, al contrario de lo que decia el
+>   plan.** Son 2234 lineas y hace tres fetch al montarse (tablas, archivos,
+>   columnas aguas arriba). Montarlo dentro de CADA nodo multiplicaria eso por el
+>   numero de nodos del lienzo, y ademas no cabe en una tarjeta de 214px. En su
+>   lugar hay un espectro declarativo (INLINE_FIELDS) y un render minimo.
+> - **Que entra inline y que no.** Solo campos de TEXTO LIBRE. Los de opciones
+>   cerradas (format, joinType, aggFunc) exigirian replicar aqui sus listas, y una
+>   lista desincronizada del ejecutor produce configuraciones que fallan al
+>   correr. Los que son arrays (conditions, aggregations, operations, casts,
+>   windows) necesitan su propio editor con altas y bajas. Ambos siguen en el
+>   panel, que es su fuente unica.
+> - Los campos llevan las clases `nodrag` y `nowheel` de react-flow. Sin la
+>   primera, arrastrar para seleccionar texto mueve el nodo; sin la segunda, la
+>   rueda dentro del campo hace zoom del lienzo — el mismo fallo que ya aparecio
+>   en el selector de tipos de nodo.
+> - **7.2 no necesito nada:** react-flow re-mide el nodo solo. Medido con la
+>   composicion forzada: expandido 193.8px con la arista saliendo en y=260 y
+>   curvando hasta y=194; contraido 84.2px con la arista casi recta.
+>
+> **Limite de verificacion.** El panel de navegador de la sesion no compone entre
+> llamadas, asi que el ResizeObserver de react-flow no entrega y los nodos quedan
+> sin medir (`internals: false`, sin aristas en el DOM) hasta que una captura
+> fuerza el pintado. No es un fallo de la app; es el mismo limite que impidio ver
+> la animacion de la fase 5.
 
 **Riesgos**: es la fase de mayor riesgo del plan. Toca el modelo de datos (7.1), el layout del lienzo (7.2) y la ruta de edición completa. **No mezclarla con ninguna otra fase en el mismo PR.** El auto-arrange y el deshacer tienen que seguir funcionando con alturas variables.
 

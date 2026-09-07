@@ -14227,6 +14227,68 @@ tr:hover td {
   margin-bottom: 4px;
 }
 
+/* -- Configuracion inline del nodo (fase 7) --
+   Los campos viven DENTRO de la tarjeta al expandirla. Solo entran los de texto
+   libre; el resto sigue en el panel, al que se llega con "More settings".
+   La tarjeta crece y react-flow re-mide su alto solo, asi que las aristas se
+   re-enrutan sin intervencion. */
+.chain-node-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chain-node-field { display: flex; flex-direction: column; gap: 3px; }
+
+.chain-node-field-label {
+  font-size: 9.5px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-tertiary);
+}
+
+.chain-node-field-input {
+  width: 100%;
+  padding: 4px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  outline: none;
+  /* nodrag: sin esto, arrastrar para seleccionar texto mueve el nodo */
+  cursor: text;
+}
+
+.chain-node-field-input:focus { border-color: var(--accent-primary); }
+
+.chain-node-field-area { resize: vertical; min-height: 34px; line-height: 1.4; }
+
+.chain-node-more,
+.chain-node-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 4px 0 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.chain-node-expand { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle); }
+
+.chain-node-more:hover,
+.chain-node-expand:hover { color: var(--accent-primary); }
+
 /* Este contenedor NUNCA tuvo regla propia: era un div sin estilar, o sea
    display:block. Sus hijos (el boton de validacion, el estado, y ahora el de
    ejecutar) son todos block-level, asi que se apilaban en vertical. No se veia

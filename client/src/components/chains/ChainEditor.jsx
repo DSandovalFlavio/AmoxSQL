@@ -481,6 +481,25 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     // the ref always holds the freshest closure (assigned near the bottom of this
     // component, after the handlers it calls are defined), the callback threaded
     // into node.data never does.
+    // Expansion inline por nodo (fase 7). Estado de SESION a proposito: no se
+    // serializa al .sqlchain, asi que no hay migracion de formato ni se marca el
+    // archivo como sucio al abrir o cerrar una tarjeta.
+    const [expandedNodeIds, setExpandedNodeIds] = useState(() => new Set());
+
+    // Escribe un solo campo de la config sin pisar el resto.
+    const setNodeConfigField = useCallback((nodeId, key, value) => {
+        setNodes((nds) => nds.map((n) => (
+            n.id === nodeId
+                ? { ...n, data: { ...n.data, config: { ...(n.data.config || {}), [key]: value } } }
+                : n
+        )));
+        setSelectedNode((prev) => (
+            prev && prev.id === nodeId
+                ? { ...prev, data: { ...prev.data, config: { ...(prev.data.config || {}), [key]: value } } }
+                : prev
+        ));
+    }, []);
+
     const nodeActionRef = useRef(null);
     const onActionCallback = useCallback((action, id, coords) => nodeActionRef.current?.(action, id, coords), []);
 
@@ -498,6 +517,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     validationErrors: v?.errors || [],
                     validationWarnings: v?.warnings || [],
                     onAction: onActionCallback,
+                    onConfigChange: setNodeConfigField,
+                    expanded: expandedNodeIds.has(n.id),
                     status: execution.nodeStatuses[n.id]?.status || n.data.status,
                     resultType: execution.nodeStatuses[n.id]?.resultType || n.data.resultType,
                     resultSummary: execution.nodeStatuses[n.id]?.resultSummary || n.data.resultSummary,
@@ -510,7 +531,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         frozenNodesWithValidation.current = result;
         return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [nodes, validationResults, execution.nodeStatuses, onActionCallback, staleNodeIds]);
+    }, [nodes, validationResults, execution.nodeStatuses, onActionCallback, staleNodeIds, expandedNodeIds, setNodeConfigField]);
 
     const onNodeDragStart = useCallback(() => { isDraggingRef.current = true; }, []);
     const onNodeDragStop = useCallback(() => { isDraggingRef.current = false; }, []);
@@ -615,6 +636,13 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             // ESTE switch, no por aquel: son dos rutas distintas hacia la misma
             // accion y omitir esta hacia que el boton no hiciera nada, en
             // silencio y sin error.
+            case 'toggle-expand':
+                setExpandedNodeIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
+                    return next;
+                });
+                break;
             case 'run-only':
                 handleRunOnlyNode(nodeId);
                 break;
