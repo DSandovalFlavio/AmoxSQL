@@ -4,6 +4,10 @@
 > **Contexto**: ver [`discovery_rediseno_visual.md`](./discovery_rediseno_visual.md) y el mockup interactivo [`mockup_rediseno_visual.html`](./mockup_rediseno_visual.html).
 > **Objetivo**: que la interfaz se sienta menos "matrix" y más moderna, sin perder la identidad.
 
+> **Estado (2026-09-06)**: fases **0 a 7 implementadas** en la rama
+> `claude/rediseno-visual`. Queda **solo la fase 8** (omnibox: búsqueda de
+> archivos y esquema). Nada mergeado a `main` todavía.
+
 Fases ordenadas por **riesgo ascendente / valor descendente**. Cada fase es entregable por sí sola, salvo la dependencia explícita de F1 sobre F0.
 
 ## Principios de ejecución
@@ -32,7 +36,7 @@ Fases ordenadas por **riesgo ascendente / valor descendente**. Cada fase es entr
 
 ---
 
-## FASE 0 — Superficies y tipografía del shell
+## FASE 0 — Superficies y tipografía del shell ✅ IMPLEMENTADA (2026-09-06)
 
 **Objetivo**: que las regiones se distingan y el chrome deje de leerse como consola. Todo es CSS; ningún componente React cambia.
 
@@ -54,7 +58,7 @@ Fases ordenadas por **riesgo ascendente / valor descendente**. Cada fase es entr
 
 ---
 
-## FASE 1 — Resplandor de acento en el fondo
+## FASE 1 — Resplandor de acento en el fondo ✅ IMPLEMENTADA (2026-09-06)
 
 > **Depende de F0.2.** Sin las tarjetas y su canal, el resplandor no tiene por dónde asomar y el efecto se pierde.
 
