@@ -5,6 +5,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.0.1] — 2026-09-07
+
+### Entrar al proyecto, y que lo que configuras se quede
+
+#### Corregido
+
+- **La interfaz colgaba su identidad del puerto.** La ventana se cargaba desde `http://localhost:<puerto>`, y Chromium guarda `localStorage` por origen — donde el puerto forma parte del origen. Si el 3001 estaba ocupado, el servidor cogía otro y la app arrancaba con un perfil vacío: tema, acento, proyectos recientes y tutoriales vistos, todos aparentemente perdidos. No lo estaban: seguían bajo el origen anterior. Se midió un perfil real repartido en **seis orígenes distintos**. La interfaz pasa a servirse desde `amoxsql://app`, una dirección que no depende de ningún puerto. **Esto re-siembra las preferencias una vez**; a partir de ahí la dirección ya no cambia.
+- **El Analysis Vault daba HTTP 500.** Pedía `amoxsql_ai.analysis_vault` y reventaba cuando ese esquema no existe — en sesiones de solo lectura y en lakehouse no se crea, a propósito. La lista de conversaciones fallaba igual. Que no haya nada guardado no es un fallo: ahora devuelven una lista vacía.
+- **Los botones con relleno de acento se volvían negros e ilegibles** al pasar el ratón. Pintaban su relleno en la regla base y no declaraban fondo en `:hover`, así que ganaba la regla global `button:hover` y cambiaba el relleno dejando el texto oscuro. Doce botones afectados, incluido el principal de la bienvenida.
+
+#### Rendimiento
+
+- **Abrir un proyecto pasó de ~885 ms a 75 ms**, con tres cambios. La garantía de "sesión limpia" se muda a `connect()`, que es donde la sesión empieza de verdad: abrir la carpeta ya no reinicia el motor, algo que era un resto de cuando un workspace podía cambiar de base sin salir. Se retira una espera fija de 200 ms del cliente que estaba encima de algo ya esperado. Y las extensiones se cargan **después** de responder, en vez de bloquear el arranque.
+- Al mudar esa garantía se corrige un agujero que la duplicación tapaba: `connect()` solo reiniciaba si había un **archivo** adjunto, así que **las tablas creadas en una sesión en memoria sobrevivían a la siguiente sesión de archivo**.
+
+#### Interfaz
+
+- **El menú de pestañas ofrece los formatos que faltaban**: Data Flow, Report Flow y gráfico. Se podían crear desde hacía tiempo, pero el menú no los listaba.
+- **Los títulos de los paneles siguen una sola pauta.** Había tres tamaños, tres colores y dos en mayúsculas con tracking — restos del aspecto de consola que el rediseño no alcanzó. Y cada panel usa en su título **el icono de su propio botón** en la barra lateral; varios no tenían ninguno, y dos usaban uno distinto.
+
+---
+
 ## [5.0.0] — 2026-09-07
 
 ### El rediseño visual: menos "matrix", más taller
