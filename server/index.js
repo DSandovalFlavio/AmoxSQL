@@ -17,6 +17,30 @@ const { detectResultType } = require('./_sqlClassify');
 const app = express();
 const PORT = 3001;
 
+/**
+ * Red de ultima instancia del proceso del servidor.
+ *
+ * El servidor vive en un utilityProcess sin supervisor: electron/main.js escucha
+ * su 'exit' pero solo lo escribe en consola — no lo reinicia ni avisa al
+ * renderer. Asi que, sin esto, UNA sola promesa rechazada fuera de un try/catch
+ * (Node aborta el proceso por defecto desde la v15) deja la ventana abierta y el
+ * backend muerto: la app parece viva y todo lo que se toque falla.
+ *
+ * Por eso aqui se registra y se SIGUE. Es lo contrario del consejo habitual para
+ * un servidor con reinicio automatico, y a proposito: aqui morir no es
+ * "recuperarse", es perder la sesion del usuario sin decirselo. Lo que se pierde
+ * a cambio es la garantia de un estado limpio, de ahi que se vuelque la traza
+ * entera — si algo queda inconsistente, el rastro esta.
+ */
+process.on('unhandledRejection', (reason) => {
+    console.error('[Server] Promesa rechazada sin manejar — el servidor sigue en pie:',
+        reason && reason.stack ? reason.stack : reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[Server] Excepcion no capturada — el servidor sigue en pie:',
+        err && err.stack ? err.stack : err);
+});
+
 // ─── Internal schemas & tables to ALWAYS hide from the user ───
 // Exact internal schemas created by AmoxSQL itself:
 const INTERNAL_SCHEMAS = ['information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains'];
