@@ -1,9 +1,25 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useRef, useCallback, forwardRef, memo } from 'react';
 import {
-    LuRefreshCw, LuDownload, LuSearch, LuPackage, LuCheck, LuCircle,
-    LuLoader, LuCircleAlert, LuShieldCheck, LuUsers, LuPlay, LuExternalLink,
-    LuCopy, LuStar, LuChevronDown, LuChevronRight, LuZap, LuCircleSlash,
+    LuRefreshCw,
+    LuDownload,
+    LuSearch,
+    LuPackage,
+    LuCheck,
+    LuCircle,
+    LuLoader,
+    LuCircleAlert,
+    LuShieldCheck,
+    LuUsers,
+    LuPlay,
+    LuExternalLink,
+    LuCopy,
+    LuStar,
+    LuChevronDown,
+    LuChevronRight,
+    LuZap,
+    LuCircleSlash,
+    LuPuzzle,
 } from "react-icons/lu";
 import { useToast } from './ToastProvider';
 import FEATURED_EXTENSIONS from '../data/featuredExtensions';
@@ -241,7 +257,7 @@ const ExtensionExplorer = () => {
             {/* Header */}
             <div className="sidebar-header">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LuPackage size={14} /> Extensions
+                    <LuPuzzle size={14} /> Extensions
                 </span>
                 <div className="fe-header-actions">
                     <button

@@ -262,7 +262,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
         <div className="db-explorer">
             {/* Header */}
             <div className="db-header">
-                <span className="db-header-title">Database Schema</span>
+                <span className="db-header-title"><LuDatabase size={14} /> Database Schema</span>
                 <div className="db-header-actions">
                     {/* Single-schema DBs: ER is for that one schema, so expose it here.
                         Multi-schema DBs get a per-schema ER button on each schema row. */}

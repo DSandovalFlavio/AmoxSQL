@@ -2,7 +2,7 @@ import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { LuSearch, LuCopy, LuCheck, LuX, LuBookOpen, LuTriangleAlert } from 'react-icons/lu';
+import { LuSearch, LuCopy, LuCheck, LuX, LuBookOpen, LuTriangleAlert, LuSquareFunction } from "react-icons/lu";
 import './FunctionReference.css';
 
 /**
@@ -198,7 +198,7 @@ export default function FunctionReference() {
     return (
         <div className="fnref">
             <div className="fnref-header">
-                <div className="fnref-title"><LuBookOpen size={14} /> Functions</div>
+                <div className="fnref-title"><LuSquareFunction size={14} /> Functions</div>
                 <div className="fnref-search">
                     <LuSearch size={13} />
                     <input

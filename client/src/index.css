@@ -3021,6 +3021,16 @@ body {
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
+/* Separa los formatos "de siempre" (SQL, notebook, markdown) de los estudios
+   —Data Flow, Report Flow, gráfico—, que se crean igual pero se trabajan de
+   otra manera. */
+.tab-bar-new-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
+
+
 .tab-bar-new-menu-item:hover {
   background-color: var(--hover-bg);
   color: var(--text-primary);

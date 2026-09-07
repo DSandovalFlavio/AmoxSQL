@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown } from 'react-icons/lu';
+import { LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar } from 'react-icons/lu';
 
 const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew, onTabContextMenu, onTabRename }) => {
     const [showNewMenu, setShowNewMenu] = useState(false);
@@ -67,6 +67,20 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                             </div>
                             <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('md'); setShowNewMenu(false); }}>
                                 <LuFileText size={13} /> Markdown
+                            </div>
+                            {/* Los formatos que el menu se habia dejado atras. Los
+                                iconos son los MISMOS que usa el explorador de
+                                archivos para cada extension, para que un .sqlchain
+                                se reconozca igual se cree aqui o se vea alli. */}
+                            <div className="tab-bar-new-menu-separator" />
+                            <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('sqlchain'); setShowNewMenu(false); }}>
+                                <LuGitBranch size={13} /> Data Flow
+                            </div>
+                            <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('amoxdeck'); setShowNewMenu(false); }}>
+                                <LuPresentation size={13} /> Report Flow
+                            </div>
+                            <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('amoxvis'); setShowNewMenu(false); }}>
+                                <LuChartBar size={13} /> Chart
                             </div>
                         </div>
                     )}
