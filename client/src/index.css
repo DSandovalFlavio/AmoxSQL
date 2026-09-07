@@ -2111,6 +2111,37 @@ body {
     var(--surface-base);
 }
 
+/* ── Bienvenida: la division entre mitades, continua ──
+   El fondo de la mitad derecha se pinta sobre .app-shell y no sobre .ws-canvas,
+   porque la barra de ventana es HERMANA del contenido: pintandolo en el lienzo,
+   la division se cortaba justo debajo de la barra. Asi corre de borde a borde.
+
+   El tono NO se obtiene mezclando con negro, que era el error anterior: los
+   temas con superficie tintada (carbon frio, azul tinta, polar) perdian su
+   tinte al mezclarse y el lado derecho dejaba de casar con el izquierdo.
+   Se deriva de --surface-base conservando tono y croma, bajando solo la
+   luminosidad. En claro el factor es mucho mas suave: ahi la superficie ya es
+   clara y oscurecerla al 72% produciria un panel gris que no pega con nada. */
+.app-shell--welcome { position: relative; }
+
+.app-shell--welcome > * { position: relative; z-index: 1; }
+
+.app-shell--welcome::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 50%;
+  z-index: 0;
+  pointer-events: none;
+  border-left: 1px solid var(--border-subtle);
+  background: oklch(from var(--surface-base) calc(l * var(--ws-canvas-l, 0.72)) c h);
+}
+
+.mode-light { --ws-canvas-l: 0.965; }
+
+@media (max-width: 900px) {
+  .app-shell--welcome::before { display: none; }
+}
+
 .app-container {
   display: flex;
   width: 100%;
@@ -13432,20 +13463,35 @@ tr:hover td {
   flex-direction: column;
   min-height: 0;
   width: 100%;
-  max-width: 440px;
+  /* 520 y no 440: con la marca al nuevo tamano, el subtitulo se partia en dos
+     lineas y el icono dejaba de medir lo mismo que el bloque de texto. */
+  max-width: 520px;
   margin: 0 auto;
   flex: 1;
 }
 
+/* El bloque de marca es un 50% mas grande que antes (22 -> 33 el nombre) y el
+   icono mide lo que suman nombre y subtitulo apilados, no lo que media el
+   nombre solo. Por eso el texto va en su propia columna: asi la altura del
+   icono se compara contra el bloque entero. */
 .ws-brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 16px;
   flex: none;
+  margin-bottom: 32px;
+}
+
+.ws-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .ws-brand-name {
-  font-size: 22px;
+  font-size: 33px;
+  line-height: 1.15;
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   letter-spacing: 0.4px;
@@ -13454,9 +13500,9 @@ tr:hover td {
 .ws-brand-name span { color: var(--accent-primary); }
 
 .ws-tagline {
-  flex: none;
-  margin: 8px 0 28px 43px;
-  font-size: var(--text-sm);
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.3;
   color: var(--text-tertiary);
 }
 
@@ -13788,14 +13834,15 @@ tr:hover td {
 
 /* ── Mitad derecha: el lienzo ──
    Aloja el sistema de partículas (LogoMorph); el resplandor le da el fondo. */
+/* El fondo de la mitad derecha se PINTA EN .app-shell--welcome, no aqui, para que
+   la division sea continua hasta el borde superior de la ventana atravesando la
+   barra. Aqui solo queda el resplandor del acento. */
 .ws-canvas {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-xl) 0 0 0;
   background:
     radial-gradient(58% 52% at 50% 44%,
-      color-mix(in oklch, var(--accent-primary) 14%, transparent) 0%, transparent 72%),
-    color-mix(in oklch, var(--surface-base) 88%, #000);
+      color-mix(in oklch, var(--accent-primary) 14%, transparent) 0%, transparent 72%);
 }
 
 .ws-morph {

@@ -347,7 +347,8 @@ function App() {
     probe.style.cssText = 'position:absolute;opacity:0;pointer-events:none';
     probe.style.color = 'var(--accent-primary)';
     document.body.appendChild(probe);
-    const stops = deriveLogoStops(getComputedStyle(probe).color);
+    const mode = modeClassFor(theme) === 'mode-light' ? 'light' : 'dark';
+    const stops = deriveLogoStops(getComputedStyle(probe).color, mode);
     probe.remove();
     if (stops) {
       document.body.style.setProperty('--logo-grad-a', stops.a);
@@ -1167,7 +1168,7 @@ function App() {
 
   if (appPhase === PHASE.WELCOME) {
     return (
-      <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+      <div className="app-shell app-shell--welcome" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
         <WindowTitleBar
           projectPath=""
           currentDb=""

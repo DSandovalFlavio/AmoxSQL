@@ -10,9 +10,11 @@
  *
  * De ahí las tres reglas que generalizan el diseño a cualquier acento:
  *
- *   1. Luminosidad ANCLADA. Los dos stops conservan la L del original (0.861 y
- *      0.567). Es la rampa luminosa lo que da el carácter; si se usara la L del
- *      acento, un acento oscuro produciría un logo apagado.
+ *   1. Luminosidad ANCLADA. En oscuro los dos stops conservan la L del original
+ *      (0.861 y 0.567). Es la rampa luminosa lo que da el carácter; si se usara
+ *      la L del acento, un acento oscuro produciría un logo apagado. En claro se
+ *      usan anclas propias y más bajas (0.640 y 0.380): sobre una superficie
+ *      clara, una L de 0.861 es practicamente invisible.
  *
  *   2. Croma AL LÍMITE DEL GAMUT, no sumado. Sumar croma a ciegas se sale del
  *      gamut en los tonos cálidos —donde el techo es mucho más bajo— y el
@@ -30,8 +32,14 @@
 
 const BLUE_HUE = 264;      // el tono más oscuro que alcanza sRGB
 const MAX_ROTATION = 55.4; // la del par original (205 -> 260)
-const L_TOP = 0.861;       // L del cian original
-const L_BOTTOM = 0.567;    // L del azul original
+// Anclas de luminosidad. Las de oscuro son las del par original. En claro NO
+// sirven: una L de 0.861 sobre una superficie clara es practicamente invisible,
+// asi que el modo claro usa su propio par, mas bajo, conservando la misma caida
+// relativa entre los dos stops.
+const L_ANCHORS = {
+    dark:  { top: 0.861, bottom: 0.567 },
+    light: { top: 0.640, bottom: 0.380 },
+};
 
 // ── Conversiones ──────────────────────────────────────────────────────────
 const oklchToLinearSrgb = (L, C, H) => {
@@ -109,16 +117,17 @@ export const parseComputedColor = (css) => {
  * @param {string} accentCss color ya calculado del acento
  * @returns {{a: string, b: string} | null}
  */
-export const deriveLogoStops = (accentCss) => {
+export const deriveLogoStops = (accentCss, mode = 'dark') => {
     const accent = parseComputedColor(accentCss);
     if (!accent || !Number.isFinite(accent.H)) return null;
 
+    const { top, bottom } = L_ANCHORS[mode] || L_ANCHORS.dark;
     const hTop = accent.H;
     const hBottom = rotateTowardBlue(hTop);
     const f = (n) => Math.round(n * 1000) / 1000;
 
     return {
-        a: `oklch(${f(L_TOP)} ${f(maxChroma(L_TOP, hTop))} ${f(hTop)})`,
-        b: `oklch(${f(L_BOTTOM)} ${f(maxChroma(L_BOTTOM, hBottom))} ${f(hBottom)})`,
+        a: `oklch(${f(top)} ${f(maxChroma(top, hTop))} ${f(hTop)})`,
+        b: `oklch(${f(bottom)} ${f(maxChroma(bottom, hBottom))} ${f(hBottom)})`,
     };
 };

@@ -128,10 +128,12 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
             <div className="ws-pane">
                 <div className="ws-col">
                     <div className="ws-brand ws-enter ws-enter-1">
-                        <Logo width={32} height={32} />
-                        <span className="ws-brand-name">Amox<span>SQL</span></span>
+                        <Logo width={72} height={72} />
+                        <div className="ws-brand-text">
+                            <span className="ws-brand-name">Amox<span>SQL</span></span>
+                            <p className="ws-tagline">The Modern Codex for Local Data Analysis</p>
+                        </div>
                     </div>
-                    <p className="ws-tagline ws-enter ws-enter-1">The Modern Codex for Local Data Analysis</p>
 
                     {step === 1 ? (
                         <>
