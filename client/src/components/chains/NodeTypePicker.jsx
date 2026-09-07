@@ -4,6 +4,10 @@
  * list of node types to add and connect in one gesture. Sources are excluded
  * — they don't take upstream input, so they never make sense as "the next
  * step after this node."
+ *
+ * Con `sourcesOnly` ensena justo lo contrario: SOLO las fuentes. Es lo que usa
+ * el boton Fuente de la barra flotante, para los flujos que arrancan de mas de
+ * un origen — el unico caso que el "+" del nodo no puede cubrir.
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -11,8 +15,9 @@ import { LuSearch } from 'react-icons/lu';
 import { NODE_TYPES, NODE_CATEGORIES } from './chainNodeTypes';
 
 const SUGGESTED_CATEGORIES = NODE_CATEGORIES.filter(c => c.id !== 'sources');
+const SOURCE_CATEGORIES = NODE_CATEGORIES.filter(c => c.id === 'sources');
 
-const NodeTypePicker = ({ x, y, onPick, onClose }) => {
+const NodeTypePicker = ({ x, y, onPick, onClose, sourcesOnly = false }) => {
     const [query, setQuery] = useState('');
     const ref = useRef(null);
     const inputRef = useRef(null);
@@ -43,7 +48,7 @@ const NodeTypePicker = ({ x, y, onPick, onClose }) => {
 
     const groups = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return SUGGESTED_CATEGORIES
+        return (sourcesOnly ? SOURCE_CATEGORIES : SUGGESTED_CATEGORIES)
             .map(cat => ({
                 ...cat,
                 types: cat.types.filter(typeId => {
@@ -54,7 +59,7 @@ const NodeTypePicker = ({ x, y, onPick, onClose }) => {
                 }),
             }))
             .filter(cat => cat.types.length > 0);
-    }, [query]);
+    }, [query, sourcesOnly]);
 
     const w = 230, h = 320;
     const left = Math.min(x - w / 2, window.innerWidth - w - 8);
@@ -72,7 +77,7 @@ const NodeTypePicker = ({ x, y, onPick, onClose }) => {
                 <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Add a step…"
+                    placeholder={sourcesOnly ? 'Add a source…' : 'Add a step…'}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                 />

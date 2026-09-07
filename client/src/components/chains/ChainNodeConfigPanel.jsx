@@ -2,7 +2,7 @@
  * ChainNodeConfigPanel — the node's own config fields (label, description,
  * type-specific settings). Fase 3 of docs/dev/auditoria_dataflow_ux.md moved
  * this out of a fixed right-side drawer into a popover anchored to the node
- * (see ChainNodeConfigPopover) — this component is now just its CONTENT.
+ * (see ChainNodeConfigSurface) — this component is now just its CONTENT.
  * Everything that used to live in this panel's own tabs (input/output schema,
  * output preview, validation detail, node docs) moved to ChainInspector,
  * which is permanently visible instead of appearing only while a node is
@@ -90,7 +90,7 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sql
     };
 
     return (
-        <div className="chain-config-body chain-config-popover-body">
+        <div className="chain-config-body">
                 {/* Label */}
                 <div className="chain-config-field">
                     <label>Name</label>

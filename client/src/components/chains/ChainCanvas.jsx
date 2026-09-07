@@ -5,7 +5,6 @@
 import { useMemo } from 'react';
 import {
     ReactFlow,
-    Controls,
     Background,
     MiniMap,
     useNodesState,
@@ -101,6 +100,7 @@ const ChainCanvas = ({
     onDragOver,
     onNodeDragStart,
     onNodeDragStop,
+    onZoomChange,
 }) => {
     // React Flow paints edges / minimap / background as SVG and won't resolve
     // `var(--token)` in those props, so resolve the theme tokens to concrete
@@ -135,6 +135,7 @@ const ChainCanvas = ({
                 onDragOver={onDragOver}
                 onNodeDragStart={onNodeDragStart}
                 onNodeDragStop={onNodeDragStop}
+                onMove={(_, viewport) => onZoomChange?.(viewport.zoom)}
                 nodeTypes={nodeTypes}
                 defaultEdgeOptions={defaultEdgeOptions}
                 fitView
@@ -156,13 +157,8 @@ const ChainCanvas = ({
                     size={0.8}
                     color={theme.dots}
                 />
-                <Controls
-                    position="bottom-right"
-                    showInteractive={false}
-                    className="chain-controls"
-                />
                 <MiniMap
-                    position="bottom-left"
+                    position="top-left"
                     nodeColor={(node) => {
                         const status = node.data?.status;
                         if (status === 'success') return theme.success;

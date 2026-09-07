@@ -5,15 +5,19 @@
  * (Fase 1 of docs/dev/auditoria_dataflow_ux.md — the actions the user needs
  * live ON the node, not in a toolbar far away or a menu that only appears
  * after a full run).
+ *
+ * El nodo tiene DOS estados y no mas (fase 9 de plan_rediseno_visual.md):
+ * este, compacto, y el mismo nodo expandido y centrado en el lienzo para
+ * configurarlo a fondo. La configuracion en linea que hubo aqui en medio era
+ * una tercera forma de hacer lo mismo, y con ella no se entendia cual tocaba.
  */
 import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import {
     LuCheck, LuX, LuLoader, LuMinus, LuCircleAlert, LuTriangleAlert,
     LuSlidersHorizontal, LuChevronRight, LuChevronLeft, LuEye, LuEllipsis, LuPause, LuHistory, LuPlus, LuPlay,
-    LuChevronDown, LuChevronUp,
 } from 'react-icons/lu';
-import { NODE_TYPES, STATUS_COLORS, RESULT_TYPE_LABELS, INLINE_FIELDS } from '../chainNodeTypes';
+import { NODE_TYPES, STATUS_COLORS, RESULT_TYPE_LABELS } from '../chainNodeTypes';
 
 const statusIcons = {
     pending: null,
@@ -59,15 +63,6 @@ const BaseChainNode = ({ id, data, selected }) => {
         e.stopPropagation();
         data.onAction?.(action, id, { x: e.clientX, y: e.clientY });
     };
-
-    // Configuracion inline (fase 7). El estado de expansion NO se guarda en el
-    // .sqlchain: es una preferencia de lectura, no parte de la definicion del
-    // pipeline. Guardarlo alli obligaria a migrar el formato y ademas marcaria el
-    // archivo como sucio cada vez que se abre o cierra una tarjeta.
-    const inlineFields = INLINE_FIELDS[data.nodeType] || [];
-    const expanded = !!data.expanded;
-    const config = data.config || {};
-    const setField = (key, value) => data.onConfigChange?.(id, key, value);
 
     return (
         <div
@@ -181,39 +176,6 @@ const BaseChainNode = ({ id, data, selected }) => {
                 </div>
             )}
 
-            {/* Configuracion inline (expandida) */}
-            {expanded && inlineFields.length > 0 && (
-                <div className="chain-node-fields" onClick={(e) => e.stopPropagation()}>
-                    {inlineFields.map(f => (
-                        <label key={f.key} className="chain-node-field">
-                            <span className="chain-node-field-label">{f.label}</span>
-                            {f.type === 'textarea' ? (
-                                <textarea
-                                    className="chain-node-field-input chain-node-field-area nodrag nowheel"
-                                    value={config[f.key] ?? ''}
-                                    rows={2}
-                                    spellCheck={false}
-                                    onChange={(e) => setField(f.key, e.target.value)}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                />
-                            ) : (
-                                <input
-                                    className="chain-node-field-input nodrag"
-                                    type="text"
-                                    value={config[f.key] ?? ''}
-                                    spellCheck={false}
-                                    onChange={(e) => setField(f.key, e.target.value)}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                />
-                            )}
-                        </label>
-                    ))}
-                    <button className="chain-node-more" onClick={act('configure')}>
-                        <LuSlidersHorizontal size={10} /><span>More settings</span>
-                    </button>
-                </div>
-            )}
-
             {/* Result badge */}
             {resultType && status === 'success' && (
                 <div className="chain-node-result">
@@ -266,19 +228,6 @@ const BaseChainNode = ({ id, data, selected }) => {
                         </div>
                     ))}
                 </div>
-            )}
-
-            {inlineFields.length > 0 && (
-                <button
-                    className="chain-node-expand"
-                    onClick={act('toggle-expand')}
-                    title={expanded ? 'Collapse' : 'Edit here'}
-                    aria-expanded={expanded}
-                >
-                    {expanded
-                        ? <><LuChevronUp size={11} /><span>Collapse</span></>
-                        : <><LuChevronDown size={11} /><span>Edit here</span></>}
-                </button>
             )}
 
             <Handle type="source" position={Position.Right} className="chain-handle" />
