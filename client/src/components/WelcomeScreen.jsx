@@ -29,6 +29,15 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
     const [newDbName, setNewDbName] = useState('');
 
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
+    // Abrir un workspace reinicia el motor en el servidor, y dos aperturas a la
+    // vez desmontan los mismos objetos nativos de DuckDB (bad_weak_ptr): la
+    // conexion queda rota y el proceso muere. Se colaba facil — al hacer clic en
+    // un reciente ya se abre y ademas se rellena la ruta, asi que pulsar despues
+    // "Open Project" lanzaba una segunda apertura encima de la primera.
+    // El servidor ahora tambien coalesce, pero aqui se corta de raiz y de paso
+    // deja de parecer que no pasa nada mientras tarda.
+    const [opening, setOpening] = useState(false);
+    const openingRef = useRef(false);
 
     // Handle initialPath passed down
     useEffect(() => {
@@ -40,7 +49,16 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
 
     const processWorkspaceSelection = async (workspacePath) => {
         if (!workspacePath) return;
-        const result = await onSelectWorkspace(workspacePath);
+        if (openingRef.current) return;   // ya hay una apertura en curso
+        openingRef.current = true;
+        setOpening(true);
+        let result;
+        try {
+            result = await onSelectWorkspace(workspacePath);
+        } finally {
+            openingRef.current = false;
+            setOpening(false);
+        }
         if (result && result.success) {
             const files = result.dbs || [];
             setScannedDbs(files);
@@ -166,8 +184,8 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
                                     />
                                 </div>
                                 <p className="ws-hint">Paste the absolute path or click the folder icon to browse.</p>
-                                <button type="submit" className="ws-cta" disabled={!path.trim()}>
-                                    Open Project
+                                <button type="submit" className="ws-cta" disabled={!path.trim() || opening}>
+                                    {opening ? 'Opening…' : 'Open Project'}
                                 </button>
                             </form>
 
@@ -189,6 +207,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
                                                 <button
                                                     key={i}
                                                     onClick={() => { setPath(p); processWorkspaceSelection(p); }}
+                                                    disabled={opening}
                                                     title={p}
                                                     className="ws-recent-item"
                                                 >

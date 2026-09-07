@@ -155,7 +155,32 @@ class DatabaseManager {
         await this.query('CHECKPOINT');
     }
 
+    /**
+     * Reinicio en caliente del motor.
+     *
+     * COALESCE OBLIGATORIO: sin esto, dos llamadas concurrentes desmontan a la vez
+     * los mismos objetos nativos de DuckDB y el binding revienta con
+     * "Invalid Error: bad_weak_ptr" — una referencia debil de C++ a algo ya
+     * destruido. A partir de ahi la conexion queda inservible (los schemas de
+     * sistema amoxsql_ai y amoxsql_chains desaparecen) y el proceso acaba
+     * muriendo, con lo que la app deja de poder abrir proyectos.
+     *
+     * Pasa facil: /api/project/open llama aqui, y en la bienvenida se puede
+     * disparar dos veces seguidas (clic en un proyecto reciente, que ya abre, y
+     * despues el boton Open Project). Dos resets encadenados dejan el mismo
+     * estado final que uno, asi que coalescer es correcto ademas de seguro.
+     */
     async reinitializeSystem() {
+        if (this._reinitInFlight) {
+            console.log("[DB Manager] HARD RESET ya en curso — se reutiliza el que hay.");
+            return this._reinitInFlight;
+        }
+        this._reinitInFlight = this._doReinitializeSystem()
+            .finally(() => { this._reinitInFlight = null; });
+        return this._reinitInFlight;
+    }
+
+    async _doReinitializeSystem() {
         console.log("[DB Manager] HARD RESET REQUESTED.");
 
         // PASO NUEVO: Intentar cerrar lo que estaba abierto antes de reiniciar
