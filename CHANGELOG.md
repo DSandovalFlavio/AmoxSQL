@@ -5,6 +5,56 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.0.0] — 2026-09-07
+
+### El rediseño visual: menos "matrix", más taller
+
+Una versión mayor porque cambia lo primero que ves. La interfaz venía leyéndose como una consola —líneas duras, mayúsculas, cromo fijo por todas partes— y esta versión la lleva a algo más de taller: superficies con profundidad, una barra de ventana que hace de verdad su trabajo, una bienvenida que cabe en la pantalla, y un Data Flow donde lo que ocupa el sitio es el lienzo.
+
+Nada de esto cambia lo que la aplicación *hace*. Cambia dónde está y cuánto estorba.
+
+#### El shell
+
+- **Escala de superficies y caja normal.** Los paneles se separan por elevación en vez de por líneas, y los encabezados dejan las mayúsculas forzadas: se leen como texto, no como etiquetas de sistema.
+- **Resplandor de acento en el fondo.** Nace detrás del panel lateral y sube atravesando la barra de ventana, que ahora es transparente. No es una banda pintada encima: es el fondo de la aplicación asomando.
+- **Iluminación configurable.** La intensidad del acento pasa a ser un ajuste (por defecto `.730`, rango `.600`–`.950`), y el resplandor se puede llevar a cualquiera de las cinco esquinas y graduar de luminoso a casi imperceptible.
+- **La marca sigue al acento.** El degradado del logo se deriva del color de acento con teoría de color en OKLCH: luminosidad anclada, croma al límite del gamut sRGB —no sumado a ciegas, que es lo que ensuciaba los tonos cálidos— y rotación de tono hacia el azul acotada. Sembrado con el cian original devuelve el par original exacto.
+
+#### La barra de ventana
+
+- **Menú de aplicación en el logo**, breadcrumb del proyecto y base de datos, y **omnibox** al centro.
+- **Centrado óptico**: los elementos se ven centrados de verdad, no matemáticamente centrados y visualmente altos.
+
+#### La bienvenida
+
+- **Partida 50/50**: a la izquierda la marca, la ruta y los proyectos recientes con sitio para respirar; a la derecha un lienzo con una animación de partículas que se condensa en el icono de AmoxSQL y se reorganiza en las cosas que hace la aplicación —filas, barras, un grafo, celdas de notebook— antes de volver.
+- **La división llega hasta arriba**, atravesando la barra de ventana, y cada tema tiña su mitad en vez de descolorirse.
+- **Temas claros legibles**: sobre fondo claro un efecto de color no se consigue añadiendo luz sino oscureciendo y tintando. El resplandor se subió en vez de bajarlo, y el degradado del logo tiene anclas propias para claro.
+
+#### Omnibox
+
+- **Busca en tres sitios a la vez**: comandos, archivos del proyecto, y tablas y columnas de la conexión activa.
+- **Encuentra una columna sin saber en qué tabla vive** — el resultado dice la tabla y el tipo, y al pulsarlo la previsualiza.
+- **Prefijos opcionales**: `>` comandos, `#` tablas y columnas, sin prefijo busca en todo. Se enseñan bajo la lista.
+
+#### Data Flow
+
+- **El estudio es lienzo de arriba abajo.** Desaparecen la barra superior, la franja del asistente y el raíl de nodos de la izquierda. Todo vive en una barra flotante: ejecutar, herramientas, zoom, la tabla, guardar, y un menú para lo secundario. El asistente es su segunda fila.
+- **Configurar un nodo tiene dos estados y no tres.** El nodo compacto, y el **mismo nodo expandido y centrado** sobre el lienzo. La ventana anclada anterior nacía pegada a la tarjeta y se cortaba contra el borde; centrada, el tamaño deja de importar.
+- **La tabla de datos es hermana del lienzo, no una capa encima**: al abrirse el lienzo se encoge y reencuadra el flujo, así que ningún nodo queda debajo de ella.
+- **Una sola línea de cabecera** en la tabla —estado, nombre, pestañas, nº de filas— donde antes había tres.
+- **Añadir pasos desde el nodo** con el `+` de su salida, y un botón *Fuente* para los flujos que arrancan de más de un origen.
+- El nodo se abre a su tamaño real: encuadrar "a lo que quepa" llevaba un flujo de un solo nodo al 300 %.
+
+### Corregido
+
+- **El servidor podía morir en silencio y dejar la ventana abierta.** No había ninguna red de última instancia: una sola promesa rechazada fuera de un `try/catch` mataba el backend, y la aplicación seguía en pie fingiendo estar viva. Ahora se registra con traza y se sigue, y si el proceso muere de todos modos se avisa.
+- **El respaldo de puerto nunca había funcionado.** Con el 3001 ocupado, el arranque se colgaba treinta segundos y la aplicación se cerraba con «El servidor interno no respondió». La causa: el callback de `listen` también se invoca al fallar, y allí `server.address()` es `null`.
+- **Al salir, la aplicación podía apagar un servidor ajeno**, porque enviaba la orden al puerto 3001 aunque su propio servidor nunca hubiera confirmado estar ahí.
+- **Dos aperturas de proyecto a la vez rompían el motor.** Sin coalescer, dos reinicios simultáneos desmontaban los mismos objetos nativos de DuckDB y el binding caía con `bad_weak_ptr`; a partir de ahí desaparecían los esquemas internos y el proceso acababa muriendo.
+
+---
+
 ## [4.2.0] — 2026-09-05
 
 ### Data Flow se vuelve accionable, y el análisis deja de quedar atrapado en un solo formato

@@ -5,12 +5,17 @@
  * (Fase 1 of docs/dev/auditoria_dataflow_ux.md — the actions the user needs
  * live ON the node, not in a toolbar far away or a menu that only appears
  * after a full run).
+ *
+ * El nodo tiene DOS estados y no mas (fase 9 de plan_rediseno_visual.md):
+ * este, compacto, y el mismo nodo expandido y centrado en el lienzo para
+ * configurarlo a fondo. La configuracion en linea que hubo aqui en medio era
+ * una tercera forma de hacer lo mismo, y con ella no se entendia cual tocaba.
  */
 import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import {
     LuCheck, LuX, LuLoader, LuMinus, LuCircleAlert, LuTriangleAlert,
-    LuSlidersHorizontal, LuChevronRight, LuChevronLeft, LuEye, LuEllipsis, LuPause, LuHistory, LuPlus,
+    LuSlidersHorizontal, LuChevronRight, LuChevronLeft, LuEye, LuEllipsis, LuPause, LuHistory, LuPlus, LuPlay,
 } from 'react-icons/lu';
 import { NODE_TYPES, STATUS_COLORS, RESULT_TYPE_LABELS } from '../chainNodeTypes';
 
@@ -98,12 +103,28 @@ const BaseChainNode = ({ id, data, selected }) => {
 
             {/* Header */}
             <div className="chain-node-header">
-                <div className="chain-node-type-badge" style={{ backgroundColor: nodeType.color.accent }}>
-                    <Icon size={10} />
-                    <span>{nodeType.label}</span>
-                </div>
+                {/* El color de categoria vive AQUI y en el handle, no banando la
+                    tarjeta ni un badge relleno: informa en vez de decorar. El
+                    nombre del tipo pasa al title — la etiqueta del nodo, que es
+                    lo que el usuario lee, ya esta justo debajo. */}
+                <span className="chain-node-icon" title={nodeType.label}>
+                    <Icon size={14} />
+                </span>
 
                 <div className="chain-node-header-right">
+                    {/* Ejecutar SOLO este nodo. La accion ya existia, pero enterrada
+                        en el menu contextual: tres pasos para lo que aqui es uno. */}
+                    {showActionBar && (
+                        <button
+                            className="chain-node-run"
+                            onClick={act('run-only')}
+                            title="Run only this node"
+                            aria-label={`Run only ${data.label || nodeType.label}`}
+                        >
+                            <LuPlay size={11} />
+                        </button>
+                    )}
+
                     {disabled && (
                         <span className="chain-node-disabled-badge" title="Disabled — passes its input through unchanged">
                             <LuPause size={10} />

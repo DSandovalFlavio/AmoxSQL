@@ -12,11 +12,14 @@
      • New: syntax, type, typography, spacing, radius tokens
      ═══════════════════════════════════════════════════════════════ */
 
-  /* ── Surface Hierarchy (oklch — lowest → highest elevation) ── */
-  --surface-base:    oklch(0.145 0.006 270);   /* ≈ #111214 */
-  --surface-raised:  oklch(0.175 0.008 270);   /* ≈ #191B1F */
-  --surface-overlay: oklch(0.195 0.008 270);   /* ≈ #1F2125 */
-  --surface-inset:   oklch(0.160 0.007 270);   /* ≈ #17181C */
+  /* ── Surface Hierarchy (oklch — lowest → highest elevation) ──
+     El croma subió (.006→.012) para que los neutros se lean como elegidos y no
+     como gris puro. Es imperceptible como "color" y perceptible como intención;
+     los temas con superficies en hex (onyx, amoxdark) no se ven afectados. */
+  --surface-base:    oklch(0.145 0.012 270);   /* ≈ #101216 */
+  --surface-raised:  oklch(0.175 0.014 270);   /* ≈ #181A20 */
+  --surface-overlay: oklch(0.195 0.014 270);   /* ≈ #1E2027 */
+  --surface-inset:   oklch(0.160 0.013 270);   /* ≈ #14161B */
 
   /* Monaco code-editor canvas bg: left UNSET on purpose. Only Obsidian/Onyx set
      it (below) to swap the editor bg; every other theme's editor falls back to
@@ -24,8 +27,12 @@
      var(--surface-base)) in monacoTheme.js. Defining it here as
      var(--surface-base) would NOT re-resolve per theme through the probe. */
 
-  /* ── Border System (opacity-based for consistency) ── */
-  --border-subtle:  rgba(255, 255, 255, 0.06);
+  /* ── Border System (opacity-based for consistency) ──
+     `subtle` subió de .06 a .085: sobre una base de L .145 el valor anterior
+     quedaba por debajo del umbral perceptual y las regiones no se distinguían.
+     NOTA: theme-amoxdark mantiene .06 a propósito — ahí la separación es por
+     elevación y no por líneas (ver el comentario en su bloque). */
+  --border-subtle:  rgba(255, 255, 255, 0.085);
   --border-default: rgba(255, 255, 255, 0.10);
   --border-strong:  rgba(255, 255, 255, 0.16);
 
@@ -36,14 +43,28 @@
   --text-disabled:  rgba(255, 255, 255, 0.20);
 
   /* ── Accent Color ──
-     Only --accent-primary lives here (the default hue). The DERIVED accent tokens
-     (muted/subtle/focus-ring/color-user) are NOT declared on :root on purpose:
-     a custom property whose value is `var(--accent-primary)` resolves at its
-     DECLARING element, and :root is <html> — the accent class lives on <body>,
-     so a :root-declared derivation would freeze on the default hue and never
-     follow a picked accent. The single derivador lives on `body`/`.mode-light`
-     (see the `body` block below) which DO carry the accent class. */
-  --accent-primary: oklch(0.905 0.155 195);    /* Cyan default */
+     El acento se declara DESCOMPUESTO en sus tres componentes oklch, no como un
+     color ya compuesto. La composición (--accent-primary) ocurre una sola vez en
+     `body`. Motivo: la luminosidad es un ajuste del usuario, y para poder
+     sobrescribir SOLO la L sin tocar tono ni croma, la L tiene que ser un token
+     propio. Cada clase .accent-* redefine estos tres; la preferencia del usuario
+     se aplica como estilo inline sobre body y gana a la clase.
+
+     Los tokens DERIVADOS (muted/subtle/focus-ring/color-user) y la propia
+     composición NO pueden vivir en :root: una custom property cuyo valor es
+     `var(...)` resuelve en el elemento donde se DECLARA, y :root es <html>,
+     que no lleva la clase de acento. Declararlos ahí los congelaría en el
+     acento por defecto y todos los acentos volverían a verse cian — el bug
+     exacto del PR #70. El único derivador vive en `body`/`.mode-light`.
+
+     Nota: los temas que fijan su propio acento (.theme-nord, .theme-mist, las
+     variantes .theme-amoxlight.accent-*, etc.) siguen declarando --accent-primary
+     directamente. Su especificidad (>= 0-1-0) gana sobre `body` (0-0-1), así que
+     conservan su color afinado a mano y el ajuste de L no les aplica: en claro
+     el acento necesita una L baja para contrastar y forzarla lo rompería. */
+  --acc-l: 0.730;    /* luminosidad — AJUSTABLE por el usuario (.600 – .950) */
+  --acc-c: 0.155;    /* croma */
+  --acc-h: 195;      /* tono — cian por defecto */
 
   /* ── Interaction States ── */
   --hover-bg:   rgba(255, 255, 255, 0.06);
@@ -214,7 +235,7 @@
   --radius-full: 9999px;
 
   /* ── Window Title Bar (Electron) ── */
-  --titlebar-height: 32px;
+  --titlebar-height: 40px;   /* espacio para el omnibox y aire alrededor de la marca */
 
   /* ═══════════════════════════════════════════════
      LEGACY ALIASES — backward compat with inline styles
@@ -253,10 +274,78 @@
    <body>) overrides the washes with softer light values.
    ═══════════════════════════════════════════════ */
 body {
+  /* Composición única del acento a partir de los tres componentes. Va aquí y no
+     en :root porque body es quien lleva la clase .accent-*. */
+  --accent-primary:    oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+
   --accent-muted:      color-mix(in oklch, var(--accent-primary) 18%, transparent);
   --accent-subtle:     color-mix(in oklch, var(--accent-primary) 8%, transparent);
   --focus-ring:        color-mix(in oklch, var(--accent-primary) 35%, transparent);
   --accent-color-user: var(--accent-primary);
+
+  /* ── Resplandor del fondo (consumido por .app-container) ──
+     Van AQUÍ y no en :root por la misma razón que los derivados del acento:
+     --glow-strength-2 se deriva de --glow-strength, y una custom property que
+     contiene var() resuelve en el elemento donde se DECLARA. En :root se
+     congelaría en el valor por defecto y la preferencia del usuario (fase 2,
+     que se aplicará como estilo inline sobre body) no llegaría al segundo halo.
+     La fase 2 solo sobrescribe estos valores; .app-container no se toca. */
+  /* -- Degradado del logo, derivado del acento --
+     Los colores oficiales de la marca son #00ECFF (cian, el que manda) y
+     #0068FF (azul). Lo que se conserva NO son esos dos colores sino la RELACION
+     entre ellos, medida en oklch: el segundo stop esta a L -0.293, C +0.092 y
+     H +55.4 grados del primero. Aplicando ese mismo delta al acento activo, el
+     logo cambia de color pero mantiene el degradado tal como esta disenado.
+     Los valores de aqui son el par de marca y solo actuan de respaldo: App.jsx
+     los recalcula sobre body al cambiar el acento, la L o el tema. El calculo
+     vive en JS porque necesita buscar el croma maximo dentro del gamut sRGB
+     para cada tono y rotar el tono hacia el azul por el camino corto — dos
+     cosas que CSS no sabe expresar. Ver utils/logoGradient.js. */
+  --logo-grad-a: #00ECFF;
+  --logo-grad-b: #0068FF;
+
+  --glow-x:  3%;   --glow-y:  -8%;
+  --glow-x2: 26%;  --glow-y2: -4%;
+
+  /* --glow-strength-user es lo que fija el usuario (0%–50%, default 30%); se
+     aplica como estilo inline sobre body. --glow-strength es el valor EFECTIVO,
+     que el modo claro escala. Separarlos evita que la preferencia del usuario
+     pise la corrección de claro y ensucie el fondo. */
+  --glow-strength:   var(--glow-strength-user, 30%);
+  --glow-strength-2: calc(var(--glow-strength) * 0.43);
+
+  /* Bienvenida: halo del lienzo y tinte del panel derecho. En oscuro el panel no
+     se tinta (0%), solo se oscurece; en claro pasa lo contrario. */
+  --ws-glow: 14%;
+  --ws-panel-tint: 0%;
+}
+
+/* ── Esquina del resplandor — AJUSTABLE por el usuario ──
+   Presets de posición, no coordenadas libres. Cada uno fija los cuatro tokens
+   de golpe (el halo secundario acompaña al principal). Van sobre body, que es
+   donde App.jsx estampa la clase.
+   Ojo: las dos opciones inferiores NO tocan la barra de ventana — el resplandor
+   sale por detrás de la barra de estado. Es otro efecto, no un fallo. */
+body.glow-tl { --glow-x:  3%; --glow-y:  -8%;  --glow-x2: 26%; --glow-y2: -4%;  }
+body.glow-tc { --glow-x: 50%; --glow-y:  -8%;  --glow-x2: 28%; --glow-y2: -4%;  }
+body.glow-tr { --glow-x: 97%; --glow-y:  -8%;  --glow-x2: 74%; --glow-y2: -4%;  }
+body.glow-bl { --glow-x:  3%; --glow-y: 108%;  --glow-x2: 26%; --glow-y2: 104%; }
+body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; }
+
+/* En claro el resplandor necesita MAS, no menos. Sobre un fondo casi negro un
+   halo funciona anadiendo luz y hay muchisimo margen hacia arriba; sobre una
+   superficie clara ese margen no existe, asi que un acento claro al 12% no
+   produce nada. Lo que se lee en claro no es luz emitida sino un velo de color,
+   y para eso hace falta subir la mezcla — los temas claros ya definen su acento
+   con una L baja, de modo que tinta en vez de blanquear. */
+.mode-light {
+  --glow-strength: calc(var(--glow-strength-user, 30%) * 0.8);
+  --ws-glow: 30%;        /* el halo del lienzo */
+  --ws-panel-tint: 10%;  /* el panel derecho se tinta en vez de solo oscurecerse:
+                            un panel gris no pega con nada, uno tintado se lee
+                            como decision de diseno */
+  --ws-canvas-l: 0.945;  /* medido: a 0.97 el panel quedaba solo un 8% mas oscuro
+                            que la izquierda, contra el 30% que da el oscuro */
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -326,12 +415,24 @@ body {
 }
 
 /* ── Window Title Bar ── */
+/* Centrado OPTICO, no geometrico.
+   Centrar el contenido dentro de la propia barra deja los elementos altos: bajo
+   la barra hay un canal de 6px antes de que empiecen las tarjetas del shell, asi
+   que el hueco visible por debajo es 6 (barra) + 6 (canal) frente a 6 por arriba.
+   La banda que el ojo lee va del borde de la ventana al borde de las tarjetas:
+   40 + 6 = 46px. Con box-sizing de borde y 6px de padding superior, el centro del
+   contenido cae en 6 + (40-6)/2 = 23px, que es justo la mitad de esa banda. */
 .window-title-bar {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
+  box-sizing: border-box;
+  padding-top: 6px;
   height: var(--titlebar-height);
-  background: var(--surface-inset);
+  /* Transparente a propósito: deja pasar el resplandor de .app-container.
+     Ojo — la barra es hermana de .app-container, no hija, así que hereda el
+     fondo del body; ver la regla de body más abajo. */
+  background: transparent;
   color: var(--text-disabled);
   user-select: none;
   border-bottom: none;
@@ -349,8 +450,9 @@ body {
 }
 
 .window-title-bar .wtb-left {
-  padding-left: 12px;
-  min-width: 80px;
+  padding-left: 8px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .window-title-bar .wtb-center {
@@ -358,64 +460,127 @@ body {
   overflow: visible;
 }
 
-.window-title-bar .app-title {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  opacity: 0.7;
-}
 
-/* ── Workspace Widget (center of title bar) ── */
-.wtb-workspace-area {
-  -webkit-app-region: no-drag;
+/* ── Slot izquierdo: menú de aplicación + breadcrumb ── */
+.wtb-menu-anchor {
+  -webkit-app-region: no-drag;   /* dentro de .drag-region: recuperar el clic */
   position: relative;
   display: flex;
   align-items: center;
-  gap: 2px;
+  min-width: 0;
 }
 
-.wtb-workspace-widget {
+.wtb-appmenu {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.wtb-appmenu:hover,
+.wtb-appmenu--open { background: var(--hover-bg); }
+
+.wtb-crumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
+  height: 26px;
+  padding: 0 8px;
   border: none;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  cursor: pointer;
-  border-radius: var(--radius-md);
   font-family: var(--font-sans);
   font-size: var(--text-xs);
-  transition: background var(--transition-fast), color var(--transition-fast);
-  height: 22px;
+  cursor: pointer;
   white-space: nowrap;
+  min-width: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.wtb-workspace-widget:hover {
-  background: var(--hover-bg);
+.wtb-crumb:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.wtb-crumb-project {
   color: var(--text-primary);
-}
-
-.wtb-workspace-icon {
-  color: var(--accent-primary);
-  flex-shrink: 0;
-}
-
-.wtb-workspace-name {
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-  max-width: 160px;
+  font-weight: var(--weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.wtb-dot-separator {
+.wtb-crumb-sep { color: var(--text-disabled); }
+
+.wtb-crumb-db {
   color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* ── Slot central: omnibox ──
+   Abre la paleta de comandos, que hasta ahora solo existía como Ctrl+Shift+P.
+   El texto dice "commands" y nada más: la búsqueda de archivos y esquema llega
+   en la fase 8 y prometerla antes sería peor que no tener el campo. */
+.wtb-omnibox {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(420px, 40vw);
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--surface-base) 55%, transparent);
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.wtb-omnibox:hover {
+  background: color-mix(in oklch, var(--surface-base) 78%, transparent);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.wtb-omnibox-icon { flex: none; }
+
+.wtb-omnibox-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wtb-omnibox-kbd {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.mode-light .wtb-omnibox-kbd { background: rgba(0, 0, 0, 0.07); }
+
+.wtb-dropdown-item-key {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-disabled);
+}
+
+/* ── Workspace Widget (center of title bar) ── */
+
 
 .wtb-mode-badge {
   font-size: 9px;
@@ -443,13 +608,6 @@ body {
   border-color: var(--border-default);
 }
 
-.wtb-db-name {
-  font-size: var(--text-xxs);
-  color: var(--text-tertiary);
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .wtb-chevron {
   color: var(--text-tertiary);
@@ -461,32 +619,15 @@ body {
   transform: rotate(180deg);
 }
 
-.wtb-close-workspace {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
-  padding: 0;
-}
-
-.wtb-close-workspace:hover {
-  background: var(--color-destructive-bg);
-  color: var(--color-destructive-text);
-}
 
 /* ── Workspace Dropdown ── */
 .wtb-dropdown {
   position: absolute;
   top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  /* Anclado a la izquierda: los dos menús (aplicación y workspace) cuelgan del
+     slot izquierdo. Centrado, como estaba cuando el widget vivía en el centro
+     de la barra, se saldría por el borde de la ventana. */
+  left: 0;
   min-width: 260px;
   max-width: 360px;
   background: var(--surface-overlay);
@@ -756,47 +897,47 @@ body {
    ═══════════════════════════════════════════════ */
 
 .accent-linear {
-  --accent-primary: oklch(0.53 0.14 277);     /* Linear Blue */
+  --acc-l: 0.53; --acc-c: 0.14; --acc-h: 277;   /* Linear Blue */     /* Linear Blue */
 }
 
 .accent-islands {
-  --accent-primary: #548af7;                  /* Islands Blue — JetBrains Dark */
+  --acc-l: 0.650; --acc-c: 0.173; --acc-h: 262.7;   /* Islands Blue (era #548af7) */                  /* Islands Blue — JetBrains Dark */
 }
 
 .accent-amox-2 {
-  --accent-primary: oklch(0.89 0.150 195);    /* ≈ #00F5FF */
+  --acc-l: 0.89; --acc-c: 0.150; --acc-h: 195;   /* ~ #00F5FF */    /* ≈ #00F5FF */
 }
 
 .accent-amox-3 {
-  --accent-primary: oklch(0.88 0.145 197);    /* ≈ #00ECFF */
+  --acc-l: 0.88; --acc-c: 0.145; --acc-h: 197;   /* ~ #00ECFF */    /* ≈ #00ECFF */
 }
 
 .accent-amox-4 {
-  --accent-primary: oklch(0.85 0.140 202);    /* ≈ #00DAFF */
+  --acc-l: 0.85; --acc-c: 0.140; --acc-h: 202;   /* ~ #00DAFF */    /* ≈ #00DAFF */
 }
 
 .accent-amox-5 {
-  --accent-primary: oklch(0.82 0.135 212);    /* ≈ #00C8FF */
+  --acc-l: 0.82; --acc-c: 0.135; --acc-h: 212;   /* ~ #00C8FF */    /* ≈ #00C8FF */
 }
 
 .accent-amox-6 {
-  --accent-primary: oklch(0.77 0.140 228);    /* ≈ #00B6FF */
+  --acc-l: 0.77; --acc-c: 0.140; --acc-h: 228;   /* ~ #00B6FF */    /* ≈ #00B6FF */
 }
 
 .accent-amox-7 {
-  --accent-primary: oklch(0.72 0.155 245);    /* ≈ #00A3FF */
+  --acc-l: 0.72; --acc-c: 0.155; --acc-h: 245;   /* ~ #00A3FF */    /* ≈ #00A3FF */
 }
 
 .accent-amox-8 {
-  --accent-primary: oklch(0.66 0.170 255);    /* ≈ #0090FF */
+  --acc-l: 0.66; --acc-c: 0.170; --acc-h: 255;   /* ~ #0090FF */    /* ≈ #0090FF */
 }
 
 .accent-amox-9 {
-  --accent-primary: oklch(0.61 0.190 262);    /* ≈ #007CFF */
+  --acc-l: 0.61; --acc-c: 0.190; --acc-h: 262;   /* ~ #007CFF */    /* ≈ #007CFF */
 }
 
 .accent-amox-10 {
-  --accent-primary: oklch(0.56 0.210 268);    /* ≈ #0068FF */
+  --acc-l: 0.56; --acc-c: 0.210; --acc-h: 268;   /* ~ #0068FF */    /* ≈ #0068FF */
 }
 
 /* Obsidian ⇄ Onyx: swap ONLY the Monaco code-editor canvas background — each
@@ -817,7 +958,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --surface-inset:   #08090a;
   --monaco-editor-bg: #111214;   /* editor shows Obsidian's neutral (swapped) */
 
-  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-subtle:  rgba(255, 255, 255, 0.085);
   --border-default: rgba(255, 255, 255, 0.10);
   --border-strong:  rgba(255, 255, 255, 0.16);
 
@@ -1296,27 +1437,27 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
    Muted, professional tones for dark themes
    ═══════════════════════════════════════════════ */
 .accent-sage {
-  --accent-primary: oklch(0.72 0.10 155);     /* Muted sage green */
+  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 155;   /* Muted sage green */     /* Muted sage green */
 }
 
 .accent-amber {
-  --accent-primary: oklch(0.78 0.12 75);      /* Warm amber/gold */
+  --acc-l: 0.78; --acc-c: 0.12; --acc-h: 75;   /* Warm amber/gold */      /* Warm amber/gold */
 }
 
 .accent-rose {
-  --accent-primary: oklch(0.68 0.14 15);      /* Muted rose/coral */
+  --acc-l: 0.68; --acc-c: 0.14; --acc-h: 15;   /* Muted rose/coral */      /* Muted rose/coral */
 }
 
 .accent-lavender {
-  --accent-primary: oklch(0.70 0.12 300);     /* Soft lavender/purple */
+  --acc-l: 0.70; --acc-c: 0.12; --acc-h: 300;   /* Soft lavender/purple */     /* Soft lavender/purple */
 }
 
 .accent-steel {
-  --accent-primary: oklch(0.68 0.06 250);     /* Cool steel blue-grey */
+  --acc-l: 0.68; --acc-c: 0.06; --acc-h: 250;   /* Cool steel blue-grey */     /* Cool steel blue-grey */
 }
 
 .accent-copper {
-  --accent-primary: oklch(0.72 0.10 50);      /* Warm copper/terracotta */
+  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 50;   /* Warm copper/terracotta */      /* Warm copper/terracotta */
 }
 
 /* ═══════════════════════════════════════════════
@@ -1955,6 +2096,63 @@ body {
   display: flex;
 }
 
+/* ── Resplandor de acento (F1) ──
+   El resplandor NO vive en la barra de ventana: vive AQUÍ, en el fondo de la
+   aplicación, detrás de todas las tarjetas. Sube desde detrás del panel lateral
+   y atraviesa la barra, que se limita a dejarlo pasar (background: transparent).
+   Como .left-panel-card y .main-content son opacas, el acento solo asoma por la
+   barra, por el canal de 6px entre regiones y por los bordes — de ahí que esta
+   fase dependa de que ambas sean tarjetas.
+
+   Va en .app-shell y no en .app-container porque la barra de ventana es HERMANA
+   de .app-container, no hija: sobre el contenedor el resplandor nunca llegaría a
+   la barra.
+
+   Los cuatro tokens de posición y los dos de fuerza quedan parametrizados desde
+   ya: la fase 2 solo les cambiará el valor, sin volver a tocar esta regla. */
+.app-shell {
+  background:
+    radial-gradient(52% 42% at var(--glow-x) var(--glow-y),
+      color-mix(in oklch, var(--accent-primary) var(--glow-strength), transparent) 0%,
+      transparent 68%),
+    radial-gradient(30% 26% at var(--glow-x2) var(--glow-y2),
+      color-mix(in oklch, var(--accent-primary) var(--glow-strength-2), transparent) 0%,
+      transparent 72%),
+    var(--surface-base);
+}
+
+/* ── Bienvenida: la division entre mitades, continua ──
+   El fondo de la mitad derecha se pinta sobre .app-shell y no sobre .ws-canvas,
+   porque la barra de ventana es HERMANA del contenido: pintandolo en el lienzo,
+   la division se cortaba justo debajo de la barra. Asi corre de borde a borde.
+
+   El tono NO se obtiene mezclando con negro, que era el error anterior: los
+   temas con superficie tintada (carbon frio, azul tinta, polar) perdian su
+   tinte al mezclarse y el lado derecho dejaba de casar con el izquierdo.
+   Se deriva de --surface-base conservando tono y croma, bajando solo la
+   luminosidad. En claro el factor es mucho mas suave: ahi la superficie ya es
+   clara y oscurecerla al 72% produciria un panel gris que no pega con nada. */
+.app-shell--welcome { position: relative; }
+
+.app-shell--welcome > * { position: relative; z-index: 1; }
+
+.app-shell--welcome::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 50%;
+  z-index: 0;
+  pointer-events: none;
+  border-left: 1px solid var(--border-subtle);
+  background: color-mix(in oklch,
+    var(--accent-primary) var(--ws-panel-tint),
+    oklch(from var(--surface-base) calc(l * var(--ws-canvas-l, 0.72)) c h));
+}
+
+
+@media (max-width: 900px) {
+  .app-shell--welcome::before { display: none; }
+}
+
 .app-container {
   display: flex;
   width: 100%;
@@ -1966,22 +2164,29 @@ body {
 /* ── Activity Bar — Linear-style icon rail ──
    Centered pill hover, accent left indicator, refined spacing. */
 /* ── Left Panel Card — wraps Activity Bar + Sidebar ── */
+/* Contenedor SIN superficie propia: el rail y el panel lateral son dos tarjetas
+   independientes con un canal entre ellas (el margin-right del rail). Antes era
+   una sola tarjeta y la separación dependía de un borde interior.
+   No lleva gap: el tirador de redimensionado va pegado al panel, no separado. */
 .left-panel-card {
   display: flex;
   flex-shrink: 0;
-  background-color: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  background-color: transparent;
+  border: none;
   margin: 6px 0 6px 6px;
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
 }
 
 .activity-bar {
   width: 48px;
   min-width: 48px;
-  background-color: transparent;
-  border-right: 1px solid var(--border-subtle);
+  /* Tarjeta propia, un paso POR DEBAJO del panel lateral. La separación viene
+     del canal de 6px (margin-right) y no de un borde interior compartido. */
+  background-color: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin-right: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2091,8 +2296,9 @@ body {
 /* ── Sidebar Panel — collapsible ── */
 .sidebar {
   width: 280px;
-  background-color: transparent;
-  border-right: none;
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   padding-top: 6px;
@@ -2107,6 +2313,7 @@ body {
   width: 0;
   opacity: 0;
   padding: 0;
+  border-width: 0;   /* si no, al colapsar queda una rendija de 2px de borde */
   pointer-events: none;
 }
 
@@ -2130,10 +2337,8 @@ body {
 .sidebar-header {
   padding: 8px 14px;
   font-weight: var(--weight-semibold);
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
   border-bottom: 1px solid var(--border-subtle);
   background-color: transparent;
   display: flex;
@@ -2499,12 +2704,16 @@ body {
   border-color: color-mix(in oklch, var(--accent-primary) 45%, transparent);
 }
 
+/* SIN tarjeta propia: el lado derecho ya tiene las suyas (.tab-bar-card,
+   .ep-editor-card y la de resultados). Envolverlas en otra caja añadía una
+   cuarta capa que no aportaba nada. Transparente para que el resplandor de
+   .app-shell asome por los huecos que esas tarjetas dejan entre sí. */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: var(--surface-inset);
+  background-color: transparent;
 }
 
 /* ── Toolbar — Linear: compact, minimal chrome ── */
@@ -8042,8 +8251,6 @@ tr:hover .rt-td--pinned {
   gap: 6px;
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
   color: var(--text-tertiary);
 }
 
@@ -8708,7 +8915,6 @@ tr:hover .rt-td--pinned {
 .db-header-title {
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
@@ -9220,6 +9426,8 @@ td {
   text-align: left;
 }
 
+/* Caja normal: los nombres de columna son datos del usuario, no etiquetas de
+   sistema. Forzarlos a mayúsculas deformaba identificadores reales. */
 th {
   background-color: var(--surface-raised);
   position: sticky;
@@ -9227,8 +9435,6 @@ th {
   color: var(--text-secondary);
   font-weight: var(--weight-semibold);
   font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
   z-index: 1;
   border-top: none;
 }
@@ -10371,6 +10577,38 @@ tr:hover td {
   letter-spacing: var(--tracking-wide);
 }
 
+/* El detalle dice DONDE esta el resultado: la ruta de un archivo, el esquema de
+   una tabla, la tabla y el tipo de una columna. Sin el, dos resultados con el
+   mismo nombre son indistinguibles. Se encoge antes que la etiqueta. */
+.cmd-detail {
+  margin-left: auto;
+  padding-left: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+/* Los prefijos se enseñan: un atajo que hay que adivinar no existe para quien
+   no lo adivina. */
+.command-palette-hint {
+  display: flex;
+  gap: 14px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+.command-palette-hint b {
+  color: var(--text-secondary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
+}
+
 .command-palette-empty {
   padding: 24px;
   text-align: center;
@@ -11482,6 +11720,45 @@ tr:hover td {
   filter: brightness(1.1);
 }
 
+/* ── Selector de esquina del resplandor ──
+   Cada botón es una miniatura de la ventana con un punto en la esquina desde la
+   que nace el resplandor: el nombre solo no dice que las inferiores iluminan la
+   barra de estado en vez de la de ventana. */
+.stg-glow-corner {
+  position: relative;
+  width: 34px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.stg-glow-corner:hover { border-color: var(--border-strong); }
+
+.stg-glow-corner--active {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.stg-glow-dot {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-primary) 0%, transparent 70%);
+  opacity: 0.85;
+}
+
+.stg-glow-dot--tl { top: -7px; left: -7px; }
+.stg-glow-dot--tc { top: -7px; left: 50%; transform: translateX(-50%); }
+.stg-glow-dot--tr { top: -7px; right: -7px; }
+.stg-glow-dot--bl { bottom: -7px; left: -7px; }
+.stg-glow-dot--br { bottom: -7px; right: -7px; }
+
 .stg-link-btn {
   display: flex;
   align-items: center;
@@ -11969,8 +12246,6 @@ tr:hover td {
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
 }
 
 /* DBT Sub-Navigation Tabs */
@@ -13202,29 +13477,430 @@ tr:hover td {
 .ws-enter-1 { animation-delay: 60ms; }
 .ws-enter-2 { animation-delay: 160ms; }
 
-/* ── WelcomeScreen hover classes ── */
-.ws-icon-btn:hover {
-  background-color: var(--hover-bg) !important;
-  border-color: var(--border-strong) !important;
+/* ══ WelcomeScreen — composición partida ══
+   Antes: una columna centrada con el logo a 250px y un margen negativo, y los
+   proyectos recientes ahogados dentro de la tarjeta del paso 1 (compartían un
+   maxHeight de 60vh con el formulario). En 1080p eran ~340px de decoración antes
+   del primer campo y ~1360px de ancho sin usar.
+   Ahora: dos mitades. A la izquierda el contenido a alto completo, con los
+   recientes como lista principal; a la derecha el lienzo. */
+.ws-root {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  animation: ob-overlay-in var(--duration-base) var(--ease-out);
 }
 
-.ws-open-btn:hover:not(:disabled) {
-  filter: brightness(1.1);
+/* ── Columna izquierda ── */
+.ws-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 48px 56px 20px;
+  overflow: hidden;
+}
+
+.ws-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  /* 520 y no 440: con la marca al nuevo tamano, el subtitulo se partia en dos
+     lineas y el icono dejaba de medir lo mismo que el bloque de texto. */
+  max-width: 520px;
+  margin: 0 auto;
+  flex: 1;
+}
+
+/* El bloque de marca es un 50% mas grande que antes (22 -> 33 el nombre) y el
+   icono mide lo que suman nombre y subtitulo apilados, no lo que media el
+   nombre solo. Por eso el texto va en su propia columna: asi la altura del
+   icono se compara contra el bloque entero. */
+.ws-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+  margin-bottom: 32px;
+}
+
+.ws-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ws-brand-name {
+  font-size: 33px;
+  line-height: 1.15;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  letter-spacing: 0.4px;
+}
+
+.ws-brand-name span { color: var(--accent-primary); }
+
+.ws-tagline {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--text-tertiary);
+}
+
+.ws-label {
+  display: block;
+  flex: none;
+  margin-bottom: 7px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+/* El formulario es un hijo flex normal: nada de display:contents, que saca al
+   <form> del arbol de accesibilidad. */
+.ws-form { flex: none; display: flex; flex-direction: column; }
+
+.ws-field { display: flex; gap: 8px; flex: none; }
+
+.ws-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ws-field input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.ws-icon-btn {
+  display: grid;
+  place-items: center;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--surface-overlay);
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ws-icon-btn:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--border-strong);
+}
+
+.ws-hint {
+  flex: none;
+  margin: 6px 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.ws-cta {
+  flex: none;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: var(--button-text-color);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: filter var(--transition-fast);
+}
+
+.ws-cta:disabled {
+  background: var(--surface-inset);
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.ws-cta:hover:not(:disabled) { filter: brightness(1.08); }
+
+/* ── Recientes: la lista principal, no un apéndice ── */
+.ws-recent {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-top: 30px;
+}
+
+.ws-recent-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.ws-clear-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .ws-clear-btn:hover {
-  color: var(--color-error) !important;
-  background: var(--color-error-bg) !important;
+  color: var(--color-error);
+  background: var(--color-error-bg);
 }
 
-.ws-recent-item:hover {
-  border-color: var(--accent-primary) !important;
-  background-color: var(--surface-overlay) !important;
+.ws-recent-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -8px;
+  padding: 4px 0;
 }
 
-.ws-settings-btn:hover {
-  color: var(--text-primary) !important;
-  background-color: var(--hover-bg) !important;
+.ws-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 8px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.ws-recent-item:hover { background-color: var(--hover-bg); }
+
+.ws-recent-icon { color: var(--text-tertiary); flex: none; }
+.ws-recent-item:hover .ws-recent-icon { color: var(--accent-primary); }
+
+.ws-recent-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ws-recent-name {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-recent-path {
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Paso 2: configuración de la base ── */
+.ws-step2 {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+/* Sin esto los hijos se comprimen cuando el alto aprieta y la fila de pestanas
+   queda recortada: en columna, flex-shrink actua sobre la altura. Que crezca el
+   scroll del contenedor, no que se aplasten las filas. */
+.ws-step2 > * { flex: none; }
+
+.ws-current {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.ws-current-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-edit-btn {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.ws-edit-btn:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.ws-db-body {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws-db-row { display: flex; gap: 12px; align-items: flex-end; }
+
+.ws-select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.ws-suffix-field { display: flex; align-items: stretch; }
+
+.ws-suffix-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--border-default);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.ws-suffix {
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--surface-overlay);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.ws-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.ws-note strong { color: var(--text-secondary); }
+
+.ws-memory {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.ws-memory h4 { margin: 0 0 4px; font-size: var(--text-sm); color: var(--text-primary); }
+
+/* ── Pie de la columna ── */
+.ws-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.ws-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.ws-settings-btn:hover { color: var(--text-primary); background-color: var(--hover-bg); }
+
+.ws-version { margin-left: auto; }
+
+/* ── Mitad derecha: el lienzo ──
+   Aloja el sistema de partículas (LogoMorph); el resplandor le da el fondo. */
+/* El fondo de la mitad derecha se PINTA EN .app-shell--welcome, no aqui, para que
+   la division sea continua hasta el borde superior de la ventana atravesando la
+   barra. Aqui solo queda el resplandor del acento. */
+.ws-canvas {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(58% 52% at 50% 44%,
+      color-mix(in oklch, var(--accent-primary) var(--ws-glow), transparent) 0%, transparent 72%);
+}
+
+.ws-morph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Por debajo de 900px no caben dos columnas: el lienzo es decorativo y se va. */
+@media (max-width: 900px) {
+  .ws-root { grid-template-columns: 1fr; }
+  .ws-canvas { display: none; }
+  .ws-pane { padding: 32px 28px 16px; }
 }
 
 /* ── QueryHistoryModal hover classes ── */
@@ -13249,8 +13925,24 @@ tr:hover td {
 .chain-editor-body {
   display: flex;
   flex: 1;
+  gap: 8px;
+  padding: 8px;
   overflow: hidden;
   position: relative;
+}
+
+/* El lienzo es una tarjeta que se encoge cuando se abre la tabla. Lo que flota
+   sobre el —la barra de acciones, el nodo expandido— vive aqui dentro, asi que
+   se centra en el lienzo sin tener que descontar nada. */
+.chain-flow-area {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
 }
 
 /* ── Chain Canvas ── */
@@ -13267,185 +13959,12 @@ tr:hover td {
   cursor: grabbing;
 }
 
-/* React Flow controls theming */
-.chain-controls {
-  background: var(--surface-overlay) !important;
-  border: 1px solid var(--border-default) !important;
-  border-radius: 8px !important;
-  box-shadow: var(--shadow-md) !important;
-}
-
-.chain-controls button {
-  background: var(--surface-overlay) !important;
-  border-color: var(--border-subtle) !important;
-  color: var(--text-secondary) !important;
-  width: 28px !important;
-  height: 28px !important;
-}
-
-.chain-controls button:hover {
-  background: var(--hover-bg) !important;
-  color: var(--text-primary) !important;
-}
-
-.chain-controls button svg {
-  fill: currentColor !important;
-}
-
 /* Minimap theming */
 .chain-minimap {
   background: var(--surface-overlay) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: 8px !important;
   box-shadow: var(--shadow-md) !important;
-}
-
-/* ── Chain Toolbar ── */
-.chain-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  background: var(--surface-raised);
-  border-bottom: 1px solid var(--border-default);
-  gap: 12px;
-  min-height: 46px;
-}
-
-.chain-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.chain-toolbar-studio {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--accent-primary);
-  white-space: nowrap;
-}
-
-.chain-toolbar-studio-help {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.chain-toolbar-studio-help:hover {
-  background: var(--surface-overlay);
-  color: var(--accent-primary);
-}
-
-.chain-toolbar-divider {
-  color: var(--text-tertiary);
-  font-size: 13px;
-  margin: 0 -4px;
-}
-
-.chain-toolbar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-
-.chain-toolbar-dirty {
-  color: var(--accent-primary);
-  font-weight: 700;
-  font-size: 16px;
-  margin-left: -6px;
-}
-
-.chain-toolbar-center {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: center;
-  flex: 1;
-}
-
-.chain-toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-/* ── Buttons with icon + label ── */
-.chain-toolbar-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--surface-overlay);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
-  white-space: nowrap;
-}
-
-.chain-toolbar-btn:hover {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-}
-
-.chain-toolbar-btn-primary {
-  background: var(--accent-primary);
-  color: var(--button-text-color);
-  border-color: var(--accent-primary);
-  font-weight: 600;
-}
-
-.chain-toolbar-btn-primary:hover {
-  opacity: 0.9;
-  color: var(--button-text-color);
-}
-
-.chain-toolbar-btn-danger {
-  background: var(--color-destructive);
-  color: var(--button-text-color);
-  border-color: var(--color-destructive);
-}
-
-.chain-toolbar-btn-danger:hover {
-  opacity: 0.9;
-  color: var(--button-text-color);
-}
-
-/* ── Save button (next to chain name) ── */
-.chain-toolbar-btn-save {
-  border-color: var(--border-subtle);
-  background: transparent;
-  color: var(--text-tertiary);
-  padding: 4px 10px;
-  font-size: 11px;
-}
-
-.chain-toolbar-btn-save:hover {
-  background: var(--surface-overlay);
-  color: var(--text-primary);
-}
-
-.chain-toolbar-btn-save-dirty {
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-  animation: chain-save-pulse 2s ease-in-out infinite;
 }
 
 /* ── Tool buttons (right side, icon + small label) ── */
@@ -13464,22 +13983,9 @@ tr:hover td {
   white-space: nowrap;
 }
 
-.chain-toolbar-btn-tool:hover {
-  background: var(--surface-overlay);
-  color: var(--text-primary);
-  border-color: var(--border-subtle);
-}
-
 @keyframes chain-save-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-.chain-toolbar-separator {
-  width: 1px;
-  height: 22px;
-  background: var(--border-default);
-  margin: 0 4px;
 }
 
 /* ── AI prompt bar — second toolbar row (docs/dev/auditoria_dataflow_ux.md
@@ -13498,58 +14004,17 @@ tr:hover td {
   min-height: 34px;
 }
 
-.chain-ai-bar-icon {
-  color: var(--accent-color-user);
-  flex-shrink: 0;
-}
-
-.chain-ai-bar-input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text-active);
-  font-size: 12px;
-}
-
-.chain-ai-bar-input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.chain-ai-bar-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
-}
-
-.chain-ai-bar-btn:hover:not(:disabled) {
-  background: var(--hover-bg);
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-}
-
-.chain-ai-bar-btn:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
 /* ── Chain Node (Base) ──
    Nodes expose only --node-accent (category color, mode-neutral) and
    optionally --node-border-override (states/errors). Background and border
    are DERIVED from the accent + theme surfaces so they react to dark/light. */
+/* La tarjeta es NEUTRA. El color de categoría (--node-accent) vive solo en el
+   icono, el badge y el handle: informa en vez de decorar. Antes la tarjeta se
+   bañaba con un 7% del acento de categoría y el lienzo se leía como un mosaico.
+   --node-border-override se conserva: los estados de error sí tiñen el borde. */
 .chain-node {
-  background: color-mix(in oklch, var(--node-accent, var(--accent-primary)) 7%, var(--surface-raised));
-  border: 1px solid var(--node-border-override, color-mix(in oklch, var(--node-accent, var(--accent-primary)) 30%, var(--border-default)));
+  background: var(--surface-raised);
+  border: 1px solid var(--node-border-override, var(--border-default));
   border-radius: 10px;
   padding: 8px 12px;
   min-width: 180px;
@@ -13574,18 +14039,58 @@ tr:hover td {
   margin-bottom: 4px;
 }
 
-.chain-node-type-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--button-text-color);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+/* -- Configuracion inline del nodo (fase 7) --
+   Los campos viven DENTRO de la tarjeta al expandirla. Solo entran los de texto
+   libre; el resto sigue en el panel, al que se llega con "More settings".
+   La tarjeta crece y react-flow re-mide su alto solo, asi que las aristas se
+   re-enrutan sin intervencion. */
+.chain-node-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border-subtle);
 }
+
+/* Este contenedor NUNCA tuvo regla propia: era un div sin estilar, o sea
+   display:block. Sus hijos (el boton de validacion, el estado, y ahora el de
+   ejecutar) son todos block-level, asi que se apilaban en vertical. No se veia
+   porque hasta ahora rara vez habia mas de uno a la vez; al anadir el boton de
+   ejecutar quedaron dos y la cabecera crecio a dos filas al pasar el raton. */
+.chain-node-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+/* El icono es el unico portador del color de categoria en la cabecera (junto al
+   handle). Sustituye al badge relleno, que compettia con la etiqueta del nodo. */
+.chain-node-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--node-accent, var(--accent-primary));
+}
+
+/* Ejecutar solo este nodo. Aparece con la barra de acciones para no llenar de
+   botones un lienzo en reposo. */
+.chain-node-run {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-success-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.chain-node-run:hover { background: var(--hover-bg); }
 
 .chain-node-status {
   display: flex;
@@ -13597,7 +14102,7 @@ tr:hover td {
 .chain-node-duration {
   font-size: 9px;
   opacity: 0.7;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-sans);
 }
 
 .chain-node-label {
@@ -13622,7 +14127,7 @@ tr:hover td {
 .chain-node-config-summary {
   font-size: 10px;
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-sans);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -13651,7 +14156,7 @@ tr:hover td {
 .chain-node-result-detail {
   font-size: 9px;
   color: var(--text-tertiary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-sans);
 }
 
 /* Fase 5 — the config changed since this result was produced */
@@ -13931,209 +14436,6 @@ tr:hover td {
   flex-shrink: 0;
 }
 
-/* ── Config popover (Fase 3) — anchored to the node instead of a fixed drawer ── */
-.chain-config-popover {
-  position: fixed;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface-overlay);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  box-shadow: var(--shadow-lg);
-  z-index: 10000;
-  overflow: hidden;
-}
-
-.chain-config-popover-arrow {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background: var(--surface-overlay);
-  transform: rotate(45deg);
-}
-
-.chain-config-popover-arrow-below {
-  top: -5px;
-  border-left: 1px solid var(--border-strong);
-  border-top: 1px solid var(--border-strong);
-}
-
-.chain-config-popover-arrow-above {
-  bottom: -5px;
-  border-right: 1px solid var(--border-strong);
-  border-bottom: 1px solid var(--border-strong);
-}
-
-.chain-config-popover-scroll {
-  overflow-y: auto;
-  flex: 1;
-}
-
-.chain-config-popover-body {
-  padding: 12px;
-}
-
-/* ── Node Palette ── */
-.chain-palette {
-  width: 200px;
-  min-width: 200px;
-  background: var(--surface-raised);
-  border-right: 1px solid var(--border-default);
-  display: flex;
-  flex-direction: column;
-  transition: width 150ms ease, min-width 150ms ease;
-  overflow: hidden;
-}
-
-.chain-palette-collapsed {
-  width: 36px;
-  min-width: 36px;
-}
-
-.chain-palette-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.chain-palette-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.chain-palette-collapsed .chain-palette-title {
-  display: none;
-}
-
-.chain-palette-toggle {
-  color: var(--text-tertiary);
-  font-size: 14px;
-}
-
-.chain-palette-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 8px 0;
-  padding: 5px 8px;
-  border-radius: 6px;
-  background: var(--surface-inset);
-  border: 1px solid var(--border-default);
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-
-.chain-palette-search input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.chain-palette-empty {
-  padding: 14px 10px;
-  text-align: center;
-  font-size: 11.5px;
-  color: var(--text-tertiary);
-}
-
-.chain-palette-list {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow-y: auto;
-}
-
-.chain-palette-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: grab;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
-  border: 1px solid transparent;
-}
-
-.chain-palette-item:hover {
-  background: var(--hover-bg);
-  border-color: var(--border-default);
-}
-
-.chain-palette-item:active {
-  cursor: grabbing;
-  opacity: 0.8;
-}
-
-.chain-palette-item-icon {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid;
-}
-
-.chain-palette-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  overflow: hidden;
-  flex: 1;
-}
-
-.chain-palette-item-help {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
-}
-
-.chain-palette-item:hover .chain-palette-item-help {
-  opacity: 1;
-}
-
-.chain-palette-item-help:hover {
-  background: var(--surface-overlay);
-  color: var(--accent-primary);
-}
-
-.chain-palette-item-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.chain-palette-item-desc {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* Node documentation — modal (from palette) + Info tab (config panel) */
 .chain-doc-modal-backdrop {
   position: fixed;
@@ -14325,19 +14627,6 @@ tr:hover td {
   margin-top: 2px;
 }
 
-.chain-palette-category {
-  margin-bottom: 4px;
-}
-
-.chain-palette-category-label {
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-tertiary);
-  padding: 6px 10px 2px;
-}
-
 /* ── Config Panel ── */
 .chain-config-panel {
   width: 280px;
@@ -14347,23 +14636,6 @@ tr:hover td {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-}
-
-.chain-config-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.chain-config-header-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .chain-config-close {
@@ -14736,13 +15008,18 @@ tr:hover td {
 
 /* ── Inspector (Fase 2) — permanent right panel; never conditionally
    mounted, so it never depends on the chain having run. ── */
+/* Tarjeta hermana del lienzo, no encima de el. Flotando obligaba a que el
+   encuadre, la barra y el fondo de la configuracion la descontaran cada uno por
+   su cuenta, y cualquier elemento nuevo sobre el lienzo heredaba el problema.
+   Como hermana, no puede tapar nada. */
 .chain-inspector {
   position: relative;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  border-radius: 12px;
   background: var(--surface-raised);
-  border-left: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   overflow: hidden;
 }
 
@@ -14777,8 +15054,8 @@ tr:hover td {
 .chain-inspector-head {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 6px 9px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -14826,15 +15103,6 @@ tr:hover td {
   min-height: 0;
 }
 
-.chain-inspector-subbar {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 12px;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
 .chain-inspector-hint {
   margin: 0;
   font-size: 11.5px;
@@ -14860,24 +15128,6 @@ tr:hover td {
 
 .chain-inspector-chip-mat {
   color: var(--text-secondary);
-}
-
-.chain-inspector-openfull {
-  background: transparent;
-  border: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.chain-inspector-openfull:hover {
-  color: var(--text-primary);
-  background: var(--hover-bg);
 }
 
 .chain-inspector-table-wrap {
@@ -15224,34 +15474,6 @@ tr:hover td {
   stroke-dasharray: 5 5;
 }
 
-/* ── Chain: Validation badge (toolbar) ── */
-.chain-toolbar-btn-disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.chain-toolbar-validation-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.chain-toolbar-validation-error {
-  background: var(--color-error-bg);
-  color: var(--color-error-text);
-  border: 1px solid var(--feedback-error-border);
-}
-
-.chain-toolbar-validation-warn {
-  background: var(--color-warning-bg);
-  color: var(--color-warning-text);
-  border: 1px solid var(--feedback-warning-border);
-}
-
 /* ── Chain: Node validation indicators ── */
 .chain-node-validation-btn {
   display: flex;
@@ -15383,8 +15605,6 @@ tr:hover td {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .chain-log-count {
@@ -17522,8 +17742,6 @@ tr:hover td {
   gap: 6px;
   font-weight: var(--weight-semibold);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
   color: var(--text-tertiary);
 }
 
@@ -17885,3 +18103,419 @@ tr:hover td {
 .git-diff-add  { background: var(--color-success-bg); color: var(--color-success); }
 .git-diff-del  { background: var(--color-error-bg); color: var(--color-error); }
 .git-diff-hunk { background: var(--accent-subtle); color: var(--accent-primary); font-weight: 600; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   DATA FLOW — el reparto de la pantalla (fase 9 de plan_rediseno_visual.md)
+
+   El lienzo se queda con todo el espacio y lo demas flota encima: una linea
+   de identidad arriba, una barra de acciones abajo, y los datos como tarjeta
+   a la derecha. Antes habia dos franjas fijas arriba, un rail de nodos a la
+   izquierda y una columna dura a la derecha; lo que quedaba para construir el
+   flujo era el hueco del medio.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Los botones de icono de Data Flow tienen que soltarse de la regla global de
+   `button`, que trae relleno 5px 12px y borde. Como ademas son elementos flex,
+   su min-width automatico es el del contenido MAS ese relleno, asi que el
+   width explicito perdia y salian ovalados en vez de cuadrados. */
+.chain-inspector-icon,
+.chain-config-surface-x,
+.chain-bb-btn,
+.chain-bb-ai-send,
+.chain-bb-menu button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  flex: none;
+}
+
+/* ── Configurar: el mismo nodo, expandido y centrado ── */
+.chain-config-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in oklch, var(--surface-base) 62%, transparent);
+  backdrop-filter: blur(2px);
+  animation: chain-config-in 0.16s ease;
+}
+
+@keyframes chain-config-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.chain-config-surface {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 1px solid var(--node-accent, var(--accent-primary));
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--node-accent, var(--accent-primary)) 16%, transparent),
+    var(--shadow-lg);
+  animation: chain-config-rise 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes chain-config-rise {
+  from { transform: scale(0.96); }
+  to { transform: scale(1); }
+}
+
+.chain-config-surface-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px 9px;
+}
+
+.chain-config-surface-icon {
+  display: grid;
+  place-items: center;
+  color: var(--node-accent, var(--accent-primary));
+}
+
+.chain-config-surface-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chain-config-surface-type {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+.chain-config-surface-x {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+}
+
+.chain-config-surface-x:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-config-surface-desc {
+  padding: 0 13px 9px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.chain-config-surface-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chain-config-surface-foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+}
+
+.chain-config-surface-test {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+}
+
+.chain-config-surface-test:hover {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.chain-config-surface-hint { color: var(--text-tertiary); }
+
+.chain-config-surface-done {
+  margin-left: auto;
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-weight: 600;
+  color: var(--accent-contrast, var(--surface-base));
+  background: var(--accent-primary);
+}
+
+.chain-config-surface-done:hover { filter: brightness(1.08); }
+
+/* ── Barra flotante del lienzo ── */
+.chain-bottombar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: min(680px, calc(100% - 40px));
+  border-radius: 13px;
+  background: color-mix(in oklch, var(--surface-overlay) 93%, transparent);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(11px);
+}
+
+.chain-bottombar-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 8px;
+}
+
+.chain-bottombar-row + .chain-bottombar-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chain-bb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.chain-bb-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-bb-on {
+  background: var(--active-bg, var(--hover-bg));
+  color: var(--text-primary);
+}
+
+.chain-bb-run {
+  color: var(--accent-contrast, var(--surface-base));
+  background: var(--accent-primary);
+  font-weight: 600;
+}
+
+.chain-bb-run:hover {
+  background: var(--accent-primary);
+  color: var(--accent-contrast, var(--surface-base));
+  filter: brightness(1.08);
+}
+
+.chain-bb-stop {
+  color: var(--feedback-error);
+  background: color-mix(in oklch, var(--feedback-error) 15%, transparent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-bb-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chain-bb-sep {
+  flex: none;
+  width: 1px;
+  height: 17px;
+  margin: 0 4px;
+  background: var(--border-subtle);
+}
+
+.chain-bb-gap { margin-left: auto; }
+
+.chain-bb-zoom {
+  padding: 0 3px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-bb-menu {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 4px);
+  width: 158px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-lg);
+}
+
+.chain-bb-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex: 1 1 auto;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.chain-bb-menu button:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-bb-menu-sep {
+  display: block;
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
+
+.chain-bottombar-ai { gap: 7px; }
+
+.chain-bb-ai-icon {
+  flex: none;
+  margin-left: 3px;
+  color: var(--accent-primary);
+}
+
+.chain-bb-ai-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 4px;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.chain-bb-ai-input::placeholder { color: var(--text-disabled); }
+
+.chain-bb-ai-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--accent-contrast, var(--surface-base));
+  background: var(--accent-primary);
+}
+
+.chain-bb-ai-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Identidad del estudio: ya no hay barra superior donde ponerla. Qué flujo se
+   edita lo dice la pestaña del archivo, asi que aqui solo va el estudio. */
+.chain-bb-studio {
+  padding-left: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  white-space: nowrap;
+}
+
+.chain-bb-save-dirty {
+  color: var(--accent-primary);
+}
+
+/* El punto dice "hay cambios sin guardar" sin gastar una palabra. */
+.chain-bb-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+/* La flecha va pegada a Guardar: es su menu, no un boton aparte. */
+.chain-bb-caret {
+  min-width: 18px;
+  padding: 0 2px;
+  margin-left: -4px;
+}
+
+.chain-bb-menu-save {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 168px;
+}
+
+/* ── Datos: tarjeta flotante con UNA linea de cabecera ── */
+.chain-inspector-tabs {
+  display: flex;
+  gap: 1px;
+  margin-left: 3px;
+}
+
+.chain-inspector-tab {
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+.chain-inspector-tab:hover { color: var(--text-secondary); }
+
+.chain-inspector-tab-on {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+}
+
+/* El estado (en vivo / de la ultima corrida) cabe en un punto: el texto
+   completo vive en el title, que es donde hace falta leerlo. */
+.chain-inspector-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.chain-inspector-dot-live { background: var(--feedback-success); }
+.chain-inspector-dot-mat { background: var(--text-tertiary); }
+
+.chain-inspector-headgap { margin-left: auto; }
+
+.chain-inspector-rows {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-inspector-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+}
+
+.chain-inspector-icon:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}

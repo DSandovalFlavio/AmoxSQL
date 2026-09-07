@@ -50,7 +50,22 @@ class DatabaseManager {
         await this.reinitializeSystem();
     }
 
+    /**
+     * Monta el motor. COALESCIDO por la misma razon que reinitializeSystem: dos
+     * _initSystem a la vez crean dos DuckDBInstance, y el segundo pisa
+     * this.connections dejando huerfanas unas conexiones que ya se repartieron a
+     * peticiones en vuelo. Cuando el GC recoge la instancia abandonada mientras
+     * alguien todavia consulta por una de sus conexiones, el binding nativo cae
+     * con "bad_weak_ptr" y a partir de ahi el proceso no vuelve.
+     */
     async _initSystem() {
+        if (this._initInFlight) return this._initInFlight;
+        this._initInFlight = this._doInitSystem()
+            .finally(() => { this._initInFlight = null; });
+        return this._initInFlight;
+    }
+
+    async _doInitSystem() {
         console.log("[DB Manager] _initSystem (Neo) called.");
         try {
             // New API: explicit create; every lane connects to the SAME instance
@@ -96,10 +111,11 @@ class DatabaseManager {
      */
     async restoreExtensions() {
         if (!this.loadedExtensions || this.loadedExtensions.size === 0) return;
-        let conn = this.connections.main;
-        if (!conn) {
-            try { conn = await this._ensureLane('main'); } catch { return; }
-        }
+        // Se llama al final de _initSystem: si aun asi no hay carril, el arranque
+        // fallo. No se puede pedir uno por _ensureLane sin arriesgar una espera
+        // circular con el reinicio que nos esta llamando.
+        const conn = this.connections.main;
+        if (!conn) return;
         for (const name of this.loadedExtensions) {
             try {
                 await conn.run(`LOAD ${name}`);
@@ -109,6 +125,21 @@ class DatabaseManager {
         }
     }
 
+    /**
+     * Ejecuta SQL sobre el carril tal como esta, SIN pasar por _ensureLane.
+     *
+     * Es lo que necesita el camino de cierre: _ensureLane espera a que termine el
+     * reinicio en vuelo, y close() se ejecuta DENTRO de ese mismo reinicio — al
+     * pasar por ahi se quedaria esperandose a si mismo. Si el carril ya no existe
+     * no hay nada que cerrar, asi que devuelve vacio en vez de montar un motor.
+     */
+    async _rawQuery(sql, lane = 'main') {
+        const conn = this.connections[LANES.includes(lane) ? lane : 'main'];
+        if (!conn) return [];
+        const reader = await conn.run(sql);
+        return reader.getRowObjectsJson();
+    }
+
     /** Resolve a lane name to its connection; unknown lanes fall back to 'main'. */
     _conn(lane) {
         return this.connections[LANES.includes(lane) ? lane : 'main'];
@@ -116,6 +147,15 @@ class DatabaseManager {
 
     /** Ensure the instance and the requested lane's connection exist. */
     async _ensureLane(lane) {
+        // Si hay un reinicio en vuelo, esperarlo en lugar de montar un motor en
+        // paralelo. Sin esto, una peticion que entra durante el reinicio ve las
+        // conexiones ya anuladas, arranca su propio _initSystem, y el reinicio
+        // desecha despues justo la instancia cuyas conexiones acaba de repartir.
+        // Reproducido: un solo /api/project/open llegaba a inicializar el motor
+        // DOS veces.
+        if (this._reinitInFlight) {
+            try { await this._reinitInFlight; } catch { /* el reinicio ya reporta */ }
+        }
         if (!this.instance || !this.connections.main) {
             await this._initSystem();
         }
@@ -155,7 +195,32 @@ class DatabaseManager {
         await this.query('CHECKPOINT');
     }
 
+    /**
+     * Reinicio en caliente del motor.
+     *
+     * COALESCE OBLIGATORIO: sin esto, dos llamadas concurrentes desmontan a la vez
+     * los mismos objetos nativos de DuckDB y el binding revienta con
+     * "Invalid Error: bad_weak_ptr" — una referencia debil de C++ a algo ya
+     * destruido. A partir de ahi la conexion queda inservible (los schemas de
+     * sistema amoxsql_ai y amoxsql_chains desaparecen) y el proceso acaba
+     * muriendo, con lo que la app deja de poder abrir proyectos.
+     *
+     * Pasa facil: /api/project/open llama aqui, y en la bienvenida se puede
+     * disparar dos veces seguidas (clic en un proyecto reciente, que ya abre, y
+     * despues el boton Open Project). Dos resets encadenados dejan el mismo
+     * estado final que uno, asi que coalescer es correcto ademas de seguro.
+     */
     async reinitializeSystem() {
+        if (this._reinitInFlight) {
+            console.log("[DB Manager] HARD RESET ya en curso — se reutiliza el que hay.");
+            return this._reinitInFlight;
+        }
+        this._reinitInFlight = this._doReinitializeSystem()
+            .finally(() => { this._reinitInFlight = null; });
+        return this._reinitInFlight;
+    }
+
+    async _doReinitializeSystem() {
         console.log("[DB Manager] HARD RESET REQUESTED.");
 
         // PASO NUEVO: Intentar cerrar lo que estaba abierto antes de reiniciar
@@ -367,7 +432,7 @@ class DatabaseManager {
         const batch = this._historyBuffer.splice(0);
         const values = batch.map(q => `('${q.replace(/'/g, "''")}')`).join(',');
         try {
-            await this.query(`INSERT INTO amoxsql_ai.query_history (query) VALUES ${values}`, { lane: 'ai' });
+            await this._rawQuery(`INSERT INTO amoxsql_ai.query_history (query) VALUES ${values}`, 'ai');
         } catch (e) {
             // History is best-effort bookkeeping — never surface to the caller
         }
@@ -491,7 +556,7 @@ class DatabaseManager {
             }
 
             // Ahora que ya no estamos 'usando' user_db, podemos listarlas y desconectarlas
-            const dbs = await this.query("PRAGMA database_list");
+            const dbs = await this._rawQuery("PRAGMA database_list");
 
             for (const db of dbs) {
                 // DuckDB Neo API puede devolver filas como objetos o arrays, aseguramos lectura:
@@ -505,7 +570,7 @@ class DatabaseManager {
 
                 console.log(`[DB Manager] Detaching database: ${name}`);
                 try {
-                    await this.query(`DETACH ${name}`);
+                    await this._rawQuery(`DETACH ${name}`);
                     console.log(`[DB Manager] ${name} detached successfully.`);
                 } catch (e) {
                     console.error(`[DB Manager] Failed to detach ${name}:`, e.message);

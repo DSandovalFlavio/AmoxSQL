@@ -206,7 +206,7 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
         <div className="ai-conv">
             {/* Header — matches the Files / DB sidebar sections */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                <span style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-secondary)' }}>
                     Conversations
                 </span>
                 <div className="fe-header-actions">

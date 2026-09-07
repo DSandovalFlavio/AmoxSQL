@@ -64,6 +64,16 @@ const SOBER_ACCENTS = [
     { id: 'copper', color: '#c4956a', label: 'Copper', checkColor: '#000' },
 ];
 
+// Esquinas del resplandor del fondo. Los ids coinciden con las clases body.glow-*
+// de index.css; el punto de la miniatura se posiciona con esos mismos ids.
+const GLOW_CORNERS = [
+    { id: 'tl', label: 'Top left' },
+    { id: 'tc', label: 'Top center' },
+    { id: 'tr', label: 'Top right' },
+    { id: 'bl', label: 'Bottom left' },
+    { id: 'br', label: 'Bottom right' },
+];
+
 const TAB_TITLES = {
     appearance:  'Appearance',
     editor:      'Editor',
@@ -593,7 +603,8 @@ function thinkMechanism(modelName) {
     return 'none';
 }
 
-const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange, currentInterfaceFont = 'manrope', onInterfaceFontChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
+const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange,
+    accentL = null, effectiveAccentL = 0.73, isLightMode = false, onAccentLChange, glowCorner = 'tl', onGlowCornerChange, glowStrength = 30, onGlowStrengthChange, currentInterfaceFont = 'manrope', onInterfaceFontChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
     const [activeTab, setActiveTab] = useState('appearance');
     const [editorSubTab, setEditorSubTab]   = useState('general');
     const [aiSubTab,     setAiSubTab]       = useState('models');
@@ -601,6 +612,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const contentRef = useRef(null);
     const toast = useToast();
     const dialog = useDialog();
+
 
     // AI Settings State
     const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -1132,6 +1144,70 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 {currentAccent === s.id && <span className="stg-swatch-check" style={{ color: s.checkColor }}>✓</span>}
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+
+                                {/* Lighting */}
+                                <hr className="stg-divider" />
+                                <div>
+                                    <h3 className="stg-section-heading stg-section-heading--mb4">Lighting</h3>
+                                    <p className="stg-row-desc stg-row-desc--mb14">
+                                        How strongly the accent lights the interface, and where the glow behind the panels comes from.
+                                    </p>
+                                    <div className="stg-group">
+                                        <div className="stg-row">
+                                            <span className="stg-row-label">Accent intensity</span>
+                                            <div className="stg-flex">
+                                                <input type="range" className="stg-range" min="0.6" max="0.95" step="0.005"
+                                                    value={effectiveAccentL}
+                                                    disabled={isLightMode}
+                                                    onChange={(e) => onAccentLChange?.(parseFloat(e.target.value))}
+                                                />
+                                                <span className="stg-range-value">{effectiveAccentL.toFixed(3).replace(/^0/, '')}</span>
+                                            </div>
+                                        </div>
+                                        <div className="stg-row">
+                                            <span className="stg-row-desc">
+                                                {isLightMode
+                                                    ? 'Light themes set their own accent, tuned for contrast on a light background. This control applies to dark themes.'
+                                                    : 'Picking a different accent resets this to that accent’s own intensity.'}
+                                            </span>
+                                            {!isLightMode && accentL != null && (
+                                                <button className="stg-link-btn" onClick={() => onAccentLChange?.(null)}>Reset</button>
+                                            )}
+                                        </div>
+
+                                        <div className="stg-row">
+                                            <span className="stg-row-label">Glow corner</span>
+                                            <div className="stg-flex">
+                                                {GLOW_CORNERS.map(c => (
+                                                    <button
+                                                        key={c.id}
+                                                        onClick={() => onGlowCornerChange?.(c.id)}
+                                                        className={`stg-glow-corner${glowCorner === c.id ? ' stg-glow-corner--active' : ''}`}
+                                                        title={c.label}
+                                                        aria-label={c.label}
+                                                    >
+                                                        <span className={`stg-glow-dot stg-glow-dot--${c.id}`} />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="stg-row">
+                                            <span className="stg-row-label">Glow strength</span>
+                                            <div className="stg-flex">
+                                                <input type="range" className="stg-range" min="0" max="50" step="1"
+                                                    value={glowStrength}
+                                                    onChange={(e) => onGlowStrengthChange?.(parseInt(e.target.value, 10))}
+                                                />
+                                                <span className="stg-range-value">{glowStrength}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="stg-row">
+                                            <span className="stg-row-desc">
+                                                At 0% the glow is off. The bottom corners light the status bar instead of the title bar.
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 

@@ -5,6 +5,7 @@
  */
 import { API_BASE } from './api.js';
 import { themeClassFor, modeClassFor } from './theme.js';
+import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
@@ -164,6 +165,34 @@ function App() {
   // Theme State
   const [theme, setTheme] = useState(() => localStorage.getItem('amoxsql-theme') || 'dark');
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
+  // Luminosidad del acento. null = sin personalizar, se usa la L propia del preset.
+  // Guardarla como null en vez de un número evita aplanar la rampa amox-2..amox-10,
+  // que varía L y tono a la vez: cada preset conserva su identidad hasta que el
+  // usuario decide apartarse de ella.
+  const [accentL, setAccentL] = useState(() => {
+    const v = parseFloat(localStorage.getItem('amoxsql-accent-l'));
+    return Number.isFinite(v) ? v : null;
+  });
+  // L efectiva (la del override si lo hay, si no la propia del preset). Se calcula
+  // aquí y no en el modal de ajustes: React corre los efectos de hijo ANTES que
+  // los del padre, así que el modal leería el estilo calculado antes de que este
+  // componente hubiera cambiado la clase o quitado el override — y mostraría el
+  // valor anterior.
+  const [effectiveAccentL, setEffectiveAccentL] = useState(0.73);
+  // Resplandor del fondo: esquina y fuerza.
+  const [glowCorner, setGlowCorner] = useState(() => localStorage.getItem('amoxsql-glow-corner') || 'tl');
+  const [glowStrength, setGlowStrength] = useState(() => {
+    const v = parseInt(localStorage.getItem('amoxsql-glow-strength'), 10);
+    return Number.isFinite(v) ? v : 30;
+  });
+  // Cambiar de preset devuelve el slider a la L propia de ese acento. Se hace en
+  // el manejador y NO en un efecto sobre accentColor: en StrictMode los efectos
+  // corren dos veces al montar y la segunda pasada borraba la preferencia
+  // guardada. Atarlo a la acción del usuario en vez de al ciclo de vida lo evita.
+  const handleAccentChange = useCallback((id) => {
+    setAccentColor(id);
+    setAccentL(null);
+  }, []);
   const [interfaceFont, setInterfaceFont] = useState(() => localStorage.getItem('amoxsql-ui-font') || 'manrope'); // interface font (separate from editor font)
   const [editorLayout, setEditorLayout] = useState(() => localStorage.getItem('amoxsql-editor-layout') || 'horizontal'); // 'horizontal' | 'vertical'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -291,6 +320,56 @@ function App() {
     syncMonacoTheme();
   }, [accentColor]);
 
+  // Luminosidad del acento. Se aplica como estilo inline sobre body para ganarle
+  // a la clase .accent-*; al quitarla reaparece la L propia del preset.
+  // Depende también de accentColor: al cambiar de preset sin override activo, la
+  // L efectiva cambia aunque accentL siga siendo null. Va declarado DESPUÉS del
+  // efecto del acento, así que la clase ya está puesta cuando se lee.
+  useEffect(() => {
+    if (accentL == null) {
+      document.body.style.removeProperty('--acc-l');
+      localStorage.removeItem('amoxsql-accent-l');
+    } else {
+      document.body.style.setProperty('--acc-l', String(accentL));
+      localStorage.setItem('amoxsql-accent-l', String(accentL));
+    }
+    const v = parseFloat(getComputedStyle(document.body).getPropertyValue('--acc-l'));
+    setEffectiveAccentL(Number.isFinite(v) ? v : 0.73);
+    syncMonacoTheme();
+  }, [accentL, accentColor]);
+
+  // Degradado del logo. Se calcula en JS y no en CSS porque hacen falta dos cosas
+  // que una hoja de estilos no puede expresar: buscar el croma maximo dentro del
+  // gamut sRGB para cada tono (busqueda binaria) y rotar el tono hacia el azul
+  // por el camino corto sin pasarse de largo. Ver utils/logoGradient.js.
+  useEffect(() => {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;opacity:0;pointer-events:none';
+    probe.style.color = 'var(--accent-primary)';
+    document.body.appendChild(probe);
+    const mode = modeClassFor(theme) === 'mode-light' ? 'light' : 'dark';
+    const stops = deriveLogoStops(getComputedStyle(probe).color, mode);
+    probe.remove();
+    if (stops) {
+      document.body.style.setProperty('--logo-grad-a', stops.a);
+      document.body.style.setProperty('--logo-grad-b', stops.b);
+    }
+  }, [accentColor, accentL, theme]);
+
+  // Esquina del resplandor del fondo.
+  useEffect(() => {
+    localStorage.setItem('amoxsql-glow-corner', glowCorner);
+    [...document.body.classList].filter(c => c.startsWith('glow-')).forEach(c => document.body.classList.remove(c));
+    document.body.classList.add(`glow-${glowCorner}`);
+  }, [glowCorner]);
+
+  // Fuerza del resplandor. Se escribe --glow-strength-user (no el efectivo), para
+  // que el modo claro pueda seguir escalándolo y no se ensucie el fondo.
+  useEffect(() => {
+    localStorage.setItem('amoxsql-glow-strength', String(glowStrength));
+    document.body.style.setProperty('--glow-strength-user', `${glowStrength}%`);
+  }, [glowStrength]);
+
   useEffect(() => {
     localStorage.setItem('amoxsql-editor-layout', editorLayout);
   }, [editorLayout]);
@@ -331,6 +410,14 @@ function App() {
       // Zoom is handled by Electron main process (before-input-event)
       // React only receives the result via IPC 'zoom:changed'
 
+      // Command Palette: Ctrl+K — alias visible del Ctrl+Shift+P de siempre.
+      // Es el atajo que anuncia el omnibox de la barra, y el que hace que la
+      // paleta deje de ser un secreto de teclado.
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+        return;
+      }
       // Command Palette: Ctrl+Shift+P
       if (e.ctrlKey && e.shiftKey && e.key === 'P') {
         e.preventDefault();
@@ -650,6 +737,26 @@ function App() {
   }, []);
 
   const handleCloseCommandPalette = useCallback(() => setIsCommandPaletteOpen(false), []);
+
+  // Lo que el omnibox busca ademas de comandos: los archivos del proyecto y el
+  // esquema de la conexion. Se piden AL ABRIR, sin caché ni indicador de carga:
+  // el disco y DuckDB son locales y responden en milisegundos, y una copia solo
+  // serviria para ensenar archivos o tablas que ya no existen.
+  const [paletteFiles, setPaletteFiles] = useState([]);
+  const [paletteSchema, setPaletteSchema] = useState([]);
+  useEffect(() => {
+    if (!isCommandPaletteOpen) return;
+    let cancelled = false;
+    fetch(`${API_BASE}/api/files/index`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setPaletteFiles(Array.isArray(d) ? d : []); })
+      .catch(() => { if (!cancelled) setPaletteFiles([]); });
+    fetch(`${API_BASE}/api/db/schemas`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setPaletteSchema(Array.isArray(d) ? d : []); })
+      .catch(() => { if (!cancelled) setPaletteSchema([]); });
+    return () => { cancelled = true; };
+  }, [isCommandPaletteOpen]);
 
   const commandPaletteActions = useMemo(() => {
     if (appPhase !== PHASE.IDE) return [];
@@ -1064,6 +1171,17 @@ function App() {
 
   // ── Stable callbacks for sidebar panels (so their memo() is effective on nav) ──
   const handleCreateSqlTab = useCallback((sql) => layoutRef.current?.createNew('sql', sql), []);
+
+  // Desde el omnibox: una tabla se previsualiza entera; una columna se
+  // previsualiza sola, porque si la buscaste por su nombre es ELLA lo que
+  // querias ver — y el resultado ya te dijo en que tabla vive, que es lo que no
+  // sabias. Se entrecomilla todo: hay nombres con mayusculas y espacios.
+  const handlePreviewFromPalette = useCallback((schemaName, tableName, columnName) => {
+    const q = (x) => `"${String(x).replace(/"/g, '""')}"`;
+    const target = schemaName ? `${q(schemaName)}.${q(tableName)}` : q(tableName);
+    const cols = columnName ? q(columnName) : '*';
+    handleCreateSqlTab(`SELECT ${cols} FROM ${target} LIMIT 100;`);
+  }, [handleCreateSqlTab]);
   // Fase 4 — historial a archivo: crea un tab .sql nuevo con esta query y
   // dispara Save As directo, en vez de solo insertarla en un tab sin ruta.
   const handleSaveHistoryQueryAsFile = useCallback((sql) => layoutRef.current?.saveHistoryQueryAsFile(sql), []);
@@ -1081,12 +1199,15 @@ function App() {
 
   if (appPhase === PHASE.WELCOME) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+      <div className="app-shell app-shell--welcome" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
         <WindowTitleBar
           projectPath=""
           currentDb=""
           readOnly={false}
           onCloseProject={handleCloseProject}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
         <WelcomeScreen 
@@ -1101,7 +1222,15 @@ function App() {
           currentTheme={theme}
           onThemeChange={setTheme}
           currentAccent={accentColor}
-          onAccentChange={setAccentColor}
+          onAccentChange={handleAccentChange}
+          accentL={accentL}
+          effectiveAccentL={effectiveAccentL}
+          isLightMode={modeClassFor(theme) === 'mode-light'}
+          onAccentLChange={setAccentL}
+          glowCorner={glowCorner}
+          onGlowCornerChange={setGlowCorner}
+          glowStrength={glowStrength}
+          onGlowStrengthChange={setGlowStrength}
           currentInterfaceFont={interfaceFont}
           onInterfaceFontChange={setInterfaceFont}
           currentLayout={editorLayout}
@@ -1137,13 +1266,18 @@ function App() {
     ? { flex: '0 0 auto', width: tabSlot2Width - TAB_CARD_INSET * 2, marginLeft: 3, marginRight: TAB_CARD_INSET, minWidth: 0 }
     : { flex: `0 0 ${(1 - tabSplitRatio) * 100}%`, margin: 0, minWidth: 0 };
 
+  // .app-shell es el padre común de la barra de ventana y del contenido: ahí vive
+  // el resplandor de acento del fondo, y la barra (transparente) lo deja pasar.
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
+    <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
       <WindowTitleBar
         projectPath={projectPath}
         currentDb={currentDb}
         readOnly={dbReadOnly}
         onCloseProject={handleCloseProject}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
         onSwitchProject={handleSwitchProject}
       />
 
@@ -1152,6 +1286,10 @@ function App() {
         isOpen={isCommandPaletteOpen}
         onClose={handleCloseCommandPalette}
         actions={commandPaletteActions}
+        files={paletteFiles}
+        schema={paletteSchema}
+        onOpenFile={handleFileOpen}
+        onPreviewTable={handlePreviewFromPalette}
       />
 
 
@@ -1617,7 +1755,15 @@ function App() {
           currentTheme={theme}
           onThemeChange={setTheme}
           currentAccent={accentColor}
-          onAccentChange={setAccentColor}
+          onAccentChange={handleAccentChange}
+          accentL={accentL}
+          effectiveAccentL={effectiveAccentL}
+          isLightMode={modeClassFor(theme) === 'mode-light'}
+          onAccentLChange={setAccentL}
+          glowCorner={glowCorner}
+          onGlowCornerChange={setGlowCorner}
+          glowStrength={glowStrength}
+          onGlowStrengthChange={setGlowStrength}
           currentInterfaceFont={interfaceFont}
           onInterfaceFontChange={setInterfaceFont}
           currentLayout={editorLayout}

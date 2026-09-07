@@ -8,22 +8,23 @@ import {
     useNodesState,
     useEdgesState,
     useReactFlow,
+    useNodesInitialized,
+    getNodesBounds,
+    getViewportForBounds,
     addEdge,
 } from '@xyflow/react';
 import { LuCheck, LuX, LuPause, LuInfo } from 'react-icons/lu';
 import { useToast } from '../ToastProvider';
 import { useDialog } from '../dialogs/DialogProvider';
 import ChainCanvas from './ChainCanvas';
-import ChainToolbar from './ChainToolbar';
-import ChainNodePalette from './ChainNodePalette';
-import ChainNodeConfigPopover from './ChainNodeConfigPopover';
+import ChainBottomBar, { BOTTOM_BAR_SAFE_AREA } from './ChainBottomBar';
+import ChainNodeConfigSurface from './ChainNodeConfigSurface';
 import ChainInspector from './ChainInspector';
 import NodeActionMenu from './NodeActionMenu';
 import NodeTypePicker from './NodeTypePicker';
 import NodeDocView from './NodeDocView';
 import ChainHistoryPanel from './ChainHistoryPanel';
 import ChainVariablesPanel from './ChainVariablesPanel';
-import ChainAiPrompt from './ChainAiPrompt';
 import { NODE_TYPES } from './chainNodeTypes';
 import {
     hasCycle,
@@ -49,7 +50,13 @@ import { API_BASE } from '../../api.js';
 const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) => {
     const toast = useToast();
     const dialog = useDialog();
-    const { screenToFlowPosition } = useReactFlow();
+    const { screenToFlowPosition, getZoom, setViewport } = useReactFlow();
+    // Las medidas del lienzo se leen del DOM, no de la tienda de react-flow: la
+    // tienda se actualiza por ResizeObserver, o sea DESPUES, y al abrir o cerrar
+    // la tabla el reencuadre salia con el ancho anterior. Un efecto corre con el
+    // layout ya aplicado, asi que getBoundingClientRect aqui ya da el nuevo.
+    const flowAreaRef = useRef(null);
+    const nodesInitialized = useNodesInitialized();
     const reactFlowWrapper = useRef(null);
 
     // Parse initial chain definition from file content
@@ -96,7 +103,31 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     });
 
     const [selectedNode, setSelectedNode] = useState(null);
-    const [paletteCollapsed, setPaletteCollapsed] = useState(false);
+    // El panel de datos se conmuta desde la barra flotante. Es preferencia de
+    // lectura, no parte del flujo: vive en localStorage, no en el .sqlchain.
+    const [panelOpen, setPanelOpen] = useState(
+        () => localStorage.getItem('amoxsql-chain-panel') !== '0'
+    );
+    const [panelWidth, setPanelWidth] = useState(() => {
+        const v = Number(localStorage.getItem('amoxsql-chain-inspector-width'));
+        return v >= 320 ? v : 380;
+    });
+    useEffect(() => {
+        localStorage.setItem('amoxsql-chain-inspector-width', String(panelWidth));
+    }, [panelWidth]);
+
+    // Anadir una FUENTE es lo unico que el "+" del nodo no cubre: una fuente no
+    // toma entrada, asi que nunca es "el paso siguiente a este".
+    const [sourcePicker, setSourcePicker] = useState(null); // { x, y }
+    // El zoom se lee de react-flow, que no notifica por si solo: lo refresca el
+    // propio lienzo en cada movimiento de vista.
+    const [zoom, setZoom] = useState(1);
+    // El encuadre inicial casi nunca deja el zoom en 100 %: sin esto la barra
+    // mentiria hasta el primer movimiento de vista.
+    useEffect(() => {
+        const t = setTimeout(() => { try { setZoom(getZoom()); } catch { /* aun sin montar */ } }, 60);
+        return () => clearTimeout(t);
+    }, [getZoom]);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     const [sqlFiles, setSqlFiles] = useState([]);
@@ -610,6 +641,14 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 setSelectedNode(target);
                 setConfigPopoverNodeId(nodeId);
                 break;
+            // 'run-only' vive tambien en handleMenuAction (menu contextual). Hace
+            // falta aqui porque el boton de la cabecera del nodo despacha por
+            // ESTE switch, no por aquel: son dos rutas distintas hacia la misma
+            // accion y omitir esta hacia que el boton no hiciera nada, en
+            // silencio y sin error.
+            case 'run-only':
+                handleRunOnlyNode(nodeId);
+                break;
             case 'run-from':
                 handleRunFromNode(nodeId);
                 break;
@@ -930,42 +969,106 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const inspectorNode = inspectorNodeId ? (nodes.find(n => n.id === inspectorNodeId) || null) : null;
     const configPopoverNode = configPopoverNodeId ? (nodes.find(n => n.id === configPopoverNodeId) || null) : null;
 
+    const togglePanel = useCallback(() => {
+        setPanelOpen((v) => {
+            localStorage.setItem('amoxsql-chain-panel', v ? '0' : '1');
+            return !v;
+        });
+    }, []);
+
+    // Renombrar ya no se hace en el sitio —no hay barra superior donde leer el
+    // nombre— sino desde el menu de Guardar, que es donde se piensa en el
+    // archivo. Un nombre vacio se descarta: dejaria el flujo sin identidad.
+    const handleRename = useCallback(async () => {
+        const name = await dialog.promptAsync({
+            title: 'Rename flow',
+            message: '',
+            placeholder: chainMeta.name || 'Flow name',
+            confirmLabel: 'Rename',
+        });
+        if (!name || !name.trim()) return;
+        setChainMeta((m) => ({ ...m, name: name.trim() }));
+    }, [dialog, chainMeta.name]);
+
+    // El area que de verdad se ve no es el lienzo entero: la tarjeta de datos
+    // tapa una franja a la derecha y la barra flotante otra abajo. fitView de
+    // react-flow encuadra contra el contenedor completo, asi que con la tabla
+    // abierta metia nodos justo debajo de ella. Aqui se calcula el encuadre a
+    // mano contra el rectangulo libre.
+    const fitVisible = useCallback((opts = {}) => {
+        const area = flowAreaRef.current;
+        if (!area || nodes.length === 0) return false;
+        const bounds = getNodesBounds(nodes);
+        if (!bounds || !bounds.width || !bounds.height) return false;
+
+        // Solo se descuenta la barra flotante. La tabla no hay que restarla: al
+        // abrirse encoge el propio lienzo.
+        const box = area.getBoundingClientRect();
+        const w = box.width;
+        const h = box.height - BOTTOM_BAR_SAFE_AREA;
+        if (w < 80 || h < 80) return false;
+
+        // maxZoom 1: acercar mas del tamano real nunca ayuda a leer un flujo, y
+        // con un solo nodo pequeno "lo que quepa" era el zoom maximo (300 %).
+        const vp = getViewportForBounds(bounds, w, h, 0.2, 1, 0.2);
+        // El rectangulo libre arranca en la esquina superior izquierda del
+        // lienzo, asi que el viewport no necesita desplazamiento adicional.
+        setViewport(vp, { duration: opts.duration ?? 220 });
+        // setViewport programatico no dispara onMove, asi que el indicador de la
+        // barra se quedaria con el zoom anterior.
+        setZoom(vp.zoom);
+        return true;
+    }, [nodes, setViewport]);
+
+    // Encuadre inicial: una vez por archivo, en cuanto react-flow ha MEDIDO los
+    // nodos (antes de eso no hay dimensiones que encuadrar). Lo hacemos aqui en
+    // vez de dejarselo al prop fitView de react-flow porque aquel encuadra
+    // contra el contenedor entero e ignora la tarjeta de datos.
+    const fittedForRef = useRef(null);
+    useEffect(() => {
+        if (!nodesInitialized) return;
+        if (fittedForRef.current === filePath) return;
+        if (fitVisible({ duration: 0 })) fittedForRef.current = filePath;
+    }, [nodesInitialized, filePath, fitVisible]);
+
+    // Abrir o cerrar la tabla cambia el espacio disponible: se reencuadra para
+    // que ningun nodo quede debajo de ella. Es respuesta a un gesto explicito
+    // del usuario, asi que mover la vista aqui es previsible.
+    const prevPanelOpenRef = useRef(panelOpen);
+    useEffect(() => {
+        if (prevPanelOpenRef.current === panelOpen) return;
+        prevPanelOpenRef.current = panelOpen;
+        if (fittedForRef.current !== null) fitVisible();
+    }, [panelOpen, fitVisible]);
+
+    // Una fuente se coloca a la izquierda de todo y sin conectar: es un origen
+    // nuevo del flujo, no un paso que siga a nada.
+    const handleAddSourceType = useCallback((typeId) => {
+        setSourcePicker(null);
+        const typeDef = NODE_TYPES[typeId];
+        if (!typeDef) return;
+        const minX = nodes.length ? Math.min(...nodes.map(n => n.position.x)) : 120;
+        const maxY = nodes.length ? Math.max(...nodes.map(n => n.position.y)) : 60;
+        const newNode = {
+            id: generateNodeId(),
+            type: typeId,
+            position: nodes.length ? { x: minX, y: maxY + 140 } : { x: 120, y: 80 },
+            data: { label: typeDef.label, description: '', nodeType: typeId, config: { ...typeDef.defaultConfig } },
+        };
+        setNodes((nds) => [...nds, newNode]);
+        setSelectedNode(newNode);
+        setConfigPopoverNodeId(newNode.id);
+    }, [nodes, setNodes]);
+
     return (
         <div className="chain-editor" ref={reactFlowWrapper}>
-            <ChainToolbar
-                chainName={chainMeta.name}
-                isRunning={execution.isRunning}
-                runStatus={execution.runStatus}
-                onRun={handleRun}
-                onCancel={execution.cancelRun}
-                onSave={handleSave}
-                onExportYaml={handleExportYaml}
-                onExportSql={handleExportSql}
-                onImportYaml={handleImportYaml}
-                onAutoLayout={handleAutoLayout}
-                onToggleVariables={() => setShowVariables(true)}
-                onToggleHistory={() => setHistoryOpen(!historyOpen)}
-                onToggleLogs={() => setLogCollapsed(v => !v)}
-                onShowGuide={() => setShowGuide(true)}
-                onClearStatus={execution.clearStatus}
-                isDirty={isDirty}
-                errorCount={errorCount}
-                warningCount={warningCount}
-                progress={execution.progress}
-            />
-
-            <ChainAiPrompt
-                onGenerate={handleAiGenerate}
-                loading={aiLoading}
-                hasNodes={nodes.length > 0}
-            />
-
             <div className="chain-editor-body">
-                <ChainNodePalette
-                    collapsed={paletteCollapsed}
-                    onToggle={() => setPaletteCollapsed(!paletteCollapsed)}
-                />
-
+                {/* El lienzo y todo lo que flota SOBRE el viven en el mismo
+                    contenedor, y la tabla es su hermana, no algo encima. Asi la
+                    barra y el fondo de la configuracion se centran en el lienzo
+                    sin descontar nada: cuando la tabla se abre, el lienzo ya es
+                    mas estrecho. */}
+                <div className="chain-flow-area" ref={flowAreaRef}>
                 <ChainCanvas
                     nodes={nodesWithValidation}
                     edges={edges}
@@ -979,10 +1082,11 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     onNodeDragStart={onNodeDragStart}
                     onNodeDragStop={onNodeDragStop}
                     nodeStatuses={execution.nodeStatuses}
+                    onZoomChange={setZoom}
                 />
 
                 {configPopoverNode && (
-                    <ChainNodeConfigPopover
+                    <ChainNodeConfigSurface
                         node={configPopoverNode}
                         onUpdate={updateNode}
                         onCreateSqlFile={handleCreateSqlFile}
@@ -990,6 +1094,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         sqlFiles={sqlFiles}
                         chainDefinition={serialize()}
                         chainFile={filePath}
+                        onRunOnly={handleRunOnlyNode}
                         onClose={() => setConfigPopoverNodeId(null)}
                     />
                 )}
@@ -1013,7 +1118,55 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     />
                 )}
 
+                {sourcePicker && (
+                    <NodeTypePicker
+                        x={sourcePicker.x}
+                        y={sourcePicker.y}
+                        sourcesOnly
+                        onPick={handleAddSourceType}
+                        onClose={() => setSourcePicker(null)}
+                    />
+                )}
+
+                <ChainBottomBar
+                    isRunning={execution.isRunning}
+                    runStatus={execution.runStatus}
+                    errorCount={errorCount}
+                    progress={execution.progress}
+                    onRun={handleRun}
+                    onCancel={execution.cancelRun}
+                    onClearStatus={execution.clearStatus}
+                    onAddSource={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setSourcePicker({ x: r.left + r.width / 2, y: r.top });
+                    }}
+                    onAutoLayout={handleAutoLayout}
+                    onFitView={() => fitVisible()}
+                    zoom={zoom}
+                    panelOpen={panelOpen}
+                    onTogglePanel={togglePanel}
+                    onToggleVariables={() => setShowVariables(true)}
+                    onExportSql={handleExportSql}
+                    onExportYaml={handleExportYaml}
+                    onImportYaml={handleImportYaml}
+                    onToggleLogs={() => setLogCollapsed(v => !v)}
+                    onToggleHistory={() => setHistoryOpen(!historyOpen)}
+                    isDirty={isDirty}
+                    onSave={handleSave}
+                    onRename={handleRename}
+                    onShowGuide={() => setShowGuide(true)}
+                    warningCount={warningCount}
+                    onGenerate={handleAiGenerate}
+                    aiLoading={aiLoading}
+                    hasNodes={nodes.length > 0}
+                />
+
+                </div>
+
                 <ChainInspector
+                    open={panelOpen}
+                    width={panelWidth}
+                    onWidthChange={setPanelWidth}
                     node={inspectorNode}
                     chainDefinition={serialize()}
                     chainFile={filePath}

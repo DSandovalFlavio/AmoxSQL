@@ -465,3 +465,4 @@ export const NODE_TYPE_COLORS = {
     output: 'oklch(0.65 0.15 50)',
     control: 'oklch(0.65 0.15 120)',
 };
+

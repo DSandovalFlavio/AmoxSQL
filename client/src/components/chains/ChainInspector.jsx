@@ -6,9 +6,14 @@
  * data, its input/output schema, the SQL it compiles to, or its last log
  * lines. Everything here rides Fase 0's live-compile endpoints, so most of
  * it works before the chain has ever been run.
+ *
+ * Fase 9 de plan_rediseno_visual.md: pasa de columna fija a TARJETA FLOTANTE
+ * sobre el lienzo, y sus tres filas de cabecera —nombre, pestanas, y estado
+ * mas numero de filas— se funden en una sola. Gastaba tres alturas antes de
+ * ensenar un dato, y partia el lienzo en dos columnas duras.
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { LuPin, LuPinOff, LuExternalLink, LuInfo } from 'react-icons/lu';
+import { LuPin, LuPinOff, LuExternalLink, LuInfo, LuCopy, LuCheck } from 'react-icons/lu';
 import { NODE_TYPES } from './chainNodeTypes';
 import { API_BASE as _API } from '../../api.js';
 
@@ -16,8 +21,8 @@ const API_BASE = `${_API}/api/chains`;
 const HEADERS = { 'Content-Type': 'application/json' };
 
 const SOURCE_LABEL = {
-    live: { text: 'Live — not run', cls: 'chain-inspector-chip-live' },
-    materialized: { text: 'From last run', cls: 'chain-inspector-chip-mat' },
+    live: { text: 'Live — not run', cls: 'chain-inspector-dot-live' },
+    materialized: { text: 'From last run', cls: 'chain-inspector-dot-mat' },
 };
 
 const formatCell = (v) => {
@@ -29,29 +34,24 @@ const formatCell = (v) => {
 const ChainInspector = ({
     node, chainDefinition, chainFile, logs = [],
     pinned, onTogglePin, activeTab, onTabChange,
-    onOpenFullPreview,
+    onOpenFullPreview, open = true, width = 380, onWidthChange,
 }) => {
     const [schemaCols, setSchemaCols] = useState([]);
     const [previewData, setPreviewData] = useState(null);
     const [sqlInfo, setSqlInfo] = useState(null);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [width, setWidth] = useState(() => {
-        const v = Number(localStorage.getItem('amoxsql-chain-inspector-width'));
-        return v >= 320 ? v : 380;
-    });
+    // El ancho lo lleva el editor: la barra flotante y la superficie de
+    // configuracion se centran en el espacio que esta tarjeta deja libre, asi
+    // que necesitan conocerlo. Aqui solo se arrastra el tirador.
     const resizeCleanupRef = useRef(null);
-
-    useEffect(() => {
-        localStorage.setItem('amoxsql-chain-inspector-width', String(width));
-    }, [width]);
     useEffect(() => () => { resizeCleanupRef.current?.(); }, []);
 
     const startResize = (e) => {
         e.preventDefault();
         const startX = e.clientX;
         const startW = width;
-        const onMove = (ev) => setWidth(Math.min(720, Math.max(320, startW + (startX - ev.clientX))));
+        const onMove = (ev) => onWidthChange?.(Math.min(720, Math.max(320, startW + (startX - ev.clientX))));
         const onUp = () => {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
@@ -110,6 +110,8 @@ const ChainInspector = ({
         <div className="chain-inspector-resize" onMouseDown={startResize} title="Drag to resize" />
     );
 
+    if (!open) return null;
+
     if (!node) {
         return (
             <div className="chain-inspector" style={{ width, minWidth: width }}>
@@ -130,11 +132,51 @@ const ChainInspector = ({
         <div className="chain-inspector" style={{ width, minWidth: width }}>
             {resizeHandle}
             <div className="chain-inspector-head">
+                {/* Una sola linea: estado, quien, que mirar, y cuanto hay. */}
+                {source && (
+                    <span
+                        className={`chain-inspector-dot ${source.cls}`}
+                        title={source.text}
+                        aria-label={source.text}
+                    />
+                )}
                 <Icon size={13} style={{ color: nodeType.color.accent }} />
                 <span className="chain-inspector-title">{node.data.label || nodeType.label}</span>
+
+                <div className="chain-inspector-tabs">
+                    {['data', 'schema', 'sql', 'log'].map(t => (
+                        <button
+                            key={t}
+                            onClick={() => onTabChange(t)}
+                            className={`chain-inspector-tab${activeTab === t ? ' chain-inspector-tab-on' : ''}`}
+                        >
+                            {t === 'data' ? 'Data' : t === 'schema' ? 'Schema' : t === 'sql' ? 'SQL' : 'Log'}
+                        </button>
+                    ))}
+                </div>
+
+                <span className="chain-inspector-headgap" />
+
+                {/* Lo que cambia segun la pestana ocupa el hueco de la derecha,
+                    en vez de una segunda barra propia debajo. */}
+                {activeTab === 'data' && loading && <span className="chain-inspector-hint">Loading…</span>}
+                {activeTab === 'data' && !loading && previewData?.available && (
+                    <span className="chain-inspector-rows">{Number(previewData.totalRows || 0).toLocaleString()}</span>
+                )}
+                {activeTab === 'data' && previewData?.table && (
+                    <button className="chain-inspector-icon" onClick={() => onOpenFullPreview?.(previewData.table)} title="Open full-screen">
+                        <LuExternalLink size={12} />
+                    </button>
+                )}
+                {activeTab === 'sql' && sqlInfo?.sql && (
+                    <button className="chain-inspector-icon" onClick={handleCopySql} title="Copy the SQL">
+                        {copied ? <LuCheck size={12} /> : <LuCopy size={12} />}
+                    </button>
+                )}
+
                 {pinned && <span className="chain-inspector-pinned-tag">pinned</span>}
                 <button
-                    className="chain-inspector-pin"
+                    className="chain-inspector-icon"
                     onClick={onTogglePin}
                     title={pinned ? 'Unpin — follow selection again' : 'Pin — keep showing this node while you select others'}
                 >
@@ -142,39 +184,9 @@ const ChainInspector = ({
                 </button>
             </div>
 
-            <div className="seg" style={{ margin: '7px 10px 0' }}>
-                {['data', 'schema', 'sql', 'log'].map(t => (
-                    <button
-                        key={t}
-                        onClick={() => onTabChange(t)}
-                        className={`seg-item${activeTab === t ? ' seg-item--active' : ''}`}
-                        style={{ textTransform: 'capitalize' }}
-                    >
-                        {t === 'data' ? 'Data' : t === 'schema' ? 'Schema' : t === 'sql' ? 'SQL' : 'Log'}
-                    </button>
-                ))}
-            </div>
-
             <div className="chain-inspector-body">
                 {activeTab === 'data' && (
                     <>
-                        <div className="chain-inspector-subbar">
-                            {loading ? <span className="chain-inspector-hint">Loading…</span> : (
-                                <>
-                                    {source && <span className={`chain-inspector-chip ${source.cls}`}>{source.text}</span>}
-                                    {previewData?.available && (
-                                        <span className="chain-inspector-hint" style={{ marginLeft: 'auto' }}>
-                                            {Number(previewData.totalRows || 0).toLocaleString()} rows
-                                        </span>
-                                    )}
-                                    {previewData?.table && (
-                                        <button className="chain-inspector-openfull" onClick={() => onOpenFullPreview?.(previewData.table)} title="Open full-screen">
-                                            <LuExternalLink size={12} />
-                                        </button>
-                                    )}
-                                </>
-                            )}
-                        </div>
                         {!loading && !previewData?.available && (
                             <p className="chain-inspector-hint" style={{ padding: '10px 12px' }}>
                                 {previewData?.reason || previewData?.error || 'No data available yet — connect an upstream source.'}
@@ -231,14 +243,6 @@ const ChainInspector = ({
 
                 {activeTab === 'sql' && (
                     <>
-                        <div className="chain-inspector-subbar">
-                            {sqlInfo?.sql && <span className={`chain-inspector-chip ${sqlInfo.source === 'live' ? 'chain-inspector-chip-live' : 'chain-inspector-chip-mat'}`}>{sqlInfo.source === 'live' ? 'Compiled live' : 'From last run'}</span>}
-                            {sqlInfo?.sql && (
-                                <button className="chain-inspector-openfull" style={{ marginLeft: 'auto' }} onClick={handleCopySql}>
-                                    {copied ? 'Copied' : 'Copy'}
-                                </button>
-                            )}
-                        </div>
                         {!sqlInfo?.sql ? (
                             <p className="chain-inspector-hint" style={{ padding: '10px 12px' }}>{sqlInfo?.reason || 'No SQL available yet.'}</p>
                         ) : (

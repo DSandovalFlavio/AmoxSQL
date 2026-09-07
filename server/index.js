@@ -17,6 +17,30 @@ const { detectResultType } = require('./_sqlClassify');
 const app = express();
 const PORT = 3001;
 
+/**
+ * Red de ultima instancia del proceso del servidor.
+ *
+ * El servidor vive en un utilityProcess sin supervisor: electron/main.js escucha
+ * su 'exit' pero solo lo escribe en consola — no lo reinicia ni avisa al
+ * renderer. Asi que, sin esto, UNA sola promesa rechazada fuera de un try/catch
+ * (Node aborta el proceso por defecto desde la v15) deja la ventana abierta y el
+ * backend muerto: la app parece viva y todo lo que se toque falla.
+ *
+ * Por eso aqui se registra y se SIGUE. Es lo contrario del consejo habitual para
+ * un servidor con reinicio automatico, y a proposito: aqui morir no es
+ * "recuperarse", es perder la sesion del usuario sin decirselo. Lo que se pierde
+ * a cambio es la garantia de un estado limpio, de ahi que se vuelque la traza
+ * entera — si algo queda inconsistente, el rastro esta.
+ */
+process.on('unhandledRejection', (reason) => {
+    console.error('[Server] Promesa rechazada sin manejar — el servidor sigue en pie:',
+        reason && reason.stack ? reason.stack : reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[Server] Excepcion no capturada — el servidor sigue en pie:',
+        err && err.stack ? err.stack : err);
+});
+
 // ─── Internal schemas & tables to ALWAYS hide from the user ───
 // Exact internal schemas created by AmoxSQL itself:
 const INTERNAL_SCHEMAS = ['information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains'];
@@ -3499,7 +3523,12 @@ app.get('/api/folders', (req, res) => {
     }
 });
 
-/** Recursively collects files whose name ends with `ext` under srcPath, same node_modules/.git skip as getDirectories(). */
+/**
+ * Recursively collects files under srcPath, same node_modules/.git skip as
+ * getDirectories(). With `ext` filters by suffix; sin ext los devuelve todos
+ * —que es lo que necesita el indice del omnibox—, para no tener dos
+ * caminadores distintos diciendo cada uno que archivos tiene el proyecto.
+ */
 const findFilesByExtension = (srcPath, ext) => {
     let matches = [];
     let items;
@@ -3513,13 +3542,34 @@ const findFilesByExtension = (srcPath, ext) => {
         if (item.isDirectory()) {
             if (item.name === 'node_modules' || item.name === '.git') continue;
             matches = matches.concat(findFilesByExtension(itemFullPath, ext));
-        } else if (item.name.toLowerCase().endsWith(ext)) {
+        } else if (!ext || item.name.toLowerCase().endsWith(ext)) {
             const relativePath = path.relative(ROOT_DIR, itemFullPath).replace(/\\/g, '/');
             matches.push({ name: item.name, path: relativePath });
         }
     }
     return matches;
 };
+
+/**
+ * GET /api/files/index — todos los archivos del proyecto, en plano.
+ *
+ * Es el indice que busca el omnibox. Se descartan las carpetas ocultas (las que
+ * empiezan por punto): ahi viven la configuracion del proyecto y las cachés, y
+ * en una busqueda de archivos son ruido, no resultados.
+ *
+ * Sin caché a proposito: el disco es local y el recorrido de un proyecto normal
+ * es de milisegundos. Guardar una copia solo abriria la puerta a que el omnibox
+ * ensenara archivos que ya no existen.
+ */
+app.get('/api/files/index', (req, res) => {
+    try {
+        const files = findFilesByExtension(ROOT_DIR, null)
+            .filter(f => !f.path.split('/').some(seg => seg.startsWith('.')));
+        res.json(files);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // Always walks from ROOT_DIR (no user-supplied path segment), so there is no
 // path-traversal surface here — same trust boundary as GET /api/folders.
@@ -5604,24 +5654,42 @@ app.post('/api/shutdown', async (_req, res) => {
     setTimeout(() => process.exit(0), 200);
 });
 
+/**
+ * Arranca el servidor, cayendo a un puerto libre si el preferido esta ocupado.
+ *
+ * OJO con el callback de app.listen(port, cb): Node lo invoca TAMBIEN cuando el
+ * listen falla, y ahi server.address() es null. La version anterior leia
+ * .port directamente sobre ese null, reventaba dentro de la emision del evento
+ * 'error' y abortaba el resto de sus manejadores — justo el que hacia el plan B.
+ * La promesa no se resolvia ni se rechazaba, asi que el proceso principal
+ * esperaba 30 segundos y mostraba "El servidor interno no respondio". Resultado:
+ * el respaldo de puerto no funciono nunca.
+ *
+ * Por eso aqui se escucha 'listening' de forma explicita en vez de usar el
+ * callback de listen, y 'error' se registra ANTES de que pueda dispararse.
+ */
 const startServer = (preferredPort = 3001) => {
     return new Promise((resolve, reject) => {
-        const server = app.listen(preferredPort, () => {
-            const actualPort = server.address().port;
+        const ready = (server) => {
+            const address = server.address();
+            if (!address) {
+                reject(new Error('El servidor dice estar escuchando pero no tiene direccion.'));
+                return;
+            }
+            const actualPort = address.port;
             console.log(`Server running at http://localhost:${actualPort}`);
             console.log(`Serving files from: ${ROOT_DIR}`);
 
             // Initialize AI schema in the background so DataDiving works without a
-            // project connected. Fire-and-forget — do NOT await here, the listen
-            // callback must stay synchronous so resolve() is called immediately and
-            // the Electron main process receives the 'ready' message without delay.
+            // project connected. Fire-and-forget — do NOT await here, so resolve()
+            // se llama de inmediato y el proceso principal recibe el 'ready' sin
+            // esperas.
             aiPersistence.initSchema(dbManager).catch(err =>
                 console.warn('[AI] Startup schema init warning (non-fatal):', err.message)
             );
 
-            // Re-activate extensions the user auto-loads. Fire-and-forget so the
-            // listen callback stays synchronous; dbManager re-LOADs them (and
-            // keeps re-LOADing on every reconnect) once seeded.
+            // Re-activate extensions the user auto-loads. Fire-and-forget igual;
+            // dbManager las vuelve a LOADear en cada reconexion una vez sembradas.
             (async () => {
                 try {
                     const names = getAutoloadExtensions();
@@ -5635,21 +5703,28 @@ const startServer = (preferredPort = 3001) => {
             })();
 
             resolve({ server, port: actualPort });
-        });
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                // Port busy — let OS pick a free one
-                console.warn(`[Server] Port ${preferredPort} in use, requesting OS-assigned port`);
-                const fallback = app.listen(0, () => {
-                    const actualPort = fallback.address().port;
-                    console.log(`Server running at http://localhost:${actualPort}`);
-                    console.log(`Serving files from: ${ROOT_DIR}`);
-                    resolve({ server: fallback, port: actualPort });
-                });
-                fallback.on('error', reject);
-            } else {
+        };
+
+        // Un intento de escucha. 'error' queda enganchado antes que nada, y los
+        // dos manejadores se excluyen: el que gane desengancha al otro.
+        const attempt = (port, onError) => {
+            const server = app.listen(port);
+            const fail = (err) => { server.removeListener('listening', ok); onError(err); };
+            const ok = () => { server.removeListener('error', fail); ready(server); };
+            server.once('error', fail);
+            server.once('listening', ok);
+        };
+
+        attempt(preferredPort, (err) => {
+            if (err.code !== 'EADDRINUSE') {
                 reject(err);
+                return;
             }
+            // Puerto ocupado (otra instancia, o cualquier otro programa): que el
+            // sistema nos de uno libre. El proceso principal se entera del puerto
+            // real por el mensaje 'ready', asi que no hay nada mas que ajustar.
+            console.warn(`[Server] Puerto ${preferredPort} ocupado — se pide uno libre al sistema.`);
+            attempt(0, reject);
         });
     });
 };

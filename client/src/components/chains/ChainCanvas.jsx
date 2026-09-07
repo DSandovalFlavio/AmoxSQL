@@ -5,7 +5,6 @@
 import { useMemo } from 'react';
 import {
     ReactFlow,
-    Controls,
     Background,
     MiniMap,
     useNodesState,
@@ -101,6 +100,7 @@ const ChainCanvas = ({
     onDragOver,
     onNodeDragStart,
     onNodeDragStop,
+    onZoomChange,
 }) => {
     // React Flow paints edges / minimap / background as SVG and won't resolve
     // `var(--token)` in those props, so resolve the theme tokens to concrete
@@ -121,6 +121,9 @@ const ChainCanvas = ({
         style: { stroke: theme.edge, strokeWidth: 2 },
     }), [theme.edge]);
 
+    // Sin el prop fitView de react-flow: encuadra contra el contenedor entero e
+    // ignora la tarjeta de datos, que tapa la franja derecha. El encuadre lo
+    // hace ChainEditor (fitVisible) contra el area que de verdad queda libre.
     return (
         <div className="chain-canvas-container">
             <ReactFlow
@@ -135,10 +138,9 @@ const ChainCanvas = ({
                 onDragOver={onDragOver}
                 onNodeDragStart={onNodeDragStart}
                 onNodeDragStop={onNodeDragStop}
+                onMove={(_, viewport) => onZoomChange?.(viewport.zoom)}
                 nodeTypes={nodeTypes}
                 defaultEdgeOptions={defaultEdgeOptions}
-                fitView
-                fitViewOptions={{ padding: 0.2 }}
                 deleteKeyCode="Delete"
                 multiSelectionKeyCode="Shift"
                 snapToGrid
@@ -147,19 +149,17 @@ const ChainCanvas = ({
                 maxZoom={3}
                 proOptions={{ hideAttribution: true }}
             >
+                {/* Retícula más fina y menos separada: se lee como papel técnico
+                    en vez de como ruido de fondo. El paso sigue siendo divisor
+                    del snapGrid de 20 para que los nodos caigan sobre puntos. */}
                 <Background
                     variant={BackgroundVariant.Dots}
-                    gap={20}
-                    size={1}
+                    gap={10}
+                    size={0.8}
                     color={theme.dots}
                 />
-                <Controls
-                    position="bottom-right"
-                    showInteractive={false}
-                    className="chain-controls"
-                />
                 <MiniMap
-                    position="bottom-left"
+                    position="top-left"
                     nodeColor={(node) => {
                         const status = node.data?.status;
                         if (status === 'success') return theme.success;

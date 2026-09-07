@@ -126,6 +126,12 @@ let mainWindow;
 let popoutWindow = null;
 let pendingPopoutData = null;
 let serverProcess = null;
+// Distingue "el servidor se murio" de "lo estamos matando nosotros al salir":
+// solo el primer caso merece avisar al usuario.
+let quitting = false;
+// Solo es cierto cuando NUESTRO servidor nos ha dicho en que puerto escucha.
+// Mientras sea falso, actualServerPort es una suposicion, no un dato.
+let serverReady = false;
 const SERVER_PORT = 3001;
 let actualServerPort = SERVER_PORT;
 
@@ -138,6 +144,13 @@ if (require('electron-squirrel-startup')) {
 // Asks the Express server to cleanly close all DuckDB connections before exit.
 // Tolerates failures silently (e.g. server already dead) so quit always proceeds.
 async function shutdownServer() {
+    // Sin el 'ready' no sabemos que hay en ese puerto. Antes se enviaba igual, y
+    // si otro programa ocupaba el 3001 la app le ordenaba apagarse al salir:
+    // comprobado, tumbaba a un servidor ajeno que no habia hecho nada.
+    if (!serverReady) {
+        console.warn('[Main] No hubo confirmacion del servidor — no se envia apagado al puerto ' + actualServerPort);
+        return;
+    }
     try {
         await fetch(`http://localhost:${actualServerPort}/api/shutdown`, {
             method: 'POST',
@@ -341,9 +354,13 @@ const initApp = () => {
 
     // Safety net: if server never sends 'ready' within 30 s, show an error dialog
     // instead of leaving the user with a blank screen / no window.
-    let serverReady = false;
+    // OJO: esto es "ya avisamos", NO "el servidor arranco". Antes ambas cosas
+    // compartian bandera, y marcar el fallo como listo habilitaba el apagado
+    // contra un puerto que no era nuestro.
+    let startupReported = false;
     const startupTimeout = setTimeout(() => {
-        if (!serverReady) {
+        if (!startupReported) {
+            startupReported = true;
             console.error('[Main] Server startup timed out after 30 s');
             dialog.showErrorBox(
                 'AmoxSQL — Error de inicio',
@@ -359,12 +376,13 @@ const initApp = () => {
     serverProcess.on('message', (msg) => {
         if (msg.type === 'ready') {
             serverReady = true;
+            startupReported = true;
             clearTimeout(startupTimeout);
             actualServerPort = msg.port || SERVER_PORT;
             console.log(`Server ready on port ${actualServerPort}. Creating window...`);
             createWindow();
         } else if (msg.type === 'error') {
-            serverReady = true; // prevent double-dialog
+            startupReported = true;   // evita el doble dialogo, sin fingir que hay servidor
             clearTimeout(startupTimeout);
             console.error("Server failed to start:", msg.message);
             dialog.showErrorBox(
@@ -375,10 +393,21 @@ const initApp = () => {
         }
     });
 
+    // Si el servidor se muere, la ventana se queda abierta y en apariencia sana,
+    // pero ya no hay backend: cada clic falla sin explicacion. Antes esto solo se
+    // escribia en una consola que el usuario nunca ve. Ahora se dice.
     serverProcess.on('exit', (code) => {
-        if (code !== 0) {
-            console.error(`Server process exited unexpectedly (code ${code})`);
-        }
+        serverProcess = null;
+        if (code === 0 || quitting) return;
+        console.error(`Server process exited unexpectedly (code ${code})`);
+        dialog.showErrorBox(
+            'AmoxSQL — El servidor interno se detuvo',
+            `El servidor interno se detuvo de forma inesperada (codigo ${code}).
+
+` +
+            'La ventana sigue abierta pero ya no puede consultar datos ni guardar. ' +
+            'Cierra AmoxSQL y vuelve a abrirlo.'
+        );
     });
 
     serverProcess.postMessage({ type: 'start', port: SERVER_PORT });
@@ -397,6 +426,7 @@ app.on('second-instance', () => {
 // Give DuckDB time to flush any in-flight writes before the process dies.
 app.on('before-quit', async (event) => {
     event.preventDefault();
+    quitting = true;
     await shutdownServer();
     if (serverProcess) {
         serverProcess.kill();
