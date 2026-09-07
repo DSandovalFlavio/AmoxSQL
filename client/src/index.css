@@ -13893,8 +13893,24 @@ tr:hover td {
 .chain-editor-body {
   display: flex;
   flex: 1;
+  gap: 8px;
+  padding: 8px;
   overflow: hidden;
   position: relative;
+}
+
+/* El lienzo es una tarjeta que se encoge cuando se abre la tabla. Lo que flota
+   sobre el —la barra de acciones, el nodo expandido— vive aqui dentro, asi que
+   se centra en el lienzo sin tener que descontar nada. */
+.chain-flow-area {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
 }
 
 /* ── Chain Canvas ── */
@@ -14960,24 +14976,18 @@ tr:hover td {
 
 /* ── Inspector (Fase 2) — permanent right panel; never conditionally
    mounted, so it never depends on the chain having run. ── */
-/* Tarjeta FLOTANTE sobre el lienzo (fase 9), no una columna que lo parta en
-   dos. Llega hasta abajo: quien se aparta es la barra flotante, que se centra
-   en el espacio que esta tarjeta deja libre (--chain-panel-w). Recortar la
-   tarjeta para dejarle sitio a la barra desperdiciaba filas de datos. */
+/* Tarjeta hermana del lienzo, no encima de el. Flotando obligaba a que el
+   encuadre, la barra y el fondo de la configuracion la descontaran cada uno por
+   su cuenta, y cualquier elemento nuevo sobre el lienzo heredaba el problema.
+   Como hermana, no puede tapar nada. */
 .chain-inspector {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  bottom: 12px;
-  z-index: 15;
+  position: relative;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   border-radius: 12px;
-  background: color-mix(in oklch, var(--surface-raised) 93%, transparent);
-  border: 1px solid var(--border-default);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(9px);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
   overflow: hidden;
 }
 
@@ -18209,12 +18219,9 @@ tr:hover td {
 }
 
 /* ── Configurar: el mismo nodo, expandido y centrado ── */
-/* El fondo se detiene donde empieza la tarjeta de datos, asi que el nodo
-   expandido queda centrado en la mitad que de verdad se ve. Con la tabla
-   oculta, --chain-panel-w es 0 y ocupa el lienzo entero. */
 .chain-config-backdrop {
   position: absolute;
-  inset: 0 var(--chain-panel-w, 0px) 0 0;
+  inset: 0;
   z-index: 40;
   display: grid;
   place-items: center;
@@ -18344,17 +18351,13 @@ tr:hover td {
 /* ── Barra flotante del lienzo ── */
 .chain-bottombar {
   position: absolute;
-  /* Centrada en el hueco que deja la tarjeta de datos, no en el lienzo entero:
-     con la tabla abierta, un centro absoluto la dejaba medio tapada. Si la
-     tabla se oculta, --chain-panel-w vale 0 y vuelve al centro de todo. */
-  left: calc(50% - var(--chain-panel-w, 0px) / 2);
+  left: 50%;
   bottom: 14px;
   transform: translateX(-50%);
-  transition: left 0.18s ease;
   z-index: 20;
   display: flex;
   flex-direction: column;
-  width: min(600px, calc(100% - var(--chain-panel-w, 0px) - 40px));
+  width: min(600px, calc(100% - 40px));
   border-radius: 13px;
   background: color-mix(in oklch, var(--surface-overlay) 93%, transparent);
   border: 1px solid var(--border-default);

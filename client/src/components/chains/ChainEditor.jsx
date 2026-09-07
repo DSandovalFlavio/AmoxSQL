@@ -9,7 +9,6 @@ import {
     useEdgesState,
     useReactFlow,
     useNodesInitialized,
-    useStore,
     getNodesBounds,
     getViewportForBounds,
     addEdge,
@@ -53,10 +52,11 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const toast = useToast();
     const dialog = useDialog();
     const { screenToFlowPosition, getZoom, setViewport } = useReactFlow();
-    // Medidas reales del lienzo, de la propia tienda de react-flow: mas fiables
-    // que medir el DOM, y se actualizan solas al redimensionar.
-    const flowW = useStore((st) => st.width);
-    const flowH = useStore((st) => st.height);
+    // Las medidas del lienzo se leen del DOM, no de la tienda de react-flow: la
+    // tienda se actualiza por ResizeObserver, o sea DESPUES, y al abrir o cerrar
+    // la tabla el reencuadre salia con el ancho anterior. Un efecto corre con el
+    // layout ya aplicado, asi que getBoundingClientRect aqui ya da el nuevo.
+    const flowAreaRef = useRef(null);
     const nodesInitialized = useNodesInitialized();
     const reactFlowWrapper = useRef(null);
 
@@ -987,13 +987,16 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     // abierta metia nodos justo debajo de ella. Aqui se calcula el encuadre a
     // mano contra el rectangulo libre.
     const fitVisible = useCallback((opts = {}) => {
-        if (!flowW || !flowH || nodes.length === 0) return false;
+        const area = flowAreaRef.current;
+        if (!area || nodes.length === 0) return false;
         const bounds = getNodesBounds(nodes);
         if (!bounds || !bounds.width || !bounds.height) return false;
 
-        const rightInset = panelOpen ? panelWidth + 24 : 0;
-        const w = flowW - rightInset;
-        const h = flowH - BOTTOM_BAR_SAFE_AREA;
+        // Solo se descuenta la barra flotante. La tabla no hay que restarla: al
+        // abrirse encoge el propio lienzo.
+        const box = area.getBoundingClientRect();
+        const w = box.width;
+        const h = box.height - BOTTOM_BAR_SAFE_AREA;
         if (w < 80 || h < 80) return false;
 
         // maxZoom 1: acercar mas del tamano real nunca ayuda a leer un flujo, y
@@ -1006,7 +1009,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         // barra se quedaria con el zoom anterior.
         setZoom(vp.zoom);
         return true;
-    }, [flowW, flowH, nodes, panelOpen, panelWidth, setViewport]);
+    }, [nodes, setViewport]);
 
     // Encuadre inicial: una vez por archivo, en cuanto react-flow ha MEDIDO los
     // nodos (antes de eso no hay dimensiones que encuadrar). Lo hacemos aqui en
@@ -1060,14 +1063,13 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 warningCount={warningCount}
             />
 
-            {/* El ancho que ocupa la tarjeta de datos (0 si esta oculta) se
-                publica aqui: la barra flotante y el fondo de la configuracion
-                lo restan para centrarse en el espacio que de verdad queda
-                libre, en vez de quedar medio tapados por la tarjeta. */}
-            <div
-                className="chain-editor-body"
-                style={{ '--chain-panel-w': panelOpen ? `${panelWidth + 24}px` : '0px' }}
-            >
+            <div className="chain-editor-body">
+                {/* El lienzo y todo lo que flota SOBRE el viven en el mismo
+                    contenedor, y la tabla es su hermana, no algo encima. Asi la
+                    barra y el fondo de la configuracion se centran en el lienzo
+                    sin descontar nada: cuando la tabla se abre, el lienzo ya es
+                    mas estrecho. */}
+                <div className="chain-flow-area" ref={flowAreaRef}>
                 <ChainCanvas
                     nodes={nodesWithValidation}
                     edges={edges}
@@ -1154,6 +1156,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     aiLoading={aiLoading}
                     hasNodes={nodes.length > 0}
                 />
+
+                </div>
 
                 <ChainInspector
                     open={panelOpen}
