@@ -13612,7 +13612,9 @@ tr:hover td {
   width: 100%;
   margin-top: 12px;
   padding: 10px;
-  border: none;
+  /* Borde transparente, no `none`: el hover lo tiñe de acento y sin reservar su
+     grosor aqui el boton daria un salto de 2 px al pasar el raton. */
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--accent-primary);
   color: var(--button-text-color);
@@ -13620,16 +13622,30 @@ tr:hover td {
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   cursor: pointer;
-  transition: filter var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .ws-cta:disabled {
   background: var(--surface-inset);
+  border-color: transparent;
   color: var(--text-disabled);
   cursor: default;
 }
 
-.ws-cta:hover:not(:disabled) { filter: brightness(1.08); }
+/* El hover INVIERTE el boton: fondo oscuro, y el texto, el icono y el contorno
+   pasan al acento.
+   Hace falta declarar el fondo aqui, no solo un filter. La regla global
+   `button:hover` tiene mas especificidad (0-1-1) que esta clase sola (0-1-0),
+   asi que al pasar el raton sustituia el relleno de acento por --hover-bg
+   mientras el color de texto seguia siendo el oscuro pensado para fondo
+   brillante: el boton se volvia negro e ilegible. Lo mismo con `button:active`.
+   El icono sigue al color porque react-icons pinta con currentColor. */
+.ws-cta:hover:not(:disabled),
+.ws-cta:active:not(:disabled) {
+  background: var(--surface-inset);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
 
 /* ── Recientes: la lista principal, no un apéndice ── */
 .ws-recent {
