@@ -4,11 +4,9 @@
 > **Contexto**: ver [`discovery_rediseno_visual.md`](./discovery_rediseno_visual.md) y el mockup interactivo [`mockup_rediseno_visual.html`](./mockup_rediseno_visual.html).
 > **Objetivo**: que la interfaz se sienta menos "matrix" y más moderna, sin perder la identidad.
 
-> **Estado (2026-09-07)**: fases **0 a 7 implementadas**; la revisión del
-> usuario abre una **fase 9** (reparto de la pantalla de Data Flow), maquetada
-> pero sin construir. Fases 0 a 7 en la rama
-> `claude/rediseno-visual`. Pendientes: la **fase 8** (omnibox: búsqueda de
-> archivos y esquema) y la **fase 9**. Nada mergeado a `main` todavía.
+> **Estado (2026-09-07)**: fases **0 a 7 y 9 implementadas** en la rama
+> `claude/rediseno-visual`. Queda **solo la fase 8** (omnibox: búsqueda de
+> archivos y esquema). Nada mergeado a `main` todavía.
 
 Fases ordenadas por **riesgo ascendente / valor descendente**. Cada fase es entregable por sí sola, salvo la dependencia explícita de F1 sobre F0.
 
@@ -437,7 +435,7 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
 
 ---
 
-## FASE 9 — Data Flow, el reparto de la pantalla
+## FASE 9 — Data Flow, el reparto de la pantalla ✅ IMPLEMENTADA (2026-09-07)
 
 > **Origen**: revisión del usuario sobre las fases 6 y 7 ya construidas
 > (2026-09-07). El nodo mejoró, pero la pantalla alrededor no: sigue habiendo
@@ -489,6 +487,43 @@ Prueba de concepto **ya funcionando** en el mockup (`mockup_rediseno_visual.html
   él primero.
 - Quitar el raíl deja sin sitio la **búsqueda de nodos** por nombre. El `+`
   debe traerla dentro (ya lo hace en la captura del usuario).
+
+### Notas de implementación (2026-09-07)
+
+Piezas nuevas: `ChainHeader.jsx` (la línea de identidad), `ChainBottomBar.jsx`
+(la barra flotante, con el asistente como segunda fila) y
+`ChainNodeConfigSurface.jsx` (el nodo expandido y centrado). Desaparecen
+`ChainToolbar.jsx`, `ChainNodePalette.jsx`, `ChainAiPrompt.jsx` y
+`ChainNodeConfigPopover.jsx`, y con ellos **76 reglas CSS** que se quedaron sin
+dueño. `INLINE_FIELDS` se va también: era el catálogo de la vista intermedia.
+
+**Desvíos y hallazgos**
+
+- `fitView` de react-flow es **asíncrono** *y* devuelve `false` cuando no puede
+  encuadrar. La primera versión leía el viewport sin esperarlo, así que el
+  desplazamiento de media barra se aplicaba sobre la vista anterior y el
+  encuadre no llegaba a verse. Ahora se espera y no se toca la vista si el
+  encuadre no ocurrió.
+- react-flow **no encuadra ni dibuja aristas hasta haber medido los nodos**, y
+  esa medición depende de que la página se pinte. En un panel que no compone,
+  el flujo aparece sin ninguna arista y `fitView` no hace nada — no es un fallo
+  del producto, pero cuesta un rato descartarlo. Señal barata para
+  diagnosticarlo: contar aristas dibujadas frente a las del archivo.
+- El `Esc` de la superficie se registra **en captura** y detiene la
+  propagación, para cerrar el nodo expandido antes que cualquier menú de
+  detrás. Respeta `defaultPrevented` por si un campo abierto reclama su propio
+  `Esc`.
+- El estado del panel de datos y el nombre del flujo no tocan el `.sqlchain`:
+  el primero vive en `localStorage`, el segundo es parte de la definición y sí
+  marca el archivo como sucio, que es lo correcto.
+
+**Comprobado en la app**: superficie centrada con desvío 0,0 y dentro del
+lienzo; `Esc`, fondo y *Listo* la cierran; cabecera del panel en una sola fila;
+conmutación del panel desde la barra; menú «…» por encima de la barra y dentro
+de la ventana, que cierra al pulsar fuera y con `Esc`; selector de fuentes con
+solo fuentes; zoom de la barra siguiendo al lienzo; y, una vez forzado el
+repintado, 2 de 2 aristas dibujadas y el encuadre dejando el contenido por
+encima de la barra.
 
 ## Notas transversales
 
