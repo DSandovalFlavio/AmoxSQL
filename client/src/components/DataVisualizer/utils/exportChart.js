@@ -21,7 +21,52 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
     const targetHeight = preset?.height || 1080;
     const presetLabel = preset?.label || 'custom';
 
+    /* ── La tarjeta se re-maqueta a la proporción de destino ──
+       Sin esto, exportar a 1:1 o a 9:16 daba la tarjeta con forma de panel
+       encajada con bandas de fondo: no una tarjeta cuadrada ni vertical.
+
+       El primer intento sizeó el div INTERIOR, que lleva `contain: layout paint`
+       y vive dentro de ancestros con `overflow: hidden`. Al pedirle más tamaño
+       del que cabía quedaba recortado y html2canvas fallaba sobre eso: dejó de
+       descargar. El arreglo no es clonar, es SACAR LA TARJETA DEL FLUJO:
+       `position: fixed` fuera de pantalla no lo recorta el overflow de ningún
+       ancestro, y al tener medidas propias el ResizeObserver de la figura y el
+       ResponsiveContainer de Recharts recalculan de verdad.
+
+       Se espera a que asiente antes de la foto, y se restaura en `finally` pase
+       lo que pase: si se sale por una excepción sin restaurar, la tarjeta se
+       queda clavada fuera de pantalla y desaparece de la aplicación. */
+    const previo = element.getAttribute('style') || '';
+    const restaurar = () => element.setAttribute('style', previo);
+
+    /* El marco: la tarjeta no llega al borde de la imagen, respira sobre el
+       fondo. Sin esto el filete y las esquinas caían justo en el canto del PNG y
+       la tarjeta dejaba de leerse como tarjeta — que es exactamente la pega. */
+    const marco = Math.round(Math.min(targetWidth, targetHeight) * 0.035);
+    const anchoUtil = targetWidth - marco * 2;
+    const altoUtil = targetHeight - marco * 2;
+
     try {
+        // La tarjeta se maqueta con la proporción del HUECO ÚTIL, no la del
+        // lienzo entero: si no, al restarle el marco la figura se deformaría.
+        const anchoTrabajo = Math.min(anchoUtil, 1400);
+        const altoTrabajo = Math.round(anchoTrabajo * (altoUtil / anchoUtil));
+        Object.assign(element.style, {
+            position: 'fixed',
+            left: '-20000px',
+            top: '0px',
+            width: `${anchoTrabajo}px`,
+            height: `${altoTrabajo}px`,
+            maxWidth: 'none',
+            maxHeight: 'none',
+            margin: '0',
+            flex: 'none',
+        });
+        // Dos fotogramas para el reflujo, y un respiro para que Recharts haya
+        // vuelto a medir y dibujar en el tamaño nuevo.
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await new Promise(r => setTimeout(r, 120));
+
         const currentWidth = element.offsetWidth || 1;
         const currentHeight = element.offsetHeight || 1;
 
@@ -37,7 +82,9 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
             scale: dynamicScale,
             logging: false,
             useCORS: true,
-            ignoreElements: (el) => el.tagName === 'BUTTON'
+            // La barra de botones tampoco: ignorar solo los <button> dejaba su
+            // contenedor reservando alto y el PNG salia con una banda vacia.
+            ignoreElements: (el) => el.tagName === 'BUTTON' || el.dataset?.exportHide === 'true'
         });
 
         // Create output canvas at exact target resolution
@@ -50,22 +97,21 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
         ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-        // Center chart in canvas preserving aspect ratio
+        // Centrar dentro del hueco útil, dejando el marco alrededor. Como la
+        // tarjeta ya se maquetó con esta proporción, apenas hay que ajustar.
         const srcRatio = canvas.width / canvas.height;
-        const dstRatio = targetWidth / targetHeight;
+        const dstRatio = anchoUtil / altoUtil;
         let drawW, drawH, drawX, drawY;
 
         if (srcRatio > dstRatio) {
-            drawW = targetWidth;
-            drawH = targetWidth / srcRatio;
-            drawX = 0;
-            drawY = (targetHeight - drawH) / 2;
+            drawW = anchoUtil;
+            drawH = anchoUtil / srcRatio;
         } else {
-            drawH = targetHeight;
-            drawW = targetHeight * srcRatio;
-            drawX = (targetWidth - drawW) / 2;
-            drawY = 0;
+            drawH = altoUtil;
+            drawW = altoUtil * srcRatio;
         }
+        drawX = marco + (anchoUtil - drawW) / 2;
+        drawY = marco + (altoUtil - drawH) / 2;
 
         ctx.drawImage(canvas, drawX, drawY, drawW, drawH);
 
@@ -83,6 +129,8 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
     } catch (err) {
         console.error('Export failed:', err);
         throw err;
+    } finally {
+        restaurar();
     }
 };
 

@@ -2502,12 +2502,14 @@ const { getModelProfile: getModelProfileForRoute, fetchOllamaModelInfo: fetchOll
 // ── Chart Story — on-demand story generation for the UI button ───────────────
 app.post('/api/ai/chart-story', async (req, res) => {
     try {
-        const { data, xKey, yKey, chartType, titleHint } = req.body;
+        const { data, xKey, yKey, chartType, titleHint, truncated } = req.body;
         if (!data || !Array.isArray(data) || !xKey || !yKey) {
             return res.status(400).json({ error: 'data (array), xKey, and yKey are required.' });
         }
         const { generateChartStory } = require('./ai/chartStory');
-        const story = generateChartStory(data, { xKey, yKey, chartType, titleHint });
+        // `truncated` lo manda el cliente cuando recorta el resultado: sin eso el
+        // subtitulo presentaria el rango del recorte como si fuera el del total.
+        const story = generateChartStory(data, { xKey, yKey, chartType, titleHint, truncated });
         if (story.error) return res.status(422).json({ error: story.error });
         return res.json(story);
     } catch (err) {

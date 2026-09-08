@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La tarjeta de gráfico de AmoxSQL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA TARJETA DE GRÁFICO — sistema de diseño
+   Define las partes de una figura, cómo se ordenan en el espacio disponible,
+   cómo cambia esa estructura por tipo de gráfico, y cómo se adapta a cada
+   formato de salida.
+   Sobrio a propósito: sin halos, sin neón, sin degradados donde no hacen falta.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --ground:  #f4f6f8; --page-bg: #eceff3; --card: #ffffff;
+  --ink: #17202a; --ink-2: #46545f; --ink-3: #6b7885;
+  --line: rgba(23,32,42,.11); --line-2: rgba(23,32,42,.06);
+  --accent: #0a6b78; --grid: rgba(23,32,42,.13); --axis: rgba(23,32,42,.20);
+  --shadow: 0 1px 2px rgba(20,40,60,.08), 0 8px 24px rgba(20,40,60,.10);
+  --fill-op: .20; --dot-fill: #ffffff;
+  --sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+:root[data-mode="dark"] {
+  --ground: #0d1015; --page-bg: #07090c; --card: #101318;
+  --ink: #e7ebf0; --ink-2: #98a3b0; --ink-3: #69737f;
+  --line: rgba(255,255,255,.10); --line-2: rgba(255,255,255,.05);
+  --accent: #22d3ee; --grid: rgba(255,255,255,.10); --axis: rgba(255,255,255,.16);
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  --fill-op: .24; --dot-fill: #101318;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--page-bg); color: var(--ink);
+       font: 15px/1.62 var(--sans); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 110px; }
+
+.hero { background: var(--ground); border-bottom: 1px solid var(--line); padding: 72px 24px 56px; }
+.hero-in { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+.eyebrow { font: 600 10.5px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: -.03em;
+     line-height: 1.1; margin: 14px 0 0; max-width: 20ch; text-wrap: balance; }
+.lede { max-width: 64ch; color: var(--ink-2); font-size: 1.03rem; margin: 16px 0 0; }
+
+h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em;
+     margin: 76px 0 6px; padding-top: 22px; border-top: 1px solid var(--line); }
+h2 .n { font: 500 .7rem/1 var(--mono); color: var(--accent); display: block; margin-bottom: 10px; letter-spacing: .14em; }
+h3 { font-size: .97rem; font-weight: 700; margin: 36px 0 6px; }
+p { color: var(--ink-2); max-width: 70ch; }
+p.tight { margin-top: 4px; }
+code { font: 500 .85em var(--mono); color: var(--ink); }
+strong { color: var(--ink); font-weight: 700; }
+.nota { font-size: 12.6px; color: var(--ink-3); max-width: 62ch; }
+
+.controles { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap;
+  gap: 10px 20px; align-items: center; padding: 11px 24px;
+  background: color-mix(in oklch, var(--ground) 90%, transparent);
+  backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.controles label { font: 600 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.grupo { display: flex; align-items: center; gap: 8px; }
+select, .btn { font: 500 12.5px var(--sans); color: var(--ink); background: var(--card);
+  border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; cursor: pointer; }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tiras { display: flex; gap: 3px; }
+.tiras i { width: 13px; height: 13px; border-radius: 3px; display: block; }
+
+/* ═══ LA TARJETA ═══ */
+.tarjeta { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 20px 22px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+.t-titulo { font-size: 16.5px; font-weight: 700; letter-spacing: -.015em; margin: 0; line-height: 1.32; }
+.t-titulo i { color: var(--accent); font-style: normal; }
+.t-sub { font-size: 12.5px; color: var(--ink-3); margin: -6px 0 0; }
+.t-kpi { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin: 2px 0 0; }
+.t-kpi b { font: 700 32px/1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.t-delta { font: 600 12px var(--sans); display: inline-flex; align-items: center; gap: 4px; }
+.t-delta.pos { color: #17a673; } .t-delta.neg { color: #d9484d; }
+.t-delta u { text-decoration: none; color: var(--ink-3); font-weight: 400; }
+.t-leyenda { display: flex; flex-wrap: wrap; gap: 5px 15px; font-size: 12px; }
+.t-leyenda span { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.t-leyenda i { width: 9px; height: 9px; border-radius: 2px; display: block; }
+.t-plot { width: 100%; }
+.t-plot svg { display: block; width: 100%; height: auto; }
+.t-takeaway { font-size: 13px; line-height: 1.5; color: var(--ink-2);
+  border-left: 2px solid var(--accent); padding-left: 10px; }
+.t-pie-nota { font-size: 12px; font-style: italic; color: var(--ink-3);
+  border-top: 1px solid var(--line-2); padding-top: 7px; }
+.t-firma { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font: 500 10.5px var(--mono); color: var(--ink-3); border-top: 1px solid var(--line-2); padding-top: 7px; }
+.t-firma b { color: var(--ink-2); font-weight: 500; }
+
+.tarjeta--lateral { display: grid; grid-template-columns: minmax(0,34%) minmax(0,1fr); gap: 8px 26px; align-items: start; }
+.tarjeta--lateral .zona-texto, .tarjeta--lateral .zona-lienzo { display: flex; flex-direction: column; gap: 10px; }
+.fila-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+
+.anat { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 28px; align-items: start; margin-top: 20px; }
+.partes { list-style: none; margin: 0; padding: 0; counter-reset: p; }
+.partes li { display: grid; grid-template-columns: 24px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line-2); }
+.partes li::before { counter-increment: p; content: counter(p); font: 700 11px/1.6 var(--mono); color: var(--accent); }
+.partes b { display: block; font-size: 13.5px; }
+.partes span { display: block; font-size: 12.5px; color: var(--ink-2); }
+.partes em { font-style: normal; color: var(--ink-3); font: 500 11px var(--mono); }
+
+.reglas { display: grid; gap: 13px; grid-template-columns: repeat(auto-fit, minmax(270px,1fr)); margin-top: 18px; }
+.regla { border: 1px solid var(--line); border-left: 2px solid var(--accent);
+  border-radius: 9px; padding: 14px 16px; background: var(--ground); }
+.regla b { display: block; margin-bottom: 5px; font-size: 13.4px; }
+.regla p { margin: 0; font-size: 12.7px; }
+
+.tabla { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12.8px; }
+.tabla th { text-align: left; font: 600 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3); padding: 9px 11px; border-bottom: 1px solid var(--line); }
+.tabla td { padding: 9px 11px; border-bottom: 1px solid var(--line-2); color: var(--ink-2); vertical-align: top; }
+.tabla td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.si { color: #17a673; font-weight: 700; } .no { color: #d9484d; font-weight: 700; } .medio { color: #c98a1e; font-weight: 700; }
+
+.specs { display: grid; gap: 22px; grid-template-columns: repeat(auto-fill, minmax(370px,1fr)); margin-top: 20px; }
+.spec-cab { margin: 0 0 8px 2px; }
+.spec-cab b { font: 600 10.5px var(--mono); letter-spacing: .13em; text-transform: uppercase; color: var(--ink-2); }
+.spec-cab span { display: block; font-size: 12.3px; color: var(--ink-3); margin-top: 3px; }
+
+.formatos { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(290px,1fr)); margin-top: 20px; }
+.formato-cab b { font: 600 10.5px var(--mono); letter-spacing: .13em; text-transform: uppercase; }
+.formato-cab u { text-decoration: none; color: var(--ink-3); font: 500 10.5px var(--mono); margin-left: 6px; }
+.marco { background: var(--ground); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-top: 8px; }
+.lienzo-fmt { background: var(--card); border: 1px solid var(--line-2); border-radius: 5px; width: 100%; position: relative; }
+.zon { position: absolute; border-radius: 2px; }
+.zon-t { background: color-mix(in oklch, var(--accent) 55%, transparent); }
+.zon-k { background: color-mix(in oklch, var(--accent) 30%, transparent); }
+.zon-p { background: color-mix(in oklch, var(--ink) 15%, transparent); border: 1px solid var(--line); }
+.zon-s { background: color-mix(in oklch, var(--ink) 9%, transparent); }
+.leyenda-zonas { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; font: 500 11px var(--mono); color: var(--ink-3); }
+.leyenda-zonas span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda-zonas i { width: 11px; height: 11px; border-radius: 2px; display: block; }
+.fmt-nota { font-size: 12px; color: var(--ink-3); margin-top: 8px; }
+
+@media (max-width: 880px) { .anat, .tarjeta--lateral { grid-template-columns: 1fr; } }
+.ancla { scroll-margin-top: 70px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-in">
+    <div class="eyebrow">Sistema de diseño · borrador 4</div>
+    <h1>La tarjeta de gráfico</h1>
+    <p class="lede">
+      Qué partes tiene una figura de AmoxSQL, cómo se ordenan en el espacio disponible, cómo
+      cambia esa estructura según el tipo de gráfico, y cómo se adapta a cada formato de salida.
+      El estilo parte de lo que la aplicación <em>ya</em> dibuja bien; lo que se añade es orden,
+      jerarquía y las piezas que faltaban.
+    </p>
+  </div>
+</header>
+
+<div class="controles">
+  <div class="grupo"><label for="sel-paleta">Paleta</label><select id="sel-paleta"></select><div class="tiras" id="tiras"></div></div>
+  <div class="grupo"><label>Modo</label><button class="btn" id="btn-modo" aria-pressed="true">Oscuro</button></div>
+  <div class="grupo"><label>Puntos</label><button class="btn" id="btn-dots" aria-pressed="true">Visibles</button></div>
+</div>
+
+<div class="wrap">
+
+<h2 class="ancla" id="cambia"><span class="n">01</span>Lo que cambia respecto a hoy</h2>
+<p>El estilo actual está bien: fondo plano, trazo limpio, relleno de área discreto, puntos huecos.
+<strong>No hace falta hacerlo más llamativo.</strong> Lo que falla es el orden de la cabecera, dos
+bloques que no existen y tres errores de corrección.</p>
+
+<div class="reglas">
+  <div class="regla" style="border-left-color:#d9484d">
+    <b>El título no está arriba</b>
+    <p>Hoy la tarjeta abre con el KPI y el título viene después. Se lee al revés: primero
+    <em>qué estoy viendo</em>, luego <em>cuánto</em>. El título pasa a ser la primera línea de todo.</p>
+  </div>
+  <div class="regla" style="border-left-color:#d9484d">
+    <b>El delta compara cosas incomparables</b>
+    <p>Con métrica «total», <code>computeHeadline()</code> compara la suma del periodo contra el
+    <b>primer punto</b> de la serie. De ahí el <code>▲ +7658 %</code> junto a una conclusión que dice
+    «cayó 0,4 %». La comparación tiene que ser del mismo tipo que la métrica, o no haberla.</p>
+  </div>
+  <div class="regla" style="border-left-color:#d9484d">
+    <b>Dos formatos numéricos en la misma línea</b>
+    <p>«Peak: 4.6M | Low: 422.67». Un solo formato por figura: el del eje, el del KPI y el del pie
+    son el mismo.</p>
+  </div>
+  <div class="regla">
+    <b>Sobra cromo</b>
+    <p>Leyenda con una sola serie, título de eje «mes» debajo de fechas, y los dos ejes dibujando
+    su línea con la rejilla ya puesta. Los tres se quitan solos según el contexto.</p>
+  </div>
+  <div class="regla">
+    <b>Falta jerarquía entre series</b>
+    <p>Con varias series todas pesan igual. La primera va a color y grosor plenos; las demás bajan
+    opacidad y pierden los puntos. Es lo que convierte un gráfico en una frase.</p>
+  </div>
+  <div class="regla">
+    <b>Falta el modo de composición</b>
+    <p>Hoy todo se apila en columna. Para 16:9 o banner hace falta poder poner el texto a un lado
+    y el lienzo al otro. Sección 05.</p>
+  </div>
+</div>
+
+<h2 class="ancla" id="tarjeta"><span class="n">02</span>La tarjeta, parte por parte</h2>
+<p>Ocho bloques, siempre en este orden. Todos opcionales salvo el lienzo, y el que no aplica
+<b>se omite entero</b>: nunca se queda vacío ocupando sitio.</p>
+
+<div class="anat">
+  <div><div class="tarjeta" id="tarjeta-anatomia"></div></div>
+  <ol class="partes">
+    <li><div><b>Título</b> <em>chartTitle</em><span>Qué estás viendo, en una frase. Termina en punto de acento. <b>Es lo primero de todo</b> — hoy va después del KPI.</span></div></li>
+    <li><div><b>Subtítulo</b> <em>chartSubtitle</em><span>El contexto que el título no lleva: periodo, filtro, unidad. Si contradice al eje, sobra.</span></div></li>
+    <li><div><b>KPI y delta</b> <em>headline</em><span>La cifra que responde. Métrica y comparación tienen que ser del mismo tipo.</span></div></li>
+    <li><div><b>Leyenda</b> <em>InlineLegend</em><span>Tejida, encima del lienzo. Desaparece sola con una sola serie.</span></div></li>
+    <li><div><b>Lienzo</b> <em>ChartRenderer</em><span>El dibujo. Es el único bloque elástico: se queda con todo el espacio que sobra.</span></div></li>
+    <li><div><b>Conclusión</b> <em>takeaway</em><span>Lo que hay que entender, escrito. Barra de acento a la izquierda.</span></div></li>
+    <li><div><b>Nota al pie</b> <em>chartFootnote</em><span>Estadísticos, salvedades, hallazgos de la IA. Un solo formato numérico.</span></div></li>
+    <li><div><b>Fuente y firma</b> <em>chartSource · signature</em><span>Monoespaciada, izquierda y derecha. Cierra la tarjeta.</span></div></li>
+  </ol>
+</div>
+
+<h3>Cómo reparten el espacio</h3>
+<p>Solo el lienzo crece. Los bloques de texto miden lo que mide su contenido y el lienzo absorbe
+lo que queda — por eso la misma tarjeta funciona en un panel de 300 px de alto y en una
+diapositiva de 1080. Si el alto baja del mínimo del lienzo, los bloques se retiran en un orden
+fijo. El título, el KPI y el lienzo no se retiran nunca.</p>
+<table class="tabla">
+  <thead><tr><th>bloque</th><th>alto</th><th>orden de retirada</th></tr></thead>
+  <tbody>
+    <tr><td>Título</td><td>contenido</td><td class="no">nunca</td></tr>
+    <tr><td>Subtítulo</td><td>contenido</td><td class="medio">2.º</td></tr>
+    <tr><td>KPI y delta</td><td>contenido</td><td class="no">nunca</td></tr>
+    <tr><td>Leyenda</td><td>contenido</td><td class="medio">solo si hay 1 serie</td></tr>
+    <tr><td>Lienzo</td><td><b>elástico</b> — mínimo 120 px</td><td class="no">nunca</td></tr>
+    <tr><td>Conclusión</td><td>contenido</td><td class="medio">4.º</td></tr>
+    <tr><td>Nota al pie</td><td>contenido</td><td class="medio">1.º</td></tr>
+    <tr><td>Fuente y firma</td><td>contenido</td><td class="medio">3.º</td></tr>
+  </tbody>
+</table>
+
+<h2 class="ancla" id="lienzo"><span class="n">03</span>Cómo se dibuja el lienzo</h2>
+<p>Aquí no hay reinvención: se conserva lo que la aplicación ya hace bien y se quitan dos sobras.</p>
+<table class="tabla">
+  <thead><tr><th>elemento</th><th>regla</th></tr></thead>
+  <tbody>
+    <tr><td>Trazo</td><td>2 px, unión y remate redondeados. La serie protagonista al 100 %; las demás al 55 % de opacidad y 1,5 px.</td></tr>
+    <tr><td>Relleno de área</td><td>Degradado vertical del color de la serie, del 24 % a cero. <b>Solo bajo línea y área</b> — nunca en barras.</td></tr>
+    <tr><td>Puntos</td><td>Radio 3, relleno del color de la tarjeta y borde del color de la serie. Se ocultan por encima de 40 puntos.</td></tr>
+    <tr><td>Barras</td><td>Relleno plano, esquinas superiores a 3 px. Sin degradado, sin brillo.</td></tr>
+    <tr><td>Rejilla</td><td>Horizontales punteadas al 10–13 %. Ninguna vertical.</td></tr>
+    <tr><td>Ejes</td><td>Sin línea de eje. Las etiquetas flotan; la rejilla ya marca el nivel.</td></tr>
+    <tr><td>Título de eje</td><td>Solo si la unidad no se deduce de las etiquetas. Con fechas, nunca.</td></tr>
+    <tr><td>Etiquetas</td><td>Monoespaciadas, 10,5 px, terciario. Cifras tabulares para que las columnas cuadren.</td></tr>
+  </tbody>
+</table>
+<p class="nota" style="margin-top:12px"><b>Descartado del borrador anterior:</b> el halo radial bajo
+el máximo y los puntos con aura luminosa. Llamaban demasiado la atención y competían con los datos.</p>
+
+<h2 class="ancla" id="tipos"><span class="n">04</span>Cómo cambia la estructura en cada tipo</h2>
+<p>La tarjeta es la misma; lo que cambia es qué bloques aplican y qué hace el lienzo por dentro.
+Encima de cada espécimen, lo que se mueve respecto al patrón.</p>
+<div class="specs" id="specs"></div>
+
+<h2 class="ancla" id="composicion"><span class="n">05</span>Los tres modos de composición</h2>
+<p>El mismo contenido repartido de tres maneras según la forma del hueco. Es lo que permite que
+una figura pensada para un panel vertical funcione también en una diapositiva apaisada.</p>
+
+<h3>Apilado — por defecto</h3>
+<p class="tight nota">Todo en columna. Es el modo del panel del IDE y de los formatos altos.</p>
+<div style="max-width:520px"><div class="tarjeta" data-comp="apilado"></div></div>
+
+<h3>Cabecera partida — tarjetas anchas y bajas</h3>
+<p class="tight nota">Título y subtítulo a la izquierda, KPI y delta a la derecha, en la misma línea.
+Recupera el alto que el lienzo necesita.</p>
+<div class="tarjeta" data-comp="cabecera"></div>
+
+<h3>Lateral — presentación</h3>
+<p class="tight nota">Texto a un lado, lienzo al otro. Es el modo de 16:9 y de banner: se lee la
+frase y luego se mira la prueba, sin desplazarse en vertical.</p>
+<div class="tarjeta tarjeta--lateral" data-comp="lateral"></div>
+
+<h2 class="ancla" id="formatos"><span class="n">06</span>Cómo se adapta a cada formato de salida</h2>
+<p>Los presets que ya existen en <code>EXPORT_PRESETS</code>, más el panel del IDE. Para cada uno:
+qué modo de composición usa, qué bloques se retiran y cuánto escala la tipografía.</p>
+<div class="leyenda-zonas">
+  <span><i class="zon-t"></i>título y subtítulo</span>
+  <span><i class="zon-k"></i>KPI</span>
+  <span><i class="zon-p"></i>lienzo</span>
+  <span><i class="zon-s"></i>conclusión, pie y firma</span>
+</div>
+<div class="formatos" id="formatos"></div>
+
+<h2 class="ancla" id="kpi"><span class="n">07</span>El KPI y su comparación</h2>
+<p>Las dos métricas se quedan: <strong>último valor</strong> y <strong>total</strong>. Lo que hay
+que definir es contra qué compara cada una, porque ahí está el fallo de hoy — un total comparado
+contra un punto suelto da el <code>+7658 %</code>.</p>
+
+<h3>La regla</h3>
+<p><strong>La comparación tiene que ser del mismo tipo que la métrica.</strong> Un punto se compara
+con un punto; una suma, con otra suma del mismo tamaño. Si no hay pareja válida, <b>no hay
+pastilla</b> — no se inventa una.</p>
+
+<table class="tabla">
+  <thead><tr><th>métrica</th><th>compara con</th><th>qué hace</th><th>si no puede</th></tr></thead>
+  <tbody>
+    <tr><td>Último valor</td><td>punto anterior</td><td>El último punto contra el penúltimo. Es el «¿cómo vamos respecto al mes pasado?».</td><td class="medio">serie de 1 punto → sin pastilla</td></tr>
+    <tr><td>Último valor</td><td>primer punto</td><td>El último contra el primero. Es el «¿cuánto hemos crecido en todo el periodo?».</td><td class="medio">serie de 1 punto → sin pastilla</td></tr>
+    <tr><td><b>Total</b></td><td><b>periodo anterior</b></td><td>La suma de la ventana contra la suma de la ventana <b>inmediatamente anterior y del mismo tamaño</b>.</td><td class="no">no hay datos para la ventana previa → sin pastilla</td></tr>
+    <tr><td>Total</td><td>primer punto</td><td>—</td><td class="no">combinación inválida: no se ofrece</td></tr>
+    <tr><td>Media</td><td>periodo anterior</td><td>Igual que el total, pero promediando.</td><td class="no">sin ventana previa → sin pastilla</td></tr>
+    <tr><td>Primer valor</td><td>—</td><td>No tiene sentido comparar el primero contra nada.</td><td class="medio">sin pastilla</td></tr>
+  </tbody>
+</table>
+
+<h3>La ventana: lo que resuelve el caso del total</h3>
+<p>Una clave nueva, <code>headline.window</code>, dice <b>cuántos puntos entran en la métrica</b>:</p>
+<div class="reglas">
+  <div class="regla">
+    <b><code>window: 'all'</code> — por defecto</b>
+    <p>El total cubre <b>toda</b> la serie cargada. Como no queda nada antes, <b>no hay periodo
+    anterior y no hay pastilla</b>. Es el caso honesto: si sumas los doce meses que tienes, no
+    tienes con qué compararlos.</p>
+  </div>
+  <div class="regla">
+    <b><code>window: N</code> — una ventana</b>
+    <p>El total cubre los últimos <b>N</b> puntos y se compara contra los <b>N anteriores</b>. Con
+    24 meses y ventana 12: el año en curso contra el anterior. Si no hay N puntos antes, se omite
+    la pastilla en vez de comparar contra una ventana incompleta.</p>
+  </div>
+  <div class="regla">
+    <b>La pastilla dice contra qué compara</b>
+    <p>Siempre. La etiqueta gris que va detrás del porcentaje deja de ser decorativa y pasa a ser
+    obligatoria: <code>▲ +12.4 % vs. 12 meses previos</code>. Con eso el número deja de poder
+    malinterpretarse, que es lo que pasa hoy.</p>
+  </div>
+</div>
+
+<h3>Por defecto</h3>
+<table class="tabla">
+  <thead><tr><th>situación</th><th>métrica</th><th>comparación</th></tr></thead>
+  <tbody>
+    <tr><td>Serie temporal (eje de fechas)</td><td><b>último valor</b></td><td>punto anterior</td></tr>
+    <tr><td>Categorías (barras, tarta, treemap)</td><td><b>total</b></td><td>ninguna — no hay orden temporal que dé un «anterior»</td></tr>
+    <tr><td>Relación (dispersión, burbujas)</td><td>correlación o recuento</td><td>ninguna</td></tr>
+  </tbody>
+</table>
+<p class="nota" style="margin-top:12px">El cambio de «total» a «último valor» como métrica por
+defecto solo aplica a series temporales, que es donde la pregunta suele ser «¿cómo vamos?». En un
+gráfico de categorías el total sigue siendo lo que responde, y ahí sencillamente no hay delta.</p>
+
+<h2 class="ancla" id="veredicto"><span class="n">08</span>Qué hay que tocar</h2>
+<table class="tabla">
+  <thead><tr><th>acción</th><th>qué</th><th>dónde</th></tr></thead>
+  <tbody>
+    <tr><td class="no">Arreglar</td><td>Delta comparando métricas incompatibles</td><td><code>computeHeadline()</code> — aplicar la matriz de la sección 07: emparejar tipos, y omitir la pastilla si no hay par válido.</td></tr>
+    <tr><td class="medio">Añadir</td><td><code>headline.window</code> y el «periodo anterior»</td><td><code>computeHeadline()</code> — ventana de N puntos y su ventana previa; sin datos suficientes, sin pastilla.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Etiqueta obligatoria de «contra qué compara»</td><td><code>HeadlineOverlay</code> — el texto gris detrás del porcentaje deja de ser opcional.</td></tr>
+    <tr><td class="no">Arreglar</td><td>Formato numérico mixto en la nota al pie</td><td>El generador de hallazgos usa <code>formatNumber</code> con la configuración de la figura.</td></tr>
+    <tr><td class="no">Arreglar</td><td>Periodo del subtítulo que no casa con el eje</td><td>Calcularlo de los datos pintados, o no ponerlo.</td></tr>
+    <tr><td class="medio">Reordenar</td><td>Título arriba del todo, KPI debajo del subtítulo</td><td><code>DataVisualizer.jsx</code> — mover <code>HeadlineOverlay</code> detrás del <code>&lt;h3&gt;</code>.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Modos de composición (apilado / cabecera partida / lateral)</td><td>Clave <code>layout</code> en la configuración y una rejilla en el contenedor de la figura.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Retirada de bloques por alto disponible</td><td>Orden fijo: nota al pie → subtítulo → fuente → conclusión.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Jerarquía automática de series</td><td>La primera a opacidad y grosor plenos; el resto atenuadas y sin puntos.</td></tr>
+    <tr><td class="si">Quitar</td><td>Líneas de eje, leyenda de una serie, título de eje en fechas</td><td>Valores de fábrica en <code>DEFAULT_CONFIG</code>.</td></tr>
+    <tr><td class="si">Quitar</td><td>Degradado en barras y en embudo</td><td>Relleno plano. El degradado se queda solo bajo línea y área.</td></tr>
+  </tbody>
+</table>
+
+<h3>Decidido</h3>
+<p>Se quedan las <b>dos métricas</b>, último valor y total. Por defecto, «último valor» en series
+temporales y «total» en categorías. Con «total», la comparación es contra el <b>periodo anterior
+de la misma longitud</b>, definido por <code>headline.window</code>; si no hay datos para esa
+ventana previa, no hay pastilla. Ver la sección 07.</p>
+
+<h3>Lo que queda por decidir</h3>
+<ol>
+  <li><strong>¿El modo de composición se elige o se deduce?</strong> Propongo deducirlo de la
+  proporción del hueco, con opción de forzarlo.</li>
+  <li><strong>Umbral de puntos.</strong> 40 es mi propuesta; por encima, línea limpia.</li>
+  <li><strong>Ventana por defecto cuando el eje es temporal.</strong> ¿<code>all</code> —y por
+  tanto sin delta en el modo total— o media serie? Me inclino por <code>all</code>: es más honesto
+  y el delta ya lo cubre la métrica «último valor».</li>
+</ol>
+
+<p class="nota" style="margin-top:36px">Borrador 4. Los especímenes se dibujan con un renderizador
+propio dentro del documento para que el selector de paletas funcione; la implementación real va
+sobre Recharts en <code>DataVisualizer</code>. Relacionado: <code>docs/dev/temas.html</code>.</p>
+
+</div>
+
+<script>
+/* Renderizador de especímenes. Sobrio a propósito: sin halos ni degradados
+   fuera de línea y área, para que lo que se ve aquí sea lo que se puede construir. */
+const PALETAS = {
+  'AmoxSQL':           ['#22d3ee','#a78bfa','#7dd3fc','#f0a868','#5eead4','#f472b6','#93c5fd','#fbbf24'],
+  'Sterling (oscuro)': ['#B69AF2','#5EC9AE','#E88BDD','#F2C46D','#86A8E8','#F29A88','#B7C974','#B7C8D1'],
+  'Sterling (claro)':  ['#9A79E7','#25A08D','#D45AC7','#E4A43A','#5A83D7','#E87864','#96AB51','#536B78'],
+  'Default':           ['#9b87f5','#f87171','#60a5fa','#fbbf24','#34d399','#f472b6','#a78bfa','#fb923c'],
+  'Dark2':             ['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666'],
+  'Set2':              ['#66c2a5','#fc8d62','#8da0cb','#e78ac3','#a6d854','#ffd92f','#e5c494','#b3b3b3'],
+  'Ocean':             ['#0077b6','#00b4d8','#48cae4','#90e0ef','#ade8f4','#caf0f8'],
+};
+const est = { paleta: 'AmoxSQL', modo: 'dark', dots: true };
+const col = i => PALETAS[est.paleta][i % PALETAS[est.paleta].length];
+
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const SERIE = [312,298,341,377,352,404,461,438,502,547,528,613];
+const NORTE = [128,121,140,152,146,168,190,181,205,224,217,251];
+const SUR   = [ 96, 92,104,118,108,124,141,134,153,167,161,188];
+const ESTE  = [ 88, 85, 97,107, 98,112,130,123,144,156,150,174];
+const REG   = [{n:'Norte',v:2023},{n:'Sur',v:1586},{n:'Este',v:1464},{n:'Oeste',v:1109}];
+
+const fmt = n => n>=1e6 ? (n/1e6).toFixed(1)+'M' : n>=1e3 ? (n/1e3).toFixed(1)+'k' : Math.round(n);
+const NS = 'http://www.w3.org/2000/svg';
+const E = (t,a={},k=[]) => { const e=document.createElementNS(NS,t);
+  for(const x in a) if(a[x]!=null) e.setAttribute(x,a[x]);
+  for(const c of [].concat(k)) if(c) e.appendChild(c); return e; };
+const TXT = t => document.createTextNode(t);
+
+const W=440, H=190, M={t:10,r:8,b:24,l:38};
+const iw=W-M.l-M.r, ih=H-M.t-M.b;
+const sy=(v,max)=>M.t+ih-(v/max)*ih;
+
+function ejes(g,max,cats,{pasos=4,catCada=2}={}){
+  for(let i=0;i<=pasos;i++){
+    const y=M.t+ih-(ih*i/pasos);
+    g.appendChild(E('line',{x1:M.l,x2:M.l+iw,y1:y,y2:y,stroke:'var(--grid)','stroke-dasharray':'1 4','stroke-linecap':'round'}));
+    g.appendChild(E('text',{x:M.l-8,y:y+3.5,'text-anchor':'end',fill:'var(--ink-3)','font-size':10.5,'font-family':'var(--mono)'},[TXT(fmt(max*i/pasos))]));
+  }
+  if(!cats) return;
+  const p=iw/cats.length;
+  cats.forEach((c,i)=>{ if(cats.length>7 && i%catCada) return;
+    g.appendChild(E('text',{x:M.l+p*(i+.5),y:H-7,'text-anchor':'middle',fill:'var(--ink-3)','font-size':10.5,'font-family':'var(--mono)'},[TXT(c)])); });
+}
+function degArea(defs,id,c){
+  const lg=E('linearGradient',{id,x1:0,y1:0,x2:0,y2:1});
+  lg.appendChild(E('stop',{offset:'0%','stop-color':c,'stop-opacity':'var(--fill-op)'}));
+  lg.appendChild(E('stop',{offset:'100%','stop-color':c,'stop-opacity':0}));
+  defs.appendChild(lg);
+}
+/* Punto hueco: relleno del color de la TARJETA, borde del color de la serie.
+   Es lo que la aplicación ya dibuja, y funciona. */
+const punto=(g,x,y,c)=>g.appendChild(E('circle',{cx:x,cy:y,r:3,fill:'var(--dot-fill)',stroke:c,'stroke-width':1.5}));
+
+let gid=0;
+const D = {
+ linea(svg,defs){
+   const max=Math.max(...SERIE)*1.12, p=iw/(SERIE.length-1);
+   const pts=SERIE.map((v,i)=>[M.l+p*i,sy(v,max)]);
+   ejes(svg,max,MESES);
+   const d=pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' ');
+   const id='ga'+(gid++); degArea(defs,id,col(0));
+   svg.appendChild(E('path',{d:d+` L${M.l+iw} ${M.t+ih} L${M.l} ${M.t+ih} Z`,fill:`url(#${id})`}));
+   svg.appendChild(E('path',{d,fill:'none',stroke:col(0),'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'}));
+   if(est.dots) pts.forEach(q=>punto(svg,q[0],q[1],col(0)));
+ },
+ multilinea(svg){
+   const todas=[NORTE,SUR,ESTE], max=Math.max(...todas.flat())*1.14, p=iw/11;
+   ejes(svg,max,MESES);
+   todas.forEach((s,k)=>{
+     const pts=s.map((v,i)=>[M.l+p*i,sy(v,max)]), pri=k===0;
+     svg.appendChild(E('path',{d:pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' '),
+       fill:'none',stroke:col(k),'stroke-width':pri?2:1.5,opacity:pri?1:.55,'stroke-linejoin':'round','stroke-linecap':'round'}));
+     if(pri&&est.dots) pts.forEach(q=>punto(svg,q[0],q[1],col(0)));
+   });
+ },
+ barras(svg,_d,{horizontal=false}={}){
+   const max=Math.max(...REG.map(r=>r.v))*1.1;
+   if(horizontal){
+     const alto=ih/REG.length, gr=alto*.52;
+     REG.forEach((r,i)=>{ const w=(r.v/max)*iw, y=M.t+alto*i+(alto-gr)/2;
+       svg.appendChild(E('rect',{x:M.l,y,width:Math.max(w,6),height:gr,rx:3,fill:col(i),opacity:i?.72:1}));
+       svg.appendChild(E('text',{x:M.l-8,y:y+gr/2+3.5,'text-anchor':'end',fill:'var(--ink-2)','font-size':10.5,'font-family':'var(--mono)'},[TXT(r.n)]));
+       svg.appendChild(E('text',{x:M.l+w+7,y:y+gr/2+3.5,fill:'var(--ink)','font-size':11,'font-family':'var(--mono)','font-weight':600},[TXT(fmt(r.v))]));});
+     return; }
+   ejes(svg,max,REG.map(r=>r.n),{catCada:1});
+   const p=iw/REG.length, gr=p*.46;
+   REG.forEach((r,i)=>{ const h=(r.v/max)*ih;
+     svg.appendChild(E('rect',{x:M.l+p*(i+.5)-gr/2,y:M.t+ih-h,width:gr,height:h,rx:3,fill:col(i),opacity:i?.72:1}));});
+ },
+ area(svg){
+   const capas=[ESTE,SUR,NORTE], tot=MESES.map((_,i)=>capas.reduce((a,c)=>a+c[i],0));
+   const max=Math.max(...tot)*1.1, p=iw/11;
+   ejes(svg,max,MESES);
+   let ac=new Array(12).fill(0);
+   capas.forEach((s,k)=>{ const ab=ac.slice(); ac=ac.map((a,i)=>a+s[i]);
+     const ar=ac.map((v,i)=>[M.l+p*i,sy(v,max)]), ba=ab.map((v,i)=>[M.l+p*i,sy(v,max)]).reverse();
+     svg.appendChild(E('path',{d:ar.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' ')
+       +ba.map(q=>' L'+q[0].toFixed(1)+' '+q[1].toFixed(1)).join('')+' Z',fill:col(k),opacity:.7}));});
+ },
+ combo(svg){
+   const max=Math.max(...SERIE)*1.15, p=iw/12, gr=p*.4;
+   ejes(svg,max,MESES);
+   SERIE.forEach((v,i)=>{ const h=(v*.6/max)*ih;
+     svg.appendChild(E('rect',{x:M.l+p*(i+.5)-gr/2,y:M.t+ih-h,width:gr,height:h,rx:2.5,fill:col(1),opacity:.55}));});
+   const pts=SERIE.map((v,i)=>[M.l+p*(i+.5),sy(v,max)]);
+   svg.appendChild(E('path',{d:pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' '),
+     fill:'none',stroke:col(0),'stroke-width':2,'stroke-linecap':'round'}));
+   if(est.dots) pts.forEach(q=>punto(svg,q[0],q[1],col(0)));
+ },
+ anillo(svg,_d,{hueco=.62}={}){
+   const cx=W/2, cy=M.t+ih/2, R=ih/2;
+   const total=REG.reduce((a,r)=>a+r.v,0); let a=-Math.PI/2;
+   REG.forEach((r,i)=>{ const b=a+(r.v/total)*Math.PI*2;
+     const P=(t,rr)=>[cx+Math.cos(t)*rr, cy+Math.sin(t)*rr];
+     const[x1,y1]=P(a,R),[x2,y2]=P(b,R),[x3,y3]=P(b,R*hueco),[x4,y4]=P(a,R*hueco);
+     const g=b-a>Math.PI?1:0;
+     svg.appendChild(E('path',{d:hueco?`M${x1} ${y1} A${R} ${R} 0 ${g} 1 ${x2} ${y2} L${x3} ${y3} A${R*hueco} ${R*hueco} 0 ${g} 0 ${x4} ${y4} Z`
+       :`M${cx} ${cy} L${x1} ${y1} A${R} ${R} 0 ${g} 1 ${x2} ${y2} Z`,
+       fill:col(i),stroke:'var(--card)','stroke-width':2,opacity:i?.75:1})); a=b; });
+   if(hueco){
+     svg.appendChild(E('text',{x:cx,y:cy+2,'text-anchor':'middle',fill:'var(--ink)','font-size':22,'font-weight':700,'font-family':'var(--sans)'},[TXT(fmt(total))]));
+     svg.appendChild(E('text',{x:cx,y:cy+18,'text-anchor':'middle',fill:'var(--ink-3)','font-size':9.5,'font-family':'var(--mono)','letter-spacing':'.1em'},[TXT('TOTAL')]));}
+ },
+ apiladas(svg,_d,{cien=false,horizontal=false}={}){
+   const capas=[NORTE,SUR,ESTE].map(s=>s.slice(0,6)), cats=MESES.slice(0,6);
+   const tot=cats.map((_,i)=>capas.reduce((a,c)=>a+c[i],0));
+   const max=cien?1:Math.max(...tot)*1.1;
+   if(!horizontal) ejes(svg,cien?100:max,cats,{catCada:1});
+   const p=(horizontal?ih:iw)/cats.length, gr=p*.55;
+   cats.forEach((c,i)=>{ let ac=0;
+     capas.forEach((s,k)=>{ const v=cien?s[i]/tot[i]:s[i], L=(v/max)*(horizontal?iw:ih);
+       if(horizontal){ const y=M.t+p*i+(p-gr)/2;
+         svg.appendChild(E('rect',{x:M.l+(ac/max)*iw,y,width:Math.max(L,2),height:gr,fill:col(k),opacity:k?.72:1}));}
+       else svg.appendChild(E('rect',{x:M.l+p*(i+.5)-gr/2,y:M.t+ih-(ac/max)*ih-L,width:gr,height:Math.max(L,2),fill:col(k),opacity:k?.72:1}));
+       ac+=v; });
+     if(horizontal) svg.appendChild(E('text',{x:M.l-8,y:M.t+p*i+p/2+3.5,'text-anchor':'end',fill:'var(--ink-3)','font-size':10.5,'font-family':'var(--mono)'},[TXT(c)]));});
+ },
+ treemap(svg){
+   const it=[...REG,{n:'Centro',v:640},{n:'Sureste',v:430},{n:'Golfo',v:300}];
+   let x=M.l,y=M.t,w=iw,h=ih,i=0;
+   for(const t of it){ const ult=i===it.length-1;
+     const f=t.v/it.slice(i).reduce((a,r)=>a+r.v,0), vert=w>h;
+     const cw=ult?w:(vert?w*f:w), ch=ult?h:(vert?h:h*f);
+     svg.appendChild(E('rect',{x:x+1,y:y+1,width:Math.max(cw-2,2),height:Math.max(ch-2,2),rx:3,fill:col(i),opacity:i?Math.max(.45,.8-i*.05):1}));
+     if(cw>52&&ch>24) svg.appendChild(E('text',{x:x+9,y:y+18,fill:'var(--card)','font-size':11,'font-weight':700,'font-family':'var(--sans)'},[TXT(t.n)]));
+     if(vert){x+=cw;w-=cw;}else{y+=ch;h-=ch;} i++; }
+ },
+ dispersion(svg,_d,{burbuja=false}={}){
+   let s=7; const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+   ejes(svg,100,null);
+   for(let i=0;i<32;i++){ const px=rnd(), py=Math.min(.95,px*.7+rnd()*.42);
+     svg.appendChild(E('circle',{cx:M.l+px*iw,cy:M.t+ih-py*ih,r:burbuja?3+rnd()*10:3.4,
+       fill:col(i%3),opacity:burbuja?.55:.85,stroke:'var(--card)','stroke-width':1}));}
+ },
+ matriz(svg){
+   const fs=['08','10','12','14','16','18'], cs=['L','M','X','J','V','S','D'];
+   const cw=iw/cs.length, ch=ih/fs.length;
+   let s=3; const rnd=()=>(s=(s*48271)%2147483647)/2147483647;
+   fs.forEach((f,r)=>cs.forEach((c,k)=>{ const v=Math.pow(rnd(),1.4);
+     svg.appendChild(E('rect',{x:M.l+cw*k+1,y:M.t+ch*r+1,width:cw-2,height:ch-2,rx:2.5,fill:col(0),opacity:.07+v*.85}));}));
+   cs.forEach((c,k)=>svg.appendChild(E('text',{x:M.l+cw*(k+.5),y:H-7,'text-anchor':'middle',fill:'var(--ink-3)','font-size':10.5,'font-family':'var(--mono)'},[TXT(c)])));
+   fs.forEach((f,r)=>svg.appendChild(E('text',{x:M.l-8,y:M.t+ch*(r+.5)+3.5,'text-anchor':'end',fill:'var(--ink-3)','font-size':10.5,'font-family':'var(--mono)'},[TXT(f)])));
+ },
+ embudo(svg){
+   const ps=[{n:'Visitas',v:48200},{n:'Registros',v:21400},{n:'Activados',v:12100},{n:'De pago',v:4630}];
+   const alto=ih/ps.length;
+   ps.forEach((p,i)=>{ const w=(p.v/ps[0].v)*iw, y=M.t+alto*i+2;
+     svg.appendChild(E('rect',{x:M.l+(iw-w)/2,y,width:w,height:alto-6,rx:3,fill:col(i),opacity:i?.75:1}));
+     svg.appendChild(E('text',{x:M.l+iw/2,y:y+(alto-6)/2+4,'text-anchor':'middle',fill:'var(--card)','font-size':11,'font-weight':700,'font-family':'var(--sans)'},[TXT(`${p.n} · ${fmt(p.v)}`)]));});
+ },
+ cascada(svg){
+   const ps=[{n:'Inicio',v:312,b:1},{n:'Nuevos',v:148},{n:'Upsell',v:96},{n:'Bajas',v:-74},{n:'Ajuste',v:-31},{n:'Final',v:451,b:1}];
+   const max=560;
+   ejes(svg,max,ps.map(p=>p.n),{catCada:1});
+   const p=iw/ps.length, gr=p*.5; let base=0;
+   ps.forEach((q,i)=>{ const eb=q.b, de=eb?0:base, a=eb?q.v:base+q.v;
+     const y0=sy(Math.max(de,a),max), y1=sy(Math.min(de,a),max);
+     svg.appendChild(E('rect',{x:M.l+p*(i+.5)-gr/2,y:y0,width:gr,height:Math.max(y1-y0,2),rx:2.5,
+       fill:eb?col(0):(q.v>0?'#17a673':'#d9484d'),opacity:eb?1:.85}));
+     if(i&&!eb) svg.appendChild(E('line',{x1:M.l+p*(i-.5)+gr/2,x2:M.l+p*(i+.5)-gr/2,y1:sy(de,max),y2:sy(de,max),
+       stroke:'var(--axis)','stroke-dasharray':'2 3'}));
+     base=eb?q.v:a; });
+ },
+};
+
+const R = {
+ line:{titulo:'El ingreso mensual cierra el año en máximos',sub:'Ene–Dic 2026 · MXN',kpi:'613k',delta:['+16.1 %','pos','+85k'],
+   dib:(s,d)=>D.linea(s,d),tk:'La serie rompe su máximo en diciembre tras la meseta de agosto.',
+   pie:'Máximo 613k · mínimo 298k · media 431k.',fuente:'ventas.parquet',
+   cambia:'Patrón completo. Una sola serie: sin leyenda. Eje de fechas: sin título de eje.'},
+ multiline:{titulo:'Solo Norte acelera en el último trimestre',sub:'Ene–Dic 2026 · por región',kpi:'251k',delta:['+96.1 %','pos','+123k'],
+   dib:(s,d)=>D.multilinea(s,d),leyenda:[['Norte',0],['Sur',1],['Este',2]],
+   tk:'Las tres regiones crecen, pero solo Norte cambia de pendiente al final.',fuente:'ventas.parquet',
+   cambia:'Aparece la leyenda. La protagonista conserva puntos y grosor; las demás los pierden.'},
+ area:{titulo:'El reparto entre regiones no se mueve',sub:'Ene–Dic 2026 · apilado',kpi:'613k',delta:['+96.5 %','pos','+301k'],
+   dib:s=>D.area(s),leyenda:[['Este',0],['Sur',1],['Norte',2]],
+   tk:'El total casi se duplica sin que cambie la composición.',fuente:'ventas.parquet',
+   cambia:'Sin puntos: con capas apiladas estorban. La leyenda pasa a ser obligatoria.'},
+ combo:{titulo:'El ticket medio está subiendo',sub:'Volumen e ingreso · 2026',kpi:'613k',delta:['+16.1 %','pos','+85k'],
+   dib:s=>D.combo(s),leyenda:[['Ingreso (línea)',0],['Volumen (barra)',1]],
+   tk:'El ingreso sube más rápido que el volumen.',fuente:'ventas.parquet',
+   cambia:'Dos codificaciones a la vez: la leyenda tiene que decir cuál es barra y cuál línea.'},
+ bar:{titulo:'Norte concentra un tercio de la venta',sub:'Acumulado 2026 · por región',kpi:'2 023k',delta:['+27.5 %','pos','vs media'],
+   dib:(s,d)=>D.barras(s,d),tk:'La distancia entre Norte y Oeste casi duplica el rango intermedio.',
+   fuente:'ventas.parquet',cambia:'Sin leyenda: las categorías ya están en el eje. Relleno plano, sin degradado.'},
+ barh:{titulo:'Las cuatro regiones, ordenadas',sub:'Acumulado 2026',kpi:'6 182k',delta:null,
+   dib:(s,d)=>D.barras(s,d,{horizontal:true}),tk:'Ordenado por magnitud, la comparación no necesita escala.',
+   fuente:'ventas.parquet',cambia:'Desaparecen rejilla y eje de valores: el número va al final de cada barra.'},
+ stacked:{titulo:'De qué se compone cada mes',sub:'Primer semestre 2026',kpi:'1 894k',delta:null,
+   dib:(s,d)=>D.apiladas(s,d),leyenda:[['Norte',0],['Sur',1],['Este',2]],
+   tk:'El apilado responde «de qué se compone», no «cuál es mayor».',fuente:'ventas.parquet',
+   cambia:'Leyenda obligatoria. El KPI pasa a ser el total acumulado, no el último valor.'},
+ stacked100:{titulo:'La mezcla se mantiene estable',sub:'Primer semestre · % del total',kpi:'41 %',delta:['−0.4 pp','neg','Norte'],
+   dib:(s,d)=>D.apiladas(s,d,{cien:true}),leyenda:[['Norte',0],['Sur',1],['Este',2]],
+   tk:'Al normalizar se ve lo que el apilado absoluto escondía.',fuente:'ventas.parquet',
+   cambia:'El eje pasa a porcentaje y el KPI también: el formato numérico cambia para toda la figura.'},
+ hstacked:{titulo:'Reparto por mes, en horizontal',sub:'Primer semestre 2026',kpi:'1 894k',delta:null,
+   dib:(s,d)=>D.apiladas(s,d,{horizontal:true}),leyenda:[['Norte',0],['Sur',1],['Este',2]],
+   tk:'En horizontal las etiquetas largas caben sin girar el texto.',fuente:'ventas.parquet',
+   cambia:'Las categorías se van al lado izquierdo y la rejilla desaparece.'},
+ donut:{titulo:'Dos regiones suman el 58 %',sub:'Acumulado 2026',kpi:null,delta:null,
+   dib:(s,d)=>D.anillo(s,d),leyenda:REG.map((r,i)=>[r.n,i]),
+   tk:'Norte y Sur concentran más de la mitad del total.',fuente:'ventas.parquet',
+   cambia:'El KPI se muda al centro del anillo: repetirlo arriba sobra. Leyenda obligatoria.'},
+ pie:{titulo:'El reparto completo',sub:'Acumulado 2026',kpi:'6 182k',delta:null,
+   dib:(s,d)=>D.anillo(s,d,{hueco:0}),leyenda:REG.map((r,i)=>[r.n,i]),
+   tk:'Solo con cuatro categorías o menos, y siempre ordenada.',fuente:'ventas.parquet',
+   cambia:'Sin hueco no hay dónde poner el total: el KPI vuelve a la cabecera.'},
+ treemap:{titulo:'Siete zonas, muy desiguales',sub:'Acumulado 2026',kpi:'7',delta:null,
+   dib:s=>D.treemap(s),tk:'El área codifica la magnitud: útil con muchas categorías desiguales.',
+   fuente:'ventas.parquet',cambia:'Sin ejes ni rejilla. Las etiquetas van dentro y la leyenda sobra.'},
+ scatter:{titulo:'Quien compra más veces gasta más por compra',sub:'2 340 clientes · 2026',kpi:'0.78',delta:['Pearson','pos','n = 2 340'],
+   dib:(s,d)=>D.dispersion(s,d),tk:'La relación es fuerte y positiva en todo el rango.',fuente:'clientes.csv',
+   cambia:'Aquí los títulos de eje SÍ hacen falta: ninguna de las dos variables se deduce sola.'},
+ bubble:{titulo:'Tres variables sin un tercer eje',sub:'34 segmentos · 2026',kpi:'34',delta:null,
+   dib:(s,d)=>D.dispersion(s,d,{burbuja:true}),tk:'El tamaño añade el volumen sin añadir un eje.',
+   pie:'El área del círculo codifica el volumen de pedidos.',fuente:'clientes.csv',
+   cambia:'Necesita decir qué codifica el tamaño. Va en la nota al pie, no en la leyenda.'},
+ heatmap:{titulo:'La actividad se concentra a media tarde',sub:'Por hora y día · última semana',kpi:'14 h',delta:['jueves','pos','pico'],
+   dib:s=>D.matriz(s),tk:'Miércoles a viernes, entre las 12 y las 16, concentran la mitad de los eventos.',
+   fuente:'eventos.parquet',cambia:'La leyenda de series se sustituye por una escala de color continua.'},
+ funnel:{titulo:'La fuga sigue estando en el registro',sub:'Trimestre en curso',kpi:'9.6 %',delta:['−1.2 pp','neg','vs trim. anterior'],
+   dib:s=>D.embudo(s),tk:'Entre visita y registro se pierde el 56 %: más que en el resto del embudo junto.',
+   fuente:'eventos.parquet',cambia:'Sin ejes ni rejilla. Etiquetas y caída van dentro de cada banda.'},
+ waterfall:{titulo:'El crecimiento viene de clientes nuevos',sub:'Puente de ingreso · 2026',kpi:'451k',delta:['+44.6 %','pos','+139k'],
+   dib:s=>D.cascada(s),tk:'Las bajas se comen un tercio del alta, pero el neto sigue siendo positivo.',
+   fuente:'ventas.parquet',cambia:'El color deja de venir de la paleta: verde suma, rojo resta, acento para los totales.'},
+};
+const ORDEN=['line','multiline','area','combo','bar','barh','stacked','stacked100','hstacked',
+             'donut','pie','treemap','scatter','bubble','heatmap','funnel','waterfall'];
+
+function bloques(r){
+  return {
+    titulo:`<h4 class="t-titulo">${r.titulo}<i>.</i></h4>`,
+    sub:r.sub?`<p class="t-sub">${r.sub}</p>`:'',
+    kpi:r.kpi?`<div class="t-kpi"><b>${r.kpi}</b>${r.delta?
+      `<span class="t-delta ${r.delta[1]}">${r.delta[1]==='pos'?'▲':'▼'} ${r.delta[0]} <u>${r.delta[2]}</u></span>`:''}</div>`:'',
+    ley:r.leyenda?`<div class="t-leyenda">${r.leyenda.map(([n,i])=>`<span><i style="background:${col(i)}"></i>${n}</span>`).join('')}</div>`:'',
+    tk:r.tk?`<div class="t-takeaway">${r.tk}</div>`:'',
+    pie:r.pie?`<div class="t-pie-nota">${r.pie}</div>`:'',
+    firma:`<div class="t-firma"><span><b>Fuente:</b> ${r.fuente}</span><span>Made with AmoxSQL</span></div>`,
+  };
+}
+function plot(r){
+  const c=document.createElement('div'); c.className='t-plot';
+  const svg=E('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+  const defs=E('defs'); svg.appendChild(defs);
+  r.dib(svg,defs); c.appendChild(svg); return c;
+}
+const html=s=>{const d=document.createElement('div');d.innerHTML=s;return d.firstElementChild;};
+
+function pintarTarjeta(nodo,clave,comp='apilado'){
+  const r=R[clave]; if(!r) return;
+  const b=bloques(r); nodo.innerHTML='';
+  if(comp==='lateral'){
+    nodo.appendChild(html(`<div class="zona-texto">${b.titulo}${b.sub}${b.kpi}${b.tk}${b.firma}</div>`));
+    const der=html(`<div class="zona-lienzo">${b.ley||'<span></span>'}</div>`);
+    der.appendChild(plot(r)); nodo.appendChild(der); return;
+  }
+  if(comp==='cabecera'){
+    nodo.appendChild(html(`<div class="fila-cabecera"><div>${b.titulo}${b.sub}</div><div>${b.kpi}</div></div>`));
+    if(b.ley) nodo.appendChild(html(b.ley));
+    nodo.appendChild(plot(r));
+    if(b.tk) nodo.appendChild(html(b.tk));
+    nodo.appendChild(html(b.firma)); return;
+  }
+  [b.titulo,b.sub,b.kpi,b.ley].forEach(s=>{ if(s) nodo.appendChild(html(s)); });
+  nodo.appendChild(plot(r));
+  [b.tk,b.pie,b.firma].forEach(s=>{ if(s) nodo.appendChild(html(s)); });
+}
+
+function pintarSpecs(){
+  const cont=document.getElementById('specs'); cont.innerHTML='';
+  ORDEN.forEach(k=>{
+    const caja=document.createElement('div');
+    caja.innerHTML=`<div class="spec-cab"><b>${k}</b><span>${R[k].cambia}</span></div>`;
+    const t=document.createElement('div'); t.className='tarjeta';
+    caja.appendChild(t); cont.appendChild(caja); pintarTarjeta(t,k);
+  });
+}
+
+const FORMATOS=[
+  {n:'Panel del IDE',d:'variable',ar:'16/10',comp:'apilado',quita:'nada',esc:'1.0'},
+  {n:'PowerPoint 16:9',d:'1920×1080',ar:'16/9',comp:'lateral',quita:'nota al pie',esc:'1.6'},
+  {n:'PowerPoint 4:3',d:'1440×1080',ar:'4/3',comp:'apilado',quita:'nota al pie',esc:'1.5'},
+  {n:'Cuadrado 1:1',d:'1080×1080',ar:'1/1',comp:'apilado',quita:'nota al pie · fuente',esc:'1.4'},
+  {n:'Historia 9:16',d:'1080×1920',ar:'9/16',comp:'apilado',quita:'nota al pie · fuente · subtítulo',esc:'1.8'},
+  {n:'Banner ancho',d:'1200×628',ar:'1200/628',comp:'lateral',quita:'nota al pie · conclusión',esc:'1.3'},
+];
+function pintarFormatos(){
+  const cont=document.getElementById('formatos'); cont.innerHTML='';
+  FORMATOS.forEach(f=>{
+    const lateral=f.comp==='lateral';
+    const z = lateral
+      ? [['zon-t','5%','7%','38%','10%'],['zon-t','5%','20%','28%','5%'],['zon-k','5%','30%','24%','13%'],
+         ['zon-s','5%','66%','38%','14%'],['zon-p','50%','9%','45%','78%']]
+      : [['zon-t','5%','5%','74%','8%'],['zon-t','5%','15%','46%','5%'],['zon-k','5%','23%','32%','11%'],
+         ['zon-p','5%','38%','90%','40%'],['zon-s','5%','82%','70%','12%']];
+    const caja=document.createElement('div');
+    caja.innerHTML=`<div class="formato-cab"><b>${f.n}</b><u>${f.d}</u></div>
+      <div class="marco"><div class="lienzo-fmt" style="aspect-ratio:${f.ar}">
+      ${z.map(([c,l,t,w,h])=>`<div class="zon ${c}" style="left:${l};top:${t};width:${w};height:${h}"></div>`).join('')}
+      </div></div>
+      <div class="fmt-nota"><b style="color:var(--ink-2)">${f.comp}</b> · retira: ${f.quita} · tipografía ×${f.esc}</div>`;
+    cont.appendChild(caja);
+  });
+}
+
+function pintarTodo(){
+  gid=0;
+  pintarTarjeta(document.getElementById('tarjeta-anatomia'),'line');
+  pintarSpecs();
+  document.querySelectorAll('[data-comp]').forEach(n=>pintarTarjeta(n,'multiline',n.dataset.comp));
+  pintarFormatos();
+  document.getElementById('tiras').innerHTML=PALETAS[est.paleta].slice(0,8).map(c=>`<i style="background:${c}"></i>`).join('');
+}
+
+const selP=document.getElementById('sel-paleta');
+selP.innerHTML=Object.keys(PALETAS).map(k=>`<option${k===est.paleta?' selected':''}>${k}</option>`).join('');
+selP.addEventListener('change',e=>{est.paleta=e.target.value;pintarTodo();});
+const bM=document.getElementById('btn-modo');
+bM.addEventListener('click',()=>{ est.modo=est.modo==='dark'?'light':'dark';
+  document.documentElement.dataset.mode=est.modo;
+  bM.textContent=est.modo==='dark'?'Oscuro':'Claro';
+  bM.setAttribute('aria-pressed',est.modo==='dark'); pintarTodo(); });
+const bD=document.getElementById('btn-dots');
+bD.addEventListener('click',()=>{ est.dots=!est.dots;
+  bD.textContent=est.dots?'Visibles':'Ocultos';
+  bD.setAttribute('aria-pressed',est.dots); pintarTodo(); });
+
+document.documentElement.dataset.mode=est.modo;
+pintarTodo();
+</script>
+</body>
+</html>

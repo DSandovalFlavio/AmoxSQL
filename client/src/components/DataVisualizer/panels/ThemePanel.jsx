@@ -35,7 +35,12 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
         fontFamily, textScale, seriesConfig, chartType, axisLabelOpacity = 0.8,
         fillStyle = 'gradient', cardStyle = {} } = state;
 
-    const isDonut = chartType === 'donut';
+    /* La tarta comparte renderizador con el anillo, así que sus controles de
+       ETIQUETA le aplican igual. Solo el grosor y la cifra del centro son del
+       anillo: una tarta no tiene hueco donde ponerlos. */
+    const esCircular = chartType === 'donut' || chartType === 'pie';
+    const isDonut = esCircular;                  // etiquetas, segmentos, colores por categoría
+    const soloAnillo = chartType === 'donut';    // grosor y cifra del centro
 
     // Group palettes by category for display
     const paletteGroups = [

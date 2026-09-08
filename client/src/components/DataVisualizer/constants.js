@@ -183,6 +183,18 @@ export const CHART_TYPES = [
     { key: 'waterfall', label: 'Waterfall', category: 'flow', description: 'Cumulative bridge' },
 ];
 
+/**
+ * ¿Este tipo de gráfico tiene ejes cartesianos?
+ *
+ * Se usa para no ofrecer controles que no hacen nada. Antes cada panel decidía
+ * por su cuenta con `!isDonut`, así que la tarta, el treemap, el embudo y el
+ * mapa de calor — que tampoco tienen ejes — seguían enseñando rejilla, escala
+ * logarítmica y títulos de eje. Opciones presentes que no aplican son peor que
+ * opciones ausentes: se tocan, no pasa nada, y uno cree que algo está roto.
+ */
+const SIN_EJES = new Set(['donut', 'pie', 'treemap', 'funnel', 'heatmap']);
+export const tieneEjes = (chartType) => !SIN_EJES.has(chartType);
+
 export const CHART_CATEGORIES = [
     { key: 'compare', label: 'Compare' },
     { key: 'trend', label: 'Trend' },
@@ -192,6 +204,60 @@ export const CHART_CATEGORIES = [
 ];
 
 // ─── Export Presets ───────────────────────────────────────────
+/* ─── Modos de composición de la tarjeta ───────────────────────
+   La misma figura repartida de tres maneras según la forma del hueco. Es lo que
+   permite que algo pensado para un panel vertical funcione en una diapositiva
+   apaisada sin que el lienzo se quede sin alto. */
+export const LAYOUT_MODES = [
+    { value: 'stacked', label: 'Apilado', desc: 'Todo en columna. Es el modo normal.' },
+    { value: 'side',    label: 'Lateral', desc: 'Texto a un lado y gráfico al otro. Para huecos muy anchos.' },
+    { value: 'auto',    label: 'Automático', desc: 'Cambia según la forma del hueco. Se reorganiza solo al redimensionar.' },
+];
+/* 'split-header' ya no está en la lista: era "el KPI a la derecha del título", y
+   eso ahora es una opción del propio KPI (headline.position). El valor se sigue
+   aceptando para no romper los .amoxvis guardados con él. */
+
+/**
+ * Con 'auto', el modo sale de la proporción del hueco. Es la ÚNICA fuente: al
+ * exportar, la tarjeta se re-maqueta a la proporción de destino y esta función
+ * elige sola, así que los presets no necesitan declarar su maqueta (y un campo
+ * que nadie lee es peor que no tenerlo).
+ *
+ * Dónde caen los formatos con estos cortes:
+ *   16:9 (1.78) y banner (1.91) → lateral
+ *   4:3 (1.33), 1:1 y 9:16      → apilado
+ *   panel del IDE, típicamente 1.4–1.7 → cabecera partida
+ *
+ * Un modo elegido a mano siempre gana, también al exportar.
+ */
+export const resolveLayout = (mode, width, height) => {
+    if (mode && mode !== 'auto') return mode;
+    if (!width || !height) return 'stacked';
+    const r = width / height;
+    if (r >= 1.75) return 'side';
+    if (r >= 1.40) return 'split-header';
+    return 'stacked';
+};
+
+/* Antes la exportación capturaba la pantalla tal cual y la encajaba en el lienzo
+   de destino preservando proporción: o sea, con bandas. Un 9:16 salía apaisado
+   con dos franjas de fondo. Ahora la figura se re-maqueta a la proporción de
+   destino antes de capturarla, y resolveLayout() elige el reparto solo — por eso
+   aquí solo hacen falta las medidas. */
+/* El lienzo de trabajo: la PROPORCIÓN a la que se dibuja la figura en el editor.
+   Antes la tarjeta se estiraba para llenar el hueco, así que la misma figura
+   salía distinta según si el explorador de archivos estaba abierto o cerrado, y
+   lo exportado no era lo que se veía. Ahora la tarjeta tiene su forma y lo que
+   sobra, sobra: lo que ves es lo que se descarga. */
+export const CANVAS_SIZES = [
+    { label: '4:3',    w: 4,    h: 3   },
+    { label: '16:9',   w: 16,   h: 9   },
+    { label: '1:1',    w: 1,    h: 1   },
+    { label: '9:16',   w: 9,    h: 16  },
+    { label: 'Banner', w: 1200, h: 628 },
+    { label: 'Libre',  w: 0,    h: 0   },   // como antes: ocupa todo el hueco
+];
+
 export const EXPORT_PRESETS = [
     { label: 'PowerPoint 16:9', width: 1920, height: 1080 },
     { label: 'PowerPoint 4:3', width: 1440, height: 1080 },
@@ -260,18 +326,32 @@ export const DEFAULT_CONFIG = {
     tooltipShowPercent: false,
     tooltipMode: 'standard', // 'standard' | 'rich'
 
+    /* ═══ LA TARJETA, DE FÁBRICA ═══
+       Los valores de abajo hacen que un gráfico RECIÉN CREADO salga ya con la
+       cara del contrato (docs/dev/sistema_graficos.html) sin tocar un panel:
+       tarjeta con filete y esquinas redondeadas, título con su punto, cifra,
+       leyenda tejida, rejilla punteada sin ejes, y el pie con la firma.
+
+       Cambiar estos valores NO toca los .amoxvis que ya existen: al guardar se
+       escribe el estado completo, así que un archivo guardado trae todas sus
+       claves y gana sobre el defecto. Solo cambia lo que nazca a partir de ahora.
+
+       Y sigue siendo todo ajustable: es un punto de partida, no una jaula. */
+
     // Colors & Theme
     colorTheme: 'default',
     backgroundTone: 'default',
     customBgColor: '',
-    borderStyle: 'none',
+    borderStyle: 'subtle',   // filete de 1 px: la tarjeta se lee como objeto
     borderColor: '',
-    fontFamily: 'system',
+    fontFamily: 'manrope',   // la fuente de la aplicación, para que hablen igual
     textScale: 1,
 
     // Fill & card styling
     fillStyle: 'gradient', // 'gradient' | 'solid' (area/line fill)
-    cardStyle: { shadow: false, radius: 8, gradient: false, gradientFrom: '#1e1f29', gradientTo: '#0f1015' },
+    /* radius 12 y no 8: la figura se lee como algo exportable, no como un panel
+       más del IDE. La sombra es lo que la despega del fondo. */
+    cardStyle: { shadow: true, radius: 12, gradient: false, gradientFrom: '#1e1f29', gradientTo: '#0f1015' },
 
     // Number format
     numberFormat: 'compact',
@@ -279,7 +359,9 @@ export const DEFAULT_CONFIG = {
 
     // Grid & Axes
     gridMode: 'horizontal',
-    showAxisLines: true,
+    /* Sin lineas de eje: con la rejilla horizontal puesta, el eje solo anade
+       dos lados de una caja que no hace falta. Las etiquetas flotan. */
+    showAxisLines: false,
     axisLabelOpacity: 0.8, // "Label Intensity" — ticks + axis titles + legend, over --text-primary (mode-aware). 0.2–1
     axisLabelSize: 11,     // axis tick label font size (px)
     axisLabelGap: 5,       // gap between tick labels and the axis (tickMargin)
@@ -287,20 +369,27 @@ export const DEFAULT_CONFIG = {
     yLogScale: false,
     yAxisDomain: ['auto', 'auto'],
     rightYAxisDomain: ['auto', 'auto'],
-    showXAxisTitle: true,
-    showYAxisTitle: true,
+    /* Sin títulos de eje. En una serie de fechas, «mes» debajo de las fechas no
+       añade nada, y casi siempre la unidad se deduce del título o de las propias
+       etiquetas. Donde SÍ hacen falta — dispersión y burbujas, con dos variables
+       que no se deducen solas — se encienden a mano. */
+    showXAxisTitle: false,
+    showYAxisTitle: false,
     customAxisTitles: { x: '', y: '' },
     xAxisLabelAngle: 0,
 
     // Line specific
     lineType: 'monotone',
-    lineAreaFill: false,
-    showDots: false,
+    lineAreaFill: true,   // el degradado bajo la línea, discreto
+    /* Los puntos vuelven por defecto: con el umbral de MAX_PUNTOS en el
+       renderizador ya no ensucian las series largas, y en las cortas son lo que
+       deja ver donde cae cada dato. */
+    showDots: true,
     isCumulative: false,
 
     // Bar specific
     barStackMode: 'none',
-    barRadius: 4,
+    barRadius: 3,
     barColorMode: 'series',
 
     // Donut specific
@@ -308,7 +397,10 @@ export const DEFAULT_CONFIG = {
     donutLabelContent: 'name_percent',
     donutLabelPosition: 'outside',
     donutGroupingThreshold: 0,
-    donutCenterKpi: 'none',
+    /* El total, en el centro del anillo. Es el sitio donde la cifra no compite
+       con nada y donde el hueco del donut deja de ser un agujero. Con esto, la
+       cifra de la cabecera se omite en donut: repetirla arriba sobra. */
+    donutCenterKpi: 'total',
 
     // Scatter specific
     scatterQuadrants: false,
@@ -322,8 +414,9 @@ export const DEFAULT_CONFIG = {
     // Series colors/styles
     seriesConfig: {},
 
-    // Legend
-    legendPosition: 'bottom',
+    /* Leyenda TEJIDA, no en caja aparte: va en la línea del subtítulo, con los
+       colores gemelos de texto para que se lea como texto y no como mancha. */
+    legendPosition: 'inline',
 
     // Storytelling
     chartTitle: '',
@@ -336,8 +429,8 @@ export const DEFAULT_CONFIG = {
     // source line, a portable signature, and a QED-like title mark keep charts
     // publication-ready. All off/empty by default — nothing changes until used.
     chartSource: '',                          // "Source: X" caption at the foot
-    signature: { visible: false, author: '' }, // "Made with AmoxSQL" / "by X"
-    titleMark: false,                          // QED-like period after the title
+    signature: { visible: true, author: '' },  // "Made with AmoxSQL" / "by X"
+    titleMark: true,                           // el punto de acento tras el titulo
 
     // Reference elements
     refLine: { value: '', label: '', color: '#ff4444', style: 'dashed' },
@@ -354,7 +447,28 @@ export const DEFAULT_CONFIG = {
     trendLine: { type: 'none', color: '#fbbf24', windowSize: 3 }, // none, linear, moving-average
 
     // Headline number
-    headline: { visible: false, metric: 'total', compareWith: 'none', size: 'auto', customSize: 28 },
+    /* metric 'last' + compareWith 'previous': en una serie temporal la pregunta
+       suele ser "como vamos respecto al periodo anterior", y ese par SI es
+       comparable. Con 'total' hace falta ademas una `window` (N ultimos puntos)
+       para que exista un periodo anterior contra el que medir; con 'all' no lo
+       hay y computeHeadline omite la pastilla en vez de inventarsela.
+       `visible` se queda en false: encenderlo haria aparecer un numero grande
+       en todos los graficos que ya existen, y eso lo decide el usuario. */
+    /* `position` dice DÓNDE cae la cifra, y es una elección tuya, no algo que
+       decida la maqueta: 'below' debajo del subtítulo (por defecto) o
+       'header-right' a la derecha del título, en su misma línea. */
+    headline: { visible: true, metric: 'last', compareWith: 'previous', window: 'all', position: 'below', size: 'auto', customSize: 28 },
+
+    // Composición de la tarjeta
+    /* Apilado por defecto, y no 'auto'. Con auto la tarjeta se reorganizaba sola
+       al cambiar el ancho del panel y el KPI saltaba de sitio mientras trabajabas:
+       desconcertante y sin ganancia. Los otros modos siguen disponibles, pero se
+       eligen a mano. */
+    layout: 'stacked',
+    /* La proporción del lienzo en el editor. 4:3 por defecto: es la forma en la
+       que la figura se lee bien y la que menos desentona con el resto de la
+       interfaz. 'Libre' recupera el comportamiento de ocupar todo el hueco. */
+    canvasSize: '4:3',
 
     // Margins & Spacing
     marginTop: 20,

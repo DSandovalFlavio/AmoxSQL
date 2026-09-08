@@ -10,7 +10,12 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
     const { chartType, xAxisKey, yAxisKeys, rightYAxisKey, splitByKey, bubbleSizeKey,
         dateAggregation, sortMode, limit } = state;
 
-    const isDonut = chartType === 'donut';
+    /* La tarta comparte renderizador con el anillo, así que sus controles de
+       ETIQUETA le aplican igual. Solo el grosor y la cifra del centro son del
+       anillo: una tarta no tiene hueco donde ponerlos. */
+    const esCircular = chartType === 'donut' || chartType === 'pie';
+    const isDonut = esCircular;                  // etiquetas, segmentos, colores por categoría
+    const soloAnillo = chartType === 'donut';    // grosor y cifra del centro
     const isScatter = chartType === 'scatter' || chartType === 'bubble';
     const isHorizontal = chartType.startsWith('bar-horizontal');
 

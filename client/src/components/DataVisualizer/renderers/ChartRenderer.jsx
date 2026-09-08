@@ -31,9 +31,17 @@ const CustomizedDot = (props) => {
         );
     }
 
-    if (!props.showDots) return null;
+    // Con muchos puntos la serie deja de leerse como linea y pasa a ser una
+    // fila de aros pegados. Por encima del umbral se ocultan aunque showDots
+    // este activo: es el mismo dato, mejor dibujado.
+    if (!props.showDots || props.tooManyPoints) return null;
+    // Las series que acompanan no llevan punto: el punto es de la protagonista.
+    if (props.muted) return null;
     return <circle cx={cx} cy={cy} r={3} stroke={stroke} strokeWidth={2} fill="var(--surface-base)" />;
 };
+
+/** Por encima de esto los puntos estorban mas de lo que ayudan. */
+const MAX_PUNTOS = 40;
 
 // ─── Main Renderer ───────────────────────────────────────────
 const ChartRenderer = memo(({
@@ -90,8 +98,38 @@ const ChartRenderer = memo(({
     // ── Axis labels ──
     const defaultXLabel = chartType === 'donut' ? (xAxisKey || 'Segment') : (xAxisKey || '');
     const defaultYLabel = chartType === 'donut' ? (yAxisKeys[0] || 'Size') : (yAxisKeys.join(', ') || '');
-    const XLabel = showXAxisTitle ? (customAxisTitles.x || defaultXLabel) : '';
-    const YLabel = showYAxisTitle ? (customAxisTitles.y || defaultYLabel) : '';
+    // Un titulo "mes" debajo de una fila de fechas no anade nada: las etiquetas
+    // ya dicen que es. El titulo de eje se reserva para cuando la unidad NO se
+    // deduce mirando las etiquetas. Un titulo escrito a mano siempre gana.
+    //
+    // La EXCEPCION son dispersion y burbujas: ahi los dos ejes son variables
+    // distintas y ninguna se deduce sola, asi que el titulo hace falta aunque
+    // este apagado en la configuracion. Apagarlos por defecto sin esta excepcion
+    // dejaba esos dos graficos sin decir que miden.
+    // isDateCol es un BOOLEANO, no una función: DataVisualizer ya evaluó
+    // isDateColumn(data, xAxisKey) antes de pasarlo. Llamarlo como función
+    // lanzaba "isDateCol is not a function" en cuanto el eje X era una fecha, y
+    // como no hay frontera de error, React desmontaba y la pantalla se quedaba
+    // en negro. Solo se veía en gráficos con eje temporal.
+    const ejeXEsFecha = !!isDateCol;
+    const necesitaTitulos = chartType === 'scatter' || chartType === 'bubble';
+    const mostrarTituloX = necesitaTitulos || (showXAxisTitle && (customAxisTitles.x || !ejeXEsFecha));
+    const XLabel = mostrarTituloX ? (customAxisTitles.x || defaultXLabel) : '';
+    const YLabel = (necesitaTitulos || showYAxisTitle) ? (customAxisTitles.y || defaultYLabel) : '';
+
+    /* Jerarquia entre series: con mas de una, la PRIMERA manda — grosor y
+       opacidad plenos y con puntos — y las demas acompanan. Sin esto todas
+       pesan igual y el grafico deja de decir nada; con esto es una frase.
+       Solo en linea y area: en barras el color y la posicion ya separan.
+       Si el usuario ha tocado el color de una serie, se respeta y no se apaga
+       ninguna: ha decidido el a mano. */
+    const hayColoresAMano = Object.values(seriesConfig || {}).some(c => c && c.color);
+    // 'area' apila por definicion (isStacked mas abajo lo deriva igual), y en un
+    // apilado atenuar una capa la rompe: quedaria un hueco. Solo linea.
+    const jerarquiaActiva = !hayColoresAMano
+        && (finalSeriesKeys?.length || 0) > 1 && chartType === 'line';
+    const serieApagada = (i) => jerarquiaActiva && i > 0;
+    const demasiadosPuntos = processedData.length > MAX_PUNTOS;
 
     // ── Theme & Scale ──
     const fontSize = Math.round(11 * textScale);
@@ -564,12 +602,15 @@ const ChartRenderer = memo(({
                             return (
                                 <SeriesComp
                                     key={key || index} yAxisId={key === rightYAxisKey ? 'right' : 'left'}
-                                    type={lineType} dataKey={key} stroke={color} strokeWidth={2}
+                                    type={lineType} dataKey={key} stroke={color}
+                                    strokeWidth={serieApagada(index) ? 1.5 : 2}
+                                    strokeOpacity={serieApagada(index) ? 0.55 : 1}
                                     strokeDasharray={dash}
                                     fill={(lineAreaFill || chartType === 'area') ? (fillStyle === 'solid' ? color : `url(#amoxAreaGrad-${uid}-${index})`) : 'transparent'}
                                     fillOpacity={(lineAreaFill || chartType === 'area') && fillStyle === 'solid' ? 0.25 : 1}
                                     stackId={isStacked ? 'stack' : undefined}
                                     dot={<CustomizedDot dataKey={key} showDots={showDots}
+                                        tooManyPoints={demasiadosPuntos} muted={serieApagada(index)}
                                         highlightType={highlightConfig.type} highlightVal={hlVal}
                                         highlightColor={highlightConfig.color || '#ff0000'}
                                         xAxisKey={xAxisKey} />}
@@ -1036,22 +1077,31 @@ const ChartRenderer = memo(({
                     <g>
                         <rect x={x} y={y} width={width} height={height} 
                               style={{ fill: fill || 'var(--accent-primary)', stroke: 'var(--surface-overlay)', strokeWidth: 1.5 }} />
-                        {showLabels && width > 40 && height > 30 && (
-                            <>
-                                <text x={x + width / 2} y={y + height / 2 - (height > 40 ? 6 : 0)} 
-                                      textAnchor="middle" fill={textColor} fontSize={fontSize} fontWeight="600"
-                                >
-                                    {name?.length > 15 && width < 100 ? name.substring(0, 12) + '...' : name}
-                                </text>
-                                {height > 40 && (
-                                    <text x={x + width / 2} y={y + height / 2 + 10} 
-                                          textAnchor="middle" fill={textColor} fontSize={fontSize - 1} opacity={0.8}
-                                    >
-                                        {fmt(value)}
+                        {/* Etiqueta ARRIBA A LA IZQUIERDA, no centrada. Centrada, en
+                            un mosaico grande la etiqueta queda flotando en medio de
+                            la nada y choca con la de al lado en los estrechos;
+                            anclada a la esquina siempre se sabe de qué baldosa es.
+                            El tamaño crece con la baldosa (entre 11 y 17 px) porque
+                            un tamaño fijo se vuelve ilegible al exportar a 1920. */}
+                        {showLabels && width > 46 && height > 26 && (() => {
+                            const tam = Math.max(11, Math.min(17, Math.round(Math.min(width, height) / 9)));
+                            const cabe = name?.length > 15 && width < 110
+                                ? name.substring(0, 12) + '…' : name;
+                            return (
+                                <>
+                                    <text x={x + 9} y={y + tam + 6}
+                                          fill={textColor} fontSize={tam} fontWeight="700">
+                                        {cabe}
                                     </text>
-                                )}
-                            </>
-                        )}
+                                    {height > 44 && (
+                                        <text x={x + 9} y={y + tam * 2 + 9}
+                                              fill={textColor} fontSize={tam - 2} opacity={0.75}>
+                                            {fmt(value)}
+                                        </text>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </g>
                 );
             };
