@@ -8,21 +8,74 @@
     color: var(--text-color, #E8E9EA);
 }
 
+/* Hace de barra de ventana: la ventana es sin marco, así que esta franja es la
+   que se arrastra. Los botones recuperan el clic con no-drag. */
 .popout-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 16px;
+    gap: 12px;
+    padding: 0 0 0 14px;
+    height: 38px;
     background-color: var(--panel-bg, #1A1B1E);
     border-bottom: 1px solid var(--border-color, #2D2E32);
     flex-shrink: 0;
+    -webkit-app-region: drag;
+}
+
+.popout-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Mientras se esperan los datos aún no hay cabecera; sin esto la ventana sin
+   marco no se podría mover. */
+.popout-loading--drag { -webkit-app-region: drag; }
+
+.popout-header .window-controls {
+    display: flex;
+    align-items: center;
+    -webkit-app-region: no-drag;
+}
+
+.popout-header .control-btn {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 38px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted, #8B8D91);
+    cursor: pointer;
+}
+
+.popout-header .control-btn:hover {
+    background: var(--hover-bg, rgba(255, 255, 255, 0.07));
+    color: var(--text-active, #E8E9EA);
+}
+
+.popout-header .control-btn.close:hover {
+    background: #e81123;
+    color: #fff;
 }
 
 .popout-title {
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-active, #E8E9EA);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
+
+.popout-title > svg { color: var(--accent-color-user); flex: none; }
 
 .popout-badge {
     font-size: 11px;

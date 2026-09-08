@@ -132,22 +132,28 @@ function rememberExportFolder(ext, folder) {
 }
 
 // IPC Handler: Window controls
-ipcMain.on('window-control:minimize', () => {
-    if (mainWindow) mainWindow.minimize();
+// Los controles actuan sobre la ventana QUE LOS PIDE, no sobre la principal.
+// Con la emergente sin marco esto deja de ser un detalle: su boton de cerrar
+// habria cerrado la ventana principal.
+const senderWindow = (event) => BrowserWindow.fromWebContents(event.sender);
+
+ipcMain.on('window-control:minimize', (event) => {
+    senderWindow(event)?.minimize();
 });
 
-ipcMain.on('window-control:maximize', () => {
-    if (mainWindow) {
-        if (mainWindow.isMaximized()) {
-            mainWindow.unmaximize();
+ipcMain.on('window-control:maximize', (event) => {
+    const win = senderWindow(event);
+    if (win) {
+        if (win.isMaximized()) {
+            win.unmaximize();
         } else {
-            mainWindow.maximize();
+            win.maximize();
         }
     }
 });
 
-ipcMain.on('window-control:close', () => {
-    if (mainWindow) mainWindow.close();
+ipcMain.on('window-control:close', (event) => {
+    senderWindow(event)?.close();
 });
 
 let mainWindow;
@@ -321,7 +327,10 @@ ipcMain.handle('popout:open', async (_event, data) => {
     popoutWindow = new BrowserWindow({
         width: 1000,
         height: 700,
-        frame: true,
+        // Sin marco, igual que la principal: la cabecera de PopoutResultsPage
+        // hace de barra de ventana. Con marco nativo salian DOS barras, una
+        // encima de la otra, y la de arriba no seguia el tema.
+        frame: false,
         autoHideMenuBar: true,
         backgroundColor: '#0F1012',
         icon: path.join(__dirname, '../assets/icon.ico'),
