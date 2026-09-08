@@ -258,3 +258,33 @@ Comprobado con `resolveLayout()` sobre las medidas reales de cada preset:
 El build pasa y la lógica de modos está verificada con las medidas de cada formato, pero el
 reordenado de la tarjeta, la retirada por alto y la exportación re-maquetada **solo se ven
 ejecutando**. Hace falta abrir un `.amoxvis`, cambiar de modo y exportar a 9:16 y a 16:9.
+
+---
+
+# Parte 3 — Que salga así de fábrica
+
+El contrato dejó de ser una aspiración: los valores de fábrica se ajustan para que un gráfico
+**recién creado** salga ya con la cara de los especímenes, sin tocar un panel.
+
+| clave | antes | ahora | por qué |
+|---|---|---|---|
+| `borderStyle` | `none` | `subtle` | El filete de 1 px hace que la tarjeta se lea como un objeto. |
+| `cardStyle.radius` | 8 | **12** | Más redondo que un panel del IDE: se lee como algo exportable. |
+| `cardStyle.shadow` | `false` | **`true`** | Es lo que despega la figura del fondo. |
+| `fontFamily` | `system` | `manrope` | La fuente de la aplicación, para que figura e interfaz hablen igual. |
+| `legendPosition` | `bottom` | **`inline`** | Tejida en la línea del subtítulo, con los gemelos de texto. |
+| `headline.visible` | `false` | **`true`** | La cifra es parte de la tarjeta, no un extra. |
+| `titleMark` | `false` | `true` | El punto de acento tras el título. |
+| `signature.visible` | `false` | `true` | Cierra el pie de la figura. |
+| `lineAreaFill` | `false` | `true` | El degradado discreto bajo la línea. |
+| `showXAxisTitle` / `showYAxisTitle` | `true` | **`false`** | «mes» debajo de unas fechas no añade nada. |
+| `barRadius` | 4 | 3 | |
+| `showAxisLines` | `true` | `false` | (parte 1) La rejilla punteada ya marca el nivel. |
+| `showDots` | `false` | `true` | (parte 1) Con el umbral de 40 no ensucian. |
+
+**No toca los `.amoxvis` que ya existen.** Al guardar se escribe el estado completo, así que un
+archivo guardado trae todas sus claves y gana sobre el defecto. Solo cambia lo que nazca a partir
+de ahora — comprobado leyendo `LOAD_CONFIG`, que parte de `DEFAULT_CONFIG` y le superpone el
+archivo.
+
+Todo sigue siendo ajustable desde los paneles: es un punto de partida, no una jaula.

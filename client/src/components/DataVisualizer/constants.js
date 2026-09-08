@@ -300,18 +300,32 @@ export const DEFAULT_CONFIG = {
     tooltipShowPercent: false,
     tooltipMode: 'standard', // 'standard' | 'rich'
 
+    /* ═══ LA TARJETA, DE FÁBRICA ═══
+       Los valores de abajo hacen que un gráfico RECIÉN CREADO salga ya con la
+       cara del contrato (docs/dev/sistema_graficos.html) sin tocar un panel:
+       tarjeta con filete y esquinas redondeadas, título con su punto, cifra,
+       leyenda tejida, rejilla punteada sin ejes, y el pie con la firma.
+
+       Cambiar estos valores NO toca los .amoxvis que ya existen: al guardar se
+       escribe el estado completo, así que un archivo guardado trae todas sus
+       claves y gana sobre el defecto. Solo cambia lo que nazca a partir de ahora.
+
+       Y sigue siendo todo ajustable: es un punto de partida, no una jaula. */
+
     // Colors & Theme
     colorTheme: 'default',
     backgroundTone: 'default',
     customBgColor: '',
-    borderStyle: 'none',
+    borderStyle: 'subtle',   // filete de 1 px: la tarjeta se lee como objeto
     borderColor: '',
-    fontFamily: 'system',
+    fontFamily: 'manrope',   // la fuente de la aplicación, para que hablen igual
     textScale: 1,
 
     // Fill & card styling
     fillStyle: 'gradient', // 'gradient' | 'solid' (area/line fill)
-    cardStyle: { shadow: false, radius: 8, gradient: false, gradientFrom: '#1e1f29', gradientTo: '#0f1015' },
+    /* radius 12 y no 8: la figura se lee como algo exportable, no como un panel
+       más del IDE. La sombra es lo que la despega del fondo. */
+    cardStyle: { shadow: true, radius: 12, gradient: false, gradientFrom: '#1e1f29', gradientTo: '#0f1015' },
 
     // Number format
     numberFormat: 'compact',
@@ -329,14 +343,18 @@ export const DEFAULT_CONFIG = {
     yLogScale: false,
     yAxisDomain: ['auto', 'auto'],
     rightYAxisDomain: ['auto', 'auto'],
-    showXAxisTitle: true,
-    showYAxisTitle: true,
+    /* Sin títulos de eje. En una serie de fechas, «mes» debajo de las fechas no
+       añade nada, y casi siempre la unidad se deduce del título o de las propias
+       etiquetas. Donde SÍ hacen falta — dispersión y burbujas, con dos variables
+       que no se deducen solas — se encienden a mano. */
+    showXAxisTitle: false,
+    showYAxisTitle: false,
     customAxisTitles: { x: '', y: '' },
     xAxisLabelAngle: 0,
 
     // Line specific
     lineType: 'monotone',
-    lineAreaFill: false,
+    lineAreaFill: true,   // el degradado bajo la línea, discreto
     /* Los puntos vuelven por defecto: con el umbral de MAX_PUNTOS en el
        renderizador ya no ensucian las series largas, y en las cortas son lo que
        deja ver donde cae cada dato. */
@@ -345,7 +363,7 @@ export const DEFAULT_CONFIG = {
 
     // Bar specific
     barStackMode: 'none',
-    barRadius: 4,
+    barRadius: 3,
     barColorMode: 'series',
 
     // Donut specific
@@ -367,8 +385,9 @@ export const DEFAULT_CONFIG = {
     // Series colors/styles
     seriesConfig: {},
 
-    // Legend
-    legendPosition: 'bottom',
+    /* Leyenda TEJIDA, no en caja aparte: va en la línea del subtítulo, con los
+       colores gemelos de texto para que se lea como texto y no como mancha. */
+    legendPosition: 'inline',
 
     // Storytelling
     chartTitle: '',
@@ -381,8 +400,8 @@ export const DEFAULT_CONFIG = {
     // source line, a portable signature, and a QED-like title mark keep charts
     // publication-ready. All off/empty by default — nothing changes until used.
     chartSource: '',                          // "Source: X" caption at the foot
-    signature: { visible: false, author: '' }, // "Made with AmoxSQL" / "by X"
-    titleMark: false,                          // QED-like period after the title
+    signature: { visible: true, author: '' },  // "Made with AmoxSQL" / "by X"
+    titleMark: true,                           // el punto de acento tras el titulo
 
     // Reference elements
     refLine: { value: '', label: '', color: '#ff4444', style: 'dashed' },
@@ -409,7 +428,7 @@ export const DEFAULT_CONFIG = {
     /* `position` dice DÓNDE cae la cifra, y es una elección tuya, no algo que
        decida la maqueta: 'below' debajo del subtítulo (por defecto) o
        'header-right' a la derecha del título, en su misma línea. */
-    headline: { visible: false, metric: 'last', compareWith: 'previous', window: 'all', position: 'below', size: 'auto', customSize: 28 },
+    headline: { visible: true, metric: 'last', compareWith: 'previous', window: 'all', position: 'below', size: 'auto', customSize: 28 },
 
     // Composición de la tarjeta
     /* Apilado por defecto, y no 'auto'. Con auto la tarjeta se reorganizaba sola
