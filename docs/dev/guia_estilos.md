@@ -91,6 +91,12 @@ color: var(--accent-primary);
 > y `sterlingdark` (misma paleta que Sterling Deep). `migrateTheme()` en `theme.js` traduce
 > el valor guardado al leerlo — no borres esa tabla sin pensar en los perfiles antiguos.
 
+> **La referencia visual está en [`temas.html`](temas.html)**: los diez temas pintados cada uno
+> sobre su propio lienzo, con los hex y el contraste medido de cada token, los veinte acentos en
+> los dos modos y las paletas de gráficos. Se genera desde el CSS — `node scripts/genThemeReference.cjs` —
+> así que no puede desfasarse. Es el sitio al que ir para **elegir** un color; esta guía es el sitio
+> al que ir para **escribirlo**.
+
 ### 2.2 Cómo se Aplican (arquitectura post-auditoría 2026-07)
 
 `App.jsx` aplica **dos clases** en `<body>` vía `client/src/theme.js` (fuente única de
