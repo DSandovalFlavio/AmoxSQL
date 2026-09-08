@@ -136,12 +136,25 @@ function tok(theme, name) {
 // letters" bug), while the established, user-approved dark baseline sits at ~3.1 and
 // reads fine on dark surfaces (the eye adapts differently). primary/secondary uniform.
 const LIGHT = new Set(['mist', 'amoxlight', 'sterlinglight']);
-const floorsFor = (theme) => ({ 'text-primary': 10, 'text-secondary': 5.5, 'text-tertiary': LIGHT.has(theme) ? 4.0 : 3.0 });
+// text-tertiary en claro sube de 4.0 a 4.5 (AA de texto normal). El 4.0 venia de
+// cuando los claros estaban mucho peor y era un suelo de emergencia; los tres
+// llegan ya a 4.5 sin que se pierda la distancia con secondary, que va en 6-7.
+// text-disabled SOLO se mide en claro. En oscuro va en 1.7-2.4 a proposito y
+// decidir si eso se queda es de otra fase; medirlo aqui solo daria 7 avisos que
+// nadie va a atender.
+const floorsFor = (theme) => ({
+    'text-primary': 10,
+    'text-secondary': 5.5,
+    'text-tertiary': LIGHT.has(theme) ? 4.5 : 3.0,
+    'text-disabled': 3.0,
+});
+const textsFor = (theme) => LIGHT.has(theme)
+    ? ['text-primary', 'text-secondary', 'text-tertiary', 'text-disabled']
+    : ['text-primary', 'text-secondary', 'text-tertiary'];
 // Border contrast targets (border vs surface-base): subtle 1.10–1.22, default 1.25–1.40, strong 1.50–1.80
 const BORDER_RANGE = { 'border-subtle': [1.08, 1.30], 'border-default': [1.20, 1.55], 'border-strong': [1.45, 2.10] };
 
 const surfaces = ['--surface-base', '--surface-raised', '--surface-inset'];
-const texts = ['text-primary', 'text-secondary', 'text-tertiary'];
 
 const all = process.argv.includes('--all');
 const list = all ? Object.keys(themes) : [...LIGHT];
@@ -150,7 +163,7 @@ let failures = 0;
 for (const theme of list) {
     console.log(`\n\x1b[1m${theme}\x1b[0m`);
     // Text vs surfaces
-    for (const tName of texts) {
+    for (const tName of textsFor(theme)) {
         const fg = parseColor(tok(theme, '--' + tName));
         if (!fg) { console.log(`  ${tName}: (unresolved)`); continue; }
         const ratios = surfaces.map(s => {

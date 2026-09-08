@@ -1467,6 +1467,14 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
    LIGHT THEME: MIST
    Cool blue-grey pastels: ultra-low saturation with a subtle blue undertone —
    softer than pure white, like a foggy morning.
+
+   Mist es el unico claro cuyo `raised` es MAS OSCURO que su `base` (#e8ecf2
+   contra #f2f4f8): el panel se separa hacia abajo, como en los temas oscuros,
+   en vez de subir hacia el blanco. Se queda a proposito. Es lo que le da su
+   caracter, y midiendo separa mejor que los otros dos — escalon base->raised de
+   1.08 contra 1.05 de Amox Light y Sterling Light. Ojo al tocarlo: aqui el
+   “panel” es el color oscuro y el “lienzo” el claro, al reves de lo que se
+   espera leyendo el resto del archivo.
    ═══════════════════════════════════════════════ */
 .theme-mist {
   /* ── Surfaces: cool blue-grey pastels ── */
@@ -1483,8 +1491,8 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* ── Text: slate tones, never pure black (calibrated ≥ AA floors) ── */
   --text-primary:   #262d3c;   /* deep slate — ≥10:1 on all surfaces */
   --text-secondary: #495366;   /* medium slate — ≥5.5:1 */
-  --text-tertiary:  #5d6578;   /* muted — ≥4:1 */
-  --text-disabled:  #a3acbd;   /* faded */
+  --text-tertiary:  oklch(0.501 0.032 267.2);   /* ≈ #5B6376 (era #5d6578, 4.44:1) */
+  --text-disabled:  oklch(0.593 0.027 263.3);   /* ≈ #767E8F (era #a3acbd, 1.74:1) */
 
   /* ── Accent: muted indigo — complements cool greys ── */
   --accent-primary: oklch(0.507 0.103 270.1);   /* ≈ #4E61A0 (era #5568a8, 4.07:1) */
@@ -1499,7 +1507,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --feedback-success:        #4d8a5e;
   --feedback-success-bg:     rgba(77, 138, 94, 0.08);
   --feedback-success-border: rgba(77, 138, 94, 0.18);
-  --feedback-success-text:   #3d7a4e;
+  --feedback-success-text:   oklch(0.490 0.094 151.0);   /* ≈ #326F44 (era 3.91:1) */
   --feedback-error:          #c0544e;
   --feedback-error-bg:       rgba(192, 84, 78, 0.08);
   --feedback-error-border:   rgba(192, 84, 78, 0.18);
@@ -1507,28 +1515,36 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --feedback-warning:        #b08830;
   --feedback-warning-bg:     rgba(176, 136, 48, 0.08);
   --feedback-warning-border: rgba(176, 136, 48, 0.18);
-  --feedback-warning-text:   #9a7820;
+  --feedback-warning-text:   oklch(0.500 0.109 86.2);    /* ≈ #7E5D00 (era 3.15:1) */
   --color-destructive:       #c0544e;
   --color-destructive-bg:    rgba(192, 84, 78, 0.08);
   --color-destructive-text:  #a5443e;
 
-  /* ── Syntax: muted and easy on the eyes ── */
-  --syntax-keyword:   #7c5cc2;   /* soft purple */
-  --syntax-string:    #468a6e;   /* forest green */
-  --syntax-number:    #c06838;   /* burnt orange */
-  --syntax-function:  #4a72b8;   /* slate blue */
-  --syntax-comment:   #9aa0b0;   /* ghost grey */
-  --syntax-type:      #3a8a88;   /* teal */
-  --syntax-operator:  #906a4a;   /* warm brown */
-  --syntax-variable:  #2c3444;   /* deep slate */
-  --syntax-constant:  #7c5cc2;   /* soft purple */
+  /* ── Syntax ──
+     "Muted and easy on the eyes" estaba resuelto bajando el croma Y subiendo la
+     luminosidad, y lo segundo es lo que no funciona sobre papel: 6 de las 9
+     caian por debajo de 4.5:1 sobre el lienzo, y el comentario en 2.38 era el
+     mas flojo de los diez temas. Se conserva el tono y el croma de cada una
+     — el caracter apagado del tema no cambia — y solo baja la luminosidad. */
+  --syntax-keyword:   #7c5cc2;   /* soft purple — ya pasaba */
+  --syntax-string:    oklch(0.530 0.083 164.8);   /* ≈ #367B60 (era #468a6e, 3.72) */
+  --syntax-number:    oklch(0.554 0.128 47.4);    /* ≈ #AD5726 (era #c06838, 3.61) */
+  --syntax-function:  oklch(0.542 0.118 260.9);   /* ≈ #466EB3 (era #4a72b8, 4.34) */
+  --syntax-comment:   oklch(0.638 0.024 269.3);   /* ≈ #858B9B (era #9aa0b0, 2.38 —
+                          piso 3.0: un comentario tiene que retroceder, no desaparecer) */
+  --syntax-type:      oklch(0.530 0.078 193.0);   /* ≈ #267A78 (era #3a8a88, 3.69) */
+  --syntax-operator:  oklch(0.545 0.067 60.9);    /* ≈ #8D6747 (era #906a4a, 4.39) */
+  --syntax-variable:  #2c3444;   /* deep slate — ya pasaba */
+  --syntax-constant:  #7c5cc2;   /* soft purple — ya pasaba */
 
-  /* ── Database types ── */
-  --type-integer:  #4a72b8;
-  --type-float:    #3a8a88;
-  --type-text:     #c06838;
-  --type-datetime: #7c5cc2;
-  --type-boolean:  #468a6e;
+  /* ── Database types ──
+     Son las etiquetas de la cabecera de resultados y del explorador de esquema:
+     salen en cada consulta. Caian 5 de 6, entre 3.36 y 4.25. */
+  --type-integer:  oklch(0.526 0.118 260.9);   /* ≈ #4269AE (era 4.03) */
+  --type-float:    oklch(0.514 0.078 193.0);   /* ≈ #207573 (era 3.43) */
+  --type-text:     oklch(0.536 0.128 47.4);    /* ≈ #A75220 (era 3.36) */
+  --type-datetime: oklch(0.536 0.154 295.4);   /* ≈ #7656BC (era 4.25) */
+  --type-boolean:  oklch(0.512 0.083 164.8);   /* ≈ #30765A (era 3.46) */
   --type-default:  #566178;
 
   /* ── Legacy aliases ── */
@@ -1573,8 +1589,8 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* Cool blue-grey ink, three real tiers (≥10 / ≥5.5 / ≥4 :1) */
   --text-primary:   #1c2530;
   --text-secondary: #41505e;
-  --text-tertiary:  #5e6f7d;
-  --text-disabled:  #9aa6b1;
+  --text-tertiary:  oklch(0.519 0.030 243.1);   /* ≈ #5A6B79 (era #5e6f7d, 4.33:1) */
+  --text-disabled:  oklch(0.615 0.021 245.7);   /* ≈ #7B8691 (era #9aa6b1, 2.07:1) */
 
   /* Brand teal default lives in .theme-amoxlight:not([class*="accent-"]) below,
      so a user-picked accent (via the light ramps) overrides it. */
@@ -1611,13 +1627,15 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --syntax-number:    #8a5a00;   /* dark amber — numerics */
   --syntax-function:  #1e66c7;   /* blue — COUNT/SUM */
   --syntax-comment:   #7a8896;   /* desaturated grey, recedes */
-  --syntax-type:      #0a7d8c;   /* BRAND TEAL — types/tables show the identity */
+  --syntax-type:      oklch(0.515 0.092 209.7);   /* BRAND TEAL — el mismo valor
+                          exacto que el acento por defecto del tema, para que la
+                          identidad se lea igual en la UI y en el SQL (4.40:1 antes) */
   --syntax-operator:  #41505e;   /* ink-grey, sober */
   --syntax-variable:  #1c2530;   /* = text: columns/identifiers neutral */
   --syntax-constant:  #8a5a00;   /* dark amber — TRUE/FALSE/NULL */
 
   --type-integer:  #1e66c7;
-  --type-float:    #0a7d8c;
+  --type-float:    oklch(0.515 0.092 209.7);   /* el teal de marca, como syntax-type */
   --type-text:     #8a5a00;
   --type-datetime: #6d3fc4;
   --type-boolean:  #3f7a1f;
@@ -1653,18 +1671,27 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --surface-base:    #f6f3fb;   /* Sterling light "paper" */
   --surface-raised:  #fbf9fe;   /* Sterling "surface" — panels/sidebar/cards */
   --surface-overlay: #ffffff;   /* modals/popovers/menus */
-  --surface-inset:   #e2dbf0;   /* Sterling "surface-2" — wells, inputs */
+  /* El pozo era #e2dbf0, el "surface-2" de Sterling: un escalon base->inset de
+     1.22 cuando los otros claros van en 1.09. Todo lo que se pinta DENTRO de un
+     pozo — entradas, canaleta del editor, celdas vacias — perdia medio punto de
+     contraste de golpe, y era la causa unica de cuatro de los cinco fallos del
+     tema. Aclararlo es una linea; compensarlo oscureciendo toda la tinta eran
+     seis, y habria cambiado el caracter del tema. */
+  --surface-inset:   #ede8f6;   /* escalon 1.09, igual que Amox Light */
 
-  /* Sterling draws its grid/edge as literal lavenders, not alphas */
-  --border-subtle:  #d9d1e6;    /* Sterling grid */
-  --border-default: #cfc5de;    /* Sterling edge */
-  --border-strong:  #b9aed0;
+  /* Bordes por alfa sobre la tinta, no lavandas opacos.
+     Sterling los dibuja como colores literales, y por eso --border-subtle se
+     salia del rango por arriba (1.35): un lavanda opaco no puede integrarse
+     sobre cuatro superficies distintas a la vez. Mismos alfas que Amox Light. */
+  --border-subtle:  rgba(36, 26, 61, 0.07);
+  --border-default: rgba(36, 26, 61, 0.12);
+  --border-strong:  rgba(36, 26, 61, 0.20);
 
   /* Violet ink, three real tiers */
   --text-primary:   #241a3d;   /* Sterling text */
-  --text-secondary: #5c5178;   /* Sterling muted */
-  --text-tertiary:  #7d719c;
-  --text-disabled:  #a99fc4;
+  --text-secondary: #5c5178;   /* Sterling muted — 6.02:1 con el pozo aclarado */
+  --text-tertiary:  oklch(0.524 0.066 297.1);   /* ≈ #6E628C (era #7d719c, 3.31:1) */
+  --text-disabled:  oklch(0.619 0.054 297.4);   /* ≈ #897FA3 (era #a99fc4, 2.07:1) */
 
   /* Sterling's light "period" violet is the DEFAULT accent — the rule lives
      in .theme-sterlinglight:not([class*="accent-"]) so a user pick overrides. */

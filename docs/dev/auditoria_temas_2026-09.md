@@ -328,20 +328,41 @@ casi idénticos, porque a esa L el margen de croma es el que es. Se prefiere eso
 acentos ilegibles — pero si alguna vez molesta, la salida no es subirles la L, es
 replantear qué significa la rampa en claro.
 
-### Fase 3 — Cada tema claro
+### Fase 3 — Cada tema claro ✅ HECHA
 
-> Los tres avisos de Sterling Light que da hoy el verificador (`text-secondary` 5.38,
-> `text-tertiary` 3.31, `border-subtle` 1.35) son de esta fase. **No los causó la fase 2**:
-> son valores que el tema ya tenía y que el verificador no miraba — `sterlinglight` ni
-> siquiera estaba en su lista de temas hasta la fase 0.
+**Se subió el piso antes de calibrar.** `--text-tertiary` en claro pasa de 4.0 a **4.5**
+(AA de texto normal): el 4.0 vino de cuando los claros estaban mucho peor y era un suelo de
+emergencia. Los tres llegan a 4.5 sin perder la distancia con `secondary`, que va en 6–7. Y
+se añadió `--text-disabled` al verificador con piso 3.0 — estaba sin medir, y los tres
+claros lo tenían entre **1.74 y 2.07**, que es sencillamente invisible. Solo se mide en
+claro: en oscuro va en 1.7–2.4 a propósito, y decidir si eso se queda es de otra fase.
 
+- **Amox Light** — el retoque que se esperaba. `text-tertiary` 4.33→4.60, `text-disabled`
+  2.07→3.10. Y `--syntax-type` / `--type-float`, que son el teal de marca, pasan a ser el
+  **mismo valor exacto** que el acento por defecto del tema, para que la identidad se lea
+  igual en la UI y dentro del SQL.
 
-- **Amox Light**: los cinco valores de la tabla. Es un retoque.
-- **Sterling Light**: aclarar `--surface-inset` (es la causa única de cuatro de sus cinco
-  fallos) y pasar sus bordes de lavanda opaco a alfa. Después volver a medir: es probable
-  que la tinta no haya que tocarla.
-- **Mist**: recalibrar sintaxis y tipos con la tabla de la sección 2, y decidir a propósito
-  si su elevación invertida se queda.
+- **Sterling Light** — el diagnóstico se confirmó a medias, y conviene apuntarlo. Aclarar
+  `--surface-inset` de `#e2dbf0` a `#ede8f6` (escalón 1.22 → 1.09, el de Amox Light) arregló
+  `text-secondary` (5.38→6.02) y el acento, pero **`text-tertiary` y `text-disabled` sí
+  hubo que tocarlos**: se quedaban en 3.71 y 2.07 con el pozo ya aclarado. La predicción de
+  que la tinta no haría falta tocarla era optimista.
+
+  Sus bordes pasan de lavanda opaco a alfa sobre la tinta, con los mismos alfas que Amox
+  Light (0.07 / 0.12 / 0.20). Un color literal no puede integrarse sobre cuatro superficies
+  a la vez, y por eso `border-subtle` se salía del rango por arriba.
+
+- **Mist** — el que más cambia: 6 valores de sintaxis, 5 de tipos de dato y 2 textos de
+  feedback. Todos conservan tono y croma y solo bajan de luminosidad, así que el carácter
+  apagado del tema no cambia — lo que cambia es que ahora se lee. Su problema era que
+  “muted and easy on the eyes” estaba resuelto bajando el croma **y subiendo la
+  luminosidad**, y lo segundo es justo lo que no funciona sobre papel.
+
+  **Su elevación invertida se queda**, y ahora está dicho en el CSS. Es lo que le da
+  carácter, y midiendo separa mejor que los otros dos (escalón base→raised de 1.08 contra
+  1.05). El aviso que hacía falta es para quien lo edite: aquí el “panel” es el color
+  oscuro y el “lienzo” el claro, al revés de lo que se espera leyendo el resto del archivo.
+
 
 ### Fase 4 — El oscuro que quedó suelto
 
@@ -367,9 +388,16 @@ replantear qué significa la rampa en claro.
 node scripts/checkThemeContrast.cjs --all
 ```
 
-Estado al cerrar esta pasada: **4 avisos**, todos conocidos y en el plan — Sterling Deep
-`border-strong` 1.45 (fase 4) y Sterling Light `text-secondary` 5.38, `text-tertiary` 3.31
-y `border-subtle` 1.35 (fase 3).
+Estado al cerrar las fases 2 y 3: **1 aviso**, y es de un tema oscuro — Sterling Deep
+`border-strong` en 1.45, justo en el límite (fase 4). Los tres claros pasan texto y bordes
+con los pisos ya subidos.
+
+Lo que el verificador **todavía no mira** — sintaxis, tipos de dato, textos de feedback,
+iconos, acento como relleno con su texto encima, velo, sombras y estados — lo medí con el
+banco de pruebas del navegador, que es el único que resuelve `color-mix` y `var()` de
+verdad. Los tres claros pasan también todo eso. Meter ese banco en `scripts/` sigue siendo
+la fase 1, y sigue pendiente: hasta que esté, esa mitad de la medición hay que repetirla a
+mano cada vez.
 
 Los temas retirados ya no existen: aplicar `.light-theme`, `.theme-ivory` o
 `.theme-sterlingdark` al body no define ninguna superficie y cae al oscuro por defecto,
