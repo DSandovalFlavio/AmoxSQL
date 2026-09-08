@@ -148,7 +148,7 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
 
 <header class="hero">
   <div class="hero-in">
-    <div class="eyebrow">Sistema de diseño · borrador 3</div>
+    <div class="eyebrow">Sistema de diseño · borrador 4</div>
     <h1>La tarjeta de gráfico</h1>
     <p class="lede">
       Qué partes tiene una figura de AmoxSQL, cómo se ordenan en el espacio disponible, cómo
@@ -295,11 +295,71 @@ qué modo de composición usa, qué bloques se retiran y cuánto escala la tipog
 </div>
 <div class="formatos" id="formatos"></div>
 
-<h2 class="ancla" id="veredicto"><span class="n">07</span>Qué hay que tocar</h2>
+<h2 class="ancla" id="kpi"><span class="n">07</span>El KPI y su comparación</h2>
+<p>Las dos métricas se quedan: <strong>último valor</strong> y <strong>total</strong>. Lo que hay
+que definir es contra qué compara cada una, porque ahí está el fallo de hoy — un total comparado
+contra un punto suelto da el <code>+7658 %</code>.</p>
+
+<h3>La regla</h3>
+<p><strong>La comparación tiene que ser del mismo tipo que la métrica.</strong> Un punto se compara
+con un punto; una suma, con otra suma del mismo tamaño. Si no hay pareja válida, <b>no hay
+pastilla</b> — no se inventa una.</p>
+
+<table class="tabla">
+  <thead><tr><th>métrica</th><th>compara con</th><th>qué hace</th><th>si no puede</th></tr></thead>
+  <tbody>
+    <tr><td>Último valor</td><td>punto anterior</td><td>El último punto contra el penúltimo. Es el «¿cómo vamos respecto al mes pasado?».</td><td class="medio">serie de 1 punto → sin pastilla</td></tr>
+    <tr><td>Último valor</td><td>primer punto</td><td>El último contra el primero. Es el «¿cuánto hemos crecido en todo el periodo?».</td><td class="medio">serie de 1 punto → sin pastilla</td></tr>
+    <tr><td><b>Total</b></td><td><b>periodo anterior</b></td><td>La suma de la ventana contra la suma de la ventana <b>inmediatamente anterior y del mismo tamaño</b>.</td><td class="no">no hay datos para la ventana previa → sin pastilla</td></tr>
+    <tr><td>Total</td><td>primer punto</td><td>—</td><td class="no">combinación inválida: no se ofrece</td></tr>
+    <tr><td>Media</td><td>periodo anterior</td><td>Igual que el total, pero promediando.</td><td class="no">sin ventana previa → sin pastilla</td></tr>
+    <tr><td>Primer valor</td><td>—</td><td>No tiene sentido comparar el primero contra nada.</td><td class="medio">sin pastilla</td></tr>
+  </tbody>
+</table>
+
+<h3>La ventana: lo que resuelve el caso del total</h3>
+<p>Una clave nueva, <code>headline.window</code>, dice <b>cuántos puntos entran en la métrica</b>:</p>
+<div class="reglas">
+  <div class="regla">
+    <b><code>window: 'all'</code> — por defecto</b>
+    <p>El total cubre <b>toda</b> la serie cargada. Como no queda nada antes, <b>no hay periodo
+    anterior y no hay pastilla</b>. Es el caso honesto: si sumas los doce meses que tienes, no
+    tienes con qué compararlos.</p>
+  </div>
+  <div class="regla">
+    <b><code>window: N</code> — una ventana</b>
+    <p>El total cubre los últimos <b>N</b> puntos y se compara contra los <b>N anteriores</b>. Con
+    24 meses y ventana 12: el año en curso contra el anterior. Si no hay N puntos antes, se omite
+    la pastilla en vez de comparar contra una ventana incompleta.</p>
+  </div>
+  <div class="regla">
+    <b>La pastilla dice contra qué compara</b>
+    <p>Siempre. La etiqueta gris que va detrás del porcentaje deja de ser decorativa y pasa a ser
+    obligatoria: <code>▲ +12.4 % vs. 12 meses previos</code>. Con eso el número deja de poder
+    malinterpretarse, que es lo que pasa hoy.</p>
+  </div>
+</div>
+
+<h3>Por defecto</h3>
+<table class="tabla">
+  <thead><tr><th>situación</th><th>métrica</th><th>comparación</th></tr></thead>
+  <tbody>
+    <tr><td>Serie temporal (eje de fechas)</td><td><b>último valor</b></td><td>punto anterior</td></tr>
+    <tr><td>Categorías (barras, tarta, treemap)</td><td><b>total</b></td><td>ninguna — no hay orden temporal que dé un «anterior»</td></tr>
+    <tr><td>Relación (dispersión, burbujas)</td><td>correlación o recuento</td><td>ninguna</td></tr>
+  </tbody>
+</table>
+<p class="nota" style="margin-top:12px">El cambio de «total» a «último valor» como métrica por
+defecto solo aplica a series temporales, que es donde la pregunta suele ser «¿cómo vamos?». En un
+gráfico de categorías el total sigue siendo lo que responde, y ahí sencillamente no hay delta.</p>
+
+<h2 class="ancla" id="veredicto"><span class="n">08</span>Qué hay que tocar</h2>
 <table class="tabla">
   <thead><tr><th>acción</th><th>qué</th><th>dónde</th></tr></thead>
   <tbody>
-    <tr><td class="no">Arreglar</td><td>Delta comparando métricas incompatibles</td><td><code>computeHeadline()</code> — emparejar métrica y comparación; omitir la pastilla si no hay par válido.</td></tr>
+    <tr><td class="no">Arreglar</td><td>Delta comparando métricas incompatibles</td><td><code>computeHeadline()</code> — aplicar la matriz de la sección 07: emparejar tipos, y omitir la pastilla si no hay par válido.</td></tr>
+    <tr><td class="medio">Añadir</td><td><code>headline.window</code> y el «periodo anterior»</td><td><code>computeHeadline()</code> — ventana de N puntos y su ventana previa; sin datos suficientes, sin pastilla.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Etiqueta obligatoria de «contra qué compara»</td><td><code>HeadlineOverlay</code> — el texto gris detrás del porcentaje deja de ser opcional.</td></tr>
     <tr><td class="no">Arreglar</td><td>Formato numérico mixto en la nota al pie</td><td>El generador de hallazgos usa <code>formatNumber</code> con la configuración de la figura.</td></tr>
     <tr><td class="no">Arreglar</td><td>Periodo del subtítulo que no casa con el eje</td><td>Calcularlo de los datos pintados, o no ponerlo.</td></tr>
     <tr><td class="medio">Reordenar</td><td>Título arriba del todo, KPI debajo del subtítulo</td><td><code>DataVisualizer.jsx</code> — mover <code>HeadlineOverlay</code> detrás del <code>&lt;h3&gt;</code>.</td></tr>
@@ -311,17 +371,23 @@ qué modo de composición usa, qué bloques se retiran y cuánto escala la tipog
   </tbody>
 </table>
 
-<h3>Lo que hay que decidir</h3>
+<h3>Decidido</h3>
+<p>Se quedan las <b>dos métricas</b>, último valor y total. Por defecto, «último valor» en series
+temporales y «total» en categorías. Con «total», la comparación es contra el <b>periodo anterior
+de la misma longitud</b>, definido por <code>headline.window</code>; si no hay datos para esa
+ventana previa, no hay pastilla. Ver la sección 07.</p>
+
+<h3>Lo que queda por decidir</h3>
 <ol>
-  <li><strong>Métrica por defecto del KPI.</strong> Propongo pasar de «total» a «último» en series
-  temporales: es lo que responde la pregunta. Y con «total», comparar contra el periodo anterior
-  de la misma longitud.</li>
   <li><strong>¿El modo de composición se elige o se deduce?</strong> Propongo deducirlo de la
   proporción del hueco, con opción de forzarlo.</li>
   <li><strong>Umbral de puntos.</strong> 40 es mi propuesta; por encima, línea limpia.</li>
+  <li><strong>Ventana por defecto cuando el eje es temporal.</strong> ¿<code>all</code> —y por
+  tanto sin delta en el modo total— o media serie? Me inclino por <code>all</code>: es más honesto
+  y el delta ya lo cubre la métrica «último valor».</li>
 </ol>
 
-<p class="nota" style="margin-top:36px">Borrador 3. Los especímenes se dibujan con un renderizador
+<p class="nota" style="margin-top:36px">Borrador 4. Los especímenes se dibujan con un renderizador
 propio dentro del documento para que el selector de paletas funcione; la implementación real va
 sobre Recharts en <code>DataVisualizer</code>. Relacionado: <code>docs/dev/temas.html</code>.</p>
 
