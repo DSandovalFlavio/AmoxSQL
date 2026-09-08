@@ -387,7 +387,7 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
         <div className={`mde-preview-body mde-preview-body--${widthMode}`} ref={bodyRef}>
             {content?.trim() ? (
                 <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkMath, remarkAlerts]}
+                    remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }], remarkAlerts]}
                     rehypePlugins={[rehypeSlug, rehypeKatex, [rehypeHighlight, { ignoreMissing: true }]]}
                     components={components}
                 >

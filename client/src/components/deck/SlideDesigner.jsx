@@ -15,7 +15,7 @@ import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, 
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta } from './SlidePreview';
 import DeckFooter from './DeckFooter';
-import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio } from './SlideFigureParts';
+import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio, partirCabecera } from './SlideFigureParts';
 import { renderDeckBlock } from './deckBlocks';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
@@ -37,7 +37,22 @@ function useDesborde(canvasRef) {
 
         const medir = () => {
             const slide = canvas.querySelector('.deck-slide');
-            setDesborde(slide ? Math.max(0, slide.scrollHeight - slide.clientHeight) : 0);
+            if (!slide) { setDesborde(0); return; }
+            // No basta con medir la lámina: una columna que recorta esconde su
+            // propio desborde sin que el alto de la lámina crezca, así que el
+            // aviso se perdía justo donde más falta hace.
+            //
+            // Sólo cuentan las cajas que RECORTAN de verdad. Una caja sin
+            // `overflow` puede dar unos pocos píxeles de diferencia por la caja
+            // de línea de un encabezado sin que se corte nada, y avisar de eso
+            // es enseñar a ignorar el aviso.
+            const cajas = [slide, ...slide.querySelectorAll('.deck-slide-col, .deck-slide-cabecera')];
+            const peor = cajas.reduce((max, el) => {
+                const oy = getComputedStyle(el).overflowY;
+                if (oy !== 'hidden' && oy !== 'clip' && oy !== 'auto' && oy !== 'scroll') return max;
+                return Math.max(max, el.scrollHeight - el.clientHeight);
+            }, 0);
+            setDesborde(Math.max(0, peor));
         };
         medir();
 
@@ -217,11 +232,24 @@ const SlideDesigner = ({
 
     // Mismo reparto en dos bandas que SlidePreview: cabecera y cuerpo, con el
     // modificador de disposición en el cuerpo. Ver la nota de aquel archivo.
+    // Igual que en Present: la afirmación cruza a todo lo ancho. Son dos
+    // regiones editables independientes, y cada una devuelve la prosa COMPLETA
+    // al confirmar, así que el archivo nunca se parte.
+    const { cabecera, resto } = partirCabecera(prose);
+    const editarCabecera = (nueva) => onEditProse([nueva.trim(), resto].filter(Boolean).join('\n\n'));
+    const editarResto = (nuevo) => onEditProse([cabecera, nuevo.trim()].filter(Boolean).join('\n\n'));
+
     let cuerpo;
     if (layout === 'finding') {
         cuerpo = (
-            <div className="deck-slide-body deck-slide-body--content-chart">
-                <div className="deck-slide-col deck-slide-col--text">{proseEl}{heredadas}</div>
+            <div className="deck-slide-body deck-slide-body--finding">
+                <div className="deck-slide-cabecera">
+                    <EditableProse value={cabecera} placeholder="Click to add the claim" onCommit={editarCabecera} theme={theme} onOpenFile={onOpenFile} />
+                </div>
+                <div className="deck-slide-col deck-slide-col--text">
+                    <EditableProse value={resto} placeholder="Click to add the narrative" onCommit={editarResto} theme={theme} onOpenFile={onOpenFile} />
+                    {heredadas}
+                </div>
                 <div className="deck-slide-col deck-slide-col--chart">{chartEl}</div>
             </div>
         );

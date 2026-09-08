@@ -28,6 +28,36 @@ export function tieneTituloPropio(markdown) {
     return /^ {0,3}#{1,6}\s+\S/m.test(markdown || '');
 }
 
+/**
+ * Parte la prosa en cabecera (el encabezado que abre la lámina, más la bajada
+ * que lo sigue) y el resto.
+ *
+ * La afirmación cruza la lámina a todo lo ancho aunque el cuerpo vaya en dos
+ * columnas: es lo que la lámina sostiene, no una nota de la columna izquierda.
+ * Metida dentro de una columna de 5/12 el título se parte en cuatro líneas y
+ * empuja al resto fuera de la diapositiva.
+ *
+ * Sólo se parte si el encabezado es lo PRIMERO: un `##` en mitad del texto es
+ * una subsección, no la afirmación de la lámina.
+ */
+export function partirCabecera(markdown) {
+    const texto = (markdown || '').replace(/\r\n/g, '\n');
+    const m = texto.match(/^ {0,3}#{1,6}[ \t]+\S[^\n]*/);
+    if (!m || m.index !== 0) return { cabecera: '', resto: texto };
+
+    let corte = m[0].length;
+    // La bajada: el párrafo inmediatamente posterior, si lo hay. Se queda con
+    // la cabecera porque matiza el título, no el cuerpo.
+    const tras = texto.slice(corte).replace(/^\n+/, '');
+    const saltados = texto.slice(corte).length - tras.length;
+    const finParrafo = tras.search(/\n\s*\n/);
+    const parrafo = finParrafo === -1 ? tras : tras.slice(0, finParrafo);
+    const esParrafo = parrafo.trim() && !/^ {0,3}([#>\-*+]|\d+\.|```|\||<!--)/.test(parrafo.trim());
+    if (esParrafo) corte += saltados + parrafo.length;
+
+    return { cabecera: texto.slice(0, corte).trim(), resto: texto.slice(corte).trim() };
+}
+
 /** El título de la figura, ascendido a afirmación de la lámina. */
 export function SlideTituloHeredado({ titulo }) {
     if (!titulo || !titulo.trim()) return null;

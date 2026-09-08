@@ -197,7 +197,7 @@
 /* Texto ────────────────────────────────────────────────────────────────── */
 /* Una frase, sin gráfico. Da aire y marca el giro del relato. */
 .deck-slide-body--statement { display: flex; flex-direction: column; justify-content: center; }
-.deck-slide-body--statement .mde-preview-body h1 {
+.deck-slide .deck-slide-body--statement .mde-preview-body h1 {
     font-size: calc(84 * var(--u));
     letter-spacing: -.038em;
     line-height: 1.03;
@@ -364,6 +364,17 @@
 /* Aviso que sólo se ve mientras se diseña: en Present y en el export no existe,
    porque es una nota para el autor y no parte de la lámina. */
 .deck-aviso { display: none; }
+/* El de datos no se esconde nunca: una tabla con las celdas corridas
+   presentada como si estuviera bien es peor que un aviso feo en una sala. */
+.deck-aviso--datos {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--u));
+    margin-bottom: calc(10 * var(--u));
+    font-family: var(--font-mono);
+    font-size: calc(12 * var(--u));
+    color: var(--color-warning);
+}
 .deck-design-canvas .deck-aviso {
     display: inline-flex;
     align-items: center;
@@ -498,14 +509,25 @@
 }
 
 /* La tabla clasificada: ocho filas visibles como máximo. La barra da la
-   magnitud sin obligar a comparar cifras. */
+   magnitud sin obligar a comparar cifras.
+
+   Ojo con la especificidad: estos bloques se pintan DENTRO de
+   `.mde-preview-body`, y sus reglas de tabla (`.mde-preview-body th`, 0-2-0)
+   le ganan a una clase suelta. Por eso cada regla de aquí abajo lleva el
+   elemento delante — sin eso, la alineación a la derecha se declaraba y no
+   se aplicaba. */
 .deck-rank {
     width: 100%;
     border-collapse: collapse;
     font-size: var(--t-tabla);
     margin-top: calc(18 * var(--u));
 }
-.deck-rank th {
+.deck-rank th,
+.mde-preview-body .deck-rank th {
+    /* El preview de markdown dibuja una rejilla completa y raya las filas
+       pares; la tabla clasificada no quiere ninguna de las dos cosas. */
+    border: 0;
+    background-color: transparent;
     text-align: left;
     font-family: var(--font-mono);
     font-size: calc(12 * var(--u));
@@ -516,17 +538,27 @@
     padding: calc(10 * var(--u)) calc(12 * var(--u));
     border-bottom: 1px solid var(--border-default);
 }
-.deck-rank td {
+.deck-rank td,
+.mde-preview-body .deck-rank td,
+.mde-preview-body .deck-rank tr:nth-child(even) td {
+    border: 0;
+    background-color: transparent;
     padding: calc(12 * var(--u));
     border-bottom: 1px solid var(--border-subtle);
     color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
 }
-.deck-rank td:first-child {
+.deck-rank th,
+.mde-preview-body .deck-rank th { border-bottom: 1px solid var(--border-default); }
+.deck-rank td:first-child,
+.mde-preview-body .deck-rank td:first-child {
     color: var(--text-primary);
     font-weight: var(--weight-semibold);
 }
-.deck-rank-der { text-align: right; }
+.deck-rank th.deck-rank-der,
+.deck-rank td.deck-rank-der,
+.mde-preview-body .deck-rank th.deck-rank-der,
+.mde-preview-body .deck-rank td.deck-rank-der { text-align: right; }
 /* Se resaltan sólo las filas de las que habla el título. */
 .deck-rank-fila--destacada td { color: var(--text-primary); }
 .deck-rank-celda-barra { width: 26%; }
@@ -762,17 +794,22 @@
 /* chart-full — the amoxchart embed fills essentially the whole slide */
 .deck-slide-body--chart-full { display: flex; flex-direction: column; }
 .deck-slide-body--chart-full .mde-preview-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.deck-slide-body--chart-full .amoxchart-embed { flex: 1; min-height: 320px; }
+.deck-slide-body--chart-full .amoxchart-embed { flex: 1; min-height: calc(240 * var(--u)); }
 
 /* content-chart / two-col — two CSS columns filling the slide height.
    content-chart favors the chart column (text is usually a short narrative,
    while the chart needs room for axis labels + data). */
-.deck-slide-body--content-chart {
+.deck-slide-body--finding {
     display: grid;
     grid-template-columns: 5fr 7fr;   /* 5/7 a favor de la figura */
-    gap: var(--s-gap-col);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: calc(22 * var(--u)) var(--s-gap-col);
     box-sizing: border-box;
 }
+/* La afirmación cruza las dos columnas: es lo que la lámina sostiene, no una
+   nota de la columna izquierda. Metida dentro de 5/12 se parte en cuatro
+   líneas y empuja al resto fuera de la diapositiva. */
+.deck-slide-cabecera { grid-column: 1 / -1; min-width: 0; }
 
 .deck-slide-body--two-col {
     display: grid;
@@ -784,20 +821,20 @@
 .deck-slide-col {
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
 .deck-slide-col--text .mde-preview-body { padding: 0; }
 .deck-slide-col--chart { flex: 1; }
-.deck-slide-col--chart .amoxchart-embed { flex: 1; height: 100%; min-height: 240px; }
+.deck-slide-col--chart .amoxchart-embed { flex: 1; height: 100%; min-height: calc(200 * var(--u)); }
 
 /* ── Chart embed states ── */
 .amoxchart-embed {
     display: flex;
     flex-direction: column;
-    min-height: 200px;
+    min-height: calc(160 * var(--u));
 }
 
 .amoxchart-embed--status {

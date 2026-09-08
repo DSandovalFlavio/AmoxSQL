@@ -12,11 +12,16 @@
 import { parseAmoxChartBlock } from './deckParser';
 
 const CHART_PLACEHOLDER = 'charts/example.amoxvis';
-const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
+// `\r?\n` y no `\n`: en Windows un .amoxdeck guardado por cualquier editor
+// llega con CRLF, y con el salto sin contemplar el retorno esta expresion no
+// casaba. El grafico seguia dibujandose (lo pinta MarkdownPreview por su cuenta),
+// asi que el fallo era invisible: lo unico que se perdia era el reparto en dos
+// columnas de la lamina, que caia al cuerpo generico sin decir nada.
+const AMOXCHART_FENCE_RE = /```amoxchart\r?\n([\s\S]*?)```/;
 // Speaker notes (Fase 5): a fenced block, not an HTML comment, so multi-line
 // notes containing arbitrary text (including a literal `-->`) round-trip
 // without escaping — same reasoning as the amoxchart block above.
-const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
+const NOTES_FENCE_RE = /```notes\r?\n([\s\S]*?)```/;
 
 // La cerca de un bloque va por variable y no escrita a mano: tres acentos
 // graves dentro de un template literal de JS hay que escaparlos uno a uno, y

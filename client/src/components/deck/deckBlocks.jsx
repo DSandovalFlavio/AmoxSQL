@@ -38,10 +38,27 @@ function ErrorDeBloque({ lang, mensaje }) {
     );
 }
 
-/** Aviso que sólo se ve mientras se diseña: no sale en Present ni en el export. */
+/**
+ * Aviso de estilo: sólo se ve mientras se diseña. No sale en Present ni en el
+ * export, porque es una nota para el autor y no parte de la lámina.
+ */
 function AvisoDeDiseno({ children }) {
     return (
         <span className="deck-aviso">
+            <LuTriangleAlert size={11} />
+            {children}
+        </span>
+    );
+}
+
+/**
+ * Aviso de datos: se ve SIEMPRE, también presentando. Un aviso feo en una sala
+ * es mucho menos grave que una tabla con las celdas corridas presentada como
+ * si estuviera bien.
+ */
+function AvisoDeDatos({ children }) {
+    return (
+        <span className="deck-aviso deck-aviso--datos">
             <LuTriangleAlert size={11} />
             {children}
         </span>
@@ -227,11 +244,11 @@ function BloqueRank({ raw }) {
     return (
         <>
         {descuadradas.length > 0 && (
-            <AvisoDeDiseno>
+            <AvisoDeDatos>
                 {descuadradas.length === 1 ? 'La fila' : 'Las filas'}{' '}
                 {descuadradas.map((f) => f.i + 1).join(', ')} no {descuadradas.length === 1 ? 'tiene' : 'tienen'}{' '}
                 {columnas.length} celdas. Si hay una coma dentro de un valor, entrecomíllalo.
-            </AvisoDeDiseno>
+            </AvisoDeDatos>
         )}
         <table className="deck-rank">
             <thead>

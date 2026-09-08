@@ -975,7 +975,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                         : (isFullscreen
                             ? '48px 48px 40px'
                             : `${Math.round(30 * escalaTexto)}px ${Math.round(34 * escalaTexto)}px ${Math.round(30 * escalaTexto)}px`),
-                    display: 'flex', flexDirection: 'column', minHeight: '300px',
+                    display: 'flex', flexDirection: 'column',
+                    minHeight: desnuda ? 0 : '300px',
                     fontFamily,
                     // Contain layout/paint so the chart's internal reflow stays local,
                     // without forcing a giant GPU texture (translateZ) — a fullscreen SVG

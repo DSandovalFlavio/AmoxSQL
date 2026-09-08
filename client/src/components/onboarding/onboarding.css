@@ -2,7 +2,7 @@
    Onboarding primitives — shared Tour carousel + Guide modal.
    Single source of styling for every first-run tour and "?" guide,
    so all studios (Story Flow, Data Flow, AI, Notebooks, …) feel
-   identical. Tokens only — motion via --duration-*/--ease-*, honored
+   identical. Tokens only — motion via --duration-* / --ease-*, honored
    by the global prefers-reduced-motion rule in index.css.
    ═══════════════════════════════════════════════════════════════ */
 

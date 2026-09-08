@@ -20,16 +20,21 @@ import MarkdownPreview from '../markdown/MarkdownPreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { parseAmoxChartBlock, resolveFooterFields } from '../../utils/deckParser';
 import DeckFooter from './DeckFooter';
-import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio } from './SlideFigureParts';
+import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio, partirCabecera } from './SlideFigureParts';
 import { renderDeckBlock } from './deckBlocks';
 
-const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
+// `\r?\n` y no `\n`: en Windows un .amoxdeck guardado por cualquier editor
+// llega con CRLF, y con el salto sin contemplar el retorno esta expresion no
+// casaba. El grafico seguia dibujandose (lo pinta MarkdownPreview por su cuenta),
+// asi que el fallo era invisible: lo unico que se perdia era el reparto en dos
+// columnas de la lamina, que caia al cuerpo generico sin decir nada.
+const AMOXCHART_FENCE_RE = /```amoxchart\r?\n([\s\S]*?)```/;
 const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
 // Speaker notes (Fase 5) live in a fenced block same as the chart — but they
 // are for the presenter, never the audience. Stripped once below, before any
 // of the layout branches see the markdown, so a notes block can never
 // render as a literal code block on screen.
-const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
+const NOTES_FENCE_RE = /```notes\r?\n([\s\S]*?)```/;
 
 function useChartRenderer(variables, refreshToken, onProcedencia, onPiezas) {
     return useMemo(() => (raw) => {
@@ -131,10 +136,17 @@ const SlidePreview = ({
         const before = visibleMarkdown.slice(0, match.index).trim();
         const after = visibleMarkdown.slice(match.index + match[0].length).trim();
         const parsed = parseAmoxChartBlock(match[1]);
+        // La afirmación cruza a todo lo ancho; sólo la narrativa va en columna.
+        const { cabecera, resto } = partirCabecera(before);
         body = (
-            <div className="deck-slide-body deck-slide-body--content-chart">
+            <div className="deck-slide-body deck-slide-body--finding">
+                {cabecera && (
+                    <div className="deck-slide-cabecera">
+                        <MarkdownPreview content={cabecera} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />
+                    </div>
+                )}
                 <div className="deck-slide-col deck-slide-col--text">
-                    {before && <MarkdownPreview content={before} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />}
+                    {resto && <MarkdownPreview content={resto} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />}
                     {after && <MarkdownPreview content={after} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />}
                     {heredadas}
                 </div>

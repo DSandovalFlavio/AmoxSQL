@@ -29,12 +29,17 @@ import { COLOR_PALETTES } from '../components/DataVisualizer/constants';
 
 const remarkProcessor = unified().use(remarkParse).use(remarkGfm);
 
-const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
+// `\r?\n` y no `\n`: en Windows un .amoxdeck guardado por cualquier editor
+// llega con CRLF, y con el salto sin contemplar el retorno esta expresion no
+// casaba. El grafico seguia dibujandose (lo pinta MarkdownPreview por su cuenta),
+// asi que el fallo era invisible: lo unico que se perdia era el reparto en dos
+// columnas de la lamina, que caia al cuerpo generico sin decir nada.
+const AMOXCHART_FENCE_RE = /```amoxchart\r?\n([\s\S]*?)```/;
 // Speaker notes (Fase 5 — el slide como lienzo): same fenced-block convention
 // as deckTemplates.js's NOTES_FENCE_RE, kept as a local copy here rather than
 // importing — same "each export module is self-contained" pattern already
 // used for AMOXCHART_FENCE_RE above.
-const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
+const NOTES_FENCE_RE = /```notes\r?\n([\s\S]*?)```/;
 
 const SLIDE_W = 13.333; // LAYOUT_WIDE (16:9 widescreen), inches
 const SLIDE_H = 7.5;
