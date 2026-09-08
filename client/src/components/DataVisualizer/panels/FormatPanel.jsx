@@ -5,15 +5,32 @@
  * leyenda, opciones por tipo de mark) sin el Highlight (que vive en Story).
  */
 import { memo } from 'react';
-import { Section, InputField } from './shared';
+import { Section, InputField, SelectField } from './shared';
+import { LAYOUT_MODES } from '../constants';
 import AxisPanel from './AxisPanel';
 import DetailPanel from './DetailPanel';
 
 const FormatPanel = memo(({ state, setField, finalSeriesKeys }) => {
-    const { marginTop, marginBottom, marginLeft, marginRight, titleSpacing } = state;
+    const { marginTop, marginBottom, marginLeft, marginRight, titleSpacing, layout } = state;
+
+    const modoActual = LAYOUT_MODES.find(m => m.value === (layout || 'auto'));
 
     return (
         <>
+            <Section title="Composición">
+                <SelectField
+                    label="Cómo se reparte la tarjeta"
+                    value={layout || 'auto'}
+                    onChange={v => setField('layout', v)}
+                    options={LAYOUT_MODES}
+                />
+                {modoActual && (
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
+                        {modoActual.desc}
+                    </div>
+                )}
+            </Section>
+
             <AxisPanel
                 state={state}
                 setField={setField}

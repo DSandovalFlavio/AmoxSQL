@@ -192,6 +192,44 @@ export const CHART_CATEGORIES = [
 ];
 
 // ─── Export Presets ───────────────────────────────────────────
+/* ─── Modos de composición de la tarjeta ───────────────────────
+   La misma figura repartida de tres maneras según la forma del hueco. Es lo que
+   permite que algo pensado para un panel vertical funcione en una diapositiva
+   apaisada sin que el lienzo se quede sin alto. */
+export const LAYOUT_MODES = [
+    { value: 'auto',         label: 'Automático',      desc: 'Según la forma del hueco' },
+    { value: 'stacked',      label: 'Apilado',         desc: 'Todo en columna' },
+    { value: 'split-header', label: 'Cabecera partida', desc: 'Título a la izquierda, cifra a la derecha' },
+    { value: 'side',         label: 'Lateral',          desc: 'Texto a un lado, gráfico al otro' },
+];
+
+/**
+ * Con 'auto', el modo sale de la proporción del hueco. Es la ÚNICA fuente: al
+ * exportar, la tarjeta se re-maqueta a la proporción de destino y esta función
+ * elige sola, así que los presets no necesitan declarar su maqueta (y un campo
+ * que nadie lee es peor que no tenerlo).
+ *
+ * Dónde caen los formatos con estos cortes:
+ *   16:9 (1.78) y banner (1.91) → lateral
+ *   4:3 (1.33), 1:1 y 9:16      → apilado
+ *   panel del IDE, típicamente 1.4–1.7 → cabecera partida
+ *
+ * Un modo elegido a mano siempre gana, también al exportar.
+ */
+export const resolveLayout = (mode, width, height) => {
+    if (mode && mode !== 'auto') return mode;
+    if (!width || !height) return 'stacked';
+    const r = width / height;
+    if (r >= 1.75) return 'side';
+    if (r >= 1.40) return 'split-header';
+    return 'stacked';
+};
+
+/* Antes la exportación capturaba la pantalla tal cual y la encajaba en el lienzo
+   de destino preservando proporción: o sea, con bandas. Un 9:16 salía apaisado
+   con dos franjas de fondo. Ahora la figura se re-maqueta a la proporción de
+   destino antes de capturarla, y resolveLayout() elige el reparto solo — por eso
+   aquí solo hacen falta las medidas. */
 export const EXPORT_PRESETS = [
     { label: 'PowerPoint 16:9', width: 1920, height: 1080 },
     { label: 'PowerPoint 4:3', width: 1440, height: 1080 },
@@ -367,6 +405,9 @@ export const DEFAULT_CONFIG = {
        `visible` se queda en false: encenderlo haria aparecer un numero grande
        en todos los graficos que ya existen, y eso lo decide el usuario. */
     headline: { visible: false, metric: 'last', compareWith: 'previous', window: 'all', size: 'auto', customSize: 28 },
+
+    // Composición de la tarjeta
+    layout: 'auto',
 
     // Margins & Spacing
     marginTop: 20,

@@ -23,7 +23,7 @@ import AlertDialog from '../AlertDialog';
 
 // Core modules
 import { useChartState } from './useChartState';
-import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES } from './constants';
+import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES, resolveLayout } from './constants';
 import { processChartData, isDateColumn, computeHeadline } from './utils/dataProcessing';
 import { exportChartAsPng, exportChartAsSvg, exportChartAsPptx, saveChartConfig, copyChartToClipboard } from './utils/exportChart';
 import { buildSlideRaw } from '../../utils/deckTemplates';
@@ -58,6 +58,81 @@ const TABS = [
 ];
 
 // ─── Component ───────────────────────────────────────────────
+/**
+ * Coloca las siete piezas de la tarjeta según el modo de composición.
+ *
+ * `stacked`      — columna. Lo de siempre, y lo que usa el panel del IDE.
+ * `split-header` — título y subtítulo a la izquierda, KPI a la derecha, en la
+ *                  misma fila. Recupera el alto que el lienzo necesita cuando
+ *                  la tarjeta es ancha y baja.
+ * `side`         — texto en una columna y lienzo en la otra. Es el modo de 16:9
+ *                  y banner: se lee la frase y luego se mira la prueba, sin
+ *                  desplazarse en vertical.
+ *
+ * `retiradas` es el conjunto de piezas que no caben; se comprueba aquí y no en
+ * cada rama para que el orden de retirada sea el mismo en las tres.
+ */
+function componerFigura(modo, piezas, retiradas) {
+    const hay = (k) => !retiradas.has(k);
+    const p = (k) => (hay(k) ? piezas[k] : null);
+
+    if (modo === 'side') {
+        return (
+            <div style={{
+                flex: 1, minHeight: 0, display: 'grid',
+                gridTemplateColumns: 'minmax(0, 34%) minmax(0, 1fr)',
+                gap: '0 26px', alignItems: 'start',
+            }}>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    {piezas.titulo}{p('sub')}{piezas.kpi}{p('takeaway')}{p('nota')}{p('firma')}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%' }}>
+                    {piezas.lienzo}
+                </div>
+            </div>
+        );
+    }
+
+    if (modo === 'split-header') {
+        return (
+            <>
+                <div style={{
+                    display: 'flex', justifyContent: 'space-between',
+                    alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap',
+                }}>
+                    <div style={{ minWidth: 0 }}>{piezas.titulo}{p('sub')}</div>
+                    <div style={{ flex: 'none' }}>{piezas.kpi}</div>
+                </div>
+                {piezas.lienzo}{p('takeaway')}{p('nota')}{p('firma')}
+            </>
+        );
+    }
+
+    return (
+        <>
+            {piezas.titulo}{p('sub')}{piezas.kpi}{piezas.lienzo}
+            {p('takeaway')}{p('nota')}{p('firma')}
+        </>
+    );
+}
+
+/**
+ * Qué piezas se retiran cuando no hay alto.
+ *
+ * Por UMBRALES y no midiendo bloque a bloque: medir cada pieza obliga a pintar,
+ * medir y volver a pintar, y con el lienzo dentro eso son dos reflujos por
+ * cambio de tamaño. Con umbrales el resultado es el mismo y es predecible.
+ * El orden es fijo — nota al pie, subtítulo, fuente y firma, conclusión — y
+ * título, KPI y lienzo no se retiran nunca.
+ */
+function calcularRetiradas(alto) {
+    if (!alto || alto >= 420) return new Set();
+    if (alto >= 340) return new Set(['nota']);
+    if (alto >= 280) return new Set(['nota', 'sub']);
+    if (alto >= 230) return new Set(['nota', 'sub', 'firma']);
+    return new Set(['nota', 'sub', 'firma', 'takeaway']);
+}
+
 const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null }) => {
     // ── State ──
     const {
@@ -357,6 +432,179 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
     // ── Early exit ──
     if (!data || data.length === 0) return <div>No data to visualize</div>;
 
+    /* ── El hueco de la figura, medido ──
+       Hace falta para dos cosas: elegir el modo cuando `layout` es 'auto', y
+       saber qué piezas no caben. Un ResizeObserver sobre el propio contenedor
+       de la tarjeta; se ignora en modo informe y a pantalla completa, donde
+       sobra el alto y no queremos que nada se retire. */
+    const [hueco, setHueco] = useState({ w: 0, h: 0 });
+    useEffect(() => {
+        const el = chartRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(([entrada]) => {
+            const { width, height } = entrada.contentRect;
+            setHueco(prev => (Math.abs(prev.w - width) < 4 && Math.abs(prev.h - height) < 4)
+                ? prev : { w: width, h: height });
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    const modoLayout = useMemo(
+        () => resolveLayout(state.layout, hueco.w, hueco.h),
+        [state.layout, hueco.w, hueco.h]);
+
+    const retiradas = useMemo(
+        () => ((isReportMode || isFullscreen) ? new Set() : calcularRetiradas(hueco.h)),
+        [isReportMode, isFullscreen, hueco.h]);
+
+    /* ── Las siete piezas de la tarjeta ──
+       Se declaran aquí y se COLOCAN abajo según el modo de composición, en vez
+       de escribirse en el orden del render. Así el orden vive en un solo sitio
+       y no hay tres copias del mismo JSX para tres maquetas. */
+    const piezas = {
+        titulo: (<>
+            {/* Title */}
+            {state.chartTitle && (
+                <h2 style={{
+                    textAlign: state.textAlign,
+                    margin: `0 0 ${state.titleSpacing}px 0`,
+                    color: 'var(--text-active)',
+                    fontSize: `${Math.round(18 * state.textScale)}px`,
+                    fontWeight: '600',
+                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
+                }}>
+                    {renderRichText(state.chartTitle)}
+                    {/* QED-like title mark (Sterling): a period in the accent color */}
+                    {state.titleMark && <span style={{ color: 'var(--accent-color-user)' }}>.</span>}
+                </h2>
+            )}
+        </>),
+        sub: (<>
+            {(state.chartSubtitle || inlineLegendItems) && (
+                <h3 style={{
+                    textAlign: state.textAlign,
+                    margin: `0 0 ${state.titleSpacing}px 0`,
+                    color: 'var(--text-muted)',
+                    fontSize: `${Math.round(14 * state.textScale)}px`,
+                    fontWeight: '400',
+                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
+                }}>
+                    {state.chartSubtitle ? renderRichText(state.chartSubtitle) : null}
+                    {inlineLegendItems && (
+                        <>
+                            {state.chartSubtitle ? ' ' : null}
+                            <InlineLegend
+                                items={inlineLegendItems}
+                                fontSize={Math.round(14 * state.textScale)}
+                            />
+                        </>
+                    )}
+                </h3>
+            )}
+
+            {/* Headline KPI */}
+        </>),
+        kpi: (<>
+            <HeadlineOverlay
+                headline={state.headline}
+                headlineData={headlineData}
+                numberFormat={state.numberFormat}
+                decimalPlaces={state.decimalPlaces}
+                textScale={state.textScale}
+                textAlign={state.textAlign}
+            />
+        </>),
+        lienzo: (<>
+            {/* Chart — only mount the ResponsiveContainer when this view is
+                actually visible. With keep-alive result tabs the whole
+                DataVisualizer stays mounted even while the chart panel is
+                display:none; if Recharts' ResponsiveContainer mounts in a
+                0×0 (hidden) box it measures 0 and doesn't reliably re-size
+                when shown → a blank chart. Gating the mount on isActive means
+                it always measures the real, visible size. (Config state lives
+                on DataVisualizer, which stays mounted — nothing is lost.) */}
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '10px', minWidth: '10px', width: '100%', height: '100%' }}>
+                {(isActive || isReportMode) && (
+                    <ChartRenderer
+                        config={state}
+                        processedData={processedData}
+                        finalSeriesKeys={finalSeriesKeys}
+                        activeColors={activeColors}
+                        columns={columns}
+                        isDateColumn={isDateCol}
+                        textScale={state.textScale}
+                    />
+                )}
+            </div>
+        </>),
+        takeaway: (<>
+            {/* Takeaway */}
+            {state.takeaway && (
+                <div style={{
+                    marginTop: `${state.titleSpacing}px`,
+                    color: 'var(--text-secondary)',
+                    fontSize: `${Math.round(13 * state.textScale)}px`,
+                    lineHeight: 1.5,
+                    borderLeft: '3px solid var(--accent-color-user)',
+                    paddingLeft: '10px',
+                    textAlign: state.textAlign,
+                    marginLeft: state.textAlign === 'left' ? '50px' : '0',
+                    whiteSpace: 'pre-wrap',
+                }}>{renderRichText(state.takeaway)}</div>
+            )}
+        </>),
+        nota: (<>
+            {/* Footnote */}
+            {state.chartFootnote && (
+                <div style={{
+                    textAlign: state.textAlign,
+                    marginTop: `${state.titleSpacing}px`,
+                    color: 'var(--text-muted)',
+                    fontSize: `${Math.round(12 * state.textScale)}px`,
+                    fontStyle: 'italic',
+                    borderTop: '1px solid var(--border-color)',
+                    paddingTop: '5px',
+                    whiteSpace: 'pre-wrap',
+                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
+                }}>{state.chartFootnote}</div>
+            )}
+        </>),
+        firma: (<>
+            {/* Editorial caption row (Sterling figure shell): Source + signature.
+                Mono, muted, split left/right — the publication contract at the foot. */}
+            {(state.chartSource || state.signature?.visible) && (
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    marginTop: `${state.titleSpacing}px`,
+                    paddingTop: '5px',
+                    borderTop: state.chartFootnote ? 'none' : '1px solid var(--border-color)',
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+                    fontSize: `${Math.round(11 * state.textScale)}px`,
+                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
+                }}>
+                    <span>
+                        {state.chartSource && (
+                            <><span style={{ color: 'var(--text-secondary)' }}>Source:</span> {state.chartSource}</>
+                        )}
+                    </span>
+                    {state.signature?.visible && (
+                        <span style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
+                            {state.signature.author
+                                ? `Made by ${state.signature.author} with AmoxSQL`
+                                : 'Made with AmoxSQL'}
+                        </span>
+                    )}
+                </div>
+            )}
+        </>),
+    };
+
     // ─── RENDER ──────────────────────────────────────────────
     return (
         <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', position: 'relative', fontFamily }}>
@@ -545,140 +793,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     // layer saturates the compositor and makes scrollbars stutter.
                     contain: 'layout paint',
                 }}>
-                    {/* ── El orden de la cabecera: TITULO, subtitulo, y despues la cifra ──
-                        Antes abria con el KPI y el titulo venia detras, y se leia al
-                        reves: primero "que estoy viendo", luego "cuanto". El numero
-                        grande sin una frase que lo enmarque no dice nada. */}
-                    {/* Title */}
-                    {state.chartTitle && (
-                        <h2 style={{
-                            textAlign: state.textAlign,
-                            margin: `0 0 ${state.titleSpacing}px 0`,
-                            color: 'var(--text-active)',
-                            fontSize: `${Math.round(18 * state.textScale)}px`,
-                            fontWeight: '600',
-                            paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>
-                            {renderRichText(state.chartTitle)}
-                            {/* QED-like title mark (Sterling): a period in the accent color */}
-                            {state.titleMark && <span style={{ color: 'var(--accent-color-user)' }}>.</span>}
-                        </h2>
-                    )}
-                    {(state.chartSubtitle || inlineLegendItems) && (
-                        <h3 style={{
-                            textAlign: state.textAlign,
-                            margin: `0 0 ${state.titleSpacing}px 0`,
-                            color: 'var(--text-muted)',
-                            fontSize: `${Math.round(14 * state.textScale)}px`,
-                            fontWeight: '400',
-                            paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>
-                            {state.chartSubtitle ? renderRichText(state.chartSubtitle) : null}
-                            {inlineLegendItems && (
-                                <>
-                                    {state.chartSubtitle ? ' ' : null}
-                                    <InlineLegend
-                                        items={inlineLegendItems}
-                                        fontSize={Math.round(14 * state.textScale)}
-                                    />
-                                </>
-                            )}
-                        </h3>
-                    )}
-
-                    {/* Headline KPI */}
-                    <HeadlineOverlay
-                        headline={state.headline}
-                        headlineData={headlineData}
-                        numberFormat={state.numberFormat}
-                        decimalPlaces={state.decimalPlaces}
-                        textScale={state.textScale}
-                        textAlign={state.textAlign}
-                    />
-
-                    {/* Chart — only mount the ResponsiveContainer when this view is
-                        actually visible. With keep-alive result tabs the whole
-                        DataVisualizer stays mounted even while the chart panel is
-                        display:none; if Recharts' ResponsiveContainer mounts in a
-                        0×0 (hidden) box it measures 0 and doesn't reliably re-size
-                        when shown → a blank chart. Gating the mount on isActive means
-                        it always measures the real, visible size. (Config state lives
-                        on DataVisualizer, which stays mounted — nothing is lost.) */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '10px', minWidth: '10px', width: '100%', height: '100%' }}>
-                        {(isActive || isReportMode) && (
-                            <ChartRenderer
-                                config={state}
-                                processedData={processedData}
-                                finalSeriesKeys={finalSeriesKeys}
-                                activeColors={activeColors}
-                                columns={columns}
-                                isDateColumn={isDateCol}
-                                textScale={state.textScale}
-                            />
-                        )}
-                    </div>
-
-                    {/* Takeaway */}
-                    {state.takeaway && (
-                        <div style={{
-                            marginTop: `${state.titleSpacing}px`,
-                            color: 'var(--text-secondary)',
-                            fontSize: `${Math.round(13 * state.textScale)}px`,
-                            lineHeight: 1.5,
-                            borderLeft: '3px solid var(--accent-color-user)',
-                            paddingLeft: '10px',
-                            textAlign: state.textAlign,
-                            marginLeft: state.textAlign === 'left' ? '50px' : '0',
-                            whiteSpace: 'pre-wrap',
-                        }}>{renderRichText(state.takeaway)}</div>
-                    )}
-
-                    {/* Footnote */}
-                    {state.chartFootnote && (
-                        <div style={{
-                            textAlign: state.textAlign,
-                            marginTop: `${state.titleSpacing}px`,
-                            color: 'var(--text-muted)',
-                            fontSize: `${Math.round(12 * state.textScale)}px`,
-                            fontStyle: 'italic',
-                            borderTop: '1px solid var(--border-color)',
-                            paddingTop: '5px',
-                            whiteSpace: 'pre-wrap',
-                            paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>{state.chartFootnote}</div>
-                    )}
-
-                    {/* Editorial caption row (Sterling figure shell): Source + signature.
-                        Mono, muted, split left/right — the publication contract at the foot. */}
-                    {(state.chartSource || state.signature?.visible) && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'baseline',
-                            gap: '12px',
-                            flexWrap: 'wrap',
-                            marginTop: `${state.titleSpacing}px`,
-                            paddingTop: '5px',
-                            borderTop: state.chartFootnote ? 'none' : '1px solid var(--border-color)',
-                            color: 'var(--text-muted)',
-                            fontFamily: 'var(--font-mono, ui-monospace, monospace)',
-                            fontSize: `${Math.round(11 * state.textScale)}px`,
-                            paddingLeft: state.textAlign === 'left' ? '50px' : '0',
-                        }}>
-                            <span>
-                                {state.chartSource && (
-                                    <><span style={{ color: 'var(--text-secondary)' }}>Source:</span> {state.chartSource}</>
-                                )}
-                            </span>
-                            {state.signature?.visible && (
-                                <span style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
-                                    {state.signature.author
-                                        ? `Made by ${state.signature.author} with AmoxSQL`
-                                        : 'Made with AmoxSQL'}
-                                </span>
-                            )}
-                        </div>
-                    )}
+                    {componerFigura(modoLayout, piezas, retiradas)}
                 </div>
             </div>
 

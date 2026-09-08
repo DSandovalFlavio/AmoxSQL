@@ -150,3 +150,111 @@ a Y» comparando dos puntos elegidos por azar.
 2. Usé `isStacked` en la cabecera del componente cuando se define 400 líneas más abajo — error de
    zona muerta temporal. Se resolvió no dependiendo de él: la jerarquía solo aplica a `line`,
    porque atenuar una capa de un apilado deja un hueco.
+
+---
+
+# Parte 2 — El sistema completo
+
+La primera parte corrigió lo roto. Esta implementa lo que quedaba del contrato: los modos de
+composición, la retirada de bloques por alto, y la adaptación real a cada formato de salida.
+
+## Hallazgo previo: la exportación no re-maqueta
+
+`utils/exportChart.js` captura el elemento del DOM **tal como está en pantalla** con html2canvas y
+lo encaja en el lienzo de destino preservando proporción — o sea con **bandas**. Exportar a 9:16
+desde un panel apaisado no produce una figura vertical: produce la figura apaisada con dos franjas
+de fondo arriba y abajo.
+
+Eso convierte la fase H en algo más que asignar un modo por preset: hay que **re-maquetar antes de
+capturar**.
+
+---
+
+## Fase F — Modos de composición
+
+### F1 · La clave
+- [x] `DEFAULT_CONFIG.layout: 'auto'` — valores `auto | stacked | split-header | side`.
+
+### F2 · Deducción automática
+- [x] Con `auto`, elegir por la proporción del hueco medida con un `ResizeObserver`:
+      relación ≥ 2.1 → `side`; ≥ 1.5 → `split-header`; por debajo → `stacked`.
+- [x] Un modo elegido a mano siempre gana.
+
+### F3 · La figura se reorganiza
+- [x] Construir los bloques como una lista de piezas con nombre en vez de JSX suelto en el orden
+      del render, y colocarlos según el modo.
+- [x] `stacked`: columna, como hoy.
+- [x] `split-header`: título y subtítulo a la izquierda, KPI a la derecha, en una fila.
+- [x] `side`: rejilla de dos columnas — texto a la izquierda, leyenda y lienzo a la derecha.
+
+### F4 · El control
+- [x] Selector en `FormatPanel`, que es donde vive lo de forma y espaciado.
+
+---
+
+## Fase G — Retirada de bloques por alto
+
+- [x] Por **umbrales de alto**, no midiendo bloque a bloque: es predecible y no provoca reflujos
+      en cadena. Orden fijo — nota al pie → subtítulo → fuente y firma → conclusión.
+- [x] Título, KPI y lienzo no se retiran nunca.
+- [x] No aplica en modo informe ni a pantalla completa: ahí sobra el alto.
+
+---
+
+## Fase H — Adaptación por formato de salida
+
+### H1 · Cada preset lleva su maqueta
+- [—] **Descartado**: al re-maquetar a la proporción de destino, `resolveLayout()` elige el modo
+      solo y acierta en los cinco formatos. Un campo `layout` en cada preset habría sido
+      configuración que nadie lee, o dos fuentes para lo mismo. Lo que sí se hizo fue **ajustar
+      los umbrales** para que cada formato caiga donde dice el contrato.
+- [—] `textScale` por preset: tampoco hace falta. La escala sale de que el elemento se captura a
+      su tamaño de trabajo y se reescala al de destino.
+
+### H2 · Re-maquetar antes de capturar
+- [x] En `exportChartAsPng`, fijar temporalmente el elemento a la **proporción de destino** antes
+      de llamar a html2canvas, y restaurarlo después.
+- [x] Con eso el resultado deja de tener bandas: la figura se dibuja para el formato.
+
+---
+
+## Fase I — Verificación
+- [x] `npx vite build`.
+- [x] Repaso punto por punto.
+
+
+---
+
+## Resultado de la parte 2
+
+Comprobado con `resolveLayout()` sobre las medidas reales de cada preset:
+
+| formato | proporción | modo |
+|---|---|---|
+| PowerPoint 16:9 | 1.78 | **lateral** |
+| Banner ancho | 1.91 | **lateral** |
+| PowerPoint 4:3 | 1.33 | apilado |
+| Cuadrado 1:1 | 1.00 | apilado |
+| Historia 9:16 | 0.56 | apilado |
+| Panel del IDE | ~1.57 | cabecera partida |
+| Forzado a mano | — | gana siempre |
+
+`npx vite build` pasa.
+
+### Decisiones que tomé sobre la marcha
+
+- **La retirada de bloques va por umbrales de alto, no midiendo pieza a pieza.** Medir cada bloque
+  obliga a pintar, medir y volver a pintar, y con el lienzo dentro son dos reflujos por cada cambio
+  de tamaño. Con umbrales el resultado es el mismo y es predecible.
+- **No se retira nada en modo informe ni a pantalla completa**: ahí sobra el alto y esconder cosas
+  sería perder información sin motivo.
+- **Las siete piezas se declaran una vez y se colocan según el modo**, en vez de escribir tres
+  variantes del mismo JSX. El orden vive en un solo sitio.
+- **La restauración del tamaño al exportar va en `finally`.** Si la captura falla a media, sin eso
+  la tarjeta se quedaría clavada en el tamaño de exportación dentro de la aplicación.
+
+### Lo que sigue sin estar probado en la aplicación
+
+El build pasa y la lógica de modos está verificada con las medidas de cada formato, pero el
+reordenado de la tarjeta, la retirada por alto y la exportación re-maquetada **solo se ven
+ejecutando**. Hace falta abrir un `.amoxvis`, cambiar de modo y exportar a 9:16 y a 16:9.

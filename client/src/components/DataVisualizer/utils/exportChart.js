@@ -21,7 +21,39 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
     const targetHeight = preset?.height || 1080;
     const presetLabel = preset?.label || 'custom';
 
+    /* ── Re-maquetar antes de capturar ──
+       Antes esto fotografiaba el elemento TAL COMO ESTABA en pantalla y luego lo
+       encajaba en el lienzo de destino preservando proporción: o sea, con bandas.
+       Exportar a 9:16 desde un panel apaisado no daba una figura vertical, daba
+       la apaisada con dos franjas de fondo arriba y abajo.
+
+       Ahora se le fija al elemento la proporción de destino, se deja que el
+       navegador reordene (el ResizeObserver de la tarjeta recalcula el modo de
+       composición y qué piezas caben), se captura, y se restaura. El ancho de
+       trabajo se acota a 1600 px: por encima de eso html2canvas se come mucha
+       memoria y el resultado es el mismo, porque la escala se aplica después. */
+    const estilosPrevios = {
+        width: element.style.width,
+        height: element.style.height,
+        maxWidth: element.style.maxWidth,
+        flex: element.style.flex,
+    };
+
+    const restaurar = () => Object.assign(element.style, estilosPrevios);
+
     try {
+        const anchoTrabajo = Math.min(targetWidth, 1600);
+        const altoTrabajo = Math.round(anchoTrabajo * (targetHeight / targetWidth));
+        Object.assign(element.style, {
+            width: `${anchoTrabajo}px`,
+            height: `${altoTrabajo}px`,
+            maxWidth: 'none',
+            flex: 'none',
+        });
+        // Dos fotogramas: uno para que aplique el tamaño y otro para que el
+        // ResizeObserver de la tarjeta haya reordenado antes de la foto.
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
         const currentWidth = element.offsetWidth || 1;
         const currentHeight = element.offsetHeight || 1;
 
@@ -83,6 +115,10 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
     } catch (err) {
         console.error('Export failed:', err);
         throw err;
+    } finally {
+        // Pase lo que pase: si se sale por una excepcion sin restaurar, la
+        // tarjeta se queda clavada en el tamano de exportacion en pantalla.
+        restaurar();
     }
 };
 
