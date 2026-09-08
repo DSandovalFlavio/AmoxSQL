@@ -72,9 +72,23 @@ const TABS = [
  * `retiradas` es el conjunto de piezas que no caben; se comprueba aquí y no en
  * cada rama para que el orden de retirada sea el mismo en las tres.
  */
-function componerFigura(modo, piezas, retiradas) {
+function componerFigura(modo, piezas, retiradas, kpiEnCabecera) {
     const hay = (k) => !retiradas.has(k);
     const p = (k) => (hay(k) ? piezas[k] : null);
+
+    /* La cifra va donde tú digas, no donde la deje la maqueta. Antes el modo
+       'split-header' la mandaba a la derecha por su cuenta y saltaba de sitio al
+       cambiar el ancho del panel: se sentía como que el gráfico se movía solo.
+       Ahora la posición es una opción (headline.position) y la maqueta la
+       respeta en los tres modos. */
+    const cabecera = kpiEnCabecera ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>{piezas.titulo}{p('sub')}</div>
+            <div style={{ flex: 'none' }}>{piezas.kpi}</div>
+        </div>
+    ) : (
+        <>{piezas.titulo}{p('sub')}{piezas.kpi}</>
+    );
 
     if (modo === 'side') {
         return (
@@ -84,7 +98,7 @@ function componerFigura(modo, piezas, retiradas) {
                 gap: '0 26px', alignItems: 'start',
             }}>
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    {piezas.titulo}{p('sub')}{piezas.kpi}{p('takeaway')}{p('nota')}{p('firma')}
+                    {cabecera}{p('takeaway')}{p('nota')}{p('firma')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%' }}>
                     {piezas.lienzo}
@@ -93,25 +107,13 @@ function componerFigura(modo, piezas, retiradas) {
         );
     }
 
-    if (modo === 'split-header') {
-        return (
-            <>
-                <div style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap',
-                }}>
-                    <div style={{ minWidth: 0 }}>{piezas.titulo}{p('sub')}</div>
-                    <div style={{ flex: 'none' }}>{piezas.kpi}</div>
-                </div>
-                {piezas.lienzo}{p('takeaway')}{p('nota')}{p('firma')}
-            </>
-        );
-    }
-
+    /* 'split-header' ya no es un modo aparte: era exactamente "el KPI a la
+       derecha del título", que ahora es una opción del KPI. Se mantiene el valor
+       para no romper los .amoxvis guardados con él, y hace lo mismo que apilado
+       con la cifra en cabecera. */
     return (
         <>
-            {piezas.titulo}{p('sub')}{piezas.kpi}{piezas.lienzo}
-            {p('takeaway')}{p('nota')}{p('firma')}
+            {cabecera}{piezas.lienzo}{p('takeaway')}{p('nota')}{p('firma')}
         </>
     );
 }
@@ -211,9 +213,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         if (state.legendPosition !== 'inline') return null;
         if (state.chartType === 'donut') return null;
         if (!finalSeriesKeys || finalSeriesKeys.length === 0) return null;
-        // Con una sola serie la leyenda es ruido: el titulo y el eje ya dicen
-        // que se esta midiendo, y la pastilla solo repite la palabra.
-        if (finalSeriesKeys.length < 2) return null;
+        /* Intenté esconderla con una sola serie por considerarla ruido. Error:
+           en los gráficos donde la categoría va por fila — treemap, barras por
+           categoría — hay UNA sola clave de serie y la leyenda es justo lo que
+           da sentido a los colores. Se queda como estaba. */
         const twins = getLegendTextColors(state.colorTheme);
         return finalSeriesKeys.map((key, i) => {
             const custom = state.seriesConfig?.[key]?.color;
@@ -793,7 +796,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     // layer saturates the compositor and makes scrollbars stutter.
                     contain: 'layout paint',
                 }}>
-                    {componerFigura(modoLayout, piezas, retiradas)}
+                    {componerFigura(modoLayout, piezas, retiradas, (state.headline?.position || 'below') === 'header-right' || modoLayout === 'split-header')}
                 </div>
             </div>
 

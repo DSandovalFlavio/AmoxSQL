@@ -110,6 +110,15 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                             <option value="previous">Previous Value</option>
                         </SelectField>
                         <SelectField
+                            label="Position"
+                            value={headline.position || 'below'}
+                            onChange={v => setField('headline', { ...headline, position: v })}
+                            style={{ marginBottom: '6px' }}
+                        >
+                            <option value="below">Below the subtitle</option>
+                            <option value="header-right">Right of the title</option>
+                        </SelectField>
+                        <SelectField
                             label="Font Size"
                             value={headline.size}
                             onChange={v => setField('headline', { ...headline, size: v })}

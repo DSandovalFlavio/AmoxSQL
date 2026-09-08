@@ -197,11 +197,13 @@ export const CHART_CATEGORIES = [
    permite que algo pensado para un panel vertical funcione en una diapositiva
    apaisada sin que el lienzo se quede sin alto. */
 export const LAYOUT_MODES = [
-    { value: 'auto',         label: 'Automático',      desc: 'Según la forma del hueco' },
-    { value: 'stacked',      label: 'Apilado',         desc: 'Todo en columna' },
-    { value: 'split-header', label: 'Cabecera partida', desc: 'Título a la izquierda, cifra a la derecha' },
-    { value: 'side',         label: 'Lateral',          desc: 'Texto a un lado, gráfico al otro' },
+    { value: 'stacked', label: 'Apilado', desc: 'Todo en columna. Es el modo normal.' },
+    { value: 'side',    label: 'Lateral', desc: 'Texto a un lado y gráfico al otro. Para huecos muy anchos.' },
+    { value: 'auto',    label: 'Automático', desc: 'Cambia según la forma del hueco. Se reorganiza solo al redimensionar.' },
 ];
+/* 'split-header' ya no está en la lista: era "el KPI a la derecha del título", y
+   eso ahora es una opción del propio KPI (headline.position). El valor se sigue
+   aceptando para no romper los .amoxvis guardados con él. */
 
 /**
  * Con 'auto', el modo sale de la proporción del hueco. Es la ÚNICA fuente: al
@@ -404,10 +406,17 @@ export const DEFAULT_CONFIG = {
        hay y computeHeadline omite la pastilla en vez de inventarsela.
        `visible` se queda en false: encenderlo haria aparecer un numero grande
        en todos los graficos que ya existen, y eso lo decide el usuario. */
-    headline: { visible: false, metric: 'last', compareWith: 'previous', window: 'all', size: 'auto', customSize: 28 },
+    /* `position` dice DÓNDE cae la cifra, y es una elección tuya, no algo que
+       decida la maqueta: 'below' debajo del subtítulo (por defecto) o
+       'header-right' a la derecha del título, en su misma línea. */
+    headline: { visible: false, metric: 'last', compareWith: 'previous', window: 'all', position: 'below', size: 'auto', customSize: 28 },
 
     // Composición de la tarjeta
-    layout: 'auto',
+    /* Apilado por defecto, y no 'auto'. Con auto la tarjeta se reorganizaba sola
+       al cambiar el ancho del panel y el KPI saltaba de sitio mientras trabajabas:
+       desconcertante y sin ganancia. Los otros modos siguen disponibles, pero se
+       eligen a mano. */
+    layout: 'stacked',
 
     // Margins & Spacing
     marginTop: 20,
