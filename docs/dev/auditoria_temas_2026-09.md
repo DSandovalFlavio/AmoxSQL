@@ -273,19 +273,36 @@ o miden. Cada una es verificable con `node scripts/checkThemeContrast.cjs --all`
 - Rampa de acentos claros colgando de `.mode-light`.
 - Verificador al día, con la capa de modo en la cadena de resolución.
 
-### Fase 1 — Que el verificador vea lo que falla
+### Fase 1 — Que el verificador vea lo que falla ✅ HECHA
 
-Ahora mismo solo mira texto y bordes: los fallos de la sección 2 (sintaxis, tipos,
-feedback) y los de la 3 (velo, sombras, escalones, acentos) los encontré con el banco de
-pruebas del navegador, a mano. Antes de tocar un solo color hay que poder repetir la
-medición.
+El verificador miraba texto y bordes, y con eso decía "All checks passed" mientras la
+mitad de los tokens salían `(unresolved)` por dentro: no sabía resolver `var()` ni
+`color-mix()`, así que **callaba en vez de fallar**. Eso es peor que no medir, porque da
+una señal verde falsa.
 
-Añadirle: sintaxis contra el lienzo del editor, tipos de dato contra panel y tabla, textos
-de feedback, relleno de acento con su texto encima, escalones entre superficies, y hover /
-active. Y meter el banco del navegador en `scripts/`, porque es el único que resuelve
-`color-mix` y `var()` de verdad.
+Ahora resuelve `var(--x)` y `var(--x, respaldo)` recorriendo la misma cadena que la
+cascada real — preset de acento → tema → `.mode-light` → `body` → `:root` — y entiende
+`color-mix(…, transparent)`, que resulta ser la **única** forma de color-mix que usa el
+archivo (mezclar con `transparent` no depende del espacio de color: solo baja el alfa). Si
+algún día aparece una mezcla entre dos colores reales, devuelve nulo y el token sale como
+`(sin resolver)` en vez de mentir con un valor a medias.
 
-Sin esto, las fases siguientes son opinión.
+Con eso puede medir lo que antes había que mirar a mano en el navegador: **sintaxis**
+contra el lienzo del editor, **tipos de dato** contra panel y editor, **textos de
+feedback**, **iconos de archivo**, **escalón** base→raised, **hover/active**, el **velo**
+de los diálogos y el alfa de las **sombras** en claro, y el **acento** en sus dos usos —
+como texto y como relleno con su propio texto encima — probando **todos los presets**, no
+solo el que trae puesto el tema. Era ahí donde estaba el fallo de los cuatro botones
+ilegibles: en presets que el usuario podía elegir y nadie medía.
+
+**Fallos y avisos, separados.** Un aviso se mide y se imprime pero no tumba la ejecución.
+Es para lo que está medido y es cierto, pero cuya corrección es una decisión de diseño que
+nadie ha tomado. Hoy hay 24, y son todos lo mismo: **el extremo profundo de la rampa de
+acentos en los temas oscuros**. `linear`, `amox-9` y `amox-10` nacen con L 0.53–0.61, y
+sobre un near-black eso da 2.5–4.0:1 cuando el acento se usa como texto. Subirlos
+cambiaría el aspecto de los siete temas oscuros a la vez — no es un arreglo, es una
+decisión, y queda anotada en vez de resuelta a escondidas.
+
 
 ### Fase 2 — La capa de modo claro ✅ HECHA
 
@@ -364,21 +381,54 @@ claro: en oscuro va en 1.7–2.4 a propósito, y decidir si eso se queda es de o
   oscuro y el “lienzo” el claro, al revés de lo que se espera leyendo el resto del archivo.
 
 
-### Fase 4 — El oscuro que quedó suelto
+### Fase 4 — El oscuro que quedó suelto ✅ HECHA
 
-`--border-strong` de Sterling Deep, y de paso revisar si sus escalones de superficie
-(1.02) son demasiado cortos para que la elevación se lea.
+Al medirlo con el verificador ya completo salieron más cosas que el borde de Sterling Deep:
 
-### Fase 5 — Cerrar el sistema
+- **Sterling Deep** — `--surface-raised` sube de `#0b0912` a `#0c0a14`: el escalón con el
+  lienzo estaba en 1.018 y el panel no llegaba a separarse. `--border-strong` de `#2e2a3a`
+  a `#332f41` (1.45 → 1.56); en 1.45 el borde "fuerte" no se leía como fuerte. Y sus
+  estados, que iban en 1.07 / 1.14 contra el 1.12–1.14 / 1.22–1.30 del resto de oscuros:
+  **sobre un fondo más hondo hace falta más alfa para el mismo efecto**, que es el mismo
+  principio del modo claro visto por el otro lado.
+- **Ayu** — mismo caso, estados en 1.07 / 1.14.
+- **Nord** — `--feedback-error-text` en 3.05:1 sobre la superficie de los modales. El rojo
+  aurora `#bf616a` se queda en `--feedback-error`, que es la marca y el borde y ahí no
+  necesita 4.5; el token `-text` pasa a `#d6888f`, el mismo tono aclarado. **Es justo para
+  esto que el token `-text` existe separado del base**, y Nord era el único tema que tenía
+  los dos con el mismo valor.
 
-- El comentario de `:root` ya avisa del riesgo de las derivaciones con `var()` para el
-  acento y para el resplandor, pero el fallo se coló igual. Falta la comprobación
-  automática: **ninguna custom property declarada en `:root` puede contener `var()`**. Es
-  una regla de una línea en el verificador y cierra la familia entera de bugs.
-- `--feedback-*-bg` y `--feedback-*-border` se derivan con `color-mix` dentro de `:root`.
-  Hoy no rompe nada porque los diez temas los declaran uno por uno, pero es la misma
-  trampa esperando a que alguien declare solo el color base.
-- Actualizar la tabla de temas de `guia_estilos.md` y los pisos por token.
+Lo que **no** se tocó: `--text-disabled` en oscuro (1.7–2.4) y la rampa de acentos oscura.
+Los dos están medidos — el primero excluido del verificador a propósito, el segundo como
+aviso — y los dos son decisiones de diseño pendientes, no deuda escondida.
+
+### Fase 5 — Cerrar el sistema ✅ HECHA
+
+**La regla, ahora comprobada sola.** El verificador recorre `:root` y falla si alguna
+custom property lleva `var()` apuntando a un token que algún tema redefine. La precisión
+importa: `--transition-fast: var(--duration-fast)` lleva `var()` y **no** es un bug, porque
+ninguna duración depende del tema y congelarla no cambia nada. La regla mira a dónde
+apunta, no si hay un `var()`.
+
+Al encenderla salieron **24 properties**, no una:
+
+- Los 8 `--feedback-*-bg` / `-border`, que ya estaban señalados como "la misma trampa
+  esperando".
+- `--icon-default`, que servía el `--text-tertiary` de Obsidian a los temas oscuros con
+  terciario propio.
+- Los **15 alias legacy** — `--panel-bg`, `--editor-bg`, `--text-color`,
+  `--button-text-color`… — que era el hallazgo gordo. `--panel-bg: var(--surface-raised)`
+  en `:root` resolvía contra el `surface-raised` de `<html>`, o sea el del tema oscuro por
+  defecto. **No se notaba porque los diez bloques de tema los redeclaran uno por uno** — y
+  eso es exactamente el trabajo que no habría que estar haciendo.
+
+Los 24 bajaron al bloque `body`. Es un cambio sin efecto visible donde los temas ya
+redeclaraban (el tema seguía ganando por especificidad) y un arreglo donde no.
+
+Queda también actualizada la tabla de temas de `guia_estilos.md`, con las capas de la
+cascada (ahora cinco, con `body` en medio), los pisos por token y el aviso de que un tema
+claro no debe declarar `--shadow-*`, `--hover-bg` ni `--active-bg`.
+
 
 ---
 
@@ -388,16 +438,18 @@ claro: en oscuro va en 1.7–2.4 a propósito, y decidir si eso se queda es de o
 node scripts/checkThemeContrast.cjs --all
 ```
 
-Estado al cerrar las fases 2 y 3: **1 aviso**, y es de un tema oscuro — Sterling Deep
-`border-strong` en 1.45, justo en el límite (fase 4). Los tres claros pasan texto y bordes
-con los pisos ya subidos.
+**Todo pasa**, en los diez temas, con **24 avisos**.
 
-Lo que el verificador **todavía no mira** — sintaxis, tipos de dato, textos de feedback,
-iconos, acento como relleno con su texto encima, velo, sombras y estados — lo medí con el
-banco de pruebas del navegador, que es el único que resuelve `color-mix` y `var()` de
-verdad. Los tres claros pasan también todo eso. Meter ese banco en `scripts/` sigue siendo
-la fase 1, y sigue pendiente: hasta que esté, esa mitad de la medición hay que repetirla a
-mano cada vez.
+Los 24 son la misma cosa: el extremo profundo de la rampa de acentos (`linear`, `amox-9`,
+`amox-10`, y en Nord también `islands`, `rose`, `lavender`, `steel`) usado como TEXTO sobre
+un fondo oscuro. Está medido y es cierto; arreglarlo significa aclarar la rampa oscura, y
+eso cambia el aspecto de los siete temas oscuros a la vez. Es una decisión de diseño
+pendiente, no un descuido — por eso es aviso y no fallo.
+
+Lo que el verificador cubre ahora: texto (cuatro niveles), bordes, escalón de elevación,
+sintaxis, tipos de dato, textos de feedback, iconos de archivo, hover/active, velo de los
+diálogos, alfa de las sombras, el acento en sus dos usos y con todos los presets, y la
+regla estructural del `var()` en `:root`.
 
 Los temas retirados ya no existen: aplicar `.light-theme`, `.theme-ivory` o
 `.theme-sterlingdark` al body no define ninguna superficie y cae al oscuro por defecto,

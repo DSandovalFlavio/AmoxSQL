@@ -83,7 +83,7 @@ color: var(--accent-primary);
 | `nord` | Nord Dark | Dark | Polar night (paleta propia) |
 | `islands` | Dark Islands | Dark | Paleta propia (sintaxis cálida) |
 | `sterlingdeep` | Sterling Deep | Dark | Violeta gris apagado sobre superficies hondas — paleta Sterling (MIT) © La Matemaga |
-| `amoxlight` | Amox Light | Light | Insignia de marca — off-white frío + acento teal `#0a7d8c` |
+| `amoxlight` | Amox Light | Light | Insignia de marca — off-white frío + acento teal `#007584` |
 | `sterlinglight` | Sterling Light | Light | Papel lavanda — paleta Sterling (MIT) © La Matemaga |
 | `mist` | Mist | Light | Azul-gris frío |
 
@@ -104,20 +104,28 @@ document.body.classList.add(modeClassFor(theme)); // 'mode-light' | 'mode-dark'
 ```
 
 **Capas de override en `index.css` (en este orden):**
-1. `:root` — contrato completo de tokens (valores dark por defecto).
-2. `.mode-light` — todo lo que depende SOLO de light-vs-dark y aplica a los 3 temas
-   claros: `--feedback-info*`, `--node-*`, `--icon-*`, chrome del suggest de Monaco, y la
-   rampa de acentos claros (`.mode-light.accent-*`).
+1. `:root` — el contrato de tokens, con los valores dark por defecto. **Solo literales**:
+   nada que contenga `var()` (ver la regla de abajo).
+2. `body` — todo lo DERIVADO: la composición del acento y sus lavados, los alias
+   semánticos `--color-*`, los fondos y bordes de feedback, y los alias legacy
+   (`--panel-bg`, `--editor-bg`, `--text-color`…). Va aquí y no en `:root` porque `body`
+   es quien lleva la clase del tema y la del acento.
+3. `.mode-light` — todo lo que depende SOLO de light-vs-dark y aplica a los 3 temas
+   claros: `--feedback-info*`, `--node-*`, `--icon-*`, chrome del suggest de Monaco, la
+   rampa de acentos claros (`.mode-light.accent-*`) y — desde 2026-09 — **el velo de los
+   diálogos, las sombras y los estados hover/active**, derivados de `--text-primary`.
    **Regla:** si escribes CSS que necesita variante light, usa `.mode-light .foo`. Nunca
    enumeres los temas claros uno por uno: se te olvidará actualizarlo.
-3. `.theme-*` — cada tema toca solo: superficies, textos, bordes,
-   hover/active, sombras, titlebar (y opcionalmente syntax/feedback si tiene paleta
-   propia, como Nord/Islands).
-4. Acentos — cada `.accent-*` fija `--accent-primary` y derivadas. El acento propio de
+4. `.theme-*` — cada tema toca solo: superficies, textos, bordes, titlebar (y
+   opcionalmente syntax/feedback si tiene paleta propia, como Nord/Islands).
+   ⚠️ Un tema **claro** no debe declarar `--shadow-*`, `--hover-bg` ni `--active-bg`: los
+   pone `.mode-light`, y como los bloques de tema están más abajo en el archivo con la
+   misma especificidad, declararlos aquí los vuelve a pisar.
+5. Acentos — cada `.accent-*` fija `--accent-primary` y derivadas. El acento propio de
    Nord/Islands vive en `.theme-nord:not([class*="accent-"])` para que el acento
    elegido por el usuario SIEMPRE gane.
 
-> ### ⚠️ La regla que ya nos ha mordido tres veces
+> ### ⚠️ La regla que ya nos ha mordido tres veces — ahora comprobada sola
 >
 > **Ninguna custom property declarada en `:root` puede contener `var()`.**
 >
@@ -132,13 +140,39 @@ document.body.classList.add(modeClassFor(theme)); // 'mode-light' | 'mode-dark'
 >
 > Los derivados van en el bloque `body`, donde ya viven el acento y el resplandor. En
 > `:root` solo valores **literales**.
+>
+> **Ya no hay que acordarse**: `checkThemeContrast.cjs` la comprueba. Recorre `:root` y
+> falla si alguna property lleva `var()` apuntando a un token que algún tema redefine.
+> (Las que apuntan a tokens globales — `--transition-fast: var(--duration-fast)` — no
+> cuentan: congelarlas no cambia nada porque ningún tema las toca.)
 
-**Al agregar un tema nuevo:** clase `.theme-{nombre}` que sobrescriba solo superficies/
-texto/bordes/estados; añadirlo a `theme.js` (LIGHT_THEMES si es light) y al picker de
-SettingsModal; correr `node scripts/checkThemeContrast.cjs --all` — debe pasar los pisos
-(texto: primary ≥10:1, secondary ≥5.5:1, tertiary ≥4:1 en light / ≥3:1 en dark; bordes
-subtle 1.08-1.30, default 1.20-1.55, strong 1.45-2.10 vs base). Bordes SIEMPRE con alpha,
-nunca opacos; en light: sombras suaves (α ≤ 0.15) y hover/active como lavados alfa.
+**Al agregar un tema nuevo:** clase `.theme-{nombre}` que sobrescriba solo superficies,
+texto y bordes; añadirlo a `theme.js` (LIGHT_THEMES si es light), al picker de
+SettingsModal y a `THEME_SELECTORS` en el verificador; y correr:
+
+```bash
+node scripts/checkThemeContrast.cjs --all
+```
+
+Pisos que tiene que pasar:
+
+| Familia | Piso |
+|---|---|
+| `text-primary` / `secondary` | ≥10:1 / ≥5.5:1 |
+| `text-tertiary` | ≥4.5:1 en claro, ≥3:1 en oscuro |
+| `text-disabled` | ≥3:1 (solo se mide en claro) |
+| bordes subtle / default / strong vs base | 1.08–1.30 / 1.20–1.55 / 1.45–2.10 |
+| escalón base→raised | ≥1.02 |
+| sintaxis vs lienzo del editor | ≥4.5:1 (`comment` ≥3.0 en claro, ≥2.4 en oscuro) |
+| tipos de dato, textos de feedback | ≥4.5:1 |
+| iconos de archivo | ≥3:1 |
+| acento, como texto Y con su texto encima | ≥4.5:1 — fallo en claro, aviso en oscuro |
+| hover / active vs raised | 1.09–1.22 / 1.18–1.40 |
+| velo del diálogo (solo claro) | diálogo ≥2.5:1 sobre el lienzo velado |
+
+Bordes SIEMPRE con alpha, nunca opacos — un color literal no se integra sobre cuatro
+superficies distintas. Y en claro, **no copies la receta del oscuro con el alfa bajado**:
+sobre papel no hay margen hacia arriba, así que sombras y lavados necesitan más, no menos.
 
 ### 2.3 Acentos (13)
 

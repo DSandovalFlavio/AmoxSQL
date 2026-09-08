@@ -96,25 +96,18 @@
   --transition-base: var(--duration-base) var(--ease-out);
   --transition-slow: var(--duration-slow) var(--ease-spring);
 
-  /* ── Feedback Colors (oklch + color-mix derived) ── */
+  /* ── Feedback Colors ──
+     Solo los colores BASE, que son literales. Los `-bg` y `-border` se derivan
+     con color-mix sobre el base, o sea que llevan var(), y por eso viven en
+     `body`: aqui se congelarian en estos valores oscuros aunque el tema activo
+     declarase otro base. */
   --feedback-success:        oklch(0.72 0.19 155);
-  --feedback-success-bg:     color-mix(in oklch, var(--feedback-success) 10%, transparent);
-  --feedback-success-border: color-mix(in oklch, var(--feedback-success) 25%, transparent);
   --feedback-success-text:   oklch(0.78 0.17 155);
-
   --feedback-error:          oklch(0.65 0.22 25);
-  --feedback-error-bg:       color-mix(in oklch, var(--feedback-error) 10%, transparent);
-  --feedback-error-border:   color-mix(in oklch, var(--feedback-error) 25%, transparent);
   --feedback-error-text:     oklch(0.72 0.18 25);
-
   --feedback-warning:        oklch(0.75 0.16 70);
-  --feedback-warning-bg:     color-mix(in oklch, var(--feedback-warning) 10%, transparent);
-  --feedback-warning-border: color-mix(in oklch, var(--feedback-warning) 25%, transparent);
   --feedback-warning-text:   oklch(0.80 0.14 70);
-
   --feedback-info:           oklch(0.65 0.16 250);
-  --feedback-info-bg:        color-mix(in oklch, var(--feedback-info) 10%, transparent);
-  --feedback-info-border:    color-mix(in oklch, var(--feedback-info) 25%, transparent);
   --feedback-info-text:      oklch(0.72 0.14 250);
 
   /* ── Syntax Highlighting Tokens (for Monaco & code display) ── */
@@ -159,7 +152,7 @@
   --icon-md:       oklch(0.65 0.10 250);   /* blue muted */
   --icon-parquet:  oklch(0.75 0.10 330);   /* pink */
   --icon-excel:    oklch(0.55 0.14 155);   /* dark green */
-  --icon-default:  var(--text-tertiary);
+  /* --icon-default va en `body`: es var(--text-tertiary) y aqui se congelaba. */
 
   /* ── Database Type Color Tokens ── */
   --type-integer:  oklch(0.87 0.08 230);      /* ≈ #9cdcfe blue */
@@ -228,30 +221,9 @@
   /* ── Window Title Bar (Electron) ── */
   --titlebar-height: 40px;   /* espacio para el omnibox y aire alrededor de la marca */
 
-  /* ═══════════════════════════════════════════════
-     LEGACY ALIASES — backward compat with inline styles
-     (will be removed as components migrate to tokens)
-     ═══════════════════════════════════════════════ */
-  --editor-bg: var(--surface-base);
-  --text-color: var(--text-secondary);
-  --text-active: var(--text-primary);
-  --text-muted: var(--text-tertiary);
-  /* --accent-color-user lives on `body` (below), NOT here: it aliases
-     var(--accent-primary), which freezes at its declaring element — on :root
-     (html) it would ignore the accent class (which sits on <body>). */
-
-  --sidebar-item-active-bg: var(--active-bg);
-  --border-color: var(--border-default);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: var(--surface-base);
-
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --chart-bg: var(--surface-base);
-  --grid-color: var(--border-default);
-  --tooltip-bg: var(--surface-overlay);
-  --table-row-hover: var(--hover-bg);
+  /* Los ALIAS LEGACY (--editor-bg, --panel-bg, --text-color…) tampoco viven
+     aqui: todos son `var(--otro-token)`. Estan en `body`, con el resto de
+     derivados. */
 }
 
 /* ═══════════════════════════════════════════════
@@ -296,6 +268,45 @@ body {
   --color-info-text:    var(--feedback-info-text);
   --color-destructive-bg:   color-mix(in oklch, var(--color-destructive) 10%, transparent);
   --color-destructive-text: oklch(0.70 0.18 25);
+
+  /* ── Fondos y bordes de feedback, derivados del color base ──
+     Hoy no rompian nada porque los diez temas los declaraban uno por uno, pero
+     eran la misma trampa esperando: en cuanto un tema declarase solo el color
+     base, el fondo se habria quedado con el del oscuro. */
+  --feedback-success-bg:     color-mix(in oklch, var(--feedback-success) 10%, transparent);
+  --feedback-success-border: color-mix(in oklch, var(--feedback-success) 25%, transparent);
+  --feedback-error-bg:       color-mix(in oklch, var(--feedback-error) 10%, transparent);
+  --feedback-error-border:   color-mix(in oklch, var(--feedback-error) 25%, transparent);
+  --feedback-warning-bg:     color-mix(in oklch, var(--feedback-warning) 10%, transparent);
+  --feedback-warning-border: color-mix(in oklch, var(--feedback-warning) 25%, transparent);
+  --feedback-info-bg:        color-mix(in oklch, var(--feedback-info) 10%, transparent);
+  --feedback-info-border:    color-mix(in oklch, var(--feedback-info) 25%, transparent);
+
+  /* ── ALIAS LEGACY ── compatibilidad con estilos inline
+     (se iran quitando segun los componentes migren a tokens)
+
+     Estaban en :root, y ahi TODOS se congelaban: `--panel-bg: var(--surface-raised)`
+     resolvia contra el surface-raised de <html>, que es el del tema oscuro por
+     defecto. No se notaba porque los diez bloques de tema los redeclaran igual
+     — pero eso es justo lo que hay que dejar de tener que hacer. */
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --icon-default: var(--text-tertiary);
+
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: var(--surface-base);
+
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: var(--border-default);
+  --tooltip-bg: var(--surface-overlay);
+  --table-row-hover: var(--hover-bg);
 
   /* ── Resplandor del fondo (consumido por .app-container) ──
      Van AQUÍ y no en :root por la misma razón que los derivados del acento:
@@ -1112,25 +1123,30 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 
 /* ═══════════════════════════════════════════════
    DARK THEME: STERLING DEEP
-   A calmer, deeper take on Sterling Dark. Anchored on a MUTED grey-violet
-   (#0b0912 sidebar) — low chroma, not the saturated violet of Sterling Dark —
-   with the app/editor background dropping below it to #08060f.
-   Same Sterling palette on syntax/feedback — but on deeper surfaces it reads
-   rich instead of loud. Values derived from Sterling (MIT) © La Matemaga.
+   Anchored on a MUTED grey-violet (#0c0a14 sidebar) — croma bajo, con el fondo
+   de la app y del editor cayendo por debajo hasta #08060f.
+   La paleta de Sterling en sintaxis y feedback, pero sobre superficies mas
+   hondas se lee rica en vez de estridente. Valores derivados de Sterling
+   (MIT) © La Matemaga.
    ═══════════════════════════════════════════════ */
 .theme-sterlingdeep {
-  /* Anchored on #0b0912 (the sidebar) — a muted, low-chroma grey-violet, not
-     the saturated violet of Sterling Dark. The whole ladder keeps that quiet
-     character so nothing reads bright. */
+  /* Anclado en el gris-violeta apagado de la barra lateral, de croma bajo. Toda
+     la escala mantiene ese caracter callado para que nada se lea brillante. */
   --surface-base:    #08060f;   /* app + editor background — below the sidebar */
-  --surface-raised:  #0b0912;   /* panels, sidebar, table header (reference) */
+  --surface-raised:  #0c0a14;   /* panels, sidebar, table header (reference).
+                          Era #0b0912: el escalon con el lienzo se quedaba en
+                          1.018 y el panel no llegaba a separarse. Subirlo dos
+                          puntos de luminosidad no cambia el caracter hondo del
+                          tema y lo pone en 1.025. */
   --surface-overlay: #14111e;   /* modals, popovers, row hover — elevation */
   --surface-inset:   #05040b;   /* wells: gutter, inputs, code blocks — deepest */
 
   /* Very quiet borders — muted grey-violet, low chroma */
   --border-subtle:  #191622;
   --border-default: #221e2c;
-  --border-strong:  #2e2a3a;
+  --border-strong:  #332f41;   /* era #2e2a3a, 1.45 contra el lienzo — justo en
+                          el limite del rango, asi que el borde "fuerte" no
+                          llegaba a leerse como fuerte. Ahora 1.56. */
 
   --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
   --text-secondary: #a99fc4;   /* Sterling muted */
@@ -1139,8 +1155,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 
   /* Lavender "period" accent stays (overridable via .theme-sterlingdeep:not(...)). */
 
-  --hover-bg:   rgba(196, 181, 253, 0.05);
-  --active-bg:  rgba(196, 181, 253, 0.09);
+  /* Estaban en 0.05 / 0.09, que sobre estas superficies tan hondas daba 1.07 y
+     1.14 — por debajo de lo que dan el resto de oscuros (1.12-1.14 y 1.22-1.30).
+     Sobre un fondo casi negro hace falta MAS alfa para el mismo efecto. */
+  --hover-bg:   rgba(196, 181, 253, 0.08);
+  --active-bg:  rgba(196, 181, 253, 0.14);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.65);
@@ -1216,8 +1235,9 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* Ayu gold default accent lives in .theme-ayu:not([class*="accent-"]) below,
      so a user-picked accent overrides it (consistent with the other themes). */
 
-  --hover-bg:   rgba(115, 130, 160, 0.06);
-  --active-bg:  rgba(115, 130, 160, 0.11);
+  /* 0.06 / 0.11 daba 1.07 y 1.14, por debajo del resto de oscuros. */
+  --hover-bg:   rgba(115, 130, 160, 0.09);
+  --active-bg:  rgba(115, 130, 160, 0.16);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
@@ -1304,7 +1324,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --feedback-success-text: #a3be8c;
   --feedback-error:        #bf616a;
   --feedback-error-bg:     rgba(191, 97, 106, 0.10);
-  --feedback-error-text:   #bf616a;
+  /* El rojo aurora de Nord (#bf616a) se queda en --feedback-error, que es la
+     marca y el borde: ahi no hace falta 4.5. Como TEXTO daba 3.05 sobre la
+     superficie de modales, asi que aqui va aclarado — mismo tono, mas claro.
+     Es justo para lo que existe el token -text separado del base. */
+  --feedback-error-text:   #d6888f;
   --feedback-warning:      #ebcb8b;
   --feedback-warning-bg:   rgba(235, 203, 139, 0.10);
   --feedback-warning-text: #ebcb8b;
