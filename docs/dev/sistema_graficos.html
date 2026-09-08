@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de gráficos de AmoxSQL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   SISTEMA DE GRÁFICOS — contrato visual
+   Documento de diseño. No se importa desde la app; se lee, se discute y luego
+   se implementa en DataVisualizer. Los tokens de aquí son la propuesta.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── El suelo: los mismos dos modos que la app ── */
+:root {
+  --ground:      #f1f4f7;
+  --ground-2:    #f8fafb;
+  --figure-bg:   #ffffff;
+  --ink:         #1c2530;
+  --ink-2:       #41505e;
+  --ink-3:       #5e6f7d;
+  --hairline:    rgba(28, 37, 48, 0.10);
+  --hairline-2:  rgba(28, 37, 48, 0.055);
+  --accent:      #007584;
+  --accent-lit:  #00b9cf;
+  --glow-a:      0.16;   /* halo del lienzo */
+  --glow-b:      0.10;   /* halo bajo el máximo */
+  --mark-glow:   0;      /* en claro los puntos no emiten: se entintan */
+  --fig-shadow:  0 1px 2px rgba(20,40,60,.10), 0 10px 30px rgba(20,40,60,.13);
+  --grid-op:     0.55;
+  --page-bg:     #eef1f5;
+}
+:root[data-mode="dark"] {
+  --ground:      #080a0f;
+  --ground-2:    #0e1017;
+  --figure-bg:   #0b0e14;
+  --ink:         #e9edf3;
+  --ink-2:       #9aa7b6;
+  --ink-3:       #6a7889;
+  --hairline:    rgba(255, 255, 255, 0.10);
+  --hairline-2:  rgba(255, 255, 255, 0.05);
+  --accent:      #22d3ee;
+  --accent-lit:  #7ce8f8;
+  --glow-a:      0.13;
+  --glow-b:      0.20;
+  --mark-glow:   1;
+  --fig-shadow:  0 1px 2px rgba(0,0,0,.5), 0 18px 50px rgba(0,0,0,.45);
+  --grid-op:     0.4;
+  --page-bg:     #05070b;
+}
+
+/* ── Tokens del sistema de figuras ──
+   Una escala corta a propósito. Cada valor tiene un porqué escrito al lado en
+   la sección "Tokens"; si no cabe la razón, el token sobra. */
+:root {
+  --f-pad:        26px;   /* aire interior de la figura */
+  --f-radius:     16px;
+  --f-gap:        14px;   /* entre bloques de la figura */
+  --f-stroke:     2.25;   /* grosor de la línea de datos */
+  --f-stroke-mut: 1.5;    /* grosor de una serie apagada */
+  --f-dot:        3.2;    /* radio del punto-constelación */
+  --f-dot-hi:     5;      /* radio del punto destacado */
+  --f-bar-radius: 5;
+  --f-eyebrow:    10.5px;
+  --f-datum:      40px;
+  --f-takeaway:   14px;
+  --f-tick:       10.5px;
+  --sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--page-bg); color: var(--ink);
+  font: 15px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1220px; margin: 0 auto; padding: 0 24px 120px; }
+
+/* ── Portada: el mismo gesto que la pantalla de bienvenida ── */
+.hero {
+  position: relative; overflow: hidden;
+  padding: 88px 24px 72px; margin-bottom: 8px;
+  background:
+    radial-gradient(52% 62% at 76% 30%,
+      color-mix(in oklch, var(--accent) calc(var(--glow-a) * 130%), transparent) 0%, transparent 70%),
+    radial-gradient(46% 50% at 14% 88%,
+      color-mix(in oklch, var(--accent) calc(var(--glow-a) * 55%), transparent) 0%, transparent 72%),
+    var(--ground);
+  border-bottom: 1px solid var(--hairline);
+}
+.hero-in { max-width: 1220px; margin: 0 auto; padding: 0 24px; }
+.eyebrow {
+  font: 600 var(--f-eyebrow)/1 var(--mono);
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-3);
+}
+h1 {
+  font-size: clamp(2.1rem, 4.6vw, 3.1rem); font-weight: 800; letter-spacing: -0.03em;
+  line-height: 1.06; margin: 14px 0 0; max-width: 17ch; text-wrap: balance;
+}
+h1 em { font-style: normal; color: var(--accent); }
+.lede { max-width: 62ch; color: var(--ink-2); font-size: 1.06rem; margin: 18px 0 0; }
+
+h2 {
+  font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em;
+  margin: 84px 0 6px; padding-top: 22px; border-top: 1px solid var(--hairline);
+}
+h2 .n { font: 500 0.72rem/1 var(--mono); color: var(--accent); display: block; margin-bottom: 10px; letter-spacing: .12em; }
+h3 { font-size: 1rem; font-weight: 700; margin: 40px 0 6px; letter-spacing: -0.01em; }
+p  { color: var(--ink-2); max-width: 68ch; }
+p.tight { margin-top: 4px; }
+code { font: 500 0.85em var(--mono); color: var(--ink); }
+strong { color: var(--ink); font-weight: 700; }
+
+/* ── Barra de control, pegada arriba ── */
+.controles {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+  padding: 12px 24px;
+  background: color-mix(in oklch, var(--ground) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom: 1px solid var(--hairline);
+}
+.controles .grupo { display: flex; align-items: center; gap: 8px; }
+.controles label { font: 600 var(--f-eyebrow)/1 var(--mono); letter-spacing: .13em;
+                   text-transform: uppercase; color: var(--ink-3); }
+select, .btn {
+  font: 500 12.5px var(--sans); color: var(--ink);
+  background: var(--figure-bg); border: 1px solid var(--hairline);
+  border-radius: 8px; padding: 6px 10px; cursor: pointer;
+}
+select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.tiras { display: flex; gap: 3px; margin-left: 2px; }
+.tiras i { width: 13px; height: 13px; border-radius: 3px; display: block; }
+
+/* ═══ LA FIGURA — la unidad del sistema ═══ */
+.figura {
+  position: relative; overflow: hidden;
+  background: var(--figure-bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--f-radius);
+  padding: var(--f-pad);
+  box-shadow: var(--fig-shadow);
+  display: flex; flex-direction: column; gap: var(--f-gap);
+}
+/* El halo del lienzo: la luz entra por donde está el dato, no por una esquina
+   decidida a mano. --gx/--gy los pone el renderizador en el máximo de la serie. */
+.figura::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(38% 46% at var(--gx, 70%) var(--gy, 34%),
+    color-mix(in oklch, var(--serie-1, var(--accent)) calc(var(--glow-b) * 100%), transparent) 0%,
+    transparent 68%);
+}
+.figura > * { position: relative; }
+
+.fig-eyebrow { font: 600 var(--f-eyebrow)/1 var(--mono); letter-spacing: .16em;
+               text-transform: uppercase; color: var(--ink-3); }
+.fig-datum { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: -4px; }
+.fig-datum b {
+  font: 800 var(--f-datum)/1 var(--sans); letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.fig-datum .cents { color: var(--ink-3); }
+.chip {
+  font: 700 11px/1 var(--mono); letter-spacing: .02em;
+  padding: 4px 7px; border-radius: 999px;
+  color: var(--pos, var(--accent));
+  background: color-mix(in oklch, var(--pos, var(--accent)) 14%, transparent);
+}
+.chip.neg { --pos: #e5484d; }
+.fig-sub { font-size: 12.5px; color: var(--ink-3); }
+
+.fig-plot { width: 100%; }
+.fig-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* La leyenda va tejida con el texto, no en una caja aparte. */
+.fig-leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; }
+.fig-leyenda span { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.fig-leyenda i { width: 9px; height: 9px; border-radius: 2.5px; display: block; }
+
+.fig-takeaway {
+  font-size: var(--f-takeaway); line-height: 1.45; color: var(--ink);
+  max-width: 46ch; font-weight: 500;
+}
+.fig-pie {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding-top: 12px; border-top: 1px solid var(--hairline-2);
+  font: 500 11px var(--mono); color: var(--ink-3); letter-spacing: .04em;
+}
+.firma { display: inline-flex; align-items: center; gap: 6px; }
+.firma i { width: 5px; height: 5px; border-radius: 999px; background: var(--accent); display: block; }
+
+/* ── Rejilla de especímenes ── */
+.specs { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); margin-top: 22px; }
+.specs--duo { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+.spec-nombre { font: 600 var(--f-eyebrow)/1 var(--mono); letter-spacing: .14em;
+               text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px 2px; }
+.spec-nombre b { color: var(--ink-2); font-weight: 600; }
+
+/* ── Anatomía anotada ── */
+.anatomia { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); gap: 26px; align-items: start; margin-top: 22px; }
+.partes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: p; }
+.partes li { display: grid; grid-template-columns: 26px 1fr; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--hairline-2); }
+.partes li::before {
+  counter-increment: p; content: counter(p, decimal-leading-zero);
+  font: 700 10px/1.7 var(--mono); color: var(--accent);
+}
+.partes b { display: block; font-size: 13.5px; }
+.partes span { font-size: 12.5px; color: var(--ink-2); }
+
+/* ── Reglas / comparativas ── */
+.reglas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 20px; }
+.regla { border: 1px solid var(--hairline); border-left: 2px solid var(--accent);
+         border-radius: 10px; padding: 15px 17px; background: var(--ground-2); }
+.regla b { display: block; margin-bottom: 5px; font-size: 13.5px; }
+.regla p { margin: 0; font-size: 12.8px; }
+
+.tabla { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
+.tabla th { text-align: left; font: 600 10.5px var(--mono); letter-spacing: .12em;
+            text-transform: uppercase; color: var(--ink-3);
+            padding: 9px 12px; border-bottom: 1px solid var(--hairline); }
+.tabla td { padding: 10px 12px; border-bottom: 1px solid var(--hairline-2); color: var(--ink-2); vertical-align: top; }
+.tabla td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.si { color: #10b981; font-weight: 700; }
+.no { color: #e5484d; font-weight: 700; }
+.medio { color: #d99a2b; font-weight: 700; }
+
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; }
+.duo-cap { font: 600 var(--f-eyebrow)/1 var(--mono); letter-spacing: .14em;
+           text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+@media (max-width: 860px) { .duo, .anatomia { grid-template-columns: 1fr; } }
+
+.nota { font-size: 12.5px; color: var(--ink-3); max-width: 60ch; }
+.ancla { scroll-margin-top: 72px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-in">
+    <div class="eyebrow">Contrato de diseño · borrador 1</div>
+    <h1>Un gráfico de AmoxSQL se <em>reconoce</em> antes de leerlo.</h1>
+    <p class="lede">
+      El punto de partida es la pantalla de bienvenida: un suelo profundo, una sola luz que
+      entra en diagonal, y una marca dibujada con puntos en vez de trazo macizo. Este documento
+      lleva ese mismo gesto a los diecisiete tipos de gráfico, y fija los tokens con los que se
+      implementará en <code>DataVisualizer</code>.
+    </p>
+  </div>
+</header>
+
+<div class="controles">
+  <div class="grupo">
+    <label for="sel-paleta">Paleta</label>
+    <select id="sel-paleta"></select>
+    <div class="tiras" id="tiras"></div>
+  </div>
+  <div class="grupo">
+    <label>Modo</label>
+    <button class="btn" id="btn-modo" aria-pressed="true">Oscuro</button>
+  </div>
+  <div class="grupo">
+    <label>Constelación</label>
+    <button class="btn" id="btn-const" aria-pressed="true">Puntos visibles</button>
+  </div>
+  <div class="grupo">
+    <label>Halo</label>
+    <button class="btn" id="btn-halo" aria-pressed="true">Activo</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ══════════════ 1 · Los cinco gestos ══════════════ -->
+<h2 class="ancla" id="gestos"><span class="n">01</span>Los cinco gestos</h2>
+<p>Lo que hace que la bienvenida funcione, traducido a datos. No son adornos: cada uno resuelve
+un problema de lectura que hoy no está resuelto.</p>
+
+<div class="reglas">
+  <div class="regla">
+    <b>La luz sale del dato</b>
+    <p>Un halo suave, del color de la serie principal, centrado en su <b>máximo</b>. La figura se ilumina por donde está lo importante en vez de por una esquina elegida a mano. En claro el halo baja y se convierte en tinte; en oscuro sube y emite.</p>
+  </div>
+  <div class="regla">
+    <b>Constelación, no marcadores</b>
+    <p>Los puntos de una serie son pequeños y luminosos, como el logotipo. El punto destacado lleva anillo y una guía vertical hasta el eje. Es el rasgo más propio y el más barato de implementar.</p>
+  </div>
+  <div class="regla">
+    <b>La cifra manda</b>
+    <p>Toda figura abre con su titular numérico y su delta. Un gráfico responde una pregunta; el número es la respuesta y el trazo es la prueba.</p>
+  </div>
+  <div class="regla">
+    <b>Una serie manda, el resto acompaña</b>
+    <p>Nunca N colores compitiendo. La serie protagonista va a croma completo y grosor 2.25; las demás bajan croma y grosor. La jerarquía es del diseño, no del orden de las columnas.</p>
+  </div>
+  <div class="regla">
+    <b>Sin caja</b>
+    <p>Una línea base y horizontales punteadas. Ni marco, ni eje vertical, ni fondo de rejilla. El aire hace el trabajo que hoy hacen las líneas.</p>
+  </div>
+</div>
+
+<!-- ══════════════ 2 · Anatomía ══════════════ -->
+<h2 class="ancla" id="anatomia"><span class="n">02</span>Anatomía de una figura</h2>
+<p>Siete piezas, siempre en el mismo orden. Las opcionales se omiten enteras: nunca se dejan
+vacías ocupando sitio.</p>
+
+<div class="anatomia">
+  <div>
+    <div class="spec-nombre">Figura completa · <b>línea con constelación</b></div>
+    <div class="figura" data-chart="hero"></div>
+  </div>
+  <ol class="partes">
+    <li><div><b>Cejilla</b><span>De dónde salen los datos. Monoespaciada, versalitas, terciario.</span></div></li>
+    <li><div><b>Titular numérico</b><span>La respuesta. 40px, peso 800, cifras tabulares, decimales en gris.</span></div></li>
+    <li><div><b>Delta</b><span>Pastilla con el signo. Verde/rojo semánticos, nunca el acento.</span></div></li>
+    <li><div><b>Lienzo</b><span>El trazo, el halo bajo el máximo y la constelación.</span></div></li>
+    <li><div><b>Leyenda tejida</b><span>En línea, con el color de texto gemelo — no el de la mancha.</span></div></li>
+    <li><div><b>Conclusión</b><span>Una frase. Lo que hay que entender, escrito, no deducido.</span></div></li>
+    <li><div><b>Pie y firma</b><span>Fuente a la izquierda, punto de acento a la derecha. Cierra la figura.</span></div></li>
+  </ol>
+</div>
+
+<!-- ══════════════ 3 · Comparar ══════════════ -->
+<h2 class="ancla" id="comparar"><span class="n">03</span>Comparar</h2>
+<p>Barras iluminadas desde el extremo del valor: el degradado nace en la punta y se apaga hacia
+la base, así que la barra parece encendida por el dato y no un bloque plano.</p>
+<div class="specs">
+  <div><div class="spec-nombre">bar · <b>Columnas</b></div><div class="figura" data-chart="bar"></div></div>
+  <div><div class="spec-nombre">bar-horizontal · <b>Barras</b></div><div class="figura" data-chart="barh"></div></div>
+</div>
+
+<!-- ══════════════ 4 · Tendencia ══════════════ -->
+<h2 class="ancla" id="tendencia"><span class="n">04</span>Tendencia</h2>
+<div class="specs specs--duo">
+  <div><div class="spec-nombre">line · <b>Línea, serie única</b></div><div class="figura" data-chart="line"></div></div>
+  <div><div class="spec-nombre">line · <b>Multiserie con jerarquía</b></div><div class="figura" data-chart="multiline"></div></div>
+  <div><div class="spec-nombre">area · <b>Área apilada</b></div><div class="figura" data-chart="area"></div></div>
+  <div><div class="spec-nombre">combo · <b>Barra + línea</b></div><div class="figura" data-chart="combo"></div></div>
+</div>
+
+<!-- ══════════════ 5 · Composición ══════════════ -->
+<h2 class="ancla" id="composicion"><span class="n">05</span>Composición</h2>
+<div class="specs">
+  <div><div class="spec-nombre">donut · <b>Anillo</b></div><div class="figura" data-chart="donut"></div></div>
+  <div><div class="spec-nombre">pie · <b>Tarta</b></div><div class="figura" data-chart="pie"></div></div>
+  <div><div class="spec-nombre">bar-stacked · <b>Columnas apiladas</b></div><div class="figura" data-chart="stacked"></div></div>
+  <div><div class="spec-nombre">bar-100 · <b>Apilado al 100 %</b></div><div class="figura" data-chart="stacked100"></div></div>
+  <div><div class="spec-nombre">bar-horizontal-stacked · <b>Barras apiladas</b></div><div class="figura" data-chart="hstacked"></div></div>
+  <div><div class="spec-nombre">treemap · <b>Rectángulos</b></div><div class="figura" data-chart="treemap"></div></div>
+</div>
+
+<!-- ══════════════ 6 · Relación ══════════════ -->
+<h2 class="ancla" id="relacion"><span class="n">06</span>Relación</h2>
+<p>Aquí la constelación deja de ser una cita al logotipo y pasa a ser literal: la nube de puntos
+<em>es</em> el dibujo.</p>
+<div class="specs">
+  <div><div class="spec-nombre">scatter · <b>Dispersión</b></div><div class="figura" data-chart="scatter"></div></div>
+  <div><div class="spec-nombre">bubble · <b>Burbujas</b></div><div class="figura" data-chart="bubble"></div></div>
+  <div><div class="spec-nombre">heatmap · <b>Matriz</b></div><div class="figura" data-chart="heatmap"></div></div>
+</div>
+
+<!-- ══════════════ 7 · Flujo ══════════════ -->
+<h2 class="ancla" id="flujo"><span class="n">07</span>Flujo</h2>
+<div class="specs">
+  <div><div class="spec-nombre">funnel · <b>Embudo</b></div><div class="figura" data-chart="funnel"></div></div>
+  <div><div class="spec-nombre">waterfall · <b>Cascada</b></div><div class="figura" data-chart="waterfall"></div></div>
+</div>
+
+<!-- ══════════════ 8 · Los dos modos ══════════════ -->
+<h2 class="ancla" id="modos"><span class="n">08</span>La misma figura en los dos modos</h2>
+<p>La regla que costó la auditoría de temas se aplica igual aquí: <strong>en claro no se baja la
+receta del oscuro, se cambia</strong>. Sobre fondo oscuro el halo emite y los puntos brillan;
+sobre papel no hay margen hacia arriba, así que el halo se vuelve tinte, los puntos se entintan
+y la profundidad la hace la sombra.</p>
+<div class="duo">
+  <div>
+    <div class="duo-cap">Oscuro · el halo emite</div>
+    <div id="demo-osc" data-forzar="dark"><div class="figura" data-chart="line"></div></div>
+  </div>
+  <div>
+    <div class="duo-cap">Claro · el halo tinta</div>
+    <div id="demo-clr" data-forzar="light"><div class="figura" data-chart="line"></div></div>
+  </div>
+</div>
+<table class="tabla">
+  <thead><tr><th>gesto</th><th>oscuro</th><th>claro</th></tr></thead>
+  <tbody>
+    <tr><td>Halo bajo el máximo</td><td>20 % del color de la serie, emite</td><td>10 %, y actúa como tinte del papel</td></tr>
+    <tr><td>Punto de constelación</td><td>halo exterior + núcleo claro</td><td>sin halo, núcleo entintado y aro del papel</td></tr>
+    <tr><td>Degradado de barra</td><td>de la punta (100 %) a la base (12 %)</td><td>de la punta (100 %) a la base (25 %)</td></tr>
+    <tr><td>Profundidad de la tarjeta</td><td>elevación y contraste del suelo</td><td>sombra: es la única pista que queda</td></tr>
+    <tr><td>Rejilla</td><td>blanco al 6 %, punteada</td><td>tinta al 8 %, punteada</td></tr>
+  </tbody>
+</table>
+
+<!-- ══════════════ 9 · Tokens ══════════════ -->
+<h2 class="ancla" id="tokens"><span class="n">09</span>Los tokens, y por qué</h2>
+<p>Escala corta a propósito. Si no cabe la razón al lado, el token sobra.</p>
+<table class="tabla">
+  <thead><tr><th>token</th><th>valor</th><th>porqué</th></tr></thead>
+  <tbody>
+    <tr><td><code>--f-pad</code></td><td>26px</td><td>El aire es lo que sustituye al marco. Por debajo de 24 la figura vuelve a parecer una caja.</td></tr>
+    <tr><td><code>--f-radius</code></td><td>16px</td><td>Más redondo que las tarjetas de la app (8) para que la figura se lea como objeto exportable, no como panel.</td></tr>
+    <tr><td><code>--f-stroke</code></td><td>2.25</td><td>Sobrevive al exportar a PowerPoint a 1920px y sigue fino en pantalla.</td></tr>
+    <tr><td><code>--f-stroke-mut</code></td><td>1.5</td><td>La serie que acompaña. La diferencia tiene que verse sin leer el color.</td></tr>
+    <tr><td><code>--f-dot</code></td><td>3.2</td><td>Punto de constelación. Más grande deja de ser una estrella y pasa a ser un marcador.</td></tr>
+    <tr><td><code>--f-dot-hi</code></td><td>5 + aro</td><td>El destacado. El aro, no el tamaño, es lo que lo separa.</td></tr>
+    <tr><td><code>--f-datum</code></td><td>40px / 800</td><td>La cifra tiene que ganarle al gráfico en la primera mirada.</td></tr>
+    <tr><td><code>--f-tick</code></td><td>10.5px</td><td>Las etiquetas de eje son referencia, no contenido. Nunca compiten con la conclusión.</td></tr>
+    <tr><td><code>--grid-op</code></td><td>0.4 / 0.55</td><td>Multiplicador de la rejilla. En claro sube: sobre papel la misma opacidad se ve menos.</td></tr>
+  </tbody>
+</table>
+
+<h3>Tipografía</h3>
+<p class="tight"><strong>Manrope</strong> para titular, conclusión y etiquetas de categoría —
+ya es la fuente de la app, así que la figura y la interfaz hablan igual.
+<strong>JetBrains Mono</strong> para cejilla, ejes, deltas y pie: todo lo que es dato o
+referencia va monoespaciado y con cifras tabulares, de modo que las columnas de números se
+alinean solas y el ojo distingue «esto es medida» de «esto es prosa» sin leerlo.</p>
+
+<!-- ══════════════ 10 · Contra lo que hay hoy ══════════════ -->
+<h2 class="ancla" id="hoy"><span class="n">10</span>Contra lo que se puede hacer hoy</h2>
+<p>Honestamente: buena parte del sistema ya es alcanzable con lo que hay en
+<code>DEFAULT_CONFIG</code>. Lo que falta no es motor, es <em>criterio por defecto</em> — hoy
+todo es una opción y nada es una decisión.</p>
+<table class="tabla">
+  <thead><tr><th>gesto</th><th>hoy</th><th>qué falta</th></tr></thead>
+  <tbody>
+    <tr><td>Titular numérico</td><td class="no">no existe</td><td>Bloque nuevo en la figura, con el agregado calculado sobre la serie principal.</td></tr>
+    <tr><td>Delta</td><td class="no">no existe</td><td>Comparar contra el primer punto o el periodo anterior. Colores semánticos, no el acento.</td></tr>
+    <tr><td>Halo bajo el máximo</td><td class="no">no existe</td><td>Un <code>radialGradient</code> en el SVG posicionado en el índice del máximo. Barato.</td></tr>
+    <tr><td>Constelación</td><td class="medio">parcial</td><td><code>showDots</code> existe, pero pinta marcadores planos. Falta el halo y el punto destacado con aro y guía.</td></tr>
+    <tr><td>Degradado de barra</td><td class="medio">parcial</td><td><code>fillStyle: 'gradient'</code> es solo para área/línea. Extenderlo a barras, y que nazca en la punta.</td></tr>
+    <tr><td>Jerarquía de series</td><td class="medio">parcial</td><td>Hay «emphasis» en Story Flow; falta que sea el <b>comportamiento por defecto</b> con más de una serie.</td></tr>
+    <tr><td>Leyenda tejida</td><td class="si">hecho</td><td>Ya existe <code>InlineLegend</code> con los gemelos de texto.</td></tr>
+    <tr><td>Conclusión y firma</td><td class="si">hecho</td><td>La cáscara editorial de Story Flow ya trae takeaway, fuente y punto de acento.</td></tr>
+    <tr><td>Sin caja</td><td class="si">hecho</td><td><code>gridMode</code> y <code>showAxisLines</code> lo permiten. Falta que el <b>preajuste de fábrica</b> sea este.</td></tr>
+    <tr><td>Paletas y gemelos</td><td class="si">hecho</td><td>24 paletas con <code>LEGEND_PAIRS</code>. Ver <code>temas.html</code>.</td></tr>
+  </tbody>
+</table>
+
+<div class="reglas">
+  <div class="regla">
+    <b>La conclusión que saco</b>
+    <p>El trabajo grande no es dibujar distinto, es <b>cambiar los valores por defecto</b> y
+    añadir tres piezas: titular, delta y halo. Un gráfico recién creado tiene que salir ya con
+    esta cara, sin que nadie toque un panel de opciones.</p>
+  </div>
+  <div class="regla">
+    <b>Lo que NO propongo</b>
+    <p>Nada de neón, degradados arcoíris ni barras con brillo de videojuego. Varias referencias
+    van por ahí y se leen espectaculares en una captura, pero envejecen mal y estorban cuando el
+    gráfico va dentro de un informe. La identidad aquí es <b>la luz y el punto</b>, no la saturación.</p>
+  </div>
+</div>
+
+<h2 class="ancla" id="siguiente"><span class="n">11</span>Qué decidir antes de implementar</h2>
+<ol>
+  <li><strong>¿El titular numérico es obligatorio?</strong> Propongo que sí por defecto, con
+  opción de quitarlo. Es lo que más cambia la primera impresión.</li>
+  <li><strong>¿La constelación va siempre o solo en series cortas?</strong> Con 200 puntos la
+  constelación se convierte en una mancha. Propongo umbral: puntos visibles hasta ~40, por
+  encima solo el destacado.</li>
+  <li><strong>¿El halo se apaga al exportar a papel?</strong> En PowerPoint sobre fondo blanco
+  el tinte funciona; impreso puede ensuciar. Propongo apagarlo solo en el preajuste de impresión.</li>
+  <li><strong>¿Radio 16 también dentro del IDE?</strong> La figura exportada gana; el gráfico
+  embebido en el panel puede pedir 8 para no pelearse con las tarjetas de alrededor.</li>
+</ol>
+
+<p class="nota" style="margin-top:40px">
+Documento de diseño, no código de producción. Los especímenes de esta página se dibujan con un
+renderizador propio de ~200 líneas para que el selector de paletas funcione de verdad; la
+implementación real irá sobre Recharts en <code>DataVisualizer</code>.
+Relacionado: <code>docs/dev/temas.html</code> (paletas y gemelos de leyenda),
+<code>docs/dev/plan_story_flow.md</code>.
+</p>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Renderizador de especímenes.
+   No es la implementación: es lo justo para que el contrato se pueda MIRAR y
+   para que el selector de paletas cambie de verdad todos los gráficos a la vez.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const PALETAS = {
+  'Sterling (oscuro)':   ['#B69AF2','#5EC9AE','#E88BDD','#F2C46D','#86A8E8','#F29A88','#B7C974','#B7C8D1'],
+  'Sterling (claro)':    ['#9A79E7','#25A08D','#D45AC7','#E4A43A','#5A83D7','#E87864','#96AB51','#536B78'],
+  'AmoxSQL':             ['#22d3ee','#7dd3fc','#a78bfa','#f0a868','#5eead4','#f472b6','#93c5fd','#fbbf24'],
+  'Default':             ['#9b87f5','#f87171','#60a5fa','#fbbf24','#34d399','#f472b6','#a78bfa','#fb923c'],
+  'Dark2':               ['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666'],
+  'Set2':                ['#66c2a5','#fc8d62','#8da0cb','#e78ac3','#a6d854','#ffd92f','#e5c494','#b3b3b3'],
+  'Ocean':               ['#0077b6','#00b4d8','#48cae4','#90e0ef','#ade8f4','#caf0f8'],
+  'Vivid':               ['#3366CC','#DC3912','#FF9900','#109618','#990099','#3B3EAC','#0099C6','#DD4477'],
+};
+
+const estado = { paleta: 'AmoxSQL', modo: 'dark', puntos: true, halo: true };
+const col = (i) => PALETAS[estado.paleta][i % PALETAS[estado.paleta].length];
+
+/* ── Datos de ejemplo: ingresos mensuales por región ── */
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const SERIE = [312,298,341,377,352,404,461,438,502,547,528,613];
+const NORTE = [128,121,140,152,146,168,190,181,205,224,217,251];
+const SUR   = [ 96, 92,104,118,108,124,141,134,153,167,161,188];
+const ESTE  = [ 88, 85, 97,107, 98,112,130,123,144,156,150,174];
+const REGIONES = [
+  { n: 'Norte', v: 2023, d: NORTE }, { n: 'Sur', v: 1586, d: SUR },
+  { n: 'Este',  v: 1464, d: ESTE  }, { n: 'Oeste', v: 1109, d: SUR.map(x => x * .7) },
+];
+
+const fmt = (n) => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'k' : Math.round(n);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a = {}, kids = []) => {
+  const e = document.createElementNS(NS, t);
+  for (const k in a) if (a[k] != null) e.setAttribute(k, a[k]);
+  for (const c of [].concat(kids)) if (c) e.appendChild(c);
+  return e;
+};
+const W = 460, H = 208, M = { t: 14, r: 10, b: 26, l: 34 };
+const iw = W - M.l - M.r, ih = H - M.t - M.b;
+
+/* Rejilla + eje: una línea base y horizontales punteadas. Nada más. */
+function ejes(g, max, cats, opts = {}) {
+  const pasos = opts.pasos ?? 4;
+  for (let i = 0; i <= pasos; i++) {
+    const y = M.t + ih - (ih * i / pasos);
+    g.appendChild(el('line', { x1: M.l, x2: M.l + iw, y1: y, y2: y,
+      stroke: 'var(--ink)', 'stroke-opacity': i === 0 ? 0.22 : 0.09,
+      'stroke-dasharray': i === 0 ? null : '1 5', 'stroke-linecap': 'round' }));
+    g.appendChild(el('text', { x: M.l - 8, y: y + 3.5, 'text-anchor': 'end',
+      fill: 'var(--ink-3)', 'font-size': 'var(--f-tick)', 'font-family': 'var(--mono)' },
+      [document.createTextNode(fmt(max * i / pasos))]));
+  }
+  if (!cats) return;
+  const paso = iw / cats.length;
+  cats.forEach((c, i) => {
+    if (cats.length > 8 && i % 2) return;
+    g.appendChild(el('text', { x: M.l + paso * (i + .5), y: H - 8, 'text-anchor': 'middle',
+      fill: 'var(--ink-3)', 'font-size': 'var(--f-tick)', 'font-family': 'var(--mono)' },
+      [document.createTextNode(c)]));
+  });
+}
+
+/* El halo bajo el máximo: la luz entra por donde está el dato. */
+function halo(defs, id, color) {
+  const rg = el('radialGradient', { id });
+  rg.appendChild(el('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': 0.85 }));
+  rg.appendChild(el('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': 0 }));
+  defs.appendChild(rg);
+}
+/* Degradado que nace en la punta del valor y se apaga hacia la base. */
+function degradado(defs, id, color, x2 = 0, y2 = 1) {
+  const lg = el('linearGradient', { id, x1: 0, y1: 0, x2, y2 });
+  lg.appendChild(el('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': 1 }));
+  lg.appendChild(el('stop', { offset: '100%', 'stop-color': color,
+    'stop-opacity': estado.modo === 'dark' ? 0.12 : 0.25 }));
+  defs.appendChild(lg);
+}
+
+/* El punto-constelación: halo exterior + núcleo. En claro no emite: se entinta. */
+function punto(g, x, y, color, destacado) {
+  const r = destacado ? 5 : 3.2;
+  if (estado.modo === 'dark') {
+    g.appendChild(el('circle', { cx: x, cy: y, r: r * 2.6, fill: color, opacity: 0.16 }));
+  }
+  if (destacado) {
+    g.appendChild(el('circle', { cx: x, cy: y, r: r + 4, fill: 'none',
+      stroke: color, 'stroke-width': 1.5, opacity: 0.55 }));
+  }
+  g.appendChild(el('circle', { cx: x, cy: y, r, fill: color,
+    stroke: 'var(--figure-bg)', 'stroke-width': destacado ? 2 : 1.2 }));
+}
+
+const escalaY = (v, max) => M.t + ih - (v / max) * ih;
+
+/* El halo se centra en el maximo, pero acotado: si el maximo cae en el ultimo
+   punto (que es lo normal en una serie que crece) el centro se iria al 98 % y
+   medio halo quedaria fuera del recorte de la tarjeta. Se lee peor que no
+   tenerlo. */
+const acotar = (v, min, max) => Math.max(min, Math.min(max, v));
+const foco = (x, y) => ({
+  gx: acotar(x / W * 100, 14, 84).toFixed(1) + '%',
+  gy: acotar(y / H * 100, 16, 76).toFixed(1) + '%',
+});
+
+/* ── Los dibujos ── */
+const DIBUJOS = {
+  linea(svg, defs, { serie = SERIE, color = col(0), area = true } = {}) {
+    const max = Math.max(...serie) * 1.15, paso = iw / (serie.length - 1);
+    const pts = serie.map((v, i) => [M.l + paso * i, escalaY(v, max)]);
+    ejes(svg, max, MESES);
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    if (area) {
+      degradado(defs, 'ar', color);
+      svg.appendChild(el('path', { d: d + ` L${M.l + iw} ${M.t + ih} L${M.l} ${M.t + ih} Z`,
+        fill: 'url(#ar)', opacity: estado.modo === 'dark' ? 0.5 : 0.35 }));
+    }
+    svg.appendChild(el('path', { d, fill: 'none', stroke: color,
+      'stroke-width': 'var(--f-stroke)', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    const iMax = serie.indexOf(Math.max(...serie));
+    if (estado.puntos) pts.forEach((p, i) => { if (i !== iMax) punto(svg, p[0], p[1], color, false); });
+    // guía vertical del destacado
+    svg.appendChild(el('line', { x1: pts[iMax][0], x2: pts[iMax][0], y1: pts[iMax][1], y2: M.t + ih,
+      stroke: color, 'stroke-width': 1, 'stroke-dasharray': '2 4', opacity: 0.45 }));
+    punto(svg, pts[iMax][0], pts[iMax][1], color, true);
+    return foco(pts[iMax][0], pts[iMax][1]);
+  },
+
+  multilinea(svg, defs) {
+    const todas = [NORTE, SUR, ESTE];
+    const max = Math.max(...todas.flat()) * 1.18, paso = iw / 12;
+    ejes(svg, max, MESES);
+    todas.forEach((s, k) => {
+      const pts = s.map((v, i) => [M.l + paso * i, escalaY(v, max)]);
+      const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+      const principal = k === 0;
+      svg.appendChild(el('path', { d, fill: 'none', stroke: col(k),
+        'stroke-width': principal ? 'var(--f-stroke)' : 'var(--f-stroke-mut)',
+        opacity: principal ? 1 : 0.5,
+        'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      if (principal) punto(svg, pts[11][0], pts[11][1], col(0), true);
+    });
+    return { gx: '88%', gy: '28%' };
+  },
+
+  barras(svg, defs, { horizontal = false } = {}) {
+    const datos = REGIONES.map((r, i) => ({ ...r, c: col(i) }));
+    const max = Math.max(...datos.map(d => d.v)) * 1.12;
+    datos.forEach((d, i) => degradado(defs, 'bg' + i, d.c, horizontal ? 1 : 0, horizontal ? 0 : 1));
+    if (horizontal) {
+      const alto = ih / datos.length, gr = alto * 0.5;
+      datos.forEach((d, i) => {
+        const w = (d.v / max) * iw, y = M.t + alto * i + (alto - gr) / 2;
+        svg.appendChild(el('rect', { x: M.l, y, width: Math.max(w, 8), height: gr,
+          rx: 'var(--f-bar-radius)', fill: `url(#bg${i})` }));
+        svg.appendChild(el('text', { x: M.l - 8, y: y + gr / 2 + 3.5, 'text-anchor': 'end',
+          fill: 'var(--ink-2)', 'font-size': 'var(--f-tick)', 'font-family': 'var(--mono)' },
+          [document.createTextNode(d.n)]));
+        svg.appendChild(el('text', { x: M.l + w + 8, y: y + gr / 2 + 3.5,
+          fill: 'var(--ink)', 'font-size': '11.5px', 'font-family': 'var(--mono)', 'font-weight': 700 },
+          [document.createTextNode(fmt(d.v))]));
+      });
+      return { gx: '20%', gy: '22%' };
+    }
+    ejes(svg, max, datos.map(d => d.n));
+    const paso = iw / datos.length, gr = paso * 0.44;
+    datos.forEach((d, i) => {
+      const h = (d.v / max) * ih, x = M.l + paso * (i + .5) - gr / 2;
+      svg.appendChild(el('rect', { x, y: M.t + ih - h, width: gr, height: h,
+        rx: 'var(--f-bar-radius)', fill: `url(#bg${i})` }));
+    });
+    return { gx: '22%', gy: '26%' };
+  },
+
+  areaApilada(svg, defs) {
+    const capas = [ESTE, SUR, NORTE];
+    const totales = MESES.map((_, i) => capas.reduce((a, c) => a + c[i], 0));
+    const max = Math.max(...totales) * 1.12, paso = iw / 11;
+    ejes(svg, max, MESES);
+    let acum = new Array(12).fill(0);
+    capas.forEach((s, k) => {
+      const abajo = acum.slice();
+      acum = acum.map((a, i) => a + s[i]);
+      const arriba = acum.map((v, i) => [M.l + paso * i, escalaY(v, max)]);
+      const base = abajo.map((v, i) => [M.l + paso * i, escalaY(v, max)]).reverse();
+      const d = arriba.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+              + base.map(p => ' L' + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('') + ' Z';
+      svg.appendChild(el('path', { d, fill: col(k), opacity: estado.modo === 'dark' ? 0.62 : 0.72 }));
+      svg.appendChild(el('path', { d: arriba.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '),
+        fill: 'none', stroke: col(k), 'stroke-width': 1.6, opacity: 0.9 }));
+    });
+    return { gx: '84%', gy: '24%' };
+  },
+
+  combo(svg, defs) {
+    const max = Math.max(...SERIE) * 1.18, paso = iw / 12;
+    ejes(svg, max, MESES);
+    degradado(defs, 'cb', col(1));
+    const gr = paso * 0.42;
+    SERIE.forEach((v, i) => {
+      const h = (v * 0.62 / max) * ih;
+      svg.appendChild(el('rect', { x: M.l + paso * (i + .5) - gr / 2, y: M.t + ih - h,
+        width: gr, height: h, rx: 4, fill: 'url(#cb)', opacity: 0.75 }));
+    });
+    const pts = SERIE.map((v, i) => [M.l + paso * (i + .5), escalaY(v, max)]);
+    svg.appendChild(el('path', { d: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '),
+      fill: 'none', stroke: col(0), 'stroke-width': 'var(--f-stroke)', 'stroke-linecap': 'round' }));
+    punto(svg, pts[11][0], pts[11][1], col(0), true);
+    return { gx: '86%', gy: '22%' };
+  },
+
+  anillo(svg, defs, { hueco = 0.58 } = {}) {
+    const cx = W / 2, cy = H / 2 + 4, R = Math.min(ih, iw) / 2 + 6;
+    const total = REGIONES.reduce((a, r) => a + r.v, 0);
+    let ang = -Math.PI / 2;
+    REGIONES.forEach((r, i) => {
+      const barrido = (r.v / total) * Math.PI * 2, fin = ang + barrido;
+      const p = (a, rad) => [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad];
+      const [x1, y1] = p(ang, R), [x2, y2] = p(fin, R);
+      const [x3, y3] = p(fin, R * hueco), [x4, y4] = p(ang, R * hueco);
+      const grande = barrido > Math.PI ? 1 : 0;
+      const d = hueco > 0
+        ? `M${x1} ${y1} A${R} ${R} 0 ${grande} 1 ${x2} ${y2} L${x3} ${y3} A${R * hueco} ${R * hueco} 0 ${grande} 0 ${x4} ${y4} Z`
+        : `M${cx} ${cy} L${x1} ${y1} A${R} ${R} 0 ${grande} 1 ${x2} ${y2} Z`;
+      svg.appendChild(el('path', { d, fill: col(i),
+        stroke: 'var(--figure-bg)', 'stroke-width': 2.5, opacity: i === 0 ? 1 : 0.72 }));
+      ang = fin;
+    });
+    if (hueco > 0) {
+      svg.appendChild(el('text', { x: cx, y: cy - 2, 'text-anchor': 'middle', fill: 'var(--ink)',
+        'font-size': '26px', 'font-weight': 800, 'font-family': 'var(--sans)' },
+        [document.createTextNode(fmt(total))]));
+      svg.appendChild(el('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', fill: 'var(--ink-3)',
+        'font-size': '10.5px', 'font-family': 'var(--mono)', 'letter-spacing': '.1em' },
+        [document.createTextNode('TOTAL')]));
+    }
+    return { gx: '50%', gy: '46%' };
+  },
+
+  apiladas(svg, defs, { cien = false, horizontal = false } = {}) {
+    const capas = [NORTE, SUR, ESTE].map(s => s.slice(0, 6));
+    const cats = MESES.slice(0, 6);
+    const totales = cats.map((_, i) => capas.reduce((a, c) => a + c[i], 0));
+    const max = cien ? 1 : Math.max(...totales) * 1.12;
+    if (!horizontal) ejes(svg, cien ? 100 : max, cats, { pasos: cien ? 4 : 4 });
+    const paso = (horizontal ? ih : iw) / cats.length;
+    const gr = paso * 0.5;
+    cats.forEach((c, i) => {
+      let acum = 0;
+      capas.forEach((s, k) => {
+        const v = cien ? s[i] / totales[i] : s[i];
+        const largo = (v / max) * (horizontal ? iw : ih);
+        if (horizontal) {
+          const y = M.t + paso * i + (paso - gr) / 2;
+          svg.appendChild(el('rect', { x: M.l + (acum / max) * iw, y, width: Math.max(largo, 2),
+            height: gr, fill: col(k), opacity: k === 0 ? 1 : 0.7 }));
+        } else {
+          const x = M.l + paso * (i + .5) - gr / 2;
+          svg.appendChild(el('rect', { x, y: M.t + ih - (acum / max) * ih - largo,
+            width: gr, height: Math.max(largo, 2), fill: col(k), opacity: k === 0 ? 1 : 0.7 }));
+        }
+        acum += v;
+      });
+      if (horizontal) {
+        svg.appendChild(el('text', { x: M.l - 8, y: M.t + paso * i + paso / 2 + 3.5, 'text-anchor': 'end',
+          fill: 'var(--ink-3)', 'font-size': 'var(--f-tick)', 'font-family': 'var(--mono)' },
+          [document.createTextNode(c)]));
+      }
+    });
+    return { gx: '76%', gy: '26%' };
+  },
+
+  treemap(svg) {
+    // Squarified simplificado: suficiente para enseñar el estilo.
+    const items = [...REGIONES, { n: 'Centro', v: 640 }, { n: 'Sureste', v: 430 }, { n: 'Golfo', v: 300 }];
+    const total = items.reduce((a, r) => a + r.v, 0);
+    let x = M.l, y = M.t, w = iw, h = ih, i = 0;
+    for (const it of items) {
+      const ultimo = i === items.length - 1;
+      const frac = it.v / items.slice(i).reduce((a, r) => a + r.v, 0);
+      const vertical = w > h;
+      const cw = ultimo ? w : (vertical ? w * frac : w);
+      const ch = ultimo ? h : (vertical ? h : h * frac);
+      svg.appendChild(el('rect', { x: x + 1.5, y: y + 1.5, width: Math.max(cw - 3, 2), height: Math.max(ch - 3, 2),
+        rx: 5, fill: col(i), opacity: i === 0 ? 1 : 0.82 - i * 0.06 }));
+      if (cw > 52 && ch > 26) {
+        svg.appendChild(el('text', { x: x + 10, y: y + 20, fill: 'var(--figure-bg)',
+          'font-size': '11.5px', 'font-weight': 700, 'font-family': 'var(--sans)' },
+          [document.createTextNode(it.n)]));
+        svg.appendChild(el('text', { x: x + 10, y: y + 34, fill: 'var(--figure-bg)',
+          'font-size': '10.5px', 'font-family': 'var(--mono)', opacity: 0.8 },
+          [document.createTextNode(fmt(it.v))]));
+      }
+      if (vertical) { x += cw; w -= cw; } else { y += ch; h -= ch; }
+      i++;
+    }
+    return { gx: '18%', gy: '22%' };
+  },
+
+  dispersion(svg, defs, { burbuja = false } = {}) {
+    const pts = [];
+    let s = 7;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 34; i++) {
+      const px = rnd(), py = Math.min(0.96, px * 0.7 + rnd() * 0.45);
+      pts.push({ x: M.l + px * iw, y: M.t + ih - py * ih, r: burbuja ? 3 + rnd() * 11 : 4, g: i % 3 });
+    }
+    ejes(svg, 100, null);
+    pts.forEach(p => {
+      if (estado.modo === 'dark') {
+        svg.appendChild(el('circle', { cx: p.x, cy: p.y, r: p.r * 2.2, fill: col(p.g), opacity: 0.14 }));
+      }
+      svg.appendChild(el('circle', { cx: p.x, cy: p.y, r: p.r, fill: col(p.g),
+        opacity: burbuja ? 0.62 : 0.9, stroke: 'var(--figure-bg)', 'stroke-width': 1.2 }));
+    });
+    return { gx: '72%', gy: '30%' };
+  },
+
+  matriz(svg) {
+    const filas = ['08','10','12','14','16','18'], cols = ['L','M','X','J','V','S','D'];
+    const cw = iw / cols.length, chh = ih / filas.length;
+    let s = 3; const rnd = () => (s = (s * 48271) % 2147483647) / 2147483647;
+    filas.forEach((f, r) => cols.forEach((c, k) => {
+      const v = Math.pow(rnd(), 1.4);
+      svg.appendChild(el('rect', { x: M.l + cw * k + 1.5, y: M.t + chh * r + 1.5,
+        width: cw - 3, height: chh - 3, rx: 4, fill: col(0),
+        opacity: 0.08 + v * 0.9 }));
+    }));
+    cols.forEach((c, k) => svg.appendChild(el('text', { x: M.l + cw * (k + .5), y: H - 8,
+      'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-size': 'var(--f-tick)', 'font-family': 'var(--mono)' },
+      [document.createTextNode(c)])));
+    filas.forEach((f, r) => svg.appendChild(el('text', { x: M.l - 8, y: M.t + chh * (r + .5) + 3.5,
+      'text-anchor': 'end', fill: 'var(--ink-3)', 'font-size': 'var(--f-tick)', 'font-family': 'var(--mono)' },
+      [document.createTextNode(f)])));
+    return { gx: '46%', gy: '40%' };
+  },
+
+  embudo(svg, defs) {
+    const pasos = [{ n: 'Visitas', v: 48200 }, { n: 'Registros', v: 21400 },
+                   { n: 'Activados', v: 12100 }, { n: 'De pago', v: 4630 }];
+    const alto = ih / pasos.length;
+    pasos.forEach((p, i) => {
+      degradado(defs, 'fn' + i, col(i), 1, 0);
+      const w = (p.v / pasos[0].v) * iw;
+      const y = M.t + alto * i + 3;
+      svg.appendChild(el('rect', { x: M.l + (iw - w) / 2, y, width: w, height: alto - 8,
+        rx: 6, fill: `url(#fn${i})` }));
+      svg.appendChild(el('text', { x: M.l + iw / 2, y: y + (alto - 8) / 2 + 4, 'text-anchor': 'middle',
+        fill: 'var(--figure-bg)', 'font-size': '11.5px', 'font-weight': 700, 'font-family': 'var(--sans)' },
+        [document.createTextNode(`${p.n} · ${fmt(p.v)}`)]));
+      if (i) {
+        svg.appendChild(el('text', { x: M.l + iw - 2, y: y - 2, 'text-anchor': 'end',
+          fill: 'var(--ink-3)', 'font-size': '10px', 'font-family': 'var(--mono)' },
+          [document.createTextNode(`−${Math.round((1 - p.v / pasos[i-1].v) * 100)}%`)]));
+      }
+    });
+    return { gx: '50%', gy: '18%' };
+  },
+
+  cascada(svg, defs) {
+    const pasos = [{ n: 'Inicio', v: 312, t: 'base' }, { n: 'Nuevos', v: 148, t: '+' },
+                   { n: 'Upsell', v: 96, t: '+' }, { n: 'Bajas', v: -74, t: '-' },
+                   { n: 'Ajuste', v: -31, t: '-' }, { n: 'Final', v: 451, t: 'base' }];
+    let acum = 0;
+    const picos = [];
+    pasos.forEach(p => { if (p.t === 'base') picos.push(p.v); else { acum += p.v; picos.push(acum + 312); } });
+    const max = Math.max(...picos, 500) * 1.15;
+    ejes(svg, max, pasos.map(p => p.n));
+    const paso = iw / pasos.length, gr = paso * 0.5;
+    let base = 0;
+    pasos.forEach((p, i) => {
+      const esBase = p.t === 'base';
+      const desde = esBase ? 0 : base;
+      const hasta = esBase ? p.v : base + p.v;
+      const y0 = escalaY(Math.max(desde, hasta), max), y1 = escalaY(Math.min(desde, hasta), max);
+      const c = esBase ? col(0) : (p.v > 0 ? '#10b981' : '#e5484d');
+      svg.appendChild(el('rect', { x: M.l + paso * (i + .5) - gr / 2, y: y0,
+        width: gr, height: Math.max(y1 - y0, 2), rx: 4, fill: c, opacity: esBase ? 1 : 0.85 }));
+      if (i && !esBase) {
+        svg.appendChild(el('line', { x1: M.l + paso * (i - .5) + gr / 2, x2: M.l + paso * (i + .5) - gr / 2,
+          y1: escalaY(desde, max), y2: escalaY(desde, max),
+          stroke: 'var(--ink)', 'stroke-opacity': 0.25, 'stroke-dasharray': '2 3' }));
+      }
+      if (!esBase) base = hasta; else base = p.v;
+    });
+    return { gx: '80%', gy: '24%' };
+  },
+};
+
+/* ── Recetas: qué dibujo, con qué texto ── */
+const RECETAS = {
+  hero:  { eyebrow: 'ventas.parquet · 12 meses', datum: '4 973', cents: ',12', unidad: 'k MXN', delta: '+96.5 %',
+           dibujo: (s, d) => DIBUJOS.linea(s, d),
+           takeaway: 'Diciembre cierra el año como el mejor mes de la serie, un 96 % por encima de enero.',
+           leyenda: [['Ingreso mensual', 0]], fuente: 'DuckDB · ventas.parquet' },
+  bar:   { eyebrow: 'ventas por región', datum: '2 023', unidad: 'k · Norte', delta: '+27.5 %',
+           dibujo: (s, d) => DIBUJOS.barras(s, d),
+           takeaway: 'Norte concentra más de un tercio del total y crece por encima de la media.',
+           fuente: 'ventas.parquet' },
+  barh:  { eyebrow: 'ventas por región', datum: '6 182', unidad: 'k totales',
+           dibujo: (s, d) => DIBUJOS.barras(s, d, { horizontal: true }),
+           takeaway: 'El orden por magnitud hace innecesaria la escala: la comparación es directa.',
+           fuente: 'ventas.parquet' },
+  line:  { eyebrow: 'ingreso mensual', datum: '613', cents: ',4', unidad: 'k · dic', delta: '+16.1 %',
+           dibujo: (s, d) => DIBUJOS.linea(s, d),
+           takeaway: 'La serie rompe su máximo en diciembre tras la meseta de agosto.',
+           fuente: 'ventas.parquet' },
+  multiline: { eyebrow: 'ingreso por región', datum: '251', unidad: 'k · Norte, dic', delta: '+96.1 %',
+           dibujo: (s, d) => DIBUJOS.multilinea(s, d),
+           takeaway: 'Las tres regiones crecen, pero solo Norte acelera en el último trimestre.',
+           leyenda: [['Norte', 0], ['Sur', 1], ['Este', 2]], fuente: 'ventas.parquet' },
+  area:  { eyebrow: 'composición mensual', datum: '613', unidad: 'k · dic', delta: '+96.5 %',
+           dibujo: (s, d) => DIBUJOS.areaApilada(s, d),
+           takeaway: 'El reparto entre regiones se mantiene estable mientras el total casi se duplica.',
+           leyenda: [['Este', 0], ['Sur', 1], ['Norte', 2]], fuente: 'ventas.parquet' },
+  combo: { eyebrow: 'volumen e ingreso', datum: '613', unidad: 'k · dic', delta: '+16.1 %',
+           dibujo: (s, d) => DIBUJOS.combo(s, d),
+           takeaway: 'El ingreso sube más rápido que el volumen: el ticket medio está creciendo.',
+           leyenda: [['Ingreso', 0], ['Volumen', 1]], fuente: 'ventas.parquet' },
+  donut: { eyebrow: 'reparto por región', datum: '4', unidad: 'regiones',
+           dibujo: (s, d) => DIBUJOS.anillo(s, d),
+           takeaway: 'Norte y Sur suman el 58 % del total.',
+           leyenda: REGIONES.map((r, i) => [r.n, i]), fuente: 'ventas.parquet' },
+  pie:   { eyebrow: 'reparto por región', datum: '58', unidad: '% en dos regiones',
+           dibujo: (s, d) => DIBUJOS.anillo(s, d, { hueco: 0 }),
+           takeaway: 'La tarta solo se usa con cuatro categorías o menos, y siempre ordenada.',
+           leyenda: REGIONES.map((r, i) => [r.n, i]), fuente: 'ventas.parquet' },
+  stacked: { eyebrow: 'primer semestre', datum: '1 894', unidad: 'k acumulados',
+           dibujo: (s, d) => DIBUJOS.apiladas(s, d),
+           takeaway: 'Cada columna es un mes; el apilado responde «de qué se compone», no «cuál es mayor».',
+           leyenda: [['Norte', 0], ['Sur', 1], ['Este', 2]], fuente: 'ventas.parquet' },
+  stacked100: { eyebrow: 'reparto relativo', datum: '41', unidad: '% Norte, estable',
+           dibujo: (s, d) => DIBUJOS.apiladas(s, d, { cien: true }),
+           takeaway: 'Al normalizar al 100 % se ve lo que el apilado absoluto escondía: la mezcla no cambia.',
+           leyenda: [['Norte', 0], ['Sur', 1], ['Este', 2]], fuente: 'ventas.parquet' },
+  hstacked: { eyebrow: 'reparto por mes', datum: '6', unidad: 'meses',
+           dibujo: (s, d) => DIBUJOS.apiladas(s, d, { horizontal: true }),
+           takeaway: 'En horizontal las etiquetas largas caben sin girar el texto.',
+           leyenda: [['Norte', 0], ['Sur', 1], ['Este', 2]], fuente: 'ventas.parquet' },
+  treemap: { eyebrow: 'peso por zona', datum: '7', unidad: 'zonas',
+           dibujo: (s) => DIBUJOS.treemap(s),
+           takeaway: 'El área codifica la magnitud: útil con muchas categorías desiguales.',
+           fuente: 'ventas.parquet' },
+  scatter: { eyebrow: 'ticket vs frecuencia', datum: '0.78', unidad: 'correlación',
+           dibujo: (s, d) => DIBUJOS.dispersion(s, d),
+           takeaway: 'Los clientes que compran más veces también gastan más por compra.',
+           fuente: 'clientes.csv' },
+  bubble: { eyebrow: 'ticket, frecuencia y volumen', datum: '34', unidad: 'segmentos',
+           dibujo: (s, d) => DIBUJOS.dispersion(s, d, { burbuja: true }),
+           takeaway: 'El tamaño añade una tercera variable sin añadir un tercer eje.',
+           fuente: 'clientes.csv' },
+  heatmap: { eyebrow: 'actividad por hora y día', datum: '14 h', unidad: 'jueves, pico',
+           dibujo: (s) => DIBUJOS.matriz(s),
+           takeaway: 'La actividad se concentra a media tarde entre miércoles y viernes.',
+           fuente: 'eventos.parquet' },
+  funnel: { eyebrow: 'conversión del trimestre', datum: '9.6', cents: ' %', unidad: 'de visita a pago', delta: '−1.2 pp',
+           dibujo: (s, d) => DIBUJOS.embudo(s, d),
+           takeaway: 'La caída más grande sigue estando entre visita y registro: 56 % se pierde ahí.',
+           fuente: 'eventos.parquet' },
+  waterfall: { eyebrow: 'puente de ingreso', datum: '451', unidad: 'k · cierre', delta: '+44.6 %',
+           dibujo: (s, d) => DIBUJOS.cascada(s, d),
+           takeaway: 'El crecimiento neto viene de nuevos clientes; las bajas se comen un tercio del alta.',
+           fuente: 'ventas.parquet' },
+};
+
+function pintar(nodo) {
+  const receta = RECETAS[nodo.dataset.chart];
+  if (!receta) return;
+  nodo.innerHTML = '';
+  const add = (h) => { const d = document.createElement('div'); d.innerHTML = h; return d.firstElementChild; };
+
+  nodo.appendChild(add(`<div class="fig-eyebrow">${receta.eyebrow}</div>`));
+  nodo.appendChild(add(
+    `<div class="fig-datum"><b>${receta.datum}${receta.cents ? `<span class="cents">${receta.cents}</span>` : ''}</b>` +
+    (receta.delta ? `<span class="chip${receta.delta.startsWith('−') ? ' neg' : ''}">${receta.delta}</span>` : '') +
+    (receta.unidad ? `<span class="fig-sub">${receta.unidad}</span>` : '') + `</div>`));
+
+  const cont = add('<div class="fig-plot"></div>');
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  const defs = el('defs'); svg.appendChild(defs);
+  const foco = receta.dibujo(svg, defs) || {};
+  cont.appendChild(svg);
+  nodo.appendChild(cont);
+
+  if (receta.leyenda) {
+    nodo.appendChild(add('<div class="fig-leyenda">' + receta.leyenda
+      .map(([n, i]) => `<span><i style="background:${col(i)}"></i>${n}</span>`).join('') + '</div>'));
+  }
+  nodo.appendChild(add(`<div class="fig-takeaway">${receta.takeaway}</div>`));
+  nodo.appendChild(add(
+    `<div class="fig-pie"><span>${receta.fuente}</span><span class="firma"><i></i>AMOXSQL</span></div>`));
+
+  nodo.style.setProperty('--serie-1', col(0));
+  nodo.style.setProperty('--gx', estado.halo ? (foco.gx || '70%') : '-100%');
+  nodo.style.setProperty('--gy', foco.gy || '34%');
+}
+
+function pintarTodo() {
+  document.querySelectorAll('.figura').forEach(pintar);
+  document.getElementById('tiras').innerHTML =
+    PALETAS[estado.paleta].slice(0, 8).map(c => `<i style="background:${c}"></i>`).join('');
+}
+
+/* ── Controles ── */
+const selP = document.getElementById('sel-paleta');
+selP.innerHTML = Object.keys(PALETAS).map(k => `<option${k === estado.paleta ? ' selected' : ''}>${k}</option>`).join('');
+selP.addEventListener('change', e => { estado.paleta = e.target.value; pintarTodo(); });
+
+const btnModo = document.getElementById('btn-modo');
+btnModo.addEventListener('click', () => {
+  estado.modo = estado.modo === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.mode = estado.modo;
+  btnModo.textContent = estado.modo === 'dark' ? 'Oscuro' : 'Claro';
+  btnModo.setAttribute('aria-pressed', estado.modo === 'dark');
+  pintarTodo();
+});
+
+const btnC = document.getElementById('btn-const');
+btnC.addEventListener('click', () => {
+  estado.puntos = !estado.puntos;
+  btnC.textContent = estado.puntos ? 'Puntos visibles' : 'Solo el destacado';
+  btnC.setAttribute('aria-pressed', estado.puntos);
+  pintarTodo();
+});
+
+const btnH = document.getElementById('btn-halo');
+btnH.addEventListener('click', () => {
+  estado.halo = !estado.halo;
+  btnH.textContent = estado.halo ? 'Activo' : 'Apagado';
+  btnH.setAttribute('aria-pressed', estado.halo);
+  pintarTodo();
+});
+
+document.documentElement.dataset.mode = estado.modo;
+pintarTodo();
+
+/* Las dos figuras de la sección "modos" ignoran el interruptor global: cada una
+   se queda clavada en su modo para poder compararlas de un vistazo. */
+['demo-osc', 'demo-clr'].forEach(id => {
+  const caja = document.getElementById(id);
+  const modo = caja.dataset.forzar;
+  const previo = estado.modo;
+  estado.modo = modo;
+  caja.style.cssText = modo === 'dark'
+    ? '--figure-bg:#0b0e14;--ink:#e9edf3;--ink-2:#9aa7b6;--ink-3:#6a7889;--hairline:rgba(255,255,255,.10);--hairline-2:rgba(255,255,255,.05);--glow-b:.20;--fig-shadow:0 18px 50px rgba(0,0,0,.45)'
+    : '--figure-bg:#ffffff;--ink:#1c2530;--ink-2:#41505e;--ink-3:#5e6f7d;--hairline:rgba(28,37,48,.10);--hairline-2:rgba(28,37,48,.055);--glow-b:.10;--fig-shadow:0 1px 2px rgba(20,40,60,.10),0 10px 30px rgba(20,40,60,.13)';
+  pintar(caja.querySelector('.figura'));
+  estado.modo = previo;
+});
+</script>
+</body>
+</html>
