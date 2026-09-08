@@ -35,23 +35,23 @@ Ese es todo el trabajo: convertir un preview de markdown en un lienzo.
 
 Sin esto ninguna medida del contrato significa nada.
 
-- [ ] `deck.css`: el contenedor de consulta va en `.deck-slide-card`, **nunca** en
+- [x] `deck.css`: el contenedor de consulta va en `.deck-slide-card`, **nunca** en
       `.deck-slide`. Una lámina que fuera su propio contenedor tendría el relleno
       expresado en la unidad que deriva de ella misma — referencia circular, y el
       navegador resuelve lo que quiere. Verificado en el contrato: con el contenedor en
       el envoltorio, `--u: calc(100cqw / 1600)` da relleno de 72 u y título de 40 u
       exactos.
-- [ ] Escala tipográfica de la lámina en unidades de diseño (tabla del apartado 02 del
+- [x] Escala tipográfica de la lámina en unidades de diseño (tabla del apartado 02 del
       contrato). Deja de heredar de `.mde-preview-body`.
-- [ ] `.deck-slide`: fuera `overflow-y: auto`. Una lámina es una página; si no cabe, no
+- [x] `.deck-slide`: fuera `overflow-y: auto`. Una lámina es una página; si no cabe, no
       cabe. Hoy el scroll esconde el problema en pantalla para que reviente en el PDF.
-- [ ] Aviso de desborde en la vista Design: medir `scrollHeight > clientHeight` con un
+- [x] Aviso de desborde en la vista Design: medir `scrollHeight > clientHeight` con un
       `ResizeObserver` y marcar la lámina. Es la contrapartida honesta de quitar el
       scroll — sin el aviso, quitarlo sólo cambia un fallo visible por uno silencioso.
-- [ ] 16:9 fijo: fuera `ASPECT_MAP` de `DeckEditor.jsx:41`. Si el front-matter trae
+- [x] 16:9 fijo: fuera `ASPECT_MAP` de `DeckEditor.jsx:41`. Si el front-matter trae
       `aspect`, se ignora y se avisa una vez en la consola (hay decks escritos con esa
       clave).
-- [ ] `DECK_STARTER_TEMPLATE` sin `aspect`.
+- [x] `DECK_STARTER_TEMPLATE` sin `aspect`.
 
 **Riesgo:** quitar el scroll deja a la vista contenido que hoy se desborda en silencio.
 Es intencionado, pero conviene revisar los `.amoxdeck` de ejemplo del repo antes de
@@ -59,17 +59,21 @@ cerrar la fase.
 
 ## Fase 1 — La lámina como afirmación
 
-- [ ] Antetítulo: `section:` en el front-matter (hilo del deck) y
+- [x] Antetítulo: `section:` en el front-matter (hilo del deck) y
       `<!-- eyebrow: … -->` para sobreescribirlo en una lámina suelta.
-- [ ] Título como afirmación: escala de 40 u, sin filete inferior, máximo 3 líneas,
+- [x] Título como afirmación: escala de 40 u, sin filete inferior, máximo 3 líneas,
       `text-wrap: balance`.
-- [ ] Bajada: el primer párrafo tras el `##`, a 20 u y en `--text-secondary`.
-- [ ] Viñetas, prosa libre y conclusión (el `>` de markdown pasa a ser la conclusión con
+- [x] Bajada: el primer párrafo tras el `##`, a 20 u y en `--text-secondary`.
+- [x] Viñetas, prosa libre y conclusión (el `>` de markdown pasa a ser la conclusión con
       filete de acento). El punto de la viñeta va **posicionado, no como ítem de
       rejilla**: en un contenedor grid cada `<b>` y cada `<code>` del texto se convierte
       en ítem suelto y la viñeta ocupa varias filas (me pasó escribiendo el contrato).
-- [ ] Alertas `> [!note]` y `> [!warning]` sobre el blockquote que ya se parsea.
-- [ ] Comprobar que KaTeX y Mermaid heredan la escala de la lámina. **No hay que
+- [x] Alertas `> [!note]` y `> [!warning]`. **Ya existían**: `remarkAlerts` y
+      `ALERT_META` llevan cinco tipos en `MarkdownPreview`. El contrato las daba
+      por ausentes porque audité los archivos del deck sin auditar el preview de
+      markdown — el mismo fallo que con LaTeX y Mermaid. Aquí sólo se les ajusta
+      la escala.
+- [x] Comprobar que KaTeX y Mermaid heredan la escala de la lámina. **No había que
       añadirlos**: `MarkdownPreview` ya monta `remark-math`, `rehype-katex` y `mermaid`,
       así que una fórmula y un diagrama ya funcionan hoy dentro de la diapositiva. Lo
       único a validar es el tamaño y que el tema del diagrama siga al del deck.
@@ -78,54 +82,56 @@ cerrar la fase.
 
 Lo que hace que esto sea un deck de AmoxSQL y no una plantilla bonita.
 
-- [ ] Componente `DeckFooter` con los seis campos: fuente, consulta, filas, variables
+- [x] Componente `DeckFooter` con los seis campos: fuente, consulta, filas, variables
       activas como chips, refresco y número.
-- [ ] Canal de datos: hoy no existe. `AmoxChartEmbed` conoce `chartSource`, el nombre
+- [x] Canal de datos: hoy no existe. `AmoxChartEmbed` conoce `chartSource`, el nombre
       del `.amoxvis` y la respuesta de `/api/query` —que ya trae **`rowCount` y
       `limited`**—, pero no tiene por dónde subirlos. Contexto de React creado en
       `DeckEditor` y alimentado por cada embed.
-- [ ] `limited` importa tanto como `rowCount`: un resultado truncado presentado como
+- [x] El campo real es **`truncated`**, no `limited` como decía este plan: con el
+      nombre equivocado el pie habría dado por completo todo resultado recortado.
+      Importa tanto como `rowCount`: un resultado truncado presentado como
       completo es exactamente el fallo que este pie existe para evitar. Si viene
       truncado, el pie lo dice.
-- [ ] Marca de refresco a partir del último «Refresh all». En ámbar pasados 7 días.
-- [ ] Configuración: `footer: [source, query, rows, vars, refreshed, number]` o
+- [x] Marca de refresco a partir del último «Refresh all». En ámbar pasados 7 días.
+- [x] Configuración: `footer: [source, query, rows, vars, refreshed, number]` o
       `footer: false` en el front-matter; `<!-- footer: false -->` y
       `<!-- footer: number -->` por lámina.
-- [ ] Su contenido no se teclea, se deriva. `source:` dentro del bloque **añade** una
+- [x] Su contenido no se teclea, se deriva. `source:` dentro del bloque **añade** una
       salvedad, no sustituye lo derivado.
-- [ ] La portada nunca lo lleva.
+- [x] La portada nunca lo lleva.
 
 ## Fase 3 — La tarjeta se disuelve
 
-- [ ] Prop `chrome` en `DataVisualizer` (`'card' | 'none'`). Cuidado: `isReportMode` ya
+- [x] Prop `chrome` en `DataVisualizer` (`'card' | 'none'`). Cuidado: `isReportMode` ya
       existe y hace parte del trabajo (oculta controles, fondo transparente, sin
       relleno) pero **no quita la tarjeta**, así que hace falta una prop aparte y no
       reutilizar la que hay.
-- [ ] Subir las piezas suprimidas a la lámina: título, subtítulo, KPI con su variación,
+- [x] Subir las piezas suprimidas a la lámina: título, subtítulo, KPI con su variación,
       conclusión y nota. Dos caminos —
       **(a)** callback `onFigureParts(partes)` desde `componerFigura`;
       **(b)** que `AmoxChartEmbed` lo calcule por su cuenta con `computeHeadline`, que ya
       se exporta.
       **Recomiendo (a)**: (b) duplicaría la lógica de la matriz de validez del KPI, que
       ya nos costó una ronda de correcciones.
-- [ ] Reglas de colocación del apartado 05: el título del gráfico sube a título de
+- [x] Reglas de colocación del apartado 05: el título del gráfico sube a título de
       lámina **sólo si la lámina no tiene el suyo**; el KPI entra en la tira; la firma
       desaparece porque el pie ya la lleva.
-- [ ] `card: true` en el bloque `amoxchart` como escape. Nunca por defecto.
-- [ ] La leyenda se queda con la figura: es lo único que da sentido a los colores.
+- [x] `card: true` en el bloque `amoxchart` como escape. Nunca por defecto.
+- [x] La leyenda se queda con la figura: es lo único que da sentido a los colores.
       (Ya intenté una vez ocultarla con una sola serie y fue un error — en treemap y en
       barras por categoría hay una sola clave de serie y la leyenda es imprescindible.)
 
 ## Fase 4 — Los objetos de dato
 
-- [ ] Bloque ```kpis``` — de 2 a 5 métricas con valor, variación y base de comparación.
+- [x] Bloque ```kpis``` — de 2 a 5 métricas con valor, variación y base de comparación.
       Con seis, aviso en el Studio: cada uno baja de 240 u y deja de leerse.
-- [ ] Bloque ```metric``` — la cifra ancla.
-- [ ] Bloque ```steps``` y bloque ```actions``` (con responsable y fecha).
-- [ ] Tabla clasificada: estilo, resaltado de fila y barra dentro de la celda. La tabla
+- [x] Bloque ```metric``` — la cifra ancla.
+- [x] Bloque ```steps``` y bloque ```actions``` (con responsable y fecha).
+- [x] Tabla clasificada: estilo, resaltado de fila y barra dentro de la celda. La tabla
       GFM ya llega parseada; falta la capa visual y la marca de qué columna es la barra.
-- [ ] Semáforo por fila: `ok` / `risk` / `bad`.
-- [ ] Verde y rojo son semánticos y **no salen de la paleta**: si la paleta los aporta,
+- [x] Semáforo por fila: `ok` / `risk` / `bad`.
+- [x] Verde y rojo son semánticos y **no salen de la paleta**: si la paleta los aporta,
       un cambio de paleta invertiría el significado.
 
 ## Fase 5 — Los diez tipos nuevos
@@ -133,14 +139,20 @@ Lo que hace que esto sea un deck de AmoxSQL y no una plantilla bonita.
 Por cada uno: entrada en `DECK_LAYOUTS`, plantilla en `DECK_LAYOUT_TEMPLATES`, vista
 previa esquemática en `DECK_LAYOUT_META` y render en `SlideDesigner`.
 
-- [ ] `cover`, `section`, `summary`, `statement`, `metric`
-- [ ] `chart-grid`, `compare`, `table`, `steps`, `actions`, `method`, `closing`
-- [ ] Renombrar los cinco actuales conservando alias: `title` → `cover`,
+- [x] `cover`, `section`, `summary`, `statement`, `metric`
+- [x] `chart-grid`, `compare`, `table`, `steps`, `actions`, `method`, `closing`
+- [x] Renombrar los cinco actuales conservando alias: `title` → `cover`,
       `content-chart` → `finding`. Los `.amoxdeck` escritos siguen abriéndose.
-- [ ] `LayoutsPanel` agrupado por familia (portada · texto · evidencia · cierre): quince
+- [x] `LayoutsPanel` agrupado por familia (portada · texto · evidencia · cierre): quince
       entradas en una lista plana no se eligen, se sufren.
-- [ ] Identificadores en inglés. Lo que se traduce es lo que el usuario ve en el Studio,
+- [x] Identificadores en inglés. Lo que se traduce es lo que el usuario ve en el Studio,
       no lo que se escribe en el archivo.
+
+> **Estado — fases 0 a 5 cerradas.** Rama `claude/deck-fase-0`, seis commits.
+> Verificado a nivel de CSS (midiendo con el CSS real servido por HTTP), de
+> lógica (parser y bloques contra los módulos reales) y de compilación. **Falta
+> la comprobación dentro de la app**: no hay ningún `.amoxdeck` en el repo ni en
+> un proyecto de prueba con el que abrir el Studio.
 
 ## Fase 6 — Varias figuras por lámina
 
