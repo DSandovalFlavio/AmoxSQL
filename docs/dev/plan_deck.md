@@ -152,7 +152,11 @@ previa esquemática en `DECK_LAYOUT_META` y render en `SlideDesigner`.
 - [x] Identificadores en inglés. Lo que se traduce es lo que el usuario ve en el Studio,
       no lo que se escribe en el archivo.
 
-> **Estado — fases 0 a 5 cerradas y probadas en la app.** Rama
+> **Estado — LAS NUEVE FASES CERRADAS Y PROBADAS EN LA APP.** Rama
+> `claude/deck-fase-0`. Lo que queda anotado abajo son límites conocidos, no
+> tareas pendientes del plan.
+>
+> **Estado por fases (histórico).** Fases 0 a 5, probadas en la app. Rama
 > `claude/deck-fase-0`. El deck de prueba vive en `Curso_SQL/revision_campanas.amoxdeck`:
 > 15 láminas sobre datos reales del dataset de campañas, 13 de los 16 tipos, los
 > seis bloques, LaTeX, alertas y cuatro gráficos vivos.
@@ -163,9 +167,13 @@ previa esquemática en `DECK_LAYOUT_META` y render en `SlideDesigner`.
 > y no se notaba porque el gráfico se dibujaba igual por otra vía. Están todos
 > arreglados y documentados en el commit correspondiente.
 >
-> Queda una nicedad conocida: dentro de una columna, el dibujo ocupa alrededor
-> del 60 % del alto disponible en vez de llenarlo. No es un fallo —se lee bien—
-> pero desperdicia sitio.
+> Quedan dos límites conocidos, ninguno un fallo:
+>
+> 1. Dentro de una columna, el dibujo ocupa alrededor del 60 % del alto
+>    disponible en vez de llenarlo. Se lee bien, pero desperdicia sitio.
+> 2. Una escala común sólo se impone si las figuras son comparables (menos de
+>    25× entre la mayor y la menor). Cuando no lo son, la lámina lo dice en
+>    lugar de aplanar la pequeña contra el eje.
 
 > **Estado anterior (sin la app).** Rama `claude/deck-fase-0`, seis commits.
 > Verificado a nivel de CSS (midiendo con el CSS real servido por HTTP), de
@@ -177,15 +185,15 @@ previa esquemática en `DECK_LAYOUT_META` y render en `SlideDesigner`.
 
 La fase que rompe un contrato. Va sola y al final.
 
-- [ ] `splitSlideContent` → devuelve `charts: [{ slot, src, card }]` en vez de un único
+- [x] `splitSlideContent` → devuelve `charts: [{ slot, src, card }]` en vez de un único
       `chartSrc`. Hoy toma la primera figura y deja las demás dentro del texto.
-- [ ] `buildSlideRaw` idem, con `slot: a|b|c|d` en el bloque.
-- [ ] Compatibilidad: una lámina con un solo `amoxchart` sin `slot` sigue funcionando
+- [x] `buildSlideRaw` idem, con `slot: a|b|c|d` en el bloque.
+- [x] Compatibilidad: una lámina con un solo `amoxchart` sin `slot` sigue funcionando
       exactamente igual. Es la garantía de que ningún deck existente se rompe.
-- [ ] `SlideDesigner`: huecos múltiples, y `ChartsPanel` preguntando a qué hueco va la
+- [x] `SlideDesigner`: huecos múltiples, y `ChartsPanel` preguntando a qué hueco va la
       figura que se inserta.
-- [ ] `chart-grid` y `compare`.
-- [ ] **Escala común entre figuras hermanas.** Es lo caro de esta fase y no existe hoy:
+- [x] `chart-grid` y `compare`.
+- [x] **Escala común entre figuras hermanas.** Es lo caro de esta fase y no existe hoy:
       cada `.amoxvis` calcula su propio dominio, así que cuatro small multiples saldrían
       con cuatro escalas distintas y la comparación mentiría. Dos salidas — calcular el
       dominio común en el deck y pasarlo a cada `DataVisualizer`, o documentar que el
@@ -194,20 +202,20 @@ La fase que rompe un contrato. Va sola y al final.
 
 ## Fase 7 — El export
 
-- [ ] `markdownToTextRuns` y compañía: KPIs, cifra ancla, pasos y acciones como cajas de
+- [x] `markdownToTextRuns` y compañía: KPIs, cifra ancla, pasos y acciones como cajas de
       texto nativas; tabla clasificada como tabla nativa con la barra aplanada.
-- [ ] El pie, como caja de texto al pie de la diapositiva.
-- [ ] LaTeX y Mermaid: hoy `markdownToTextRuns` los deja fuera en silencio. Deben salir
+- [x] El pie, como caja de texto al pie de la diapositiva.
+- [x] LaTeX y Mermaid: hoy `markdownToTextRuns` los deja fuera en silencio. Deben salir
       como imagen, igual que los tipos de gráfico sin equivalencia nativa.
-- [ ] Los gráficos nativos siguen siendo nativos: eso no se toca.
-- [ ] Word: los mismos objetos, en flujo.
+- [x] Los gráficos nativos siguen siendo nativos: eso no se toca.
+- [x] Word: los mismos objetos, en flujo.
 
 ## Fase 8 — El tema del deck
 
-- [ ] `accent` y `palette` en el front-matter, propagados al `DataVisualizer` de cada
+- [x] `accent` y `palette` en el front-matter, propagados al `DataVisualizer` de cada
       figura. Hoy sólo existe `theme` y la paleta la decide cada `.amoxvis` por su
       cuenta, así que una lámina y su gráfico pueden discrepar.
-- [ ] Plantilla de arranque nueva: un deck de ejemplo que use portada, resumen,
+- [x] Plantilla de arranque nueva: un deck de ejemplo que use portada, resumen,
       hallazgo y acciones — lo que alguien copiaría de verdad.
 
 ---
