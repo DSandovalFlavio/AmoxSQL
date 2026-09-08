@@ -65,6 +65,9 @@ const DeckEditor = ({
     const [sidePanelCollapsed, setSidePanelCollapsed] = useState(() => localStorage.getItem('amoxsql-deck-panel-collapsed') === '1');
     const [activeSlideIndex, setActiveSlideIndex] = useState(0);
     const [refreshToken, setRefreshToken] = useState(0);
+    // Marca de refresco para las láminas SIN figura: las que la tienen usan la
+    // hora real en que se ejecutó su consulta, que es más honesta.
+    const [refreshedAt, setRefreshedAt] = useState(() => Date.now());
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showSaveMenu, setShowSaveMenu] = useState(false);
     const [showPptxMenu, setShowPptxMenu] = useState(false);
@@ -120,6 +123,7 @@ const DeckEditor = ({
 
     const handleRefreshAll = useCallback(() => {
         setIsRefreshing(true);
+        setRefreshedAt(Date.now());
         setRefreshToken((t) => t + 1);
         setTimeout(() => setIsRefreshing(false), 600);
     }, []);
@@ -168,6 +172,7 @@ const DeckEditor = ({
         const raw = buildSlideRaw({
             layout: patch.layout !== undefined ? patch.layout : slide.layout,
             eyebrow: patch.eyebrow !== undefined ? patch.eyebrow : slide.eyebrow,
+            footer: patch.footer !== undefined ? patch.footer : slide.footer,
             prose: patch.prose !== undefined ? patch.prose : current.prose,
             chartSrc: patch.chartSrc !== undefined ? patch.chartSrc : current.chartSrc,
             notes: patch.notes !== undefined ? patch.notes : current.notes,
@@ -433,6 +438,9 @@ const DeckEditor = ({
                                             <SlidePreview
                                                 slide={slide}
                                                 eyebrow={antetituloDe(slide)}
+                                                deckFooter={deck.frontMatter?.footer}
+                                                slideNumber={deck.slides.indexOf(slide) + 1}
+                                                refreshedAt={refreshedAt}
                                                 variables={deck.frontMatter?.variables}
                                                 refreshToken={refreshToken}
                                                 onOpenFile={onOpenFile}
@@ -452,6 +460,9 @@ const DeckEditor = ({
                                 <SlideDesigner
                                     slide={activeSlide}
                                     eyebrow={antetituloDe(activeSlide)}
+                                    deckFooter={deck.frontMatter?.footer}
+                                    slideNumber={activeSlideIndex + 1}
+                                    refreshedAt={refreshedAt}
                                     index={activeSlideIndex}
                                     total={deck.slides.length}
                                     aspectRatio={aspectRatio}

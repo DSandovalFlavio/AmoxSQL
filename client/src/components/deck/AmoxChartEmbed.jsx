@@ -9,13 +9,17 @@
  * brings the chart current without redoing the underlying analysis.
  */
 import { API_BASE } from '../../api.js';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { LuLoaderCircle, LuTriangleAlert } from 'react-icons/lu';
 import DataVisualizer from '../DataVisualizer';
 import { injectEnvironmentVariables } from '../../utils/injectEnvironmentVariables';
 
-const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0 }) => {
+const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia }) => {
     const [state, setState] = useState({ status: 'loading', data: null, config: null, query: '', error: null });
+    // Por referencia: el callback no debe entrar en las dependencias de `load`,
+    // o un padre que lo redefina en cada render relanzaría la consulta en bucle.
+    const onProcedenciaRef = useRef(onProcedencia);
+    useEffect(() => { onProcedenciaRef.current = onProcedencia; }, [onProcedencia]);
 
     const load = useCallback(async () => {
         setState((s) => ({ ...s, status: 'loading', error: null }));
@@ -40,8 +44,21 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0 }) => {
             if (!queryRes.ok) throw new Error(queryData.error || 'Query failed');
 
             setState({ status: 'ready', data: queryData.data, config, query, error: null });
+
+            // La procedencia sube a la lámina para el pie: de qué archivo salió,
+            // qué consulta, cuántas filas devolvió, si vino truncada y cuándo se
+            // ejecutó. Todo esto ya viajaba por la red y se tiraba a la basura.
+            onProcedenciaRef.current?.({
+                src,
+                source: config.chartSource || null,
+                rows: queryData.rowCount ?? (Array.isArray(queryData.data) ? queryData.data.length : null),
+                limited: !!queryData.truncated,
+                rowLimit: queryData.rowLimit ?? null,
+                at: Date.now(),
+            });
         } catch (err) {
             setState({ status: 'error', data: null, config: null, query: '', error: err.message });
+            onProcedenciaRef.current?.(null);
         }
     }, [src, variables]);
 

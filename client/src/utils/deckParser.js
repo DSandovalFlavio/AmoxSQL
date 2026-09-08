@@ -22,6 +22,38 @@ const LAYOUT_DIRECTIVE_RE = /^\s*<!--\s*layout:\s*([\w-]+)\s*-->\s*\n?/;
 // lámina. Sale del front-matter (`section:`) y una lámina suelta puede
 // sobreescribirlo con su propia directiva.
 const EYEBROW_DIRECTIVE_RE = /^\s*<!--\s*eyebrow:\s*([^\n]*?)\s*-->\s*\n?/;
+// Pie de procedencia: qué campos enseña esta lámina. `false` lo apaga.
+const FOOTER_DIRECTIVE_RE = /^\s*<!--\s*footer:\s*([^\n]*?)\s*-->\s*\n?/;
+
+/** Los campos del pie, en el orden en que se pintan. */
+export const FOOTER_FIELDS = ['source', 'query', 'rows', 'vars', 'refreshed', 'number'];
+
+/**
+ * Qué enseña el pie de una lámina. Se decide en el front-matter para todo el
+ * deck y se afina lámina a lámina; lo que NO se decide aquí es el contenido de
+ * cada campo, que siempre se deriva (ver DeckFooter).
+ *
+ * Por defecto: los seis campos donde hay una figura que citar, y sólo el número
+ * donde no la hay. La portada nunca lleva pie — ya enseña fuente y fecha en
+ * grande, y ahí el pie compite con ellas.
+ */
+export function resolveFooterFields({ slideFooter, deckFooter, layout, hasChart }) {
+    if (layout === 'title') return [];
+
+    const declared = (slideFooter !== null && slideFooter !== undefined) ? slideFooter : deckFooter;
+
+    if (declared === false) return [];
+    if (Array.isArray(declared)) return declared.filter((f) => FOOTER_FIELDS.includes(f));
+    if (typeof declared === 'string') {
+        const t = declared.trim().toLowerCase();
+        if (t === 'false' || t === 'none' || t === 'off' || t === '') return [];
+        if (t === 'true' || t === 'all') return [...FOOTER_FIELDS];
+        return t.split(/[,\s]+/).filter((f) => FOOTER_FIELDS.includes(f));
+    }
+    if (declared === true) return [...FOOTER_FIELDS];
+
+    return hasChart ? [...FOOTER_FIELDS] : ['number'];
+}
 
 /**
  * Consumes the leading `<!-- key: value -->` directives off a slide chunk, in
@@ -32,6 +64,7 @@ function readDirectives(raw) {
     let rest = raw;
     let layout = null;
     let eyebrow = null;
+    let footer = null;
 
     for (let guard = 0; guard < 8; guard++) {
         const l = rest.match(LAYOUT_DIRECTIVE_RE);
@@ -47,9 +80,15 @@ function readDirectives(raw) {
             rest = rest.slice(e[0].length);
             continue;
         }
+        const f = rest.match(FOOTER_DIRECTIVE_RE);
+        if (f) {
+            footer = f[1] || '';
+            rest = rest.slice(f[0].length);
+            continue;
+        }
         break;
     }
-    return { layout, eyebrow, markdown: rest };
+    return { layout, eyebrow, footer, markdown: rest };
 }
 
 /**
@@ -124,6 +163,7 @@ export function parseDeck(content) {
                 id: `slide-${index}`,
                 layout: declared.layout || DEFAULT_LAYOUT,
                 eyebrow: declared.eyebrow,
+                footer: declared.footer,
                 markdown: declared.markdown.trim(),
                 raw: chunk.raw,
                 // +1 → 1-based line numbers (Monaco convention).

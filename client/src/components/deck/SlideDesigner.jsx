@@ -10,12 +10,14 @@
  * touches the raw file (same relationship Story Flow has with its `.amoxvis`
  * JSON).
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow } from './SlidePreview';
+import DeckFooter from './DeckFooter';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
+import { resolveFooterFields } from '../../utils/deckParser';
 import { DECK_LAYOUT_META } from './deckLayoutPreviews';
 
 /**
@@ -96,7 +98,7 @@ function EditableProse({ value, placeholder, onCommit, theme, onOpenFile }) {
 }
 
 /** Live chart slot, or an empty placeholder that points at the Charts panel. */
-function ChartSlot({ chartSrc, variables, refreshToken, onRemove, onRequestAdd }) {
+function ChartSlot({ chartSrc, variables, refreshToken, onRemove, onRequestAdd, onProcedencia }) {
     if (!chartSrc) {
         return (
             <button type="button" className="deck-chart-slot deck-chart-slot--empty" onClick={onRequestAdd}>
@@ -111,7 +113,12 @@ function ChartSlot({ chartSrc, variables, refreshToken, onRemove, onRequestAdd }
             <button type="button" className="deck-chart-remove" title="Remove chart" onClick={onRemove}>
                 <LuX size={13} />
             </button>
-            <AmoxChartEmbed src={chartSrc} variables={variables} refreshToken={refreshToken} />
+            <AmoxChartEmbed
+                src={chartSrc}
+                variables={variables}
+                refreshToken={refreshToken}
+                onProcedencia={onProcedencia}
+            />
         </div>
     );
 }
@@ -150,6 +157,9 @@ const SlideDesigner = ({
     total,
     aspectRatio,
     eyebrow,
+    deckFooter,
+    slideNumber,
+    refreshedAt,
     variables = {},
     refreshToken = 0,
     theme,
@@ -166,6 +176,14 @@ const SlideDesigner = ({
     const meta = DECK_LAYOUT_META[layout];
     const canvasRef = useRef(null);
     const desborde = useDesborde(canvasRef);
+    const [procedencia, setProcedencia] = useState(null);
+    const recibirProcedencia = useCallback((datos) => setProcedencia(datos), []);
+    const camposPie = resolveFooterFields({
+        slideFooter: slide.footer,
+        deckFooter,
+        layout,
+        hasChart: !!chartSrc,
+    });
 
     const proseEl = (
         <EditableProse value={prose} onCommit={onEditProse} theme={theme} onOpenFile={onOpenFile} />
@@ -177,6 +195,7 @@ const SlideDesigner = ({
             refreshToken={refreshToken}
             onRemove={onRemoveChart}
             onRequestAdd={onRequestAddChart}
+            onProcedencia={recibirProcedencia}
         />
     );
 
@@ -212,6 +231,13 @@ const SlideDesigner = ({
         <div className="deck-slide">
             <SlideEyebrow eyebrow={eyebrow} layout={layout} />
             {cuerpo}
+            <DeckFooter
+                fields={camposPie}
+                figure={procedencia}
+                variables={variables}
+                slideNumber={slideNumber}
+                refreshedAt={refreshedAt}
+            />
         </div>
     );
 

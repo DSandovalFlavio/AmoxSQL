@@ -15,10 +15,11 @@
  * `two-col` splits on an explicit `<!-- col -->` marker the user places in the
  * slide.
  */
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
-import { parseAmoxChartBlock } from '../../utils/deckParser';
+import { parseAmoxChartBlock, resolveFooterFields } from '../../utils/deckParser';
+import DeckFooter from './DeckFooter';
 
 const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
 const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
@@ -28,11 +29,18 @@ const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
 // render as a literal code block on screen.
 const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
 
-function useChartRenderer(variables, refreshToken) {
+function useChartRenderer(variables, refreshToken, onProcedencia) {
     return useMemo(() => (raw) => {
         const parsed = parseAmoxChartBlock(raw);
-        return <AmoxChartEmbed src={parsed.src} variables={variables} refreshToken={refreshToken} />;
-    }, [variables, refreshToken]);
+        return (
+            <AmoxChartEmbed
+                src={parsed.src}
+                variables={variables}
+                refreshToken={refreshToken}
+                onProcedencia={onProcedencia}
+            />
+        );
+    }, [variables, refreshToken, onProcedencia]);
 }
 
 /**
@@ -44,9 +52,24 @@ export function SlideEyebrow({ eyebrow, layout }) {
     return <div className="deck-slide-eyebrow">{eyebrow}</div>;
 }
 
-const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, theme, eyebrow }) => {
-    const chartRenderer = useChartRenderer(variables, refreshToken);
+const SlidePreview = ({
+    slide, variables = {}, refreshToken = 0, onOpenFile, theme,
+    eyebrow, deckFooter, slideNumber, refreshedAt,
+}) => {
+    // La procedencia la reporta la figura cuando termina de ejecutarse; la
+    // lámina la guarda para su pie. Sin contexto global: el dato nace y muere
+    // dentro de la misma lámina.
+    const [procedencia, setProcedencia] = useState(null);
+    const recibirProcedencia = useCallback((datos) => setProcedencia(datos), []);
+    const chartRenderer = useChartRenderer(variables, refreshToken, recibirProcedencia);
     const visibleMarkdown = slide.markdown.replace(NOTES_FENCE_RE, '').trim();
+    const hayFigura = AMOXCHART_FENCE_RE.test(visibleMarkdown);
+    const camposPie = resolveFooterFields({
+        slideFooter: slide.footer,
+        deckFooter,
+        layout: slide.layout,
+        hasChart: hayFigura,
+    });
 
     let body;
 
@@ -62,7 +85,12 @@ const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, the
                     {after && <MarkdownPreview content={after} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
                 </div>
                 <div className="deck-slide-col deck-slide-col--chart">
-                    <AmoxChartEmbed src={parsed.src} variables={variables} refreshToken={refreshToken} />
+                    <AmoxChartEmbed
+                        src={parsed.src}
+                        variables={variables}
+                        refreshToken={refreshToken}
+                        onProcedencia={recibirProcedencia}
+                    />
                 </div>
             </div>
         );
@@ -92,6 +120,13 @@ const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, the
         <div className="deck-slide">
             <SlideEyebrow eyebrow={eyebrow} layout={slide.layout} />
             {body}
+            <DeckFooter
+                fields={camposPie}
+                figure={procedencia}
+                variables={variables}
+                slideNumber={slideNumber}
+                refreshedAt={refreshedAt}
+            />
         </div>
     );
 };

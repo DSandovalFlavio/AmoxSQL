@@ -132,6 +132,71 @@
     min-width: 0;
 }
 
+/* ── Banda de pie: la capa de credibilidad ───────────────────────────────
+   Alto fijo y siempre en el mismo sitio: es un ancla, no un adorno. Es lo que
+   permite auditar el deck lámina a lámina. */
+.deck-slide-foot {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(20 * var(--u));
+    margin-top: calc(26 * var(--u));
+    padding-top: calc(14 * var(--u));
+    border-top: 1px solid var(--border-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--t-pie);
+    line-height: 1.35;
+    color: var(--text-tertiary);
+}
+
+.deck-foot-izq {
+    display: flex;
+    align-items: center;
+    gap: calc(12 * var(--u));
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.deck-foot-der {
+    display: flex;
+    align-items: center;
+    gap: calc(16 * var(--u));
+    flex-shrink: 0;
+}
+
+.deck-foot-procedencia { display: inline-flex; align-items: center; flex-wrap: wrap; }
+.deck-foot-parte { display: inline-flex; align-items: center; }
+.deck-foot-sep { margin: 0 calc(7 * var(--u)); opacity: .55; }
+.deck-foot-consulta { color: var(--text-secondary); font-weight: var(--weight-medium); }
+.deck-foot-dato--aviso { color: var(--color-warning); }
+.deck-foot-salvedad { font-style: italic; }
+
+/* Las variables activas van como chips y no como texto: se leen de un vistazo
+   desde el fondo de la sala, y dejan claro que el deck es paramétrico. */
+.deck-foot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--u));
+    color: var(--text-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    padding: calc(4 * var(--u)) calc(11 * var(--u));
+    white-space: nowrap;
+}
+.deck-foot-chip i {
+    width: calc(7 * var(--u));
+    height: calc(7 * var(--u));
+    border-radius: 50%;
+    background-color: var(--accent-primary);
+    flex-shrink: 0;
+}
+
+.deck-foot-sello { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); }
+/* Pasada una semana se marca: un número viejo presentado como fresco es el
+   peor fallo que puede tener una herramienta de análisis. */
+.deck-foot-sello--rancio { color: var(--color-warning); }
+.deck-foot-num { font-variant-numeric: tabular-nums; }
+
 /* ── La escala de la lámina ───────────────────────────────────────────────
    Una lámina se lee a tres metros; un documento, a medio. Por eso el texto
    deja de heredar la escala del preview de markdown —pensada para leer un .md

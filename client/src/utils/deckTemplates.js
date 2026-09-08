@@ -114,12 +114,15 @@ export function splitSlideContent(markdown) {
  * default. Notes are appended last so they never interrupt the prose/chart
  * reading order in Source view.
  */
-export function buildSlideRaw({ layout, eyebrow, prose, chartSrc, notes }) {
+export function buildSlideRaw({ layout, eyebrow, footer, prose, chartSrc, notes }) {
     const directive = layout && layout !== 'content' ? `<!-- layout: ${layout} -->\n` : '';
     // El antetítulo es una directiva, no prosa: si no se vuelve a escribir aquí,
     // editar el texto de la lámina lo borraría en silencio.
     const eyebrowDirective = (eyebrow !== null && eyebrow !== undefined)
         ? `<!-- eyebrow: ${eyebrow} -->\n`
+        : '';
+    const footerDirective = (footer !== null && footer !== undefined)
+        ? `<!-- footer: ${footer} -->\n`
         : '';
     const parts = [];
     const trimmedProse = (prose || '').trim();
@@ -127,5 +130,5 @@ export function buildSlideRaw({ layout, eyebrow, prose, chartSrc, notes }) {
     if (chartSrc) parts.push(buildChartBlock(chartSrc));
     const trimmedNotes = (notes || '').trim();
     if (trimmedNotes) parts.push(buildNotesBlock(trimmedNotes));
-    return `${directive}${eyebrowDirective}${parts.join('\n\n')}`.trim();
+    return `${directive}${eyebrowDirective}${footerDirective}${parts.join('\n\n')}`.trim();
 }
