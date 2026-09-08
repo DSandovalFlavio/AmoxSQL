@@ -1,15 +1,19 @@
 /**
  * SlidePreview — renders one deck slide according to its layout.
  *
+ * Una lámina tiene dos bandas: la cabecera (antetítulo) y el cuerpo. El cuerpo
+ * es lo que cambia con la disposición, así que el modificador de layout vive en
+ * `.deck-slide-body--X` y no en `.deck-slide`. Sin esa separación el antetítulo
+ * se convertiría en una celda más de la rejilla en `content-chart` y `two-col`,
+ * y aparecería dentro de la primera columna en vez de encima de las dos.
+ *
  * Every layout reuses MarkdownPreview for text (headings, lists, code,
- * callouts, KaTeX, tables — full parity with the standalone .md editor) via
- * its `renderChartBlock` hook, which turns a fenced ```amoxchart block into
- * a live <AmoxChartEmbed>. `content-chart` additionally splits the slide at
- * its chart block into two CSS columns (text left, chart right); `two-col`
- * splits on an explicit `<!-- col -->` marker the user places in the slide.
- * Layouts without special handling (title, content, chart-full) just render
- * the whole slide as one flowing MarkdownPreview inside a layout-specific
- * CSS wrapper.
+ * callouts, KaTeX, Mermaid, tables — full parity with the standalone .md
+ * editor) via its `renderChartBlock` hook, which turns a fenced ```amoxchart
+ * block into a live <AmoxChartEmbed>. `content-chart` additionally splits the
+ * slide at its chart block into two columns (text left, chart right);
+ * `two-col` splits on an explicit `<!-- col -->` marker the user places in the
+ * slide.
  */
 import { useMemo } from 'react';
 import MarkdownPreview from '../markdown/MarkdownPreview';
@@ -31,35 +35,41 @@ function useChartRenderer(variables, refreshToken) {
     }, [variables, refreshToken]);
 }
 
-const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, theme }) => {
+/**
+ * La banda de cabecera. La portada no la lleva: ya tiene su propio título a
+ * tamaño display y el antetítulo competiría con él.
+ */
+export function SlideEyebrow({ eyebrow, layout }) {
+    if (!eyebrow || !eyebrow.trim() || layout === 'title') return null;
+    return <div className="deck-slide-eyebrow">{eyebrow}</div>;
+}
+
+const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, theme, eyebrow }) => {
     const chartRenderer = useChartRenderer(variables, refreshToken);
     const visibleMarkdown = slide.markdown.replace(NOTES_FENCE_RE, '').trim();
 
-    if (slide.layout === 'content-chart') {
-        const match = visibleMarkdown.match(AMOXCHART_FENCE_RE);
-        if (match) {
-            const before = visibleMarkdown.slice(0, match.index).trim();
-            const after = visibleMarkdown.slice(match.index + match[0].length).trim();
-            const parsed = parseAmoxChartBlock(match[1]);
-            return (
-                <div className="deck-slide deck-slide--content-chart">
-                    <div className="deck-slide-col deck-slide-col--text">
-                        {before && <MarkdownPreview content={before} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
-                        {after && <MarkdownPreview content={after} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
-                    </div>
-                    <div className="deck-slide-col deck-slide-col--chart">
-                        <AmoxChartEmbed src={parsed.src} variables={variables} refreshToken={refreshToken} />
-                    </div>
-                </div>
-            );
-        }
-        // Layout declared but no chart block present — fall back to plain content below.
-    }
+    let body;
 
-    if (slide.layout === 'two-col' && COL_BREAK_RE.test(visibleMarkdown)) {
+    if (slide.layout === 'content-chart' && AMOXCHART_FENCE_RE.test(visibleMarkdown)) {
+        const match = visibleMarkdown.match(AMOXCHART_FENCE_RE);
+        const before = visibleMarkdown.slice(0, match.index).trim();
+        const after = visibleMarkdown.slice(match.index + match[0].length).trim();
+        const parsed = parseAmoxChartBlock(match[1]);
+        body = (
+            <div className="deck-slide-body deck-slide-body--content-chart">
+                <div className="deck-slide-col deck-slide-col--text">
+                    {before && <MarkdownPreview content={before} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
+                    {after && <MarkdownPreview content={after} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
+                </div>
+                <div className="deck-slide-col deck-slide-col--chart">
+                    <AmoxChartEmbed src={parsed.src} variables={variables} refreshToken={refreshToken} />
+                </div>
+            </div>
+        );
+    } else if (slide.layout === 'two-col' && COL_BREAK_RE.test(visibleMarkdown)) {
         const [left, right = ''] = visibleMarkdown.split(COL_BREAK_RE);
-        return (
-            <div className="deck-slide deck-slide--two-col">
+        body = (
+            <div className="deck-slide-body deck-slide-body--two-col">
                 <div className="deck-slide-col">
                     <MarkdownPreview content={left.trim()} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
                 </div>
@@ -68,11 +78,20 @@ const SlidePreview = ({ slide, variables = {}, refreshToken = 0, onOpenFile, the
                 </div>
             </div>
         );
+    } else {
+        // title / content / chart-full — y content-chart sin bloque de gráfico,
+        // que cae aquí en vez de quedarse con media lámina vacía.
+        body = (
+            <div className={`deck-slide-body deck-slide-body--${slide.layout}`}>
+                <MarkdownPreview content={visibleMarkdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
+            </div>
+        );
     }
 
     return (
-        <div className={`deck-slide deck-slide--${slide.layout}`}>
-            <MarkdownPreview content={visibleMarkdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
+        <div className="deck-slide">
+            <SlideEyebrow eyebrow={eyebrow} layout={slide.layout} />
+            {body}
         </div>
     );
 };

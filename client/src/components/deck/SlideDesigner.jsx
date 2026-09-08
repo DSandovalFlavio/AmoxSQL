@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
+import { SlideEyebrow } from './SlidePreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
 import { DECK_LAYOUT_META } from './deckLayoutPreviews';
@@ -148,6 +149,7 @@ const SlideDesigner = ({
     index,
     total,
     aspectRatio,
+    eyebrow,
     variables = {},
     refreshToken = 0,
     theme,
@@ -178,17 +180,19 @@ const SlideDesigner = ({
         />
     );
 
-    let body;
+    // Mismo reparto en dos bandas que SlidePreview: cabecera y cuerpo, con el
+    // modificador de disposición en el cuerpo. Ver la nota de aquel archivo.
+    let cuerpo;
     if (layout === 'content-chart') {
-        body = (
-            <div className="deck-slide deck-slide--content-chart">
+        cuerpo = (
+            <div className="deck-slide-body deck-slide-body--content-chart">
                 <div className="deck-slide-col deck-slide-col--text">{proseEl}</div>
                 <div className="deck-slide-col deck-slide-col--chart">{chartEl}</div>
             </div>
         );
     } else if (layout === 'chart-full') {
-        body = (
-            <div className="deck-slide deck-slide--chart-full deck-slide--design-chartfull">
+        cuerpo = (
+            <div className="deck-slide-body deck-slide-body--chart-full deck-slide-body--design-chartfull">
                 {prose.trim() && <div className="deck-slide-chartfull-caption">{proseEl}</div>}
                 <div className="deck-slide-chartfull-chart">{chartEl}</div>
                 {!prose.trim() && <div className="deck-slide-chartfull-editcaption">{proseEl}</div>}
@@ -196,13 +200,20 @@ const SlideDesigner = ({
         );
     } else {
         // title / content / two-col — prose fills; chart (if any) sits below.
-        body = (
-            <div className={`deck-slide deck-slide--${layout}`}>
+        cuerpo = (
+            <div className={`deck-slide-body deck-slide-body--${layout}`}>
                 {proseEl}
                 {chartSrc && <div className="deck-slide-inline-chart">{chartEl}</div>}
             </div>
         );
     }
+
+    const body = (
+        <div className="deck-slide">
+            <SlideEyebrow eyebrow={eyebrow} layout={layout} />
+            {cuerpo}
+        </div>
+    );
 
     return (
         <div className="deck-design">

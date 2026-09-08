@@ -18,6 +18,39 @@ import yaml from 'js-yaml';
 export const DECK_LAYOUTS = ['title', 'content', 'content-chart', 'chart-full', 'two-col'];
 const DEFAULT_LAYOUT = 'content';
 const LAYOUT_DIRECTIVE_RE = /^\s*<!--\s*layout:\s*([\w-]+)\s*-->\s*\n?/;
+// Antetítulo: el hilo del deck (sección o periodo) que se repite lámina a
+// lámina. Sale del front-matter (`section:`) y una lámina suelta puede
+// sobreescribirlo con su propia directiva.
+const EYEBROW_DIRECTIVE_RE = /^\s*<!--\s*eyebrow:\s*([^\n]*?)\s*-->\s*\n?/;
+
+/**
+ * Consumes the leading `<!-- key: value -->` directives off a slide chunk, in
+ * any order, and returns what they declared plus the remaining markdown.
+ * Directives are metadata, never content: they must never reach MarkdownPreview.
+ */
+function readDirectives(raw) {
+    let rest = raw;
+    let layout = null;
+    let eyebrow = null;
+
+    for (let guard = 0; guard < 8; guard++) {
+        const l = rest.match(LAYOUT_DIRECTIVE_RE);
+        if (l) {
+            const declared = l[1].toLowerCase();
+            if (DECK_LAYOUTS.includes(declared)) layout = declared;
+            rest = rest.slice(l[0].length);
+            continue;
+        }
+        const e = rest.match(EYEBROW_DIRECTIVE_RE);
+        if (e) {
+            eyebrow = e[1] || '';
+            rest = rest.slice(e[0].length);
+            continue;
+        }
+        break;
+    }
+    return { layout, eyebrow, markdown: rest };
+}
 
 /**
  * Splits a `---`-delimited YAML front-matter block off the top of the content.
@@ -86,18 +119,12 @@ export function parseDeck(content) {
         .map((chunk) => ({ raw: chunk.text.trim(), startLine: chunk.startLine }))
         .filter((chunk) => chunk.raw.length > 0)
         .map((chunk, index) => {
-            let layout = DEFAULT_LAYOUT;
-            let markdown = chunk.raw;
-            const m = chunk.raw.match(LAYOUT_DIRECTIVE_RE);
-            if (m) {
-                const declared = m[1].toLowerCase();
-                if (DECK_LAYOUTS.includes(declared)) layout = declared;
-                markdown = chunk.raw.slice(m[0].length);
-            }
+            const declared = readDirectives(chunk.raw);
             return {
                 id: `slide-${index}`,
-                layout,
-                markdown: markdown.trim(),
+                layout: declared.layout || DEFAULT_LAYOUT,
+                eyebrow: declared.eyebrow,
+                markdown: declared.markdown.trim(),
                 raw: chunk.raw,
                 // +1 → 1-based line numbers (Monaco convention).
                 startLine: bodyOffsetLines + chunk.startLine + 1,

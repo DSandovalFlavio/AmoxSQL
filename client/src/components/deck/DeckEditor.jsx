@@ -78,6 +78,14 @@ const DeckEditor = ({
     const deck = useMemo(() => parseDeck(content || ''), [content]);
     const aspectRatio = SLIDE_ASPECT;
 
+    // El antetítulo de una lámina: el suyo si lo declara —incluso vacío, que
+    // significa "aquí no"— y si no, el hilo del deck.
+    const seccionDelDeck = deck.frontMatter?.section || '';
+    const antetituloDe = useCallback(
+        (slide) => ((slide?.eyebrow === null || slide?.eyebrow === undefined) ? seccionDelDeck : slide.eyebrow),
+        [seccionDelDeck],
+    );
+
     // Un deck escrito antes de fijar el lienzo puede traer `aspect`. Se ignora,
     // pero se dice una vez para que nadie crea que la clave sigue haciendo algo.
     const aspectDeclarado = deck.frontMatter?.aspect;
@@ -159,6 +167,7 @@ const DeckEditor = ({
         const current = splitSlideContent(slide.markdown);
         const raw = buildSlideRaw({
             layout: patch.layout !== undefined ? patch.layout : slide.layout,
+            eyebrow: patch.eyebrow !== undefined ? patch.eyebrow : slide.eyebrow,
             prose: patch.prose !== undefined ? patch.prose : current.prose,
             chartSrc: patch.chartSrc !== undefined ? patch.chartSrc : current.chartSrc,
             notes: patch.notes !== undefined ? patch.notes : current.notes,
@@ -423,6 +432,7 @@ const DeckEditor = ({
                                         >
                                             <SlidePreview
                                                 slide={slide}
+                                                eyebrow={antetituloDe(slide)}
                                                 variables={deck.frontMatter?.variables}
                                                 refreshToken={refreshToken}
                                                 onOpenFile={onOpenFile}
@@ -441,6 +451,7 @@ const DeckEditor = ({
                             ) : (
                                 <SlideDesigner
                                     slide={activeSlide}
+                                    eyebrow={antetituloDe(activeSlide)}
                                     index={activeSlideIndex}
                                     total={deck.slides.length}
                                     aspectRatio={aspectRatio}

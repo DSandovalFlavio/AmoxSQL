@@ -109,6 +109,127 @@
     overflow: hidden;
     box-sizing: border-box;
     padding: var(--s-margen);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Banda de cabecera: el antetítulo, el hilo del deck ── */
+.deck-slide-eyebrow {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--t-etiqueta);
+    font-weight: var(--weight-semibold);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: calc(14 * var(--u));
+}
+
+/* ── Banda de cuerpo: lo que cambia con la disposición ── */
+.deck-slide-body {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+}
+
+/* ── La escala de la lámina ───────────────────────────────────────────────
+   Una lámina se lee a tres metros; un documento, a medio. Por eso el texto
+   deja de heredar la escala del preview de markdown —pensada para leer un .md
+   sentado— y pasa a la del contrato, en unidades de diseño. Todo va acotado a
+   `.deck-slide`: el mismo MarkdownPreview sigue igual en el editor de
+   documentos y en los notebooks. */
+.deck-slide .mde-preview-body { font-size: var(--t-cuerpo); }
+.deck-slide .mde-preview-body > :first-child { margin-top: 0; }
+
+/* El título es la afirmación de la lámina, no un encabezado de documento: sin
+   filete inferior, y con sitio para dos líneas. */
+.deck-slide .mde-preview-body h1,
+.deck-slide .mde-preview-body h2,
+.deck-slide .mde-preview-body h3 {
+    border-bottom: none;
+    padding-bottom: 0;
+    text-wrap: balance;
+}
+.deck-slide .mde-preview-body h1 {
+    font-size: var(--t-portada);
+    font-weight: var(--weight-bold);
+    letter-spacing: -.04em;
+    line-height: 1.04;
+    max-width: 20ch;
+    margin: 0;
+}
+.deck-slide .mde-preview-body h2 {
+    font-size: var(--t-titulo);
+    font-weight: var(--weight-bold);
+    letter-spacing: -.022em;
+    line-height: 1.16;
+    max-width: 36ch;
+    margin: 0;
+}
+.deck-slide .mde-preview-body h3 {
+    font-size: calc(26 * var(--u));
+    line-height: 1.25;
+    margin: calc(26 * var(--u)) 0 0;
+}
+
+/* La bajada: el párrafo que sigue al título. Matiza el alcance, nunca lo repite. */
+.deck-slide .mde-preview-body h1 + p,
+.deck-slide .mde-preview-body h2 + p {
+    font-size: var(--t-bajada);
+    color: var(--text-secondary);
+    max-width: 62ch;
+    margin-top: calc(11 * var(--u));
+}
+
+.deck-slide .mde-preview-body p {
+    font-size: var(--t-cuerpo);
+    line-height: 1.5;
+    max-width: 56ch;
+    margin: calc(16 * var(--u)) 0 0;
+}
+.deck-slide .mde-preview-body ul,
+.deck-slide .mde-preview-body ol {
+    margin: calc(18 * var(--u)) 0 0;
+    padding-left: calc(26 * var(--u));
+}
+.deck-slide .mde-preview-body li {
+    font-size: var(--t-cuerpo);
+    line-height: 1.4;
+    margin-top: calc(12 * var(--u));
+}
+.deck-slide .mde-preview-body li::marker { color: var(--accent-primary); }
+
+/* Un `>` a secas es la conclusión de la lámina: filete de acento y nada más.
+   Sin fondo — a este tamaño la mancha de color pesa demasiado. Las alertas
+   (`> [!note]`, `> [!warning]`) conservan su aspecto y sólo cambian de escala:
+   ya existían en MarkdownPreview, aquí no se reinventan. */
+.deck-slide .mde-preview-body blockquote:not(.mde-alert) {
+    background-color: transparent;
+    border-left-width: calc(2 * var(--u));
+    border-radius: 0;
+    font-size: calc(19 * var(--u));
+    line-height: 1.44;
+    margin: calc(20 * var(--u)) 0 0;
+    padding: 0 0 0 calc(16 * var(--u));
+}
+.deck-slide .mde-preview-body .mde-alert {
+    font-size: calc(17 * var(--u));
+    margin: calc(20 * var(--u)) 0 0;
+    padding: calc(14 * var(--u)) calc(16 * var(--u));
+}
+.deck-slide .mde-preview-body .mde-alert-head { font-size: calc(13 * var(--u)); }
+
+/* Tablas, código, matemáticas y diagramas a la misma escala, para que nada
+   dentro de la lámina se lea como si viniera de otro documento. */
+.deck-slide .mde-preview-body table { font-size: var(--t-tabla); }
+.deck-slide .mde-preview-body th,
+.deck-slide .mde-preview-body td { padding: calc(10 * var(--u)) calc(12 * var(--u)); }
+.deck-slide .mde-preview-body code { font-size: calc(16 * var(--u)); }
+.deck-slide .mde-preview-body pre code { font-size: calc(15 * var(--u)); }
+.deck-slide .mde-preview-body .katex-display { margin: calc(20 * var(--u)) 0 0; }
+.deck-slide .mde-preview-body .mermaid-diagram svg {
+    max-height: calc(430 * var(--u));
+    width: auto;
 }
 
 /* Aviso de desborde: la contrapartida honesta de quitar el scroll. Sin él,
@@ -137,38 +258,41 @@
 }
 
 /* title — centered, larger type */
-.deck-slide--title {
+.deck-slide-body--title {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
 }
-.deck-slide--title .mde-preview-body { max-width: 720px; }
-.deck-slide--title .mde-preview-body h1 { font-size: 2.6rem; border-bottom: none; padding-bottom: 0; }
-.deck-slide--title .mde-preview-body h2 { font-size: 1.3rem; font-weight: var(--weight-normal); color: var(--text-secondary); border-bottom: none; }
+.deck-slide-body--title .mde-preview-body { max-width: none; }
+.deck-slide-body--title .mde-preview-body h2 {
+    font-size: var(--t-bajada);
+    font-weight: var(--weight-normal);
+    color: var(--text-secondary);
+    max-width: 48ch;
+    margin-top: calc(20 * var(--u));
+}
 
 /* chart-full — the amoxchart embed fills essentially the whole slide */
-.deck-slide--chart-full { display: flex; flex-direction: column; }
-.deck-slide--chart-full .mde-preview-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.deck-slide--chart-full .amoxchart-embed { flex: 1; min-height: 320px; }
+.deck-slide-body--chart-full { display: flex; flex-direction: column; }
+.deck-slide-body--chart-full .mde-preview-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.deck-slide-body--chart-full .amoxchart-embed { flex: 1; min-height: 320px; }
 
 /* content-chart / two-col — two CSS columns filling the slide height.
    content-chart favors the chart column (text is usually a short narrative,
    while the chart needs room for axis labels + data). */
-.deck-slide--content-chart {
+.deck-slide-body--content-chart {
     display: grid;
     grid-template-columns: 5fr 7fr;   /* 5/7 a favor de la figura */
     gap: var(--s-gap-col);
-    height: 100%;
     box-sizing: border-box;
 }
 
-.deck-slide--two-col {
+.deck-slide-body--two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--s-gap-col);
-    height: 100%;
     box-sizing: border-box;
 }
 
@@ -841,7 +965,7 @@
 .deck-chart-remove:hover { color: var(--feedback-error, #ef4444); border-color: var(--feedback-error, #ef4444); }
 
 /* Design canvas: chart-full arrangement */
-.deck-slide--design-chartfull {
+.deck-slide-body--design-chartfull {
     display: flex;
     flex-direction: column;
     gap: 12px;
