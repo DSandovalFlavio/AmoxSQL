@@ -153,7 +153,6 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
   display: flex; flex-direction: column;
   font-family: var(--sans);
 }
-:root[data-fmt="4:3"] .slide { aspect-ratio: 4 / 3; }
 
 /* — banda de cabecera — */
 .s-eyebrow { font: 600 calc(13 * var(--u))/1 var(--mono); letter-spacing: .16em;
@@ -211,6 +210,16 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
 .statement { font-size: calc(84 * var(--u)); font-weight: 800; letter-spacing: -.038em;
   line-height: 1.03; max-width: 19ch; text-wrap: balance; margin: 0; }
 .statement i { font-style: normal; color: var(--accent); }
+
+.s-prosa { font-size: calc(18 * var(--u)); line-height: 1.5; color: var(--s-ink-2);
+  margin: 0; max-width: 54ch; }
+.s-prosa b { color: var(--s-ink); font-weight: 700; }
+.s-formula { font: italic 500 calc(23 * var(--u))/1.5 Georgia, "Times New Roman", serif;
+  color: var(--s-ink); background: var(--s-inset); border: 1px solid var(--s-line-2);
+  border-radius: calc(7 * var(--u)); padding: calc(13 * var(--u)) calc(18 * var(--u));
+  display: block; }
+.s-formula span { font-style: normal; font-family: var(--mono); font-size: calc(18 * var(--u));
+  color: var(--s-ink-3); }
 
 .takeaway { font-size: calc(19 * var(--u)); line-height: 1.44; color: var(--s-ink-2);
   border-left: calc(2 * var(--u)) solid var(--accent); padding-left: calc(16 * var(--u)); }
@@ -278,7 +287,9 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
   grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
 
 /* variantes de lámina */
-.slide--centro { align-items: flex-start; justify-content: center; }
+/* Sólo centra en vertical: con `align-items: flex-start` el cuerpo y el pie
+   dejaban de estirarse a lo ancho y el filete del pie quedaba a medias. */
+.slide--centro { justify-content: center; }
 .slide--seccion { background: var(--s-ink); color: var(--s-bg); justify-content: flex-end; }
 .slide--seccion .s-eyebrow { color: color-mix(in srgb, var(--s-bg) 55%, transparent); }
 .slide--seccion .s-foot { border-top-color: color-mix(in srgb, var(--s-bg) 18%, transparent);
@@ -331,6 +342,25 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
 .mal-bien { font: 600 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
 .mal-bien.no { color: var(--mal); } .mal-bien.si { color: var(--ok); }
 
+.pase-lienzo { container-type: inline-size; background: var(--stage);
+  border: 1px solid var(--line); border-radius: 13px; padding: 26px; }
+.pase-lienzo > .slide[hidden] { display: none; }
+.pase-barra { display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; margin-top: 13px; flex-wrap: wrap; }
+.pase-nav { display: flex; gap: 7px; }
+.pase-nav button { font: 600 14px var(--sans); line-height: 1; padding: 7px 13px; }
+.pase-nav button:disabled { opacity: .35; cursor: default; }
+.pase-info { font: 500 12.5px var(--mono); color: var(--ink-3);
+  display: flex; gap: 14px; align-items: baseline; }
+.pase-info b { color: var(--ink); font-weight: 600; font-family: var(--sans); font-size: 13.5px; }
+.pase-tiras { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pase-tiras button { font: 500 11px var(--mono); color: var(--ink-3); background: var(--card);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+.pase-tiras button:hover { color: var(--ink); }
+.pase-tiras button[aria-current="true"] { border-color: var(--accent); color: var(--accent); }
+.pase-tiras button i { font-style: normal; color: var(--ink-3); margin-right: 6px; }
+.pase-tiras button[aria-current="true"] i { color: var(--accent); }
+
 .toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 8px; margin-top: 26px; }
 .toc a { display: block; text-decoration: none; color: var(--ink-2); font-size: 12.6px;
   border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--card); }
@@ -359,6 +389,7 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
       <a href="#credito"><b>07</b>La capa de credibilidad</a>
       <a href="#formatos"><b>08</b>Formatos de salida</a>
       <a href="#falta"><b>09</b>Qué existe y qué falta</a>
+      <a href="#pase"><b>10</b>El pase completo</a>
     </div>
   </div>
 </div>
@@ -367,9 +398,6 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
   <div class="grupo"><label for="sel-paleta">Paleta</label><select id="sel-paleta"></select><div class="tiras" id="tiras"></div></div>
   <div class="grupo"><label>Modo</label>
     <button class="btn" id="btn-modo" aria-pressed="true">Oscuro</button></div>
-  <div class="grupo"><label>Formato</label>
-    <button class="btn" data-fmt="16:9" aria-pressed="true">16:9</button>
-    <button class="btn" data-fmt="4:3" aria-pressed="false">4:3</button></div>
   <div class="grupo"><label>Rejilla</label>
     <button class="btn" id="btn-rejilla" aria-pressed="false">Mostrar</button></div>
 </div>
@@ -399,19 +427,19 @@ que todavía no sabe para qué sirve.</p>
 <table class="tabla">
   <thead><tr><th style="width:34px"></th><th>Papel</th><th>Qué responde</th><th>Tipo de lámina</th></tr></thead>
   <tbody>
-    <tr><td>1</td><td>Portada</td><td>Qué es esto, quién lo hizo, con qué datos y hasta qué fecha</td><td><code>portada</code></td></tr>
-    <tr><td>2</td><td>Resumen</td><td>Si sólo lees una lámina, lee esta</td><td><code>resumen</code></td></tr>
-    <tr><td>3</td><td>Contexto</td><td>Por qué estamos mirando esto ahora</td><td><code>afirmacion</code> · <code>contenido</code></td></tr>
-    <tr><td>4</td><td>Separador</td><td>Empieza una parte nueva</td><td><code>seccion</code></td></tr>
-    <tr><td>5</td><td>Hallazgo</td><td>Qué pasó — una afirmación, un gráfico</td><td><code>hallazgo</code> · <code>figura</code></td></tr>
-    <tr><td>6</td><td>Desglose</td><td>Dónde pasó — por región, canal, cohorte</td><td><code>rejilla</code> · <code>tabla</code></td></tr>
-    <tr><td>7</td><td>Comparación</td><td>Frente a qué: antes/después, plan/real, A/B</td><td><code>comparar</code></td></tr>
-    <tr><td>8</td><td>Dato ancla</td><td>La cifra que quieres que se recuerde mañana</td><td><code>cifra</code></td></tr>
-    <tr><td>9</td><td>Diagnóstico</td><td>Por qué pasó — qué lo explica</td><td><code>hallazgo</code> (cascada)</td></tr>
-    <tr><td>10</td><td>Acciones</td><td>Qué hacemos, quién y para cuándo</td><td><code>acciones</code></td></tr>
-    <tr><td>11</td><td>Método</td><td>Cómo se calculó, qué se excluyó, qué no se puede concluir</td><td><code>metodo</code></td></tr>
-    <tr><td>12</td><td>Apéndice</td><td>El detalle para quien pregunte</td><td><code>tabla</code> · <code>figura</code></td></tr>
-    <tr><td>13</td><td>Cierre</td><td>Dónde seguir la conversación</td><td><code>cierre</code></td></tr>
+    <tr><td>1</td><td>Portada</td><td>Qué es esto, quién lo hizo, con qué datos y hasta qué fecha</td><td><code>cover</code></td></tr>
+    <tr><td>2</td><td>Resumen</td><td>Si sólo lees una lámina, lee esta</td><td><code>summary</code></td></tr>
+    <tr><td>3</td><td>Contexto</td><td>Por qué estamos mirando esto ahora</td><td><code>statement</code> · <code>content</code></td></tr>
+    <tr><td>4</td><td>Separador</td><td>Empieza una parte nueva</td><td><code>section</code></td></tr>
+    <tr><td>5</td><td>Hallazgo</td><td>Qué pasó — una afirmación, un gráfico</td><td><code>finding</code> · <code>chart-full</code></td></tr>
+    <tr><td>6</td><td>Desglose</td><td>Dónde pasó — por región, canal, cohorte</td><td><code>chart-grid</code> · <code>table</code></td></tr>
+    <tr><td>7</td><td>Comparación</td><td>Frente a qué: antes/después, plan/real, A/B</td><td><code>compare</code></td></tr>
+    <tr><td>8</td><td>Dato ancla</td><td>La cifra que quieres que se recuerde mañana</td><td><code>metric</code></td></tr>
+    <tr><td>9</td><td>Diagnóstico</td><td>Por qué pasó — qué lo explica</td><td><code>finding</code> (cascada)</td></tr>
+    <tr><td>10</td><td>Acciones</td><td>Qué hacemos, quién y para cuándo</td><td><code>actions</code></td></tr>
+    <tr><td>11</td><td>Método</td><td>Cómo se calculó, qué se excluyó, qué no se puede concluir</td><td><code>method</code></td></tr>
+    <tr><td>12</td><td>Apéndice</td><td>El detalle para quien pregunte</td><td><code>table</code> · <code>chart-full</code></td></tr>
+    <tr><td>13</td><td>Cierre</td><td>Dónde seguir la conversación</td><td><code>closing</code></td></tr>
   </tbody>
 </table>
 <p class="nota" style="margin-top:12px">El deck de ejemplo de todo este documento es el mismo caso:
@@ -421,13 +449,13 @@ Los números son coherentes entre láminas a propósito.</p>
 
 <!-- ══════════════════════════════════════════════════════════════════ 02 -->
 <h2 id="rejilla"><span class="n">02</span>La rejilla y las tres bandas</h2>
-<p>El lienzo mide <strong>1600 unidades de ancho</strong>. En 16:9 son 900 de alto; en 4:3, 1200. Todo lo
-que sigue está en esas unidades, así que la especificación y el CSS dicen el mismo número. Pulsa
-<em>Rejilla → Mostrar</em> arriba para verla dibujada sobre la lámina.</p>
+<p>El lienzo mide <strong>1600 × 900 unidades</strong> — 16:9, siempre. Todo lo que sigue está en esas
+unidades, así que la especificación y el CSS dicen el mismo número. Pulsa <em>Rejilla → Mostrar</em>
+arriba para verla dibujada sobre la lámina.</p>
 
 <div class="stage-wrap">
   <div class="stage">
-    <div class="slide" data-demo="rejilla">
+    <div class="slide" data-demo="rejilla" data-pase="5" data-tipo="finding">
       <div class="s-eyebrow">Inversión en campañas · T3</div>
       <h3 class="s-title">El coste sube un 18&nbsp;% y los clics sólo un 6&nbsp;%: <i>pagamos más por cada clic</i></h3>
       <div class="s-body">
@@ -436,6 +464,8 @@ que sigue está en esas unidades, así que la especificación y el CSS dicen el 
             <div class="kpi kpi--hot"><u>CPC medio</u><div class="kpi-linea"><b>$2.55</b><s class="neg">+11.6 %</s></div><em>frente a $2.28 en el T2</em></div>
           </div>
           <div class="takeaway">La diferencia no está repartida: nace en agosto y en tres campañas.</div>
+          <p class="s-prosa">El CPC medio agrega coste y clics antes de dividir, así que una campaña
+          grande pesa más que una pequeña. Por campaña, la mediana subió menos: de $2.24 a <b>$2.31</b>.</p>
         </div>
         <div class="s-col s-col--7"><div class="fig" data-fig="linea-mes"></div></div>
       </div>
@@ -455,15 +485,15 @@ que sigue está en esas unidades, así que la especificación y el CSS dicen el 
 
 <h4>Las medidas</h4>
 <table class="tabla">
-  <thead><tr><th>Medida</th><th>16:9</th><th>4:3</th><th>Por qué</th></tr></thead>
+  <thead><tr><th>Medida</th><th>Valor</th><th>Por qué</th></tr></thead>
   <tbody>
-    <tr><td>Lienzo</td><td>1600 × 900</td><td>1600 × 1200</td><td>Mismo ancho: el texto y la rejilla no cambian de tamaño al cambiar de formato, sólo hay más o menos alto.</td></tr>
-    <tr><td>Margen exterior</td><td colspan="2">72 por los cuatro lados</td><td>Zona segura. Ningún proyector recorta ahí, y en PDF deja aire de impresión.</td></tr>
-    <tr><td>Columnas</td><td colspan="2">12 columnas · canal de 24</td><td>Columna = 99,3 u. Los repartos legales son 12, 6/6, 5/7, 4/8 y 3/3/3/3.</td></tr>
-    <tr><td>Banda de cabecera</td><td colspan="2">alto libre, mínimo 96</td><td>Antetítulo + afirmación + bajada opcional. Crece con el título; nunca pasa de 3 líneas.</td></tr>
-    <tr><td>Banda de pie</td><td colspan="2">44 + filete a 1 px</td><td>Fija. Siempre en el mismo sitio en todas las láminas: es un ancla, no un adorno.</td></tr>
-    <tr><td>Cuerpo</td><td>≈ 570</td><td>≈ 870</td><td>Lo que sobra. Es la variable de ajuste de toda la lámina.</td></tr>
-    <tr><td>Separación cabecera↔cuerpo</td><td colspan="2">30</td><td>Menos que la separación entre columnas (40) para que el cuerpo se lea colgando del título.</td></tr>
+    <tr><td>Lienzo</td><td>1600 × 900</td><td>16:9 y nada más. Un deck no cambia de formato a mitad, y sostener dos lienzos duplicaría cada regla de reparto de aquí abajo.</td></tr>
+    <tr><td>Margen exterior</td><td>72 por los cuatro lados</td><td>Zona segura. Ningún proyector recorta ahí, y en PDF deja aire de impresión.</td></tr>
+    <tr><td>Columnas</td><td>12 columnas · canal de 24</td><td>Columna = 99,3 u. Los repartos legales son 12, 6/6, 5/7, 4/8 y 3/3/3/3.</td></tr>
+    <tr><td>Banda de cabecera</td><td>alto libre, mínimo 96</td><td>Antetítulo + afirmación + bajada opcional. Crece con el título; nunca pasa de 3 líneas.</td></tr>
+    <tr><td>Banda de pie</td><td>44 + filete a 1 px</td><td>Fija. Siempre en el mismo sitio en todas las láminas: es un ancla, no un adorno.</td></tr>
+    <tr><td>Cuerpo</td><td>≈ 570</td><td>Lo que sobra. Es la variable de ajuste de toda la lámina.</td></tr>
+    <tr><td>Separación cabecera↔cuerpo</td><td>30</td><td>Menos que la separación entre columnas (40) para que el cuerpo se lea colgando del título.</td></tr>
   </tbody>
 </table>
 
@@ -474,8 +504,8 @@ parecidos se leen como el mismo tamaño.</p>
 <table class="tabla">
   <thead><tr><th>Nivel</th><th>Tamaño</th><th>Peso</th><th>Uso</th></tr></thead>
   <tbody>
-    <tr><td>Cifra ancla</td><td>146</td><td>800</td><td>Un solo número por lámina, y sólo en <code>cifra</code>.</td></tr>
-    <tr><td>Afirmación grande</td><td>84</td><td>800</td><td>Lámina <code>afirmacion</code>. Máximo 19 caracteres por línea.</td></tr>
+    <tr><td>Cifra ancla</td><td>146</td><td>800</td><td>Un solo número por lámina, y sólo en <code>metric</code>.</td></tr>
+    <tr><td>Afirmación grande</td><td>84</td><td>800</td><td>Lámina <code>statement</code>. Máximo 19 caracteres por línea.</td></tr>
     <tr><td>Título de portada</td><td>74</td><td>800</td><td>Sólo portada y separador.</td></tr>
     <tr><td>Valor de KPI</td><td>48</td><td>700</td><td>Cifras tabulares, siempre alineadas.</td></tr>
     <tr><td>Título de lámina</td><td>40</td><td>700</td><td>La afirmación. Hasta 36 caracteres por línea, 2 líneas ideal.</td></tr>
@@ -513,26 +543,42 @@ se la quita está fijado — no se reparte «a ojo» según lo que quepa.</p>
     cabe en seis líneas no es una lámina, es un párrafo, y un párrafo se lee en el informe, no en la sala.</p></div>
   <div class="regla"><b>Una afirmación por lámina</b><p>Si el título tiene un «y» que une dos hallazgos
     distintos, son dos láminas. El «y» es el síntoma más fiable de una lámina sobrecargada.</p></div>
-  <div class="regla"><b>El pie no negocia</b><p>44 unidades, siempre presentes, en todas las láminas
-    salvo portada y cierre. Es lo que hace que el deck se pueda auditar lámina a lámina.</p></div>
+  <div class="regla"><b>El pie no negocia su sitio</b><p>44 unidades, siempre en el mismo lugar. Se
+    puede apagar y se puede elegir qué enseña (apartado 07), pero cuando está, está ahí — es lo que
+    permite auditar el deck lámina a lámina.</p></div>
+  <div class="regla"><b>Lo que sobra en la columna de texto es del autor</b><p>Un KPI y una conclusión
+    no llenan media lámina, y está bien: ese hueco es markdown libre, para la salvedad, la definición o
+    el matiz que sólo sabe quien hizo el análisis. Si se deja vacío a propósito, el reparto pasa de 5/7
+    a 4/8 y la figura se queda con el resto.</p></div>
+  <div class="regla"><b>Cinco KPIs como máximo</b><p>Con seis, cada uno baja de 240 unidades de ancho y
+    el valor deja de leerse desde el fondo de la sala. Seis métricas son dos láminas.</p></div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════ 04 -->
 <h2 id="objetos"><span class="n">04</span>Los objetos de una lámina</h2>
-<p>Hoy una lámina puede contener texto markdown, una tabla GFM, una imagen y un gráfico. Esto es el
-inventario completo que necesita un analista, con la sintaxis propuesta para cada uno — toda en la misma
-línea del formato actual: bloques cercados, como <code>```amoxchart</code> y <code>```notes</code> ya lo son.</p>
+<p><strong>Una lámina es markdown.</strong> Eso no cambia: es lo que permite que el texto se escriba
+rápido, que el archivo se pueda leer en un diff y que cosas como una fórmula en LaTeX
+(<code>$\text{CPC} = \sum C / \sum K$</code>) o un diagrama Mermaid funcionen sin que nadie las haya
+diseñado — <code>MarkdownPreview</code> ya las renderiza hoy dentro de la lámina. Todo lo que sigue se
+añade en esa misma línea: bloques cercados, como <code>```amoxchart</code> y <code>```notes</code> ya lo
+son, nunca un editor visual que escriba HTML.</p>
+<p class="nota">El único sitio donde LaTeX y Mermaid se caen es el export: <code>markdownToTextRuns</code>
+aplana encabezados, negritas y viñetas, y deja fuera math, código y diagramas. En PowerPoint tendrían que
+salir como imagen.</p>
 
 <h4>Texto</h4>
 <table class="tabla">
   <thead><tr><th>Objeto</th><th>Para qué</th><th>Sintaxis</th><th>Hoy</th></tr></thead>
   <tbody>
-    <tr><td>Antetítulo</td><td>El hilo del deck: sección o periodo. Se repite lámina a lámina.</td><td>front-matter <code>seccion:</code> o <code>&lt;!-- eyebrow: … --&gt;</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Antetítulo</td><td>El hilo del deck: sección o periodo. Se repite lámina a lámina.</td><td>front-matter <code>section:</code> o <code>&lt;!-- eyebrow: … --&gt;</code></td><td><span class="est est--no">falta</span></td></tr>
     <tr><td>Afirmación</td><td>El título como frase que se puede defender, no como etiqueta.</td><td><code>## …</code> (cambia el estilo, no la sintaxis)</td><td><span class="est est--med">parcial</span></td></tr>
     <tr><td>Bajada</td><td>Matiza el alcance: periodo, filtro, salvedad.</td><td>primer párrafo tras el <code>##</code></td><td><span class="est est--hay">existe</span></td></tr>
     <tr><td>Viñetas</td><td>Máximo seis. Con negrita al principio de cada una.</td><td><code>- …</code></td><td><span class="est est--hay">existe</span></td></tr>
     <tr><td>Conclusión</td><td>Una frase con filete de acento. Lo que hay que recordar de esta lámina.</td><td><code>&gt; …</code> (cita)</td><td><span class="est est--med">parcial</span></td></tr>
-    <tr><td>Nota / aviso</td><td>Salvedad metodológica, dato incompleto, definición.</td><td><code>&gt; [!nota]</code> · <code>&gt; [!aviso]</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Nota / aviso</td><td>Salvedad metodológica, dato incompleto, definición.</td><td><code>&gt; [!note]</code> · <code>&gt; [!warning]</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Prosa libre</td><td>Lo que quiera escribir quien diseña. Es lo que rellena el hueco que sobra en la columna de texto.</td><td>markdown a secas</td><td><span class="est est--hay">existe</span></td></tr>
+    <tr><td>Fórmula</td><td>La definición de la métrica escrita como matemática, no como frase.</td><td>LaTeX: <code>$…$</code> · <code>$$…$$</code></td><td><span class="est est--hay">existe</span></td></tr>
+    <tr><td>Diagrama</td><td>Un flujo, un modelo, una arquitectura.</td><td>bloque <code>```mermaid</code></td><td><span class="est est--hay">existe</span></td></tr>
   </tbody>
 </table>
 
@@ -541,10 +587,10 @@ línea del formato actual: bloques cercados, como <code>```amoxchart</code> y <c
   <thead><tr><th>Objeto</th><th>Para qué</th><th>Sintaxis</th><th>Hoy</th></tr></thead>
   <tbody>
     <tr><td>Tira de KPIs</td><td>De 2 a 5 métricas con valor, variación y base de comparación. El objeto que más falta.</td><td>bloque <code>```kpis</code></td><td><span class="est est--no">falta</span></td></tr>
-    <tr><td>Cifra ancla</td><td>Un número a tamaño display. Uno por deck, dos como mucho.</td><td>bloque <code>```cifra</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Cifra ancla</td><td>Un número a tamaño display. Uno por deck, dos como mucho.</td><td>bloque <code>```metric</code></td><td><span class="est est--no">falta</span></td></tr>
     <tr><td>Chip de variación</td><td>El ± con su signo y color. Verde y rojo semánticos, nunca de paleta.</td><td>dentro de <code>```kpis</code></td><td><span class="est est--no">falta</span></td></tr>
     <tr><td>Tabla clasificada</td><td>El top N con barra dentro de la celda. Ordenada siempre.</td><td>tabla GFM + <code>&lt;!-- rank --&gt;</code></td><td><span class="est est--med">parcial</span></td></tr>
-    <tr><td>Semáforo</td><td>Estado por fila: en objetivo, en riesgo, fuera.</td><td>columna con <code>ok</code>/<code>riesgo</code>/<code>mal</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Semáforo</td><td>Estado por fila: en objetivo, en riesgo, fuera.</td><td>columna con <code>ok</code> / <code>risk</code> / <code>bad</code></td><td><span class="est est--no">falta</span></td></tr>
   </tbody>
 </table>
 
@@ -552,9 +598,9 @@ línea del formato actual: bloques cercados, como <code>```amoxchart</code> y <c
 <table class="tabla">
   <thead><tr><th>Objeto</th><th>Para qué</th><th>Sintaxis</th><th>Hoy</th></tr></thead>
   <tbody>
-    <tr><td>Figura desnuda</td><td>El lienzo de Story Flow sin su tarjeta. La forma por defecto (ver <a href="#tarjeta">05</a>).</td><td><code>```amoxchart</code> con <code>tarjeta: false</code></td><td><span class="est est--no">falta</span></td></tr>
-    <tr><td>Figura en tarjeta</td><td>Cuando hay más de una figura y hacen falta bordes que las separen.</td><td><code>tarjeta: true</code></td><td><span class="est est--med">parcial</span></td></tr>
-    <tr><td>Varias figuras</td><td>Small multiples y comparaciones. Hoy sólo se lee la primera del archivo.</td><td>varios <code>```amoxchart</code> con <code>hueco: a|b|c|d</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Figura desnuda</td><td>El lienzo de Story Flow sin su tarjeta. La forma por defecto (ver <a href="#tarjeta">05</a>).</td><td><code>```amoxchart</code> con <code>card: false</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Figura en tarjeta</td><td>Cuando hay más de una figura y hacen falta bordes que las separen.</td><td><code>card: true</code></td><td><span class="est est--med">parcial</span></td></tr>
+    <tr><td>Varias figuras</td><td>Small multiples y comparaciones. Hoy sólo se lee la primera del archivo.</td><td>varios <code>```amoxchart</code> con <code>slot: a|b|c|d</code></td><td><span class="est est--no">falta</span></td></tr>
     <tr><td>Imagen</td><td>Captura, foto, diagrama externo.</td><td><code>![…](…)</code></td><td><span class="est est--hay">existe</span></td></tr>
   </tbody>
 </table>
@@ -563,9 +609,9 @@ línea del formato actual: bloques cercados, como <code>```amoxchart</code> y <c
 <table class="tabla">
   <thead><tr><th>Objeto</th><th>Para qué</th><th>Sintaxis</th><th>Hoy</th></tr></thead>
   <tbody>
-    <tr><td>Pasos</td><td>Un proceso o un plan por fases, con la fase activa marcada.</td><td>bloque <code>```pasos</code></td><td><span class="est est--no">falta</span></td></tr>
-    <tr><td>Acciones</td><td>Recomendaciones con responsable y fecha. Cierra el deck.</td><td>bloque <code>```acciones</code></td><td><span class="est est--no">falta</span></td></tr>
-    <tr><td>Pie de procedencia</td><td>Fuente, consulta, refresco, filtros. Automático (ver <a href="#credito">07</a>).</td><td>automático + <code>fuente:</code> para forzarlo</td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Pasos</td><td>Un proceso o un plan por fases, con la fase activa marcada.</td><td>bloque <code>```steps</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Acciones</td><td>Recomendaciones con responsable y fecha. Cierra el deck.</td><td>bloque <code>```actions</code></td><td><span class="est est--no">falta</span></td></tr>
+    <tr><td>Pie de procedencia</td><td>Fuente, consulta, refresco, filtros. Automático (ver <a href="#credito">07</a>).</td><td>automático + <code>source:</code> para forzarlo</td><td><span class="est est--no">falta</span></td></tr>
     <tr><td>Número de lámina</td><td>Para que alguien pueda decir «vuelve a la 7».</td><td>automático</td><td><span class="est est--no">falta</span></td></tr>
     <tr><td>Notas de orador</td><td>No se ve en la lámina; sale en el panel de notas del .pptx.</td><td>bloque <code>```notes</code></td><td><span class="est est--hay">existe</span></td></tr>
   </tbody>
@@ -617,7 +663,7 @@ marco dentro de un marco:</p>
       mitad del hueco que se le había reservado.</p>
     </div>
     <div>
-      <div class="slide">
+      <div class="slide" data-pase="8" data-tipo="finding">
         <div class="s-eyebrow">Inversión en campañas · T3</div>
         <h3 class="s-title">Norte concentra el 38&nbsp;% del gasto <i>y no es la región más eficiente</i></h3>
         <div class="s-body">
@@ -664,7 +710,7 @@ una unidad y aquello es otra». Sin él, cuatro dibujos contiguos se leen como u
 
 <div class="stage-wrap">
   <div class="stage">
-    <div class="slide">
+    <div class="slide" data-pase="10" data-tipo="chart-grid">
       <div class="s-eyebrow">Inversión en campañas · T3</div>
       <h3 class="s-title">El salto es de agosto y de tres campañas, <i>no del trimestre entero</i></h3>
       <div class="s-body s-body--col">
@@ -691,10 +737,14 @@ una unidad y aquello es otra». Sin él, cuatro dibujos contiguos se leen como u
 <p>Quince tipos. Los cinco que ya existen (<code>title</code>, <code>content</code>,
 <code>content-chart</code>, <code>chart-full</code>, <code>two-col</code>) siguen aquí con otro nombre y
 otro reparto; los diez restantes son nuevos.</p>
+<p class="nota">Los identificadores van en inglés aunque este documento esté en español: el formato
+<code>.amoxdeck</code> ya lo está, y mezclar los dos idiomas dentro del mismo archivo sería peor que
+elegir uno. Lo que el usuario ve en el Studio puede traducirse; la directiva que se escribe en el
+archivo, no.</p>
 
-<h3>Portada · <code>portada</code></h3>
+<h3>Portada · <code>cover</code></h3>
 <div class="stage-wrap"><div class="stage">
-  <div class="slide slide--portada">
+  <div class="slide slide--portada" data-pase="1" data-tipo="cover">
     <div class="portada-marca"><i></i>AmoxSQL</div>
     <h3 class="portada-titulo">Revisión de inversión en campañas</h3>
     <div class="portada-meta">
@@ -708,9 +758,9 @@ otro reparto; los diez restantes son nuevos.</p>
     necesita antes de creerse nada: periodo, fuente con volumen, autor y fecha de corte.</span></div>
 </div></div>
 
-<h3>Separador de sección · <code>seccion</code></h3>
+<h3>Separador de sección · <code>section</code></h3>
 <div class="stage-wrap"><div class="stage">
-  <div class="slide slide--seccion">
+  <div class="slide slide--seccion" data-pase="4" data-tipo="section">
     <div class="s-indice">02</div>
     <h3 class="portada-titulo" style="margin-top:calc(24 * var(--u))">Dónde se fue el dinero</h3>
     <div class="s-foot"><div class="s-foot-izq"><span>Revisión de inversión en campañas · T3 2026</span></div>
@@ -720,9 +770,9 @@ otro reparto; los diez restantes son nuevos.</p>
     la señal, no el texto. Es la única lámina que puede llevar color a sangre.</span></div>
 </div></div>
 
-<h3>Resumen ejecutivo · <code>resumen</code></h3>
+<h3>Resumen ejecutivo · <code>summary</code></h3>
 <div class="stage-wrap"><div class="stage">
-  <div class="slide">
+  <div class="slide" data-pase="2" data-tipo="summary">
     <div class="s-eyebrow">Resumen · T3 2026</div>
     <h3 class="s-title">Gastamos más y compramos menos atención de la que esperábamos</h3>
     <div class="s-body s-body--col">
@@ -752,10 +802,10 @@ otro reparto; los diez restantes son nuevos.</p>
     comparación explícita, tres conclusiones y una figura de apoyo. Si sólo se lee una lámina, es esta.</span></div>
 </div></div>
 
-<h3>Afirmación · <code>afirmacion</code> &nbsp;·&nbsp; Dato ancla · <code>cifra</code></h3>
+<h3>Afirmación · <code>statement</code> &nbsp;·&nbsp; Dato ancla · <code>metric</code></h3>
 <div class="stage-wrap"><div class="stage stage--doble">
   <div>
-    <div class="slide slide--centro">
+    <div class="slide slide--centro" data-pase="3" data-tipo="statement">
       <p class="statement">Cada clic nos costó <i>27 centavos más</i> que el trimestre pasado</p>
       <div class="s-foot" style="margin-top:auto">
         <div class="s-foot-izq"><span>campañas.parquet · <b>cpc_trimestre.sql</b></span></div>
@@ -766,11 +816,15 @@ otro reparto; los diez restantes son nuevos.</p>
       relato. Como mucho dos por deck.</span></div>
   </div>
   <div>
-    <div class="slide slide--centro">
-      <div class="cifra">64<small>&nbsp;%</small></div>
-      <div class="cifra-pie">Del aumento del trimestre ocurrió en agosto</div>
-      <div class="s-body" style="margin-top:calc(26 * var(--u))">
-        <div class="s-col s-col--12" style="flex:1"><div class="fig" data-fig="linea-mes"></div></div>
+    <div class="slide" data-pase="6" data-tipo="metric">
+      <div class="s-body" style="margin-top:0">
+        <div class="s-col s-col--5" style="justify-content:center">
+          <div class="cifra">64<small>&nbsp;%</small></div>
+          <div class="cifra-pie">Del aumento del trimestre ocurrió en agosto</div>
+          <p class="s-prosa" style="margin-top:calc(18 * var(--u))">Un solo mes mueve dos tercios de la
+          diferencia del trimestre. Lo demás es ruido de calendario.</p>
+        </div>
+        <div class="s-col s-col--7"><div class="fig" data-fig="linea-mes"></div></div>
       </div>
       <div class="s-foot">
         <div class="s-foot-izq"><span>campañas.parquet · <b>coste_mensual.sql</b></span></div>
@@ -782,9 +836,9 @@ otro reparto; los diez restantes son nuevos.</p>
   </div>
 </div></div>
 
-<h3>Hallazgo · <code>hallazgo</code> &nbsp;<span class="nota">(hoy <code>content-chart</code>)</span></h3>
+<h3>Hallazgo · <code>finding</code> &nbsp;<span class="nota">(hoy <code>content-chart</code>)</span></h3>
 <div class="stage-wrap"><div class="stage">
-  <div class="slide">
+  <div class="slide" data-pase="9" data-tipo="finding">
     <div class="s-eyebrow">Dónde se fue el dinero</div>
     <h3 class="s-title">Tres campañas explican <i>dos tercios</i> del aumento del trimestre</h3>
     <p class="s-sub">Variación de coste frente al T2, por campaña. Las siete campañas activas todo el trimestre.</p>
@@ -807,9 +861,9 @@ otro reparto; los diez restantes son nuevos.</p>
     de la figura: el texto es narrativa corta, la figura necesita sitio para etiquetas y ejes.</span></div>
 </div></div>
 
-<h3>Figura a todo lo ancho · <code>figura</code> &nbsp;<span class="nota">(hoy <code>chart-full</code>)</span></h3>
+<h3>Figura a todo lo ancho · <code>chart-full</code> <span class="nota">(ya existe con ese nombre)</span></h3>
 <div class="stage-wrap"><div class="stage">
-  <div class="slide">
+  <div class="slide" data-pase="7" data-tipo="chart-full">
     <div class="s-eyebrow">Dónde se fue el dinero</div>
     <h3 class="s-title">El reparto por región cambió de forma en agosto</h3>
     <div class="s-body s-body--col">
@@ -828,9 +882,9 @@ otro reparto; los diez restantes son nuevos.</p>
     columna de texto: la conclusión va en el título y la leyenda sube encima del dibujo.</span></div>
 </div></div>
 
-<h3>Comparar · <code>comparar</code></h3>
+<h3>Comparar · <code>compare</code></h3>
 <div class="stage-wrap"><div class="stage">
-  <div class="slide">
+  <div class="slide" data-pase="12" data-tipo="compare">
     <div class="s-eyebrow">Diagnóstico</div>
     <h3 class="s-title">Gastamos como si el reparto no hubiera cambiado</h3>
     <div class="s-body">
@@ -857,9 +911,9 @@ otro reparto; los diez restantes son nuevos.</p>
     <strong>una conclusión abajo que dice quién gana</strong> — sin ella, la lámina deja el trabajo al público.</span></div>
 </div></div>
 
-<h3>Tabla clasificada · <code>tabla</code></h3>
+<h3>Tabla clasificada · <code>table</code></h3>
 <div class="stage-wrap"><div class="stage">
-  <div class="slide">
+  <div class="slide" data-pase="11" data-tipo="table">
     <div class="s-eyebrow">Detalle</div>
     <h3 class="s-title">Las siete campañas, ordenadas por lo que subieron</h3>
     <div class="s-body s-body--col">
@@ -885,10 +939,10 @@ otro reparto; los diez restantes son nuevos.</p>
     da la magnitud sin obligar a comparar cifras; el resaltado marca sólo las filas de las que habla el título.</span></div>
 </div></div>
 
-<h3>Dos columnas · <code>dos-columnas</code> &nbsp;<span class="nota">(hoy <code>two-col</code>)</span> &nbsp;·&nbsp; Pasos · <code>pasos</code></h3>
+<h3>Dos columnas · <code>two-col</code> &nbsp;<span class="nota">(hoy <code>two-col</code>)</span> &nbsp;·&nbsp; Pasos · <code>steps</code></h3>
 <div class="stage-wrap"><div class="stage stage--doble">
   <div>
-    <div class="slide">
+    <div class="slide" data-pase="13" data-tipo="two-col">
       <div class="s-eyebrow">Diagnóstico</div>
       <h3 class="s-title">Dos lecturas posibles del mismo dato</h3>
       <div class="s-body">
@@ -913,7 +967,7 @@ otro reparto; los diez restantes son nuevos.</p>
     <div class="pie-muestra"><b>Dos columnas</b><span>Comparar dos ideas, no dos cifras.</span></div>
   </div>
   <div>
-    <div class="slide">
+    <div class="slide" data-pase="14" data-tipo="steps">
       <div class="s-eyebrow">Cómo lo contrastamos</div>
       <h3 class="s-title">Tres semanas para separar estacionalidad de puja</h3>
       <div class="s-body s-body--col" style="justify-content:center">
@@ -930,10 +984,10 @@ otro reparto; los diez restantes son nuevos.</p>
   </div>
 </div></div>
 
-<h3>Acciones · <code>acciones</code> &nbsp;·&nbsp; Método · <code>metodo</code></h3>
+<h3>Acciones · <code>actions</code> &nbsp;·&nbsp; Método · <code>method</code></h3>
 <div class="stage-wrap"><div class="stage stage--doble">
   <div>
-    <div class="slide">
+    <div class="slide" data-pase="15" data-tipo="actions">
       <div class="s-eyebrow">Qué proponemos</div>
       <h3 class="s-title">Tres decisiones que caben en esta semana</h3>
       <div class="s-body s-body--col">
@@ -953,12 +1007,12 @@ otro reparto; los diez restantes son nuevos.</p>
       responsable no es una acción, es un deseo.</span></div>
   </div>
   <div>
-    <div class="slide">
+    <div class="slide" data-pase="16" data-tipo="method">
       <div class="s-eyebrow">Apéndice</div>
       <h3 class="s-title">Cómo está calculado</h3>
       <div class="s-body s-body--col">
+        <div class="s-formula">CPC = ( &Sigma; Costo ) / ( &Sigma; Clicks ) &nbsp;&nbsp;<span>— se agrega antes de dividir</span></div>
         <ul class="s-lista">
-          <li><b>CPC</b> = <code style="font-size:calc(16*var(--u))">SUM(Costo) / SUM(Clicks)</code>, agregado antes de dividir.</li>
           <li><b>Periodo</b> jul–sep 2026 frente a abr–jun 2026, ambos completos.</li>
           <li><b>Exclusiones</b> filas con <code style="font-size:calc(16*var(--u))">Clicks = 0</code> (0,4 % del total).</li>
         </ul>
@@ -973,9 +1027,9 @@ otro reparto; los diez restantes son nuevos.</p>
   </div>
 </div></div>
 
-<h3>Contenido · <code>contenido</code> &nbsp;·&nbsp; Cierre · <code>cierre</code></h3>
-<p class="tight">Los dos tipos sin figura. <code>contenido</code> es el que hay hoy: título, bajada y
-viñetas, y sirve para contexto o para una lista. <code>cierre</code> es la portada al revés — marca,
+<h3>Contenido · <code>content</code> &nbsp;·&nbsp; Cierre · <code>closing</code></h3>
+<p class="tight">Los dos tipos sin figura. <code>content</code> es el que hay hoy: título, bajada y
+viñetas, y sirve para contexto o para una lista. <code>closing</code> es la portada al revés — marca,
 una frase y por dónde seguir. Ninguno de los dos necesita muestra: son la portada y el hallazgo sin su
 figura.</p>
 
@@ -1012,9 +1066,27 @@ se tira a la basura al pintar la lámina; debería rellenarse solo.</p>
   </tbody>
 </table>
 
+<h3>Se enciende, se apaga y se elige qué enseña</h3>
+<p class="tight">No todo deck quiere el pie en todas las láminas: una lámina de acciones no tiene fuente
+que citar, y un deck para dirección puede querer sólo la fecha. Se decide en el front-matter para todo
+el deck y se puede afinar lámina a lámina.</p>
+<table class="tabla">
+  <thead><tr><th>Dónde</th><th>Qué se escribe</th><th>Efecto</th></tr></thead>
+  <tbody>
+    <tr><td>Front-matter</td><td><code>footer: [source, query, rows, vars, refreshed, number]</code></td><td>Los campos del pie, en ese orden, para todo el deck.</td></tr>
+    <tr><td>Front-matter</td><td><code>footer: false</code></td><td>Sin pie en ningún sitio.</td></tr>
+    <tr><td>Lámina</td><td><code>&lt;!-- footer: false --&gt;</code></td><td>Apaga el pie sólo en esa lámina.</td></tr>
+    <tr><td>Lámina</td><td><code>&lt;!-- footer: number --&gt;</code></td><td>En esa lámina, sólo el número.</td></tr>
+    <tr><td>Lámina</td><td><code>source: …</code> en el bloque</td><td>Añade una salvedad al pie derivado. No lo sustituye.</td></tr>
+  </tbody>
+</table>
+<p class="nota">Por defecto, los seis campos en las láminas con figura y sólo <code>number</code> en las
+que no la tienen. <strong>La portada nunca lleva pie</strong>: ya enseña fuente y fecha en grande, y ahí
+el pie compite con ellas.</p>
+
 <div class="reglas" style="margin-top:24px">
-  <div class="regla"><b>El pie no se edita a mano</b><p>Se deriva. Un campo <code>fuente:</code> en el
-    bloque de la lámina puede añadir una salvedad, pero no sustituir lo derivado.</p></div>
+  <div class="regla"><b>Lo que se enseña no se edita a mano</b><p>Se elige qué campos aparecen, pero su
+    contenido se deriva. Un pie que se pueda teclear es un pie en el que no se puede confiar.</p></div>
   <div class="regla"><b>Si el deck no se ha refrescado, se dice</b><p>Con más de siete días desde el
     último refresco, la fecha se marca en ámbar. Un número viejo presentado como fresco es el peor fallo
     que puede tener una herramienta de análisis.</p></div>
@@ -1030,18 +1102,18 @@ se tira a la basura al pintar la lámina; debería rellenarse solo.</p>
 <table class="tabla">
   <thead><tr><th>Salida</th><th>Lienzo</th><th>Qué llega</th><th>Qué se pierde</th></tr></thead>
   <tbody>
-    <tr><td>Present (en la app)</td><td>16:9 · 4:3</td><td>Todo, con los gráficos vivos y «Refresh all».</td><td>Nada.</td></tr>
+    <tr><td>Present (en la app)</td><td>16:9</td><td>Todo, con los gráficos vivos y «Refresh all».</td><td>Nada.</td></tr>
     <tr><td>PowerPoint · nativo</td><td>13,33 × 7,5 in</td><td>Texto como cajas editables, tablas nativas, y gráficos de PowerPoint de verdad en barra, línea, área, tarta, anillo y combo.</td><td>Los tipos sin equivalencia (treemap, mapa de calor, embudo, cascada) caen a imagen. Los chips y la barra de tabla se aplanan.</td></tr>
     <tr><td>PowerPoint · imagen</td><td>13,33 × 7,5 in</td><td>La lámina tal cual se ve, con texto editable alrededor.</td><td>El gráfico deja de ser editable. Exige la vista Present abierta: es de donde se captura.</td></tr>
     <tr><td>Word</td><td>vertical</td><td>El deck como informe: cada lámina una sección, gráficos como imagen, notas de orador como párrafo.</td><td>La composición. Word no es un lienzo, es un flujo.</td></tr>
-    <tr><td>PDF · HTML</td><td>16:9 · 4:3</td><td>Fidelidad completa, incluido el pie de procedencia.</td><td>Los datos se congelan en la fecha de exportación — que es justo lo que el pie deja escrito.</td></tr>
+    <tr><td>PDF · HTML</td><td>16:9</td><td>Fidelidad completa, incluido el pie de procedencia.</td><td>Los datos se congelan en la fecha de exportación — que es justo lo que el pie deja escrito.</td></tr>
   </tbody>
 </table>
 
 <div class="reglas" style="margin-top:24px">
-  <div class="regla"><b>16:9 es el defecto; 4:3 no es 16:9 recortado</b><p>Mismo ancho, 300 unidades más
-    de alto. La cabecera y el pie no se mueven: todo el alto extra se lo queda el cuerpo, y por eso una
-    <code>rejilla</code> de 4 pasa a 2×2 en vez de 1×4.</p></div>
+  <div class="regla"><b>16:9 y sólo 16:9</b><p>El lienzo no es configurable. Cada reparto de este
+    documento está calculado sobre 1600 × 900; con un segundo formato habría que sostener dos juegos de
+    reglas, y el <code>aspect</code> del front-matter deja de tener sentido.</p></div>
   <div class="regla"><b>El tema del deck lo fija el front-matter</b><p><code>theme</code>,
     <code>accent</code> y <code>palette</code>, para que la lámina y el gráfico no puedan discrepar. Hoy
     sólo existe <code>theme</code> y la paleta la decide cada <code>.amoxvis</code> por su cuenta.</p></div>
@@ -1079,28 +1151,47 @@ se tira a la basura al pintar la lámina; debería rellenarse solo.</p>
     <tr><td>Pie de procedencia y numeración</td><td><span class="est est--no">falta</span></td><td>Es lo que más devuelve por lo que cuesta: los datos ya viajan en el <code>.amoxvis</code> y en la respuesta de <code>/api/query</code>.</td></tr>
     <tr><td>Antetítulo y título como afirmación</td><td><span class="est est--med">parcial</span></td><td>El <code>h2</code> hoy hereda el estilo del preview de markdown, con filete inferior incluido. Necesita escala propia dentro de la lámina.</td></tr>
     <tr><td>Más de una figura por lámina</td><td><span class="est est--no">falta</span></td><td><code>splitSlideContent</code> asume exactamente una y deja las demás dentro del texto. Requiere cambiar ese contrato — es el cambio de más alcance de la lista.</td></tr>
-    <tr><td>Tipos <code>resumen</code>, <code>cifra</code>, <code>afirmacion</code>, <code>seccion</code>, <code>rejilla</code>, <code>comparar</code>, <code>tabla</code>, <code>pasos</code>, <code>acciones</code>, <code>metodo</code></td><td><span class="est est--no">falta</span></td><td>Diez entradas nuevas en <code>DECK_LAYOUTS</code>, con su plantilla, su vista previa esquemática y su render.</td></tr>
-    <tr><td>Notas y avisos</td><td><span class="est est--no">falta</span></td><td>Alertas estilo <code>&gt; [!nota]</code> sobre el blockquote que ya se parsea.</td></tr>
+    <tr><td>Tipos <code>summary</code>, <code>metric</code>, <code>statement</code>, <code>section</code>, <code>chart-grid</code>, <code>compare</code>, <code>table</code>, <code>steps</code>, <code>actions</code>, <code>method</code></td><td><span class="est est--no">falta</span></td><td>Diez entradas nuevas en <code>DECK_LAYOUTS</code>, con su plantilla, su vista previa esquemática y su render.</td></tr>
+    <tr><td>Notas y avisos</td><td><span class="est est--no">falta</span></td><td>Alertas estilo <code>&gt; [!note]</code> sobre el blockquote que ya se parsea.</td></tr>
     <tr><td>Tabla clasificada con barra</td><td><span class="est est--med">parcial</span></td><td>La tabla GFM ya llega; falta el estilo, el resaltado de fila y la barra en celda.</td></tr>
     <tr><td>Acento y paleta a nivel de deck</td><td><span class="est est--no">falta</span></td><td>Dos claves más en el front-matter, propagadas al <code>DataVisualizer</code> de cada figura.</td></tr>
     <tr><td>Una lámina, una página</td><td><span class="est est--no">falta</span></td><td>Quitar el <code>overflow-y: auto</code> de <code>.deck-slide</code> y avisar en el Studio cuando el contenido se sale.</td></tr>
+    <tr><td>Pie configurable</td><td><span class="est est--no">falta</span></td><td>Clave <code>footer</code> en el front-matter y directiva por lámina. Va junto con el pie mismo.</td></tr>
+    <tr><td>LaTeX y Mermaid en el export</td><td><span class="est est--med">parcial</span></td><td>Dentro de la lámina ya funcionan (<code>remark-math</code> + <code>rehype-katex</code> + <code>mermaid</code> en <code>MarkdownPreview</code>). <code>markdownToTextRuns</code> los deja fuera: en PowerPoint tendrían que ir como imagen.</td></tr>
+    <tr><td>Lienzo fijo a 16:9</td><td><span class="est est--med">parcial</span></td><td>El front-matter admite <code>aspect</code> y <code>ASPECT_MAP</code> lo resuelve. Si el lienzo deja de ser configurable, esa clave sobra.</td></tr>
   </tbody>
 </table>
 
-<h4>Decisiones abiertas</h4>
-<ol class="partes">
-  <li><b>¿Los tipos nuevos se nombran en español?</b>
-    <span>El resto del formato está en inglés (<code>title</code>, <code>content-chart</code>). Añadir
-    <code>resumen</code> junto a <code>content</code> deja el archivo a medias. O se traducen los cinco
-    viejos con alias de compatibilidad, o los diez nuevos van en inglés.</span></li>
-  <li><b>¿La tarjeta se puede forzar con una figura sola?</b>
-    <span>La regla dice que se disuelve. Propongo dejar <code>tarjeta: true</code> como escape para quien
-    lo quiera, pero que nunca sea el defecto.</span></li>
-  <li><b>¿El pie aparece en la portada?</b>
-    <span>Mi propuesta es que no: la portada ya lleva fuente y fecha en grande, y el pie ahí compite.</span></li>
-  <li><b>¿Cuántos KPIs como máximo?</b>
-    <span>Cinco. Con seis, cada uno baja de 240 unidades de ancho y el valor deja de leerse a distancia.</span></li>
-</ol>
+<h4>Decidido</h4>
+<div class="reglas">
+  <div class="regla"><b>Identificadores en inglés</b><p>El formato ya lo está; los diez tipos nuevos
+    siguen. Lo que se traduce es lo que el usuario ve en el Studio, no lo que se escribe en el archivo.</p></div>
+  <div class="regla"><b>La tarjeta nunca por defecto</b><p><code>card: true</code> queda como escape
+    para quien la quiera con una sola figura, pero el valor de fábrica es disuelta.</p></div>
+  <div class="regla"><b>Sin pie en la portada</b><p>Ya enseña fuente y fecha en grande.</p></div>
+  <div class="regla"><b>Cinco KPIs</b><p>El sexto no se lee desde el fondo de la sala.</p></div>
+</div>
+
+<h2 id="pase"><span class="n">10</span>El pase completo</h2>
+<p>Las mismas dieciséis láminas de arriba, en el orden en que se contarían. Sirve para lo que ninguna
+lámina suelta enseña: si el deck <em>respira</em> — si los separadores caen donde deben, si dos láminas
+densas se tocan, si el pie ancla igual en todas.</p>
+<p class="nota">Flechas ← → cuando el pase tiene el foco, o pulsa cualquier número de abajo. Son clones
+vivos de las muestras: al cambiar la paleta o el modo, cambian con ellas.</p>
+
+<div class="stage-wrap">
+  <div class="pase" tabindex="0">
+    <div class="pase-lienzo" id="pase-lienzo"></div>
+    <div class="pase-barra">
+      <div class="pase-nav">
+        <button class="btn" id="pase-prev" title="Anterior">&larr;</button>
+        <button class="btn" id="pase-next" title="Siguiente">&rarr;</button>
+      </div>
+      <div class="pase-info"><b id="pase-tipo"></b><span id="pase-num"></span></div>
+    </div>
+    <div class="pase-tiras" id="pase-tiras"></div>
+  </div>
+</div>
 
 <p class="nota" style="margin-top:34px">Este documento es un contrato visual, no una implementación. Los
 gráficos que ves están dibujados aquí dentro para que el selector de paletas funcione; los de verdad los
@@ -1120,7 +1211,7 @@ const PALETAS = {
   'Corporativa': ['#2c3e50','#34495e','#7f8c8d','#95a5a6','#bdc3c7','#ecf0f1'],
   'Dark2':       ['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666'],
 };
-const est = { paleta: 'AmoxSQL', modo: 'dark', fmt: '16:9', rejilla: false };
+const est = { paleta: 'AmoxSQL', modo: 'dark', rejilla: false };
 const col = (i) => { const p = PALETAS[est.paleta]; return p[i % p.length]; };
 const V = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -1305,7 +1396,6 @@ const FIGURAS = {
 /* ── pintado ── */
 function pintarTodo() {
   document.documentElement.dataset.mode = est.modo;
-  document.documentElement.dataset.fmt = est.fmt;
   // el sistema Sterling se calibra por superficie: claro vs oscuro
   if (est.paleta === 'Sterling' && est.modo === 'dark') { /* el usuario elige; no forzamos */ }
   document.getElementById('tiras').innerHTML =
@@ -1333,13 +1423,6 @@ btnModo.addEventListener('click', () => {
   pintarTodo();
 });
 
-document.querySelectorAll('[data-fmt]').forEach(b => b.addEventListener('click', () => {
-  est.fmt = b.dataset.fmt;
-  document.querySelectorAll('[data-fmt]').forEach(o =>
-    o.setAttribute('aria-pressed', o.dataset.fmt === est.fmt));
-  pintarTodo();
-}));
-
 const btnRej = document.getElementById('btn-rejilla');
 btnRej.addEventListener('click', () => {
   est.rejilla = !est.rejilla;
@@ -1347,6 +1430,62 @@ btnRej.addEventListener('click', () => {
   btnRej.setAttribute('aria-pressed', est.rejilla);
   pintarTodo();
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EL PASE — las mismas láminas de arriba, clonadas y en orden de relato.
+   Se clona una sola vez y antes del primer pintado, así que los clones entran
+   en el mismo `[data-fig]` que repinta el selector de paleta.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const NOMBRE_TIPO = {
+  cover: 'Portada', section: 'Separador', summary: 'Resumen ejecutivo',
+  statement: 'Afirmación', metric: 'Dato ancla', finding: 'Hallazgo',
+  'chart-full': 'Figura a todo lo ancho', 'chart-grid': 'Rejilla de figuras',
+  compare: 'Comparar', table: 'Tabla clasificada', 'two-col': 'Dos columnas',
+  steps: 'Pasos', actions: 'Acciones', method: 'Método',
+};
+const lienzoPase = document.getElementById('pase-lienzo');
+const pase = [];
+let iPase = 0;
+
+[...document.querySelectorAll('[data-pase]')]
+  .sort((a, b) => (+a.dataset.pase) - (+b.dataset.pase))
+  .forEach((orig, i) => {
+    const clon = orig.cloneNode(true);
+    clon.removeAttribute('data-pase');   // el clon no vuelve a entrar en el pase
+    clon.removeAttribute('data-demo');
+    clon.hidden = i !== 0;
+    // la rejilla superpuesta es material del apartado 02, no del pase
+    const rej = clon.querySelector('.overlay-rejilla');
+    if (rej) rej.remove();
+    lienzoPase.appendChild(clon);
+    pase.push({ el: clon, tipo: orig.dataset.tipo });
+  });
+
+const tiras = document.getElementById('pase-tiras');
+tiras.innerHTML = pase.map((d, i) =>
+  '<button type="button" data-i="' + i + '"><i>' + String(i + 1).padStart(2, '0') + '</i>' +
+  (NOMBRE_TIPO[d.tipo] || d.tipo) + '</button>').join('');
+
+function irA(i) {
+  iPase = Math.max(0, Math.min(pase.length - 1, i));
+  pase.forEach((d, k) => { d.el.hidden = k !== iPase; });
+  document.getElementById('pase-tipo').textContent = NOMBRE_TIPO[pase[iPase].tipo] || pase[iPase].tipo;
+  document.getElementById('pase-num').textContent = (iPase + 1) + ' / ' + pase.length;
+  document.getElementById('pase-prev').disabled = iPase === 0;
+  document.getElementById('pase-next').disabled = iPase === pase.length - 1;
+  [...tiras.children].forEach((b, k) => b.setAttribute('aria-current', k === iPase));
+}
+document.getElementById('pase-prev').addEventListener('click', () => irA(iPase - 1));
+document.getElementById('pase-next').addEventListener('click', () => irA(iPase + 1));
+tiras.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (b) irA(+b.dataset.i);
+});
+document.querySelector('.pase').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); irA(iPase - 1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); irA(iPase + 1); }
+});
+irA(0);
 
 pintarTodo();
 </script>
