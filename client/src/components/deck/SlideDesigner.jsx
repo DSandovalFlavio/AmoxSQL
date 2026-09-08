@@ -10,12 +10,43 @@
  * touches the raw file (same relationship Story Flow has with its `.amoxvis`
  * JSON).
  */
-import { useState, useEffect } from 'react';
-import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen } from 'react-icons/lu';
+import { useState, useEffect, useRef } from 'react';
+import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
 import { DECK_LAYOUT_META } from './deckLayoutPreviews';
+
+/**
+ * A slide is one page: `.deck-slide` clips instead of scrolling, so content
+ * that does not fit would just vanish. This measures the gap and lets the
+ * designer surface it — without the warning, removing the scrollbar would only
+ * trade a visible failure for a silent one.
+ */
+function useDesborde(canvasRef) {
+    const [desborde, setDesborde] = useState(0);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return undefined;
+
+        const medir = () => {
+            const slide = canvas.querySelector('.deck-slide');
+            setDesborde(slide ? Math.max(0, slide.scrollHeight - slide.clientHeight) : 0);
+        };
+        medir();
+
+        // El alto depende del ancho (aspect-ratio) y del contenido, así que
+        // hacen falta las dos señales: la del tamaño y la del DOM.
+        const ro = new ResizeObserver(medir);
+        ro.observe(canvas);
+        const mo = new MutationObserver(medir);
+        mo.observe(canvas, { childList: true, subtree: true, characterData: true });
+        return () => { ro.disconnect(); mo.disconnect(); };
+    }, [canvasRef]);
+
+    return desborde;
+}
 
 /** Click-to-edit prose: rendered markdown that swaps to a textarea on click. */
 function EditableProse({ value, placeholder, onCommit, theme, onOpenFile }) {
@@ -131,6 +162,8 @@ const SlideDesigner = ({
     const { prose, chartSrc, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
     const meta = DECK_LAYOUT_META[layout];
+    const canvasRef = useRef(null);
+    const desborde = useDesborde(canvasRef);
 
     const proseEl = (
         <EditableProse value={prose} onCommit={onEditProse} theme={theme} onOpenFile={onOpenFile} />
@@ -186,8 +219,14 @@ const SlideDesigner = ({
                 </button>
             </div>
 
-            <div className="deck-design-canvas" style={{ aspectRatio }}>
+            <div className="deck-design-canvas" ref={canvasRef} style={{ aspectRatio }}>
                 {body}
+                {desborde > 2 && (
+                    <div className="deck-desborde" title="A slide is one page — it clips instead of scrolling. Move something to a second slide.">
+                        <LuTriangleAlert size={12} />
+                        Content overflows by {Math.round(desborde)}px
+                    </div>
+                )}
             </div>
 
             {onEditNotes && <NotesPanel notes={notes} onCommit={onEditNotes} />}

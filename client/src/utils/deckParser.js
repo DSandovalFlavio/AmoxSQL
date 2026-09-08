@@ -136,7 +136,6 @@ export function parseAmoxChartBlock(raw) {
 export const DECK_STARTER_TEMPLATE = `---
 title: New Deck
 theme: dark
-aspect: "16:9"
 variables:
   region: "US"
 ---

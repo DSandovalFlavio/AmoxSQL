@@ -38,7 +38,11 @@ import SlidePreview from './SlidePreview';
 import '../MarkdownEditor.css';
 import './deck.css';
 
-const ASPECT_MAP = { '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1' };
+// El lienzo no es configurable: 16:9 y nada más. Cada reparto del contrato
+// visual (docs/dev/sistema_deck.html) está calculado sobre 1600 x 900, y
+// sostener un segundo formato obligaría a duplicar todas esas reglas. El
+// front-matter puede seguir trayendo `aspect` de decks antiguos; se ignora.
+const SLIDE_ASPECT = '16 / 9';
 const VALID_VIEWS = ['design', 'present', 'source'];
 
 const DeckEditor = ({
@@ -72,7 +76,16 @@ const DeckEditor = ({
     const slideCardRefs = useRef(new Map());
 
     const deck = useMemo(() => parseDeck(content || ''), [content]);
-    const aspectRatio = ASPECT_MAP[deck.frontMatter?.aspect] || '16 / 9';
+    const aspectRatio = SLIDE_ASPECT;
+
+    // Un deck escrito antes de fijar el lienzo puede traer `aspect`. Se ignora,
+    // pero se dice una vez para que nadie crea que la clave sigue haciendo algo.
+    const aspectDeclarado = deck.frontMatter?.aspect;
+    useEffect(() => {
+        if (aspectDeclarado && aspectDeclarado !== '16:9') {
+            console.warn(`Report Flow: "aspect: ${aspectDeclarado}" se ignora — las láminas son siempre 16:9.`);
+        }
+    }, [aspectDeclarado]);
 
     // Keep the active slide index within bounds as slides are added/removed.
     useEffect(() => {

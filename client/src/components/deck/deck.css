@@ -53,8 +53,16 @@
 }
 
 /* Each slide renders as a fixed-aspect "page" — width fills up to a max,
-   height follows the deck's aspect ratio (set via inline style). */
+   height follows the 16:9 canvas (set via inline style).
+
+   `container-type` lives HERE and never on `.deck-slide`: the slide's own
+   padding is expressed in `--u`, which derives from the container's width, so
+   a slide that were its own container would define its padding in a unit
+   derived from itself. That is a cyclic reference and the browser resolves it
+   to whatever it likes — measured 97u where the spec says 72u. See
+   docs/dev/sistema_deck.html, apartado 02. */
 .deck-slide-card {
+    container-type: inline-size;
     width: 100%;
     max-width: 1440px;
     flex-shrink: 0;
@@ -66,13 +74,61 @@
     position: relative;
 }
 
-/* ── Slide (fills the card) ── */
+/* ── Slide (fills the card) ──────────────────────────────────────────────
+   El lienzo mide 1600 x 900 unidades de diseño — 16:9, siempre — y `--u` vale
+   una de esas unidades. Por eso cada medida de aquí abajo se lee igual que la
+   especificación: `calc(72 * var(--u))` ES el margen de 72 del contrato.
+
+   `overflow: hidden` y no `auto`: una lámina es una página. Si el contenido no
+   cabe, no cabe — y el Studio lo avisa (ver useDesborde en SlideDesigner).
+   Con scroll el problema se escondía en pantalla para reventar en el PDF. */
 .deck-slide {
+    --u: calc(100cqw / 1600);
+
+    /* Retícula */
+    --s-margen: calc(72 * var(--u));
+    --s-canal: calc(24 * var(--u));
+    --s-gap-col: calc(40 * var(--u));
+    --s-gap-cabecera: calc(30 * var(--u));
+    --s-pie: calc(44 * var(--u));
+
+    /* Escala tipográfica (apartado 02 del contrato) */
+    --t-cifra: calc(146 * var(--u));
+    --t-afirmacion: calc(84 * var(--u));
+    --t-portada: calc(74 * var(--u));
+    --t-kpi: calc(48 * var(--u));
+    --t-titulo: calc(40 * var(--u));
+    --t-bajada: calc(20 * var(--u));
+    --t-cuerpo: calc(19 * var(--u));
+    --t-tabla: calc(18 * var(--u));
+    --t-etiqueta: calc(13 * var(--u));
+    --t-pie: calc(12.5 * var(--u));
+
     height: 100%;
     width: 100%;
-    overflow-y: auto;
+    overflow: hidden;
     box-sizing: border-box;
-    padding: 32px 40px;
+    padding: var(--s-margen);
+}
+
+/* Aviso de desborde: la contrapartida honesta de quitar el scroll. Sin él,
+   quitarlo sólo cambia un fallo visible por uno silencioso. */
+.deck-desborde {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-warning, #d9a441);
+    background-color: var(--surface-inset);
+    border: 1px solid var(--color-warning, #d9a441);
+    border-radius: var(--radius-sm);
+    padding: 4px 9px;
+    pointer-events: none;
 }
 
 .deck-slide .mde-preview-body {
@@ -102,8 +158,8 @@
    while the chart needs room for axis labels + data). */
 .deck-slide--content-chart {
     display: grid;
-    grid-template-columns: 0.85fr 1.15fr;
-    gap: 32px;
+    grid-template-columns: 5fr 7fr;   /* 5/7 a favor de la figura */
+    gap: var(--s-gap-col);
     height: 100%;
     box-sizing: border-box;
 }
@@ -111,7 +167,7 @@
 .deck-slide--two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 32px;
+    gap: var(--s-gap-col);
     height: 100%;
     box-sizing: border-box;
 }
@@ -634,6 +690,7 @@
 
 /* The active slide as a single large 16:9 canvas */
 .deck-design-canvas {
+    container-type: inline-size;   /* ver la nota en .deck-slide-card */
     width: 100%;
     max-width: 1180px;
     flex-shrink: 0;
