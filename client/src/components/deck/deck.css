@@ -530,6 +530,21 @@
 /* Se resaltan sólo las filas de las que habla el título. */
 .deck-rank-fila--destacada td { color: var(--text-primary); }
 .deck-rank-celda-barra { width: 26%; }
+.deck-estado {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: calc(12.5 * var(--u));
+    font-weight: var(--weight-semibold);
+    letter-spacing: .06em;
+    border-radius: 999px;
+    padding: calc(4 * var(--u)) calc(11 * var(--u));
+    white-space: nowrap;
+}
+/* Semánticos, no de paleta: un cambio de paleta no puede cambiar qué va bien. */
+.deck-estado--ok   { color: var(--color-success); background-color: color-mix(in srgb, var(--color-success) 14%, transparent); }
+.deck-estado--risk { color: var(--color-warning); background-color: color-mix(in srgb, var(--color-warning) 14%, transparent); }
+.deck-estado--bad  { color: var(--color-error);   background-color: color-mix(in srgb, var(--color-error) 14%, transparent); }
 .deck-rank-barra {
     height: calc(9 * var(--u));
     border-radius: calc(3 * var(--u));

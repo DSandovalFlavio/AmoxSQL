@@ -128,9 +128,13 @@ Lo que hace que esto sea un deck de AmoxSQL y no una plantilla bonita.
       Con seis, aviso en el Studio: cada uno baja de 240 u y deja de leerse.
 - [x] Bloque ```metric``` — la cifra ancla.
 - [x] Bloque ```steps``` y bloque ```actions``` (con responsable y fecha).
-- [x] Tabla clasificada: estilo, resaltado de fila y barra dentro de la celda. La tabla
-      GFM ya llega parseada; falta la capa visual y la marca de qué columna es la barra.
-- [x] Semáforo por fila: `ok` / `risk` / `bad`.
+- [x] Tabla clasificada. **Va como bloque `rank` y no sobre la tabla GFM**: hace
+      falta decir qué columna se dibuja como barra, cuál es el semáforo y qué filas
+      se resaltan, y el markdown no sabe expresar eso. Una tabla normal se sigue
+      escribiendo con la sintaxis de siempre.
+- [x] Semáforo por fila: `ok` / `risk` / `bad`, declarado con `status: <columna>`
+      igual que la barra. No se adivina por el contenido: una celda que diga «ok»
+      puede ser un dato.
 - [x] Verde y rojo son semánticos y **no salen de la paleta**: si la paleta los aporta,
       un cambio de paleta invertiría el significado.
 

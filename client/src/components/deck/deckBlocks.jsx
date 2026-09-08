@@ -24,6 +24,11 @@ export const DECK_BLOCK_LANGS = ['kpis', 'metric', 'steps', 'actions', 'rank'];
 // leerse desde el fondo de la sala. Seis métricas son dos láminas.
 const MAX_KPIS = 5;
 
+// El semáforo de una tabla clasificada. Tres estados y no cinco: a tres metros
+// nadie distingue cinco tonos, y un cuarto estado siempre acaba significando
+// "no lo sé", que se dice mejor dejando la celda vacía.
+const ESTADOS = { ok: 'On target', risk: 'At risk', bad: 'Off track' };
+
 function ErrorDeBloque({ lang, mensaje }) {
     return (
         <div className="deck-bloque-error">
@@ -186,6 +191,9 @@ function BloqueRank({ raw }) {
     }
 
     const iBarra = datos.bar ? columnas.indexOf(datos.bar) : -1;
+    // El semáforo se declara igual que la barra —nombrando su columna— y no se
+    // adivina por el contenido: una celda que diga "ok" puede ser un dato.
+    const iEstado = datos.status ? columnas.indexOf(datos.status) : -1;
     const destacadas = Number(datos.highlight) || 0;
 
     // La barra se escala al mayor valor de su columna: sin eso, dos tablas de
@@ -200,7 +208,7 @@ function BloqueRank({ raw }) {
      * gente los números en una tabla —«$284K», «+18,4 %», «−$4K»— sin tragarse
      * texto que sólo acaba en letra: «Q3» o «Marca Vídeo» no son cifras.
      */
-    const esNumerica = (i) => i !== iBarra && filas.some((f) => {
+    const esNumerica = (i) => i !== iBarra && i !== iEstado && filas.some((f) => {
         const v = String(f?.[i] ?? '')
             .replace(/[\s$€£¥%+,]/g, '')
             .replace(/[−–]/g, '-')
@@ -243,6 +251,17 @@ function BloqueRank({ raw }) {
                                 return (
                                     <td key={c} className="deck-rank-celda-barra">
                                         <div className="deck-rank-barra" style={{ width: `${ancho}%` }} />
+                                    </td>
+                                );
+                            }
+                            if (c === iEstado) {
+                                const estado = String(fila?.[c] ?? '').trim().toLowerCase();
+                                const conocido = ESTADOS[estado];
+                                return (
+                                    <td key={c}>
+                                        {conocido
+                                            ? <span className={`deck-estado deck-estado--${estado}`}>{conocido}</span>
+                                            : (fila?.[c] ?? '')}
                                     </td>
                                 );
                             }
