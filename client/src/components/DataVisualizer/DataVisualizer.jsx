@@ -602,7 +602,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
 
             {/* Headline KPI */}
         </>),
-        kpi: (<>
+        /* En donut la cifra vive en el centro del anillo (donutCenterKpi), asi
+           que repetirla en la cabecera sobra: son el mismo numero dos veces. */
+        kpi: (<>{state.chartType !== 'donut' && (<>
             <HeadlineOverlay
                 headline={state.headline}
                 headlineData={headlineData}
@@ -611,6 +613,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 textScale={escalaTexto}
                 textAlign={state.textAlign}
             />
+        </>)}
         </>),
         lienzo: (<>
             {/* Chart — only mount the ResponsiveContainer when this view is

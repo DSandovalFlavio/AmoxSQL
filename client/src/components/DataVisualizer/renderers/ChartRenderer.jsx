@@ -101,10 +101,16 @@ const ChartRenderer = memo(({
     // Un titulo "mes" debajo de una fila de fechas no anade nada: las etiquetas
     // ya dicen que es. El titulo de eje se reserva para cuando la unidad NO se
     // deduce mirando las etiquetas. Un titulo escrito a mano siempre gana.
+    //
+    // La EXCEPCION son dispersion y burbujas: ahi los dos ejes son variables
+    // distintas y ninguna se deduce sola, asi que el titulo hace falta aunque
+    // este apagado en la configuracion. Apagarlos por defecto sin esta excepcion
+    // dejaba esos dos graficos sin decir que miden.
     const ejeXEsFecha = isDateCol && xAxisKey ? isDateCol(xAxisKey) : false;
-    const mostrarTituloX = showXAxisTitle && (customAxisTitles.x || !ejeXEsFecha);
+    const necesitaTitulos = chartType === 'scatter' || chartType === 'bubble';
+    const mostrarTituloX = necesitaTitulos || (showXAxisTitle && (customAxisTitles.x || !ejeXEsFecha));
     const XLabel = mostrarTituloX ? (customAxisTitles.x || defaultXLabel) : '';
-    const YLabel = showYAxisTitle ? (customAxisTitles.y || defaultYLabel) : '';
+    const YLabel = (necesitaTitulos || showYAxisTitle) ? (customAxisTitles.y || defaultYLabel) : '';
 
     /* Jerarquia entre series: con mas de una, la PRIMERA manda — grosor y
        opacidad plenos y con puntos — y las demas acompanan. Sin esto todas

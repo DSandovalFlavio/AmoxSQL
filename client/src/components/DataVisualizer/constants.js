@@ -385,7 +385,10 @@ export const DEFAULT_CONFIG = {
     donutLabelContent: 'name_percent',
     donutLabelPosition: 'outside',
     donutGroupingThreshold: 0,
-    donutCenterKpi: 'none',
+    /* El total, en el centro del anillo. Es el sitio donde la cifra no compite
+       con nada y donde el hueco del donut deja de ser un agujero. Con esto, la
+       cifra de la cabecera se omite en donut: repetirla arriba sobra. */
+    donutCenterKpi: 'total',
 
     // Scatter specific
     scatterQuadrants: false,

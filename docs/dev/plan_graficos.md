@@ -125,12 +125,14 @@ a Y» comparando dos puntos elegidos por azar.
 
 ---
 
-## Fuera de este plan, a propósito
+## Fuera de este plan… hasta que dejaron de estarlo
 
-- **Modos de composición** (apilado / cabecera partida / lateral) y la retirada de bloques por
-  alto disponible. Es una función nueva con su propia clave de configuración.
-- **Adaptación por formato de salida.** Depende de lo anterior.
-- **Encender el KPI por defecto.** Decisión del usuario.
+Los tres puntos de abajo se apartaron en la parte 1 y **se hicieron después**. Se dejan escritos
+para que se entienda el orden en que ocurrió, no como pendientes:
+
+- ~~**Modos de composición** y la retirada de bloques por alto~~ → parte 2.
+- ~~**Adaptación por formato de salida**~~ → parte 2 y, de verdad, parte 4 con el lienzo propio.
+- ~~**Encender el KPI por defecto**~~ → parte 3, con el visto bueno del usuario.
 
 ---
 
@@ -328,3 +330,21 @@ veía siempre ampliada aunque el control marcara 100 %.
 - [x] Marco del 3,5 % alrededor de la tarjeta en el PNG: sin él, el filete caía en el canto de la
       imagen y dejaba de leerse como tarjeta.
 - [x] Etiquetas del treemap arriba a la izquierda y con tamaño proporcional a la baldosa.
+
+---
+
+# Parte 5 — Lo que el contrato pedía por tipo de gráfico
+
+La sección 04 del contrato describe qué cambia en cada tipo. Nunca se convirtió en puntos del
+plan, y al repasarlo aparecieron dos huecos — uno de ellos abierto por mí.
+
+- [x] **Dispersión y burbujas conservan sus títulos de eje.** Al apagarlos por defecto en la
+      parte 1 dejé esos dos gráficos sin decir qué miden, que es justo lo contrario de lo que
+      dice el contrato: ahí los dos ejes son variables distintas y ninguna se deduce sola. Ahora
+      son una excepción explícita, por encima de la configuración.
+- [x] **El donut lleva su total en el centro del anillo** (`donutCenterKpi: 'total'`), y la cifra
+      de la cabecera se omite para ese tipo: repetirla arriba sobra.
+
+Lo que el contrato describe y **ya hacía la aplicación**: leyenda obligatoria en apilados y
+composición, etiquetas dentro de las bandas del embudo, colores semánticos en la cascada,
+categorías al lado izquierdo en barras horizontales, y escala de color en el mapa de calor.
