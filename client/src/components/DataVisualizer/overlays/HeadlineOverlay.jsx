@@ -19,7 +19,8 @@ const HeadlineOverlay = memo(({ headline, headlineData, numberFormat, decimalPla
     return (
         <div style={{
             textAlign: textAlign || 'left',
-            padding: textAlign === 'left' ? '0 0 8px 50px' : '0 0 8px 0',
+            // Sin sangria: la cifra se alinea con el titulo y con el lienzo.
+            padding: '0 0 8px 0',
         }}>
             <div style={{
                 fontSize: `${size}px`,

@@ -152,6 +152,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
     const [showGuide, setShowGuide] = useState(false);
 
     const chartRef = useRef(null);
+    /* La TARJETA entera, con su filete, sus esquinas y su aire. Es lo que hay que
+       capturar al exportar: `chartRef` apunta al div de dentro, así que el PNG
+       salía sin tarjeta — el gráfico al ras y el texto pegado arriba. */
+    const cardRef = useRef(null);
     const fileInputRef = useRef(null);
 
     // ── Columns ──
@@ -303,7 +307,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
 
     const handleDownload = useCallback(async (preset) => {
         try {
-            await exportChartAsPng(chartRef.current, preset, state.chartType, state.chartTitle);
+            await exportChartAsPng(cardRef.current || chartRef.current, preset, state.chartType, state.chartTitle);
         } catch {
             setAlertData({ isOpen: true, message: 'Could not export chart.' });
         }
@@ -312,7 +316,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
 
     const handleExportSvg = useCallback(() => {
         try {
-            exportChartAsSvg(chartRef.current, state.chartType, state.chartTitle);
+            exportChartAsSvg(cardRef.current || chartRef.current, state.chartType, state.chartTitle);
         } catch (err) {
             setAlertData({ isOpen: true, title: 'SVG', type: 'error', message: err.message || 'Could not export chart as SVG.' });
         }
@@ -335,7 +339,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
 
     const handleCopy = useCallback(async () => {
         try {
-            await copyChartToClipboard(chartRef.current);
+            await copyChartToClipboard(cardRef.current || chartRef.current);
             setAlertData({ isOpen: true, title: 'Copied', type: 'success', message: 'Chart copied to clipboard as an image.' });
         } catch {
             setAlertData({ isOpen: true, title: 'Clipboard', type: 'error', message: 'Could not copy chart to clipboard.' });
@@ -462,6 +466,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         [isReportMode, isFullscreen, hueco.h]);
 
     /* ── Las siete piezas de la tarjeta ──
+       Ninguna lleva sangria propia. Antes los bloques de texto metian 50 px por
+       la izquierda para alinearse con las etiquetas del eje, y el lienzo no: el
+       gráfico se salía 50 px por fuera del texto y la tarjeta se veía
+       descuadrada. Ahora todo comparte el padding de la tarjeta y los cantos
+       coinciden — que es lo que hace que se lea como UNA figura y no como dos
+       cosas apiladas.
        Se declaran aquí y se COLOCAN abajo según el modo de composición, en vez
        de escribirse en el orden del render. Así el orden vive en un solo sitio
        y no hay tres copias del mismo JSX para tres maquetas. */
@@ -475,7 +485,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     color: 'var(--text-active)',
                     fontSize: `${Math.round(18 * state.textScale)}px`,
                     fontWeight: '600',
-                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
                 }}>
                     {renderRichText(state.chartTitle)}
                     {/* QED-like title mark (Sterling): a period in the accent color */}
@@ -491,7 +500,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     color: 'var(--text-muted)',
                     fontSize: `${Math.round(14 * state.textScale)}px`,
                     fontWeight: '400',
-                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
                 }}>
                     {state.chartSubtitle ? renderRichText(state.chartSubtitle) : null}
                     {inlineLegendItems && (
@@ -552,7 +560,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     borderLeft: '3px solid var(--accent-color-user)',
                     paddingLeft: '10px',
                     textAlign: state.textAlign,
-                    marginLeft: state.textAlign === 'left' ? '50px' : '0',
                     whiteSpace: 'pre-wrap',
                 }}>{renderRichText(state.takeaway)}</div>
             )}
@@ -569,7 +576,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     borderTop: '1px solid var(--border-color)',
                     paddingTop: '5px',
                     whiteSpace: 'pre-wrap',
-                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
                 }}>{state.chartFootnote}</div>
             )}
         </>),
@@ -589,7 +595,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     color: 'var(--text-muted)',
                     fontFamily: 'var(--font-mono, ui-monospace, monospace)',
                     fontSize: `${Math.round(11 * state.textScale)}px`,
-                    paddingLeft: state.textAlign === 'left' ? '50px' : '0',
                 }}>
                     <span>
                         {state.chartSource && (
@@ -749,11 +754,18 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 </div>
             )}
 
-            {/* ━━━ Chart Area ━━━ */}
-            <div style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
+            {/* ━━━ Chart Area ━━━
+                La tarjeta se separa de los bordes del panel. Pegada al ras no se
+                leía como tarjeta: el filete y el redondeo quedaban comidos por el
+                borde del contenedor y parecía un panel más. El margen es lo que la
+                convierte en un objeto sobre una mesa.
+                No aplica en modo informe (allí la maqueta la pone el documento) ni
+                a pantalla completa, que ya trae sus 40 px. */}
+            <div ref={cardRef} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0,
                 backgroundColor: isReportMode ? 'transparent' : 'var(--chart-bg)',
                 overflow: isReportMode ? 'visible' : 'hidden',
+                ...((!isReportMode && !isFullscreen) ? { margin: '14px 16px 16px' } : {}),
                 ...bgStyle,
                 ...borderCss,
                 ...cardCss,
@@ -763,7 +775,11 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 } : {}),
             }}>
                 {!isReportMode && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: isFullscreen ? '0 0 10px 0' : '8px 16px 0 0' }}>
+                    /* data-export-hide: la fila de botones no sale en la foto. Sin
+                       esto, aunque html2canvas ignora los <button>, el contenedor
+                       seguiría reservando su alto y el PNG saldría con una banda
+                       vacía arriba. */
+                    <div data-export-hide="true" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: isFullscreen ? '0 0 10px 0' : '8px 16px 0 0' }}>
                         {isFullscreen && (
                             <button onClick={() => handleDownload({ label: 'original', width: chartRef.current?.offsetWidth, height: chartRef.current?.offsetHeight })} title="Download Chart as PNG"
                                 style={{
@@ -788,7 +804,11 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 )}
 
                 <div ref={chartRef} style={{
-                    flex: 1, padding: isFullscreen ? '0 20px 20px 20px' : '0 20px 20px 20px',
+                    /* El aire interior de la tarjeta. 28 a los lados y no 20: con la
+                       tarjeta ya separada del panel, un margen corto hacía que el
+                       lienzo tocara casi el filete y se perdía la sensación de
+                       figura. A pantalla completa se abre más, que hay sitio. */
+                    flex: 1, padding: isFullscreen ? '0 48px 40px 48px' : '10px 34px 28px 34px',
                     display: 'flex', flexDirection: 'column', minHeight: '300px',
                     fontFamily,
                     // Contain layout/paint so the chart's internal reflow stays local,

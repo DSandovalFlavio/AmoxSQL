@@ -1066,22 +1066,31 @@ const ChartRenderer = memo(({
                     <g>
                         <rect x={x} y={y} width={width} height={height} 
                               style={{ fill: fill || 'var(--accent-primary)', stroke: 'var(--surface-overlay)', strokeWidth: 1.5 }} />
-                        {showLabels && width > 40 && height > 30 && (
-                            <>
-                                <text x={x + width / 2} y={y + height / 2 - (height > 40 ? 6 : 0)} 
-                                      textAnchor="middle" fill={textColor} fontSize={fontSize} fontWeight="600"
-                                >
-                                    {name?.length > 15 && width < 100 ? name.substring(0, 12) + '...' : name}
-                                </text>
-                                {height > 40 && (
-                                    <text x={x + width / 2} y={y + height / 2 + 10} 
-                                          textAnchor="middle" fill={textColor} fontSize={fontSize - 1} opacity={0.8}
-                                    >
-                                        {fmt(value)}
+                        {/* Etiqueta ARRIBA A LA IZQUIERDA, no centrada. Centrada, en
+                            un mosaico grande la etiqueta queda flotando en medio de
+                            la nada y choca con la de al lado en los estrechos;
+                            anclada a la esquina siempre se sabe de qué baldosa es.
+                            El tamaño crece con la baldosa (entre 11 y 17 px) porque
+                            un tamaño fijo se vuelve ilegible al exportar a 1920. */}
+                        {showLabels && width > 46 && height > 26 && (() => {
+                            const tam = Math.max(11, Math.min(17, Math.round(Math.min(width, height) / 9)));
+                            const cabe = name?.length > 15 && width < 110
+                                ? name.substring(0, 12) + '…' : name;
+                            return (
+                                <>
+                                    <text x={x + 9} y={y + tam + 6}
+                                          fill={textColor} fontSize={tam} fontWeight="700">
+                                        {cabe}
                                     </text>
-                                )}
-                            </>
-                        )}
+                                    {height > 44 && (
+                                        <text x={x + 9} y={y + tam * 2 + 9}
+                                              fill={textColor} fontSize={tam - 2} opacity={0.75}>
+                                            {fmt(value)}
+                                        </text>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </g>
                 );
             };

@@ -21,18 +21,43 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
     const targetHeight = preset?.height || 1080;
     const presetLabel = preset?.label || 'custom';
 
-    /* NOTA — intento fallido, para que no se repita.
-       Probé a re-maquetar antes de capturar: fijarle al elemento la proporción
-       de destino para que un 9:16 saliera vertical de verdad en vez de la figura
-       apaisada con bandas. Rompió la exportación entera y dejó de descargar.
+    /* ── La tarjeta se re-maqueta a la proporción de destino ──
+       Sin esto, exportar a 1:1 o a 9:16 daba la tarjeta con forma de panel
+       encajada con bandas de fondo: no una tarjeta cuadrada ni vertical.
 
-       La razón: el elemento lleva `contain: layout paint` y sus ancestros van con
-       `overflow: hidden`, así que forzarlo a un tamaño mayor que su hueco lo deja
-       recortado y html2canvas revienta sobre eso.
+       El primer intento sizeó el div INTERIOR, que lleva `contain: layout paint`
+       y vive dentro de ancestros con `overflow: hidden`. Al pedirle más tamaño
+       del que cabía quedaba recortado y html2canvas fallaba sobre eso: dejó de
+       descargar. El arreglo no es clonar, es SACAR LA TARJETA DEL FLUJO:
+       `position: fixed` fuera de pantalla no lo recorta el overflow de ningún
+       ancestro, y al tener medidas propias el ResizeObserver de la figura y el
+       ResponsiveContainer de Recharts recalculan de verdad.
 
-       La vía buena no es tocar el elemento vivo: es clonarlo fuera de pantalla,
-       darle ahí la proporción de destino y capturar el clon. Queda pendiente. */
+       Se espera a que asiente antes de la foto, y se restaura en `finally` pase
+       lo que pase: si se sale por una excepción sin restaurar, la tarjeta se
+       queda clavada fuera de pantalla y desaparece de la aplicación. */
+    const previo = element.getAttribute('style') || '';
+    const restaurar = () => element.setAttribute('style', previo);
+
     try {
+        const anchoTrabajo = Math.min(targetWidth, 1400);
+        const altoTrabajo = Math.round(anchoTrabajo * (targetHeight / targetWidth));
+        Object.assign(element.style, {
+            position: 'fixed',
+            left: '-20000px',
+            top: '0px',
+            width: `${anchoTrabajo}px`,
+            height: `${altoTrabajo}px`,
+            maxWidth: 'none',
+            maxHeight: 'none',
+            margin: '0',
+            flex: 'none',
+        });
+        // Dos fotogramas para el reflujo, y un respiro para que Recharts haya
+        // vuelto a medir y dibujar en el tamaño nuevo.
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await new Promise(r => setTimeout(r, 120));
+
         const currentWidth = element.offsetWidth || 1;
         const currentHeight = element.offsetHeight || 1;
 
@@ -48,7 +73,9 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
             scale: dynamicScale,
             logging: false,
             useCORS: true,
-            ignoreElements: (el) => el.tagName === 'BUTTON'
+            // La barra de botones tampoco: ignorar solo los <button> dejaba su
+            // contenedor reservando alto y el PNG salia con una banda vacia.
+            ignoreElements: (el) => el.tagName === 'BUTTON' || el.dataset?.exportHide === 'true'
         });
 
         // Create output canvas at exact target resolution
@@ -94,6 +121,8 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
     } catch (err) {
         console.error('Export failed:', err);
         throw err;
+    } finally {
+        restaurar();
     }
 };
 
