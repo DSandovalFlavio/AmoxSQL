@@ -243,7 +243,7 @@ select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); out
 
 <header class="hero">
   <div class="hero-in">
-    <div class="eyebrow">Contrato de diseño · borrador 1</div>
+    <div class="eyebrow">Contrato de diseño · borrador 2 · contrastado contra una figura real</div>
     <h1>Un gráfico de AmoxSQL se <em>reconoce</em> antes de leerlo.</h1>
     <p class="lede">
       El punto de partida es la pantalla de bienvenida: un suelo profundo, una sola luz que
@@ -306,22 +306,48 @@ un problema de lectura que hoy no está resuelto.</p>
 
 <!-- ══════════════ 2 · Anatomía ══════════════ -->
 <h2 class="ancla" id="anatomia"><span class="n">02</span>Anatomía de una figura</h2>
-<p>Siete piezas, siempre en el mismo orden. Las opcionales se omiten enteras: nunca se dejan
-vacías ocupando sitio.</p>
 
-<div class="anatomia">
+<div class="regla" style="border-left-color:#e5484d;margin:20px 0 8px">
+  <b>Corrección al borrador 1</b>
+  <p>La primera versión de este documento proponía la cáscara como si fuera nueva. <strong>No lo
+  es.</strong> <code>DataVisualizer.jsx</code> ya renderiza siete bloques en este orden, y están
+  bien resueltos. Lo que aporta este sistema no es la cáscara: es <b>cómo se dibuja el lienzo</b>
+  y <b>qué trae puesto de fábrica</b>.</p>
+</div>
+
+<p>Los siete bloques reales, de arriba abajo. Todos son opcionales y se omiten enteros — nunca
+se quedan vacíos ocupando sitio.</p>
+
+<table class="tabla">
+  <thead><tr><th>#</th><th>bloque</th><th>cómo se construye</th><th>lo que aporta</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Titular y delta</td><td><code>HeadlineOverlay</code> ← <code>computeHeadline()</code></td><td>La respuesta numérica. Métrica configurable (total / media / último / primero) y comparación contra el primero o el anterior.</td></tr>
+    <tr><td>2</td><td>Título</td><td><code>&lt;h2&gt;</code> + <code>titleMark</code></td><td>La frase. El punto final en color de acento es la firma tipográfica.</td></tr>
+    <tr><td>3</td><td>Subtítulo y leyenda</td><td><code>&lt;h3&gt;</code> + <code>InlineLegend</code></td><td>Contexto y series, tejidos en una sola línea con los gemelos de texto.</td></tr>
+    <tr><td>4</td><td>Lienzo</td><td><code>ChartRenderer</code> sobre Recharts</td><td>El dibujo. <b>Es lo único que este documento cambia de verdad.</b></td></tr>
+    <tr><td>5</td><td>Conclusión</td><td>bloque con barra de acento a la izquierda</td><td>Lo que hay que entender, escrito.</td></tr>
+    <tr><td>6</td><td>Nota al pie</td><td>itálica con filete superior</td><td>Estadísticos, salvedades, hallazgos de la IA.</td></tr>
+    <tr><td>7</td><td>Fuente y firma</td><td>fila monoespaciada, izquierda / derecha</td><td>El contrato de publicación al pie.</td></tr>
+  </tbody>
+</table>
+
+<p class="nota" style="margin-top:14px">Frente a esto, mi propuesta inicial de «cejilla» sobra:
+el par título + subtítulo hace ese trabajo y además es editable. La única corrección de orden es
+la <b>leyenda</b>, que ya está bien donde está — encima del lienzo, antes de leer las marcas.</p>
+
+<div class="anatomia" style="margin-top:28px">
   <div>
-    <div class="spec-nombre">Figura completa · <b>línea con constelación</b></div>
+    <div class="spec-nombre">Los siete bloques, con el lienzo nuevo</div>
     <div class="figura" data-chart="hero"></div>
   </div>
   <ol class="partes">
-    <li><div><b>Cejilla</b><span>De dónde salen los datos. Monoespaciada, versalitas, terciario.</span></div></li>
-    <li><div><b>Titular numérico</b><span>La respuesta. 40px, peso 800, cifras tabulares, decimales en gris.</span></div></li>
-    <li><div><b>Delta</b><span>Pastilla con el signo. Verde/rojo semánticos, nunca el acento.</span></div></li>
-    <li><div><b>Lienzo</b><span>El trazo, el halo bajo el máximo y la constelación.</span></div></li>
-    <li><div><b>Leyenda tejida</b><span>En línea, con el color de texto gemelo — no el de la mancha.</span></div></li>
-    <li><div><b>Conclusión</b><span>Una frase. Lo que hay que entender, escrito, no deducido.</span></div></li>
-    <li><div><b>Pie y firma</b><span>Fuente a la izquierda, punto de acento a la derecha. Cierra la figura.</span></div></li>
+    <li><div><b>Titular y delta</b><span>Cifras tabulares. El delta en verde/rojo semánticos, nunca en el acento.</span></div></li>
+    <li><div><b>Título</b><span>Con el punto de acento al final.</span></div></li>
+    <li><div><b>Subtítulo y leyenda</b><span>Tejidos. La leyenda desaparece si solo hay una serie.</span></div></li>
+    <li><div><b>Lienzo</b><span>Halo bajo el máximo, constelación, degradado desde la punta, sin caja.</span></div></li>
+    <li><div><b>Conclusión</b><span>Una frase. Barra de acento a la izquierda.</span></div></li>
+    <li><div><b>Nota al pie</b><span>Estadísticos, con un solo formato numérico.</span></div></li>
+    <li><div><b>Fuente y firma</b><span>Monoespaciada, filete arriba.</span></div></li>
   </ol>
 </div>
 
@@ -424,45 +450,112 @@ referencia va monoespaciado y con cifras tabulares, de modo que las columnas de 
 alinean solas y el ojo distingue «esto es medida» de «esto es prosa» sin leerlo.</p>
 
 <!-- ══════════════ 10 · Contra lo que hay hoy ══════════════ -->
-<h2 class="ancla" id="hoy"><span class="n">10</span>Contra lo que se puede hacer hoy</h2>
-<p>Honestamente: buena parte del sistema ya es alcanzable con lo que hay en
-<code>DEFAULT_CONFIG</code>. Lo que falta no es motor, es <em>criterio por defecto</em> — hoy
-todo es una opción y nada es una decisión.</p>
+<h2 class="ancla" id="hoy"><span class="n">10</span>Contra un gráfico real</h2>
+
+<p>Esta sección está reescrita después de ver una figura de verdad hecha en Story Flow. El
+borrador 1 daba por inexistentes cosas que sí están, y se le pasaron defectos que solo se ven
+con datos reales. Lo primero es reconocerlo: <strong>la cáscara editorial está mejor resuelta de
+lo que yo la había pintado</strong>.</p>
+
+<h3>Lo que ya funciona y no hay que tocar</h3>
 <table class="tabla">
-  <thead><tr><th>gesto</th><th>hoy</th><th>qué falta</th></tr></thead>
+  <thead><tr><th>elemento</th><th>estado</th><th>nota</th></tr></thead>
   <tbody>
-    <tr><td>Titular numérico</td><td class="no">no existe</td><td>Bloque nuevo en la figura, con el agregado calculado sobre la serie principal.</td></tr>
-    <tr><td>Delta</td><td class="no">no existe</td><td>Comparar contra el primer punto o el periodo anterior. Colores semánticos, no el acento.</td></tr>
-    <tr><td>Halo bajo el máximo</td><td class="no">no existe</td><td>Un <code>radialGradient</code> en el SVG posicionado en el índice del máximo. Barato.</td></tr>
-    <tr><td>Constelación</td><td class="medio">parcial</td><td><code>showDots</code> existe, pero pinta marcadores planos. Falta el halo y el punto destacado con aro y guía.</td></tr>
-    <tr><td>Degradado de barra</td><td class="medio">parcial</td><td><code>fillStyle: 'gradient'</code> es solo para área/línea. Extenderlo a barras, y que nazca en la punta.</td></tr>
-    <tr><td>Jerarquía de series</td><td class="medio">parcial</td><td>Hay «emphasis» en Story Flow; falta que sea el <b>comportamiento por defecto</b> con más de una serie.</td></tr>
-    <tr><td>Leyenda tejida</td><td class="si">hecho</td><td>Ya existe <code>InlineLegend</code> con los gemelos de texto.</td></tr>
-    <tr><td>Conclusión y firma</td><td class="si">hecho</td><td>La cáscara editorial de Story Flow ya trae takeaway, fuente y punto de acento.</td></tr>
-    <tr><td>Sin caja</td><td class="si">hecho</td><td><code>gridMode</code> y <code>showAxisLines</code> lo permiten. Falta que el <b>preajuste de fábrica</b> sea este.</td></tr>
-    <tr><td>Paletas y gemelos</td><td class="si">hecho</td><td>24 paletas con <code>LEGEND_PAIRS</code>. Ver <code>temas.html</code>.</td></tr>
+    <tr><td>Titular numérico</td><td class="si">existe</td><td><code>HeadlineOverlay</code>, con métrica y tamaño configurables. Lo di por inexistente: error mío.</td></tr>
+    <tr><td>Delta con signo</td><td class="si">existe</td><td>Flecha, porcentaje y valor absoluto, en verde/rojo semánticos. También lo di por inexistente.</td></tr>
+    <tr><td>Conclusión</td><td class="si">existe</td><td>Con barra de acento. Exactamente el gesto que proponía.</td></tr>
+    <tr><td>Nota al pie</td><td class="si">existe</td><td>Ni la contemplé, y es donde la IA deja los estadísticos.</td></tr>
+    <tr><td>Fuente y firma</td><td class="si">existe</td><td>Fila monoespaciada izquierda/derecha. El punto QED del título, también.</td></tr>
+    <tr><td>Leyenda tejida</td><td class="si">existe</td><td><code>InlineLegend</code> con los gemelos de texto.</td></tr>
+    <tr><td>Relleno de área en degradado</td><td class="si">existe</td><td><code>fillStyle: 'gradient'</code>. Se ve en la captura y funciona.</td></tr>
+    <tr><td>Puntos en la serie</td><td class="si">existe</td><td><code>showDots</code>. Son aros huecos, no la constelación — pero el enganche está.</td></tr>
+  </tbody>
+</table>
+
+<h3>Lo que el gráfico real enseña que está roto</h3>
+<p>Esto no es cuestión de estilo. Son defectos de corrección, y el primero es serio.</p>
+
+<div class="reglas">
+  <div class="regla" style="border-left-color:#e5484d">
+    <b>El delta compara cosas incomparables</b>
+    <p>La figura muestra <b>139.9M</b> con <b>▲ +7658.1 %</b>, y dos líneas más abajo la conclusión
+    dice «sales fell 0.4 %». No se contradicen por casualidad: <code>computeHeadline()</code> toma
+    el <b>total del periodo</b> como valor y lo compara contra el <b>primer punto de la serie</b>.
+    Un total frente a un mes. Ese porcentaje no significa nada, y es el número más grande y más
+    verde de toda la figura.<br><br>
+    <b>Arreglo</b>: la comparación tiene que ser del mismo tipo que la métrica. Con
+    <code>total</code>, comparar contra el total del periodo anterior (o no mostrar delta).
+    Con <code>last</code>, contra el punto anterior. Y si no hay comparación válida, la pastilla
+    se omite — no se inventa.</p>
+  </div>
+  <div class="regla" style="border-left-color:#d99a2b">
+    <b>Dos formatos numéricos en la misma línea</b>
+    <p>«Peak: 4.6M | Low: 422.67 | Average: 2.8M». El mínimo sale crudo con dos decimales
+    mientras los otros dos van compactos. El formato del pie tiene que ser el mismo que el del eje
+    y el del titular: uno solo por figura.</p>
+  </div>
+  <div class="regla" style="border-left-color:#d99a2b">
+    <b>El subtítulo miente sobre el periodo</b>
+    <p>Dice <code>2020-03-01 → 2021-07-01</code> y el eje va de 2019-01 a 2023-02. Sea cual sea la
+    causa, un rango en la cabecera que no case con el eje destruye la confianza en el resto.</p>
+  </div>
+  <div class="regla">
+    <b>Leyenda de una sola serie</b>
+    <p>La pastilla «● sales» encima de un gráfico cuyo eje ya dice <code>sales</code>. Con una
+    serie la leyenda es ruido: debe desaparecer sola.</p>
+  </div>
+  <div class="regla">
+    <b>Título de eje redundante</b>
+    <p>«mes» centrado debajo de una fila de fechas que ya se leen como meses. El título de eje solo
+    aparece cuando la unidad no es evidente en las etiquetas.</p>
+  </div>
+  <div class="regla">
+    <b>Sigue habiendo caja</b>
+    <p>El eje Y dibuja su línea vertical y el eje X la horizontal. Con la rejilla punteada ya
+    presente, las dos sobran: una sola línea base basta.</p>
+  </div>
+</div>
+
+<h3>El veredicto: qué se añade, qué cambia, qué se quita</h3>
+<table class="tabla">
+  <thead><tr><th>acción</th><th>elemento</th><th>dónde se toca</th></tr></thead>
+  <tbody>
+    <tr><td class="no">Arreglar</td><td>Delta comparando métricas incompatibles</td><td><code>computeHeadline()</code> — emparejar métrica y comparación, y omitir si no hay par válido.</td></tr>
+    <tr><td class="no">Arreglar</td><td>Formato numérico mixto en el pie</td><td>El generador de hallazgos usa <code>formatNumber</code> con la config de la figura.</td></tr>
+    <tr><td class="no">Arreglar</td><td>Rango del subtítulo contra el eje</td><td>Rastrear de dónde sale el periodo; o se calcula de los datos pintados o no se pone.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Halo bajo el máximo</td><td><code>ChartRenderer</code>: un <code>radialGradient</code> posicionado en el índice del máximo. Es lo más barato de todo y lo que más cambia la cara.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Constelación</td><td>Sustituir el punto de <code>showDots</code> por halo + núcleo, y el destacado con aro y guía vertical.</td></tr>
+    <tr><td class="medio">Añadir</td><td>Degradado en barras desde la punta</td><td>Extender <code>fillStyle: 'gradient'</code>, hoy solo de área/línea.</td></tr>
+    <tr><td class="medio">Cambiar</td><td>Jerarquía de series por defecto</td><td>Con más de una serie, la primera a croma y grosor completos y el resto atenuadas. Hoy es manual.</td></tr>
+    <tr><td class="medio">Cambiar</td><td>Preajuste de fábrica</td><td><code>DEFAULT_CONFIG</code>: <code>gridMode: 'horizontal'</code> punteada, <code>showAxisLines: false</code>, <code>showDots: true</code>, titular visible, firma visible.</td></tr>
+    <tr><td class="si">Quitar</td><td>Leyenda con una sola serie</td><td>Condicionar <code>inlineLegendItems</code> a <code>length > 1</code>.</td></tr>
+    <tr><td class="si">Quitar</td><td>Título de eje cuando es redundante</td><td><code>showXAxisTitle</code> por defecto a <code>false</code> si el eje es de fechas.</td></tr>
   </tbody>
 </table>
 
 <div class="reglas">
   <div class="regla">
-    <b>La conclusión que saco</b>
-    <p>El trabajo grande no es dibujar distinto, es <b>cambiar los valores por defecto</b> y
-    añadir tres piezas: titular, delta y halo. Un gráfico recién creado tiene que salir ya con
-    esta cara, sin que nadie toque un panel de opciones.</p>
+    <b>La conclusión honesta</b>
+    <p>El trabajo grande <b>no es dibujar distinto</b>. Son tres arreglos de corrección, tres
+    añadidos al lienzo y un cambio de valores de fábrica. La cáscara ya está; lo que falta es que
+    un gráfico recién creado <b>salga con esta cara sin tocar un panel</b>.</p>
   </div>
   <div class="regla">
     <b>Lo que NO propongo</b>
-    <p>Nada de neón, degradados arcoíris ni barras con brillo de videojuego. Varias referencias
-    van por ahí y se leen espectaculares en una captura, pero envejecen mal y estorban cuando el
+    <p>Nada de neón, degradados arcoíris ni barras con brillo de videojuego. Varias referencias van
+    por ahí y se leen espectaculares en una captura, pero envejecen mal y estorban cuando el
     gráfico va dentro de un informe. La identidad aquí es <b>la luz y el punto</b>, no la saturación.</p>
   </div>
 </div>
 
 <h2 class="ancla" id="siguiente"><span class="n">11</span>Qué decidir antes de implementar</h2>
 <ol>
-  <li><strong>¿El titular numérico es obligatorio?</strong> Propongo que sí por defecto, con
-  opción de quitarlo. Es lo que más cambia la primera impresión.</li>
+  <li><strong>¿Qué comparación por defecto para el delta?</strong> Con métrica «total» propongo
+  comparar contra el periodo anterior de la misma longitud; si no hay datos para eso, no mostrar
+  pastilla. Es la decisión que arregla el <code>+7658 %</code>.</li>
+  <li><strong>¿El titular numérico sigue visible por defecto?</strong> Hoy lo está y funciona.
+  Solo propongo que la métrica por defecto pase de «total» a «último», que es lo que casi siempre
+  responde la pregunta en una serie temporal.</li>
   <li><strong>¿La constelación va siempre o solo en series cortas?</strong> Con 200 puntos la
   constelación se convierte en una mancha. Propongo umbral: puntos visibles hasta ~40, por
   encima solo el destacado.</li>
@@ -473,7 +566,7 @@ todo es una opción y nada es una decisión.</p>
 </ol>
 
 <p class="nota" style="margin-top:40px">
-Documento de diseño, no código de producción. Los especímenes de esta página se dibujan con un
+Borrador 2, corregido tras comparar con una figura real de Story Flow. Documento de diseño, no código de producción. Los especímenes de esta página se dibujan con un
 renderizador propio de ~200 líneas para que el selector de paletas funcione de verdad; la
 implementación real irá sobre Recharts en <code>DataVisualizer</code>.
 Relacionado: <code>docs/dev/temas.html</code> (paletas y gemelos de leyenda),
