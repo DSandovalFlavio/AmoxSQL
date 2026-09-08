@@ -30,14 +30,14 @@ const MAX_TABLE_ROWS = 30;
 // Charts render CSS-var-driven colors that repaint live with the app theme;
 // a slide is meant to be read on a white background regardless of the
 // editor's current theme, so capture is always forced to light — mirrors
-// generateWordReport.js's forceLightTheme.
-const THEME_CLASSES = ['light-theme', 'theme-onyx', 'theme-amoxdark', 'theme-ayu', 'theme-nord', 'theme-islands', 'theme-ivory', 'theme-mist', 'theme-amoxlight'];
+// generateWordReport.js's forceLightTheme, incluido el cambio de la clase de
+// MODO, que antes se quedaba en oscuro.
 function forceLightTheme() {
-    const previous = [...document.body.classList].filter((c) => THEME_CLASSES.includes(c));
-    THEME_CLASSES.forEach((c) => document.body.classList.remove(c));
-    document.body.classList.add('light-theme');
+    const previous = [...document.body.classList].filter((c) => c.startsWith('theme-') || c.startsWith('mode-'));
+    previous.forEach((c) => document.body.classList.remove(c));
+    document.body.classList.add('theme-amoxlight', 'mode-light');
     return () => {
-        document.body.classList.remove('light-theme');
+        document.body.classList.remove('theme-amoxlight', 'mode-light');
         previous.forEach((c) => document.body.classList.add(c));
     };
 }

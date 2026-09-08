@@ -45,9 +45,12 @@ function markdownToHtml(md) {
   return '<p>' + html + '</p>';
 }
 
-// Detect the current app theme
+// Detect the current app theme.
+// Por la clase de MODO, no por la de tema: `light-theme` era la clase de un solo
+// tema — retirado en 2026-09 —, así que con Mist, Amox Light o Sterling Light
+// activos el informe salía en oscuro. `mode-light` la llevan todos los claros.
 function detectTheme() {
-  return document.body.classList.contains('light-theme') ? 'light' : 'dark';
+  return document.body.classList.contains('mode-light') ? 'light' : 'dark';
 }
 
 /**

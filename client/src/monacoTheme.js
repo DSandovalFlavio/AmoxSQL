@@ -27,11 +27,42 @@ const FALLBACK = {
 };
 
 /**
- * Resolve a CSS variable to a 6-digit hex color (without #). Uses a persistent
- * hidden probe element so the browser resolves ANY format (oklch, rgba, …) to
- * rgb() — Monaco needs bare hex and can't read CSS vars or oklch.
+ * Resolve a CSS variable to a 6-digit hex color (without #). Usa un elemento
+ * sonda persistente para que el navegador resuelva `var()` — Monaco necesita
+ * hex pelado y no sabe leer variables CSS ni oklch.
+ *
+ * OJO con una suposición que era falsa: leer `getComputedStyle(el).color` NO
+ * devuelve siempre `rgb()`. Chrome conserva la notación de origen, así que un
+ * token declarado en oklch vuelve como `oklch(0.145 0.012 270)`. El regex de
+ * abajo solo entendía `rgb()`, de modo que TODO token en oklch caía al valor de
+ * respaldo sin avisar. No se notaba porque los respaldos se escribieron a partir
+ * de esos mismos colores y quedan casi iguales — hasta que el fondo del editor
+ * de Obsidian pasó a resolverse por esta vía y apareció un gris (#141517) que no
+ * pegaba con nada. Por eso hay una segunda vía con canvas: pinta el color ya
+ * resuelto y lee el píxel, que es lo único que normaliza cualquier notación.
  */
 let _cssProbeEl = null;
+let _canvasCtx = null;
+
+/** Pinta un color CSS ya resuelto y lee el píxel. Entiende lo que sea. */
+function paintToHex(cssColor) {
+    if (!_canvasCtx) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 1;
+        _canvasCtx = c.getContext('2d', { willReadFrequently: true });
+    }
+    if (!_canvasCtx) return null;
+    _canvasCtx.clearRect(0, 0, 1, 1);
+    // Si el color no parsea, fillStyle conserva el anterior; el negro previo
+    // hace que un fallo se note en vez de colarse como un color plausible.
+    _canvasCtx.fillStyle = '#000000';
+    _canvasCtx.fillStyle = cssColor;
+    _canvasCtx.fillRect(0, 0, 1, 1);
+    const d = _canvasCtx.getImageData(0, 0, 1, 1).data;
+    // getImageData da los canales SIN premultiplicar, así que el alfa se ignora
+    // igual que en la vía del regex: Monaco quiere un color opaco.
+    return [d[0], d[1], d[2]].map(c => c.toString(16).padStart(2, '0')).join('');
+}
 function cssVarToHex(varName, fallback) {
     return cssExprToHex(`var(${varName})`, fallback);
 }
@@ -52,12 +83,15 @@ function cssExprToHex(expr, fallback) {
         _cssProbeEl.style.color = expr;
         const resolved = getComputedStyle(_cssProbeEl).color;
         if (!resolved || resolved === 'rgba(0, 0, 0, 0)') return fallback;
+        // Vía rápida: rgb()/rgba(), que es como vuelven los tokens en hex y en
+        // rgba. Se queda primero para no cambiar en nada lo que ya funcionaba.
         const match = resolved.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
         if (match) {
             const [, r, g, b] = match;
             return [r, g, b].map(c => Number(c).toString(16).padStart(2, '0')).join('');
         }
-        return fallback;
+        // Cualquier otra notación — oklch, color(srgb …), lab… — por canvas.
+        return paintToHex(resolved) || fallback;
     } catch {
         return fallback;
     }
@@ -81,9 +115,12 @@ export function buildAmoxMonacoTheme() {
 
     const p = {
         // The editor canvas reads --monaco-editor-bg, falling back to the theme's
-        // --surface-base. Only a couple of themes (Obsidian/Onyx) set
-        // --monaco-editor-bg to give the code editor a bg distinct from the app;
-        // everyone else resolves through the fallback to their own base.
+        // --surface-base. Hoy NINGÚN tema lo define, así que todos caen al
+        // fallback y el editor es del mismo color que el lienzo de la app.
+        // El token se mantiene por si un tema quisiera un lienzo distinto del
+        // resto de sus superficies; hasta 2026-09 lo usaban Obsidian y Onyx
+        // para intercambiarse el fondo del editor, y el efecto era que dentro de
+        // cada tema el editor no pegaba con lo que lo rodeaba.
         bg:         cssExprToHex('var(--monaco-editor-bg, var(--surface-base))', fb.bg),
         raised:     cssVarToHex('--surface-raised', fb.raised),
         overlay:    cssVarToHex('--surface-overlay', fb.overlay),

@@ -25,21 +25,23 @@ const remarkProcessor = unified().use(remarkParse).use(remarkGfm);
 
 // ── Theme / chart capture (mirrors generateHtmlReport.js) ──────────────────
 
-// Same theme-class list App.jsx toggles on document.body when the user
-// switches themes (see App.jsx's "Apply Theme & Accent Classes" effect).
-const THEME_CLASSES = ['light-theme', 'theme-onyx', 'theme-amoxdark', 'theme-ayu', 'theme-nord', 'theme-islands', 'theme-ivory', 'theme-mist', 'theme-amoxlight'];
-
 // Charts render axis/grid/text colors via `var(--css-custom-property)` set
 // directly as SVG attribute values, so they repaint live when the body's
 // theme class changes — no React re-render needed. Word documents are meant
-// to be read on a white page, so charts are always captured in light theme
+// to be read on a white page, so charts are always captured in a light theme
 // regardless of the app's current theme, then the original theme is restored.
+//
+// Se fuerza `theme-amoxlight` — el claro de la casa — Y la clase de MODO. Antes
+// se ponía `light-theme` a secas y se dejaba `mode-dark` puesto: la capa de modo
+// se quedaba en oscuro y los nodos, los iconos y el texto de info salían con los
+// valores oscuros sobre papel blanco. (`light-theme` ya ni existe: ese tema se
+// retiró en 2026-09.)
 function forceLightTheme() {
-    const previous = [...document.body.classList].filter((c) => THEME_CLASSES.includes(c));
-    THEME_CLASSES.forEach((c) => document.body.classList.remove(c));
-    document.body.classList.add('light-theme');
+    const previous = [...document.body.classList].filter((c) => c.startsWith('theme-') || c.startsWith('mode-'));
+    previous.forEach((c) => document.body.classList.remove(c));
+    document.body.classList.add('theme-amoxlight', 'mode-light');
     return () => {
-        document.body.classList.remove('light-theme');
+        document.body.classList.remove('theme-amoxlight', 'mode-light');
         previous.forEach((c) => document.body.classList.add(c));
     };
 }

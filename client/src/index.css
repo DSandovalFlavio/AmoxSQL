@@ -21,11 +21,15 @@
   --surface-overlay: oklch(0.195 0.014 270);   /* ≈ #1E2027 */
   --surface-inset:   oklch(0.160 0.013 270);   /* ≈ #14161B */
 
-  /* Monaco code-editor canvas bg: left UNSET on purpose. Only Obsidian/Onyx set
-     it (below) to swap the editor bg; every other theme's editor falls back to
-     its own --surface-base — resolved in JS via var(--monaco-editor-bg,
-     var(--surface-base)) in monacoTheme.js. Defining it here as
-     var(--surface-base) would NOT re-resolve per theme through the probe. */
+  /* Monaco code-editor canvas bg: SIN DEFINIR a proposito, y ahora ningun tema
+     lo define tampoco. El lienzo del editor de cada tema es su propio
+     --surface-base, resuelto en JS via var(--monaco-editor-bg,
+     var(--surface-base)) en monacoTheme.js.
+     Definirlo aqui como var(--surface-base) NO valdria: la sonda lo leeria una
+     sola vez y no se re-resolveria por tema.
+     El token se queda declarado como concepto por si algun dia un tema quiere
+     un lienzo distinto del resto de sus superficies — pero que sea una decision
+     de ESE tema, no un intercambio entre dos. */
 
   /* ── Border System (opacity-based for consistency) ──
      `subtle` subió de .06 a .085: sobre una base de L .145 el valor anterior
@@ -96,25 +100,18 @@
   --transition-base: var(--duration-base) var(--ease-out);
   --transition-slow: var(--duration-slow) var(--ease-spring);
 
-  /* ── Feedback Colors (oklch + color-mix derived) ── */
+  /* ── Feedback Colors ──
+     Solo los colores BASE, que son literales. Los `-bg` y `-border` se derivan
+     con color-mix sobre el base, o sea que llevan var(), y por eso viven en
+     `body`: aqui se congelarian en estos valores oscuros aunque el tema activo
+     declarase otro base. */
   --feedback-success:        oklch(0.72 0.19 155);
-  --feedback-success-bg:     color-mix(in oklch, var(--feedback-success) 10%, transparent);
-  --feedback-success-border: color-mix(in oklch, var(--feedback-success) 25%, transparent);
   --feedback-success-text:   oklch(0.78 0.17 155);
-
   --feedback-error:          oklch(0.65 0.22 25);
-  --feedback-error-bg:       color-mix(in oklch, var(--feedback-error) 10%, transparent);
-  --feedback-error-border:   color-mix(in oklch, var(--feedback-error) 25%, transparent);
   --feedback-error-text:     oklch(0.72 0.18 25);
-
   --feedback-warning:        oklch(0.75 0.16 70);
-  --feedback-warning-bg:     color-mix(in oklch, var(--feedback-warning) 10%, transparent);
-  --feedback-warning-border: color-mix(in oklch, var(--feedback-warning) 25%, transparent);
   --feedback-warning-text:   oklch(0.80 0.14 70);
-
   --feedback-info:           oklch(0.65 0.16 250);
-  --feedback-info-bg:        color-mix(in oklch, var(--feedback-info) 10%, transparent);
-  --feedback-info-border:    color-mix(in oklch, var(--feedback-info) 25%, transparent);
   --feedback-info-text:      oklch(0.72 0.14 250);
 
   /* ── Syntax Highlighting Tokens (for Monaco & code display) ── */
@@ -128,22 +125,13 @@
   --syntax-variable:  oklch(0.85 0.04 265);   /* light neutral */
   --syntax-constant:  oklch(0.80 0.10 150);   /* green-cyan */
 
-  /* ── Semantic Status Aliases (short-hand for inline usage) ── */
-  --color-success:     var(--feedback-success);
-  --color-success-bg:  var(--feedback-success-bg);
-  --color-success-text:var(--feedback-success-text);
-  --color-error:       var(--feedback-error);
-  --color-error-bg:    var(--feedback-error-bg);
-  --color-error-text:  var(--feedback-error-text);
-  --color-warning:     var(--feedback-warning);
-  --color-warning-bg:  var(--feedback-warning-bg);
-  --color-warning-text:var(--feedback-warning-text);
-  --color-info:        var(--feedback-info);
-  --color-info-bg:     var(--feedback-info-bg);
-  --color-info-text:   var(--feedback-info-text);
+  /* ── Semantic Status Aliases ──
+     Los ALIAS (--color-*) NO viven aqui: son `var(--feedback-*)`, y una custom
+     property cuyo valor contiene var() resuelve en el elemento donde se DECLARA.
+     :root es <html>, que no lleva la clase del tema, asi que se congelaban en el
+     valor oscuro por defecto. Se declaran en `body`, junto al resto de derivados.
+     Aqui solo queda el color base de "destructivo", que si es un literal. */
   --color-destructive: oklch(0.63 0.21 25);
-  --color-destructive-bg: color-mix(in oklch, var(--color-destructive) 10%, transparent);
-  --color-destructive-text: oklch(0.70 0.18 25);
 
   /* ── Lineage / Node Type Colors (oklch) ── */
   --node-source-bg:     oklch(0.22 0.04 155);
@@ -168,7 +156,7 @@
   --icon-md:       oklch(0.65 0.10 250);   /* blue muted */
   --icon-parquet:  oklch(0.75 0.10 330);   /* pink */
   --icon-excel:    oklch(0.55 0.14 155);   /* dark green */
-  --icon-default:  var(--text-tertiary);
+  /* --icon-default va en `body`: es var(--text-tertiary) y aqui se congelaba. */
 
   /* ── Database Type Color Tokens ── */
   --type-integer:  oklch(0.87 0.08 230);      /* ≈ #9cdcfe blue */
@@ -237,30 +225,9 @@
   /* ── Window Title Bar (Electron) ── */
   --titlebar-height: 40px;   /* espacio para el omnibox y aire alrededor de la marca */
 
-  /* ═══════════════════════════════════════════════
-     LEGACY ALIASES — backward compat with inline styles
-     (will be removed as components migrate to tokens)
-     ═══════════════════════════════════════════════ */
-  --editor-bg: var(--surface-base);
-  --text-color: var(--text-secondary);
-  --text-active: var(--text-primary);
-  --text-muted: var(--text-tertiary);
-  /* --accent-color-user lives on `body` (below), NOT here: it aliases
-     var(--accent-primary), which freezes at its declaring element — on :root
-     (html) it would ignore the accent class (which sits on <body>). */
-
-  --sidebar-item-active-bg: var(--active-bg);
-  --border-color: var(--border-default);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: var(--surface-base);
-
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --chart-bg: var(--surface-base);
-  --grid-color: var(--border-default);
-  --tooltip-bg: var(--surface-overlay);
-  --table-row-hover: var(--hover-bg);
+  /* Los ALIAS LEGACY (--editor-bg, --panel-bg, --text-color…) tampoco viven
+     aqui: todos son `var(--otro-token)`. Estan en `body`, con el resto de
+     derivados. */
 }
 
 /* ═══════════════════════════════════════════════
@@ -282,6 +249,68 @@ body {
   --accent-subtle:     color-mix(in oklch, var(--accent-primary) 8%, transparent);
   --focus-ring:        color-mix(in oklch, var(--accent-primary) 35%, transparent);
   --accent-color-user: var(--accent-primary);
+
+  /* ── Alias semanticos (275 usos en la app) ──
+     Van AQUI por la misma razon que los derivados del acento: `var()` resuelve
+     donde se declara. En :root se quedaban con el verde/rojo/ambar del tema
+     oscuro por defecto en 11 de los 13 temas — tambien en los oscuros con
+     paleta propia, no solo en los claros. Medido en Amox Light:
+     --color-success daba #00c66d (el verde brillante del oscuro) en vez del
+     #1f7a48 que declara el tema. `body` lleva la clase del tema, asi que aqui
+     cada alias resuelve contra el --feedback-* que de verdad esta activo. */
+  --color-success:      var(--feedback-success);
+  --color-success-bg:   var(--feedback-success-bg);
+  --color-success-text: var(--feedback-success-text);
+  --color-error:        var(--feedback-error);
+  --color-error-bg:     var(--feedback-error-bg);
+  --color-error-text:   var(--feedback-error-text);
+  --color-warning:      var(--feedback-warning);
+  --color-warning-bg:   var(--feedback-warning-bg);
+  --color-warning-text: var(--feedback-warning-text);
+  --color-info:         var(--feedback-info);
+  --color-info-bg:      var(--feedback-info-bg);
+  --color-info-text:    var(--feedback-info-text);
+  --color-destructive-bg:   color-mix(in oklch, var(--color-destructive) 10%, transparent);
+  --color-destructive-text: oklch(0.70 0.18 25);
+
+  /* ── Fondos y bordes de feedback, derivados del color base ──
+     Hoy no rompian nada porque los diez temas los declaraban uno por uno, pero
+     eran la misma trampa esperando: en cuanto un tema declarase solo el color
+     base, el fondo se habria quedado con el del oscuro. */
+  --feedback-success-bg:     color-mix(in oklch, var(--feedback-success) 10%, transparent);
+  --feedback-success-border: color-mix(in oklch, var(--feedback-success) 25%, transparent);
+  --feedback-error-bg:       color-mix(in oklch, var(--feedback-error) 10%, transparent);
+  --feedback-error-border:   color-mix(in oklch, var(--feedback-error) 25%, transparent);
+  --feedback-warning-bg:     color-mix(in oklch, var(--feedback-warning) 10%, transparent);
+  --feedback-warning-border: color-mix(in oklch, var(--feedback-warning) 25%, transparent);
+  --feedback-info-bg:        color-mix(in oklch, var(--feedback-info) 10%, transparent);
+  --feedback-info-border:    color-mix(in oklch, var(--feedback-info) 25%, transparent);
+
+  /* ── ALIAS LEGACY ── compatibilidad con estilos inline
+     (se iran quitando segun los componentes migren a tokens)
+
+     Estaban en :root, y ahi TODOS se congelaban: `--panel-bg: var(--surface-raised)`
+     resolvia contra el surface-raised de <html>, que es el del tema oscuro por
+     defecto. No se notaba porque los diez bloques de tema los redeclaran igual
+     — pero eso es justo lo que hay que dejar de tener que hacer. */
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --icon-default: var(--text-tertiary);
+
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: var(--surface-base);
+
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: var(--border-default);
+  --tooltip-bg: var(--surface-overlay);
+  --table-row-hover: var(--hover-bg);
 
   /* ── Resplandor del fondo (consumido por .app-container) ──
      Van AQUÍ y no en :root por la misma razón que los derivados del acento:
@@ -837,10 +866,10 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
    MODE LAYER — light-vs-dark tokens shared by ALL themes of that mode.
    :root already holds the DARK values (info/nodes/icons), inherited by every
    dark theme. This block supplies the LIGHT versions to EVERY light theme —
-   including ivory/mist/snow, which have their own theme class (not
-   `.light-theme`) and previously inherited the dark info/nodes/icons
-   (black nodes, unreadable info text). Placed before the theme blocks so a
-   theme may still override a mode token if it truly needs a tinted variant.
+   cada uno tiene su propia clase de tema, asi que sin esta capa heredarian los
+   valores oscuros (nodos negros, texto de info ilegible). Va antes de los
+   bloques de tema para que un tema pueda seguir pisando un token de modo si de
+   verdad necesita una variante tintada.
    ═══════════════════════════════════════════════ */
 .mode-light {
   /* Info feedback — no light theme defined it; all inherited dark blue (~2.4:1) */
@@ -848,9 +877,8 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --feedback-info-bg:     color-mix(in oklch, var(--feedback-info) 8%, transparent);
   --feedback-info-border: color-mix(in oklch, var(--feedback-info) 20%, transparent);
   --feedback-info-text:   oklch(0.48 0.17 250);
-  --color-info:      var(--feedback-info);
-  --color-info-bg:   var(--feedback-info-bg);
-  --color-info-text: var(--feedback-info-text);
+  /* Los --color-info* ya no se repiten aqui: el derivador de `body` los compone
+     contra estos valores, porque .mode-light tambien va en el body. */
 
   /* Lineage / node type colors — light variants (bg pale, text dark) */
   --node-source-bg:     oklch(0.95 0.03 155);
@@ -885,6 +913,39 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
   --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+
+  /* ══ PROFUNDIDAD, VELO E INTERACCION ══
+     Los cuatro bloques de abajo estaban escritos como la imagen especular de
+     los del oscuro, con el mismo alfa. Y ese es justo el error: sobre fondo
+     oscuro un efecto funciona AÑADIENDO luz y hay muchisimo margen; sobre papel
+     ese margen no existe. Copiar la receta con el alfa bajado no da sutileza,
+     da nada. Medido: superficies separadas por 1.05, bordes a 1.14 y sombras a
+     0.06 — los tres a la vez, y son los tres que hacen el mismo trabajo. Por eso
+     el modo claro se lee plano.
+
+     Todos se derivan de --text-primary, la tinta del tema. Antes cada bloque de
+     tema escribia su propio rgba a mano y los tres acababan con pesos visuales
+     distintos; derivandolos, un mismo alfa da el mismo resultado en los tres y
+     cada uno conserva su matiz. Ojo: por eso hubo que QUITAR --shadow-*,
+     --hover-bg y --active-bg de los bloques de tema; con la misma especificidad
+     (0-1-0) y estando despues en el archivo, ganaban ellos. */
+
+  /* El velo de los dialogos. :root lo deja en negro al 60 %, que sobre papel
+     manda la app entera a casi-negro y deja el dialogo blanco flotando: es el
+     cambio mas brusco que hay en claro. Al 45 % de la tinta del tema el fondo se
+     apaga lo justo y el dialogo conserva ~3:1 contra el, el piso de contraste no
+     textual. */
+  --overlay-bg: color-mix(in srgb, var(--text-primary) 45%, transparent);
+
+  /* Sombras: en claro son la UNICA pista de profundidad que queda. */
+  --shadow-sm: 0 1px 2px  color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --shadow-md: 0 4px 12px color-mix(in srgb, var(--text-primary) 16%, transparent);
+  --shadow-lg: 0 8px 30px color-mix(in srgb, var(--text-primary) 22%, transparent);
+
+  /* Estados: medidos contra el oscuro (hover 1.14, active 1.30), que es el que
+     ya esta aprobado. Los claros iban en 1.09-1.11 y 1.15-1.20. */
+  --hover-bg:  color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --active-bg: color-mix(in srgb, var(--text-primary) 12.5%, transparent);
 }
 
 /* ═══════════════════════════════════════════════
@@ -940,13 +1001,6 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --acc-l: 0.56; --acc-c: 0.210; --acc-h: 268;   /* ~ #0068FF */    /* ≈ #0068FF */
 }
 
-/* Obsidian ⇄ Onyx: swap ONLY the Monaco code-editor canvas background — each
-   theme keeps ALL its own app surfaces (sidebar, panels, tables). Obsidian's
-   editor shows Onyx's true-black; Onyx's editor shows Obsidian's neutral.
-   `body.mode-dark:not([class*="theme-"])` targets Obsidian (the default dark,
-   which has no theme class). */
-body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
-
 /* ═══════════════════════════════════════════════
    DARK THEME: ONYX — true black
    The deepest theme: pure-neutral near-black.
@@ -956,7 +1010,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --surface-raised:  #131415;
   --surface-overlay: #191a1c;
   --surface-inset:   #08090a;
-  --monaco-editor-bg: #111214;   /* editor shows Obsidian's neutral (swapped) */
 
   --border-subtle:  rgba(255, 255, 255, 0.085);
   --border-default: rgba(255, 255, 255, 0.10);
@@ -1065,107 +1118,31 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: STERLING DARK
-   Surface + palette values from Sterling (MIT) © La Matemaga
-   https://github.com/LaMatemaga/sterling — deep violet paper (#120d1f)
-   with the Sterling dark categorical family on syntax: violet keywords,
-   teal strings, amber numerics, blue functions, orchid types.
-   ═══════════════════════════════════════════════ */
-.theme-sterlingdark {
-  --surface-base:    #120d1f;   /* Sterling dark "paper" */
-  --surface-raised:  #1d1530;   /* Sterling "surface" — panels, sidebar */
-  --surface-overlay: #271c40;   /* Sterling "surface-2" — modals, popovers */
-  --surface-inset:   #0c0817;   /* wells: gutter, inputs, code blocks */
-
-  /* Sterling draws its grid/edge as literal violets, not alphas */
-  --border-subtle:  #36284e;    /* Sterling grid */
-  --border-default: #3a2b55;    /* Sterling edge */
-  --border-strong:  #4d357a;
-
-  --text-primary:   #ede9f5;   /* Sterling text */
-  --text-secondary: #a99fc4;   /* Sterling muted */
-  --text-tertiary:  #8b7fa8;
-  --text-disabled:  #5c5178;
-
-  /* Sterling's dark "period" lavender is the DEFAULT accent — the rule lives
-     in .theme-sterlingdark:not([class*="accent-"]) so a user pick overrides. */
-
-  --hover-bg:   rgba(196, 181, 253, 0.06);
-  --active-bg:  rgba(196, 181, 253, 0.10);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
-
-  /* Feedback — mapped onto Sterling's categorical families:
-     teal=success, coral=error, amber=warning, blue=info.
-     Text tones use the Sterling legend twins (lightened for dark). */
-  --feedback-success:        #5ec9ae;
-  --feedback-success-bg:     rgba(94, 201, 174, 0.10);
-  --feedback-success-border: rgba(94, 201, 174, 0.25);
-  --feedback-success-text:   #78d8c1;
-  --feedback-error:          #f29a88;
-  --feedback-error-bg:       rgba(242, 154, 136, 0.10);
-  --feedback-error-border:   rgba(242, 154, 136, 0.25);
-  --feedback-error-text:     #f6aa9a;
-  --feedback-warning:        #f2c46d;
-  --feedback-warning-bg:     rgba(242, 196, 109, 0.10);
-  --feedback-warning-border: rgba(242, 196, 109, 0.25);
-  --feedback-warning-text:   #f5cb7c;
-  --feedback-info:           #86a8e8;
-  --feedback-info-bg:        rgba(134, 168, 232, 0.10);
-  --feedback-info-border:    rgba(134, 168, 232, 0.25);
-  --feedback-info-text:      #9bb9ef;
-
-  /* Syntax — the 8 Sterling dark categoricals, one per role */
-  --syntax-keyword:   #b69af2;   /* Violet — SELECT/FROM/WHERE */
-  --syntax-string:    #5ec9ae;   /* Teal literals */
-  --syntax-number:    #f2c46d;   /* Amber — numerics leap out */
-  --syntax-function:  #86a8e8;   /* Blue — COUNT/SUM */
-  --syntax-comment:   #6f6490;   /* violet-grey, recedes */
-  --syntax-type:      #e88bdd;   /* Orchid — data types, CAST */
-  --syntax-operator:  #b7c8d1;   /* Payne, low weight */
-  --syntax-variable:  #ede9f5;   /* = text: identifiers stay neutral */
-  --syntax-constant:  #f29a88;   /* Coral — TRUE/FALSE/NULL */
-
-  /* Database types (mirror the syntax family) */
-  --type-integer:  #86a8e8;
-  --type-float:    #5ec9ae;
-  --type-text:     #f2c46d;
-  --type-datetime: #b69af2;
-  --type-boolean:  #e88bdd;
-  --type-default:  #b7c8d1;
-
-  --editor-bg: var(--surface-base);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: #120d1f;   /* dark ink on the lavender accent */
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --table-row-hover: rgba(196, 181, 253, 0.04);
-}
-
-/* ═══════════════════════════════════════════════
    DARK THEME: STERLING DEEP
-   A calmer, deeper take on Sterling Dark. Anchored on a MUTED grey-violet
-   (#0b0912 sidebar) — low chroma, not the saturated violet of Sterling Dark —
-   with the app/editor background dropping below it to #08060f.
-   Same Sterling palette on syntax/feedback — but on deeper surfaces it reads
-   rich instead of loud. Values derived from Sterling (MIT) © La Matemaga.
+   Anchored on a MUTED grey-violet (#0c0a14 sidebar) — croma bajo, con el fondo
+   de la app y del editor cayendo por debajo hasta #08060f.
+   La paleta de Sterling en sintaxis y feedback, pero sobre superficies mas
+   hondas se lee rica en vez de estridente. Valores derivados de Sterling
+   (MIT) © La Matemaga.
    ═══════════════════════════════════════════════ */
 .theme-sterlingdeep {
-  /* Anchored on #0b0912 (the sidebar) — a muted, low-chroma grey-violet, not
-     the saturated violet of Sterling Dark. The whole ladder keeps that quiet
-     character so nothing reads bright. */
+  /* Anclado en el gris-violeta apagado de la barra lateral, de croma bajo. Toda
+     la escala mantiene ese caracter callado para que nada se lea brillante. */
   --surface-base:    #08060f;   /* app + editor background — below the sidebar */
-  --surface-raised:  #0b0912;   /* panels, sidebar, table header (reference) */
+  --surface-raised:  #0c0a14;   /* panels, sidebar, table header (reference).
+                          Era #0b0912: el escalon con el lienzo se quedaba en
+                          1.018 y el panel no llegaba a separarse. Subirlo dos
+                          puntos de luminosidad no cambia el caracter hondo del
+                          tema y lo pone en 1.025. */
   --surface-overlay: #14111e;   /* modals, popovers, row hover — elevation */
   --surface-inset:   #05040b;   /* wells: gutter, inputs, code blocks — deepest */
 
   /* Very quiet borders — muted grey-violet, low chroma */
   --border-subtle:  #191622;
   --border-default: #221e2c;
-  --border-strong:  #2e2a3a;
+  --border-strong:  #332f41;   /* era #2e2a3a, 1.45 contra el lienzo — justo en
+                          el limite del rango, asi que el borde "fuerte" no
+                          llegaba a leerse como fuerte. Ahora 1.56. */
 
   --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
   --text-secondary: #a99fc4;   /* Sterling muted */
@@ -1174,8 +1151,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 
   /* Lavender "period" accent stays (overridable via .theme-sterlingdeep:not(...)). */
 
-  --hover-bg:   rgba(196, 181, 253, 0.05);
-  --active-bg:  rgba(196, 181, 253, 0.09);
+  /* Estaban en 0.05 / 0.09, que sobre estas superficies tan hondas daba 1.07 y
+     1.14 — por debajo de lo que dan el resto de oscuros (1.12-1.14 y 1.22-1.30).
+     Sobre un fondo casi negro hace falta MAS alfa para el mismo efecto. */
+  --hover-bg:   rgba(196, 181, 253, 0.08);
+  --active-bg:  rgba(196, 181, 253, 0.14);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.65);
@@ -1251,8 +1231,9 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* Ayu gold default accent lives in .theme-ayu:not([class*="accent-"]) below,
      so a user-picked accent overrides it (consistent with the other themes). */
 
-  --hover-bg:   rgba(115, 130, 160, 0.06);
-  --active-bg:  rgba(115, 130, 160, 0.11);
+  /* 0.06 / 0.11 daba 1.07 y 1.14, por debajo del resto de oscuros. */
+  --hover-bg:   rgba(115, 130, 160, 0.09);
+  --active-bg:  rgba(115, 130, 160, 0.16);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
@@ -1339,7 +1320,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --feedback-success-text: #a3be8c;
   --feedback-error:        #bf616a;
   --feedback-error-bg:     rgba(191, 97, 106, 0.10);
-  --feedback-error-text:   #bf616a;
+  /* El rojo aurora de Nord (#bf616a) se queda en --feedback-error, que es la
+     marca y el borde: ahi no hace falta 4.5. Como TEXTO daba 3.05 sobre la
+     superficie de modales, asi que aqui va aclarado — mismo tono, mas claro.
+     Es justo para lo que existe el token -text separado del base. */
+  --feedback-error-text:   #d6888f;
   --feedback-warning:      #ebcb8b;
   --feedback-warning-bg:   rgba(235, 203, 139, 0.10);
   --feedback-warning-text: #ebcb8b;
@@ -1479,7 +1464,9 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --accent-primary: #22d3ee;
 }
 .theme-amoxlight:not([class*="accent-"]) {
-  --accent-primary: #0a7d8c;
+  /* El teal de marca, bajado lo justo para llegar a 4.5:1 como texto sobre las
+     cuatro superficies del tema: estaba en 4.05 sobre --surface-inset. */
+  --accent-primary: oklch(0.515 0.092 209.7);   /* ≈ #007584 (era #0a7d8c) */
 }
 /* Ayu Dark ships its signature gold accent by default (overridable). */
 .theme-ayu:not([class*="accent-"]) {
@@ -1487,208 +1474,27 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 /* Sterling themes ship the Sterling "period" accent by default (overridable).
    Values from Sterling (MIT) © La Matemaga. */
-.theme-sterlingdark:not([class*="accent-"]),
 .theme-sterlingdeep:not([class*="accent-"]) {
   --accent-primary: #c4b5fd;
 }
 .theme-sterlinglight:not([class*="accent-"]) {
-  --accent-primary: #7c5ce0;
-}
-
-/* ═══════════════════════════════════════════════
-   LIGHT THEME (oklch surfaces + inverted hierarchy)
-   ═══════════════════════════════════════════════ */
-.light-theme {
-  /* ── Surfaces (warm off-whites, oklch-based) ── */
-  --surface-base:    oklch(0.985 0.003 265);   /* ≈ #FAFBFC */
-  --surface-raised:  oklch(0.965 0.004 265);   /* ≈ #F2F3F5 */
-  --surface-overlay: oklch(1.000 0 0);         /* #FFFFFF */
-  --surface-inset:   oklch(0.935 0.006 265);   /* ≈ #E8EAED */
-
-  /* ── Borders: slightly stronger for light bg definition ── */
-  --border-subtle:  rgba(0, 0, 0, 0.08);
-  --border-default: rgba(0, 0, 0, 0.14);
-  --border-strong:  rgba(0, 0, 0, 0.22);
-
-  /* ── Text: dark on light for readability ── */
-  --text-primary:   rgba(0, 0, 0, 0.92);
-  --text-secondary: rgba(0, 0, 0, 0.72);
-  --text-tertiary:  rgba(0, 0, 0, 0.55);
-  --text-disabled:  rgba(0, 0, 0, 0.35);
-
-  /* ── Accent (darker for contrast on light surfaces) ── */
-  --accent-primary: oklch(0.49 0.220 265);     /* ≈ #0059ff */
-
-  /* ── Interaction states ── */
-  --hover-bg:   rgba(0, 0, 0, 0.05);
-  --active-bg:  rgba(0, 0, 0, 0.09);
-
-  /* ── Shadows (softer for light backgrounds) ── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
-
-  /* ── Titlebar ── */
-
-  /* ── Feedback (darker for light bg contrast) ── */
-  --feedback-success:        oklch(0.55 0.18 152);
-  --feedback-success-bg:     color-mix(in oklch, var(--feedback-success) 8%, transparent);
-  --feedback-success-border: color-mix(in oklch, var(--feedback-success) 20%, transparent);
-  --feedback-success-text:   oklch(0.50 0.17 152);
-
-  --feedback-error:          oklch(0.53 0.22 27);
-  --feedback-error-bg:       color-mix(in oklch, var(--feedback-error) 8%, transparent);
-  --feedback-error-border:   color-mix(in oklch, var(--feedback-error) 20%, transparent);
-  --feedback-error-text:     oklch(0.50 0.22 27);
-
-  --feedback-warning:        oklch(0.60 0.16 65);
-  --feedback-warning-bg:     color-mix(in oklch, var(--feedback-warning) 8%, transparent);
-  --feedback-warning-border: color-mix(in oklch, var(--feedback-warning) 20%, transparent);
-  --feedback-warning-text:   oklch(0.58 0.16 65);
-
-  /* ── Semantic Status Aliases (light overrides) ── */
-  --color-destructive: oklch(0.53 0.22 27);
-  --color-destructive-bg: color-mix(in oklch, var(--color-destructive) 8%, transparent);
-  --color-destructive-text: oklch(0.48 0.22 27);
-
-  /* Node + icon colors now live in the shared .mode-light layer (all light themes) */
-
-  /* ── Syntax (darker for light editor bg) ── */
-  --syntax-keyword:   oklch(0.48 0.16 280);
-  --syntax-string:    oklch(0.52 0.12 45);
-  --syntax-number:    oklch(0.55 0.13 55);
-  --syntax-function:  oklch(0.50 0.12 200);
-  --syntax-comment:   oklch(0.55 0.02 270);
-  --syntax-type:      oklch(0.48 0.14 235);
-  --syntax-operator:  oklch(0.55 0.08 50);
-  --syntax-variable:  oklch(0.35 0.03 265);
-  --syntax-constant:  oklch(0.48 0.14 150);
-
-  /* ── Database types (darker for light bg) ── */
-  --type-integer:  oklch(0.52 0.10 230);
-  --type-float:    oklch(0.50 0.10 140);
-  --type-text:     oklch(0.50 0.12 45);
-  --type-datetime: oklch(0.48 0.14 250);
-  --type-boolean:  oklch(0.48 0.12 320);
-  --type-default:  oklch(0.50 0.08 95);
-
-  /* ── Legacy aliases ── */
-  --editor-bg: var(--surface-base);
-  --text-color: var(--text-secondary);
-  --text-active: var(--text-primary);
-  --text-muted: var(--text-tertiary);
-
-  --sidebar-item-active-bg: var(--active-bg);
-  --border-color: var(--border-default);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: #ffffff;
-
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --chart-bg: var(--surface-base);
-  --grid-color: rgba(0, 0, 0, 0.10);
-  --tooltip-bg: var(--surface-overlay);
-  --table-row-hover: rgba(0, 0, 0, 0.04);
-}
-
-/* ═══════════════════════════════════════════════
-   LIGHT THEME: IVORY
-   Warm paper-like tones inspired by Solarized Light (Ethan Schoonover).
-   Reduces blue light and glare; cream backgrounds with low-chroma text
-   for extended reading sessions without fatigue.
-   ═══════════════════════════════════════════════ */
-.theme-ivory {
-  /* ── Surfaces: warm cream/parchment tones ── */
-  --surface-base:    #faf6ef;   /* warm paper */
-  --surface-raised:  #f3ede4;   /* sidebar/cards */
-  --surface-overlay: #ffffff;   /* modals/popups */
-  --surface-inset:   #ede7dc;   /* inputs/recessed */
-
-  /* ── Borders: warm (strong bumped into the canonical range) ── */
-  --border-subtle:  rgba(120, 100, 70, 0.12);
-  --border-default: rgba(120, 100, 70, 0.18);
-  --border-strong:  rgba(120, 100, 70, 0.32);
-
-  /* ── Text: warm dark, not pure black (calibrated ≥ AA floors) ── */
-  --text-primary:   #362d23;   /* espresso — high readability, no harsh black */
-  --text-secondary: #5c4f41;   /* warm medium — ≥5.5:1 on all surfaces */
-  --text-tertiary:  #7a6c5b;   /* muted warm — ≥4:1 on all surfaces */
-  --text-disabled:  #b3a897;   /* faded parchment */
-
-  /* ── Accent: deep teal — pairs with warm backgrounds ── */
-  --accent-primary: #2b7a78;
-
-  /* ── Interaction states ── */
-  --hover-bg:   rgba(120, 100, 70, 0.06);
-  --active-bg:  rgba(120, 100, 70, 0.10);
-
-  /* ── Shadows: very soft warm ── */
-  --shadow-sm: 0 1px 2px rgba(100, 80, 50, 0.06);
-  --shadow-md: 0 4px 12px rgba(100, 80, 50, 0.08);
-  --shadow-lg: 0 8px 30px rgba(100, 80, 50, 0.12);
-
-  /* ── Titlebar ── */
-
-  /* ── Feedback: desaturated warm tones ── */
-  --feedback-success:        #5a8a5c;
-  --feedback-success-bg:     rgba(90, 138, 92, 0.08);
-  --feedback-success-border: rgba(90, 138, 92, 0.20);
-  --feedback-success-text:   #4a7a4c;
-  --feedback-error:          #b85450;
-  --feedback-error-bg:       rgba(184, 84, 80, 0.08);
-  --feedback-error-border:   rgba(184, 84, 80, 0.20);
-  --feedback-error-text:     #a54440;
-  --feedback-warning:        #b8923a;
-  --feedback-warning-bg:     rgba(184, 146, 58, 0.08);
-  --feedback-warning-border: rgba(184, 146, 58, 0.20);
-  --feedback-warning-text:   #a5822a;
-  --color-destructive:       #b85450;
-  --color-destructive-bg:    rgba(184, 84, 80, 0.08);
-  --color-destructive-text:  #a54440;
-
-  /* ── Syntax: warm palette, solarized-inspired ── */
-  --syntax-keyword:   #b58900;   /* yellow-gold */
-  --syntax-string:    #2aa198;   /* teal-cyan */
-  --syntax-number:    #d33682;   /* magenta */
-  --syntax-function:  #268bd2;   /* blue */
-  --syntax-comment:   #b0a090;   /* warm muted */
-  --syntax-type:      #6c71c4;   /* violet */
-  --syntax-operator:  #cb4b16;   /* orange */
-  --syntax-variable:  #586e75;   /* warm grey */
-  --syntax-constant:  #859900;   /* green */
-
-  /* ── Database types ── */
-  --type-integer:  #268bd2;
-  --type-float:    #2aa198;
-  --type-text:     #b58900;
-  --type-datetime: #6c71c4;
-  --type-boolean:  #d33682;
-  --type-default:  #586e75;
-
-  /* ── Legacy aliases ── */
-  --editor-bg: var(--surface-base);
-  --text-color: var(--text-secondary);
-  --text-active: var(--text-primary);
-  --text-muted: var(--text-tertiary);
-  --sidebar-item-active-bg: var(--active-bg);
-  --border-color: var(--border-default);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: #ffffff;
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --chart-bg: var(--surface-base);
-  --grid-color: rgba(120, 100, 70, 0.10);
-  --tooltip-bg: var(--surface-overlay);
-  --table-row-hover: rgba(120, 100, 70, 0.04);
+  /* Mismo tono y croma que el violeta de Sterling, bajado a la banda legible:
+     como texto daba 3.50:1 sobre --surface-inset. */
+  --accent-primary: oklch(0.516 0.192 290.2);   /* ≈ #6B49CB (era #7c5ce0) */
 }
 
 /* ═══════════════════════════════════════════════
    LIGHT THEME: MIST
-   Cool blue-grey pastels inspired by Rosé Pine Dawn.
-   Ultra-low saturation with a subtle blue undertone —
+   Cool blue-grey pastels: ultra-low saturation with a subtle blue undertone —
    softer than pure white, like a foggy morning.
+
+   Mist es el unico claro cuyo `raised` es MAS OSCURO que su `base` (#e8ecf2
+   contra #f2f4f8): el panel se separa hacia abajo, como en los temas oscuros,
+   en vez de subir hacia el blanco. Se queda a proposito. Es lo que le da su
+   caracter, y midiendo separa mejor que los otros dos — escalon base->raised de
+   1.08 contra 1.05 de Amox Light y Sterling Light. Ojo al tocarlo: aqui el
+   “panel” es el color oscuro y el “lienzo” el claro, al reves de lo que se
+   espera leyendo el resto del archivo.
    ═══════════════════════════════════════════════ */
 .theme-mist {
   /* ── Surfaces: cool blue-grey pastels ── */
@@ -1705,20 +1511,15 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* ── Text: slate tones, never pure black (calibrated ≥ AA floors) ── */
   --text-primary:   #262d3c;   /* deep slate — ≥10:1 on all surfaces */
   --text-secondary: #495366;   /* medium slate — ≥5.5:1 */
-  --text-tertiary:  #5d6578;   /* muted — ≥4:1 */
-  --text-disabled:  #a3acbd;   /* faded */
+  --text-tertiary:  oklch(0.501 0.032 267.2);   /* ≈ #5B6376 (era #5d6578, 4.44:1) */
+  --text-disabled:  oklch(0.593 0.027 263.3);   /* ≈ #767E8F (era #a3acbd, 1.74:1) */
 
   /* ── Accent: muted indigo — complements cool greys ── */
-  --accent-primary: #5568a8;
+  --accent-primary: oklch(0.507 0.103 270.1);   /* ≈ #4E61A0 (era #5568a8, 4.07:1) */
 
-  /* ── Interaction states ── */
-  --hover-bg:   rgba(70, 85, 110, 0.06);
-  --active-bg:  rgba(70, 85, 110, 0.10);
-
-  /* ── Shadows: cool and diffuse ── */
-  --shadow-sm: 0 1px 3px rgba(50, 60, 80, 0.06);
-  --shadow-md: 0 4px 12px rgba(50, 60, 80, 0.08);
-  --shadow-lg: 0 8px 30px rgba(50, 60, 80, 0.12);
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
 
   /* ── Titlebar ── */
 
@@ -1726,7 +1527,7 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --feedback-success:        #4d8a5e;
   --feedback-success-bg:     rgba(77, 138, 94, 0.08);
   --feedback-success-border: rgba(77, 138, 94, 0.18);
-  --feedback-success-text:   #3d7a4e;
+  --feedback-success-text:   oklch(0.490 0.094 151.0);   /* ≈ #326F44 (era 3.91:1) */
   --feedback-error:          #c0544e;
   --feedback-error-bg:       rgba(192, 84, 78, 0.08);
   --feedback-error-border:   rgba(192, 84, 78, 0.18);
@@ -1734,28 +1535,36 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --feedback-warning:        #b08830;
   --feedback-warning-bg:     rgba(176, 136, 48, 0.08);
   --feedback-warning-border: rgba(176, 136, 48, 0.18);
-  --feedback-warning-text:   #9a7820;
+  --feedback-warning-text:   oklch(0.500 0.109 86.2);    /* ≈ #7E5D00 (era 3.15:1) */
   --color-destructive:       #c0544e;
   --color-destructive-bg:    rgba(192, 84, 78, 0.08);
   --color-destructive-text:  #a5443e;
 
-  /* ── Syntax: muted and easy on the eyes ── */
-  --syntax-keyword:   #7c5cc2;   /* soft purple */
-  --syntax-string:    #468a6e;   /* forest green */
-  --syntax-number:    #c06838;   /* burnt orange */
-  --syntax-function:  #4a72b8;   /* slate blue */
-  --syntax-comment:   #9aa0b0;   /* ghost grey */
-  --syntax-type:      #3a8a88;   /* teal */
-  --syntax-operator:  #906a4a;   /* warm brown */
-  --syntax-variable:  #2c3444;   /* deep slate */
-  --syntax-constant:  #7c5cc2;   /* soft purple */
+  /* ── Syntax ──
+     "Muted and easy on the eyes" estaba resuelto bajando el croma Y subiendo la
+     luminosidad, y lo segundo es lo que no funciona sobre papel: 6 de las 9
+     caian por debajo de 4.5:1 sobre el lienzo, y el comentario en 2.38 era el
+     mas flojo de los diez temas. Se conserva el tono y el croma de cada una
+     — el caracter apagado del tema no cambia — y solo baja la luminosidad. */
+  --syntax-keyword:   #7c5cc2;   /* soft purple — ya pasaba */
+  --syntax-string:    oklch(0.530 0.083 164.8);   /* ≈ #367B60 (era #468a6e, 3.72) */
+  --syntax-number:    oklch(0.554 0.128 47.4);    /* ≈ #AD5726 (era #c06838, 3.61) */
+  --syntax-function:  oklch(0.542 0.118 260.9);   /* ≈ #466EB3 (era #4a72b8, 4.34) */
+  --syntax-comment:   oklch(0.638 0.024 269.3);   /* ≈ #858B9B (era #9aa0b0, 2.38 —
+                          piso 3.0: un comentario tiene que retroceder, no desaparecer) */
+  --syntax-type:      oklch(0.530 0.078 193.0);   /* ≈ #267A78 (era #3a8a88, 3.69) */
+  --syntax-operator:  oklch(0.545 0.067 60.9);    /* ≈ #8D6747 (era #906a4a, 4.39) */
+  --syntax-variable:  #2c3444;   /* deep slate — ya pasaba */
+  --syntax-constant:  #7c5cc2;   /* soft purple — ya pasaba */
 
-  /* ── Database types ── */
-  --type-integer:  #4a72b8;
-  --type-float:    #3a8a88;
-  --type-text:     #c06838;
-  --type-datetime: #7c5cc2;
-  --type-boolean:  #468a6e;
+  /* ── Database types ──
+     Son las etiquetas de la cabecera de resultados y del explorador de esquema:
+     salen en cada consulta. Caian 5 de 6, entre 3.36 y 4.25. */
+  --type-integer:  oklch(0.526 0.118 260.9);   /* ≈ #4269AE (era 4.03) */
+  --type-float:    oklch(0.514 0.078 193.0);   /* ≈ #207573 (era 3.43) */
+  --type-text:     oklch(0.536 0.128 47.4);    /* ≈ #A75220 (era 3.36) */
+  --type-datetime: oklch(0.536 0.154 295.4);   /* ≈ #7656BC (era 4.25) */
+  --type-boolean:  oklch(0.512 0.083 164.8);   /* ≈ #30765A (era 3.46) */
   --type-default:  #566178;
 
   /* ── Legacy aliases ── */
@@ -1800,19 +1609,15 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* Cool blue-grey ink, three real tiers (≥10 / ≥5.5 / ≥4 :1) */
   --text-primary:   #1c2530;
   --text-secondary: #41505e;
-  --text-tertiary:  #5e6f7d;
-  --text-disabled:  #9aa6b1;
+  --text-tertiary:  oklch(0.519 0.030 243.1);   /* ≈ #5A6B79 (era #5e6f7d, 4.33:1) */
+  --text-disabled:  oklch(0.615 0.021 245.7);   /* ≈ #7B8691 (era #9aa6b1, 2.07:1) */
 
   /* Brand teal default lives in .theme-amoxlight:not([class*="accent-"]) below,
      so a user-picked accent (via the light ramps) overrides it. */
 
-  --hover-bg:   rgba(28, 37, 48, 0.05);
-  --active-bg:  rgba(28, 37, 48, 0.09);
-
-  /* Soft, cool shadows */
-  --shadow-sm: 0 1px 2px rgba(20, 40, 60, 0.06);
-  --shadow-md: 0 4px 12px rgba(20, 40, 60, 0.09);
-  --shadow-lg: 0 8px 30px rgba(20, 40, 60, 0.13);
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
 
 
   /* Feedback — darkened for light bg (AA) */
@@ -1842,13 +1647,15 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --syntax-number:    #8a5a00;   /* dark amber — numerics */
   --syntax-function:  #1e66c7;   /* blue — COUNT/SUM */
   --syntax-comment:   #7a8896;   /* desaturated grey, recedes */
-  --syntax-type:      #0a7d8c;   /* BRAND TEAL — types/tables show the identity */
+  --syntax-type:      oklch(0.515 0.092 209.7);   /* BRAND TEAL — el mismo valor
+                          exacto que el acento por defecto del tema, para que la
+                          identidad se lea igual en la UI y en el SQL (4.40:1 antes) */
   --syntax-operator:  #41505e;   /* ink-grey, sober */
   --syntax-variable:  #1c2530;   /* = text: columns/identifiers neutral */
   --syntax-constant:  #8a5a00;   /* dark amber — TRUE/FALSE/NULL */
 
   --type-integer:  #1e66c7;
-  --type-float:    #0a7d8c;
+  --type-float:    oklch(0.515 0.092 209.7);   /* el teal de marca, como syntax-type */
   --type-text:     #8a5a00;
   --type-datetime: #6d3fc4;
   --type-boolean:  #3f7a1f;
@@ -1884,29 +1691,34 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --surface-base:    #f6f3fb;   /* Sterling light "paper" */
   --surface-raised:  #fbf9fe;   /* Sterling "surface" — panels/sidebar/cards */
   --surface-overlay: #ffffff;   /* modals/popovers/menus */
-  --surface-inset:   #e2dbf0;   /* Sterling "surface-2" — wells, inputs */
+  /* El pozo era #e2dbf0, el "surface-2" de Sterling: un escalon base->inset de
+     1.22 cuando los otros claros van en 1.09. Todo lo que se pinta DENTRO de un
+     pozo — entradas, canaleta del editor, celdas vacias — perdia medio punto de
+     contraste de golpe, y era la causa unica de cuatro de los cinco fallos del
+     tema. Aclararlo es una linea; compensarlo oscureciendo toda la tinta eran
+     seis, y habria cambiado el caracter del tema. */
+  --surface-inset:   #ede8f6;   /* escalon 1.09, igual que Amox Light */
 
-  /* Sterling draws its grid/edge as literal lavenders, not alphas */
-  --border-subtle:  #d9d1e6;    /* Sterling grid */
-  --border-default: #cfc5de;    /* Sterling edge */
-  --border-strong:  #b9aed0;
+  /* Bordes por alfa sobre la tinta, no lavandas opacos.
+     Sterling los dibuja como colores literales, y por eso --border-subtle se
+     salia del rango por arriba (1.35): un lavanda opaco no puede integrarse
+     sobre cuatro superficies distintas a la vez. Mismos alfas que Amox Light. */
+  --border-subtle:  rgba(36, 26, 61, 0.07);
+  --border-default: rgba(36, 26, 61, 0.12);
+  --border-strong:  rgba(36, 26, 61, 0.20);
 
   /* Violet ink, three real tiers */
   --text-primary:   #241a3d;   /* Sterling text */
-  --text-secondary: #5c5178;   /* Sterling muted */
-  --text-tertiary:  #7d719c;
-  --text-disabled:  #a99fc4;
+  --text-secondary: #5c5178;   /* Sterling muted — 6.02:1 con el pozo aclarado */
+  --text-tertiary:  oklch(0.524 0.066 297.1);   /* ≈ #6E628C (era #7d719c, 3.31:1) */
+  --text-disabled:  oklch(0.619 0.054 297.4);   /* ≈ #897FA3 (era #a99fc4, 2.07:1) */
 
   /* Sterling's light "period" violet is the DEFAULT accent — the rule lives
      in .theme-sterlinglight:not([class*="accent-"]) so a user pick overrides. */
 
-  --hover-bg:   rgba(36, 26, 61, 0.05);
-  --active-bg:  rgba(36, 26, 61, 0.09);
-
-  /* Soft violet-tinted shadows */
-  --shadow-sm: 0 1px 2px rgba(36, 26, 61, 0.06);
-  --shadow-md: 0 4px 12px rgba(36, 26, 61, 0.09);
-  --shadow-lg: 0 8px 30px rgba(36, 26, 61, 0.13);
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
 
   /* Feedback — Sterling legend twins (darkened for light bg, AA):
      teal=success, coral=error, amber=warning, blue=info */
@@ -1966,105 +1778,55 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
-   LIGHT THEME ACCENT PRESETS
-   (darker oklch values for contrast on light bg)
+   RAMPA DE ACENTOS PARA MODO CLARO
+   Los mismos TONOS que en oscuro. La luminosidad, en cambio, no es una version
+   bajada de la del oscuro: esta clavada en una banda estrecha, L 0.47-0.52.
+
+   Por que clavada. --accent-primary se usa de dos maneras: como TEXTO (146 usos
+   con `color:`) y como RELLENO de boton con texto blanco encima (100 usos con
+   `background`). En oscuro las dos piden lo mismo, un color claro. En claro
+   piden cosas opuestas — el texto quiere oscuro contra el papel, el relleno
+   quiere oscuro para que el blanco encima se lea — y resulta que ambas se
+   cumplen en la misma banda. Fuera de ella fallan las dos a la vez: medido, la
+   mitad turquesa (amox-2 a amox-5) daba 2.5-3.1:1 como texto y 3.3-4.1:1 con
+   blanco encima. Un boton "Aqua" en tema claro no se leia.
+
+   La consecuencia hay que decirla: en claro esta deja de ser una rampa de
+   luminosidad y pasa a ser una rampa de TONO. Los cuatro primeros pasos quedan
+   muy parecidos entre si (teales casi identicos) porque el margen de croma a esa
+   L es el que es. Se prefiere eso a cuatro acentos ilegibles.
+
+   Cuelgan de `.mode-light`, no de la lista de temas claros uno por uno. Antes
+   cada regla enumeraba los cinco temas (27 selectores de 5 clases cada uno) y
+   habia que acordarse de tocarlos al anadir o quitar un tema — es justo lo que
+   se rompio al retirar Light e Ivory. `.mode-light` va en el body de TODOS los
+   temas claros, presentes y futuros.
+
+   Especificidad: 0-2-0, la misma que tenia `.theme-mist.accent-linear`, asi que
+   sigue ganando al acento propio del tema (0-1-0) y no colisiona con las reglas
+   `:not([class*="accent-"])`, que solo aplican cuando NO hay acento elegido.
    ═══════════════════════════════════════════════ */
-.light-theme.accent-linear,
-.theme-ivory.accent-linear,
-.theme-mist.accent-linear,
-.theme-amoxlight.accent-linear, .theme-sterlinglight.accent-linear {
-  --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
-}
+.mode-light.accent-linear  { --accent-primary: oklch(0.507 0.141 277.1); }   /* ≈ #5359B4 */
+.mode-light.accent-amox-2  { --accent-primary: oklch(0.476 0.108 195.6);  --button-text-color: #ffffff; }   /* ≈ #006E70 */
+.mode-light.accent-amox-3  { --accent-primary: oklch(0.478 0.105 198.1);  --button-text-color: #ffffff; }   /* ≈ #006E72 */
+.mode-light.accent-amox-4  { --accent-primary: oklch(0.479 0.102 204.2);  --button-text-color: #ffffff; }   /* ≈ #006D78 */
+.mode-light.accent-amox-5  { --accent-primary: oklch(0.484 0.102 215.0);  --button-text-color: #ffffff; }   /* ≈ #006C82 */
+.mode-light.accent-amox-6  { --accent-primary: oklch(0.490 0.116 233.6);  --button-text-color: #ffffff; }   /* ≈ #006997 */
+.mode-light.accent-amox-7  { --accent-primary: oklch(0.492 0.137 246.1);  --button-text-color: #ffffff; }   /* ≈ #0065A9 */
+.mode-light.accent-amox-8  { --accent-primary: oklch(0.500 0.161 255.3);  --button-text-color: #ffffff; }   /* ≈ #0A61BC */
+.mode-light.accent-amox-9  { --accent-primary: oklch(0.489 0.180 262.0);  --button-text-color: #ffffff; }   /* ≈ #2057C4 */
+.mode-light.accent-amox-10 { --accent-primary: oklch(0.471 0.200 267.9);  --button-text-color: #ffffff; }   /* ≈ #2D49C9 */
 
-.light-theme.accent-amox-2,
-.theme-ivory.accent-amox-2,
-.theme-mist.accent-amox-2,
-.theme-amoxlight.accent-amox-2, .theme-sterlinglight.accent-amox-2 {
-  --accent-primary: oklch(0.62 0.13 195);      /* ≈ #00CFDA */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-3,
-.theme-ivory.accent-amox-3,
-.theme-mist.accent-amox-3,
-.theme-amoxlight.accent-amox-3, .theme-sterlinglight.accent-amox-3 {
-  --accent-primary: oklch(0.61 0.125 197);     /* ≈ #00C4D9 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-4,
-.theme-ivory.accent-amox-4,
-.theme-mist.accent-amox-4,
-.theme-amoxlight.accent-amox-4, .theme-sterlinglight.accent-amox-4 {
-  --accent-primary: oklch(0.59 0.12 202);      /* ≈ #00B5D6 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-5,
-.theme-ivory.accent-amox-5,
-.theme-mist.accent-amox-5,
-.theme-amoxlight.accent-amox-5, .theme-sterlinglight.accent-amox-5 {
-  --accent-primary: oklch(0.57 0.12 212);      /* ≈ #00A5D4 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-6,
-.theme-ivory.accent-amox-6,
-.theme-mist.accent-amox-6,
-.theme-amoxlight.accent-amox-6, .theme-sterlinglight.accent-amox-6 {
-  --accent-primary: oklch(0.55 0.13 228);      /* ≈ #0097D1 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-7,
-.theme-ivory.accent-amox-7,
-.theme-mist.accent-amox-7,
-.theme-amoxlight.accent-amox-7, .theme-sterlinglight.accent-amox-7 {
-  --accent-primary: oklch(0.53 0.14 245);      /* ≈ #0088CC */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-8,
-.theme-ivory.accent-amox-8,
-.theme-mist.accent-amox-8,
-.theme-amoxlight.accent-amox-8, .theme-sterlinglight.accent-amox-8 {
-  --accent-primary: oklch(0.51 0.16 255);      /* ≈ #0078C8 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-9,
-.theme-ivory.accent-amox-9,
-.theme-mist.accent-amox-9,
-.theme-amoxlight.accent-amox-9, .theme-sterlinglight.accent-amox-9 {
-  --accent-primary: oklch(0.49 0.18 262);      /* ≈ #006AC2 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-10,
-.theme-ivory.accent-amox-10,
-.theme-mist.accent-amox-10,
-.theme-amoxlight.accent-amox-10, .theme-sterlinglight.accent-amox-10 {
-  --accent-primary: oklch(0.47 0.20 268);      /* ≈ #005ABB */
-  --button-text-color: #ffffff;
-}
-
-/* Sober + islands accents darkened for light backgrounds (≥4.5:1). Two-class
-   specificity (0,2,0) beats each light theme's default accent, so picking a
-   sober accent on a light theme now applies (was: silently ignored). */
-.light-theme.accent-islands, .theme-ivory.accent-islands,
-.theme-mist.accent-islands, .theme-amoxlight.accent-islands, .theme-sterlinglight.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
-.light-theme.accent-sage, .theme-ivory.accent-sage,
-.theme-mist.accent-sage, .theme-amoxlight.accent-sage, .theme-sterlinglight.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
-.light-theme.accent-amber, .theme-ivory.accent-amber,
-.theme-mist.accent-amber, .theme-amoxlight.accent-amber, .theme-sterlinglight.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
-.light-theme.accent-rose, .theme-ivory.accent-rose,
-.theme-mist.accent-rose, .theme-amoxlight.accent-rose, .theme-sterlinglight.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
-.light-theme.accent-lavender, .theme-ivory.accent-lavender,
-.theme-mist.accent-lavender, .theme-amoxlight.accent-lavender, .theme-sterlinglight.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
-.light-theme.accent-steel, .theme-ivory.accent-steel,
-.theme-mist.accent-steel, .theme-amoxlight.accent-steel, .theme-sterlinglight.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
-.light-theme.accent-copper, .theme-ivory.accent-copper,
-.theme-mist.accent-copper, .theme-amoxlight.accent-copper, .theme-sterlinglight.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
+/* Acentos sobrios + islands, oscurecidos para fondo claro. Los sobrios ya
+   cumplian los dos usos y no se tocan; islands bajaba de 4.5 como texto por un
+   pelo (4.23). */
+.mode-light.accent-islands { --accent-primary: oklch(0.504 0.179 261.9); }   /* ≈ #245CC8 */
+.mode-light.accent-sage     { --accent-primary: oklch(0.48 0.13 155); }
+.mode-light.accent-amber    { --accent-primary: oklch(0.50 0.13 75); }
+.mode-light.accent-rose     { --accent-primary: oklch(0.52 0.18 15); }
+.mode-light.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
+.mode-light.accent-steel    { --accent-primary: oklch(0.46 0.08 250); }
+.mode-light.accent-copper   { --accent-primary: oklch(0.50 0.13 50); }
 
 
 /* Form controls don't inherit font-family by default — force them to use the
@@ -9459,7 +9221,7 @@ tr:hover td {
 }
 
 /* Border tokens already flip per theme (white-alpha on dark, black-alpha on
-   light), so the thumb adapts to every theme — including ivory/mist/snow —
+   light), so the thumb adapts to every theme — claros incluidos —
    with no per-mode override. */
 ::-webkit-scrollbar-thumb {
   background: var(--border-default);

@@ -4,7 +4,7 @@
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
 import { API_BASE } from './api.js';
-import { themeClassFor, modeClassFor } from './theme.js';
+import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
@@ -163,7 +163,7 @@ function App() {
   /* --- Project Workflow Handlers --- */
 
   // Theme State
-  const [theme, setTheme] = useState(() => localStorage.getItem('amoxsql-theme') || 'dark');
+  const [theme, setTheme] = useState(() => migrateTheme(localStorage.getItem('amoxsql-theme')));
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
   // Luminosidad del acento. null = sin personalizar, se usa la L propia del preset.
   // Guardarla como null en vez de un número evita aplanar la rampa amox-2..amox-10,
@@ -293,15 +293,19 @@ function App() {
   useEffect(() => {
     localStorage.setItem('amoxsql-theme', theme);
     // Remove all theme classes first
-    const themeClasses = ['light-theme', 'theme-onyx', 'theme-amoxdark', 'theme-ayu', 'theme-nord', 'theme-islands', 'theme-sterlingdark', 'theme-sterlingdeep', 'theme-ivory', 'theme-mist', 'theme-amoxlight', 'theme-sterlinglight'];
-    themeClasses.forEach(c => document.body.classList.remove(c));
+    // Se barren por prefijo en vez de por lista: una lista hay que acordarse de
+    // actualizarla al anadir o retirar un tema, y si se olvida quedan dos clases
+    // de tema puestas a la vez.
+    [...document.body.classList]
+        .filter(c => c.startsWith('theme-'))
+        .forEach(c => document.body.classList.remove(c));
     document.body.classList.remove('mode-light', 'mode-dark');
     // Theme class carries per-theme surfaces (dark/obsidian = default, no class)
     const themeClass = themeClassFor(theme);
     if (themeClass) document.body.classList.add(themeClass);
     // Mode class carries everything that only depends on light-vs-dark, so that
-    // ivory/mist/snow (which have their OWN theme class, not `.light-theme`)
-    // still receive the light scrollbars, editor chrome, feedback ramps, etc.
+    // every light theme (each with its OWN theme class) still receives the light
+    // scrollbars, editor chrome, feedback ramps, etc.
     document.body.classList.add(modeClassFor(theme));
     // Re-theme Monaco from the now-current tokens (single `amox` theme, global).
     syncMonacoTheme();
