@@ -898,6 +898,39 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
   --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
   --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+
+  /* ══ PROFUNDIDAD, VELO E INTERACCION ══
+     Los cuatro bloques de abajo estaban escritos como la imagen especular de
+     los del oscuro, con el mismo alfa. Y ese es justo el error: sobre fondo
+     oscuro un efecto funciona AÑADIENDO luz y hay muchisimo margen; sobre papel
+     ese margen no existe. Copiar la receta con el alfa bajado no da sutileza,
+     da nada. Medido: superficies separadas por 1.05, bordes a 1.14 y sombras a
+     0.06 — los tres a la vez, y son los tres que hacen el mismo trabajo. Por eso
+     el modo claro se lee plano.
+
+     Todos se derivan de --text-primary, la tinta del tema. Antes cada bloque de
+     tema escribia su propio rgba a mano y los tres acababan con pesos visuales
+     distintos; derivandolos, un mismo alfa da el mismo resultado en los tres y
+     cada uno conserva su matiz. Ojo: por eso hubo que QUITAR --shadow-*,
+     --hover-bg y --active-bg de los bloques de tema; con la misma especificidad
+     (0-1-0) y estando despues en el archivo, ganaban ellos. */
+
+  /* El velo de los dialogos. :root lo deja en negro al 60 %, que sobre papel
+     manda la app entera a casi-negro y deja el dialogo blanco flotando: es el
+     cambio mas brusco que hay en claro. Al 45 % de la tinta del tema el fondo se
+     apaga lo justo y el dialogo conserva ~3:1 contra el, el piso de contraste no
+     textual. */
+  --overlay-bg: color-mix(in srgb, var(--text-primary) 45%, transparent);
+
+  /* Sombras: en claro son la UNICA pista de profundidad que queda. */
+  --shadow-sm: 0 1px 2px  color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --shadow-md: 0 4px 12px color-mix(in srgb, var(--text-primary) 16%, transparent);
+  --shadow-lg: 0 8px 30px color-mix(in srgb, var(--text-primary) 22%, transparent);
+
+  /* Estados: medidos contra el oscuro (hover 1.14, active 1.30), que es el que
+     ya esta aprobado. Los claros iban en 1.09-1.11 y 1.15-1.20. */
+  --hover-bg:  color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --active-bg: color-mix(in srgb, var(--text-primary) 12.5%, transparent);
 }
 
 /* ═══════════════════════════════════════════════
@@ -1411,7 +1444,9 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --accent-primary: #22d3ee;
 }
 .theme-amoxlight:not([class*="accent-"]) {
-  --accent-primary: #0a7d8c;
+  /* El teal de marca, bajado lo justo para llegar a 4.5:1 como texto sobre las
+     cuatro superficies del tema: estaba en 4.05 sobre --surface-inset. */
+  --accent-primary: oklch(0.515 0.092 209.7);   /* ≈ #007584 (era #0a7d8c) */
 }
 /* Ayu Dark ships its signature gold accent by default (overridable). */
 .theme-ayu:not([class*="accent-"]) {
@@ -1423,7 +1458,9 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --accent-primary: #c4b5fd;
 }
 .theme-sterlinglight:not([class*="accent-"]) {
-  --accent-primary: #7c5ce0;
+  /* Mismo tono y croma que el violeta de Sterling, bajado a la banda legible:
+     como texto daba 3.50:1 sobre --surface-inset. */
+  --accent-primary: oklch(0.516 0.192 290.2);   /* ≈ #6B49CB (era #7c5ce0) */
 }
 
 /* ═══════════════════════════════════════════════
@@ -1450,16 +1487,11 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --text-disabled:  #a3acbd;   /* faded */
 
   /* ── Accent: muted indigo — complements cool greys ── */
-  --accent-primary: #5568a8;
+  --accent-primary: oklch(0.507 0.103 270.1);   /* ≈ #4E61A0 (era #5568a8, 4.07:1) */
 
-  /* ── Interaction states ── */
-  --hover-bg:   rgba(70, 85, 110, 0.06);
-  --active-bg:  rgba(70, 85, 110, 0.10);
-
-  /* ── Shadows: cool and diffuse ── */
-  --shadow-sm: 0 1px 3px rgba(50, 60, 80, 0.06);
-  --shadow-md: 0 4px 12px rgba(50, 60, 80, 0.08);
-  --shadow-lg: 0 8px 30px rgba(50, 60, 80, 0.12);
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
 
   /* ── Titlebar ── */
 
@@ -1547,13 +1579,9 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* Brand teal default lives in .theme-amoxlight:not([class*="accent-"]) below,
      so a user-picked accent (via the light ramps) overrides it. */
 
-  --hover-bg:   rgba(28, 37, 48, 0.05);
-  --active-bg:  rgba(28, 37, 48, 0.09);
-
-  /* Soft, cool shadows */
-  --shadow-sm: 0 1px 2px rgba(20, 40, 60, 0.06);
-  --shadow-md: 0 4px 12px rgba(20, 40, 60, 0.09);
-  --shadow-lg: 0 8px 30px rgba(20, 40, 60, 0.13);
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
 
 
   /* Feedback — darkened for light bg (AA) */
@@ -1641,13 +1669,9 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   /* Sterling's light "period" violet is the DEFAULT accent — the rule lives
      in .theme-sterlinglight:not([class*="accent-"]) so a user pick overrides. */
 
-  --hover-bg:   rgba(36, 26, 61, 0.05);
-  --active-bg:  rgba(36, 26, 61, 0.09);
-
-  /* Soft violet-tinted shadows */
-  --shadow-sm: 0 1px 2px rgba(36, 26, 61, 0.06);
-  --shadow-md: 0 4px 12px rgba(36, 26, 61, 0.09);
-  --shadow-lg: 0 8px 30px rgba(36, 26, 61, 0.13);
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
 
   /* Feedback — Sterling legend twins (darkened for light bg, AA):
      teal=success, coral=error, amber=warning, blue=info */
@@ -1708,8 +1732,22 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 
 /* ═══════════════════════════════════════════════
    RAMPA DE ACENTOS PARA MODO CLARO
-   Los mismos tonos que en oscuro, bajados de luminosidad para contrastar
-   sobre papel.
+   Los mismos TONOS que en oscuro. La luminosidad, en cambio, no es una version
+   bajada de la del oscuro: esta clavada en una banda estrecha, L 0.47-0.52.
+
+   Por que clavada. --accent-primary se usa de dos maneras: como TEXTO (146 usos
+   con `color:`) y como RELLENO de boton con texto blanco encima (100 usos con
+   `background`). En oscuro las dos piden lo mismo, un color claro. En claro
+   piden cosas opuestas — el texto quiere oscuro contra el papel, el relleno
+   quiere oscuro para que el blanco encima se lea — y resulta que ambas se
+   cumplen en la misma banda. Fuera de ella fallan las dos a la vez: medido, la
+   mitad turquesa (amox-2 a amox-5) daba 2.5-3.1:1 como texto y 3.3-4.1:1 con
+   blanco encima. Un boton "Aqua" en tema claro no se leia.
+
+   La consecuencia hay que decirla: en claro esta deja de ser una rampa de
+   luminosidad y pasa a ser una rampa de TONO. Los cuatro primeros pasos quedan
+   muy parecidos entre si (teales casi identicos) porque el margen de croma a esa
+   L es el que es. Se prefiere eso a cuatro acentos ilegibles.
 
    Cuelgan de `.mode-light`, no de la lista de temas claros uno por uno. Antes
    cada regla enumeraba los cinco temas (27 selectores de 5 clases cada uno) y
@@ -1721,20 +1759,21 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
    sigue ganando al acento propio del tema (0-1-0) y no colisiona con las reglas
    `:not([class*="accent-"])`, que solo aplican cuando NO hay acento elegido.
    ═══════════════════════════════════════════════ */
-.mode-light.accent-linear   { --accent-primary: oklch(0.53 0.14 277); }   /* Linear Blue */
+.mode-light.accent-linear  { --accent-primary: oklch(0.507 0.141 277.1); }   /* ≈ #5359B4 */
+.mode-light.accent-amox-2  { --accent-primary: oklch(0.476 0.108 195.6);  --button-text-color: #ffffff; }   /* ≈ #006E70 */
+.mode-light.accent-amox-3  { --accent-primary: oklch(0.478 0.105 198.1);  --button-text-color: #ffffff; }   /* ≈ #006E72 */
+.mode-light.accent-amox-4  { --accent-primary: oklch(0.479 0.102 204.2);  --button-text-color: #ffffff; }   /* ≈ #006D78 */
+.mode-light.accent-amox-5  { --accent-primary: oklch(0.484 0.102 215.0);  --button-text-color: #ffffff; }   /* ≈ #006C82 */
+.mode-light.accent-amox-6  { --accent-primary: oklch(0.490 0.116 233.6);  --button-text-color: #ffffff; }   /* ≈ #006997 */
+.mode-light.accent-amox-7  { --accent-primary: oklch(0.492 0.137 246.1);  --button-text-color: #ffffff; }   /* ≈ #0065A9 */
+.mode-light.accent-amox-8  { --accent-primary: oklch(0.500 0.161 255.3);  --button-text-color: #ffffff; }   /* ≈ #0A61BC */
+.mode-light.accent-amox-9  { --accent-primary: oklch(0.489 0.180 262.0);  --button-text-color: #ffffff; }   /* ≈ #2057C4 */
+.mode-light.accent-amox-10 { --accent-primary: oklch(0.471 0.200 267.9);  --button-text-color: #ffffff; }   /* ≈ #2D49C9 */
 
-.mode-light.accent-amox-2   { --accent-primary: oklch(0.62 0.13 195);  --button-text-color: #ffffff; }   /* ≈ #00CFDA */
-.mode-light.accent-amox-3   { --accent-primary: oklch(0.61 0.125 197); --button-text-color: #ffffff; }   /* ≈ #00C4D9 */
-.mode-light.accent-amox-4   { --accent-primary: oklch(0.59 0.12 202);  --button-text-color: #ffffff; }   /* ≈ #00B5D6 */
-.mode-light.accent-amox-5   { --accent-primary: oklch(0.57 0.12 212);  --button-text-color: #ffffff; }   /* ≈ #00A5D4 */
-.mode-light.accent-amox-6   { --accent-primary: oklch(0.55 0.13 228);  --button-text-color: #ffffff; }   /* ≈ #0097D1 */
-.mode-light.accent-amox-7   { --accent-primary: oklch(0.53 0.14 245);  --button-text-color: #ffffff; }   /* ≈ #0088CC */
-.mode-light.accent-amox-8   { --accent-primary: oklch(0.51 0.16 255);  --button-text-color: #ffffff; }   /* ≈ #0078C8 */
-.mode-light.accent-amox-9   { --accent-primary: oklch(0.49 0.18 262);  --button-text-color: #ffffff; }   /* ≈ #006AC2 */
-.mode-light.accent-amox-10  { --accent-primary: oklch(0.47 0.20 268);  --button-text-color: #ffffff; }   /* ≈ #005ABB */
-
-/* Acentos sobrios + islands, oscurecidos para fondo claro. */
-.mode-light.accent-islands  { --accent-primary: oklch(0.52 0.18 262); }
+/* Acentos sobrios + islands, oscurecidos para fondo claro. Los sobrios ya
+   cumplian los dos usos y no se tocan; islands bajaba de 4.5 como texto por un
+   pelo (4.23). */
+.mode-light.accent-islands { --accent-primary: oklch(0.504 0.179 261.9); }   /* ≈ #245CC8 */
 .mode-light.accent-sage     { --accent-primary: oklch(0.48 0.13 155); }
 .mode-light.accent-amber    { --accent-primary: oklch(0.50 0.13 75); }
 .mode-light.accent-rose     { --accent-primary: oklch(0.52 0.18 15); }

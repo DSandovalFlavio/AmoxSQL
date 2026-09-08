@@ -287,23 +287,54 @@ active. Y meter el banco del navegador en `scripts/`, porque es el único que re
 
 Sin esto, las fases siguientes son opinión.
 
-### Fase 2 — La capa de modo claro
+### Fase 2 — La capa de modo claro ✅ HECHA
 
-Lo de la sección 3, que es lo que arregla los tres temas a la vez:
+Lo de la sección 3, que es lo que arregla los tres temas a la vez. El principio que guía
+las cuatro piezas es el mismo, el que aprendimos con la pantalla de bienvenida: **no se
+trata de aplicar la receta del oscuro más floja; en claro varios efectos necesitan ir
+hacia arriba, no hacia abajo**.
 
-1. `--overlay-bg` propio para claro. Un velo tintado con la tinta del tema en vez de negro
-   puro, alrededor del 35–40 %.
-2. Subir las sombras. No al nivel del oscuro, pero sí lo bastante para que sean ellas las
-   que separan: el punto de partida a medir es 0.10 / 0.16 / 0.22.
-3. Subir `hover` y `active` hasta igualar la percepción del oscuro (objetivo 1.13 / 1.26).
-4. Partir `--accent-primary` en relleno y `--accent-text`, y bajar `amox-2` … `amox-5` a
-   los valores de la tabla.
+**Lo que cambió, y el número antes / después:**
 
-El principio que guía las cuatro es el mismo, y es el que aprendimos con la pantalla de
-bienvenida: **no se trata de aplicar la receta del oscuro más floja; en claro varios
-efectos necesitan ir hacia arriba, no hacia abajo**.
+| | Antes | Después |
+|---|---|---|
+| Velo del diálogo | negro al 60 % — lienzo velado `#606163`, diálogo a 6.4:1 | tinta del tema al 45 % — lienzo velado `#91979e`, diálogo a **2.9–3.0:1** |
+| Sombras (alfa sm/md/lg) | 0.06 / 0.09 / 0.13 | **0.10 / 0.16 / 0.22** |
+| `hover` sobre `raised` | 1.09–1.11 | **1.13–1.15** (oscuro: 1.12–1.14) |
+| `active` sobre `raised` | 1.15–1.20 | **1.25–1.28** (oscuro: 1.22–1.30) |
+| Acentos que fallan como texto o como relleno | 7 de 20 | **0 de 20** |
+
+Las cuatro se declaran ahora en `.mode-light` y se derivan de `--text-primary`, la tinta
+del tema. Antes cada bloque de tema escribía su propio `rgba(…)` a mano — tres recetas
+distintas para el mismo trabajo, con pesos visuales que no coincidían. Derivarlas obliga a
+**quitarlas de los bloques de tema**: misma especificidad (0-1-0) y más abajo en el
+archivo, así que ganaban ellas. Los bloques llevan una nota que lo dice, para que nadie
+las vuelva a declarar ahí sin darse cuenta.
+
+**El punto 4 no se hizo como lo proponía el plan, y conviene explicar por qué.** El plan
+decía partir `--accent-primary` en relleno y `--accent-text`. Al contarlos, el token se usa
+**146 veces como `color:`** y **100 como fondo**: partirlo obliga a repasar a mano uno de
+los dos grupos entero, decidiendo caso por caso, con el riesgo de equivocarse justo en los
+sitios mixtos (texto de acento sobre un chip ya tintado de acento).
+
+Midiendo resultó que no hace falta. Las dos exigencias — acento legible **sobre** papel y
+blanco legible **encima** del acento — se cumplen a la vez en una banda estrecha,
+**L 0.47–0.52**; fuera de ella fallan las dos juntas. Así que en vez de partir el token se
+clavó la rampa clara en esa banda. Un solo valor por acento, cero call sites tocados.
+
+El precio hay que decirlo: **en claro la rampa deja de ser una rampa de luminosidad y pasa
+a ser una rampa de tono**. Los cuatro primeros pasos (`amox-2` a `amox-5`) quedan teales
+casi idénticos, porque a esa L el margen de croma es el que es. Se prefiere eso a cuatro
+acentos ilegibles — pero si alguna vez molesta, la salida no es subirles la L, es
+replantear qué significa la rampa en claro.
 
 ### Fase 3 — Cada tema claro
+
+> Los tres avisos de Sterling Light que da hoy el verificador (`text-secondary` 5.38,
+> `text-tertiary` 3.31, `border-subtle` 1.35) son de esta fase. **No los causó la fase 2**:
+> son valores que el tema ya tenía y que el verificador no miraba — `sterlinglight` ni
+> siquiera estaba en su lista de temas hasta la fase 0.
+
 
 - **Amox Light**: los cinco valores de la tabla. Es un retoque.
 - **Sterling Light**: aclarar `--surface-inset` (es la causa única de cuatro de sus cinco
