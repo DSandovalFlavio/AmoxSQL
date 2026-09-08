@@ -5,6 +5,98 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.1.0] — 2026-09-08
+
+### Los temas, y el panel de funciones
+
+Dos cosas que se usan todos los días y que habían crecido sin que nadie las mirara de
+frente: los temas — sobre todo los claros, que arrastraban recetas copiadas del oscuro — y
+el panel de funciones, con 918 entradas y ningún orden útil.
+
+#### Temas
+
+- **Tres temas retirados**: Light e Ivory (dos claros genéricos que no aportaban nada sobre
+  Amox Light) y Sterling Dark (misma paleta que Sterling Deep, sobre superficies más
+  planas). Quedan siete oscuros y tres claros. Si tenías uno de los tres puesto, la
+  aplicación abre en su sustituto sin que tengas que tocar nada.
+- **Los colores de estado no seguían al tema.** `--color-success` y sus once hermanos se
+  declaraban como derivaciones dentro de `:root`, y una propiedad con `var()` dentro
+  resuelve en el elemento donde se declara — `:root` es `<html>`, mientras que la clase del
+  tema va en `<body>`. Resultado: se quedaban congelados en el verde, rojo y ámbar del tema
+  oscuro por defecto. Afectaba a **once de los trece temas**, también a los oscuros con
+  paleta propia, y a 275 sitios de la interfaz.
+- **El modo claro se leía plano, y no era casualidad.** Las tres pistas de profundidad
+  estaban flojas a la vez: superficies separadas por un 5 %, bordes al límite de lo
+  perceptible y sombras al 6 % de opacidad. Todas eran la receta del oscuro con el valor
+  bajado, y ahí está el error — sobre fondo oscuro un efecto funciona añadiendo luz y sobra
+  margen; sobre papel ese margen no existe y hace falta ir hacia arriba, no hacia abajo.
+- **El velo de los diálogos era negro al 60 %**, que en un tema claro manda la aplicación
+  entera a casi negro. Ahora se tinta con la tinta del propio tema.
+- **Cuatro acentos hacían ilegibles los botones en tema claro.** La mitad turquesa de la
+  rampa daba entre 3,3 y 4,1 de contraste con el texto blanco encima: un botón “Aqua” no se
+  leía. Los veinte acentos pasan ahora el umbral, tanto usados como texto como de relleno.
+- **Texto deshabilitado invisible**: los tres temas claros lo tenían entre 1,74 y 2,07 de
+  contraste. Y el texto terciario — el nivel más usado de la interfaz — sube al umbral AA.
+- **Mist se recalibró entero**: seis colores de sintaxis y cinco de tipos de dato estaban
+  por debajo del umbral sobre su propio lienzo. Conservan tono y saturación; solo bajan de
+  luminosidad, así que el carácter apagado del tema no cambia.
+- **Sterling Light** tenía el fondo de los pozos — entradas, canaleta del editor, celdas
+  vacías — mucho más oscuro que el resto de claros, y todo lo que se pintaba dentro perdía
+  medio punto de contraste de golpe.
+- **Obsidian y Onyx se intercambiaban el fondo del editor** a propósito, para que desde cada
+  uno se viera el negro del otro. El efecto era que dentro de un mismo tema el editor no
+  pegaba con lo que lo rodea. Cada tema usa ya su propio color.
+- **El editor de código se pintaba con colores de respaldo** en los temas cuyos tokens están
+  escritos en oklch. La sonda que los resuelve solo entendía `rgb()`, y el navegador
+  conserva la notación de origen, así que caían al respaldo sin avisar.
+- **Sterling Deep, Ayu y Nord** tenían sus propios cabos sueltos: paneles que no llegaban a
+  separarse del lienzo, estados de ratón más flojos que en el resto de oscuros, y el texto
+  de error de Nord en 3,05 de contraste sobre la superficie de los diálogos.
+
+#### Funciones
+
+- **El panel se ordena por lo que usas.** Arriba, un máximo de veinte: cinco recomendadas,
+  cinco por uso real — sacado de tu propio historial de consultas —, cinco recientes y cinco
+  que rotan como descubrimiento. Debajo, el catálogo completo agrupado por para qué sirve
+  cada cosa, no por su tipo interno.
+- **Las 918 funciones revisadas una por una.** La primera clasificación dejaba 636 en
+  “otras” y metía cosas como `checkpoint` en “Cargar datos”. Ahora hay once grupos con
+  criterio, y ninguno vacío.
+
+#### Gráficos
+
+- **Crear un `.amoxvis` desde una consulta existente**, en dos pasos en vez de cuatro:
+  eliges el archivo `.sql` y, si tiene varias sentencias, cuál de ellas. Los comentarios se
+  conservan.
+- **El lienzo se quedaba en blanco** si el gráfico se medía antes de tener tamaño: había que
+  guardar, cerrar y volver a abrir para verlo.
+
+#### IA
+
+- **La clave de Gemini viajaba en la URL** de las dos peticiones al listado de modelos. Un
+  secreto en un *query string* acaba en logs de acceso y en cualquier proxy que inspeccione
+  el tráfico. Ahora va en cabecera, como ya hacían Anthropic y MiniMax.
+
+#### Ventana emergente de resultados
+
+- **No seguía tu tema ni tu acento**: salía siempre en oscuro con acento cian, vinieras de
+  donde vinieras. Y tenía dos barras de ventana, una encima de la otra. Ahora hereda el
+  tema y su cabecera hace de barra.
+- Sus botones de minimizar, maximizar y cerrar actuaban sobre la **ventana principal**.
+
+#### Herramientas de desarrollo
+
+- **El verificador de temas medía mucho menos de lo que decía.** Miraba texto y bordes, y
+  con eso informaba de que todo estaba bien mientras la mitad de los tokens le salían sin
+  resolver, porque no entendía `var()` ni `color-mix`. Ahora resuelve la cascada completa y
+  comprueba sintaxis, tipos de dato, feedback, iconos, elevación, estados, velo, sombras y
+  los veinte acentos en sus dos usos. Y una regla estructural: ninguna propiedad de `:root`
+  puede contener `var()`, que es la trampa que ya había mordido cuatro veces.
+- El estado medido de los diez temas y el plan por fases quedan en
+  `docs/dev/auditoria_temas_2026-09.md`.
+
+---
+
 ## [5.0.1] — 2026-09-07
 
 ### Entrar al proyecto, y que lo que configuras se quede

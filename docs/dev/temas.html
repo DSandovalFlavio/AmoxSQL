@@ -1,0 +1,2869 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temas y paletas de AmoxSQL</title>
+<style>
+  :root {
+    --pg-bg: #ffffff; --pg-surf: #f7f7f9; --pg-ink: #16181d; --pg-ink2: #5a606b;
+    --pg-line: #e3e5ea; --pg-acc: #0a6b78; --pg-mal: #b3261e;
+    --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --pg-bg: #0e1015; --pg-surf: #161920; --pg-ink: #e8eaee; --pg-ink2: #9aa2b0;
+      --pg-line: #262a33; --pg-acc: #4cc9d8; --pg-mal: #ff8a80;
+    }
+  }
+  :root[data-theme="dark"] {
+    --pg-bg: #0e1015; --pg-surf: #161920; --pg-ink: #e8eaee; --pg-ink2: #9aa2b0;
+    --pg-line: #262a33; --pg-acc: #4cc9d8; --pg-mal: #ff8a80;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--pg-bg); color: var(--pg-ink);
+         font: 15px/1.6 var(--sans); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 96px; }
+  code { font-family: var(--mono); font-size: 0.86em; }
+  a { color: var(--pg-acc); }
+
+  h1 { font-size: 2rem; letter-spacing: -0.02em; margin: 0 0 8px; text-wrap: balance; }
+  h2 { font-size: 1.3rem; letter-spacing: -0.01em; margin: 56px 0 4px;
+       padding-bottom: 8px; border-bottom: 1px solid var(--pg-line); }
+  h3 { font-size: 1.05rem; margin: 0; }
+  h4 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em;
+       color: var(--pg-ink2); margin: 0 0 10px; font-weight: 600; }
+  p  { max-width: 68ch; color: var(--pg-ink2); }
+  p.lede { color: var(--pg-ink); font-size: 1.05rem; }
+  .sub { color: var(--pg-ink2); font-weight: 400; font-size: 0.78em; }
+
+  .meta { font-family: var(--mono); font-size: 0.76rem; color: var(--pg-ink2);
+          border: 1px solid var(--pg-line); border-radius: 8px;
+          padding: 10px 14px; margin: 24px 0 0; background: var(--pg-surf); }
+
+  .reglas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 20px; }
+  .regla { border: 1px solid var(--pg-line); border-left: 3px solid var(--pg-acc);
+           border-radius: 8px; padding: 14px 16px; background: var(--pg-surf); }
+  .regla b { display: block; margin-bottom: 4px; }
+  .regla p { margin: 0; font-size: 0.88rem; }
+
+  nav.indice { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 0; }
+  nav.indice a { font-size: 0.8rem; text-decoration: none; padding: 4px 10px;
+                 border: 1px solid var(--pg-line); border-radius: 999px; color: var(--pg-ink2); }
+  nav.indice a:hover { border-color: var(--pg-acc); color: var(--pg-acc); }
+
+  /* Cada tema se pinta sobre SU lienzo: un color solo se juzga en su sitio. */
+  .tema { background: var(--t-base); color: var(--t-ink);
+          border: 1px solid var(--t-line); border-radius: 12px;
+          padding: 20px 22px 24px; margin: 22px 0; }
+  .tema-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .tema-id { color: var(--t-ink2); margin-left: auto; font-size: 0.75rem; }
+  .pill { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
+          padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor;
+          color: var(--t-ink2); }
+
+  .grid { display: grid; gap: 22px 26px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .grupo--ancho { grid-column: 1 / -1; }
+  .grupo h4 { color: var(--t-ink2); }
+  .nota { font-size: 0.78rem; color: var(--t-ink2); margin: 10px 0 0; max-width: 46ch; }
+
+  .sws { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+  .sw { display: flex; align-items: center; gap: 8px; min-width: 132px; }
+  .sw-chip { width: 26px; height: 26px; border-radius: 6px; flex: none;
+             border: 1px solid rgba(128,128,128,0.35); }
+  .sw-chip--txt { display: grid; place-items: center; font: 600 12px var(--mono); }
+  .sw-meta { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+  .sw-meta b { font-size: 0.74rem; font-weight: 600; }
+  .sw-meta code { font-size: 0.68rem; color: var(--t-ink2); }
+  .ratio { font: 500 0.66rem var(--mono); color: var(--t-ink2); }
+  .ratio--mal { color: #ff6b6b; font-weight: 700; }
+
+  .tabla { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 0.84rem; }
+  .tabla th { text-align: left; font-size: 0.7rem; text-transform: uppercase;
+              letter-spacing: 0.08em; color: var(--pg-ink2); font-weight: 600;
+              padding: 8px 10px; border-bottom: 1px solid var(--pg-line); }
+  .tabla td { padding: 7px 10px; border-bottom: 1px solid var(--pg-line);
+              font-variant-numeric: tabular-nums; }
+  .tabla td.mal { color: var(--pg-mal); font-weight: 600; }
+  .dot { display: inline-block; width: 13px; height: 13px; border-radius: 4px;
+         vertical-align: -2px; margin-right: 6px;
+         border: 1px solid rgba(128,128,128,0.35); }
+
+  .paleta { margin: 0 0 16px; }
+  .paleta-nom { display: flex; gap: 8px; align-items: baseline; margin-bottom: 5px; }
+  .rampa { display: flex; border-radius: 6px; overflow: hidden;
+           border: 1px solid var(--pg-line); height: 30px; }
+  .rampa i { flex: 1; min-width: 12px; }
+  .rampa--txt { height: auto; padding: 5px 8px; gap: 10px; align-items: center; }
+  .rampa--txt b { font: 700 12px var(--mono); }
+  .gemelos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+  .gemelo { display: flex; flex-direction: column; gap: 3px; }
+  .gemelo .sub { font-size: 0.68rem; }
+
+  .scroll-x { overflow-x: auto; }
+  @media (max-width: 640px) { .gemelos { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Temas y paletas de AmoxSQL</h1>
+<p class="lede">Todos los colores que usa la aplicación, leídos del código y medidos. Diez temas,
+veinte acentos y veinticuatro paletas de gráficos.</p>
+
+<div class="meta">
+  Generado el 2026-09-08 desde <code>client/src/index.css</code> y
+  <code>client/src/components/DataVisualizer/constants.js</code>.<br>
+  Para regenerar: <code>node scripts/genThemeReference.cjs</code> —
+  no edites este HTML a mano, se sobrescribe.
+</div>
+
+<h2>Cómo está montado</h2>
+<p>Los tokens se aplican en cinco capas, y el orden importa. <code>App.jsx</code> pone dos
+clases en <code>&lt;body&gt;</code>: la del modo (<code>mode-light</code> / <code>mode-dark</code>)
+y la del tema (<code>theme-mist</code>…; el oscuro por defecto no lleva ninguna).</p>
+
+<div class="reglas">
+  <div class="regla"><b>1 · <code>:root</code></b><p>El contrato de tokens con los valores oscuros por defecto. Solo literales.</p></div>
+  <div class="regla"><b>2 · <code>body</code></b><p>Todo lo derivado: el acento compuesto, los alias <code>--color-*</code> y los alias legacy.</p></div>
+  <div class="regla"><b>3 · <code>.mode-light</code></b><p>Lo que solo depende de claro-vs-oscuro: velo, sombras, estados, iconos, rampa de acentos clara.</p></div>
+  <div class="regla"><b>4 · <code>.theme-*</code></b><p>Superficies, texto, bordes y, si tiene paleta propia, sintaxis y feedback.</p></div>
+  <div class="regla"><b>5 · <code>.accent-*</code></b><p>Solo <code>--accent-primary</code>. Los lavados se derivan solos.</p></div>
+</div>
+
+<h2>Las dos reglas que cuestan caro</h2>
+<div class="reglas">
+  <div class="regla">
+    <b>Nada de <code>var()</code> dentro de <code>:root</code></b>
+    <p>Una propiedad con <code>var()</code> resuelve en el elemento donde se declara.
+    <code>:root</code> es <code>&lt;html&gt;</code> y las clases de tema van en <code>&lt;body&gt;</code>,
+    así que lo que se declare arriba se congela en los valores por defecto. Ha mordido cuatro veces.
+    El verificador lo comprueba.</p>
+  </div>
+  <div class="regla">
+    <b>El claro no es el oscuro más flojo</b>
+    <p>Sobre fondo oscuro un efecto funciona añadiendo luz y sobra margen. Sobre papel ese margen no
+    existe: copiar la receta con el valor bajado no da sutileza, da nada. Sombras, velo y estados
+    necesitan ir hacia arriba, no hacia abajo.</p>
+  </div>
+</div>
+
+<h2>Los diez temas</h2>
+<nav class="indice"><a href="#tema-amoxdark">Amox Dark</a><a href="#tema-obsidian">Obsidian</a><a href="#tema-onyx">Onyx</a><a href="#tema-nord">Nord Dark</a><a href="#tema-islands">Dark Islands</a><a href="#tema-ayu">Ayu Dark</a><a href="#tema-sterlingdeep">Sterling Deep</a><a href="#tema-amoxlight">Amox Light</a><a href="#tema-sterlinglight">Sterling Light</a><a href="#tema-mist">Mist</a></nav>
+<p>Cada bloque se pinta sobre el lienzo de su propio tema, porque un color solo se puede juzgar en su
+sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
+
+<section class="tema" id="tema-amoxdark" style="--t-base:#0f141a;--t-raised:#151b22;--t-ink:#e6edf3;--t-ink2:#9ba9b8;--t-line:#0c1014">
+  <header class="tema-head">
+    <h3>Amox Dark</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">.theme-amoxdark</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#0f141a"></div>
+      <div class="sw-meta"><b>base</b><code>#0f141a</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#151b22"></div>
+      <div class="sw-meta"><b>raised</b><code>#151b22</code><span class="ratio">×1.067</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#1c242d"></div>
+      <div class="sw-meta"><b>overlay</b><code>#1c242d</code><span class="ratio">×1.180</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#0c1014"></div>
+      <div class="sw-meta"><b>inset</b><code>#0c1014</code><span class="ratio">×1.032</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#e6edf3">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#e6edf3</code>
+        <span class="ratio">14.67:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#9ba9b8">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#9ba9b8</code>
+        <span class="ratio">7.23:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#6a7a8b">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#6a7a8b</code>
+        <span class="ratio">3.94:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#46525f">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#46525f</code>
+        <span class="ratio">2.17:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#1a2026"></div>
+      <div class="sw-meta"><b>subtle</b><code>#1a2026</code><span class="ratio">1.12</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#21272f"></div>
+      <div class="sw-meta"><b>default</b><code>#21272f</code><span class="ratio">1.23</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#2f373f"></div>
+      <div class="sw-meta"><b>strong</b><code>#2f373f</code><span class="ratio">1.53</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#1d242c"></div>
+      <div class="sw-meta"><b>hover</b><code>#1d242c</code><span class="ratio">1.11</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#242c34"></div>
+      <div class="sw-meta"><b>active</b><code>#242c34</code><span class="ratio">1.22</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#22d3ee"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#22d3ee</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#22d3ee">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#22d3ee</code>
+        <span class="ratio">10.24:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#22d3ee;color:#04141a">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#04141a</code>
+        <span class="ratio">10.37:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#7dd3fc">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#7dd3fc</code>
+        <span class="ratio">11.09:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#7ee0c0">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#7ee0c0</code>
+        <span class="ratio">11.72:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#f0a868">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#f0a868</code>
+        <span class="ratio">9.25:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#c4b5fd">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#c4b5fd</code>
+        <span class="ratio">10.02:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#5ea4e0">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#5ea4e0</code>
+        <span class="ratio">6.93:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#89b4c4">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#89b4c4</code>
+        <span class="ratio">8.27:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#e6edf3">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#e6edf3</code>
+        <span class="ratio">15.65:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#f0c674">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#f0c674</code>
+        <span class="ratio">11.48:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0f141a;color:#546475">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#546475</code>
+        <span class="ratio">3.04:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#5ea4e0">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#5ea4e0</code>
+        <span class="ratio">6.49:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#7ee0c0">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#7ee0c0</code>
+        <span class="ratio">10.98:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#f0a868">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#f0a868</code>
+        <span class="ratio">8.67:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#c4b5fd">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#c4b5fd</code>
+        <span class="ratio">9.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#7dd3fc">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#7dd3fc</code>
+        <span class="ratio">10.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#f0c674">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#f0c674</code>
+        <span class="ratio">10.76:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#6ee79b">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#6ee79b</code>
+        <span class="ratio">11.20:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#fb9a9a">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#fb9a9a</code>
+        <span class="ratio">8.41:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#fcd34d">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#fcd34d</code>
+        <span class="ratio">12.02:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#67e8f9">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#67e8f9</code>
+        <span class="ratio">11.96:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">7.70:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">7.82:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">6.91:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">6.86:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">7.70:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">5.37:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">7.46:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#151b22;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">3.82:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-obsidian" style="--t-base:#080a0f;--t-raised:#0e1017;--t-ink:#ffffff;--t-ink2:#ffffff;--t-line:#0b0d13">
+  <header class="tema-head">
+    <h3>Obsidian</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">(sin clase de tema)</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#080a0f"></div>
+      <div class="sw-meta"><b>base</b><code>#080a0f</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#0e1017"></div>
+      <div class="sw-meta"><b>raised</b><code>#0e1017</code><span class="ratio">×1.042</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#12151b"></div>
+      <div class="sw-meta"><b>overlay</b><code>#12151b</code><span class="ratio">×1.083</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#0b0d13"></div>
+      <div class="sw-meta"><b>inset</b><code>#0b0d13</code><span class="ratio">×1.019</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#ffffff</code>
+        <span class="ratio">19.00:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#ffffff</code>
+        <span class="ratio">19.00:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#ffffff</code>
+        <span class="ratio">19.00:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#ffffff</code>
+        <span class="ratio">19.00:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#1d1f23"></div>
+      <div class="sw-meta"><b>subtle</b><code>#1d1f23</code><span class="ratio">1.20</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#212327"></div>
+      <div class="sw-meta"><b>default</b><code>#212327</code><span class="ratio">1.25</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#303135"></div>
+      <div class="sw-meta"><b>strong</b><code>#303135</code><span class="ratio">1.53</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#1c1e25"></div>
+      <div class="sw-meta"><b>hover</b><code>#1c1e25</code><span class="ratio">1.15</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#26282e"></div>
+      <div class="sw-meta"><b>active</b><code>#26282e</code><span class="ratio">1.29</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#00c4c6"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#00c4c6</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#00c4c6">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#00c4c6</code>
+        <span class="ratio">9.16:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#00c4c6;color:#080a0f">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#080a0f</code>
+        <span class="ratio">9.16:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#969cee">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#969cee</code>
+        <span class="ratio">7.81:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#daa668">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#daa668</code>
+        <span class="ratio">9.08:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#eba66d">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#eba66d</code>
+        <span class="ratio">9.62:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#71d0d5">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#71d0d5</code>
+        <span class="ratio">11.02:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#64c7fc">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#64c7fc</code>
+        <span class="ratio">10.48:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#d5af91">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#d5af91</code>
+        <span class="ratio">9.78:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#c1cee9">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#c1cee9</code>
+        <span class="ratio">12.51:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#8ed09c">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#8ed09c</code>
+        <span class="ratio">10.99:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#080a0f;color:#56585e">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#56585e</code>
+        <span class="ratio">2.78:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#9ddfff">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#9ddfff</code>
+        <span class="ratio">13.06:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#b3d1ad">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#b3d1ad</code>
+        <span class="ratio">11.44:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#d9906f">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#d9906f</code>
+        <span class="ratio">7.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#579adc">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#579adc</code>
+        <span class="ratio">6.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#ad7eb8">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#ad7eb8</code>
+        <span class="ratio">5.84:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#d0c498">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#d0c498</code>
+        <span class="ratio">10.89:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#41d686">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#41d686</code>
+        <span class="ratio">10.12:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#ff6f69">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#ff6f69</code>
+        <span class="ratio">6.99:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#f7ac4d">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#f7ac4d</code>
+        <span class="ratio">9.92:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#59aaf8">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#59aaf8</code>
+        <span class="ratio">7.72:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">8.45:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">8.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">7.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">7.52:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">8.45:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">5.88:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">8.18:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">4.18:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-onyx" style="--t-base:#0b0c0d;--t-raised:#131415;--t-ink:#ffffff;--t-ink2:#ffffff;--t-line:#08090a">
+  <header class="tema-head">
+    <h3>Onyx</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">.theme-onyx</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#0b0c0d"></div>
+      <div class="sw-meta"><b>base</b><code>#0b0c0d</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#131415"></div>
+      <div class="sw-meta"><b>raised</b><code>#131415</code><span class="ratio">×1.061</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#191a1c"></div>
+      <div class="sw-meta"><b>overlay</b><code>#191a1c</code><span class="ratio">×1.124</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#08090a"></div>
+      <div class="sw-meta"><b>inset</b><code>#08090a</code><span class="ratio">×1.018</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#ffffff</code>
+        <span class="ratio">18.44:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#ffffff</code>
+        <span class="ratio">18.44:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#ffffff</code>
+        <span class="ratio">18.44:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#ffffff</code>
+        <span class="ratio">18.44:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#202122"></div>
+      <div class="sw-meta"><b>subtle</b><code>#202122</code><span class="ratio">1.21</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#232425"></div>
+      <div class="sw-meta"><b>default</b><code>#232425</code><span class="ratio">1.26</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#323334"></div>
+      <div class="sw-meta"><b>strong</b><code>#323334</code><span class="ratio">1.54</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#1f2021"></div>
+      <div class="sw-meta"><b>hover</b><code>#1f2021</code><span class="ratio">1.13</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#28292a"></div>
+      <div class="sw-meta"><b>active</b><code>#28292a</code><span class="ratio">1.27</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#00c4c6"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#00c4c6</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#00c4c6">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#00c4c6</code>
+        <span class="ratio">9.05:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#00c4c6;color:#0b0c0d">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#0b0c0d</code>
+        <span class="ratio">9.05:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#969cee">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#969cee</code>
+        <span class="ratio">7.73:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#daa668">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#daa668</code>
+        <span class="ratio">8.98:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#eba66d">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#eba66d</code>
+        <span class="ratio">9.52:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#71d0d5">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#71d0d5</code>
+        <span class="ratio">10.89:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#64c7fc">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#64c7fc</code>
+        <span class="ratio">10.36:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#d5af91">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#d5af91</code>
+        <span class="ratio">9.67:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#c1cee9">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#c1cee9</code>
+        <span class="ratio">12.37:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#8ed09c">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#8ed09c</code>
+        <span class="ratio">10.86:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#56585e">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#56585e</code>
+        <span class="ratio">2.75:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#9ddfff">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#9ddfff</code>
+        <span class="ratio">12.68:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#b3d1ad">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#b3d1ad</code>
+        <span class="ratio">11.10:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d9906f">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#d9906f</code>
+        <span class="ratio">7.17:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#579adc">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#579adc</code>
+        <span class="ratio">6.20:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ad7eb8">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#ad7eb8</code>
+        <span class="ratio">5.67:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d0c498">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#d0c498</code>
+        <span class="ratio">10.57:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#41d686">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#41d686</code>
+        <span class="ratio">9.83:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ff6f69">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#ff6f69</code>
+        <span class="ratio">6.79:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#f7ac4d">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#f7ac4d</code>
+        <span class="ratio">9.63:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#59aaf8">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#59aaf8</code>
+        <span class="ratio">7.49:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">8.20:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">8.33:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">7.36:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">7.30:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">8.20:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">5.71:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">7.94:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">4.06:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-nord" style="--t-base:#1a1e25;--t-raised:#222833;--t-ink:#d8dee9;--t-ink2:#98a4b3;--t-line:#151920">
+  <header class="tema-head">
+    <h3>Nord Dark</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">.theme-nord</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#1a1e25"></div>
+      <div class="sw-meta"><b>base</b><code>#1a1e25</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#222833"></div>
+      <div class="sw-meta"><b>raised</b><code>#222833</code><span class="ratio">×1.130</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#2e3440"></div>
+      <div class="sw-meta"><b>overlay</b><code>#2e3440</code><span class="ratio">×1.338</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#151920"></div>
+      <div class="sw-meta"><b>inset</b><code>#151920</code><span class="ratio">×1.054</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#d8dee9">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#d8dee9</code>
+        <span class="ratio">10.95:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#98a4b3">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#98a4b3</code>
+        <span class="ratio">5.85:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#6f7d8f">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#6f7d8f</code>
+        <span class="ratio">3.53:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#434c5e">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#434c5e</code>
+        <span class="ratio">1.71:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#272b33"></div>
+      <div class="sw-meta"><b>subtle</b><code>#272b33</code><span class="ratio">1.18</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#2f333b"></div>
+      <div class="sw-meta"><b>default</b><code>#2f333b</code><span class="ratio">1.32</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#3c4148"></div>
+      <div class="sw-meta"><b>strong</b><code>#3c4148</code><span class="ratio">1.62</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#2b313c"></div>
+      <div class="sw-meta"><b>hover</b><code>#2b313c</code><span class="ratio">1.13</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#323843"></div>
+      <div class="sw-meta"><b>active</b><code>#323843</code><span class="ratio">1.26</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#81a1c1"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#81a1c1</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#81a1c1">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#81a1c1</code>
+        <span class="ratio">6.21:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#81a1c1;color:#1a1e25">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#1a1e25</code>
+        <span class="ratio">6.21:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#81a1c1">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#81a1c1</code>
+        <span class="ratio">6.21:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#a3be8c">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#a3be8c</code>
+        <span class="ratio">8.20:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#b48ead">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#b48ead</code>
+        <span class="ratio">5.90:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#88c0d0">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#88c0d0</code>
+        <span class="ratio">8.36:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#8fbcbb">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#8fbcbb</code>
+        <span class="ratio">8.02:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#81a1c1">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#81a1c1</code>
+        <span class="ratio">6.21:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#d8dee9">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#d8dee9</code>
+        <span class="ratio">12.37:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#b48ead">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#b48ead</code>
+        <span class="ratio">5.90:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1a1e25;color:#616e88">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#616e88</code>
+        <span class="ratio">3.26:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#9ddfff">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#9ddfff</code>
+        <span class="ratio">10.17:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#b3d1ad">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#b3d1ad</code>
+        <span class="ratio">8.91:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#d9906f">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#d9906f</code>
+        <span class="ratio">5.76:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#579adc">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#579adc</code>
+        <span class="ratio">4.97:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#ad7eb8">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#ad7eb8</code>
+        <span class="ratio">4.55:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#d0c498">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#d0c498</code>
+        <span class="ratio">8.48:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#a3be8c">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#a3be8c</code>
+        <span class="ratio">7.26:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#d6888f">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#d6888f</code>
+        <span class="ratio">5.48:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#ebcb8b">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#ebcb8b</code>
+        <span class="ratio">9.47:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#59aaf8">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#59aaf8</code>
+        <span class="ratio">6.01:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">6.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">6.68:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">5.90:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">5.85:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">6.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">6.37:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#222833;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">3.26:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-islands" style="--t-base:#181a1d;--t-raised:#1e2024;--t-ink:#cdced4;--t-ink2:#9a9ea6;--t-line:#131517">
+  <header class="tema-head">
+    <h3>Dark Islands</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">.theme-islands</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#181a1d"></div>
+      <div class="sw-meta"><b>base</b><code>#181a1d</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#1e2024"></div>
+      <div class="sw-meta"><b>raised</b><code>#1e2024</code><span class="ratio">×1.069</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#252729"></div>
+      <div class="sw-meta"><b>overlay</b><code>#252729</code><span class="ratio">×1.163</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#131517"></div>
+      <div class="sw-meta"><b>inset</b><code>#131517</code><span class="ratio">×1.050</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#cdced4">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#cdced4</code>
+        <span class="ratio">10.39:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#9a9ea6">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#9a9ea6</code>
+        <span class="ratio">6.07:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#7e828a">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#7e828a</code>
+        <span class="ratio">4.23:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#4a4d53">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#4a4d53</code>
+        <span class="ratio">1.92:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#232529"></div>
+      <div class="sw-meta"><b>subtle</b><code>#232529</code><span class="ratio">1.14</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#2c2e31"></div>
+      <div class="sw-meta"><b>default</b><code>#2c2e31</code><span class="ratio">1.28</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#393b3e"></div>
+      <div class="sw-meta"><b>strong</b><code>#393b3e</code><span class="ratio">1.55</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#27292e"></div>
+      <div class="sw-meta"><b>hover</b><code>#27292e</code><span class="ratio">1.13</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#2e3034"></div>
+      <div class="sw-meta"><b>active</b><code>#2e3034</code><span class="ratio">1.23</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#548af7"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#548af7</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#548af7">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#548af7</code>
+        <span class="ratio">5.28:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#548af7;color:#181a1d">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#181a1d</code>
+        <span class="ratio">5.28:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#cf8e6d">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#cf8e6d</code>
+        <span class="ratio">6.43:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#6aab73">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#6aab73</code>
+        <span class="ratio">6.38:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#2aacb8">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#2aacb8</code>
+        <span class="ratio">6.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#56a8f5">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#56a8f5</code>
+        <span class="ratio">6.90:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#c77dbb">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#c77dbb</code>
+        <span class="ratio">5.88:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#bcbec4">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#bcbec4</code>
+        <span class="ratio">9.38:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#bcbec4">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#bcbec4</code>
+        <span class="ratio">9.38:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#e8a33e">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#e8a33e</code>
+        <span class="ratio">8.09:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#181a1d;color:#555861">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#555861</code>
+        <span class="ratio">2.45:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#9ddfff">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#9ddfff</code>
+        <span class="ratio">11.21:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#b3d1ad">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#b3d1ad</code>
+        <span class="ratio">9.82:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#d9906f">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#d9906f</code>
+        <span class="ratio">6.35:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#579adc">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#579adc</code>
+        <span class="ratio">5.49:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#ad7eb8">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#ad7eb8</code>
+        <span class="ratio">5.01:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#d0c498">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#d0c498</code>
+        <span class="ratio">9.35:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#6aab73">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#6aab73</code>
+        <span class="ratio">5.97:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#f9667a">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#f9667a</code>
+        <span class="ratio">5.60:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#f0b95e">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#f0b95e</code>
+        <span class="ratio">9.17:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#42c6d2">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#42c6d2</code>
+        <span class="ratio">7.95:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">7.25:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">7.36:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">6.51:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">6.45:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">7.25:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">5.05:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">7.02:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#1e2024;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">3.59:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-ayu" style="--t-base:#0d1017;--t-raised:#141821;--t-ink:#c5c3bc;--t-ink2:#8b93a1;--t-line:#080a0f">
+  <header class="tema-head">
+    <h3>Ayu Dark</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">.theme-ayu</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#0d1017"></div>
+      <div class="sw-meta"><b>base</b><code>#0d1017</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#141821"></div>
+      <div class="sw-meta"><b>raised</b><code>#141821</code><span class="ratio">×1.071</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#1b2029"></div>
+      <div class="sw-meta"><b>overlay</b><code>#1b2029</code><span class="ratio">×1.165</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#080a0f"></div>
+      <div class="sw-meta"><b>inset</b><code>#080a0f</code><span class="ratio">×1.041</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#c5c3bc">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#c5c3bc</code>
+        <span class="ratio">10.07:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#8b93a1">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#8b93a1</code>
+        <span class="ratio">5.74:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#63708a">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#63708a</code>
+        <span class="ratio">3.57:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#3d4453">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#3d4453</code>
+        <span class="ratio">1.82:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#171b24"></div>
+      <div class="sw-meta"><b>subtle</b><code>#171b24</code><span class="ratio">1.11</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#222731"></div>
+      <div class="sw-meta"><b>default</b><code>#222731</code><span class="ratio">1.26</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#333a47"></div>
+      <div class="sw-meta"><b>strong</b><code>#333a47</code><span class="ratio">1.66</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#1d222c"></div>
+      <div class="sw-meta"><b>hover</b><code>#1d222c</code><span class="ratio">1.11</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#232935"></div>
+      <div class="sw-meta"><b>active</b><code>#232935</code><span class="ratio">1.22</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#e6b450"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#e6b450</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#e6b450">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#e6b450</code>
+        <span class="ratio">9.98:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e6b450;color:#0d1017">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#0d1017</code>
+        <span class="ratio">9.98:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#ff8f40">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#ff8f40</code>
+        <span class="ratio">8.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#aad94c">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#aad94c</code>
+        <span class="ratio">11.54:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#d2a6ff">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#d2a6ff</code>
+        <span class="ratio">9.64:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#ffb454">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#ffb454</code>
+        <span class="ratio">10.79:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#59c2ff">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#59c2ff</code>
+        <span class="ratio">9.59:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#f29668">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#f29668</code>
+        <span class="ratio">8.46:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#bfbdb6">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#bfbdb6</code>
+        <span class="ratio">10.12:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#d2a6ff">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#d2a6ff</code>
+        <span class="ratio">9.64:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#646d7c">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#646d7c</code>
+        <span class="ratio">3.64:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#59c2ff">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#59c2ff</code>
+        <span class="ratio">8.95:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#95e6cb">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#95e6cb</code>
+        <span class="ratio">12.23:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#aad94c">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#aad94c</code>
+        <span class="ratio">10.77:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d2a6ff">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#d2a6ff</code>
+        <span class="ratio">9.00:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#ff8f40">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#ff8f40</code>
+        <span class="ratio">7.83:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#e6b450">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#e6b450</code>
+        <span class="ratio">9.31:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#a2e585">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#a2e585</code>
+        <span class="ratio">11.91:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#f79aa0">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#f79aa0</code>
+        <span class="ratio">8.53:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#ffcb87">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#ffcb87</code>
+        <span class="ratio">11.96:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#8ad4ff">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#8ad4ff</code>
+        <span class="ratio">10.95:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">7.89:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">8.02:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">7.09:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">7.03:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">7.89:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">5.50:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">7.64:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">3.91:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-sterlingdeep" style="--t-base:#08060f;--t-raised:#0c0a14;--t-ink:#ede9f5;--t-ink2:#a99fc4;--t-line:#05040b">
+  <header class="tema-head">
+    <h3>Sterling Deep</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">.theme-sterlingdeep</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#08060f"></div>
+      <div class="sw-meta"><b>base</b><code>#08060f</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#0c0a14"></div>
+      <div class="sw-meta"><b>raised</b><code>#0c0a14</code><span class="ratio">×1.025</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#14111e"></div>
+      <div class="sw-meta"><b>overlay</b><code>#14111e</code><span class="ratio">×1.082</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#05040b"></div>
+      <div class="sw-meta"><b>inset</b><code>#05040b</code><span class="ratio">×1.014</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#ede9f5">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#ede9f5</code>
+        <span class="ratio">16.44:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#a99fc4">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#a99fc4</code>
+        <span class="ratio">7.90:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#8b7fa8">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#8b7fa8</code>
+        <span class="ratio">5.33:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#5c5178">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#5c5178</code>
+        <span class="ratio">2.72:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#191622"></div>
+      <div class="sw-meta"><b>subtle</b><code>#191622</code><span class="ratio">1.13</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#221e2c"></div>
+      <div class="sw-meta"><b>default</b><code>#221e2c</code><span class="ratio">1.24</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#332f41"></div>
+      <div class="sw-meta"><b>strong</b><code>#332f41</code><span class="ratio">1.56</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#1b1827"></div>
+      <div class="sw-meta"><b>hover</b><code>#1b1827</code><span class="ratio">1.12</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#262235"></div>
+      <div class="sw-meta"><b>active</b><code>#262235</code><span class="ratio">1.27</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#c4b5fd"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#c4b5fd</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#c4b5fd">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#c4b5fd</code>
+        <span class="ratio">10.90:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#c4b5fd;color:#08060f">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#08060f</code>
+        <span class="ratio">10.90:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#b69af2">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#b69af2</code>
+        <span class="ratio">8.52:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#5ec9ae">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#5ec9ae</code>
+        <span class="ratio">10.01:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#f2c46d">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#f2c46d</code>
+        <span class="ratio">12.36:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#86a8e8">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#86a8e8</code>
+        <span class="ratio">8.42:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#e88bdd">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#e88bdd</code>
+        <span class="ratio">8.79:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#b7c8d1">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#b7c8d1</code>
+        <span class="ratio">11.69:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#ede9f5">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#ede9f5</code>
+        <span class="ratio">16.85:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#f29a88">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#f29a88</code>
+        <span class="ratio">9.35:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#645980">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#645980</code>
+        <span class="ratio">3.15:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#86a8e8">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#86a8e8</code>
+        <span class="ratio">8.21:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#5ec9ae">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#5ec9ae</code>
+        <span class="ratio">9.77:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#f2c46d">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#f2c46d</code>
+        <span class="ratio">12.06:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#b69af2">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#b69af2</code>
+        <span class="ratio">8.32:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#e88bdd">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#e88bdd</code>
+        <span class="ratio">8.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#b7c8d1">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#b7c8d1</code>
+        <span class="ratio">11.41:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#78d8c1">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#78d8c1</code>
+        <span class="ratio">11.59:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#f6aa9a">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#f6aa9a</code>
+        <span class="ratio">10.41:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#f5cb7c">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#f5cb7c</code>
+        <span class="ratio">12.83:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#9bb9ef">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#9bb9ef</code>
+        <span class="ratio">9.90:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">8.73:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">8.87:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">7.84:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">7.77:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">8.73:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">6.08:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">8.45:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">4.32:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-amoxlight" style="--t-base:#f1f4f7;--t-raised:#f8fafb;--t-ink:#1c2530;--t-ink2:#41505e;--t-line:#e7ebef">
+  <header class="tema-head">
+    <h3>Amox Light</h3>
+    <span class="pill pill--claro">claro</span>
+    <code class="tema-id">.theme-amoxlight</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#f1f4f7"></div>
+      <div class="sw-meta"><b>base</b><code>#f1f4f7</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#f8fafb"></div>
+      <div class="sw-meta"><b>raised</b><code>#f8fafb</code><span class="ratio">×1.054</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#ffffff"></div>
+      <div class="sw-meta"><b>overlay</b><code>#ffffff</code><span class="ratio">×1.104</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#e7ebef"></div>
+      <div class="sw-meta"><b>inset</b><code>#e7ebef</code><span class="ratio">×1.085</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#1c2530">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#1c2530</code>
+        <span class="ratio">14.78:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#41505e">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#41505e</code>
+        <span class="ratio">7.92:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#5a6b79">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#5a6b79</code>
+        <span class="ratio">5.26:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#7b8691">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#7b8691</code>
+        <span class="ratio">3.54:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#e2e6e9"></div>
+      <div class="sw-meta"><b>subtle</b><code>#e2e6e9</code><span class="ratio">1.14</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#d7dbdf"></div>
+      <div class="sw-meta"><b>default</b><code>#d7dbdf</code><span class="ratio">1.26</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#c6cbcf"></div>
+      <div class="sw-meta"><b>strong</b><code>#c6cbcf</code><span class="ratio">1.48</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#e9ebed"></div>
+      <div class="sw-meta"><b>hover</b><code>#e9ebed</code><span class="ratio">1.14</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#dcdfe2"></div>
+      <div class="sw-meta"><b>active</b><code>#dcdfe2</code><span class="ratio">1.27</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#007584"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#007584</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#007584">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#007584</code>
+        <span class="ratio">4.91:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#007584;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#ffffff</code>
+        <span class="ratio">5.42:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#b03a9e">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#b03a9e</code>
+        <span class="ratio">4.82:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#3f7a1f">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#3f7a1f</code>
+        <span class="ratio">4.74:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#8a5a00">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#8a5a00</code>
+        <span class="ratio">5.37:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#1e66c7">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#1e66c7</code>
+        <span class="ratio">5.03:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#007584">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#007584</code>
+        <span class="ratio">4.91:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#41505e">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#41505e</code>
+        <span class="ratio">7.51:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#1c2530">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#1c2530</code>
+        <span class="ratio">14.02:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#8a5a00">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#8a5a00</code>
+        <span class="ratio">5.37:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f1f4f7;color:#7a8896">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#7a8896</code>
+        <span class="ratio">3.29:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#1e66c7">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#1e66c7</code>
+        <span class="ratio">5.31:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#007584">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#007584</code>
+        <span class="ratio">5.17:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#8a5a00">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#8a5a00</code>
+        <span class="ratio">5.66:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#6d3fc4">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#6d3fc4</code>
+        <span class="ratio">6.35:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#3f7a1f">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#3f7a1f</code>
+        <span class="ratio">5.00:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#41505e">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#41505e</code>
+        <span class="ratio">7.92:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#196a3d">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#196a3d</code>
+        <span class="ratio">6.33:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#a5291c">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#a5291c</code>
+        <span class="ratio">6.84:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#915a08">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#915a08</code>
+        <span class="ratio">5.47:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#086573">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#086573</code>
+        <span class="ratio">6.43:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#ab7400">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#ab7400</code>
+        <span class="ratio">3.84:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#1f74bf">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#1f74bf</code>
+        <span class="ratio">4.66:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#007c36">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#007c36</code>
+        <span class="ratio">5.10:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#00793d">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#00793d</code>
+        <span class="ratio">5.28:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#ab7400">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#ab7400</code>
+        <span class="ratio">3.84:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#32669a">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#32669a</code>
+        <span class="ratio">5.73:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#985593">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#985593</code>
+        <span class="ratio">4.95:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f8fafb;color:#006127">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#006127</code>
+        <span class="ratio">7.32:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-sterlinglight" style="--t-base:#f6f3fb;--t-raised:#fbf9fe;--t-ink:#241a3d;--t-ink2:#5c5178;--t-line:#ede8f6">
+  <header class="tema-head">
+    <h3>Sterling Light</h3>
+    <span class="pill pill--claro">claro</span>
+    <code class="tema-id">.theme-sterlinglight</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#f6f3fb"></div>
+      <div class="sw-meta"><b>base</b><code>#f6f3fb</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#fbf9fe"></div>
+      <div class="sw-meta"><b>raised</b><code>#fbf9fe</code><span class="ratio">×1.050</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#ffffff"></div>
+      <div class="sw-meta"><b>overlay</b><code>#ffffff</code><span class="ratio">×1.098</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#ede8f6"></div>
+      <div class="sw-meta"><b>inset</b><code>#ede8f6</code><span class="ratio">×1.095</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#241a3d">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#241a3d</code>
+        <span class="ratio">15.57:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#5c5178">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#5c5178</code>
+        <span class="ratio">6.92:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#6e628c">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#6e628c</code>
+        <span class="ratio">5.30:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#897fa3">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#897fa3</code>
+        <span class="ratio">3.57:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#e7e4ee"></div>
+      <div class="sw-meta"><b>subtle</b><code>#e7e4ee</code><span class="ratio">1.14</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#ddd9e4"></div>
+      <div class="sw-meta"><b>default</b><code>#ddd9e4</code><span class="ratio">1.27</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#ccc8d5"></div>
+      <div class="sw-meta"><b>strong</b><code>#ccc8d5</code><span class="ratio">1.50</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#ece9f0"></div>
+      <div class="sw-meta"><b>hover</b><code>#ece9f0</code><span class="ratio">1.15</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#e0dde6"></div>
+      <div class="sw-meta"><b>active</b><code>#e0dde6</code><span class="ratio">1.28</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#6b49cb"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#6b49cb</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#6b49cb">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#6b49cb</code>
+        <span class="ratio">5.56:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#6b49cb;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#ffffff</code>
+        <span class="ratio">6.10:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#6945b8">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#6945b8</code>
+        <span class="ratio">6.09:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#147568">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#147568</code>
+        <span class="ratio">5.07:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#855700">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#855700</code>
+        <span class="ratio">5.69:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#365da5">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#365da5</code>
+        <span class="ratio">5.86:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#a43a99">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#a43a99</code>
+        <span class="ratio">5.25:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#445762">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#445762</code>
+        <span class="ratio">6.87:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#241a3d">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#241a3d</code>
+        <span class="ratio">14.83:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#a94230">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#a94230</code>
+        <span class="ratio">5.45:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f6f3fb;color:#8a80a5">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#8a80a5</code>
+        <span class="ratio">3.35:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#365da5">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#365da5</code>
+        <span class="ratio">6.15:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#147568">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#147568</code>
+        <span class="ratio">5.32:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#855700">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#855700</code>
+        <span class="ratio">5.98:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#6945b8">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#6945b8</code>
+        <span class="ratio">6.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#a43a99">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#a43a99</code>
+        <span class="ratio">5.51:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#445762">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#445762</code>
+        <span class="ratio">7.21:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#0f6156">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#0f6156</code>
+        <span class="ratio">7.01:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#93382a">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#93382a</code>
+        <span class="ratio">7.07:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#6f4a00">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#6f4a00</code>
+        <span class="ratio">7.56:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#2c4d8e">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#2c4d8e</code>
+        <span class="ratio">7.85:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#ab7400">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#ab7400</code>
+        <span class="ratio">3.84:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#1f74bf">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#1f74bf</code>
+        <span class="ratio">4.66:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#007c36">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#007c36</code>
+        <span class="ratio">5.10:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#00793d">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#00793d</code>
+        <span class="ratio">5.28:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#ab7400">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#ab7400</code>
+        <span class="ratio">3.84:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#32669a">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#32669a</code>
+        <span class="ratio">5.73:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#985593">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#985593</code>
+        <span class="ratio">4.95:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#fbf9fe;color:#006127">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#006127</code>
+        <span class="ratio">7.33:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tema" id="tema-mist" style="--t-base:#f2f4f8;--t-raised:#e8ecf2;--t-ink:#262d3c;--t-ink2:#495366;--t-line:#dce1e9">
+  <header class="tema-head">
+    <h3>Mist</h3>
+    <span class="pill pill--claro">claro</span>
+    <code class="tema-id">.theme-mist</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#f2f4f8"></div>
+      <div class="sw-meta"><b>base</b><code>#f2f4f8</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#e8ecf2"></div>
+      <div class="sw-meta"><b>raised</b><code>#e8ecf2</code><span class="ratio">×1.077</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#ffffff"></div>
+      <div class="sw-meta"><b>overlay</b><code>#ffffff</code><span class="ratio">×1.101</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#dce1e9"></div>
+      <div class="sw-meta"><b>inset</b><code>#dce1e9</code><span class="ratio">×1.193</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#262d3c">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#262d3c</code>
+        <span class="ratio">11.63:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#495366">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#495366</code>
+        <span class="ratio">6.53:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#5b6376">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#5b6376</code>
+        <span class="ratio">5.07:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#767e8f">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#767e8f</code>
+        <span class="ratio">3.44:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#dfe3e9"></div>
+      <div class="sw-meta"><b>subtle</b><code>#dfe3e9</code><span class="ratio">1.17</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#d5d9e1"></div>
+      <div class="sw-meta"><b>default</b><code>#d5d9e1</code><span class="ratio">1.29</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#bdc3cd"></div>
+      <div class="sw-meta"><b>strong</b><code>#bdc3cd</code><span class="ratio">1.61</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#dadfe5"></div>
+      <div class="sw-meta"><b>hover</b><code>#dadfe5</code><span class="ratio">1.13</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#d0d4db"></div>
+      <div class="sw-meta"><b>active</b><code>#d0d4db</code><span class="ratio">1.25</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#4e61a0"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#4e61a0</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#4e61a0">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#4e61a0</code>
+        <span class="ratio">5.39:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#4e61a0;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#ffffff</code>
+        <span class="ratio">5.93:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#7c5cc2">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#7c5cc2</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#367b60">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#367b60</code>
+        <span class="ratio">4.59:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#ad5726">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#ad5726</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#466eb3">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#466eb3</code>
+        <span class="ratio">4.60:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#267a78">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#267a78</code>
+        <span class="ratio">4.61:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#8d6747">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#8d6747</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#2c3444">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#2c3444</code>
+        <span class="ratio">11.34:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#7c5cc2">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#7c5cc2</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#f2f4f8;color:#858b9b">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#858b9b</code>
+        <span class="ratio">3.09:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#4269ae">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#4269ae</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#207573">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#207573</code>
+        <span class="ratio">4.60:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#a75220">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#a75220</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#7656bc">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#7656bc</code>
+        <span class="ratio">4.63:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#30765a">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#30765a</code>
+        <span class="ratio">4.58:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#566178">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#566178</code>
+        <span class="ratio">5.25:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#326f44">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#326f44</code>
+        <span class="ratio">5.07:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#a5443e">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#a5443e</code>
+        <span class="ratio">5.07:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#7f5d00">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#7f5d00</code>
+        <span class="ratio">5.11:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#005db8">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#005db8</code>
+        <span class="ratio">5.44:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#ab7400">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#ab7400</code>
+        <span class="ratio">3.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#1f74bf">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#1f74bf</code>
+        <span class="ratio">4.11:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#007c36">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#007c36</code>
+        <span class="ratio">4.50:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#00793d">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#00793d</code>
+        <span class="ratio">4.66:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#ab7400">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#ab7400</code>
+        <span class="ratio">3.39:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#32669a">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#32669a</code>
+        <span class="ratio">5.06:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#985593">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#985593</code>
+        <span class="ratio">4.37:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#e8ecf2;color:#006127">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#006127</code>
+        <span class="ratio">6.47:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<h2>La rampa de acentos</h2>
+<p>Los mismos tonos en los dos modos, pero no la misma luminosidad. En claro está clavada en
+L 0.47–0.52 porque <code>--accent-primary</code> se usa a la vez como texto (146 sitios) y como
+relleno con texto blanco encima (100), y esas dos exigencias solo se cumplen juntas en esa banda.
+El precio es que en claro la rampa deja de ser de luminosidad y pasa a ser de <b>tono</b>: los
+cuatro pasos turquesa quedan casi idénticos.</p>
+<p>En oscuro, el extremo profundo (<code>linear</code>, <code>amox-9</code>, <code>amox-10</code>)
+queda por debajo de 4.5 usado como texto. Está medido y sin decidir: subirlo cambiaría el aspecto de
+los siete temas oscuros a la vez.</p>
+<div class="scroll-x">
+<table class="tabla">
+  <thead><tr><th>preset</th><th colspan="2">oscuro <span class="sub">sobre #080a0f</span></th><th colspan="2">claro <span class="sub">sobre #f1f4f7</span></th></tr></thead>
+  <tbody><tr>
+          <td><code>linear</code></td>
+          <td><span class="dot" style="background:#5960bb"></span><code>#5960bb</code></td>
+          <td class="mal">3.60</td>
+          <td><span class="dot" style="background:#5359b4"></span><code>#5359b4</code></td>
+          <td class="">5.50</td>
+        </tr><tr>
+          <td><code>islands</code></td>
+          <td><span class="dot" style="background:#548af7"></span><code>#548af7</code></td>
+          <td class="">5.99</td>
+          <td><span class="dot" style="background:#245cc8"></span><code>#245cc8</code></td>
+          <td class="">5.53</td>
+        </tr><tr>
+          <td><code>amox-2</code></td>
+          <td><span class="dot" style="background:#16f9f9"></span><code>#16f9f9</code></td>
+          <td class="">15.04</td>
+          <td><span class="dot" style="background:#006e70"></span><code>#006e70</code></td>
+          <td class="">5.49</td>
+        </tr><tr>
+          <td><code>amox-3</code></td>
+          <td><span class="dot" style="background:#27f4f8"></span><code>#27f4f8</code></td>
+          <td class="">14.50</td>
+          <td><span class="dot" style="background:#006e72"></span><code>#006e72</code></td>
+          <td class="">5.48</td>
+        </tr><tr>
+          <td><code>amox-4</code></td>
+          <td><span class="dot" style="background:#25e8f5"></span><code>#25e8f5</code></td>
+          <td class="">13.14</td>
+          <td><span class="dot" style="background:#006d78"></span><code>#006d78</code></td>
+          <td class="">5.50</td>
+        </tr><tr>
+          <td><code>amox-5</code></td>
+          <td><span class="dot" style="background:#2fdbf7"></span><code>#2fdbf7</code></td>
+          <td class="">11.88</td>
+          <td><span class="dot" style="background:#006c82"></span><code>#006c82</code></td>
+          <td class="">5.49</td>
+        </tr><tr>
+          <td><code>amox-6</code></td>
+          <td><span class="dot" style="background:#2fc5fa"></span><code>#2fc5fa</code></td>
+          <td class="">9.89</td>
+          <td><span class="dot" style="background:#006997"></span><code>#006997</code></td>
+          <td class="">5.49</td>
+        </tr><tr>
+          <td><code>amox-7</code></td>
+          <td><span class="dot" style="background:#3dacfe"></span><code>#3dacfe</code></td>
+          <td class="">8.04</td>
+          <td><span class="dot" style="background:#0065a9"></span><code>#0065a9</code></td>
+          <td class="">5.54</td>
+        </tr><tr>
+          <td><code>amox-8</code></td>
+          <td><span class="dot" style="background:#3f93f7"></span><code>#3f93f7</code></td>
+          <td class="">6.34</td>
+          <td><span class="dot" style="background:#0a61bc"></span><code>#0a61bc</code></td>
+          <td class="">5.52</td>
+        </tr><tr>
+          <td><code>amox-9</code></td>
+          <td><span class="dot" style="background:#3f7cf3"></span><code>#3f7cf3</code></td>
+          <td class="">5.08</td>
+          <td><span class="dot" style="background:#2057c4"></span><code>#2057c4</code></td>
+          <td class="">5.90</td>
+        </tr><tr>
+          <td><code>amox-10</code></td>
+          <td><span class="dot" style="background:#4164ed"></span><code>#4164ed</code></td>
+          <td class="mal">4.03</td>
+          <td><span class="dot" style="background:#2d49c9"></span><code>#2d49c9</code></td>
+          <td class="">6.54</td>
+        </tr><tr>
+          <td><code>sage</code></td>
+          <td><span class="dot" style="background:#6fb789"></span><code>#6fb789</code></td>
+          <td class="">8.31</td>
+          <td><span class="dot" style="background:#00723b"></span><code>#00723b</code></td>
+          <td class="">5.48</td>
+        </tr><tr>
+          <td><code>amber</code></td>
+          <td><span class="dot" style="background:#e4ac59"></span><code>#e4ac59</code></td>
+          <td class="">9.75</td>
+          <td><span class="dot" style="background:#8d5500"></span><code>#8d5500</code></td>
+          <td class="">5.54</td>
+        </tr><tr>
+          <td><code>rose</code></td>
+          <td><span class="dot" style="background:#e1707c"></span><code>#e1707c</code></td>
+          <td class="">6.42</td>
+          <td><span class="dot" style="background:#b92846"></span><code>#b92846</code></td>
+          <td class="">5.51</td>
+        </tr><tr>
+          <td><code>lavender</code></td>
+          <td><span class="dot" style="background:#aa8dde"></span><code>#aa8dde</code></td>
+          <td class="">7.14</td>
+          <td><span class="dot" style="background:#6e3ead"></span><code>#6e3ead</code></td>
+          <td class="">6.44</td>
+        </tr><tr>
+          <td><code>steel</code></td>
+          <td><span class="dot" style="background:#7c9cbc"></span><code>#7c9cbc</code></td>
+          <td class="">6.92</td>
+          <td><span class="dot" style="background:#335b83"></span><code>#335b83</code></td>
+          <td class="">6.42</td>
+        </tr><tr>
+          <td><code>copper</code></td>
+          <td><span class="dot" style="background:#d7926b"></span><code>#d7926b</code></td>
+          <td class="">7.74</td>
+          <td><span class="dot" style="background:#9b4805"></span><code>#9b4805</code></td>
+          <td class="">5.73</td>
+        </tr></tbody>
+</table></div>
+
+<h2>Paletas de gráficos</h2>
+<p>Las de <code>DataVisualizer/constants.js</code>. Las que tienen <b>gemelos de leyenda</b> llevan
+un segundo juego de colores solo para el TEXTO que etiqueta cada serie: el tono que funciona como
+mancha de área no funciona como letra, así que cada categórica tiene su versión oscurecida para
+papel y aclarada para fondo oscuro.</p>
+
+      <h4>Categóricas</h4>
+      
+        <div class="paleta">
+          <div class="paleta-nom"><code>default</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#9b87f5" title="#9b87f5"></i><i style="background:#f87171" title="#f87171"></i><i style="background:#60a5fa" title="#60a5fa"></i><i style="background:#fbbf24" title="#fbbf24"></i><i style="background:#34d399" title="#34d399"></i><i style="background:#f472b6" title="#f472b6"></i><i style="background:#a78bfa" title="#a78bfa"></i><i style="background:#fb923c" title="#fb923c"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#755ad2" title="#755ad2">Aa</b><b style="color:#cd3741" title="#cd3741">Aa</b><b style="color:#1c70cb" title="#1c70cb">Aa</b><b style="color:#9e5e00" title="#9e5e00">Aa</b><b style="color:#007e45" title="#007e45">Aa</b><b style="color:#c53488" title="#c53488">Aa</b><b style="color:#7a56cf" title="#7a56cf">Aa</b><b style="color:#bc4c00" title="#bc4c00">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#9c83ff" title="#9c83ff">Aa</b><b style="color:#ff686b" title="#ff686b">Aa</b><b style="color:#56a4ff" title="#56a4ff">Aa</b><b style="color:#ffbd00" title="#ffbd00">Aa</b><b style="color:#00d695" title="#00d695">Aa</b><b style="color:#fc69b8" title="#fc69b8">Aa</b><b style="color:#a887ff" title="#a887ff">Aa</b><b style="color:#ff8d1d" title="#ff8d1d">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>vivid</code><span class="sub">19</span></div>
+          <div class="rampa"><i style="background:#3366CC" title="#3366CC"></i><i style="background:#DC3912" title="#DC3912"></i><i style="background:#FF9900" title="#FF9900"></i><i style="background:#109618" title="#109618"></i><i style="background:#990099" title="#990099"></i><i style="background:#3B3EAC" title="#3B3EAC"></i><i style="background:#0099C6" title="#0099C6"></i><i style="background:#DD4477" title="#DD4477"></i><i style="background:#66AA00" title="#66AA00"></i><i style="background:#B82E2E" title="#B82E2E"></i><i style="background:#316395" title="#316395"></i><i style="background:#994499" title="#994499"></i><i style="background:#22AA99" title="#22AA99"></i><i style="background:#AAAA11" title="#AAAA11"></i><i style="background:#6633CC" title="#6633CC"></i><i style="background:#E67300" title="#E67300"></i><i style="background:#8B0707" title="#8B0707"></i><i style="background:#329262" title="#329262"></i><i style="background:#5574A6" title="#5574A6"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#2a63d7" title="#2a63d7">Aa</b><b style="color:#dd1300" title="#dd1300">Aa</b><b style="color:#b84b00" title="#b84b00">Aa</b><b style="color:#008200" title="#008200">Aa</b><b style="color:#9f00a0" title="#9f00a0">Aa</b><b style="color:#3a38b7" title="#3a38b7">Aa</b><b style="color:#0075a6" title="#0075a6">Aa</b><b style="color:#d41d67" title="#d41d67">Aa</b><b style="color:#347f00" title="#347f00">Aa</b><b style="color:#c01c24" title="#c01c24">Aa</b><b style="color:#29639b" title="#29639b">Aa</b><b style="color:#9e3c9e" title="#9e3c9e">Aa</b><b style="color:#007c6b" title="#007c6b">Aa</b><b style="color:#767300" title="#767300">Aa</b><b style="color:#6824d9" title="#6824d9">Aa</b><b style="color:#c44500" title="#c44500">Aa</b><b style="color:#920000" title="#920000">Aa</b><b style="color:#007e4a" title="#007e4a">Aa</b><b style="color:#4e70a8" title="#4e70a8">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#3f7af0" title="#3f7af0">Aa</b><b style="color:#f33500" title="#f33500">Aa</b><b style="color:#ff9400" title="#ff9400">Aa</b><b style="color:#009800" title="#009800">Aa</b><b style="color:#d036cf" title="#d036cf">Aa</b><b style="color:#6772f5" title="#6772f5">Aa</b><b style="color:#009acd" title="#009acd">Aa</b><b style="color:#e63475" title="#e63475">Aa</b><b style="color:#5fac00" title="#5fac00">Aa</b><b style="color:#e24441" title="#e24441">Aa</b><b style="color:#4983be" title="#4983be">Aa</b><b style="color:#b957b9" title="#b957b9">Aa</b><b style="color:#00ac9a" title="#00ac9a">Aa</b><b style="color:#abaa00" title="#abaa00">Aa</b><b style="color:#905cff" title="#905cff">Aa</b><b style="color:#ee6c00" title="#ee6c00">Aa</b><b style="color:#dd4f42" title="#dd4f42">Aa</b><b style="color:#1d945e" title="#1d945e">Aa</b><b style="color:#5b7eb7" title="#5b7eb7">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>set1</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#e41a1c" title="#e41a1c"></i><i style="background:#377eb8" title="#377eb8"></i><i style="background:#4daf4a" title="#4daf4a"></i><i style="background:#984ea3" title="#984ea3"></i><i style="background:#ff7f00" title="#ff7f00"></i><i style="background:#ffff33" title="#ffff33"></i><i style="background:#a65628" title="#a65628"></i><i style="background:#f781bf" title="#f781bf"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#e10000" title="#e10000">Aa</b><b style="color:#1b73b4" title="#1b73b4">Aa</b><b style="color:#008000" title="#008000">Aa</b><b style="color:#9c48a9" title="#9c48a9">Aa</b><b style="color:#c83a00" title="#c83a00">Aa</b><b style="color:#776f00" title="#776f00">Aa</b><b style="color:#ac5218" title="#ac5218">Aa</b><b style="color:#bb3c85" title="#bb3c85">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#fc0011" title="#fc0011">Aa</b><b style="color:#2e82c3" title="#2e82c3">Aa</b><b style="color:#3eb13c" title="#3eb13c">Aa</b><b style="color:#b35ec0" title="#b35ec0">Aa</b><b style="color:#ff7700" title="#ff7700">Aa</b><b style="color:#faf900" title="#faf900">Aa</b><b style="color:#c0642f" title="#c0642f">Aa</b><b style="color:#fe7ac1" title="#fe7ac1">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>set2</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#66c2a5" title="#66c2a5"></i><i style="background:#fc8d62" title="#fc8d62"></i><i style="background:#8da0cb" title="#8da0cb"></i><i style="background:#e78ac3" title="#e78ac3"></i><i style="background:#a6d854" title="#a6d854"></i><i style="background:#ffd92f" title="#ffd92f"></i><i style="background:#e5c494" title="#e5c494"></i><i style="background:#b3b3b3" title="#b3b3b3"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#007d60" title="#007d60">Aa</b><b style="color:#bd4608" title="#bd4608">Aa</b><b style="color:#5a6d9a" title="#5a6d9a">Aa</b><b style="color:#ac4a8a" title="#ac4a8a">Aa</b><b style="color:#4a7a00" title="#4a7a00">Aa</b><b style="color:#906500" title="#906500">Aa</b><b style="color:#896733" title="#896733">Aa</b><b style="color:#6e6e6e" title="#6e6e6e">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#59c4a4" title="#59c4a4">Aa</b><b style="color:#ff8756" title="#ff8756">Aa</b><b style="color:#8ba0d0" title="#8ba0d0">Aa</b><b style="color:#ed85c6" title="#ed85c6">Aa</b><b style="color:#a2da3d" title="#a2da3d">Aa</b><b style="color:#ffd800" title="#ffd800">Aa</b><b style="color:#e8c38d" title="#e8c38d">Aa</b><b style="color:#b3b3b3" title="#b3b3b3">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>pastel</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#b3e2cd" title="#b3e2cd"></i><i style="background:#fdcdac" title="#fdcdac"></i><i style="background:#cbd5e8" title="#cbd5e8"></i><i style="background:#f4cae4" title="#f4cae4"></i><i style="background:#e6f5c9" title="#e6f5c9"></i><i style="background:#fff2ae" title="#fff2ae"></i><i style="background:#f1e2cc" title="#f1e2cc"></i><i style="background:#cccccc" title="#cccccc"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#487a66" title="#487a66">Aa</b><b style="color:#936442" title="#936442">Aa</b><b style="color:#646e80" title="#646e80">Aa</b><b style="color:#8b627c" title="#8b627c">Aa</b><b style="color:#677549" title="#677549">Aa</b><b style="color:#7c6e1f" title="#7c6e1f">Aa</b><b style="color:#7d6e58" title="#7d6e58">Aa</b><b style="color:#707070" title="#707070">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#aee3cc" title="#aee3cc">Aa</b><b style="color:#ffcba6" title="#ffcba6">Aa</b><b style="color:#cad5ea" title="#cad5ea">Aa</b><b style="color:#f7c8e5" title="#f7c8e5">Aa</b><b style="color:#e5f6c4" title="#e5f6c4">Aa</b><b style="color:#fff0a3" title="#fff0a3">Aa</b><b style="color:#f3e2c9" title="#f3e2c9">Aa</b><b style="color:#cccccc" title="#cccccc">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>dark2</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#1b9e77" title="#1b9e77"></i><i style="background:#d95f02" title="#d95f02"></i><i style="background:#7570b3" title="#7570b3"></i><i style="background:#e7298a" title="#e7298a"></i><i style="background:#66a61e" title="#66a61e"></i><i style="background:#e6ab02" title="#e6ab02"></i><i style="background:#a6761d" title="#a6761d"></i><i style="background:#666666" title="#666666"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#007f56" title="#007f56">Aa</b><b style="color:#c83e00" title="#c83e00">Aa</b><b style="color:#6e67b2" title="#6e67b2">Aa</b><b style="color:#d60075" title="#d60075">Aa</b><b style="color:#387f00" title="#387f00">Aa</b><b style="color:#9d5e00" title="#9d5e00">Aa</b><b style="color:#976200" title="#976200">Aa</b><b style="color:#666666" title="#666666">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#00a075" title="#00a075">Aa</b><b style="color:#e15700" title="#e15700">Aa</b><b style="color:#7c75c1" title="#7c75c1">Aa</b><b style="color:#f5008e" title="#f5008e">Aa</b><b style="color:#60a800" title="#60a800">Aa</b><b style="color:#eca900" title="#eca900">Aa</b><b style="color:#aa7400" title="#aa7400">Aa</b><b style="color:#7e7e7e" title="#7e7e7e">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>sterling</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#9A79E7" title="#9A79E7"></i><i style="background:#25A08D" title="#25A08D"></i><i style="background:#D45AC7" title="#D45AC7"></i><i style="background:#E4A43A" title="#E4A43A"></i><i style="background:#5A83D7" title="#5A83D7"></i><i style="background:#E87864" title="#E87864"></i><i style="background:#96AB51" title="#96AB51"></i><i style="background:#536B78" title="#536B78"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#6945B8" title="#6945B8">Aa</b><b style="color:#147568" title="#147568">Aa</b><b style="color:#A43A99" title="#A43A99">Aa</b><b style="color:#855700" title="#855700">Aa</b><b style="color:#365DA5" title="#365DA5">Aa</b><b style="color:#A94230" title="#A94230">Aa</b><b style="color:#5D6F19" title="#5D6F19">Aa</b><b style="color:#445762" title="#445762">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#C7B3F7" title="#C7B3F7">Aa</b><b style="color:#78D8C1" title="#78D8C1">Aa</b><b style="color:#F0A0E7" title="#F0A0E7">Aa</b><b style="color:#F5CB7C" title="#F5CB7C">Aa</b><b style="color:#9BB9EF" title="#9BB9EF">Aa</b><b style="color:#F6AA9A" title="#F6AA9A">Aa</b><b style="color:#C5D486" title="#C5D486">Aa</b><b style="color:#C6D5DC" title="#C6D5DC">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>sterlingDark</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#B69AF2" title="#B69AF2"></i><i style="background:#5EC9AE" title="#5EC9AE"></i><i style="background:#E88BDD" title="#E88BDD"></i><i style="background:#F2C46D" title="#F2C46D"></i><i style="background:#86A8E8" title="#86A8E8"></i><i style="background:#F29A88" title="#F29A88"></i><i style="background:#B7C974" title="#B7C974"></i><i style="background:#B7C8D1" title="#B7C8D1"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#6945B8" title="#6945B8">Aa</b><b style="color:#147568" title="#147568">Aa</b><b style="color:#A43A99" title="#A43A99">Aa</b><b style="color:#855700" title="#855700">Aa</b><b style="color:#365DA5" title="#365DA5">Aa</b><b style="color:#A94230" title="#A94230">Aa</b><b style="color:#5D6F19" title="#5D6F19">Aa</b><b style="color:#445762" title="#445762">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#C7B3F7" title="#C7B3F7">Aa</b><b style="color:#78D8C1" title="#78D8C1">Aa</b><b style="color:#F0A0E7" title="#F0A0E7">Aa</b><b style="color:#F5CB7C" title="#F5CB7C">Aa</b><b style="color:#9BB9EF" title="#9BB9EF">Aa</b><b style="color:#F6AA9A" title="#F6AA9A">Aa</b><b style="color:#C5D486" title="#C5D486">Aa</b><b style="color:#C6D5DC" title="#C6D5DC">Aa</b></div></div>
+          </div>
+        </div>
+      <h4>Secuenciales</h4>
+      
+        <div class="paleta">
+          <div class="paleta-nom"><code>blues</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#084594" title="#084594"></i><i style="background:#2171b5" title="#2171b5"></i><i style="background:#4292c6" title="#4292c6"></i><i style="background:#6baed6" title="#6baed6"></i><i style="background:#9ecae1" title="#9ecae1"></i><i style="background:#c6dbef" title="#c6dbef"></i><i style="background:#deebf7" title="#deebf7"></i><i style="background:#f7fbff" title="#f7fbff"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#00439d" title="#00439d">Aa</b><b style="color:#0571bd" title="#0571bd">Aa</b><b style="color:#0075ae" title="#0075ae">Aa</b><b style="color:#2677a2" title="#2677a2">Aa</b><b style="color:#46758d" title="#46758d">Aa</b><b style="color:#5a7083" title="#5a7083">Aa</b><b style="color:#63707b" title="#63707b">Aa</b><b style="color:#6c7074" title="#6c7074">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#3c7edd" title="#3c7edd">Aa</b><b style="color:#2683d1" title="#2683d1">Aa</b><b style="color:#3392cd" title="#3392cd">Aa</b><b style="color:#62afdc" title="#62afdc">Aa</b><b style="color:#99cbe5" title="#99cbe5">Aa</b><b style="color:#c4dbf2" title="#c4dbf2">Aa</b><b style="color:#ddebf9" title="#ddebf9">Aa</b><b style="color:#ebeff3" title="#ebeff3">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>greens</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#005a32" title="#005a32"></i><i style="background:#238b45" title="#238b45"></i><i style="background:#41ab5d" title="#41ab5d"></i><i style="background:#74c476" title="#74c476"></i><i style="background:#a1d99b" title="#a1d99b"></i><i style="background:#c7e9c0" title="#c7e9c0"></i><i style="background:#e5f5e0" title="#e5f5e0"></i><i style="background:#f7fcf5" title="#f7fcf5"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#005c2f" title="#005c2f">Aa</b><b style="color:#008233" title="#008233">Aa</b><b style="color:#008029" title="#008029">Aa</b><b style="color:#1c7e28" title="#1c7e28">Aa</b><b style="color:#417c3c" title="#417c3c">Aa</b><b style="color:#53754d" title="#53754d">Aa</b><b style="color:#62725d" title="#62725d">Aa</b><b style="color:#6c716a" title="#6c716a">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#378d5d" title="#378d5d">Aa</b><b style="color:#089141" title="#089141">Aa</b><b style="color:#2dad55" title="#2dad55">Aa</b><b style="color:#6bc66e" title="#6bc66e">Aa</b><b style="color:#9cdb95" title="#9cdb95">Aa</b><b style="color:#c4eabc" title="#c4eabc">Aa</b><b style="color:#e3f5dd" title="#e3f5dd">Aa</b><b style="color:#ebf0e9" title="#ebf0e9">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>reds</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#99000d" title="#99000d"></i><i style="background:#cb181d" title="#cb181d"></i><i style="background:#ef3b2c" title="#ef3b2c"></i><i style="background:#fb6a4a" title="#fb6a4a"></i><i style="background:#fc9272" title="#fc9272"></i><i style="background:#fcbba1" title="#fcbba1"></i><i style="background:#fee0d2" title="#fee0d2"></i><i style="background:#fff5f0" title="#fff5f0"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#a00000" title="#a00000">Aa</b><b style="color:#d40003" title="#d40003">Aa</b><b style="color:#de0000" title="#de0000">Aa</b><b style="color:#d42f00" title="#d42f00">Aa</b><b style="color:#b84926" title="#b84926">Aa</b><b style="color:#9e5d42" title="#9e5d42">Aa</b><b style="color:#85685b" title="#85685b">Aa</b><b style="color:#776e69" title="#776e69">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#e54640" title="#e54640">Aa</b><b style="color:#f3292b" title="#f3292b">Aa</b><b style="color:#f92014" title="#f92014">Aa</b><b style="color:#ff603b" title="#ff603b">Aa</b><b style="color:#ff8d69" title="#ff8d69">Aa</b><b style="color:#ffb99b" title="#ffb99b">Aa</b><b style="color:#ffdfcf" title="#ffdfcf">Aa</b><b style="color:#f7ece6" title="#f7ece6">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>purples</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#3f007d" title="#3f007d"></i><i style="background:#54278f" title="#54278f"></i><i style="background:#6a51a3" title="#6a51a3"></i><i style="background:#807dba" title="#807dba"></i><i style="background:#9e9ac8" title="#9e9ac8"></i><i style="background:#bcbddc" title="#bcbddc"></i><i style="background:#dadaeb" title="#dadaeb"></i><i style="background:#f2f0f7" title="#f2f0f7"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#410086" title="#410086">Aa</b><b style="color:#561e97" title="#561e97">Aa</b><b style="color:#6b4eaa" title="#6b4eaa">Aa</b><b style="color:#6b66a9" title="#6b66a9">Aa</b><b style="color:#706a9b" title="#706a9b">Aa</b><b style="color:#6c6c8c" title="#6c6c8c">Aa</b><b style="color:#6e6e7f" title="#6e6e7f">Aa</b><b style="color:#6f6d74" title="#6f6d74">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#9365ea" title="#9365ea">Aa</b><b style="color:#9365df" title="#9365df">Aa</b><b style="color:#8a6ece" title="#8a6ece">Aa</b><b style="color:#807cc0" title="#807cc0">Aa</b><b style="color:#9e99cd" title="#9e99cd">Aa</b><b style="color:#bcbddf" title="#bcbddf">Aa</b><b style="color:#dadaed" title="#dadaed">Aa</b><b style="color:#efedf5" title="#efedf5">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>ylorbr</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#8c2d04" title="#8c2d04"></i><i style="background:#cc4c02" title="#cc4c02"></i><i style="background:#ec7014" title="#ec7014"></i><i style="background:#fe9929" title="#fe9929"></i><i style="background:#fec44f" title="#fec44f"></i><i style="background:#fee391" title="#fee391"></i><i style="background:#fff7bc" title="#fff7bc"></i><i style="background:#ffffe5" title="#ffffe5"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#922400" title="#922400">Aa</b><b style="color:#cc3900" title="#cc3900">Aa</b><b style="color:#ca4000" title="#ca4000">Aa</b><b style="color:#bb4f00" title="#bb4f00">Aa</b><b style="color:#9d6000" title="#9d6000">Aa</b><b style="color:#866a00" title="#866a00">Aa</b><b style="color:#786f30" title="#786f30">Aa</b><b style="color:#707056" title="#707056">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#cf5e37" title="#cf5e37">Aa</b><b style="color:#e14e00" title="#e14e00">Aa</b><b style="color:#f56800" title="#f56800">Aa</b><b style="color:#ff9400" title="#ff9400">Aa</b><b style="color:#ffc231" title="#ffc231">Aa</b><b style="color:#ffe385" title="#ffe385">Aa</b><b style="color:#faf1af" title="#faf1af">Aa</b><b style="color:#f1f1d4" title="#f1f1d4">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>sterlingSequential</code><span class="sub">10</span></div>
+          <div class="rampa"><i style="background:#4D357A" title="#4D357A"></i><i style="background:#563C87" title="#563C87"></i><i style="background:#684AA1" title="#684AA1"></i><i style="background:#7B59BC" title="#7B59BC"></i><i style="background:#8E68D8" title="#8E68D8"></i><i style="background:#9A79E7" title="#9A79E7"></i><i style="background:#A889ED" title="#A889ED"></i><i style="background:#B69AF2" title="#B69AF2"></i><i style="background:#D5C3F6" title="#D5C3F6"></i><i style="background:#F1ECFA" title="#F1ECFA"></i></div>
+          
+        </div>
+      <h4>Divergentes</h4>
+      
+        <div class="paleta">
+          <div class="paleta-nom"><code>spectral</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#d53e4f" title="#d53e4f"></i><i style="background:#f46d43" title="#f46d43"></i><i style="background:#fdae61" title="#fdae61"></i><i style="background:#fee08b" title="#fee08b"></i><i style="background:#e6f598" title="#e6f598"></i><i style="background:#abdda4" title="#abdda4"></i><i style="background:#66c2a5" title="#66c2a5"></i><i style="background:#3288bd" title="#3288bd"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#d52242" title="#d52242">Aa</b><b style="color:#cd3600" title="#cd3600">Aa</b><b style="color:#aa5900" title="#aa5900">Aa</b><b style="color:#8a6b00" title="#8a6b00">Aa</b><b style="color:#697400" title="#697400">Aa</b><b style="color:#487c42" title="#487c42">Aa</b><b style="color:#007d60" title="#007d60">Aa</b><b style="color:#0076b1" title="#0076b1">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#eb3c53" title="#eb3c53">Aa</b><b style="color:#fd6432" title="#fd6432">Aa</b><b style="color:#ffab51" title="#ffab51">Aa</b><b style="color:#ffdf7e" title="#ffdf7e">Aa</b><b style="color:#e6f68c" title="#e6f68c">Aa</b><b style="color:#a6df9f" title="#a6df9f">Aa</b><b style="color:#59c4a4" title="#59c4a4">Aa</b><b style="color:#1e88c4" title="#1e88c4">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>rdylbu</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#d73027" title="#d73027"></i><i style="background:#f46d43" title="#f46d43"></i><i style="background:#fdae61" title="#fdae61"></i><i style="background:#fee090" title="#fee090"></i><i style="background:#e0f3f8" title="#e0f3f8"></i><i style="background:#abd9e9" title="#abd9e9"></i><i style="background:#74add1" title="#74add1"></i><i style="background:#4575b4" title="#4575b4"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#dc060c" title="#dc060c">Aa</b><b style="color:#cd3600" title="#cd3600">Aa</b><b style="color:#aa5900" title="#aa5900">Aa</b><b style="color:#8a6b00" title="#8a6b00">Aa</b><b style="color:#5d7075" title="#5d7075">Aa</b><b style="color:#447585" title="#447585">Aa</b><b style="color:#35769c" title="#35769c">Aa</b><b style="color:#3a71b8" title="#3a71b8">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#f23027" title="#f23027">Aa</b><b style="color:#fd6432" title="#fd6432">Aa</b><b style="color:#ffab51" title="#ffab51">Aa</b><b style="color:#ffdf84" title="#ffdf84">Aa</b><b style="color:#def3f9" title="#def3f9">Aa</b><b style="color:#a6daec" title="#a6daec">Aa</b><b style="color:#6daed6" title="#6daed6">Aa</b><b style="color:#497fc7" title="#497fc7">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>rdylgn</code><span class="sub">8</span></div>
+          <div class="rampa"><i style="background:#d73027" title="#d73027"></i><i style="background:#f46d43" title="#f46d43"></i><i style="background:#fdae61" title="#fdae61"></i><i style="background:#fee08b" title="#fee08b"></i><i style="background:#d9ef8b" title="#d9ef8b"></i><i style="background:#a6d96a" title="#a6d96a"></i><i style="background:#66bd63" title="#66bd63"></i><i style="background:#1a9850" title="#1a9850"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#dc060c" title="#dc060c">Aa</b><b style="color:#cd3600" title="#cd3600">Aa</b><b style="color:#aa5900" title="#aa5900">Aa</b><b style="color:#8a6b00" title="#8a6b00">Aa</b><b style="color:#647600" title="#647600">Aa</b><b style="color:#497b00" title="#497b00">Aa</b><b style="color:#077f11" title="#077f11">Aa</b><b style="color:#008030" title="#008030">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#f23027" title="#f23027">Aa</b><b style="color:#fd6432" title="#fd6432">Aa</b><b style="color:#ffab51" title="#ffab51">Aa</b><b style="color:#ffdf7e" title="#ffdf7e">Aa</b><b style="color:#d8f07e" title="#d8f07e">Aa</b><b style="color:#a2db5b" title="#a2db5b">Aa</b><b style="color:#5bbf59" title="#5bbf59">Aa</b><b style="color:#009a49" title="#009a49">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>piyg</code><span class="sub">6</span></div>
+          <div class="rampa"><i style="background:#c51b7d" title="#c51b7d"></i><i style="background:#e9a3c9" title="#e9a3c9"></i><i style="background:#fde0ef" title="#fde0ef"></i><i style="background:#e6f5d0" title="#e6f5d0"></i><i style="background:#a1d76a" title="#a1d76a"></i><i style="background:#4d9221" title="#4d9221"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#cd007e" title="#cd007e">Aa</b><b style="color:#9f5780" title="#9f5780">Aa</b><b style="color:#846877" title="#846877">Aa</b><b style="color:#677550" title="#677550">Aa</b><b style="color:#477d00" title="#477d00">Aa</b><b style="color:#2e7e00" title="#2e7e00">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#e72594" title="#e72594">Aa</b><b style="color:#eea0cb" title="#eea0cb">Aa</b><b style="color:#ffdff0" title="#ffdff0">Aa</b><b style="color:#e5f6cc" title="#e5f6cc">Aa</b><b style="color:#9dd95b" title="#9dd95b">Aa</b><b style="color:#459400" title="#459400">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>sterlingDiverging</code><span class="sub">11</span></div>
+          <div class="rampa"><i style="background:#4D357A" title="#4D357A"></i><i style="background:#7B59BC" title="#7B59BC"></i><i style="background:#9A79E7" title="#9A79E7"></i><i style="background:#B69AF2" title="#B69AF2"></i><i style="background:#F1ECFA" title="#F1ECFA"></i><i style="background:#F6F3FB" title="#F6F3FB"></i><i style="background:#E4F4EF" title="#E4F4EF"></i><i style="background:#5EC9AE" title="#5EC9AE"></i><i style="background:#25A08D" title="#25A08D"></i><i style="background:#1E796C" title="#1E796C"></i><i style="background:#164D47" title="#164D47"></i></div>
+          
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>sterlingHeat</code><span class="sub">11</span></div>
+          <div class="rampa"><i style="background:#4D357A" title="#4D357A"></i><i style="background:#684AA1" title="#684AA1"></i><i style="background:#4666AF" title="#4666AF"></i><i style="background:#4F73C6" title="#4F73C6"></i><i style="background:#218C7C" title="#218C7C"></i><i style="background:#4E9670" title="#4E9670"></i><i style="background:#879347" title="#879347"></i><i style="background:#B0953A" title="#B0953A"></i><i style="background:#D39A32" title="#D39A32"></i><i style="background:#E4B85C" title="#E4B85C"></i><i style="background:#F5DEA0" title="#F5DEA0"></i></div>
+          
+        </div>
+      <h4>De marca</h4>
+      
+        <div class="paleta">
+          <div class="paleta-nom"><code>ocean</code><span class="sub">6</span></div>
+          <div class="rampa"><i style="background:#0077b6" title="#0077b6"></i><i style="background:#00b4d8" title="#00b4d8"></i><i style="background:#48cae4" title="#48cae4"></i><i style="background:#90e0ef" title="#90e0ef"></i><i style="background:#ade8f4" title="#ade8f4"></i><i style="background:#caf0f8" title="#caf0f8"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#0073ba" title="#0073ba">Aa</b><b style="color:#0079a0" title="#0079a0">Aa</b><b style="color:#007994" title="#007994">Aa</b><b style="color:#0c7b8b" title="#0c7b8b">Aa</b><b style="color:#367884" title="#367884">Aa</b><b style="color:#4d757d" title="#4d757d">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#0086ce" title="#0086ce">Aa</b><b style="color:#00b6de" title="#00b6de">Aa</b><b style="color:#26cce9" title="#26cce9">Aa</b><b style="color:#86e2f3" title="#86e2f3">Aa</b><b style="color:#a6e9f7" title="#a6e9f7">Aa</b><b style="color:#c6f1fa" title="#c6f1fa">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>sunset</code><span class="sub">6</span></div>
+          <div class="rampa"><i style="background:#ff6b6b" title="#ff6b6b"></i><i style="background:#ee5a24" title="#ee5a24"></i><i style="background:#f0932b" title="#f0932b"></i><i style="background:#f9ca24" title="#f9ca24"></i><i style="background:#6ab04c" title="#6ab04c"></i><i style="background:#22a6b3" title="#22a6b3"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#d42b39" title="#d42b39">Aa</b><b style="color:#d42700" title="#d42700">Aa</b><b style="color:#b65200" title="#b65200">Aa</b><b style="color:#956200" title="#956200">Aa</b><b style="color:#2e7e00" title="#2e7e00">Aa</b><b style="color:#007b8a" title="#007b8a">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#ff6064" title="#ff6064">Aa</b><b style="color:#f74e00" title="#f74e00">Aa</b><b style="color:#f78f00" title="#f78f00">Aa</b><b style="color:#fec900" title="#fec900">Aa</b><b style="color:#63b23e" title="#63b23e">Aa</b><b style="color:#00a8b7" title="#00a8b7">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>corporate</code><span class="sub">6</span></div>
+          <div class="rampa"><i style="background:#2c3e50" title="#2c3e50"></i><i style="background:#34495e" title="#34495e"></i><i style="background:#7f8c8d" title="#7f8c8d"></i><i style="background:#95a5a6" title="#95a5a6"></i><i style="background:#bdc3c7" title="#bdc3c7"></i><i style="background:#ecf0f1" title="#ecf0f1"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#2a3e52" title="#2a3e52">Aa</b><b style="color:#314961" title="#314961">Aa</b><b style="color:#627071" title="#627071">Aa</b><b style="color:#627374" title="#627374">Aa</b><b style="color:#696f73" title="#696f73">Aa</b><b style="color:#696d6e" title="#696d6e">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#6b8299" title="#6b8299">Aa</b><b style="color:#66809a" title="#66809a">Aa</b><b style="color:#7e8c8d" title="#7e8c8d">Aa</b><b style="color:#93a5a7" title="#93a5a7">Aa</b><b style="color:#bcc3c8" title="#bcc3c8">Aa</b><b style="color:#ebeff0" title="#ebeff0">Aa</b></div></div>
+          </div>
+        </div>
+        <div class="paleta">
+          <div class="paleta-nom"><code>neon</code><span class="sub">6</span></div>
+          <div class="rampa"><i style="background:#ff00ff" title="#ff00ff"></i><i style="background:#00ffff" title="#00ffff"></i><i style="background:#ff6600" title="#ff6600"></i><i style="background:#00ff00" title="#00ff00"></i><i style="background:#ff3366" title="#ff3366"></i><i style="background:#6633ff" title="#6633ff"></i></div>
+          <div class="gemelos">
+            <div class="gemelo"><span class="sub">leyenda sobre claro</span><div class="rampa rampa--txt" style="background:#f6f3fb"><b style="color:#c200c7" title="#c200c7">Aa</b><b style="color:#007d80" title="#007d80">Aa</b><b style="color:#d92400" title="#d92400">Aa</b><b style="color:#008100" title="#008100">Aa</b><b style="color:#dc003e" title="#dc003e">Aa</b><b style="color:#6814ff" title="#6814ff">Aa</b></div></div>
+            <div class="gemelo"><span class="sub">leyenda sobre oscuro</span><div class="rampa rampa--txt" style="background:#101319"><b style="color:#ff00ff" title="#ff00ff">Aa</b><b style="color:#00ffff" title="#00ffff">Aa</b><b style="color:#ff5a00" title="#ff5a00">Aa</b><b style="color:#00ff00" title="#00ff00">Aa</b><b style="color:#ff0060" title="#ff0060">Aa</b><b style="color:#8c5fff" title="#8c5fff">Aa</b></div></div>
+          </div>
+        </div>
+
+<h2>Pisos de contraste</h2>
+<p>Lo que comprueba <code>node scripts/checkThemeContrast.cjs --all</code>.</p>
+<table class="tabla">
+  <thead><tr><th>familia</th><th>piso</th></tr></thead>
+  <tbody>
+    <tr><td>text-primary / secondary</td><td>≥10:1 / ≥5.5:1</td></tr>
+    <tr><td>text-tertiary</td><td>≥4.5:1 en claro, ≥3:1 en oscuro</td></tr>
+    <tr><td>text-disabled</td><td>≥3:1 (solo se mide en claro)</td></tr>
+    <tr><td>bordes subtle / default / strong</td><td>1.08–1.30 / 1.20–1.55 / 1.45–2.10</td></tr>
+    <tr><td>escalón base→raised</td><td>≥1.02</td></tr>
+    <tr><td>sintaxis sobre el editor</td><td>≥4.5:1 (<code>comment</code> ≥3.0 claro, ≥2.4 oscuro)</td></tr>
+    <tr><td>tipos de dato, textos de feedback</td><td>≥4.5:1</td></tr>
+    <tr><td>iconos de archivo</td><td>≥3:1</td></tr>
+    <tr><td>acento, como texto y con su texto encima</td><td>≥4.5:1 — fallo en claro, aviso en oscuro</td></tr>
+    <tr><td>hover / active vs raised</td><td>1.09–1.22 / 1.18–1.40</td></tr>
+    <tr><td>velo del diálogo (solo claro)</td><td>diálogo ≥2.5:1 sobre el lienzo velado</td></tr>
+  </tbody>
+</table>
+
+<h2>Para seguir</h2>
+<p><code>docs/dev/guia_estilos.md</code> — cómo escribir CSS en este proyecto.<br>
+<code>docs/dev/auditoria_temas_2026-09.md</code> — el estado medido y el plan por fases.<br>
+<code>docs/dev/aprendizajes_temas_claros.md</code> — por qué el claro no es el oscuro con menos.</p>
+
+</div>
+</body>
+</html>
