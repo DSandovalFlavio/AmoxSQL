@@ -1388,7 +1388,9 @@ app.get('/api/settings/gemini/models', async (req, res) => {
             return res.json({ models: defaultModels });
         }
         
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+            headers: { 'x-goog-api-key': apiKey }
+        });
         if (!response.ok) {
             console.error(`Failed to fetch Gemini models: ${response.statusText}`);
             return res.json({ models: defaultModels });
@@ -1454,7 +1456,9 @@ async function fetchCloudModels(provider, config) {
         if (provider === 'gemini') {
             const key = config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
             if (!key) return { models: fallback, source: 'fallback' };
-            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+            const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+                headers: { 'x-goog-api-key': key }
+            });
             if (!r.ok) return { models: fallback, source: 'fallback' };
             const d = await r.json();
             const re = /gemini[- ]?\d/i;
