@@ -128,22 +128,13 @@
   --syntax-variable:  oklch(0.85 0.04 265);   /* light neutral */
   --syntax-constant:  oklch(0.80 0.10 150);   /* green-cyan */
 
-  /* ── Semantic Status Aliases (short-hand for inline usage) ── */
-  --color-success:     var(--feedback-success);
-  --color-success-bg:  var(--feedback-success-bg);
-  --color-success-text:var(--feedback-success-text);
-  --color-error:       var(--feedback-error);
-  --color-error-bg:    var(--feedback-error-bg);
-  --color-error-text:  var(--feedback-error-text);
-  --color-warning:     var(--feedback-warning);
-  --color-warning-bg:  var(--feedback-warning-bg);
-  --color-warning-text:var(--feedback-warning-text);
-  --color-info:        var(--feedback-info);
-  --color-info-bg:     var(--feedback-info-bg);
-  --color-info-text:   var(--feedback-info-text);
+  /* ── Semantic Status Aliases ──
+     Los ALIAS (--color-*) NO viven aqui: son `var(--feedback-*)`, y una custom
+     property cuyo valor contiene var() resuelve en el elemento donde se DECLARA.
+     :root es <html>, que no lleva la clase del tema, asi que se congelaban en el
+     valor oscuro por defecto. Se declaran en `body`, junto al resto de derivados.
+     Aqui solo queda el color base de "destructivo", que si es un literal. */
   --color-destructive: oklch(0.63 0.21 25);
-  --color-destructive-bg: color-mix(in oklch, var(--color-destructive) 10%, transparent);
-  --color-destructive-text: oklch(0.70 0.18 25);
 
   /* ── Lineage / Node Type Colors (oklch) ── */
   --node-source-bg:     oklch(0.22 0.04 155);
@@ -282,6 +273,29 @@ body {
   --accent-subtle:     color-mix(in oklch, var(--accent-primary) 8%, transparent);
   --focus-ring:        color-mix(in oklch, var(--accent-primary) 35%, transparent);
   --accent-color-user: var(--accent-primary);
+
+  /* ── Alias semanticos (275 usos en la app) ──
+     Van AQUI por la misma razon que los derivados del acento: `var()` resuelve
+     donde se declara. En :root se quedaban con el verde/rojo/ambar del tema
+     oscuro por defecto en 11 de los 13 temas — tambien en los oscuros con
+     paleta propia, no solo en los claros. Medido en Amox Light:
+     --color-success daba #00c66d (el verde brillante del oscuro) en vez del
+     #1f7a48 que declara el tema. `body` lleva la clase del tema, asi que aqui
+     cada alias resuelve contra el --feedback-* que de verdad esta activo. */
+  --color-success:      var(--feedback-success);
+  --color-success-bg:   var(--feedback-success-bg);
+  --color-success-text: var(--feedback-success-text);
+  --color-error:        var(--feedback-error);
+  --color-error-bg:     var(--feedback-error-bg);
+  --color-error-text:   var(--feedback-error-text);
+  --color-warning:      var(--feedback-warning);
+  --color-warning-bg:   var(--feedback-warning-bg);
+  --color-warning-text: var(--feedback-warning-text);
+  --color-info:         var(--feedback-info);
+  --color-info-bg:      var(--feedback-info-bg);
+  --color-info-text:    var(--feedback-info-text);
+  --color-destructive-bg:   color-mix(in oklch, var(--color-destructive) 10%, transparent);
+  --color-destructive-text: oklch(0.70 0.18 25);
 
   /* ── Resplandor del fondo (consumido por .app-container) ──
      Van AQUÍ y no en :root por la misma razón que los derivados del acento:
@@ -837,10 +851,10 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
    MODE LAYER — light-vs-dark tokens shared by ALL themes of that mode.
    :root already holds the DARK values (info/nodes/icons), inherited by every
    dark theme. This block supplies the LIGHT versions to EVERY light theme —
-   including ivory/mist/snow, which have their own theme class (not
-   `.light-theme`) and previously inherited the dark info/nodes/icons
-   (black nodes, unreadable info text). Placed before the theme blocks so a
-   theme may still override a mode token if it truly needs a tinted variant.
+   cada uno tiene su propia clase de tema, asi que sin esta capa heredarian los
+   valores oscuros (nodos negros, texto de info ilegible). Va antes de los
+   bloques de tema para que un tema pueda seguir pisando un token de modo si de
+   verdad necesita una variante tintada.
    ═══════════════════════════════════════════════ */
 .mode-light {
   /* Info feedback — no light theme defined it; all inherited dark blue (~2.4:1) */
@@ -848,9 +862,8 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --feedback-info-bg:     color-mix(in oklch, var(--feedback-info) 8%, transparent);
   --feedback-info-border: color-mix(in oklch, var(--feedback-info) 20%, transparent);
   --feedback-info-text:   oklch(0.48 0.17 250);
-  --color-info:      var(--feedback-info);
-  --color-info-bg:   var(--feedback-info-bg);
-  --color-info-text: var(--feedback-info-text);
+  /* Los --color-info* ya no se repiten aqui: el derivador de `body` los compone
+     contra estos valores, porque .mode-light tambien va en el body. */
 
   /* Lineage / node type colors — light variants (bg pale, text dark) */
   --node-source-bg:     oklch(0.95 0.03 155);
@@ -1062,87 +1075,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --table-row-hover: rgba(190, 214, 232, 0.035);
-}
-
-/* ═══════════════════════════════════════════════
-   DARK THEME: STERLING DARK
-   Surface + palette values from Sterling (MIT) © La Matemaga
-   https://github.com/LaMatemaga/sterling — deep violet paper (#120d1f)
-   with the Sterling dark categorical family on syntax: violet keywords,
-   teal strings, amber numerics, blue functions, orchid types.
-   ═══════════════════════════════════════════════ */
-.theme-sterlingdark {
-  --surface-base:    #120d1f;   /* Sterling dark "paper" */
-  --surface-raised:  #1d1530;   /* Sterling "surface" — panels, sidebar */
-  --surface-overlay: #271c40;   /* Sterling "surface-2" — modals, popovers */
-  --surface-inset:   #0c0817;   /* wells: gutter, inputs, code blocks */
-
-  /* Sterling draws its grid/edge as literal violets, not alphas */
-  --border-subtle:  #36284e;    /* Sterling grid */
-  --border-default: #3a2b55;    /* Sterling edge */
-  --border-strong:  #4d357a;
-
-  --text-primary:   #ede9f5;   /* Sterling text */
-  --text-secondary: #a99fc4;   /* Sterling muted */
-  --text-tertiary:  #8b7fa8;
-  --text-disabled:  #5c5178;
-
-  /* Sterling's dark "period" lavender is the DEFAULT accent — the rule lives
-     in .theme-sterlingdark:not([class*="accent-"]) so a user pick overrides. */
-
-  --hover-bg:   rgba(196, 181, 253, 0.06);
-  --active-bg:  rgba(196, 181, 253, 0.10);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
-
-  /* Feedback — mapped onto Sterling's categorical families:
-     teal=success, coral=error, amber=warning, blue=info.
-     Text tones use the Sterling legend twins (lightened for dark). */
-  --feedback-success:        #5ec9ae;
-  --feedback-success-bg:     rgba(94, 201, 174, 0.10);
-  --feedback-success-border: rgba(94, 201, 174, 0.25);
-  --feedback-success-text:   #78d8c1;
-  --feedback-error:          #f29a88;
-  --feedback-error-bg:       rgba(242, 154, 136, 0.10);
-  --feedback-error-border:   rgba(242, 154, 136, 0.25);
-  --feedback-error-text:     #f6aa9a;
-  --feedback-warning:        #f2c46d;
-  --feedback-warning-bg:     rgba(242, 196, 109, 0.10);
-  --feedback-warning-border: rgba(242, 196, 109, 0.25);
-  --feedback-warning-text:   #f5cb7c;
-  --feedback-info:           #86a8e8;
-  --feedback-info-bg:        rgba(134, 168, 232, 0.10);
-  --feedback-info-border:    rgba(134, 168, 232, 0.25);
-  --feedback-info-text:      #9bb9ef;
-
-  /* Syntax — the 8 Sterling dark categoricals, one per role */
-  --syntax-keyword:   #b69af2;   /* Violet — SELECT/FROM/WHERE */
-  --syntax-string:    #5ec9ae;   /* Teal literals */
-  --syntax-number:    #f2c46d;   /* Amber — numerics leap out */
-  --syntax-function:  #86a8e8;   /* Blue — COUNT/SUM */
-  --syntax-comment:   #6f6490;   /* violet-grey, recedes */
-  --syntax-type:      #e88bdd;   /* Orchid — data types, CAST */
-  --syntax-operator:  #b7c8d1;   /* Payne, low weight */
-  --syntax-variable:  #ede9f5;   /* = text: identifiers stay neutral */
-  --syntax-constant:  #f29a88;   /* Coral — TRUE/FALSE/NULL */
-
-  /* Database types (mirror the syntax family) */
-  --type-integer:  #86a8e8;
-  --type-float:    #5ec9ae;
-  --type-text:     #f2c46d;
-  --type-datetime: #b69af2;
-  --type-boolean:  #e88bdd;
-  --type-default:  #b7c8d1;
-
-  --editor-bg: var(--surface-base);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: #120d1f;   /* dark ink on the lavender accent */
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --table-row-hover: rgba(196, 181, 253, 0.04);
 }
 
 /* ═══════════════════════════════════════════════
@@ -1487,7 +1419,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 /* Sterling themes ship the Sterling "period" accent by default (overridable).
    Values from Sterling (MIT) © La Matemaga. */
-.theme-sterlingdark:not([class*="accent-"]),
 .theme-sterlingdeep:not([class*="accent-"]) {
   --accent-primary: #c4b5fd;
 }
@@ -1496,198 +1427,8 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
-   LIGHT THEME (oklch surfaces + inverted hierarchy)
-   ═══════════════════════════════════════════════ */
-.light-theme {
-  /* ── Surfaces (warm off-whites, oklch-based) ── */
-  --surface-base:    oklch(0.985 0.003 265);   /* ≈ #FAFBFC */
-  --surface-raised:  oklch(0.965 0.004 265);   /* ≈ #F2F3F5 */
-  --surface-overlay: oklch(1.000 0 0);         /* #FFFFFF */
-  --surface-inset:   oklch(0.935 0.006 265);   /* ≈ #E8EAED */
-
-  /* ── Borders: slightly stronger for light bg definition ── */
-  --border-subtle:  rgba(0, 0, 0, 0.08);
-  --border-default: rgba(0, 0, 0, 0.14);
-  --border-strong:  rgba(0, 0, 0, 0.22);
-
-  /* ── Text: dark on light for readability ── */
-  --text-primary:   rgba(0, 0, 0, 0.92);
-  --text-secondary: rgba(0, 0, 0, 0.72);
-  --text-tertiary:  rgba(0, 0, 0, 0.55);
-  --text-disabled:  rgba(0, 0, 0, 0.35);
-
-  /* ── Accent (darker for contrast on light surfaces) ── */
-  --accent-primary: oklch(0.49 0.220 265);     /* ≈ #0059ff */
-
-  /* ── Interaction states ── */
-  --hover-bg:   rgba(0, 0, 0, 0.05);
-  --active-bg:  rgba(0, 0, 0, 0.09);
-
-  /* ── Shadows (softer for light backgrounds) ── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
-
-  /* ── Titlebar ── */
-
-  /* ── Feedback (darker for light bg contrast) ── */
-  --feedback-success:        oklch(0.55 0.18 152);
-  --feedback-success-bg:     color-mix(in oklch, var(--feedback-success) 8%, transparent);
-  --feedback-success-border: color-mix(in oklch, var(--feedback-success) 20%, transparent);
-  --feedback-success-text:   oklch(0.50 0.17 152);
-
-  --feedback-error:          oklch(0.53 0.22 27);
-  --feedback-error-bg:       color-mix(in oklch, var(--feedback-error) 8%, transparent);
-  --feedback-error-border:   color-mix(in oklch, var(--feedback-error) 20%, transparent);
-  --feedback-error-text:     oklch(0.50 0.22 27);
-
-  --feedback-warning:        oklch(0.60 0.16 65);
-  --feedback-warning-bg:     color-mix(in oklch, var(--feedback-warning) 8%, transparent);
-  --feedback-warning-border: color-mix(in oklch, var(--feedback-warning) 20%, transparent);
-  --feedback-warning-text:   oklch(0.58 0.16 65);
-
-  /* ── Semantic Status Aliases (light overrides) ── */
-  --color-destructive: oklch(0.53 0.22 27);
-  --color-destructive-bg: color-mix(in oklch, var(--color-destructive) 8%, transparent);
-  --color-destructive-text: oklch(0.48 0.22 27);
-
-  /* Node + icon colors now live in the shared .mode-light layer (all light themes) */
-
-  /* ── Syntax (darker for light editor bg) ── */
-  --syntax-keyword:   oklch(0.48 0.16 280);
-  --syntax-string:    oklch(0.52 0.12 45);
-  --syntax-number:    oklch(0.55 0.13 55);
-  --syntax-function:  oklch(0.50 0.12 200);
-  --syntax-comment:   oklch(0.55 0.02 270);
-  --syntax-type:      oklch(0.48 0.14 235);
-  --syntax-operator:  oklch(0.55 0.08 50);
-  --syntax-variable:  oklch(0.35 0.03 265);
-  --syntax-constant:  oklch(0.48 0.14 150);
-
-  /* ── Database types (darker for light bg) ── */
-  --type-integer:  oklch(0.52 0.10 230);
-  --type-float:    oklch(0.50 0.10 140);
-  --type-text:     oklch(0.50 0.12 45);
-  --type-datetime: oklch(0.48 0.14 250);
-  --type-boolean:  oklch(0.48 0.12 320);
-  --type-default:  oklch(0.50 0.08 95);
-
-  /* ── Legacy aliases ── */
-  --editor-bg: var(--surface-base);
-  --text-color: var(--text-secondary);
-  --text-active: var(--text-primary);
-  --text-muted: var(--text-tertiary);
-
-  --sidebar-item-active-bg: var(--active-bg);
-  --border-color: var(--border-default);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: #ffffff;
-
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --chart-bg: var(--surface-base);
-  --grid-color: rgba(0, 0, 0, 0.10);
-  --tooltip-bg: var(--surface-overlay);
-  --table-row-hover: rgba(0, 0, 0, 0.04);
-}
-
-/* ═══════════════════════════════════════════════
-   LIGHT THEME: IVORY
-   Warm paper-like tones inspired by Solarized Light (Ethan Schoonover).
-   Reduces blue light and glare; cream backgrounds with low-chroma text
-   for extended reading sessions without fatigue.
-   ═══════════════════════════════════════════════ */
-.theme-ivory {
-  /* ── Surfaces: warm cream/parchment tones ── */
-  --surface-base:    #faf6ef;   /* warm paper */
-  --surface-raised:  #f3ede4;   /* sidebar/cards */
-  --surface-overlay: #ffffff;   /* modals/popups */
-  --surface-inset:   #ede7dc;   /* inputs/recessed */
-
-  /* ── Borders: warm (strong bumped into the canonical range) ── */
-  --border-subtle:  rgba(120, 100, 70, 0.12);
-  --border-default: rgba(120, 100, 70, 0.18);
-  --border-strong:  rgba(120, 100, 70, 0.32);
-
-  /* ── Text: warm dark, not pure black (calibrated ≥ AA floors) ── */
-  --text-primary:   #362d23;   /* espresso — high readability, no harsh black */
-  --text-secondary: #5c4f41;   /* warm medium — ≥5.5:1 on all surfaces */
-  --text-tertiary:  #7a6c5b;   /* muted warm — ≥4:1 on all surfaces */
-  --text-disabled:  #b3a897;   /* faded parchment */
-
-  /* ── Accent: deep teal — pairs with warm backgrounds ── */
-  --accent-primary: #2b7a78;
-
-  /* ── Interaction states ── */
-  --hover-bg:   rgba(120, 100, 70, 0.06);
-  --active-bg:  rgba(120, 100, 70, 0.10);
-
-  /* ── Shadows: very soft warm ── */
-  --shadow-sm: 0 1px 2px rgba(100, 80, 50, 0.06);
-  --shadow-md: 0 4px 12px rgba(100, 80, 50, 0.08);
-  --shadow-lg: 0 8px 30px rgba(100, 80, 50, 0.12);
-
-  /* ── Titlebar ── */
-
-  /* ── Feedback: desaturated warm tones ── */
-  --feedback-success:        #5a8a5c;
-  --feedback-success-bg:     rgba(90, 138, 92, 0.08);
-  --feedback-success-border: rgba(90, 138, 92, 0.20);
-  --feedback-success-text:   #4a7a4c;
-  --feedback-error:          #b85450;
-  --feedback-error-bg:       rgba(184, 84, 80, 0.08);
-  --feedback-error-border:   rgba(184, 84, 80, 0.20);
-  --feedback-error-text:     #a54440;
-  --feedback-warning:        #b8923a;
-  --feedback-warning-bg:     rgba(184, 146, 58, 0.08);
-  --feedback-warning-border: rgba(184, 146, 58, 0.20);
-  --feedback-warning-text:   #a5822a;
-  --color-destructive:       #b85450;
-  --color-destructive-bg:    rgba(184, 84, 80, 0.08);
-  --color-destructive-text:  #a54440;
-
-  /* ── Syntax: warm palette, solarized-inspired ── */
-  --syntax-keyword:   #b58900;   /* yellow-gold */
-  --syntax-string:    #2aa198;   /* teal-cyan */
-  --syntax-number:    #d33682;   /* magenta */
-  --syntax-function:  #268bd2;   /* blue */
-  --syntax-comment:   #b0a090;   /* warm muted */
-  --syntax-type:      #6c71c4;   /* violet */
-  --syntax-operator:  #cb4b16;   /* orange */
-  --syntax-variable:  #586e75;   /* warm grey */
-  --syntax-constant:  #859900;   /* green */
-
-  /* ── Database types ── */
-  --type-integer:  #268bd2;
-  --type-float:    #2aa198;
-  --type-text:     #b58900;
-  --type-datetime: #6c71c4;
-  --type-boolean:  #d33682;
-  --type-default:  #586e75;
-
-  /* ── Legacy aliases ── */
-  --editor-bg: var(--surface-base);
-  --text-color: var(--text-secondary);
-  --text-active: var(--text-primary);
-  --text-muted: var(--text-tertiary);
-  --sidebar-item-active-bg: var(--active-bg);
-  --border-color: var(--border-default);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: #ffffff;
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --chart-bg: var(--surface-base);
-  --grid-color: rgba(120, 100, 70, 0.10);
-  --tooltip-bg: var(--surface-overlay);
-  --table-row-hover: rgba(120, 100, 70, 0.04);
-}
-
-/* ═══════════════════════════════════════════════
    LIGHT THEME: MIST
-   Cool blue-grey pastels inspired by Rosé Pine Dawn.
-   Ultra-low saturation with a subtle blue undertone —
+   Cool blue-grey pastels: ultra-low saturation with a subtle blue undertone —
    softer than pure white, like a foggy morning.
    ═══════════════════════════════════════════════ */
 .theme-mist {
@@ -1966,105 +1707,40 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
 }
 
 /* ═══════════════════════════════════════════════
-   LIGHT THEME ACCENT PRESETS
-   (darker oklch values for contrast on light bg)
+   RAMPA DE ACENTOS PARA MODO CLARO
+   Los mismos tonos que en oscuro, bajados de luminosidad para contrastar
+   sobre papel.
+
+   Cuelgan de `.mode-light`, no de la lista de temas claros uno por uno. Antes
+   cada regla enumeraba los cinco temas (27 selectores de 5 clases cada uno) y
+   habia que acordarse de tocarlos al anadir o quitar un tema — es justo lo que
+   se rompio al retirar Light e Ivory. `.mode-light` va en el body de TODOS los
+   temas claros, presentes y futuros.
+
+   Especificidad: 0-2-0, la misma que tenia `.theme-mist.accent-linear`, asi que
+   sigue ganando al acento propio del tema (0-1-0) y no colisiona con las reglas
+   `:not([class*="accent-"])`, que solo aplican cuando NO hay acento elegido.
    ═══════════════════════════════════════════════ */
-.light-theme.accent-linear,
-.theme-ivory.accent-linear,
-.theme-mist.accent-linear,
-.theme-amoxlight.accent-linear, .theme-sterlinglight.accent-linear {
-  --accent-primary: oklch(0.53 0.14 277);      /* Linear Blue (same in both themes) */
-}
+.mode-light.accent-linear   { --accent-primary: oklch(0.53 0.14 277); }   /* Linear Blue */
 
-.light-theme.accent-amox-2,
-.theme-ivory.accent-amox-2,
-.theme-mist.accent-amox-2,
-.theme-amoxlight.accent-amox-2, .theme-sterlinglight.accent-amox-2 {
-  --accent-primary: oklch(0.62 0.13 195);      /* ≈ #00CFDA */
-  --button-text-color: #ffffff;
-}
+.mode-light.accent-amox-2   { --accent-primary: oklch(0.62 0.13 195);  --button-text-color: #ffffff; }   /* ≈ #00CFDA */
+.mode-light.accent-amox-3   { --accent-primary: oklch(0.61 0.125 197); --button-text-color: #ffffff; }   /* ≈ #00C4D9 */
+.mode-light.accent-amox-4   { --accent-primary: oklch(0.59 0.12 202);  --button-text-color: #ffffff; }   /* ≈ #00B5D6 */
+.mode-light.accent-amox-5   { --accent-primary: oklch(0.57 0.12 212);  --button-text-color: #ffffff; }   /* ≈ #00A5D4 */
+.mode-light.accent-amox-6   { --accent-primary: oklch(0.55 0.13 228);  --button-text-color: #ffffff; }   /* ≈ #0097D1 */
+.mode-light.accent-amox-7   { --accent-primary: oklch(0.53 0.14 245);  --button-text-color: #ffffff; }   /* ≈ #0088CC */
+.mode-light.accent-amox-8   { --accent-primary: oklch(0.51 0.16 255);  --button-text-color: #ffffff; }   /* ≈ #0078C8 */
+.mode-light.accent-amox-9   { --accent-primary: oklch(0.49 0.18 262);  --button-text-color: #ffffff; }   /* ≈ #006AC2 */
+.mode-light.accent-amox-10  { --accent-primary: oklch(0.47 0.20 268);  --button-text-color: #ffffff; }   /* ≈ #005ABB */
 
-.light-theme.accent-amox-3,
-.theme-ivory.accent-amox-3,
-.theme-mist.accent-amox-3,
-.theme-amoxlight.accent-amox-3, .theme-sterlinglight.accent-amox-3 {
-  --accent-primary: oklch(0.61 0.125 197);     /* ≈ #00C4D9 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-4,
-.theme-ivory.accent-amox-4,
-.theme-mist.accent-amox-4,
-.theme-amoxlight.accent-amox-4, .theme-sterlinglight.accent-amox-4 {
-  --accent-primary: oklch(0.59 0.12 202);      /* ≈ #00B5D6 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-5,
-.theme-ivory.accent-amox-5,
-.theme-mist.accent-amox-5,
-.theme-amoxlight.accent-amox-5, .theme-sterlinglight.accent-amox-5 {
-  --accent-primary: oklch(0.57 0.12 212);      /* ≈ #00A5D4 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-6,
-.theme-ivory.accent-amox-6,
-.theme-mist.accent-amox-6,
-.theme-amoxlight.accent-amox-6, .theme-sterlinglight.accent-amox-6 {
-  --accent-primary: oklch(0.55 0.13 228);      /* ≈ #0097D1 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-7,
-.theme-ivory.accent-amox-7,
-.theme-mist.accent-amox-7,
-.theme-amoxlight.accent-amox-7, .theme-sterlinglight.accent-amox-7 {
-  --accent-primary: oklch(0.53 0.14 245);      /* ≈ #0088CC */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-8,
-.theme-ivory.accent-amox-8,
-.theme-mist.accent-amox-8,
-.theme-amoxlight.accent-amox-8, .theme-sterlinglight.accent-amox-8 {
-  --accent-primary: oklch(0.51 0.16 255);      /* ≈ #0078C8 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-9,
-.theme-ivory.accent-amox-9,
-.theme-mist.accent-amox-9,
-.theme-amoxlight.accent-amox-9, .theme-sterlinglight.accent-amox-9 {
-  --accent-primary: oklch(0.49 0.18 262);      /* ≈ #006AC2 */
-  --button-text-color: #ffffff;
-}
-
-.light-theme.accent-amox-10,
-.theme-ivory.accent-amox-10,
-.theme-mist.accent-amox-10,
-.theme-amoxlight.accent-amox-10, .theme-sterlinglight.accent-amox-10 {
-  --accent-primary: oklch(0.47 0.20 268);      /* ≈ #005ABB */
-  --button-text-color: #ffffff;
-}
-
-/* Sober + islands accents darkened for light backgrounds (≥4.5:1). Two-class
-   specificity (0,2,0) beats each light theme's default accent, so picking a
-   sober accent on a light theme now applies (was: silently ignored). */
-.light-theme.accent-islands, .theme-ivory.accent-islands,
-.theme-mist.accent-islands, .theme-amoxlight.accent-islands, .theme-sterlinglight.accent-islands { --accent-primary: oklch(0.52 0.18 262); }
-.light-theme.accent-sage, .theme-ivory.accent-sage,
-.theme-mist.accent-sage, .theme-amoxlight.accent-sage, .theme-sterlinglight.accent-sage { --accent-primary: oklch(0.48 0.13 155); }
-.light-theme.accent-amber, .theme-ivory.accent-amber,
-.theme-mist.accent-amber, .theme-amoxlight.accent-amber, .theme-sterlinglight.accent-amber { --accent-primary: oklch(0.50 0.13 75); }
-.light-theme.accent-rose, .theme-ivory.accent-rose,
-.theme-mist.accent-rose, .theme-amoxlight.accent-rose, .theme-sterlinglight.accent-rose { --accent-primary: oklch(0.52 0.18 15); }
-.light-theme.accent-lavender, .theme-ivory.accent-lavender,
-.theme-mist.accent-lavender, .theme-amoxlight.accent-lavender, .theme-sterlinglight.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
-.light-theme.accent-steel, .theme-ivory.accent-steel,
-.theme-mist.accent-steel, .theme-amoxlight.accent-steel, .theme-sterlinglight.accent-steel { --accent-primary: oklch(0.46 0.08 250); }
-.light-theme.accent-copper, .theme-ivory.accent-copper,
-.theme-mist.accent-copper, .theme-amoxlight.accent-copper, .theme-sterlinglight.accent-copper { --accent-primary: oklch(0.50 0.13 50); }
+/* Acentos sobrios + islands, oscurecidos para fondo claro. */
+.mode-light.accent-islands  { --accent-primary: oklch(0.52 0.18 262); }
+.mode-light.accent-sage     { --accent-primary: oklch(0.48 0.13 155); }
+.mode-light.accent-amber    { --accent-primary: oklch(0.50 0.13 75); }
+.mode-light.accent-rose     { --accent-primary: oklch(0.52 0.18 15); }
+.mode-light.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
+.mode-light.accent-steel    { --accent-primary: oklch(0.46 0.08 250); }
+.mode-light.accent-copper   { --accent-primary: oklch(0.50 0.13 50); }
 
 
 /* Form controls don't inherit font-family by default — force them to use the
@@ -9459,7 +9135,7 @@ tr:hover td {
 }
 
 /* Border tokens already flip per theme (white-alpha on dark, black-alpha on
-   light), so the thumb adapts to every theme — including ivory/mist/snow —
+   light), so the thumb adapts to every theme — claros incluidos —
    with no per-mode override. */
 ::-webkit-scrollbar-thumb {
   background: var(--border-default);

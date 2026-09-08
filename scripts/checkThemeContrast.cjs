@@ -82,8 +82,8 @@ function contrast(fg, bg) {
 const THEME_SELECTORS = {
     obsidian: ':root',
     onyx: '.theme-onyx', amoxdark: '.theme-amoxdark', ayu: '.theme-ayu',
-    nord: '.theme-nord', islands: '.theme-islands',
-    light: '.light-theme', ivory: '.theme-ivory', mist: '.theme-mist', amoxlight: '.theme-amoxlight',
+    nord: '.theme-nord', islands: '.theme-islands', sterlingdeep: '.theme-sterlingdeep',
+    mist: '.theme-mist', amoxlight: '.theme-amoxlight', sterlinglight: '.theme-sterlinglight',
 };
 
 function extractBlock(selector) {
@@ -99,17 +99,43 @@ function extractBlock(selector) {
     return tokens;
 }
 
+// `.mode-light` aparece dos veces en index.css: primero los ajustes del
+// resplandor y despues la capa de tokens de modo. Nos interesa la ultima.
+function extractLastBlock(selector) {
+    const re = new RegExp(String.raw`(^|\n)` + selector.replace(/[.]/g, String.raw`\.`) + String.raw`\s*\{([\s\S]*?)\n\}`, 'gm');
+    let m, last = null;
+    while ((m = re.exec(CSS)) !== null) last = m;
+    if (!last) return {};
+    const tokens = {};
+    for (const line of last[2].split(/\r?\n/)) {
+        const t = line.match(/^\s*(--[\w-]+):\s*([^;]+);/);
+        if (t) tokens[t[1]] = t[2].trim();
+    }
+    return tokens;
+}
+
 const themes = {};
 for (const [name, sel] of Object.entries(THEME_SELECTORS)) themes[name] = extractBlock(sel);
 const root = themes.obsidian;
-// Resolve a token for a theme, falling back to :root
-function tok(theme, name) { return themes[theme][name] ?? root[name]; }
+
+// Tokens que la capa de modo claro da a TODOS los temas claros. Sin esto, un
+// tema que no declare su propio --feedback-info hereda el azul oscuro de :root
+// y el informe miente.
+const MODE_LIGHT = extractLastBlock('.mode-light');
+
+// Cadena de resolucion, en el mismo orden que la cascada real:
+// tema -> capa de modo (solo claros) -> :root.
+function tok(theme, name) {
+    if (themes[theme][name] !== undefined) return themes[theme][name];
+    if (LIGHT.has(theme) && MODE_LIGHT[name] !== undefined) return MODE_LIGHT[name];
+    return root[name];
+}
 
 // ── Floors (from the audit §7.3) ────────────────────────────────────────────
 // text-tertiary is mode-aware: light backgrounds need ≥4:1 (the reported "invisible
 // letters" bug), while the established, user-approved dark baseline sits at ~3.1 and
 // reads fine on dark surfaces (the eye adapts differently). primary/secondary uniform.
-const LIGHT = new Set(['light', 'ivory', 'mist', 'amoxlight']);
+const LIGHT = new Set(['mist', 'amoxlight', 'sterlinglight']);
 const floorsFor = (theme) => ({ 'text-primary': 10, 'text-secondary': 5.5, 'text-tertiary': LIGHT.has(theme) ? 4.0 : 3.0 });
 // Border contrast targets (border vs surface-base): subtle 1.10–1.22, default 1.25–1.40, strong 1.50–1.80
 const BORDER_RANGE = { 'border-subtle': [1.08, 1.30], 'border-default': [1.20, 1.55], 'border-strong': [1.45, 2.10] };
@@ -118,7 +144,7 @@ const surfaces = ['--surface-base', '--surface-raised', '--surface-inset'];
 const texts = ['text-primary', 'text-secondary', 'text-tertiary'];
 
 const all = process.argv.includes('--all');
-const list = all ? Object.keys(themes) : ['amoxdark', 'amoxlight', 'light', 'ivory', 'mist', 'islands'];
+const list = all ? Object.keys(themes) : [...LIGHT];
 
 let failures = 0;
 for (const theme of list) {

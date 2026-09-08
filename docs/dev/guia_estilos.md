@@ -82,10 +82,14 @@ color: var(--accent-primary);
 | `ayu` | Ayu Dark | Dark | Adaptación fiel de [ayu-colors](https://github.com/ayu-theme/ayu-colors) — ink `#0D1017` + oro `#E6B450`, sintaxis cálida |
 | `nord` | Nord Dark | Dark | Polar night (paleta propia) |
 | `islands` | Dark Islands | Dark | Paleta propia (sintaxis cálida) |
+| `sterlingdeep` | Sterling Deep | Dark | Violeta gris apagado sobre superficies hondas — paleta Sterling (MIT) © La Matemaga |
 | `amoxlight` | Amox Light | Light | Insignia de marca — off-white frío + acento teal `#0a7d8c` |
-| `ivory` | Ivory | Light | Papel cálido |
+| `sterlinglight` | Sterling Light | Light | Papel lavanda — paleta Sterling (MIT) © La Matemaga |
 | `mist` | Mist | Light | Azul-gris frío |
-| `light` | Light | Light | Neutro frío (referencia light) |
+
+> **Retirados en 2026-09**: `light`, `ivory` (claros genéricos, redundantes con Amox Light)
+> y `sterlingdark` (misma paleta que Sterling Deep). `migrateTheme()` en `theme.js` traduce
+> el valor guardado al leerlo — no borres esa tabla sin pensar en los perfiles antiguos.
 
 ### 2.2 Cómo se Aplican (arquitectura post-auditoría 2026-07)
 
@@ -94,23 +98,40 @@ color: var(--accent-primary);
 
 ```javascript
 // App.jsx (simplificado)
-const themeClass = themeClassFor(theme);      // 'light-theme' | 'theme-x' | null (obsidian)
+const themeClass = themeClassFor(theme);      // 'theme-x' | null (obsidian)
 if (themeClass) document.body.classList.add(themeClass);
 document.body.classList.add(modeClassFor(theme)); // 'mode-light' | 'mode-dark'
 ```
 
 **Capas de override en `index.css` (en este orden):**
 1. `:root` — contrato completo de tokens (valores dark por defecto).
-2. `.mode-light` — todo lo que depende SOLO de light-vs-dark y aplica a los 4 temas
-   light: `--feedback-info*`, `--node-*`, `--icon-*`, chrome del suggest de Monaco.
-   **Regla:** si escribes CSS que necesita variante light, usa `.mode-light .foo`,
-   NUNCA `.light-theme .foo` (esa clase solo la lleva el tema "Light", no ivory/mist/snow).
-3. `.theme-*` / `.light-theme` — cada tema toca solo: superficies, textos, bordes,
+2. `.mode-light` — todo lo que depende SOLO de light-vs-dark y aplica a los 3 temas
+   claros: `--feedback-info*`, `--node-*`, `--icon-*`, chrome del suggest de Monaco, y la
+   rampa de acentos claros (`.mode-light.accent-*`).
+   **Regla:** si escribes CSS que necesita variante light, usa `.mode-light .foo`. Nunca
+   enumeres los temas claros uno por uno: se te olvidará actualizarlo.
+3. `.theme-*` — cada tema toca solo: superficies, textos, bordes,
    hover/active, sombras, titlebar (y opcionalmente syntax/feedback si tiene paleta
    propia, como Nord/Islands).
 4. Acentos — cada `.accent-*` fija `--accent-primary` y derivadas. El acento propio de
    Nord/Islands vive en `.theme-nord:not([class*="accent-"])` para que el acento
    elegido por el usuario SIEMPRE gane.
+
+> ### ⚠️ La regla que ya nos ha mordido tres veces
+>
+> **Ninguna custom property declarada en `:root` puede contener `var()`.**
+>
+> Una propiedad cuyo valor es `var(...)` se resuelve **en el elemento donde se declara**.
+> `:root` es `<html>`, y tanto la clase del tema como la del acento van en `<body>`. Una
+> derivación puesta en `:root` se congela en el valor por defecto y **nunca** sigue al tema
+> ni al acento activos.
+>
+> Ya pasó con el acento (PR #70: todos los acentos se veían cian), con el resplandor, y con
+> los quince alias `--color-*`, que servían el verde/rojo/ámbar del tema oscuro en 11 de 13
+> temas y 275 usos (auditoría 2026-09).
+>
+> Los derivados van en el bloque `body`, donde ya viven el acento y el resplandor. En
+> `:root` solo valores **literales**.
 
 **Al agregar un tema nuevo:** clase `.theme-{nombre}` que sobrescriba solo superficies/
 texto/bordes/estados; añadirlo a `theme.js` (LIGHT_THEMES si es light) y al picker de
