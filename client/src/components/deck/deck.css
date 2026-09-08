@@ -203,6 +203,186 @@
     margin-top: calc(20 * var(--u));
 }
 
+/* ── Objetos de dato de la lámina ────────────────────────────────────────
+   Bloques cercados con YAML: ```kpis, ```metric, ```steps, ```actions y
+   ```rank. Ver client/src/components/deck/deckBlocks.jsx. */
+
+/* Aviso que sólo se ve mientras se diseña: en Present y en el export no existe,
+   porque es una nota para el autor y no parte de la lámina. */
+.deck-aviso { display: none; }
+.deck-design-canvas .deck-aviso {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--u));
+    margin-top: calc(10 * var(--u));
+    font-family: var(--font-mono);
+    font-size: calc(12 * var(--u));
+    color: var(--color-warning);
+}
+
+.deck-bloque-error {
+    display: flex;
+    align-items: center;
+    gap: calc(8 * var(--u));
+    margin: calc(16 * var(--u)) 0 0;
+    padding: calc(12 * var(--u)) calc(14 * var(--u));
+    font-size: calc(15 * var(--u));
+    color: var(--color-error);
+    background-color: var(--surface-inset);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-sm);
+}
+.deck-bloque-error code { font-family: var(--font-mono); }
+
+/* La tira de KPIs. De 2 a 5: el sexto no se lee desde el fondo de la sala. */
+.deck-kpis {
+    display: grid;
+    gap: calc(26 * var(--u));
+    grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+    margin-top: calc(20 * var(--u));
+}
+.deck-kpis .deck-kpi { margin-top: 0; border-left-color: var(--border-default); }
+.deck-kpis .deck-kpi--destacado { border-left-color: var(--accent-primary); }
+
+/* La cifra ancla: un número por lámina, y sólo en su tipo. */
+.deck-cifra-bloque { margin-top: calc(18 * var(--u)); }
+.deck-cifra {
+    font-size: var(--t-cifra);
+    font-weight: 800;
+    line-height: .88;
+    letter-spacing: -.05em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+.deck-cifra-unidad {
+    font-size: calc(54 * var(--u));
+    font-weight: var(--weight-bold);
+    letter-spacing: -.02em;
+}
+.deck-cifra-pie {
+    font-family: var(--font-mono);
+    font-size: calc(15 * var(--u));
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-top: calc(14 * var(--u));
+    max-width: 46ch;
+}
+
+/* Pasos: un proceso o un plan, con la fase activa en acento. */
+.deck-pasos {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: calc(22 * var(--u));
+    margin-top: calc(22 * var(--u));
+}
+.deck-paso {
+    display: flex;
+    flex-direction: column;
+    gap: calc(9 * var(--u));
+    padding-top: calc(16 * var(--u));
+    border-top: calc(3 * var(--u)) solid var(--border-default);
+}
+.deck-paso--activo { border-top-color: var(--accent-primary); }
+.deck-paso-num {
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: calc(12.5 * var(--u));
+    font-weight: var(--weight-bold);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-primary);
+}
+.deck-paso-titulo {
+    font-size: calc(21 * var(--u));
+    font-weight: var(--weight-bold);
+    line-height: 1.24;
+    color: var(--text-primary);
+}
+.deck-paso-detalle {
+    font-size: calc(16 * var(--u));
+    line-height: 1.4;
+    color: var(--text-tertiary);
+}
+
+/* Acciones: verbo, motivo cuantificado, responsable y fecha. */
+.deck-acciones { margin-top: calc(18 * var(--u)); }
+.deck-accion {
+    display: grid;
+    grid-template-columns: calc(34 * var(--u)) 1fr auto;
+    gap: calc(16 * var(--u));
+    align-items: baseline;
+    padding: calc(15 * var(--u)) 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.deck-accion-num {
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: calc(14 * var(--u));
+    font-weight: var(--weight-bold);
+    color: var(--accent-primary);
+}
+.deck-accion-cuerpo b {
+    display: block;
+    font-size: calc(20 * var(--u));
+    font-weight: var(--weight-semibold);
+    line-height: 1.32;
+    color: var(--text-primary);
+}
+.deck-accion-cuerpo span {
+    display: block;
+    font-size: calc(15.5 * var(--u));
+    color: var(--text-tertiary);
+    margin-top: calc(4 * var(--u));
+}
+.deck-accion-quien {
+    font-family: var(--font-mono);
+    font-size: calc(13 * var(--u));
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+/* La tabla clasificada: ocho filas visibles como máximo. La barra da la
+   magnitud sin obligar a comparar cifras. */
+.deck-rank {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--t-tabla);
+    margin-top: calc(18 * var(--u));
+}
+.deck-rank th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: calc(12 * var(--u));
+    font-weight: var(--weight-semibold);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: calc(10 * var(--u)) calc(12 * var(--u));
+    border-bottom: 1px solid var(--border-default);
+}
+.deck-rank td {
+    padding: calc(12 * var(--u));
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+.deck-rank td:first-child {
+    color: var(--text-primary);
+    font-weight: var(--weight-semibold);
+}
+.deck-rank-der { text-align: right; }
+/* Se resaltan sólo las filas de las que habla el título. */
+.deck-rank-fila--destacada td { color: var(--text-primary); }
+.deck-rank-celda-barra { width: 26%; }
+.deck-rank-barra {
+    height: calc(9 * var(--u));
+    border-radius: calc(3 * var(--u));
+    background-color: var(--accent-primary);
+    min-width: calc(3 * var(--u));
+}
+
 /* ── Banda de pie: la capa de credibilidad ───────────────────────────────
    Alto fijo y siempre en el mismo sitio: es un ancla, no un adorno. Es lo que
    permite auditar el deck lámina a lámina. */

@@ -21,6 +21,7 @@ import AmoxChartEmbed from './AmoxChartEmbed';
 import { parseAmoxChartBlock, resolveFooterFields } from '../../utils/deckParser';
 import DeckFooter from './DeckFooter';
 import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio } from './SlideFigureParts';
+import { renderDeckBlock } from './deckBlocks';
 
 const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
 const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
@@ -96,8 +97,8 @@ const SlidePreview = ({
         body = (
             <div className="deck-slide-body deck-slide-body--content-chart">
                 <div className="deck-slide-col deck-slide-col--text">
-                    {before && <MarkdownPreview content={before} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
-                    {after && <MarkdownPreview content={after} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
+                    {before && <MarkdownPreview content={before} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />}
+                    {after && <MarkdownPreview content={after} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />}
                     {heredadas}
                 </div>
                 <div className="deck-slide-col deck-slide-col--chart">
@@ -117,10 +118,10 @@ const SlidePreview = ({
         body = (
             <div className="deck-slide-body deck-slide-body--two-col">
                 <div className="deck-slide-col">
-                    <MarkdownPreview content={left.trim()} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
+                    <MarkdownPreview content={left.trim()} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} renderBlock={renderDeckBlock} />
                 </div>
                 <div className="deck-slide-col">
-                    <MarkdownPreview content={right.trim()} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
+                    <MarkdownPreview content={right.trim()} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} renderBlock={renderDeckBlock} />
                 </div>
             </div>
         );
@@ -129,7 +130,7 @@ const SlidePreview = ({
         // que cae aquí en vez de quedarse con media lámina vacía.
         body = (
             <div className={`deck-slide-body deck-slide-body--${slide.layout}`}>
-                <MarkdownPreview content={visibleMarkdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
+                <MarkdownPreview content={visibleMarkdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} renderBlock={renderDeckBlock} />
                 {hayFigura && heredadas}
             </div>
         );

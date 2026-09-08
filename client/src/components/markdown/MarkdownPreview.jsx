@@ -329,7 +329,11 @@ function makeHeading(level) {
 // by Report Flow decks to embed a live, refreshable .amoxvis chart) — it
 // receives the raw fenced-block body (YAML-ish text) and returns a ReactNode.
 // Without it, an ```amoxchart block just renders as a normal code block.
-const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, filePath }) => {
+// `renderBlock(lang, raw)` is the generic version of the same idea: it may
+// claim any other fenced language and returns null to decline. Report Flow uses
+// it for the slide's data objects (```kpis, ```metric, ```steps, ```actions,
+// ```rank), which stay plain code blocks anywhere else in the app.
+const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath }) => {
     const baseDir = useMemo(() => {
         if (!filePath) return '';
         const norm = filePath.replace(/\\/g, '/');
@@ -354,6 +358,14 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             const raw = codeNode ? nodeToText(codeNode).replace(/\n$/, '') : '';
             if (lang === 'mermaid') return <MermaidDiagram code={raw} theme={theme} />;
             if (lang === 'amoxchart' && renderChartBlock) return renderChartBlock(raw);
+            // Gancho genérico: quien monta el preview puede reclamar otros
+            // lenguajes cercados (Report Flow usa ```kpis, ```metric, ```steps,
+            // ```actions y ```rank). Devolver null deja el bloque como código,
+            // que es el comportamiento correcto donde nadie los reclama.
+            if (renderBlock) {
+                const custom = renderBlock(lang, raw);
+                if (custom) return custom;
+            }
             return <CodeBlock lang={lang} raw={raw}>{children}</CodeBlock>;
         },
         blockquote: ({ node, className, children, ...props }) => {
@@ -369,7 +381,7 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             }
             return <blockquote className={className} {...props}>{children}</blockquote>;
         },
-    }), [onOpenFile, theme, renderChartBlock, baseDir]);
+    }), [onOpenFile, theme, renderChartBlock, renderBlock, baseDir]);
 
     return (
         <div className={`mde-preview-body mde-preview-body--${widthMode}`} ref={bodyRef}>

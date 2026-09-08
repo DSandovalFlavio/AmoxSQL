@@ -16,6 +16,7 @@ import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow } from './SlidePreview';
 import DeckFooter from './DeckFooter';
 import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio } from './SlideFigureParts';
+import { renderDeckBlock } from './deckBlocks';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
 import { resolveFooterFields } from '../../utils/deckParser';
@@ -92,7 +93,7 @@ function EditableProse({ value, placeholder, onCommit, theme, onOpenFile }) {
         >
             <span className="deck-prose-edit-hint"><LuPencilLine size={12} /> Edit text</span>
             {value.trim()
-                ? <MarkdownPreview content={value} theme={theme} onOpenFile={onOpenFile} widthMode="full" />
+                ? <MarkdownPreview content={value} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />
                 : <span className="deck-prose-placeholder">{placeholder || 'Click to add text'}</span>}
         </div>
     );
