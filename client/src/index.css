@@ -21,11 +21,15 @@
   --surface-overlay: oklch(0.195 0.014 270);   /* ≈ #1E2027 */
   --surface-inset:   oklch(0.160 0.013 270);   /* ≈ #14161B */
 
-  /* Monaco code-editor canvas bg: left UNSET on purpose. Only Obsidian/Onyx set
-     it (below) to swap the editor bg; every other theme's editor falls back to
-     its own --surface-base — resolved in JS via var(--monaco-editor-bg,
-     var(--surface-base)) in monacoTheme.js. Defining it here as
-     var(--surface-base) would NOT re-resolve per theme through the probe. */
+  /* Monaco code-editor canvas bg: SIN DEFINIR a proposito, y ahora ningun tema
+     lo define tampoco. El lienzo del editor de cada tema es su propio
+     --surface-base, resuelto en JS via var(--monaco-editor-bg,
+     var(--surface-base)) en monacoTheme.js.
+     Definirlo aqui como var(--surface-base) NO valdria: la sonda lo leeria una
+     sola vez y no se re-resolveria por tema.
+     El token se queda declarado como concepto por si algun dia un tema quiere
+     un lienzo distinto del resto de sus superficies — pero que sea una decision
+     de ESE tema, no un intercambio entre dos. */
 
   /* ── Border System (opacity-based for consistency) ──
      `subtle` subió de .06 a .085: sobre una base de L .145 el valor anterior
@@ -997,13 +1001,6 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --acc-l: 0.56; --acc-c: 0.210; --acc-h: 268;   /* ~ #0068FF */    /* ≈ #0068FF */
 }
 
-/* Obsidian ⇄ Onyx: swap ONLY the Monaco code-editor canvas background — each
-   theme keeps ALL its own app surfaces (sidebar, panels, tables). Obsidian's
-   editor shows Onyx's true-black; Onyx's editor shows Obsidian's neutral.
-   `body.mode-dark:not([class*="theme-"])` targets Obsidian (the default dark,
-   which has no theme class). */
-body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
-
 /* ═══════════════════════════════════════════════
    DARK THEME: ONYX — true black
    The deepest theme: pure-neutral near-black.
@@ -1013,7 +1010,6 @@ body.mode-dark:not([class*="theme-"]) { --monaco-editor-bg: #0b0c0d; }
   --surface-raised:  #131415;
   --surface-overlay: #191a1c;
   --surface-inset:   #08090a;
-  --monaco-editor-bg: #111214;   /* editor shows Obsidian's neutral (swapped) */
 
   --border-subtle:  rgba(255, 255, 255, 0.085);
   --border-default: rgba(255, 255, 255, 0.10);

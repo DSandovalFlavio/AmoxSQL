@@ -81,9 +81,12 @@ export function buildAmoxMonacoTheme() {
 
     const p = {
         // The editor canvas reads --monaco-editor-bg, falling back to the theme's
-        // --surface-base. Only a couple of themes (Obsidian/Onyx) set
-        // --monaco-editor-bg to give the code editor a bg distinct from the app;
-        // everyone else resolves through the fallback to their own base.
+        // --surface-base. Hoy NINGÚN tema lo define, así que todos caen al
+        // fallback y el editor es del mismo color que el lienzo de la app.
+        // El token se mantiene por si un tema quisiera un lienzo distinto del
+        // resto de sus superficies; hasta 2026-09 lo usaban Obsidian y Onyx
+        // para intercambiarse el fondo del editor, y el efecto era que dentro de
+        // cada tema el editor no pegaba con lo que lo rodeaba.
         bg:         cssExprToHex('var(--monaco-editor-bg, var(--surface-base))', fb.bg),
         raised:     cssVarToHex('--surface-raised', fb.raised),
         overlay:    cssVarToHex('--surface-overlay', fb.overlay),
