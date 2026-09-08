@@ -106,7 +106,12 @@ const ChartRenderer = memo(({
     // distintas y ninguna se deduce sola, asi que el titulo hace falta aunque
     // este apagado en la configuracion. Apagarlos por defecto sin esta excepcion
     // dejaba esos dos graficos sin decir que miden.
-    const ejeXEsFecha = isDateCol && xAxisKey ? isDateCol(xAxisKey) : false;
+    // isDateCol es un BOOLEANO, no una función: DataVisualizer ya evaluó
+    // isDateColumn(data, xAxisKey) antes de pasarlo. Llamarlo como función
+    // lanzaba "isDateCol is not a function" en cuanto el eje X era una fecha, y
+    // como no hay frontera de error, React desmontaba y la pantalla se quedaba
+    // en negro. Solo se veía en gráficos con eje temporal.
+    const ejeXEsFecha = !!isDateCol;
     const necesitaTitulos = chartType === 'scatter' || chartType === 'bubble';
     const mostrarTituloX = necesitaTitulos || (showXAxisTitle && (customAxisTitles.x || !ejeXEsFecha));
     const XLabel = mostrarTituloX ? (customAxisTitles.x || defaultXLabel) : '';
