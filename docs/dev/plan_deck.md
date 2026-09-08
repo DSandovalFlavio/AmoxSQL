@@ -152,7 +152,22 @@ previa esquemática en `DECK_LAYOUT_META` y render en `SlideDesigner`.
 - [x] Identificadores en inglés. Lo que se traduce es lo que el usuario ve en el Studio,
       no lo que se escribe en el archivo.
 
-> **Estado — fases 0 a 5 cerradas.** Rama `claude/deck-fase-0`, seis commits.
+> **Estado — fases 0 a 5 cerradas y probadas en la app.** Rama
+> `claude/deck-fase-0`. El deck de prueba vive en `Curso_SQL/revision_campanas.amoxdeck`:
+> 15 láminas sobre datos reales del dataset de campañas, 13 de los 16 tipos, los
+> seis bloques, LaTeX, alertas y cuatro gráficos vivos.
+>
+> Abrirlo destapó **siete fallos que ninguna prueba de CSS, lógica o compilación
+> podía ver** — el peor: las expresiones de los bloques cercados exigían LF, así
+> que con un archivo CRLF la lámina `finding` nunca se repartía en dos columnas,
+> y no se notaba porque el gráfico se dibujaba igual por otra vía. Están todos
+> arreglados y documentados en el commit correspondiente.
+>
+> Queda una nicedad conocida: dentro de una columna, el dibujo ocupa alrededor
+> del 60 % del alto disponible en vez de llenarlo. No es un fallo —se lee bien—
+> pero desperdicia sitio.
+
+> **Estado anterior (sin la app).** Rama `claude/deck-fase-0`, seis commits.
 > Verificado a nivel de CSS (midiendo con el CSS real servido por HTTP), de
 > lógica (parser y bloques contra los módulos reales) y de compilación. **Falta
 > la comprobación dentro de la app**: no hay ningún `.amoxdeck` en el repo ni en
