@@ -232,6 +232,20 @@ export const resolveLayout = (mode, width, height) => {
    con dos franjas de fondo. Ahora la figura se re-maqueta a la proporción de
    destino antes de capturarla, y resolveLayout() elige el reparto solo — por eso
    aquí solo hacen falta las medidas. */
+/* El lienzo de trabajo: la PROPORCIÓN a la que se dibuja la figura en el editor.
+   Antes la tarjeta se estiraba para llenar el hueco, así que la misma figura
+   salía distinta según si el explorador de archivos estaba abierto o cerrado, y
+   lo exportado no era lo que se veía. Ahora la tarjeta tiene su forma y lo que
+   sobra, sobra: lo que ves es lo que se descarga. */
+export const CANVAS_SIZES = [
+    { label: '4:3',    w: 4,    h: 3   },
+    { label: '16:9',   w: 16,   h: 9   },
+    { label: '1:1',    w: 1,    h: 1   },
+    { label: '9:16',   w: 9,    h: 16  },
+    { label: 'Banner', w: 1200, h: 628 },
+    { label: 'Libre',  w: 0,    h: 0   },   // como antes: ocupa todo el hueco
+];
+
 export const EXPORT_PRESETS = [
     { label: 'PowerPoint 16:9', width: 1920, height: 1080 },
     { label: 'PowerPoint 4:3', width: 1440, height: 1080 },
@@ -436,6 +450,10 @@ export const DEFAULT_CONFIG = {
        desconcertante y sin ganancia. Los otros modos siguen disponibles, pero se
        eligen a mano. */
     layout: 'stacked',
+    /* La proporción del lienzo en el editor. 4:3 por defecto: es la forma en la
+       que la figura se lee bien y la que menos desentona con el resto de la
+       interfaz. 'Libre' recupera el comportamiento de ocupar todo el hueco. */
+    canvasSize: '4:3',
 
     // Margins & Spacing
     marginTop: 20,

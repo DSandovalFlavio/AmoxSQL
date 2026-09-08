@@ -288,3 +288,43 @@ de ahora — comprobado leyendo `LOAD_CONFIG`, que parte de `DEFAULT_CONFIG` y l
 archivo.
 
 Todo sigue siendo ajustable desde los paneles: es un punto de partida, no una jaula.
+
+---
+
+# Parte 4 — El lienzo tiene tamaño propio
+
+Salió de una observación del usuario: **la misma figura se exportaba distinta según si el
+explorador de archivos estaba abierto o cerrado.** No era un fallo de la exportación — era que
+la tarjeta se estiraba para llenar el hueco, así que su forma dependía del ancho del panel.
+
+- [x] `CANVAS_SIZES` y la clave `canvasSize` (por defecto **4:3**). La tarjeta tiene proporción
+      propia y lo que sobra alrededor queda vacío. Lo que ves es lo que se descarga.
+- [x] Barra bajo el gráfico con las proporciones y un **zoom**. El zoom es solo para mirar: no
+      entra en la exportación.
+- [x] `Libre` conserva el comportamiento anterior de ocupar todo el hueco.
+
+## El choque de conceptos que hubo que deshacer
+
+La primera versión tenía dos ideas peleándose: el zoom al 100 % significaba «lo más grande que
+quepa», y a la vez la tipografía escalaba con el tamaño de la tarjeta. Resultado: la figura se
+veía siempre ampliada aunque el control marcara 100 %.
+
+- [x] **Existe un tamaño natural**: la caja de diseño es 880×620, y de ahí sale el ancho de cada
+      proporción (4:3 → 827, 16:9 → 880, 1:1 → 620, 9:16 → 349).
+- [x] **Al 100 % la figura mide eso y el texto va a su tamaño real.** 18 px son 18 px.
+- [x] **El zoom multiplica la tarjeta entera** — caja, texto y dibujo a la vez.
+- [x] La escala del texto sale del tamaño **medido** de la tarjeta, así que funciona igual en el
+      editor y durante la exportación, donde recibe medidas mucho mayores.
+- [x] El botón alterna entre **ajustar al hueco** y **tamaño real**.
+
+## Y lo que se arregló por el camino
+
+- [x] La exportación capturaba el div interior en vez de la tarjeta: el PNG salía sin filete ni
+      esquinas. Ahora hay un `cardRef` y lo usan PNG, SVG y portapapeles.
+- [x] La barra de botones se marca con `data-export-hide` y además **flota en la esquina** en vez
+      de ocupar una fila. Si ocupa alto, el aire de arriba depende de si los botones están — y en
+      la exportación no están.
+- [x] Aire uniforme por los cuatro lados, y escalado con la tarjeta.
+- [x] Marco del 3,5 % alrededor de la tarjeta en el PNG: sin él, el filete caía en el canto de la
+      imagen y dejaba de leerse como tarjeta.
+- [x] Etiquetas del treemap arriba a la izquierda y con tamaño proporcional a la baldosa.

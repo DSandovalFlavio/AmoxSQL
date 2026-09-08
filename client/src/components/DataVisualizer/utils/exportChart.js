@@ -39,9 +39,18 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
     const previo = element.getAttribute('style') || '';
     const restaurar = () => element.setAttribute('style', previo);
 
+    /* El marco: la tarjeta no llega al borde de la imagen, respira sobre el
+       fondo. Sin esto el filete y las esquinas caían justo en el canto del PNG y
+       la tarjeta dejaba de leerse como tarjeta — que es exactamente la pega. */
+    const marco = Math.round(Math.min(targetWidth, targetHeight) * 0.035);
+    const anchoUtil = targetWidth - marco * 2;
+    const altoUtil = targetHeight - marco * 2;
+
     try {
-        const anchoTrabajo = Math.min(targetWidth, 1400);
-        const altoTrabajo = Math.round(anchoTrabajo * (targetHeight / targetWidth));
+        // La tarjeta se maqueta con la proporción del HUECO ÚTIL, no la del
+        // lienzo entero: si no, al restarle el marco la figura se deformaría.
+        const anchoTrabajo = Math.min(anchoUtil, 1400);
+        const altoTrabajo = Math.round(anchoTrabajo * (altoUtil / anchoUtil));
         Object.assign(element.style, {
             position: 'fixed',
             left: '-20000px',
@@ -88,22 +97,21 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
         ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-        // Center chart in canvas preserving aspect ratio
+        // Centrar dentro del hueco útil, dejando el marco alrededor. Como la
+        // tarjeta ya se maquetó con esta proporción, apenas hay que ajustar.
         const srcRatio = canvas.width / canvas.height;
-        const dstRatio = targetWidth / targetHeight;
+        const dstRatio = anchoUtil / altoUtil;
         let drawW, drawH, drawX, drawY;
 
         if (srcRatio > dstRatio) {
-            drawW = targetWidth;
-            drawH = targetWidth / srcRatio;
-            drawX = 0;
-            drawY = (targetHeight - drawH) / 2;
+            drawW = anchoUtil;
+            drawH = anchoUtil / srcRatio;
         } else {
-            drawH = targetHeight;
-            drawW = targetHeight * srcRatio;
-            drawX = (targetWidth - drawW) / 2;
-            drawY = 0;
+            drawH = altoUtil;
+            drawW = altoUtil * srcRatio;
         }
+        drawX = marco + (anchoUtil - drawW) / 2;
+        drawY = marco + (altoUtil - drawH) / 2;
 
         ctx.drawImage(canvas, drawX, drawY, drawW, drawH);
 

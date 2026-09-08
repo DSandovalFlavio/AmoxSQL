@@ -23,7 +23,7 @@ import AlertDialog from '../AlertDialog';
 
 // Core modules
 import { useChartState } from './useChartState';
-import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES, resolveLayout } from './constants';
+import { COLOR_PALETTES, EXPORT_PRESETS, FONT_OPTIONS, BACKGROUND_TONES, CANVAS_SIZES, resolveLayout } from './constants';
 import { processChartData, isDateColumn, computeHeadline } from './utils/dataProcessing';
 import { exportChartAsPng, exportChartAsSvg, exportChartAsPptx, saveChartConfig, copyChartToClipboard } from './utils/exportChart';
 import { buildSlideRaw } from '../../utils/deckTemplates';
@@ -127,6 +127,18 @@ function componerFigura(modo, piezas, retiradas, kpiEnCabecera) {
  * El orden es fijo — nota al pie, subtítulo, fuente y firma, conclusión — y
  * título, KPI y lienzo no se retiran nunca.
  */
+/**
+ * El ancho NATURAL de una tarjeta con esa proporción: su tamaño al 100 %.
+ *
+ * 880×620 es la caja de diseño. Se toma el ancho, pero acotado por el alto: una
+ * tarjeta muy apaisada no puede medir 880 de ancho y quedarse en 460 de alto sin
+ * dejar de parecerse a las demás, y una vertical no puede medir 880 de ancho
+ * porque no cabría de alto en ninguna pantalla.
+ */
+const ANCHO_DISENO = 880;
+const ALTO_DISENO = 620;
+const anchoBase = (razon) => Math.min(ANCHO_DISENO, ALTO_DISENO * razon);
+
 function calcularRetiradas(alto) {
     if (!alto || alto >= 420) return new Set();
     if (alto >= 340) return new Set(['nota']);
@@ -156,6 +168,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
        capturar al exportar: `chartRef` apunta al div de dentro, así que el PNG
        salía sin tarjeta — el gráfico al ras y el texto pegado arriba. */
     const cardRef = useRef(null);
+    /* El área donde vive la tarjeta. Se mide para poder darle a la tarjeta su
+       tamaño real dentro de ella en vez de dejar que se estire. */
+    const areaRef = useRef(null);
+    const [area, setArea] = useState({ w: 0, h: 0 });
+    /* El tamaño REAL de la tarjeta, medido. De aquí sale la escala del texto, y
+       por eso funciona igual en el editor y durante la exportación (donde la
+       tarjeta recibe medidas mucho mayores). */
+    const [tamMedido, setTamMedido] = useState({ w: 0, h: 0 });
+    const [zoom, setZoom] = useState(1);
     const fileInputRef = useRef(null);
 
     // ── Columns ──
@@ -457,6 +478,71 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         return () => ro.disconnect();
     }, []);
 
+    /* ── El TAMAÑO NATURAL, y la escala del texto que se deriva de él ──
+       Al 100 % la figura mide su tamaño de diseño y la tipografía va a su tamaño
+       real: 18 px son 18 px. El zoom multiplica la tarjeta ENTERA — caja, texto y
+       dibujo a la vez — así que al 150 % todo es un 50 % mayor y las proporciones
+       no se mueven. Es lo que uno espera de un zoom.
+
+       Antes el 100 % significaba «lo más grande que quepa», y como la tipografía
+       escalaba con el tamaño, la figura se veía siempre ampliada aunque el
+       control marcara 100 %. Eran dos ideas peleándose.
+
+       Al exportar la tarjeta recibe medidas mucho mayores, y como la escala sale
+       del tamaño MEDIDO, el texto crece con ella y las proporciones aguantan
+       igual a 1920 que en el editor. */
+    const carta = tamMedido;
+    const escalaTexto = useMemo(() => {
+        if (!carta.w || !carta.h) return state.textScale || 1;
+        const base = anchoBase(carta.w / carta.h);
+        return (state.textScale || 1) * (carta.w / base);
+    }, [carta.w, carta.h, state.textScale]);
+
+    /* ── El tamaño REAL de la tarjeta ──
+       La figura deja de estirarse para llenar el hueco. Tiene su proporción y se
+       dibuja al mayor tamaño que quepa dentro del área, por el zoom. Lo que sobra
+       queda vacío, igual que la mesa alrededor de una hoja.
+
+       Esto arregla algo que no era evidente: como la tarjeta se estiraba, la
+       misma figura se exportaba distinta según si el explorador de archivos
+       estaba abierto o cerrado. Con la proporción fija, lo que ves es lo que se
+       descarga. */
+    const tamCarta = useMemo(() => {
+        const prop = CANVAS_SIZES.find(c => c.label === (state.canvasSize || '4:3'));
+        if (!prop || !prop.w || !prop.h) return null;          // 'Libre': ocupa el hueco
+        const razon = prop.w / prop.h;
+        const base = anchoBase(razon);
+        const w = base * zoom;
+        return { width: `${Math.round(w)}px`, height: `${Math.round(w / razon)}px`, flex: 'none' };
+    }, [state.canvasSize, zoom]);
+
+    /* El zoom que hace que la figura quepa entera. Es lo que hace el botón
+       «Ajustar»; ya no es lo que significa el 100 %. */
+    const zoomQueCabe = useMemo(() => {
+        const prop = CANVAS_SIZES.find(c => c.label === (state.canvasSize || '4:3'));
+        if (!prop || !prop.w || !prop.h || !area.w || !area.h) return 1;
+        const razon = prop.w / prop.h;
+        const cabe = Math.min(area.w, area.h * razon);
+        return Math.max(0.3, Math.min(3, cabe / anchoBase(razon)));
+    }, [state.canvasSize, area.w, area.h]);
+
+    useEffect(() => {
+        if (typeof ResizeObserver === 'undefined') return;
+        const observadores = [];
+        const medir = (el, set) => {
+            if (!el) return;
+            const ro = new ResizeObserver(([e]) => {
+                const { width, height } = e.contentRect;
+                set(p => (Math.abs(p.w - width) < 3 && Math.abs(p.h - height) < 3) ? p : { w: width, h: height });
+            });
+            ro.observe(el);
+            observadores.push(ro);
+        };
+        medir(areaRef.current, setArea);
+        medir(cardRef.current, setTamMedido);
+        return () => observadores.forEach(o => o.disconnect());
+    }, []);
+
     const modoLayout = useMemo(
         () => resolveLayout(state.layout, hueco.w, hueco.h),
         [state.layout, hueco.w, hueco.h]);
@@ -481,9 +567,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
             {state.chartTitle && (
                 <h2 style={{
                     textAlign: state.textAlign,
-                    margin: `0 0 ${state.titleSpacing}px 0`,
+                    margin: `0 0 ${Math.round(state.titleSpacing * escalaTexto)}px 0`,
                     color: 'var(--text-active)',
-                    fontSize: `${Math.round(18 * state.textScale)}px`,
+                    fontSize: `${Math.round(18 * escalaTexto)}px`,
                     fontWeight: '600',
                 }}>
                     {renderRichText(state.chartTitle)}
@@ -496,9 +582,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
             {(state.chartSubtitle || inlineLegendItems) && (
                 <h3 style={{
                     textAlign: state.textAlign,
-                    margin: `0 0 ${state.titleSpacing}px 0`,
+                    margin: `0 0 ${Math.round(state.titleSpacing * escalaTexto)}px 0`,
                     color: 'var(--text-muted)',
-                    fontSize: `${Math.round(14 * state.textScale)}px`,
+                    fontSize: `${Math.round(14 * escalaTexto)}px`,
                     fontWeight: '400',
                 }}>
                     {state.chartSubtitle ? renderRichText(state.chartSubtitle) : null}
@@ -507,7 +593,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                             {state.chartSubtitle ? ' ' : null}
                             <InlineLegend
                                 items={inlineLegendItems}
-                                fontSize={Math.round(14 * state.textScale)}
+                                fontSize={Math.round(14 * escalaTexto)}
                             />
                         </>
                     )}
@@ -522,7 +608,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 headlineData={headlineData}
                 numberFormat={state.numberFormat}
                 decimalPlaces={state.decimalPlaces}
-                textScale={state.textScale}
+                textScale={escalaTexto}
                 textAlign={state.textAlign}
             />
         </>),
@@ -544,7 +630,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                         activeColors={activeColors}
                         columns={columns}
                         isDateColumn={isDateCol}
-                        textScale={state.textScale}
+                        textScale={escalaTexto}
                     />
                 )}
             </div>
@@ -553,9 +639,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
             {/* Takeaway */}
             {state.takeaway && (
                 <div style={{
-                    marginTop: `${state.titleSpacing}px`,
+                    marginTop: `${Math.round(state.titleSpacing * escalaTexto)}px`,
                     color: 'var(--text-secondary)',
-                    fontSize: `${Math.round(13 * state.textScale)}px`,
+                    fontSize: `${Math.round(13 * escalaTexto)}px`,
                     lineHeight: 1.5,
                     borderLeft: '3px solid var(--accent-color-user)',
                     paddingLeft: '10px',
@@ -569,9 +655,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
             {state.chartFootnote && (
                 <div style={{
                     textAlign: state.textAlign,
-                    marginTop: `${state.titleSpacing}px`,
+                    marginTop: `${Math.round(state.titleSpacing * escalaTexto)}px`,
                     color: 'var(--text-muted)',
-                    fontSize: `${Math.round(12 * state.textScale)}px`,
+                    fontSize: `${Math.round(12 * escalaTexto)}px`,
                     fontStyle: 'italic',
                     borderTop: '1px solid var(--border-color)',
                     paddingTop: '5px',
@@ -589,12 +675,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     alignItems: 'baseline',
                     gap: '12px',
                     flexWrap: 'wrap',
-                    marginTop: `${state.titleSpacing}px`,
+                    marginTop: `${Math.round(state.titleSpacing * escalaTexto)}px`,
                     paddingTop: '5px',
                     borderTop: state.chartFootnote ? 'none' : '1px solid var(--border-color)',
                     color: 'var(--text-muted)',
                     fontFamily: 'var(--font-mono, ui-monospace, monospace)',
-                    fontSize: `${Math.round(11 * state.textScale)}px`,
+                    fontSize: `${Math.round(11 * escalaTexto)}px`,
                 }}>
                     <span>
                         {state.chartSource && (
@@ -761,8 +847,22 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 convierte en un objeto sobre una mesa.
                 No aplica en modo informe (allí la maqueta la pone el documento) ni
                 a pantalla completa, que ya trae sus 40 px. */}
+            {/* Columna: el lienzo arriba y su barra debajo. Sin esta columna la
+                barra se colocaba como una TERCERA COLUMNA a la derecha del
+                gráfico, porque el contenedor de DataVisualizer es una fila
+                (panel de opciones | zona del gráfico). */}
+            <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div ref={areaRef} style={{
+                flex: 1, minHeight: 0, minWidth: 0, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                overflow: 'auto', padding: (isReportMode || isFullscreen) ? 0 : '12px',
+            }}>
             <div ref={cardRef} style={{
-                flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0,
+                ...(tamCarta && !isReportMode && !isFullscreen
+                    ? tamCarta
+                    : { flex: 1, height: '100%' }),
+                display: 'flex', flexDirection: 'column', minWidth: 0,
+                position: 'relative',   // ancla de la barra de botones flotante
                 backgroundColor: isReportMode ? 'transparent' : 'var(--chart-bg)',
                 overflow: isReportMode ? 'visible' : 'hidden',
                 ...((!isReportMode && !isFullscreen) ? { margin: '14px 16px 16px' } : {}),
@@ -779,7 +879,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                        esto, aunque html2canvas ignora los <button>, el contenedor
                        seguiría reservando su alto y el PNG saldría con una banda
                        vacía arriba. */
-                    <div data-export-hide="true" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: isFullscreen ? '0 0 10px 0' : '8px 16px 0 0' }}>
+                    /* Flotante en la esquina, no en el flujo. Si ocupa alto, el
+                       aire de arriba depende de si los botones están o no — y en
+                       la exportación no están, así que la tarjeta salía con el
+                       título pegado al borde. Así el padding manda solo. */
+                    <div data-export-hide="true" style={{
+                        position: 'absolute', top: '8px', right: '10px', zIndex: 2,
+                        display: 'flex', justifyContent: 'flex-end', gap: '8px',
+                    }}>
                         {isFullscreen && (
                             <button onClick={() => handleDownload({ label: 'original', width: chartRef.current?.offsetWidth, height: chartRef.current?.offsetHeight })} title="Download Chart as PNG"
                                 style={{
@@ -808,7 +915,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                        tarjeta ya separada del panel, un margen corto hacía que el
                        lienzo tocara casi el filete y se perdía la sensación de
                        figura. A pantalla completa se abre más, que hay sitio. */
-                    flex: 1, padding: isFullscreen ? '0 48px 40px 48px' : '10px 34px 28px 34px',
+                    flex: 1,
+                    /* Mismo aire por los cuatro lados. Arriba iba en 10 contra 34
+                       de los lados, y el contenido se veía pegado al filete —
+                       sobre todo al exportar, donde la barra de botones no sale y
+                       ese hueco desaparece del todo. */
+                    padding: isFullscreen
+                        ? '48px 48px 40px'
+                        : `${Math.round(30 * escalaTexto)}px ${Math.round(34 * escalaTexto)}px ${Math.round(30 * escalaTexto)}px`,
                     display: 'flex', flexDirection: 'column', minHeight: '300px',
                     fontFamily,
                     // Contain layout/paint so the chart's internal reflow stays local,
@@ -818,6 +932,47 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 }}>
                     {componerFigura(modoLayout, piezas, retiradas, (state.headline?.position || 'below') === 'header-right' || modoLayout === 'split-header')}
                 </div>
+            </div>
+            </div>
+
+            {/* ── Barra del lienzo ──
+                La forma a la que se dibuja la figura y el zoom para mirarla de
+                cerca. El zoom es solo para VER: no entra en la exportación, que
+                usa siempre la proporción elegida aquí. */}
+            {!isReportMode && !isFullscreen && (
+                <div data-export-hide="true" style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+                    padding: '6px 16px 10px', flex: 'none',
+                }}>
+                    <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Lienzo</span>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                        {CANVAS_SIZES.map(c => (
+                            <button key={c.label} onClick={() => setField('canvasSize', c.label)}
+                                style={{
+                                    background: state.canvasSize === c.label ? 'var(--accent-muted)' : 'transparent',
+                                    border: `1px solid ${state.canvasSize === c.label ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                                    color: state.canvasSize === c.label ? 'var(--accent-primary)' : 'var(--text-muted)',
+                                    borderRadius: '5px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer',
+                                }}>{c.label}</button>
+                        ))}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginLeft: 'auto' }}>
+                        <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Zoom</span>
+                        <input type="range" min={40} max={220} step={5}
+                            value={Math.round(zoom * 100)}
+                            onChange={e => setZoom(Number(e.target.value) / 100)}
+                            style={{ width: '120px', accentColor: 'var(--accent-primary)' }} />
+                        <button onClick={() => setZoom(zoom === 1 ? zoomQueCabe : 1)}
+                            title={zoom === 1 ? 'Ajustar al hueco' : 'Volver al tamaño real (100 %)'}
+                            style={{
+                                background: 'transparent', border: '1px solid var(--border-color)',
+                                color: 'var(--text-muted)', borderRadius: '5px', padding: '3px 7px',
+                                fontSize: '11px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                                minWidth: '48px',
+                            }}>{Math.round(zoom * 100)}%</button>
+                    </div>
+                </div>
+            )}
             </div>
 
             {showGuide && (
