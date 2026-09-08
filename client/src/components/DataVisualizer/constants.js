@@ -183,6 +183,18 @@ export const CHART_TYPES = [
     { key: 'waterfall', label: 'Waterfall', category: 'flow', description: 'Cumulative bridge' },
 ];
 
+/**
+ * ¿Este tipo de gráfico tiene ejes cartesianos?
+ *
+ * Se usa para no ofrecer controles que no hacen nada. Antes cada panel decidía
+ * por su cuenta con `!isDonut`, así que la tarta, el treemap, el embudo y el
+ * mapa de calor — que tampoco tienen ejes — seguían enseñando rejilla, escala
+ * logarítmica y títulos de eje. Opciones presentes que no aplican son peor que
+ * opciones ausentes: se tocan, no pasa nada, y uno cree que algo está roto.
+ */
+const SIN_EJES = new Set(['donut', 'pie', 'treemap', 'funnel', 'heatmap']);
+export const tieneEjes = (chartType) => !SIN_EJES.has(chartType);
+
 export const CHART_CATEGORIES = [
     { key: 'compare', label: 'Compare' },
     { key: 'trend', label: 'Trend' },

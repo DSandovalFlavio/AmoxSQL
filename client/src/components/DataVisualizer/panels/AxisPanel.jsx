@@ -4,7 +4,7 @@
  */
 import { memo } from 'react';
 import { Section, Toggle, SelectField, InputField, SliderField, panelStyles } from './shared';
-import { NUMBER_FORMAT_OPTIONS } from '../constants';
+import { NUMBER_FORMAT_OPTIONS, tieneEjes } from '../constants';
 
 const AxisPanel = memo(({ state, setField, defaultXLabel, defaultYLabel }) => {
     const { chartType, numberFormat, decimalPlaces, showAxisLines, yLogScale,
@@ -15,9 +15,10 @@ const AxisPanel = memo(({ state, setField, defaultXLabel, defaultYLabel }) => {
 
     const isHorizontal = chartType.startsWith('bar-horizontal');
     const isDonut = chartType === 'donut';
-    const isCartesian = !isDonut;
-
-    if (!isCartesian) return null;
+    /* El formato numérico aplica SIEMPRE — etiquetas, tooltips, el KPI —, así que
+       el panel ya no se oculta entero. Lo que se oculta son las secciones de eje
+       en los tipos que no los tienen. */
+    const isCartesian = tieneEjes(chartType);
 
     return (
         <>
@@ -45,6 +46,7 @@ const AxisPanel = memo(({ state, setField, defaultXLabel, defaultYLabel }) => {
                 </SelectField>
             </Section>
 
+            {isCartesian && (<>
             {/* ── Axis Labels ── */}
             <Section title="Axis Labels">
                 <SliderField
@@ -170,6 +172,7 @@ const AxisPanel = memo(({ state, setField, defaultXLabel, defaultYLabel }) => {
                 </div>
 
             </Section>
+            </>)}
         </>
     );
 });

@@ -4,6 +4,7 @@
  */
 import { memo } from 'react';
 import { Section, Toggle, SelectField, SliderField, SimpleColorPicker, panelStyles } from './shared';
+import { tieneEjes } from '../constants';
 
 const DetailPanel = memo(({ state, setField, finalSeriesKeys, showHighlight = true }) => {
     const { chartType, showLabels, dataLabelPosition, tooltipShowPercent, tooltipMode,
@@ -24,7 +25,12 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys, showHighlight = tr
 
     const isLine = chartType === 'line' || chartType === 'area';
     const isBar = chartType === 'bar' || chartType.startsWith('bar-horizontal') || chartType === 'bar-stacked' || chartType === 'bar-100' || chartType === 'bar-horizontal-stacked' || chartType === 'bar-horizontal-100';
-    const isDonut = chartType === 'donut';
+    /* La tarta comparte renderizador con el anillo, así que sus controles de
+       ETIQUETA le aplican igual. Solo el grosor y la cifra del centro son del
+       anillo: una tarta no tiene hueco donde ponerlos. */
+    const esCircular = chartType === 'donut' || chartType === 'pie';
+    const isDonut = esCircular;                  // etiquetas, segmentos, colores por categoría
+    const soloAnillo = chartType === 'donut';    // grosor y cifra del centro
     const isScatter = chartType === 'scatter' || chartType === 'bubble';
     const isCombo = chartType === 'combo';
 
@@ -117,8 +123,12 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys, showHighlight = tr
                 )}
             </Section>
 
-            {/* ── Grid & Legend ── */}
-            <Section title="Grid & Legend">
+            {/* ── Grid & Legend ──
+                La rejilla y las líneas de eje solo se ofrecen donde hay ejes: en
+                una tarta, un treemap o un embudo son controles que no hacen nada.
+                La leyenda, en cambio, aplica a todos. */}
+            <Section title={tieneEjes(chartType) ? 'Grid & Legend' : 'Legend'}>
+                {tieneEjes(chartType) && (<>
                 <SelectField
                     label="Grid Lines"
                     value={gridMode}
@@ -133,6 +143,7 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys, showHighlight = tr
 
                 <Toggle label="Show Axis Lines & Ticks" checked={showAxisLines}
                     onChange={v => setField('showAxisLines', v)} />
+                </>)}
 
                 <SelectField
                     label="Legend Position"
@@ -206,8 +217,8 @@ const DetailPanel = memo(({ state, setField, finalSeriesKeys, showHighlight = tr
                 </Section>
             )}
 
-            {/* ── Donut-Specific ── */}
-            {isDonut && (
+            {/* ── Solo el anillo: el grosor y la cifra del centro necesitan hueco ── */}
+            {soloAnillo && (
                 <Section title="Donut Options">
                     <SliderField
                         label="Inner Radius (Thickness)"

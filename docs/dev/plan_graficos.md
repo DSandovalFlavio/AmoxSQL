@@ -348,3 +348,54 @@ plan, y al repasarlo aparecieron dos huecos — uno de ellos abierto por mí.
 Lo que el contrato describe y **ya hacía la aplicación**: leyenda obligatoria en apilados y
 composición, etiquetas dentro de las bandas del embudo, colores semánticos en la cascada,
 categorías al lado izquierdo en barras horizontales, y escala de color en el mapa de calor.
+
+---
+
+# Parte 6 — Auditoría de las opciones
+
+Dos preguntas: ¿queda alguna opción muerta (con control pero que ya no se aplica)? ¿y se ofrece
+cada una solo donde tiene sentido?
+
+## Opciones muertas: ninguna
+
+Comprobado con un barrido sobre las **77 claves** de `DEFAULT_CONFIG`, cruzando cada una contra
+su consumo en el renderizador, el contenedor y las utilidades, y contra su control en los paneles.
+Ninguna clave tiene control sin lector. Las dos que aparecen «sin control en paneles» —
+`chartType` y `canvasSize` — sí lo tienen, fuera de `panels/`: el selector de tipo y la barra del
+lienzo.
+
+## Opciones que se ofrecían donde no aplican
+
+- [x] **`isCartesian` era `!isDonut`.** La tarta, el treemap, el embudo y el mapa de calor —que
+      tampoco tienen ejes— seguían enseñando escala logarítmica, dominio del eje Y, títulos de eje
+      y rejilla. Ahora hay **una sola definición** (`tieneEjes` en `constants.js`) y la usan los
+      dos paneles. Opciones presentes que no hacen nada son peor que opciones ausentes: se tocan,
+      no pasa nada, y uno cree que algo está roto.
+- [x] **El formato numérico ya no se oculta con el anillo.** Aplica siempre: etiquetas, tooltips y
+      el KPI. Antes el panel entero desaparecía en donut.
+- [x] **La rejilla y las líneas de eje** salen de «Grid & Legend» en los tipos sin ejes; la
+      leyenda se queda, porque esa sí aplica a todos, y la sección se retitula.
+- [x] **La tarta recupera sus controles de etiqueta.** Comparte renderizador con el anillo, así
+      que `donutLabelContent`, `donutLabelPosition` y el umbral de agrupación le aplican — pero
+      `isDonut` era estricto y se los negaba. Ahora `esCircular` cubre a las dos y `soloAnillo`
+      guarda lo que de verdad necesita hueco: el grosor y la cifra del centro.
+
+## La matriz resultante
+
+| tipo | ejes/rejilla | formato | leyenda | línea | barra | anillo | meta/ref | tendencia | destacado | anotaciones |
+|---|---|---|---|---|---|---|---|---|---|---|
+| bar, bar-stacked, bar-100 | sí | sí | sí | — | sí | — | sí | sí | sí | sí |
+| bar-horizontal (y apiladas) | sí | sí | sí | — | sí | — | sí | — | sí | sí |
+| line, area | sí | sí | sí | sí | — | — | sí | sí | sí | sí |
+| combo | sí | sí | sí | sí | — | — | sí | — | — | sí |
+| scatter, bubble | sí | sí | sí | — | — | — | sí | — | — | — |
+| waterfall | sí | sí | sí | — | — | — | sí | — | — | — |
+| donut | — | sí | sí | — | — | sí | — | — | — | — |
+| pie | — | sí | sí | — | — | etiquetas | — | — | — | — |
+| treemap, funnel, heatmap | — | sí | sí | — | — | — | — | — | — | — |
+
+### Lo que dejo anotado y no toco
+
+`combo` no ofrece «Destacado» porque `supportsHighlight` es `isLine \|\| isBar` y combo no es
+ninguno de los dos según esa clasificación. Tiene barras y línea, así que probablemente debería
+ofrecerlo. Es anterior a este trabajo y cambiarlo es una decisión de producto, no un arreglo.
