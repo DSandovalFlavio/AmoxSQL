@@ -20,6 +20,7 @@ import MarkdownPreview from '../markdown/MarkdownPreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { parseAmoxChartBlock, resolveFooterFields } from '../../utils/deckParser';
 import DeckFooter from './DeckFooter';
+import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio } from './SlideFigureParts';
 
 const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
 const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
@@ -29,18 +30,20 @@ const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
 // render as a literal code block on screen.
 const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
 
-function useChartRenderer(variables, refreshToken, onProcedencia) {
+function useChartRenderer(variables, refreshToken, onProcedencia, onPiezas) {
     return useMemo(() => (raw) => {
         const parsed = parseAmoxChartBlock(raw);
         return (
             <AmoxChartEmbed
                 src={parsed.src}
+                card={parsed.card === true}
                 variables={variables}
                 refreshToken={refreshToken}
                 onProcedencia={onProcedencia}
+                onPiezas={onPiezas}
             />
         );
-    }, [variables, refreshToken, onProcedencia]);
+    }, [variables, refreshToken, onProcedencia, onPiezas]);
 }
 
 /**
@@ -61,7 +64,10 @@ const SlidePreview = ({
     // dentro de la misma lámina.
     const [procedencia, setProcedencia] = useState(null);
     const recibirProcedencia = useCallback((datos) => setProcedencia(datos), []);
-    const chartRenderer = useChartRenderer(variables, refreshToken, recibirProcedencia);
+    // Las piezas que la figura suelta al disolverse su tarjeta.
+    const [piezas, setPiezas] = useState(null);
+    const recibirPiezas = useCallback((p) => setPiezas(p), []);
+    const chartRenderer = useChartRenderer(variables, refreshToken, recibirProcedencia, recibirPiezas);
     const visibleMarkdown = slide.markdown.replace(NOTES_FENCE_RE, '').trim();
     const hayFigura = AMOXCHART_FENCE_RE.test(visibleMarkdown);
     const camposPie = resolveFooterFields({
@@ -70,6 +76,15 @@ const SlidePreview = ({
         layout: slide.layout,
         hasChart: hayFigura,
     });
+
+    // El título de la figura sólo asciende si la lámina no escribe el suyo.
+    const tituloHeredado = tieneTituloPropio(visibleMarkdown) ? '' : (piezas?.title || '');
+    const heredadas = (
+        <>
+            <SlideKpi kpi={piezas?.kpi} />
+            <SlideTakeaway texto={piezas?.takeaway} />
+        </>
+    );
 
     let body;
 
@@ -83,13 +98,16 @@ const SlidePreview = ({
                 <div className="deck-slide-col deck-slide-col--text">
                     {before && <MarkdownPreview content={before} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
                     {after && <MarkdownPreview content={after} theme={theme} onOpenFile={onOpenFile} widthMode="full" />}
+                    {heredadas}
                 </div>
                 <div className="deck-slide-col deck-slide-col--chart">
                     <AmoxChartEmbed
                         src={parsed.src}
+                        card={parsed.card === true}
                         variables={variables}
                         refreshToken={refreshToken}
                         onProcedencia={recibirProcedencia}
+                        onPiezas={recibirPiezas}
                     />
                 </div>
             </div>
@@ -112,6 +130,7 @@ const SlidePreview = ({
         body = (
             <div className={`deck-slide-body deck-slide-body--${slide.layout}`}>
                 <MarkdownPreview content={visibleMarkdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} />
+                {hayFigura && heredadas}
             </div>
         );
     }
@@ -119,6 +138,7 @@ const SlidePreview = ({
     return (
         <div className="deck-slide">
             <SlideEyebrow eyebrow={eyebrow} layout={slide.layout} />
+            <SlideTituloHeredado titulo={tituloHeredado} />
             {body}
             <DeckFooter
                 fields={camposPie}
@@ -126,6 +146,7 @@ const SlidePreview = ({
                 variables={variables}
                 slideNumber={slideNumber}
                 refreshedAt={refreshedAt}
+                caveat={piezas?.footnote}
             />
         </div>
     );

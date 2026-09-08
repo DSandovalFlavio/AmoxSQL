@@ -132,6 +132,77 @@
     min-width: 0;
 }
 
+/* ── Piezas que suben de la figura a la lámina ───────────────────────────
+   Cuando la tarjeta de Story Flow se disuelve, sus piezas cambian de dueño en
+   vez de desaparecer. Ver docs/dev/sistema_deck.html, apartado 05. */
+.deck-slide-titulo-heredado {
+    flex-shrink: 0;
+    font-size: var(--t-titulo);
+    font-weight: var(--weight-bold);
+    letter-spacing: -.022em;
+    line-height: 1.16;
+    max-width: 36ch;
+    text-wrap: balance;
+    margin: 0 0 calc(18 * var(--u));
+    color: var(--text-primary);
+}
+
+.deck-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: calc(5 * var(--u));
+    padding-left: calc(16 * var(--u));
+    border-left: calc(2 * var(--u)) solid var(--accent-primary);
+    margin-top: calc(20 * var(--u));
+}
+.deck-kpi-etiqueta {
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: calc(12.5 * var(--u));
+    font-weight: var(--weight-semibold);
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+.deck-kpi-linea {
+    display: flex;
+    align-items: baseline;
+    gap: calc(9 * var(--u));
+    flex-wrap: wrap;
+}
+.deck-kpi-valor {
+    font-size: var(--t-kpi);
+    font-weight: var(--weight-bold);
+    line-height: 1.02;
+    letter-spacing: -.032em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+.deck-kpi-delta {
+    text-decoration: none;
+    font-size: calc(15 * var(--u));
+    font-weight: var(--weight-semibold);
+    color: var(--text-tertiary);
+}
+/* Verde y rojo son semánticos, nunca de paleta: si los aportara la paleta, un
+   cambio de paleta invertiría el significado. */
+.deck-kpi-delta--pos { color: var(--color-success); }
+.deck-kpi-delta--neg { color: var(--color-error); }
+.deck-kpi-base {
+    font-style: normal;
+    font-size: calc(13 * var(--u));
+    color: var(--text-tertiary);
+}
+
+.deck-figura-takeaway {
+    font-size: calc(19 * var(--u));
+    line-height: 1.44;
+    color: var(--text-secondary);
+    border-left: calc(2 * var(--u)) solid var(--accent-primary);
+    padding-left: calc(16 * var(--u));
+    margin-top: calc(20 * var(--u));
+}
+
 /* ── Banda de pie: la capa de credibilidad ───────────────────────────────
    Alto fijo y siempre en el mismo sitio: es un ancla, no un adorno. Es lo que
    permite auditar el deck lámina a lámina. */

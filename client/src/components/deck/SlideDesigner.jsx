@@ -15,6 +15,7 @@ import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, 
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow } from './SlidePreview';
 import DeckFooter from './DeckFooter';
+import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio } from './SlideFigureParts';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
 import { resolveFooterFields } from '../../utils/deckParser';
@@ -98,7 +99,7 @@ function EditableProse({ value, placeholder, onCommit, theme, onOpenFile }) {
 }
 
 /** Live chart slot, or an empty placeholder that points at the Charts panel. */
-function ChartSlot({ chartSrc, variables, refreshToken, onRemove, onRequestAdd, onProcedencia }) {
+function ChartSlot({ chartSrc, variables, refreshToken, onRemove, onRequestAdd, onProcedencia, onPiezas }) {
     if (!chartSrc) {
         return (
             <button type="button" className="deck-chart-slot deck-chart-slot--empty" onClick={onRequestAdd}>
@@ -118,6 +119,7 @@ function ChartSlot({ chartSrc, variables, refreshToken, onRemove, onRequestAdd, 
                 variables={variables}
                 refreshToken={refreshToken}
                 onProcedencia={onProcedencia}
+                onPiezas={onPiezas}
             />
         </div>
     );
@@ -178,6 +180,8 @@ const SlideDesigner = ({
     const desborde = useDesborde(canvasRef);
     const [procedencia, setProcedencia] = useState(null);
     const recibirProcedencia = useCallback((datos) => setProcedencia(datos), []);
+    const [piezas, setPiezas] = useState(null);
+    const recibirPiezas = useCallback((p) => setPiezas(p), []);
     const camposPie = resolveFooterFields({
         slideFooter: slide.footer,
         deckFooter,
@@ -196,7 +200,17 @@ const SlideDesigner = ({
             onRemove={onRemoveChart}
             onRequestAdd={onRequestAddChart}
             onProcedencia={recibirProcedencia}
+            onPiezas={recibirPiezas}
         />
+    );
+
+    // El título de la figura sólo asciende si la lámina no escribe el suyo.
+    const tituloHeredado = tieneTituloPropio(prose) ? '' : (piezas?.title || '');
+    const heredadas = (
+        <>
+            <SlideKpi kpi={piezas?.kpi} />
+            <SlideTakeaway texto={piezas?.takeaway} />
+        </>
     );
 
     // Mismo reparto en dos bandas que SlidePreview: cabecera y cuerpo, con el
@@ -205,7 +219,7 @@ const SlideDesigner = ({
     if (layout === 'content-chart') {
         cuerpo = (
             <div className="deck-slide-body deck-slide-body--content-chart">
-                <div className="deck-slide-col deck-slide-col--text">{proseEl}</div>
+                <div className="deck-slide-col deck-slide-col--text">{proseEl}{heredadas}</div>
                 <div className="deck-slide-col deck-slide-col--chart">{chartEl}</div>
             </div>
         );
@@ -223,6 +237,7 @@ const SlideDesigner = ({
             <div className={`deck-slide-body deck-slide-body--${layout}`}>
                 {proseEl}
                 {chartSrc && <div className="deck-slide-inline-chart">{chartEl}</div>}
+                {chartSrc && heredadas}
             </div>
         );
     }
@@ -230,6 +245,7 @@ const SlideDesigner = ({
     const body = (
         <div className="deck-slide">
             <SlideEyebrow eyebrow={eyebrow} layout={layout} />
+            <SlideTituloHeredado titulo={tituloHeredado} />
             {cuerpo}
             <DeckFooter
                 fields={camposPie}
@@ -237,6 +253,7 @@ const SlideDesigner = ({
                 variables={variables}
                 slideNumber={slideNumber}
                 refreshedAt={refreshedAt}
+                caveat={piezas?.footnote}
             />
         </div>
     );

@@ -14,7 +14,7 @@ import { LuLoaderCircle, LuTriangleAlert } from 'react-icons/lu';
 import DataVisualizer from '../DataVisualizer';
 import { injectEnvironmentVariables } from '../../utils/injectEnvironmentVariables';
 
-const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia }) => {
+const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, onPiezas, card = false }) => {
     const [state, setState] = useState({ status: 'loading', data: null, config: null, query: '', error: null });
     // Por referencia: el callback no debe entrar en las dependencias de `load`,
     // o un padre que lo redefina en cada render relanzaría la consulta en bucle.
@@ -88,7 +88,17 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia }
 
     return (
         <div className="amoxchart-embed">
-            <DataVisualizer data={state.data} query={state.query} initialChartConfig={state.config} isReportMode />
+            {/* La tarjeta se disuelve: la lámina YA es la tarjeta. `card: true`
+                en el bloque ```amoxchart la recupera para quien la quiera, pero
+                nunca es el valor de fábrica. */}
+            <DataVisualizer
+                data={state.data}
+                query={state.query}
+                initialChartConfig={state.config}
+                isReportMode
+                chrome={card ? 'card' : 'none'}
+                onPiezas={onPiezas}
+            />
         </div>
     );
 };
