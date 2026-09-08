@@ -174,6 +174,7 @@ const DeckEditor = ({
             eyebrow: patch.eyebrow !== undefined ? patch.eyebrow : slide.eyebrow,
             footer: patch.footer !== undefined ? patch.footer : slide.footer,
             prose: patch.prose !== undefined ? patch.prose : current.prose,
+            charts: patch.charts !== undefined ? patch.charts : current.charts,
             chartSrc: patch.chartSrc !== undefined ? patch.chartSrc : current.chartSrc,
             notes: patch.notes !== undefined ? patch.notes : current.notes,
         });
@@ -184,14 +185,31 @@ const DeckEditor = ({
     const handleEditProse = useCallback((prose) => updateSlideAt(activeSlideIndex, { prose }), [updateSlideAt, activeSlideIndex]);
     const handleEditNotes = useCallback((notes) => updateSlideAt(activeSlideIndex, { notes }), [updateSlideAt, activeSlideIndex]);
     const handleApplyLayout = useCallback((layout) => updateSlideAt(activeSlideIndex, { layout }), [updateSlideAt, activeSlideIndex]);
-    const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { chartSrc: null }), [updateSlideAt, activeSlideIndex]);
+    const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { charts: [] }), [updateSlideAt, activeSlideIndex]);
+
+    /** Quita UNA figura de una lámina que tiene varias. */
+    const handleRemoveChartAt = useCallback((i) => {
+        const slide = deck.slides[activeSlideIndex];
+        if (!slide) return;
+        const { charts } = splitSlideContent(slide.markdown);
+        updateSlideAt(activeSlideIndex, { charts: charts.filter((_, k) => k !== i) });
+    }, [deck.slides, activeSlideIndex, updateSlideAt]);
 
     const handleInsertChart = useCallback((src) => {
         // Set/replace the chart on the ACTIVE slide (never append to the file).
         // A plain 'content' slide gains a chart slot by promoting it to
         // content-chart so the chart has somewhere to render.
         const slide = deck.slides[activeSlideIndex];
-        const patch = { chartSrc: src };
+        // En una lámina de varias figuras la nueva se AÑADE; en las demás
+        // reemplaza, que es lo que se espera de un hueco único.
+        const varias = slide && (slide.layout === 'chart-grid' || slide.layout === 'compare');
+        if (varias) {
+            const { charts } = splitSlideContent(slide.markdown);
+            const tope = slide.layout === 'compare' ? 2 : 4;
+            updateSlideAt(activeSlideIndex, { charts: [...charts, { src }].slice(0, tope) });
+            return;
+        }
+        const patch = { charts: [{ src }] };
         if (slide && slide.layout === 'content') patch.layout = 'finding';
         updateSlideAt(activeSlideIndex, patch);
     }, [deck.slides, activeSlideIndex, updateSlideAt]);
@@ -475,6 +493,7 @@ const DeckEditor = ({
                                     onEditProse={handleEditProse}
                                     onEditNotes={handleEditNotes}
                                     onRemoveChart={handleRemoveChart}
+                                    onRemoveChartAt={handleRemoveChartAt}
                                     onRequestAddChart={requestAddChart}
                                     onPrev={() => goToSlide(activeSlideIndex - 1)}
                                     onNext={() => goToSlide(activeSlideIndex + 1)}

@@ -165,9 +165,16 @@ Write your point here.
 > What this analysis does NOT say.`,
 };
 
-/** A fenced amoxchart block referencing a `.amoxvis` file by project path. */
-export function buildChartBlock(src) {
-    return '```amoxchart\nsrc: ' + (src || CHART_PLACEHOLDER) + '\n```';
+/**
+ * A fenced amoxchart block referencing a `.amoxvis` file by project path.
+ * `slot` coloca la figura en un hueco concreto de las láminas de varias
+ * figuras; `card` fuerza o quita su tarjeta.
+ */
+export function buildChartBlock(src, { slot = null, card = null } = {}) {
+    const lineas = ['src: ' + (src || CHART_PLACEHOLDER)];
+    if (slot) lineas.push('slot: ' + slot);
+    if (card === true || card === false) lineas.push('card: ' + card);
+    return '```amoxchart\n' + lineas.join('\n') + '\n```';
 }
 
 /** A fenced notes block holding this slide's speaker notes verbatim. */
@@ -195,21 +202,46 @@ export function buildSlideSnippet(layout) {
  */
 export function splitSlideContent(markdown) {
     let rest = markdown || '';
-    let chartSrc = null;
+    const charts = [];
     let notes = '';
 
-    const chartMatch = rest.match(AMOXCHART_FENCE_RE);
-    if (chartMatch) {
-        chartSrc = parseAmoxChartBlock(chartMatch[1]).src || null;
-        rest = rest.slice(0, chartMatch.index) + rest.slice(chartMatch.index + chartMatch[0].length);
+    // Todas las figuras, no sólo la primera. Antes se tomaba una y las demás se
+    // quedaban dentro de la prosa, donde se pintaban sueltas y sin sitio: por
+    // eso una rejilla de small multiples era imposible de montar.
+    const global = new RegExp(AMOXCHART_FENCE_RE.source, 'g');
+    let m;
+    const trozos = [];
+    let cursor = 0;
+    while ((m = global.exec(rest)) !== null) {
+        const bloque = parseAmoxChartBlock(m[1]);
+        if (bloque.src) {
+            charts.push({
+                src: bloque.src,
+                slot: bloque.slot || null,
+                card: bloque.card === true ? true : (bloque.card === false ? false : null),
+            });
+        }
+        trozos.push(rest.slice(cursor, m.index));
+        cursor = m.index + m[0].length;
     }
+    trozos.push(rest.slice(cursor));
+    rest = trozos.join('');
+
     const notesMatch = rest.match(NOTES_FENCE_RE);
     if (notesMatch) {
-        notes = notesMatch[1].replace(/\n$/, '');
+        notes = notesMatch[1].replace(/\r?\n$/, '');
         rest = rest.slice(0, notesMatch.index) + rest.slice(notesMatch.index + notesMatch[0].length);
     }
 
-    return { prose: rest.trim(), chartSrc, notes };
+    // Sacar N bloques deja N huecos de líneas en blanco pegados. Se colapsan a
+    // una línea vacía, que es lo que el autor escribió entre párrafos: si no,
+    // la prosa vuelve al archivo con el hueco dentro y va creciendo con cada
+    // edición.
+    rest = rest.replace(/\n{3,}/g, '\n\n');
+
+    // `chartSrc` se mantiene para todo lo que sólo entiende de una figura —el
+    // hueco del diseñador, el pie, el export— y siempre es la primera.
+    return { prose: rest.trim(), chartSrc: charts[0]?.src || null, charts, notes };
 }
 
 /**
@@ -219,7 +251,7 @@ export function splitSlideContent(markdown) {
  * default. Notes are appended last so they never interrupt the prose/chart
  * reading order in Source view.
  */
-export function buildSlideRaw({ layout, eyebrow, footer, prose, chartSrc, notes }) {
+export function buildSlideRaw({ layout, eyebrow, footer, prose, chartSrc, charts, notes }) {
     const directive = layout && layout !== 'content' ? `<!-- layout: ${layout} -->\n` : '';
     // El antetítulo es una directiva, no prosa: si no se vuelve a escribir aquí,
     // editar el texto de la lámina lo borraría en silencio.
@@ -232,7 +264,15 @@ export function buildSlideRaw({ layout, eyebrow, footer, prose, chartSrc, notes 
     const parts = [];
     const trimmedProse = (prose || '').trim();
     if (trimmedProse) parts.push(trimmedProse);
-    if (chartSrc) parts.push(buildChartBlock(chartSrc));
+    // `charts` manda cuando viene; `chartSrc` es el atajo de una sola figura y
+    // se sigue aceptando para no tocar a quien ya lo usaba.
+    if (Array.isArray(charts)) {
+        for (const c of charts) {
+            if (c?.src) parts.push(buildChartBlock(c.src, { slot: c.slot, card: c.card }));
+        }
+    } else if (chartSrc) {
+        parts.push(buildChartBlock(chartSrc));
+    }
     const trimmedNotes = (notes || '').trim();
     if (trimmedNotes) parts.push(buildNotesBlock(trimmedNotes));
     return `${directive}${eyebrowDirective}${footerDirective}${parts.join('\n\n')}`.trim();

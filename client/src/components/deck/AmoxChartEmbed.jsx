@@ -14,12 +14,52 @@ import { LuLoaderCircle, LuTriangleAlert } from 'react-icons/lu';
 import DataVisualizer from '../DataVisualizer';
 import { injectEnvironmentVariables } from '../../utils/injectEnvironmentVariables';
 
-const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, onPiezas, card = false }) => {
+/**
+ * Min y max de las series verticales de una figura. Sin esto, cuatro small
+ * multiples salen con cuatro escalas distintas y la comparación miente — que
+ * es justo lo contrario de para lo que existe una rejilla de figuras.
+ */
+function extensionVertical(filas, config) {
+    const claves = Array.isArray(config?.yAxisKeys) ? config.yAxisKeys : [];
+    if (!claves.length || !Array.isArray(filas) || !filas.length) return null;
+
+    let min = Infinity;
+    let max = -Infinity;
+    const apilado = /stacked|100/.test(config?.chartType || '');
+
+    for (const fila of filas) {
+        // Apilado: lo que hay que comparar es la altura de la pila, no cada
+        // serie por separado.
+        if (apilado) {
+            let suma = 0;
+            for (const k of claves) {
+                const v = Number(fila?.[k]);
+                if (Number.isFinite(v)) suma += v;
+            }
+            if (suma < min) min = suma;
+            if (suma > max) max = suma;
+            continue;
+        }
+        for (const k of claves) {
+            const v = Number(fila?.[k]);
+            if (!Number.isFinite(v)) continue;
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+    }
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+    return { min, max, chartType: config?.chartType || '' };
+}
+
+const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, onPiezas, onMedida, yDomain = null, card = false }) => {
     const [state, setState] = useState({ status: 'loading', data: null, config: null, query: '', error: null });
     // Por referencia: el callback no debe entrar en las dependencias de `load`,
     // o un padre que lo redefina en cada render relanzaría la consulta en bucle.
     const onProcedenciaRef = useRef(onProcedencia);
     useEffect(() => { onProcedenciaRef.current = onProcedencia; }, [onProcedencia]);
+    const onMedidaRef = useRef(onMedida);
+    useEffect(() => { onMedidaRef.current = onMedida; }, [onMedida]);
 
     const load = useCallback(async () => {
         setState((s) => ({ ...s, status: 'loading', error: null }));
@@ -56,6 +96,12 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
                 rowLimit: queryData.rowLimit ?? null,
                 at: Date.now(),
             });
+
+            // La extensión vertical de esta figura, para que quien tenga varias
+            // al lado pueda igualarles la escala. Se calcula aquí y no dentro
+            // del DataVisualizer porque hace falta ANTES de pintar: el dominio
+            // común es una entrada del dibujo, no un resultado suyo.
+            onMedidaRef.current?.(extensionVertical(queryData.data, config));
         } catch (err) {
             setState({ status: 'error', data: null, config: null, query: '', error: err.message });
             onProcedenciaRef.current?.(null);
@@ -82,6 +128,12 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
         );
     }
 
+    // El dominio compartido entra como si el .amoxvis lo trajera escrito: es
+    // exactamente el campo que ya existe para fijar el eje a mano.
+    const configConDominio = (yDomain && state.config)
+        ? { ...state.config, yAxisDomain: [String(yDomain[0]), String(yDomain[1])] }
+        : state.config;
+
     if (!state.data || state.data.length === 0) {
         return <div className="amoxchart-embed amoxchart-embed--status">No data returned for {src}</div>;
     }
@@ -94,7 +146,7 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
             <DataVisualizer
                 data={state.data}
                 query={state.query}
-                initialChartConfig={state.config}
+                initialChartConfig={configConDominio}
                 isReportMode
                 chrome={card ? 'card' : 'none'}
                 onPiezas={onPiezas}

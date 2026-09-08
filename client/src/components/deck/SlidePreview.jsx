@@ -19,7 +19,9 @@ import { useMemo, useState, useCallback } from 'react';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { parseAmoxChartBlock, resolveFooterFields } from '../../utils/deckParser';
+import { splitSlideContent } from '../../utils/deckTemplates';
 import DeckFooter from './DeckFooter';
+import SlideCharts from './SlideCharts';
 import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio, partirCabecera } from './SlideFigureParts';
 import { renderDeckBlock } from './deckBlocks';
 
@@ -131,7 +133,33 @@ const SlidePreview = ({
 
     let body;
 
-    if (slide.layout === 'finding' && AMOXCHART_FENCE_RE.test(visibleMarkdown)) {
+    // Las dos láminas de varias figuras. Van antes que el resto porque su
+    // reparto no lo decide el markdown sino el número de figuras.
+    if (slide.layout === 'chart-grid' || slide.layout === 'compare') {
+        const { prose, charts } = splitSlideContent(visibleMarkdown);
+        const { cabecera, resto } = partirCabecera(prose);
+        body = (
+            <div className={`deck-slide-body deck-slide-body--${slide.layout}`}>
+                {cabecera && (
+                    <div className="deck-slide-cabecera">
+                        <MarkdownPreview content={cabecera} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />
+                    </div>
+                )}
+                <SlideCharts
+                    charts={charts}
+                    variables={variables}
+                    refreshToken={refreshToken}
+                    onProcedencia={recibirProcedencia}
+                    modo={slide.layout === 'compare' ? 'compare' : 'grid'}
+                />
+                {resto && (
+                    <div className="deck-slide-cierre">
+                        <MarkdownPreview content={resto} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderBlock={renderDeckBlock} />
+                    </div>
+                )}
+            </div>
+        );
+    } else if (slide.layout === 'finding' && AMOXCHART_FENCE_RE.test(visibleMarkdown)) {
         const match = visibleMarkdown.match(AMOXCHART_FENCE_RE);
         const before = visibleMarkdown.slice(0, match.index).trim();
         const after = visibleMarkdown.slice(match.index + match[0].length).trim();

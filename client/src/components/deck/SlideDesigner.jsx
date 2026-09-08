@@ -15,6 +15,7 @@ import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, 
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta } from './SlidePreview';
 import DeckFooter from './DeckFooter';
+import SlideCharts from './SlideCharts';
 import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio, partirCabecera } from './SlideFigureParts';
 import { renderDeckBlock } from './deckBlocks';
 import AmoxChartEmbed from './AmoxChartEmbed';
@@ -186,11 +187,12 @@ const SlideDesigner = ({
     onEditProse,
     onEditNotes,
     onRemoveChart,
+    onRemoveChartAt,
     onRequestAddChart,
     onPrev,
     onNext,
 }) => {
-    const { prose, chartSrc, notes } = splitSlideContent(slide.markdown);
+    const { prose, chartSrc, charts, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
     const meta = DECK_LAYOUT_META[layout];
     const canvasRef = useRef(null);
@@ -240,7 +242,27 @@ const SlideDesigner = ({
     const editarResto = (nuevo) => onEditProse([cabecera, nuevo.trim()].filter(Boolean).join('\n\n'));
 
     let cuerpo;
-    if (layout === 'finding') {
+    if (layout === 'chart-grid' || layout === 'compare') {
+        cuerpo = (
+            <div className={`deck-slide-body deck-slide-body--${layout}`}>
+                <div className="deck-slide-cabecera">
+                    <EditableProse value={cabecera} placeholder="Click to add the claim" onCommit={editarCabecera} theme={theme} onOpenFile={onOpenFile} />
+                </div>
+                <SlideCharts
+                    charts={charts}
+                    variables={variables}
+                    refreshToken={refreshToken}
+                    onProcedencia={recibirProcedencia}
+                    modo={layout === 'compare' ? 'compare' : 'grid'}
+                    onQuitar={onRemoveChartAt}
+                    onAnadir={onRequestAddChart}
+                />
+                <div className="deck-slide-cierre">
+                    <EditableProse value={resto} placeholder="Click to add the verdict" onCommit={editarResto} theme={theme} onOpenFile={onOpenFile} />
+                </div>
+            </div>
+        );
+    } else if (layout === 'finding') {
         cuerpo = (
             <div className="deck-slide-body deck-slide-body--finding">
                 <div className="deck-slide-cabecera">
