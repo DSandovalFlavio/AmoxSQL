@@ -30,16 +30,20 @@ const HeadlineOverlay = memo(({ headline, headlineData, numberFormat, decimalPla
             }}>
                 {fmt(headlineData.value)}
             </div>
-            {headlineData.deltaPercent !== null && (
+            {/* La pastilla solo aparece si computeHeadline encontro una pareja
+                VALIDA (metrica y comparacion del mismo tipo), y entonces dice
+                siempre contra que compara. Sin esa etiqueta un "+7658 %" se
+                puede leer como cualquier cosa — que es justo lo que pasaba. */}
+            {headlineData.deltaPercent !== null && headlineData.compareLabel && (
                 <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    display: 'inline-flex', alignItems: 'baseline', gap: '4px',
                     marginTop: '4px', fontSize: `${Math.round(12 * textScale)}px`,
-                    color: deltaColor, fontWeight: '600',
+                    color: deltaColor, fontWeight: '600', flexWrap: 'wrap',
                 }}>
                     <span>{deltaIcon}</span>
                     <span>{headlineData.deltaPercent >= 0 ? '+' : ''}{headlineData.deltaPercent.toFixed(1)}%</span>
                     <span style={{ color: 'var(--text-muted)', fontWeight: '400', marginLeft: '4px' }}>
-                        ({fmt(Math.abs(headlineData.delta))})
+                        ({fmt(Math.abs(headlineData.delta))}) {headlineData.compareLabel}
                     </span>
                 </div>
             )}

@@ -31,9 +31,17 @@ const CustomizedDot = (props) => {
         );
     }
 
-    if (!props.showDots) return null;
+    // Con muchos puntos la serie deja de leerse como linea y pasa a ser una
+    // fila de aros pegados. Por encima del umbral se ocultan aunque showDots
+    // este activo: es el mismo dato, mejor dibujado.
+    if (!props.showDots || props.tooManyPoints) return null;
+    // Las series que acompanan no llevan punto: el punto es de la protagonista.
+    if (props.muted) return null;
     return <circle cx={cx} cy={cy} r={3} stroke={stroke} strokeWidth={2} fill="var(--surface-base)" />;
 };
+
+/** Por encima de esto los puntos estorban mas de lo que ayudan. */
+const MAX_PUNTOS = 40;
 
 // ─── Main Renderer ───────────────────────────────────────────
 const ChartRenderer = memo(({
@@ -90,8 +98,27 @@ const ChartRenderer = memo(({
     // ── Axis labels ──
     const defaultXLabel = chartType === 'donut' ? (xAxisKey || 'Segment') : (xAxisKey || '');
     const defaultYLabel = chartType === 'donut' ? (yAxisKeys[0] || 'Size') : (yAxisKeys.join(', ') || '');
-    const XLabel = showXAxisTitle ? (customAxisTitles.x || defaultXLabel) : '';
+    // Un titulo "mes" debajo de una fila de fechas no anade nada: las etiquetas
+    // ya dicen que es. El titulo de eje se reserva para cuando la unidad NO se
+    // deduce mirando las etiquetas. Un titulo escrito a mano siempre gana.
+    const ejeXEsFecha = isDateCol && xAxisKey ? isDateCol(xAxisKey) : false;
+    const mostrarTituloX = showXAxisTitle && (customAxisTitles.x || !ejeXEsFecha);
+    const XLabel = mostrarTituloX ? (customAxisTitles.x || defaultXLabel) : '';
     const YLabel = showYAxisTitle ? (customAxisTitles.y || defaultYLabel) : '';
+
+    /* Jerarquia entre series: con mas de una, la PRIMERA manda — grosor y
+       opacidad plenos y con puntos — y las demas acompanan. Sin esto todas
+       pesan igual y el grafico deja de decir nada; con esto es una frase.
+       Solo en linea y area: en barras el color y la posicion ya separan.
+       Si el usuario ha tocado el color de una serie, se respeta y no se apaga
+       ninguna: ha decidido el a mano. */
+    const hayColoresAMano = Object.values(seriesConfig || {}).some(c => c && c.color);
+    // 'area' apila por definicion (isStacked mas abajo lo deriva igual), y en un
+    // apilado atenuar una capa la rompe: quedaria un hueco. Solo linea.
+    const jerarquiaActiva = !hayColoresAMano
+        && (finalSeriesKeys?.length || 0) > 1 && chartType === 'line';
+    const serieApagada = (i) => jerarquiaActiva && i > 0;
+    const demasiadosPuntos = processedData.length > MAX_PUNTOS;
 
     // ── Theme & Scale ──
     const fontSize = Math.round(11 * textScale);
@@ -564,12 +591,15 @@ const ChartRenderer = memo(({
                             return (
                                 <SeriesComp
                                     key={key || index} yAxisId={key === rightYAxisKey ? 'right' : 'left'}
-                                    type={lineType} dataKey={key} stroke={color} strokeWidth={2}
+                                    type={lineType} dataKey={key} stroke={color}
+                                    strokeWidth={serieApagada(index) ? 1.5 : 2}
+                                    strokeOpacity={serieApagada(index) ? 0.55 : 1}
                                     strokeDasharray={dash}
                                     fill={(lineAreaFill || chartType === 'area') ? (fillStyle === 'solid' ? color : `url(#amoxAreaGrad-${uid}-${index})`) : 'transparent'}
                                     fillOpacity={(lineAreaFill || chartType === 'area') && fillStyle === 'solid' ? 0.25 : 1}
                                     stackId={isStacked ? 'stack' : undefined}
                                     dot={<CustomizedDot dataKey={key} showDots={showDots}
+                                        tooManyPoints={demasiadosPuntos} muted={serieApagada(index)}
                                         highlightType={highlightConfig.type} highlightVal={hlVal}
                                         highlightColor={highlightConfig.color || '#ff0000'}
                                         xAxisKey={xAxisKey} />}

@@ -190,47 +190,73 @@ export const processDonutData = (processedData, yAxisKeys, xAxisKey, groupingThr
 /**
  * Compute headline KPI values.
  */
-export const computeHeadline = (processedData, yAxisKeys, metric, compareWith) => {
-    if (!processedData || processedData.length === 0 || yAxisKeys.length === 0) {
-        return { value: null, delta: null, deltaPercent: null };
-    }
+export const computeHeadline = (processedData, yAxisKeys, metric, compareWith, window = 'all') => {
+    const VACIO = { value: null, delta: null, deltaPercent: null, compareLabel: null };
+    if (!processedData || processedData.length === 0 || yAxisKeys.length === 0) return VACIO;
 
     const key = yAxisKeys[0];
     const values = processedData.map(d => Number(d[key]) || 0);
 
+    /* La ventana dice cuantos puntos entran en una metrica agregada.
+       'all' = toda la serie; un numero = los ultimos N. Es lo que hace posible
+       comparar un total contra "el periodo anterior": sin ventana no hay
+       periodo anterior que valga, porque ya te has comido todos los datos. */
+    const n = window === 'all' ? values.length : Math.min(Number(window) || 0, values.length);
+    const actual  = values.slice(values.length - n);
+    const previa  = values.slice(Math.max(0, values.length - 2 * n), values.length - n);
+
+    const agregar = (arr) => {
+        if (arr.length === 0) return null;
+        const suma = arr.reduce((a, b) => a + b, 0);
+        return metric === 'average' ? suma / arr.length : suma;
+    };
+
     let mainValue;
     switch (metric) {
+        case 'average': mainValue = agregar(actual); break;
+        case 'last':    mainValue = values[values.length - 1]; break;
+        case 'first':   mainValue = values[0]; break;
         case 'total':
-            mainValue = values.reduce((a, b) => a + b, 0);
-            break;
-        case 'average':
-            mainValue = values.reduce((a, b) => a + b, 0) / values.length;
-            break;
-        case 'last':
-            mainValue = values[values.length - 1];
-            break;
-        case 'first':
-            mainValue = values[0];
-            break;
-        default:
-            mainValue = values.reduce((a, b) => a + b, 0);
+        default:        mainValue = agregar(actual); break;
     }
 
+    /* LA REGLA: la comparacion tiene que ser del mismo TIPO que la metrica.
+       Un punto se compara con un punto; una suma, con otra suma del mismo
+       tamano. Antes se comparaba el total del periodo contra el primer punto
+       de la serie — un total frente a un mes — y salia un +7658 % que no
+       significaba nada junto a una conclusion que decia que habia caido.
+       Si no hay pareja valida no se inventa una: no hay pastilla. */
+    const esAgregada = metric === 'total' || metric === 'average';
     let compareValue = null;
-    if (compareWith === 'first' && values.length > 0) {
-        compareValue = values[0];
-    } else if (compareWith === 'previous' && values.length > 1) {
-        compareValue = values[values.length - 2];
+    let compareLabel = null;
+
+    if (metric === 'first') {
+        // El primer valor no tiene contra que compararse.
+    } else if (esAgregada) {
+        if (compareWith === 'previous' && previa.length === n && n > 0) {
+            compareValue = agregar(previa);
+            compareLabel = `vs. ${n} previos`;
+        }
+        // 'first' con una metrica agregada es la combinacion invalida: se ignora.
+    } else if (metric === 'last') {
+        if (compareWith === 'previous' && values.length > 1) {
+            compareValue = values[values.length - 2];
+            compareLabel = 'vs. anterior';
+        } else if (compareWith === 'first' && values.length > 1) {
+            compareValue = values[0];
+            compareLabel = 'vs. inicio';
+        }
     }
 
-    let delta = null;
-    let deltaPercent = null;
-    if (compareValue !== null && compareValue !== 0) {
+    let delta = null, deltaPercent = null;
+    if (compareValue !== null && compareValue !== 0 && mainValue !== null) {
         delta = mainValue - compareValue;
-        deltaPercent = ((delta / Math.abs(compareValue)) * 100);
+        deltaPercent = (delta / Math.abs(compareValue)) * 100;
+    } else {
+        compareLabel = null;   // sin delta no hay etiqueta que ensenar
     }
 
-    return { value: mainValue, delta, deltaPercent };
+    return { value: mainValue, delta, deltaPercent, compareLabel };
 };
 
 /**

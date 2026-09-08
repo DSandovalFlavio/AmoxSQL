@@ -136,6 +136,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         if (state.legendPosition !== 'inline') return null;
         if (state.chartType === 'donut') return null;
         if (!finalSeriesKeys || finalSeriesKeys.length === 0) return null;
+        // Con una sola serie la leyenda es ruido: el titulo y el eje ya dicen
+        // que se esta midiendo, y la pastilla solo repite la palabra.
+        if (finalSeriesKeys.length < 2) return null;
         const twins = getLegendTextColors(state.colorTheme);
         return finalSeriesKeys.map((key, i) => {
             const custom = state.seriesConfig?.[key]?.color;
@@ -150,8 +153,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
 
     // ── Headline computation ──
     const headlineData = useMemo(() =>
-        computeHeadline(processedData, state.yAxisKeys, state.headline.metric, state.headline.compareWith),
-        [processedData, state.yAxisKeys, state.headline.metric, state.headline.compareWith]
+        computeHeadline(processedData, state.yAxisKeys, state.headline.metric, state.headline.compareWith, state.headline.window),
+        [processedData, state.yAxisKeys, state.headline.metric, state.headline.compareWith, state.headline.window]
     );
 
     // ── Config change notification ──
@@ -324,6 +327,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 xKey: state.xAxisKey,
                 yKey: state.yAxisKeys[0],
                 chartType: state.chartType,
+                // El servidor tiene que saber que esto es un recorte: si no, el
+                // subtitulo dice el rango de las 500 primeras filas como si
+                // fuera el del conjunto entero.
+                truncated: data.length > 500,
             }),
         });
         if (!res.ok) return { error: 'Server error generating story.' };
@@ -538,16 +545,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     // layer saturates the compositor and makes scrollbars stutter.
                     contain: 'layout paint',
                 }}>
-                    {/* Headline KPI */}
-                    <HeadlineOverlay
-                        headline={state.headline}
-                        headlineData={headlineData}
-                        numberFormat={state.numberFormat}
-                        decimalPlaces={state.decimalPlaces}
-                        textScale={state.textScale}
-                        textAlign={state.textAlign}
-                    />
-
+                    {/* ── El orden de la cabecera: TITULO, subtitulo, y despues la cifra ──
+                        Antes abria con el KPI y el titulo venia detras, y se leia al
+                        reves: primero "que estoy viendo", luego "cuanto". El numero
+                        grande sin una frase que lo enmarque no dice nada. */}
                     {/* Title */}
                     {state.chartTitle && (
                         <h2 style={{
@@ -584,6 +585,16 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                             )}
                         </h3>
                     )}
+
+                    {/* Headline KPI */}
+                    <HeadlineOverlay
+                        headline={state.headline}
+                        headlineData={headlineData}
+                        numberFormat={state.numberFormat}
+                        decimalPlaces={state.decimalPlaces}
+                        textScale={state.textScale}
+                        textAlign={state.textAlign}
+                    />
 
                     {/* Chart — only mount the ResponsiveContainer when this view is
                         actually visible. With keep-alive result tabs the whole

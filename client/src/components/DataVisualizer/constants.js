@@ -279,7 +279,9 @@ export const DEFAULT_CONFIG = {
 
     // Grid & Axes
     gridMode: 'horizontal',
-    showAxisLines: true,
+    /* Sin lineas de eje: con la rejilla horizontal puesta, el eje solo anade
+       dos lados de una caja que no hace falta. Las etiquetas flotan. */
+    showAxisLines: false,
     axisLabelOpacity: 0.8, // "Label Intensity" — ticks + axis titles + legend, over --text-primary (mode-aware). 0.2–1
     axisLabelSize: 11,     // axis tick label font size (px)
     axisLabelGap: 5,       // gap between tick labels and the axis (tickMargin)
@@ -295,7 +297,10 @@ export const DEFAULT_CONFIG = {
     // Line specific
     lineType: 'monotone',
     lineAreaFill: false,
-    showDots: false,
+    /* Los puntos vuelven por defecto: con el umbral de MAX_PUNTOS en el
+       renderizador ya no ensucian las series largas, y en las cortas son lo que
+       deja ver donde cae cada dato. */
+    showDots: true,
     isCumulative: false,
 
     // Bar specific
@@ -354,7 +359,14 @@ export const DEFAULT_CONFIG = {
     trendLine: { type: 'none', color: '#fbbf24', windowSize: 3 }, // none, linear, moving-average
 
     // Headline number
-    headline: { visible: false, metric: 'total', compareWith: 'none', size: 'auto', customSize: 28 },
+    /* metric 'last' + compareWith 'previous': en una serie temporal la pregunta
+       suele ser "como vamos respecto al periodo anterior", y ese par SI es
+       comparable. Con 'total' hace falta ademas una `window` (N ultimos puntos)
+       para que exista un periodo anterior contra el que medir; con 'all' no lo
+       hay y computeHeadline omite la pastilla en vez de inventarsela.
+       `visible` se queda en false: encenderlo haria aparecer un numero grande
+       en todos los graficos que ya existen, y eso lo decide el usuario. */
+    headline: { visible: false, metric: 'last', compareWith: 'previous', window: 'all', size: 'auto', customSize: 28 },
 
     // Margins & Spacing
     marginTop: 20,
