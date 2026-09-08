@@ -23,7 +23,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import { injectEnvironmentVariables } from './injectEnvironmentVariables';
-import { parseAmoxChartBlock } from './deckParser';
+import { parseAmoxChartBlock, DECK_LAYOUT_ALIASES } from './deckParser';
 import { isNativeChartType, buildNativeSlideChartSpec } from './officeChartMapper';
 import { COLOR_PALETTES } from '../components/DataVisualizer/constants';
 
@@ -159,7 +159,11 @@ async function captureChartImage(el) {
 // equivalent chart+text pairing come out sized the same way.
 export function layoutBoxes(layout) {
     const full = { x: MARGIN, y: MARGIN, w: SLIDE_W - MARGIN * 2, h: SLIDE_H - MARGIN * 2 };
-    if (layout === 'content-chart' || layout === 'two-col') {
+    // Se aceptan también los nombres antiguos: esta función es pública y la
+    // llama el export de notebooks con cadenas propias, no con las que ya
+    // normalizó el parser del deck.
+    const canonico = DECK_LAYOUT_ALIASES[layout] || layout;
+    if (canonico === 'finding' || canonico === 'compare' || canonico === 'two-col') {
         const colW = (SLIDE_W - MARGIN * 2 - COL_GAP) / 2;
         return {
             text: { x: MARGIN, y: MARGIN, w: colW, h: SLIDE_H - MARGIN * 2 },
@@ -219,7 +223,7 @@ export async function generatePptxReport(deck, { chartMode = 'native', slideCard
 
         const runs = markdownToTextRuns(textMarkdown);
         if (runs.length) {
-            slide.addText(runs, { ...proseBox, fontSize: 14, color: '333333', valign: 'top', align: slideDef.layout === 'title' ? 'center' : 'left' });
+            slide.addText(runs, { ...proseBox, fontSize: 14, color: '333333', valign: 'top', align: (slideDef.layout === 'cover' || slideDef.layout === 'closing' || slideDef.layout === 'section') ? 'center' : 'left' });
         }
         if (table) {
             slide.addTable(table, {

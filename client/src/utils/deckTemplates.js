@@ -18,12 +18,116 @@ const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
 // without escaping — same reasoning as the amoxchart block above.
 const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
 
+// La cerca de un bloque va por variable y no escrita a mano: tres acentos
+// graves dentro de un template literal de JS hay que escaparlos uno a uno, y
+// eso se rompe en cuanto alguien edita la plantilla.
+const F = '`' + '`' + '`';
+
 /** Body markdown (WITHOUT the layout directive) seeded for each layout. */
 export const DECK_LAYOUT_TEMPLATES = {
-    title: `# Slide title
+    // ── Apertura ──
+    cover: `# Deck title
 
-## Subtitle goes here`,
+## What this answers, in one line`,
 
+    section: `# Section name`,
+
+    closing: `# Thank you
+
+## Questions, or the detail behind any number`,
+
+    // ── Evidencia ──
+    finding: `## The claim this slide can defend
+
+Short narrative. The query re-runs on **Refresh all**, so the chart stays
+current without redoing the analysis.
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    'chart-full': `## A chart that needs the whole width
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    'chart-grid': `## Same shape, one per category
+
+Small multiples share one vertical scale — otherwise the comparison lies.
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    compare: `## Before and after, and which one wins
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    // ── Dato ──
+    summary: `## If you only read one slide, read this
+
+${F}kpis
+- label: Total cost
+  value: $1.24M
+  delta: +18.4%
+  trend: bad
+  base: vs. previous period
+- label: Clicks
+  value: 486K
+  delta: +6.1%
+${F}
+
+- First finding
+- Second finding
+- Third finding`,
+
+    metric: `${F}metric
+value: 64
+unit: "%"
+label: What this number means
+${F}`,
+
+    table: `## The detail, ranked
+
+${F}rank
+columns: [Name, Value, Weight]
+bar: Weight
+highlight: 2
+rows:
+  - [First, $284K, 59]
+  - [Second, $231K, 41]
+  - [Third, $198K, 28]
+${F}`,
+
+    steps: `## How we get there
+
+${F}steps
+- title: First phase
+  when: IN PROGRESS
+  detail: What happens here
+  state: active
+- title: Second phase
+  when: WEEK 2
+- title: Decide
+  when: WEEK 3
+${F}`,
+
+    actions: `## What we propose
+
+${F}actions
+- action: Do this first
+  why: What it buys us, quantified
+  owner: Team
+  due: 8 Oct
+- action: Then this
+  owner: Team
+  due: 15 Oct
+${F}`,
+
+    // ── Texto ──
     content: `## Section heading
 
 Write your point here.
@@ -32,20 +136,7 @@ Write your point here.
 - Second point
 - Third point`,
 
-    'content-chart': `## Narrative + chart
-
-Explain what the chart shows. The query re-runs on **Refresh all**, so it
-stays current without redoing the analysis.
-
-\`\`\`amoxchart
-src: ${CHART_PLACEHOLDER}
-\`\`\``,
-
-    'chart-full': `## Full-width chart
-
-\`\`\`amoxchart
-src: ${CHART_PLACEHOLDER}
-\`\`\``,
+    statement: `# The one sentence you want remembered`,
 
     'two-col': `## Left column
 
@@ -58,6 +149,15 @@ src: ${CHART_PLACEHOLDER}
 
 - Point C
 - Point D`,
+
+    method: `## How this is calculated
+
+- **Metric** defined here, aggregated before dividing.
+- **Period** compared against the previous one, both complete.
+- **Exclusions** and why they were left out.
+
+> [!warning]
+> What this analysis does NOT say.`,
 };
 
 /** A fenced amoxchart block referencing a `.amoxvis` file by project path. */

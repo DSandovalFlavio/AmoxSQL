@@ -13,7 +13,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
-import { SlideEyebrow } from './SlidePreview';
+import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta } from './SlidePreview';
 import DeckFooter from './DeckFooter';
 import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio } from './SlideFigureParts';
 import { renderDeckBlock } from './deckBlocks';
@@ -163,6 +163,7 @@ const SlideDesigner = ({
     deckFooter,
     slideNumber,
     refreshedAt,
+    frontMatter,
     variables = {},
     refreshToken = 0,
     theme,
@@ -217,7 +218,7 @@ const SlideDesigner = ({
     // Mismo reparto en dos bandas que SlidePreview: cabecera y cuerpo, con el
     // modificador de disposición en el cuerpo. Ver la nota de aquel archivo.
     let cuerpo;
-    if (layout === 'content-chart') {
+    if (layout === 'finding') {
         cuerpo = (
             <div className="deck-slide-body deck-slide-body--content-chart">
                 <div className="deck-slide-col deck-slide-col--text">{proseEl}{heredadas}</div>
@@ -246,8 +247,10 @@ const SlideDesigner = ({
     const body = (
         <div className="deck-slide">
             <SlideEyebrow eyebrow={eyebrow} layout={layout} />
+            <SlideSectionIndex layout={layout} slideNumber={slideNumber} />
             <SlideTituloHeredado titulo={tituloHeredado} />
             {cuerpo}
+            <SlideCoverMeta frontMatter={frontMatter} layout={layout} />
             <DeckFooter
                 fields={camposPie}
                 figure={procedencia}

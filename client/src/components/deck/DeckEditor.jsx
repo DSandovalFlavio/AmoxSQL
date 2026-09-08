@@ -192,7 +192,7 @@ const DeckEditor = ({
         // content-chart so the chart has somewhere to render.
         const slide = deck.slides[activeSlideIndex];
         const patch = { chartSrc: src };
-        if (slide && slide.layout === 'content') patch.layout = 'content-chart';
+        if (slide && slide.layout === 'content') patch.layout = 'finding';
         updateSlideAt(activeSlideIndex, patch);
     }, [deck.slides, activeSlideIndex, updateSlideAt]);
 
@@ -441,6 +441,7 @@ const DeckEditor = ({
                                                 deckFooter={deck.frontMatter?.footer}
                                                 slideNumber={deck.slides.indexOf(slide) + 1}
                                                 refreshedAt={refreshedAt}
+                                                frontMatter={deck.frontMatter}
                                                 variables={deck.frontMatter?.variables}
                                                 refreshToken={refreshToken}
                                                 onOpenFile={onOpenFile}
@@ -463,6 +464,7 @@ const DeckEditor = ({
                                     deckFooter={deck.frontMatter?.footer}
                                     slideNumber={activeSlideIndex + 1}
                                     refreshedAt={refreshedAt}
+                                    frontMatter={deck.frontMatter}
                                     index={activeSlideIndex}
                                     total={deck.slides.length}
                                     aspectRatio={aspectRatio}

@@ -48,17 +48,54 @@ function useChartRenderer(variables, refreshToken, onProcedencia, onPiezas) {
 }
 
 /**
- * La banda de cabecera. La portada no la lleva: ya tiene su propio título a
- * tamaño display y el antetítulo competiría con él.
+ * La banda de cabecera. No la llevan las láminas que ya son todo título: la
+ * portada, el separador, la afirmación y el cierre. Ahí el antetítulo compite
+ * con lo único que la lámina tiene que decir.
  */
+const SIN_ANTETITULO = new Set(['cover', 'section', 'statement', 'closing']);
+
+/**
+ * Los cuatro datos que un lector necesita antes de creerse nada, y que la
+ * portada enseña en grande en vez de esconder en el pie. Salen del
+ * front-matter, no de la prosa: son del deck entero, no de una lámina.
+ */
+const COVER_META = [
+    ['period', 'Period'],
+    ['source', 'Source'],
+    ['author', 'Analyst'],
+    ['date', 'Data as of'],
+];
+
+export function SlideCoverMeta({ frontMatter, layout }) {
+    if (layout !== 'cover' || !frontMatter) return null;
+    const campos = COVER_META.filter(([k]) => frontMatter[k]);
+    if (!campos.length) return null;
+    return (
+        <div className="deck-portada-meta">
+            {campos.map(([k, etiqueta]) => (
+                <div key={k}>
+                    <u>{etiqueta}</u>
+                    <b>{String(frontMatter[k])}</b>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/** El separador lleva su número a tamaño display: es la señal del corte. */
+export function SlideSectionIndex({ layout, slideNumber }) {
+    if (layout !== 'section' || slideNumber === undefined) return null;
+    return <div className="deck-slide-indice">{String(slideNumber).padStart(2, '0')}</div>;
+}
+
 export function SlideEyebrow({ eyebrow, layout }) {
-    if (!eyebrow || !eyebrow.trim() || layout === 'title') return null;
+    if (!eyebrow || !eyebrow.trim() || SIN_ANTETITULO.has(layout)) return null;
     return <div className="deck-slide-eyebrow">{eyebrow}</div>;
 }
 
 const SlidePreview = ({
     slide, variables = {}, refreshToken = 0, onOpenFile, theme,
-    eyebrow, deckFooter, slideNumber, refreshedAt,
+    eyebrow, deckFooter, slideNumber, refreshedAt, frontMatter,
 }) => {
     // La procedencia la reporta la figura cuando termina de ejecutarse; la
     // lámina la guarda para su pie. Sin contexto global: el dato nace y muere
@@ -89,7 +126,7 @@ const SlidePreview = ({
 
     let body;
 
-    if (slide.layout === 'content-chart' && AMOXCHART_FENCE_RE.test(visibleMarkdown)) {
+    if (slide.layout === 'finding' && AMOXCHART_FENCE_RE.test(visibleMarkdown)) {
         const match = visibleMarkdown.match(AMOXCHART_FENCE_RE);
         const before = visibleMarkdown.slice(0, match.index).trim();
         const after = visibleMarkdown.slice(match.index + match[0].length).trim();
@@ -126,8 +163,9 @@ const SlidePreview = ({
             </div>
         );
     } else {
-        // title / content / chart-full — y content-chart sin bloque de gráfico,
-        // que cae aquí en vez de quedarse con media lámina vacía.
+        // El resto de tipos son el cuerpo por defecto con otro reparto, que lo
+        // pone el CSS. Aquí cae también un `finding` sin bloque de gráfico, en
+        // vez de quedarse con media lámina vacía.
         body = (
             <div className={`deck-slide-body deck-slide-body--${slide.layout}`}>
                 <MarkdownPreview content={visibleMarkdown} theme={theme} onOpenFile={onOpenFile} widthMode="full" renderChartBlock={chartRenderer} renderBlock={renderDeckBlock} />
@@ -139,8 +177,10 @@ const SlidePreview = ({
     return (
         <div className="deck-slide">
             <SlideEyebrow eyebrow={eyebrow} layout={slide.layout} />
+            <SlideSectionIndex layout={slide.layout} slideNumber={slideNumber} />
             <SlideTituloHeredado titulo={tituloHeredado} />
             {body}
+            <SlideCoverMeta frontMatter={frontMatter} layout={slide.layout} />
             <DeckFooter
                 fields={camposPie}
                 figure={procedencia}

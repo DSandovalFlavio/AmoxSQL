@@ -15,7 +15,34 @@
  */
 import yaml from 'js-yaml';
 
-export const DECK_LAYOUTS = ['title', 'content', 'content-chart', 'chart-full', 'two-col'];
+/**
+ * Las quince disposiciones, agrupadas por familia. El orden es el del
+ * catálogo del contrato (docs/dev/sistema_deck.html, apartado 06).
+ *
+ * Los identificadores van en inglés aunque los comentarios estén en español:
+ * el formato ya lo estaba, y mezclar dos idiomas dentro del mismo archivo
+ * sería peor que elegir uno. Lo que se traduce es lo que el usuario ve en el
+ * Studio, no lo que se escribe en el `.amoxdeck`.
+ */
+export const DECK_LAYOUT_FAMILIES = [
+    { key: 'apertura', label: 'Opening', layouts: ['cover', 'section', 'closing'] },
+    { key: 'evidencia', label: 'Evidence', layouts: ['finding', 'chart-full', 'chart-grid', 'compare'] },
+    { key: 'dato', label: 'Data', layouts: ['summary', 'metric', 'table', 'steps', 'actions'] },
+    { key: 'texto', label: 'Text', layouts: ['content', 'statement', 'two-col', 'method'] },
+];
+
+export const DECK_LAYOUTS = DECK_LAYOUT_FAMILIES.flatMap((f) => f.layouts);
+
+/**
+ * Nombres antiguos que siguen abriéndose. Un `.amoxdeck` escrito antes del
+ * catálogo no puede dejar de funcionar; al editar la lámina se reescribe con
+ * el nombre nuevo, así que la migración ocurre sola y sin pedir permiso.
+ */
+export const DECK_LAYOUT_ALIASES = {
+    title: 'cover',
+    'content-chart': 'finding',
+};
+
 const DEFAULT_LAYOUT = 'content';
 const LAYOUT_DIRECTIVE_RE = /^\s*<!--\s*layout:\s*([\w-]+)\s*-->\s*\n?/;
 // Antetítulo: el hilo del deck (sección o periodo) que se repite lámina a
@@ -28,17 +55,20 @@ const FOOTER_DIRECTIVE_RE = /^\s*<!--\s*footer:\s*([^\n]*?)\s*-->\s*\n?/;
 /** Los campos del pie, en el orden en que se pintan. */
 export const FOOTER_FIELDS = ['source', 'query', 'rows', 'vars', 'refreshed', 'number'];
 
+// Ni la portada ni el cierre llevan pie: ya enseñan fuente y fecha en grande,
+// y ahí el pie compite con ellas.
+const SIN_PIE = new Set(['cover', 'closing']);
+
 /**
  * Qué enseña el pie de una lámina. Se decide en el front-matter para todo el
  * deck y se afina lámina a lámina; lo que NO se decide aquí es el contenido de
  * cada campo, que siempre se deriva (ver DeckFooter).
  *
  * Por defecto: los seis campos donde hay una figura que citar, y sólo el número
- * donde no la hay. La portada nunca lleva pie — ya enseña fuente y fecha en
- * grande, y ahí el pie compite con ellas.
+ * donde no la hay.
  */
 export function resolveFooterFields({ slideFooter, deckFooter, layout, hasChart }) {
-    if (layout === 'title') return [];
+    if (SIN_PIE.has(layout)) return [];
 
     const declared = (slideFooter !== null && slideFooter !== undefined) ? slideFooter : deckFooter;
 
@@ -69,7 +99,7 @@ function readDirectives(raw) {
     for (let guard = 0; guard < 8; guard++) {
         const l = rest.match(LAYOUT_DIRECTIVE_RE);
         if (l) {
-            const declared = l[1].toLowerCase();
+            const declared = DECK_LAYOUT_ALIASES[l[1].toLowerCase()] || l[1].toLowerCase();
             if (DECK_LAYOUTS.includes(declared)) layout = declared;
             rest = rest.slice(l[0].length);
             continue;
@@ -200,26 +230,56 @@ export function parseAmoxChartBlock(raw) {
     }
 }
 
+/**
+ * El deck que se crea de cero. No es una demo de las quince disposiciones: es
+ * el arco mínimo de un análisis — portada, resumen, hallazgo, acciones — que
+ * es lo que alguien copiaría de verdad. El resto se añade desde el panel de
+ * Layouts cuando haga falta.
+ */
 export const DECK_STARTER_TEMPLATE = `---
 title: New Deck
 theme: dark
+section: Section or period
+author: Your name
+period: Q3 2026
+date: 30 Sep 2026
 variables:
   region: "US"
 ---
 
-<!-- layout: title -->
+<!-- layout: cover -->
 # New Deck
 
-## Subtitle goes here
+## The question this answers, in one line
 
 ---
 
-<!-- layout: content-chart -->
-## A slide with a chart
+<!-- layout: summary -->
+## If you only read one slide, read this
 
-Write your narrative here. Reference a chart saved from Story Flow —
-the query re-runs each time you click **Refresh all**, so the chart
-stays current without redoing the analysis.
+\`\`\`kpis
+- label: Headline metric
+  value: 1.24M
+  delta: +18.4%
+  trend: bad
+  base: vs. previous period
+- label: Second metric
+  value: 486K
+  delta: +6.1%
+\`\`\`
+
+- First finding
+- Second finding
+- Third finding
+
+---
+
+<!-- layout: finding -->
+## The claim this slide can defend
+
+Short narrative. Reference a chart saved from Story Flow — the query re-runs
+each time you click **Refresh all**, so the chart stays current without
+redoing the analysis.
 
 \`\`\`amoxchart
 src: charts/example.amoxvis
@@ -227,10 +287,13 @@ src: charts/example.amoxvis
 
 ---
 
-<!-- layout: content -->
-## Key takeaways
+<!-- layout: actions -->
+## What we propose
 
-- First point
-- Second point
-- Third point
+\`\`\`actions
+- action: Do this first
+  why: What it buys us, quantified
+  owner: Team
+  due: 8 Oct
+\`\`\`
 `;
