@@ -52,7 +52,7 @@ function extensionVertical(filas, config) {
     return { min, max, chartType: config?.chartType || '' };
 }
 
-const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, onPiezas, onMedida, yDomain = null, card = false }) => {
+const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, onPiezas, onMedida, yDomain = null, palette = null, card = false }) => {
     const [state, setState] = useState({ status: 'loading', data: null, config: null, query: '', error: null });
     // Por referencia: el callback no debe entrar en las dependencias de `load`,
     // o un padre que lo redefina en cada render relanzaría la consulta en bucle.
@@ -130,9 +130,14 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
 
     // El dominio compartido entra como si el .amoxvis lo trajera escrito: es
     // exactamente el campo que ya existe para fijar el eje a mano.
-    const configConDominio = (yDomain && state.config)
-        ? { ...state.config, yAxisDomain: [String(yDomain[0]), String(yDomain[1])] }
-        : state.config;
+    // La paleta del deck manda sobre la que traiga cada .amoxvis: si no, dos
+    // figuras guardadas en sesiones distintas discrepan dentro de la misma
+    // lámina y no hay forma de arreglarlo sin abrir los archivos uno a uno.
+    let configConDominio = state.config;
+    if (configConDominio && palette) configConDominio = { ...configConDominio, colorTheme: palette };
+    if (configConDominio && yDomain) {
+        configConDominio = { ...configConDominio, yAxisDomain: [String(yDomain[0]), String(yDomain[1])] };
+    }
 
     if (!state.data || state.data.length === 0) {
         return <div className="amoxchart-embed amoxchart-embed--status">No data returned for {src}</div>;

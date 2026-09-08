@@ -113,6 +113,19 @@
     flex-direction: column;
 }
 
+/* Un deck puede llevar su propio acento (`accent:` en el front-matter). Las
+   derivadas se vuelven a declarar AQUÍ y no se heredan de <body>: una
+   propiedad cuyo valor contiene var() se resuelve en el elemento que la
+   declara, así que con la composición sólo en body la clase `accent-*` de la
+   lámina no cambiaría nada. Es la misma trampa que hizo que todos los acentos
+   se vieran cian. */
+.deck-slide[data-accent] {
+    --accent-primary: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+    --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+    --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+    --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+}
+
 /* ── Banda de cabecera: el antetítulo, el hilo del deck ── */
 .deck-slide-eyebrow {
     flex-shrink: 0;

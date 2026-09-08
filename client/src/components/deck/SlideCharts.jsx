@@ -78,7 +78,7 @@ export function dominioComun(medidas) {
 }
 
 /** Una figura de la rejilla, con su tarjeta y su título. */
-function Figura({ chart, variables, refreshToken, yDomain, onMedida, onProcedencia, onQuitar }) {
+function Figura({ chart, variables, refreshToken, yDomain, palette, onMedida, onProcedencia, onQuitar }) {
     const [piezas, setPiezas] = useState(null);
     const recibirPiezas = useCallback((p) => setPiezas(p), []);
     // En una rejilla la tarjeta es el defecto; `card: false` la quita.
@@ -98,6 +98,7 @@ function Figura({ chart, variables, refreshToken, yDomain, onMedida, onProcedenc
                 variables={variables}
                 refreshToken={refreshToken}
                 yDomain={yDomain}
+                palette={palette}
                 onMedida={onMedida}
                 onPiezas={recibirPiezas}
                 onProcedencia={onProcedencia}
@@ -106,7 +107,7 @@ function Figura({ chart, variables, refreshToken, yDomain, onMedida, onProcedenc
     );
 }
 
-const SlideCharts = ({ charts = [], variables, refreshToken, onProcedencia, modo = 'grid', onQuitar, onAnadir }) => {
+const SlideCharts = ({ charts = [], variables, refreshToken, onProcedencia, modo = 'grid', palette = null, onQuitar, onAnadir }) => {
     const [medidas, setMedidas] = useState({});
 
     const anotarMedida = useCallback((i) => (m) => {
@@ -146,6 +147,7 @@ const SlideCharts = ({ charts = [], variables, refreshToken, onProcedencia, modo
                     variables={variables}
                     refreshToken={refreshToken}
                     yDomain={dominio}
+                    palette={palette}
                     onMedida={anotarMedida(i)}
                     onProcedencia={i === 0 ? onProcedencia : undefined}
                     onQuitar={onQuitar ? () => onQuitar(i) : undefined}

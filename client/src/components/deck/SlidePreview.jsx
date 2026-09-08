@@ -38,7 +38,7 @@ const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
 // render as a literal code block on screen.
 const NOTES_FENCE_RE = /```notes\r?\n([\s\S]*?)```/;
 
-function useChartRenderer(variables, refreshToken, onProcedencia, onPiezas) {
+function useChartRenderer(variables, refreshToken, onProcedencia, onPiezas, palette) {
     return useMemo(() => (raw) => {
         const parsed = parseAmoxChartBlock(raw);
         return (
@@ -47,11 +47,12 @@ function useChartRenderer(variables, refreshToken, onProcedencia, onPiezas) {
                 card={parsed.card === true}
                 variables={variables}
                 refreshToken={refreshToken}
+                palette={palette}
                 onProcedencia={onProcedencia}
                 onPiezas={onPiezas}
             />
         );
-    }, [variables, refreshToken, onProcedencia, onPiezas]);
+    }, [variables, refreshToken, onProcedencia, onPiezas, palette]);
 }
 
 /**
@@ -104,6 +105,10 @@ const SlidePreview = ({
     slide, variables = {}, refreshToken = 0, onOpenFile, theme,
     eyebrow, deckFooter, slideNumber, refreshedAt, frontMatter,
 }) => {
+    // Tema del deck: el acento se aplica como clase en la lámina y la paleta
+    // viaja a cada figura. Así una lámina y su gráfico no pueden discrepar.
+    const acento = frontMatter?.accent || null;
+    const paleta = frontMatter?.palette || null;
     // La procedencia la reporta la figura cuando termina de ejecutarse; la
     // lámina la guarda para su pie. Sin contexto global: el dato nace y muere
     // dentro de la misma lámina.
@@ -112,7 +117,7 @@ const SlidePreview = ({
     // Las piezas que la figura suelta al disolverse su tarjeta.
     const [piezas, setPiezas] = useState(null);
     const recibirPiezas = useCallback((p) => setPiezas(p), []);
-    const chartRenderer = useChartRenderer(variables, refreshToken, recibirProcedencia, recibirPiezas);
+    const chartRenderer = useChartRenderer(variables, refreshToken, recibirProcedencia, recibirPiezas, paleta);
     const visibleMarkdown = slide.markdown.replace(NOTES_FENCE_RE, '').trim();
     const hayFigura = AMOXCHART_FENCE_RE.test(visibleMarkdown);
     const camposPie = resolveFooterFields({
@@ -149,6 +154,7 @@ const SlidePreview = ({
                     charts={charts}
                     variables={variables}
                     refreshToken={refreshToken}
+                    palette={paleta}
                     onProcedencia={recibirProcedencia}
                     modo={slide.layout === 'compare' ? 'compare' : 'grid'}
                 />
@@ -184,6 +190,7 @@ const SlidePreview = ({
                         card={parsed.card === true}
                         variables={variables}
                         refreshToken={refreshToken}
+                    palette={paleta}
                         onProcedencia={recibirProcedencia}
                         onPiezas={recibirPiezas}
                     />
@@ -215,7 +222,10 @@ const SlidePreview = ({
     }
 
     return (
-        <div className="deck-slide">
+        <div
+            className={`deck-slide${acento ? ` accent-${acento}` : ''}`}
+            data-accent={acento || undefined}
+        >
             <SlideEyebrow eyebrow={eyebrow} layout={slide.layout} />
             <SlideSectionIndex layout={slide.layout} slideNumber={slideNumber} />
             <SlideTituloHeredado titulo={tituloHeredado} />

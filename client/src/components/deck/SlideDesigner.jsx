@@ -195,6 +195,8 @@ const SlideDesigner = ({
     const { prose, chartSrc, charts, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
     const meta = DECK_LAYOUT_META[layout];
+    const acento = frontMatter?.accent || null;
+    const paleta = frontMatter?.palette || null;
     const canvasRef = useRef(null);
     const desborde = useDesborde(canvasRef);
     const [procedencia, setProcedencia] = useState(null);
@@ -254,6 +256,7 @@ const SlideDesigner = ({
                     refreshToken={refreshToken}
                     onProcedencia={recibirProcedencia}
                     modo={layout === 'compare' ? 'compare' : 'grid'}
+                    palette={paleta}
                     onQuitar={onRemoveChartAt}
                     onAnadir={onRequestAddChart}
                 />
@@ -295,7 +298,10 @@ const SlideDesigner = ({
     }
 
     const body = (
-        <div className="deck-slide">
+        <div
+            className={`deck-slide${acento ? ` accent-${acento}` : ''}`}
+            data-accent={acento || undefined}
+        >
             <SlideEyebrow eyebrow={eyebrow} layout={layout} />
             <SlideSectionIndex layout={layout} slideNumber={slideNumber} />
             <SlideTituloHeredado titulo={tituloHeredado} />
