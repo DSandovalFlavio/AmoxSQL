@@ -14,6 +14,24 @@ import html2canvas from 'html2canvas-pro';
  *   opaque timestamp. Falls back to the chart type when there's no title.
  * @returns {Promise<void>}
  */
+/**
+ * Espera a que el elemento y su SVG dejen de cambiar de tamaño. Devuelve en
+ * cuanto dos fotogramas seguidos coinciden, o al agotar el tiempo — mejor una
+ * foto algo temprana que una espera eterna si algo nunca se estabiliza.
+ */
+async function esperarAsiento(el, maxMs = 1500) {
+    let previo = null;
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const ahora = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    while (ahora() - t0 < maxMs) {
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const svg = el.querySelector('svg');
+        const firma = `${el.offsetWidth}x${el.offsetHeight}|${svg ? svg.clientWidth : 0}x${svg ? svg.clientHeight : 0}`;
+        if (firma === previo) return;
+        previo = firma;
+    }
+}
+
 export const exportChartAsPng = async (element, preset, chartType = 'chart', titleHint = '') => {
     if (!element) return;
 
@@ -64,8 +82,13 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
         });
         // Dos fotogramas para el reflujo, y un respiro para que Recharts haya
         // vuelto a medir y dibujar en el tamaño nuevo.
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-        await new Promise(r => setTimeout(r, 120));
+        /* Esperar a que asiente, no un tiempo fijo. Al cambiar de tamaño la
+           tarjeta, el ResizeObserver de la figura recalcula la escala del texto
+           y el ResponsiveContainer de Recharts vuelve a repartir sus márgenes:
+           con 120 ms fijos la foto podía caer entre medias y las etiquetas del
+           eje X salían cortadas por abajo. Se espera hasta que dos fotogramas
+           seguidos midan lo mismo. */
+        await esperarAsiento(element);
 
         const currentWidth = element.offsetWidth || 1;
         const currentHeight = element.offsetHeight || 1;
@@ -78,7 +101,12 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
             .getPropertyValue('--surface-base').trim() || '#1e1f22';
 
         const canvas = await html2canvas(element, {
-            backgroundColor: bgColor,
+            /* `null` y no el color del tema: la tarjeta tiene esquinas
+               redondeadas y es lo ÚLTIMO con contenido que debe verse. Con un
+               color de fondo, html2canvas rellena el rectángulo entero y al
+               pegar el PNG en una presentación aparece un cuadrado opaco con la
+               tarjeta flotando dentro, en vez de la tarjeta recortada. */
+            backgroundColor: null,
             scale: dynamicScale,
             logging: false,
             useCORS: true,
@@ -93,9 +121,9 @@ export const exportChartAsPng = async (element, preset, chartType = 'chart', tit
         outputCanvas.height = targetHeight;
         const ctx = outputCanvas.getContext('2d');
 
-        // Fill background
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, targetWidth, targetHeight);
+        /* Sin relleno: lo que rodea a la tarjeta queda transparente. El marco
+           sigue existiendo —la tarjeta no toca el canto de la imagen— pero es
+           aire, no un rectángulo de color. */
 
         // Centrar dentro del hueco útil, dejando el marco alrededor. Como la
         // tarjeta ya se maquetó con esta proporción, apenas hay que ajustar.

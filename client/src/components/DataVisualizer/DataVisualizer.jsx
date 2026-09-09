@@ -553,15 +553,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
        misma figura se exportaba distinta según si el explorador de archivos
        estaba abierto o cerrado. Con la proporción fija, lo que ves es lo que se
        descarga. */
-    const tamCarta = useMemo(() => {
-        const prop = CANVAS_SIZES.find(c => c.label === (state.canvasSize || '4:3'));
-        if (!prop || !prop.w || !prop.h) return null;          // 'Libre': ocupa el hueco
-        const razon = prop.w / prop.h;
-        const base = anchoBase(razon);
-        const w = base * zoom;
-        return { width: `${Math.round(w)}px`, height: `${Math.round(w / razon)}px`, flex: 'none' };
-    }, [state.canvasSize, zoom]);
-
     /* El zoom que hace que la figura quepa entera. Es lo que hace el botón
        «Ajustar»; ya no es lo que significa el 100 %. */
     const zoomQueCabe = useMemo(() => {
@@ -571,6 +562,30 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         const cabe = Math.min(area.w, area.h * razon);
         return Math.max(0.3, Math.min(3, cabe / anchoBase(razon)));
     }, [state.canvasSize, area.w, area.h]);
+
+    /* ── Abrir cabiendo ──
+       El 100 % sigue siendo el tamaño natural. Pero el natural de una figura
+       4:3 son 827 x 620, y el panel de resultados de un editor de consultas
+       mide unos 570 de alto: la tarjeta no cabía, el hueco la recortaba, y lo
+       que se veía era una figura sin bordes y aparentemente ampliada — con el
+       control marcando 100 %, que además era verdad.
+
+       El arreglo no es corregir el zoom con un efecto al medir el hueco: eso es
+       una carrera con el ResizeObserver. Se acota lo PEDIDO a lo que cabe, de
+       forma derivada, y sólo hacia abajo: si pides menos de lo que cabe se
+       respeta, y por encima del natural no se agranda nunca. Así lo pedido y lo
+       dibujado son el mismo número —el control no puede mentir— y no existe el
+       estado en el que la figura se abre recortada. */
+    const zoomEfectivo = Math.min(zoom, zoomQueCabe);
+
+    const tamCarta = useMemo(() => {
+        const prop = CANVAS_SIZES.find(c => c.label === (state.canvasSize || '4:3'));
+        if (!prop || !prop.w || !prop.h) return null;          // 'Libre': ocupa el hueco
+        const razon = prop.w / prop.h;
+        const base = anchoBase(razon);
+        const w = base * zoomEfectivo;
+        return { width: `${Math.round(w)}px`, height: `${Math.round(w / razon)}px`, flex: 'none' };
+    }, [state.canvasSize, zoomEfectivo]);
 
     useEffect(() => {
         if (typeof ResizeObserver === 'undefined') return;
@@ -1012,17 +1027,17 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginLeft: 'auto' }}>
                         <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Zoom</span>
                         <input type="range" min={40} max={220} step={5}
-                            value={Math.round(zoom * 100)}
+                            value={Math.round(zoomEfectivo * 100)}
                             onChange={e => setZoom(Number(e.target.value) / 100)}
                             style={{ width: '120px', accentColor: 'var(--accent-primary)' }} />
-                        <button onClick={() => setZoom(zoom === 1 ? zoomQueCabe : 1)}
-                            title={zoom === 1 ? 'Ajustar al hueco' : 'Volver al tamaño real (100 %)'}
+                        <button onClick={() => setZoom(zoomEfectivo >= zoomQueCabe - 0.01 ? 1 : zoomQueCabe)}
+                            title={zoomEfectivo >= zoomQueCabe - 0.01 ? 'Volver al tamaño real (100 %)' : 'Ajustar al hueco'}
                             style={{
                                 background: 'transparent', border: '1px solid var(--border-color)',
                                 color: 'var(--text-muted)', borderRadius: '5px', padding: '3px 7px',
                                 fontSize: '11px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                                 minWidth: '48px',
-                            }}>{Math.round(zoom * 100)}%</button>
+                            }}>{Math.round(zoomEfectivo * 100)}%</button>
                     </div>
                 </div>
             )}
