@@ -5,6 +5,97 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.2.0] — 2026-09-08
+
+### Report Flow: la diapositiva
+
+Report Flow ya tenía lo difícil de un formato — markdown como fuente única, gráficos vivos
+que se refrescan, export a PowerPoint nativo. Lo que no tenía era **la lámina**: era un
+preview de markdown con relleno, con el título heredando el filete de un documento, sin
+antetítulo, sin pie, sin métricas, sin número, y el gráfico entrando con su tarjeta puesta
+dentro de otra tarjeta.
+
+Esta versión la construye entera, siguiendo el contrato visual de
+`docs/dev/sistema_deck.html`.
+
+#### El lienzo
+
+- **1600 × 900 unidades, 16:9 fijo.** Cada medida del CSS se lee igual que la
+  especificación. El lienzo deja de ser configurable: sostener un segundo formato obligaría
+  a duplicar todas las reglas de reparto.
+- **Una lámina es una página.** Deja de haber scroll dentro de una diapositiva: si el
+  contenido no cabe, no cabe, y el Studio lo avisa. Con scroll el problema se escondía en
+  pantalla para reventar en el PDF.
+
+#### La lámina
+
+- **Antetítulo** heredado del deck (`section:`) y sobreescribible lámina a lámina.
+- **El título es la afirmación**, con escala propia. Una lámina se lee a tres metros; un
+  documento, a medio.
+- **Pie de procedencia**: fuente, consulta, filas devueltas, variables activas como chips,
+  fecha de refresco y número. Todo derivado, nunca tecleado — un pie que se pueda escribir
+  a mano es un pie en el que no se puede confiar. Se elige qué campos aparecen, por deck o
+  por lámina. Si el resultado venía truncado, lo dice; si hace más de una semana del último
+  refresco, la fecha se marca en ámbar.
+- **Quince tipos de lámina** agrupados por familia, de la portada al cierre. Los cinco
+  anteriores siguen abriéndose: `title` y `content-chart` se renombran con alias y migran
+  solos al editarlos.
+- **Tono configurable** (`tone:`): seguir el tema, invertir tinta y papel, o forzar fondo
+  oscuro o claro.
+
+#### Los objetos de dato
+
+Cinco bloques nuevos, en la misma línea que los que ya existían: `kpis`, `metric`, `steps`,
+`actions` y `rank` (la tabla clasificada, con barra en celda y semáforo).
+
+- **El signo no decide el color de una variación, lo decide el autor.** «+18 %» es bueno en
+  ingresos y malo en coste.
+- Un bloque mal escrito no rompe la lámina: enseña el error dentro de la diapositiva.
+- La tabla avisa si una fila no tiene tantas celdas como columnas — pasa en cuanto alguien
+  escribe una coma decimal sin comillas, y los datos se corren en silencio.
+
+#### El gráfico dentro de la lámina
+
+- **La tarjeta se disuelve.** Con una sola figura la lámina YA es la tarjeta: meter otra
+  duplicaba borde, fondo, título, conclusión y firma, y sumaba los rellenos. Las piezas no
+  desaparecen, cambian de dueño: el título asciende a afirmación —sólo si la lámina no
+  escribe la suya—, el KPI se vuelve una métrica y la conclusión conserva su filete.
+- **Varias figuras por lámina**, con la escala vertical igualada. Cada `.amoxvis` calculaba
+  su propio dominio, así que cuatro small multiples salían con cuatro escalas y la
+  comparación mentía. Ahora comparten eje — pero sólo si son comparables: si se diferencian
+  en más de 25×, no se impone y la lámina dice por qué.
+- **Tema del deck**: `accent` y `palette` en el front-matter, para que una lámina y su
+  gráfico no puedan discrepar.
+
+#### El export
+
+- Los cinco bloques nuevos salen al `.pptx` como cajas de texto y tablas nativas. Antes
+  `markdownToTextRuns` descartaba todo lo que fuera código y las diapositivas se exportaban
+  **sin sus KPIs, sin su cifra y sin su tabla, en silencio**.
+- Fórmulas y diagramas Mermaid se capturan ya renderizados, igual que un tipo de gráfico
+  sin equivalencia nativa. Las figuras que no eran la primera también: antes se perdían.
+- El pie de procedencia viaja al `.pptx` con las mismas reglas que en pantalla.
+
+### Corregido
+
+- **Los bloques cercados no se reconocían en archivos con CRLF**, que es como Windows
+  guarda un `.amoxdeck`. La lámina de hallazgo nunca se repartía en dos columnas, y no se
+  notaba porque el gráfico se dibujaba igual por otra vía.
+- **Las alertas `> [!NOTE]` nunca funcionaron en su forma canónica** —con el marcador en su
+  propia línea— en ningún sitio de la aplicación: sólo si el texto iba pegado detrás.
+- **Los `$` de moneda se comían el texto.** `remark-math` los tomaba como delimitadores de
+  fórmula, así que «**$41,06** por mil clics; Sur, **$36,15**» se renderizaba como
+  matemáticas. En una herramienta de análisis el dólar es constante y las fórmulas raras:
+  el `$` simple deja de delimitar y las fórmulas siguen con `$$`.
+- La vista Design no partía las láminas de dos columnas: enseñaba el marcador `<!-- col -->`
+  como texto y las columnas apiladas, mientras Present sí las partía.
+- En Design, las piezas de la figura anterior se quedaban al pasar de lámina: un separador
+  sin gráfico enseñaba en su pie la nota del hallazgo anterior.
+- Un comentario de CSS con un `*/` dentro se cerraba antes de tiempo y el minificador
+  avisaba en cada compilación.
+
+---
+
 ## [5.1.0] — 2026-09-08
 
 ### Los temas, y el panel de funciones

@@ -15,9 +15,138 @@
  */
 import yaml from 'js-yaml';
 
-export const DECK_LAYOUTS = ['title', 'content', 'content-chart', 'chart-full', 'two-col'];
+/**
+ * Las quince disposiciones, agrupadas por familia. El orden es el del
+ * catálogo del contrato (docs/dev/sistema_deck.html, apartado 06).
+ *
+ * Los identificadores van en inglés aunque los comentarios estén en español:
+ * el formato ya lo estaba, y mezclar dos idiomas dentro del mismo archivo
+ * sería peor que elegir uno. Lo que se traduce es lo que el usuario ve en el
+ * Studio, no lo que se escribe en el `.amoxdeck`.
+ */
+export const DECK_LAYOUT_FAMILIES = [
+    { key: 'apertura', label: 'Opening', layouts: ['cover', 'section', 'closing'] },
+    { key: 'evidencia', label: 'Evidence', layouts: ['finding', 'chart-full', 'chart-grid', 'compare'] },
+    { key: 'dato', label: 'Data', layouts: ['summary', 'metric', 'table', 'steps', 'actions'] },
+    { key: 'texto', label: 'Text', layouts: ['content', 'statement', 'two-col', 'method'] },
+];
+
+export const DECK_LAYOUTS = DECK_LAYOUT_FAMILIES.flatMap((f) => f.layouts);
+
+/**
+ * Nombres antiguos que siguen abriéndose. Un `.amoxdeck` escrito antes del
+ * catálogo no puede dejar de funcionar; al editar la lámina se reescribe con
+ * el nombre nuevo, así que la migración ocurre sola y sin pedir permiso.
+ */
+export const DECK_LAYOUT_ALIASES = {
+    title: 'cover',
+    'content-chart': 'finding',
+};
+
 const DEFAULT_LAYOUT = 'content';
 const LAYOUT_DIRECTIVE_RE = /^\s*<!--\s*layout:\s*([\w-]+)\s*-->\s*\n?/;
+// Antetítulo: el hilo del deck (sección o periodo) que se repite lámina a
+// lámina. Sale del front-matter (`section:`) y una lámina suelta puede
+// sobreescribirlo con su propia directiva.
+const EYEBROW_DIRECTIVE_RE = /^\s*<!--\s*eyebrow:\s*([^\n]*?)\s*-->\s*\n?/;
+// Pie de procedencia: qué campos enseña esta lámina. `false` lo apaga.
+const FOOTER_DIRECTIVE_RE = /^\s*<!--\s*footer:\s*([^\n]*?)\s*-->\s*\n?/;
+// Tono: sobre qué fondo se lee la lámina.
+const TONE_DIRECTIVE_RE = /^\s*<!--\s*tone:\s*([\w-]+)\s*-->\s*\n?/;
+
+/**
+ * El tono de una lámina.
+ *
+ *   theme   sigue el tema de la app (el defecto — nunca sorprende)
+ *   invert  cambia tinta por papel: el separador clásico
+ *   dark    fondo oscuro pase lo que pase
+ *   light   fondo claro pase lo que pase
+ *
+ * `dark` y `light` no son una inversión por sí mismos: piden un color de
+ * fondo, así que sólo invierten cuando el modo de la app es el contrario.
+ */
+export const DECK_TONES = ['theme', 'invert', 'dark', 'light'];
+
+export function resolveTone({ slideTone, deckTone } = {}) {
+    const t = String(slideTone ?? deckTone ?? '').trim().toLowerCase();
+    return DECK_TONES.includes(t) ? t : 'theme';
+}
+
+/** Los campos del pie, en el orden en que se pintan. */
+export const FOOTER_FIELDS = ['source', 'query', 'rows', 'vars', 'refreshed', 'number'];
+
+// Ni la portada ni el cierre llevan pie: ya enseñan fuente y fecha en grande,
+// y ahí el pie compite con ellas.
+const SIN_PIE = new Set(['cover', 'closing']);
+
+/**
+ * Qué enseña el pie de una lámina. Se decide en el front-matter para todo el
+ * deck y se afina lámina a lámina; lo que NO se decide aquí es el contenido de
+ * cada campo, que siempre se deriva (ver DeckFooter).
+ *
+ * Por defecto: los seis campos donde hay una figura que citar, y sólo el número
+ * donde no la hay.
+ */
+export function resolveFooterFields({ slideFooter, deckFooter, layout, hasChart }) {
+    if (SIN_PIE.has(layout)) return [];
+
+    const declared = (slideFooter !== null && slideFooter !== undefined) ? slideFooter : deckFooter;
+
+    if (declared === false) return [];
+    if (Array.isArray(declared)) return declared.filter((f) => FOOTER_FIELDS.includes(f));
+    if (typeof declared === 'string') {
+        const t = declared.trim().toLowerCase();
+        if (t === 'false' || t === 'none' || t === 'off' || t === '') return [];
+        if (t === 'true' || t === 'all') return [...FOOTER_FIELDS];
+        return t.split(/[,\s]+/).filter((f) => FOOTER_FIELDS.includes(f));
+    }
+    if (declared === true) return [...FOOTER_FIELDS];
+
+    return hasChart ? [...FOOTER_FIELDS] : ['number'];
+}
+
+/**
+ * Consumes the leading `<!-- key: value -->` directives off a slide chunk, in
+ * any order, and returns what they declared plus the remaining markdown.
+ * Directives are metadata, never content: they must never reach MarkdownPreview.
+ */
+function readDirectives(raw) {
+    let rest = raw;
+    let layout = null;
+    let eyebrow = null;
+    let footer = null;
+    let tone = null;
+
+    for (let guard = 0; guard < 8; guard++) {
+        const l = rest.match(LAYOUT_DIRECTIVE_RE);
+        if (l) {
+            const declared = DECK_LAYOUT_ALIASES[l[1].toLowerCase()] || l[1].toLowerCase();
+            if (DECK_LAYOUTS.includes(declared)) layout = declared;
+            rest = rest.slice(l[0].length);
+            continue;
+        }
+        const e = rest.match(EYEBROW_DIRECTIVE_RE);
+        if (e) {
+            eyebrow = e[1] || '';
+            rest = rest.slice(e[0].length);
+            continue;
+        }
+        const f = rest.match(FOOTER_DIRECTIVE_RE);
+        if (f) {
+            footer = f[1] || '';
+            rest = rest.slice(f[0].length);
+            continue;
+        }
+        const t = rest.match(TONE_DIRECTIVE_RE);
+        if (t) {
+            tone = t[1].toLowerCase();
+            rest = rest.slice(t[0].length);
+            continue;
+        }
+        break;
+    }
+    return { layout, eyebrow, footer, tone, markdown: rest };
+}
 
 /**
  * Splits a `---`-delimited YAML front-matter block off the top of the content.
@@ -86,18 +215,14 @@ export function parseDeck(content) {
         .map((chunk) => ({ raw: chunk.text.trim(), startLine: chunk.startLine }))
         .filter((chunk) => chunk.raw.length > 0)
         .map((chunk, index) => {
-            let layout = DEFAULT_LAYOUT;
-            let markdown = chunk.raw;
-            const m = chunk.raw.match(LAYOUT_DIRECTIVE_RE);
-            if (m) {
-                const declared = m[1].toLowerCase();
-                if (DECK_LAYOUTS.includes(declared)) layout = declared;
-                markdown = chunk.raw.slice(m[0].length);
-            }
+            const declared = readDirectives(chunk.raw);
             return {
                 id: `slide-${index}`,
-                layout,
-                markdown: markdown.trim(),
+                layout: declared.layout || DEFAULT_LAYOUT,
+                eyebrow: declared.eyebrow,
+                footer: declared.footer,
+                tone: declared.tone,
+                markdown: declared.markdown.trim(),
                 raw: chunk.raw,
                 // +1 → 1-based line numbers (Monaco convention).
                 startLine: bodyOffsetLines + chunk.startLine + 1,
@@ -133,27 +258,56 @@ export function parseAmoxChartBlock(raw) {
     }
 }
 
+/**
+ * El deck que se crea de cero. No es una demo de las quince disposiciones: es
+ * el arco mínimo de un análisis — portada, resumen, hallazgo, acciones — que
+ * es lo que alguien copiaría de verdad. El resto se añade desde el panel de
+ * Layouts cuando haga falta.
+ */
 export const DECK_STARTER_TEMPLATE = `---
 title: New Deck
 theme: dark
-aspect: "16:9"
+section: Section or period
+author: Your name
+period: Q3 2026
+date: 30 Sep 2026
 variables:
   region: "US"
 ---
 
-<!-- layout: title -->
+<!-- layout: cover -->
 # New Deck
 
-## Subtitle goes here
+## The question this answers, in one line
 
 ---
 
-<!-- layout: content-chart -->
-## A slide with a chart
+<!-- layout: summary -->
+## If you only read one slide, read this
 
-Write your narrative here. Reference a chart saved from Story Flow —
-the query re-runs each time you click **Refresh all**, so the chart
-stays current without redoing the analysis.
+\`\`\`kpis
+- label: Headline metric
+  value: 1.24M
+  delta: +18.4%
+  trend: bad
+  base: vs. previous period
+- label: Second metric
+  value: 486K
+  delta: +6.1%
+\`\`\`
+
+- First finding
+- Second finding
+- Third finding
+
+---
+
+<!-- layout: finding -->
+## The claim this slide can defend
+
+Short narrative. Reference a chart saved from Story Flow — the query re-runs
+each time you click **Refresh all**, so the chart stays current without
+redoing the analysis.
 
 \`\`\`amoxchart
 src: charts/example.amoxvis
@@ -161,10 +315,13 @@ src: charts/example.amoxvis
 
 ---
 
-<!-- layout: content -->
-## Key takeaways
+<!-- layout: actions -->
+## What we propose
 
-- First point
-- Second point
-- Third point
+\`\`\`actions
+- action: Do this first
+  why: What it buys us, quantified
+  owner: Team
+  due: 8 Oct
+\`\`\`
 `;

@@ -53,8 +53,16 @@
 }
 
 /* Each slide renders as a fixed-aspect "page" — width fills up to a max,
-   height follows the deck's aspect ratio (set via inline style). */
+   height follows the 16:9 canvas (set via inline style).
+
+   `container-type` lives HERE and never on `.deck-slide`: the slide's own
+   padding is expressed in `--u`, which derives from the container's width, so
+   a slide that were its own container would define its padding in a unit
+   derived from itself. That is a cyclic reference and the browser resolves it
+   to whatever it likes — measured 97u where the spec says 72u. See
+   docs/dev/sistema_deck.html, apartado 02. */
 .deck-slide-card {
+    container-type: inline-size;
     width: 100%;
     max-width: 1440px;
     flex-shrink: 0;
@@ -66,13 +74,770 @@
     position: relative;
 }
 
-/* ── Slide (fills the card) ── */
+/* ── Slide (fills the card) ──────────────────────────────────────────────
+   El lienzo mide 1600 x 900 unidades de diseño — 16:9, siempre — y `--u` vale
+   una de esas unidades. Por eso cada medida de aquí abajo se lee igual que la
+   especificación: `calc(72 * var(--u))` ES el margen de 72 del contrato.
+
+   `overflow: hidden` y no `auto`: una lámina es una página. Si el contenido no
+   cabe, no cabe — y el Studio lo avisa (ver useDesborde en SlideDesigner).
+   Con scroll el problema se escondía en pantalla para reventar en el PDF. */
 .deck-slide {
+    --u: calc(100cqw / 1600);
+
+    /* Retícula */
+    --s-margen: calc(72 * var(--u));
+    --s-canal: calc(24 * var(--u));
+    --s-gap-col: calc(40 * var(--u));
+    --s-gap-cabecera: calc(30 * var(--u));
+    --s-pie: calc(44 * var(--u));
+
+    /* Escala tipográfica (apartado 02 del contrato) */
+    --t-cifra: calc(146 * var(--u));
+    --t-afirmacion: calc(84 * var(--u));
+    --t-portada: calc(74 * var(--u));
+    --t-kpi: calc(48 * var(--u));
+    --t-titulo: calc(40 * var(--u));
+    --t-bajada: calc(20 * var(--u));
+    --t-cuerpo: calc(19 * var(--u));
+    --t-tabla: calc(18 * var(--u));
+    --t-etiqueta: calc(13 * var(--u));
+    --t-pie: calc(12.5 * var(--u));
+
     height: 100%;
     width: 100%;
-    overflow-y: auto;
+    overflow: hidden;
     box-sizing: border-box;
-    padding: 32px 40px;
+    padding: var(--s-margen);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Un deck puede llevar su propio acento (`accent:` en el front-matter). Las
+   derivadas se vuelven a declarar AQUÍ y no se heredan de <body>: una
+   propiedad cuyo valor contiene var() se resuelve en el elemento que la
+   declara, así que con la composición sólo en body la clase `accent-*` de la
+   lámina no cambiaría nada. Es la misma trampa que hizo que todos los acentos
+   se vieran cian. */
+.deck-slide[data-accent] {
+    --accent-primary: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+    --accent-muted:   color-mix(in oklch, var(--accent-primary) 18%, transparent);
+    --accent-subtle:  color-mix(in oklch, var(--accent-primary) 8%, transparent);
+    --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+}
+
+/* ── Banda de cabecera: el antetítulo, el hilo del deck ── */
+.deck-slide-eyebrow {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--t-etiqueta);
+    font-weight: var(--weight-semibold);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: calc(14 * var(--u));
+}
+
+/* ── Banda de cuerpo: lo que cambia con la disposición ── */
+.deck-slide-body {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+}
+
+/* ── Los quince tipos de lámina ──────────────────────────────────────────
+   Casi todos son el cuerpo por defecto con otro reparto: sólo finding,
+   two-col, chart-grid y compare necesitan estructura propia en el JSX.
+   Ver docs/dev/sistema_deck.html, apartado 06. */
+
+/* Apertura ─────────────────────────────────────────────────────────────── */
+.deck-slide-body--cover,
+.deck-slide-body--closing {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.deck-slide-body--section { display: flex; flex-direction: column; justify-content: flex-end; }
+
+/* ── El tono de una lámina ───────────────────────────────────────────────
+   `tone:` en el front-matter o por lámina. `invert` cambia tinta por papel;
+   `dark` y `light` piden un color de fondo, no una inversión, así que sólo
+   invierten cuando el modo de la app es el contrario. El defecto es `theme`,
+   que no toca nada — un separador que se invierte por su cuenta sorprende, y
+   su fuerza está en el número gigante, no en el fondo. */
+.deck-slide[data-tone="invert"],
+body:not(.mode-light) .deck-slide[data-tone="light"],
+body.mode-light .deck-slide[data-tone="dark"] {
+    background-color: var(--text-primary);
+    color: var(--surface-raised);
+}
+.deck-slide[data-tone="invert"] .mde-preview-body,
+.deck-slide[data-tone="invert"] .mde-preview-body h1,
+.deck-slide[data-tone="invert"] .mde-preview-body h2,
+body:not(.mode-light) .deck-slide[data-tone="light"] .mde-preview-body,
+body:not(.mode-light) .deck-slide[data-tone="light"] .mde-preview-body h1,
+body:not(.mode-light) .deck-slide[data-tone="light"] .mde-preview-body h2,
+body.mode-light .deck-slide[data-tone="dark"] .mde-preview-body,
+body.mode-light .deck-slide[data-tone="dark"] .mde-preview-body h1,
+body.mode-light .deck-slide[data-tone="dark"] .mde-preview-body h2 { color: var(--surface-raised); }
+
+.deck-slide[data-tone="invert"] .deck-slide-foot,
+body:not(.mode-light) .deck-slide[data-tone="light"] .deck-slide-foot,
+body.mode-light .deck-slide[data-tone="dark"] .deck-slide-foot {
+    border-top-color: color-mix(in srgb, var(--surface-raised) 20%, transparent);
+    color: color-mix(in srgb, var(--surface-raised) 60%, transparent);
+}
+.deck-slide[data-tone="invert"] .deck-slide-eyebrow,
+body:not(.mode-light) .deck-slide[data-tone="light"] .deck-slide-eyebrow,
+body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
+    color: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}
+.deck-slide-indice {
+    flex-shrink: 0;
+    font-size: calc(180 * var(--u));
+    font-weight: 800;
+    line-height: .8;
+    letter-spacing: -.06em;
+    color: var(--accent-primary);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: calc(24 * var(--u));
+}
+
+/* La portada enseña en grande lo que el pie diría en pequeño. */
+.deck-portada-meta {
+    flex-shrink: 0;
+    display: flex;
+    gap: calc(44 * var(--u));
+    flex-wrap: wrap;
+    margin-top: calc(40 * var(--u));
+}
+.deck-portada-meta div { display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
+.deck-portada-meta u {
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: calc(11.5 * var(--u));
+    font-weight: var(--weight-semibold);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+.deck-portada-meta b {
+    font-size: calc(18 * var(--u));
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+}
+
+/* Texto ────────────────────────────────────────────────────────────────── */
+/* Una frase, sin gráfico. Da aire y marca el giro del relato. */
+.deck-slide-body--statement { display: flex; flex-direction: column; justify-content: center; }
+.deck-slide .deck-slide-body--statement .mde-preview-body h1 {
+    font-size: calc(84 * var(--u));
+    letter-spacing: -.038em;
+    line-height: 1.03;
+    max-width: 19ch;
+}
+
+.deck-slide-body--method .mde-preview-body { max-width: 70ch; }
+
+/* Dato ─────────────────────────────────────────────────────────────────── */
+/* El dato ancla se centra en vertical: la cifra es todo lo que hay. */
+.deck-slide-body--metric { display: flex; flex-direction: column; justify-content: center; }
+
+.deck-slide-body--summary .mde-preview-body ul { margin-top: calc(24 * var(--u)); }
+
+/* Evidencia ────────────────────────────────────────────────────────────── */
+/* Small multiples y comparación: cabecera arriba, figuras en medio y —si la
+   hay— la conclusión abajo. Con dos o más figuras la tarjeta VUELVE, porque el
+   borde deja de competir y hace un trabajo real: decir que esto es una unidad
+   y aquello otra. */
+.deck-slide-body--chart-grid,
+.deck-slide-body--compare {
+    display: flex;
+    flex-direction: column;
+    gap: calc(20 * var(--u));
+}
+
+.deck-figuras {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: var(--s-canal);
+}
+
+.deck-figura {
+    position: relative;   /* ancla del botón de quitar */
+    display: flex;
+    flex-direction: column;
+    gap: calc(10 * var(--u));
+    min-width: 0;
+    min-height: 0;
+}
+.deck-figura--tarjeta {
+    background-color: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: calc(10 * var(--u));
+    padding: calc(16 * var(--u));
+}
+.deck-figura-titulo {
+    flex-shrink: 0;
+    font-size: calc(17 * var(--u));
+    font-weight: var(--weight-semibold);
+    line-height: 1.25;
+    color: var(--text-primary);
+}
+.deck-figura .amoxchart-embed { flex: 1; min-height: calc(90 * var(--u)); }
+
+/* La conclusión de una comparación: sin ella la lámina deja el trabajo al
+   público — dos dibujos y que cada cual decida cuál gana. */
+.deck-slide-cierre {
+    flex-shrink: 0;
+    font-size: calc(19 * var(--u));
+}
+.deck-slide-cierre .mde-preview-body > :first-child { margin-top: 0; }
+
+/* ── Miniaturas de la galería ── */
+.dlp-family { margin-top: 14px; }
+.dlp-family:first-of-type { margin-top: 4px; }
+.dlp-family-label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 0 0 8px;
+}
+.dlp-schema--cover { justify-content: flex-end; }
+.dlp-schema--section { justify-content: flex-end; }
+.dlp-schema--statement { justify-content: center; }
+.dlp-schema--metric { justify-content: center; }
+.dlp-schema--grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 3px;
+}
+.dlp-schema--grid .dlp-chart-box { flex: 1; }
+.dlp-index {
+    width: 26%;
+    height: 16px;
+    border-radius: 2px;
+    background-color: var(--accent-primary);
+    opacity: .7;
+}
+.dlp-cifra {
+    width: 42%;
+    height: 18px;
+    border-radius: 2px;
+    background-color: var(--text-tertiary);
+    opacity: .6;
+}
+.dlp-kpis, .dlp-rows, .dlp-steps { display: flex; gap: 3px; }
+.dlp-kpis i, .dlp-steps i {
+    flex: 1;
+    height: 12px;
+    border-radius: 2px;
+    background-color: var(--accent-primary);
+    opacity: .5;
+}
+.dlp-rows { flex-direction: column; }
+.dlp-rows i {
+    height: 4px;
+    border-radius: 1px;
+    background-color: var(--text-tertiary);
+    opacity: .45;
+}
+.dlp-nota {
+    height: 12px;
+    border-radius: 2px;
+    border-left: 2px solid var(--color-warning);
+    background-color: var(--surface-inset);
+}
+
+/* ── Piezas que suben de la figura a la lámina ───────────────────────────
+   Cuando la tarjeta de Story Flow se disuelve, sus piezas cambian de dueño en
+   vez de desaparecer. Ver docs/dev/sistema_deck.html, apartado 05. */
+.deck-slide-titulo-heredado {
+    flex-shrink: 0;
+    font-size: var(--t-titulo);
+    font-weight: var(--weight-bold);
+    letter-spacing: -.022em;
+    line-height: 1.16;
+    max-width: 36ch;
+    text-wrap: balance;
+    margin: 0 0 calc(18 * var(--u));
+    color: var(--text-primary);
+}
+
+.deck-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: calc(5 * var(--u));
+    padding-left: calc(16 * var(--u));
+    border-left: calc(2 * var(--u)) solid var(--accent-primary);
+    margin-top: calc(20 * var(--u));
+}
+.deck-kpi-etiqueta {
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: calc(12.5 * var(--u));
+    font-weight: var(--weight-semibold);
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+.deck-kpi-linea {
+    display: flex;
+    align-items: baseline;
+    gap: calc(9 * var(--u));
+    flex-wrap: wrap;
+}
+.deck-kpi-valor {
+    font-size: var(--t-kpi);
+    font-weight: var(--weight-bold);
+    line-height: 1.02;
+    letter-spacing: -.032em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+.deck-kpi-delta {
+    text-decoration: none;
+    font-size: calc(15 * var(--u));
+    font-weight: var(--weight-semibold);
+    color: var(--text-tertiary);
+}
+/* Verde y rojo son semánticos, nunca de paleta: si los aportara la paleta, un
+   cambio de paleta invertiría el significado. */
+.deck-kpi-delta--pos { color: var(--color-success); }
+.deck-kpi-delta--neg { color: var(--color-error); }
+.deck-kpi-base {
+    font-style: normal;
+    font-size: calc(13 * var(--u));
+    color: var(--text-tertiary);
+}
+
+.deck-figura-takeaway {
+    font-size: calc(19 * var(--u));
+    line-height: 1.44;
+    color: var(--text-secondary);
+    border-left: calc(2 * var(--u)) solid var(--accent-primary);
+    padding-left: calc(16 * var(--u));
+    margin-top: calc(20 * var(--u));
+}
+
+/* ── Objetos de dato de la lámina ────────────────────────────────────────
+   Bloques cercados con YAML: ```kpis, ```metric, ```steps, ```actions y
+   ```rank. Ver client/src/components/deck/deckBlocks.jsx. */
+
+/* Aviso que sólo se ve mientras se diseña: en Present y en el export no existe,
+   porque es una nota para el autor y no parte de la lámina. */
+.deck-aviso { display: none; }
+/* El de datos no se esconde nunca: una tabla con las celdas corridas
+   presentada como si estuviera bien es peor que un aviso feo en una sala. */
+.deck-aviso--datos {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--u));
+    margin-bottom: calc(10 * var(--u));
+    font-family: var(--font-mono);
+    font-size: calc(12 * var(--u));
+    color: var(--color-warning);
+}
+.deck-design-canvas .deck-aviso {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--u));
+    margin-top: calc(10 * var(--u));
+    font-family: var(--font-mono);
+    font-size: calc(12 * var(--u));
+    color: var(--color-warning);
+}
+
+.deck-bloque-error {
+    display: flex;
+    align-items: center;
+    gap: calc(8 * var(--u));
+    margin: calc(16 * var(--u)) 0 0;
+    padding: calc(12 * var(--u)) calc(14 * var(--u));
+    font-size: calc(15 * var(--u));
+    color: var(--color-error);
+    background-color: var(--surface-inset);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-sm);
+}
+.deck-bloque-error code { font-family: var(--font-mono); }
+
+/* La tira de KPIs. De 2 a 5: el sexto no se lee desde el fondo de la sala. */
+.deck-kpis {
+    display: grid;
+    gap: calc(26 * var(--u));
+    grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+    margin-top: calc(20 * var(--u));
+}
+.deck-kpis .deck-kpi { margin-top: 0; border-left-color: var(--border-default); }
+.deck-kpis .deck-kpi--destacado { border-left-color: var(--accent-primary); }
+
+/* La cifra ancla: un número por lámina, y sólo en su tipo. */
+.deck-cifra-bloque { margin-top: calc(18 * var(--u)); }
+.deck-cifra {
+    font-size: var(--t-cifra);
+    font-weight: 800;
+    line-height: .88;
+    letter-spacing: -.05em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+.deck-cifra-unidad {
+    font-size: calc(54 * var(--u));
+    font-weight: var(--weight-bold);
+    letter-spacing: -.02em;
+}
+.deck-cifra-pie {
+    font-family: var(--font-mono);
+    font-size: calc(15 * var(--u));
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-top: calc(14 * var(--u));
+    max-width: 46ch;
+}
+
+/* Pasos: un proceso o un plan, con la fase activa en acento. */
+.deck-pasos {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: calc(22 * var(--u));
+    margin-top: calc(22 * var(--u));
+}
+.deck-paso {
+    display: flex;
+    flex-direction: column;
+    gap: calc(9 * var(--u));
+    padding-top: calc(16 * var(--u));
+    border-top: calc(3 * var(--u)) solid var(--border-default);
+}
+.deck-paso--activo { border-top-color: var(--accent-primary); }
+.deck-paso-num {
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: calc(12.5 * var(--u));
+    font-weight: var(--weight-bold);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-primary);
+}
+.deck-paso-titulo {
+    font-size: calc(21 * var(--u));
+    font-weight: var(--weight-bold);
+    line-height: 1.24;
+    color: var(--text-primary);
+}
+.deck-paso-detalle {
+    font-size: calc(16 * var(--u));
+    line-height: 1.4;
+    color: var(--text-tertiary);
+}
+
+/* Acciones: verbo, motivo cuantificado, responsable y fecha. */
+.deck-acciones { margin-top: calc(18 * var(--u)); }
+.deck-accion {
+    display: grid;
+    grid-template-columns: calc(34 * var(--u)) 1fr auto;
+    gap: calc(16 * var(--u));
+    align-items: baseline;
+    padding: calc(15 * var(--u)) 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.deck-accion-num {
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: calc(14 * var(--u));
+    font-weight: var(--weight-bold);
+    color: var(--accent-primary);
+}
+.deck-accion-cuerpo b {
+    display: block;
+    font-size: calc(20 * var(--u));
+    font-weight: var(--weight-semibold);
+    line-height: 1.32;
+    color: var(--text-primary);
+}
+.deck-accion-cuerpo span {
+    display: block;
+    font-size: calc(15.5 * var(--u));
+    color: var(--text-tertiary);
+    margin-top: calc(4 * var(--u));
+}
+.deck-accion-quien {
+    font-family: var(--font-mono);
+    font-size: calc(13 * var(--u));
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+/* La tabla clasificada: ocho filas visibles como máximo. La barra da la
+   magnitud sin obligar a comparar cifras.
+
+   Ojo con la especificidad: estos bloques se pintan DENTRO de
+   `.mde-preview-body`, y sus reglas de tabla (`.mde-preview-body th`, 0-2-0)
+   le ganan a una clase suelta. Por eso cada regla de aquí abajo lleva el
+   elemento delante — sin eso, la alineación a la derecha se declaraba y no
+   se aplicaba. */
+.deck-rank {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--t-tabla);
+    margin-top: calc(18 * var(--u));
+}
+.deck-rank th,
+.mde-preview-body .deck-rank th {
+    /* El preview de markdown dibuja una rejilla completa y raya las filas
+       pares; la tabla clasificada no quiere ninguna de las dos cosas. */
+    border: 0;
+    background-color: transparent;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: calc(12 * var(--u));
+    font-weight: var(--weight-semibold);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: calc(10 * var(--u)) calc(12 * var(--u));
+    border-bottom: 1px solid var(--border-default);
+}
+.deck-rank td,
+.mde-preview-body .deck-rank td,
+.mde-preview-body .deck-rank tr:nth-child(even) td {
+    border: 0;
+    background-color: transparent;
+    padding: calc(12 * var(--u));
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+.deck-rank th,
+.mde-preview-body .deck-rank th { border-bottom: 1px solid var(--border-default); }
+.deck-rank td:first-child,
+.mde-preview-body .deck-rank td:first-child {
+    color: var(--text-primary);
+    font-weight: var(--weight-semibold);
+}
+.deck-rank th.deck-rank-der,
+.deck-rank td.deck-rank-der,
+.mde-preview-body .deck-rank th.deck-rank-der,
+.mde-preview-body .deck-rank td.deck-rank-der { text-align: right; }
+/* Se resaltan sólo las filas de las que habla el título. */
+.deck-rank-fila--destacada td { color: var(--text-primary); }
+.deck-rank-celda-barra { width: 26%; }
+.deck-estado {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: calc(12.5 * var(--u));
+    font-weight: var(--weight-semibold);
+    letter-spacing: .06em;
+    border-radius: 999px;
+    padding: calc(4 * var(--u)) calc(11 * var(--u));
+    white-space: nowrap;
+}
+/* Semánticos, no de paleta: un cambio de paleta no puede cambiar qué va bien. */
+.deck-estado--ok   { color: var(--color-success); background-color: color-mix(in srgb, var(--color-success) 14%, transparent); }
+.deck-estado--risk { color: var(--color-warning); background-color: color-mix(in srgb, var(--color-warning) 14%, transparent); }
+.deck-estado--bad  { color: var(--color-error);   background-color: color-mix(in srgb, var(--color-error) 14%, transparent); }
+.deck-rank-barra {
+    height: calc(9 * var(--u));
+    border-radius: calc(3 * var(--u));
+    background-color: var(--accent-primary);
+    min-width: calc(3 * var(--u));
+}
+
+/* ── Banda de pie: la capa de credibilidad ───────────────────────────────
+   Alto fijo y siempre en el mismo sitio: es un ancla, no un adorno. Es lo que
+   permite auditar el deck lámina a lámina. */
+.deck-slide-foot {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(20 * var(--u));
+    margin-top: calc(26 * var(--u));
+    padding-top: calc(14 * var(--u));
+    border-top: 1px solid var(--border-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--t-pie);
+    line-height: 1.35;
+    color: var(--text-tertiary);
+}
+
+.deck-foot-izq {
+    display: flex;
+    align-items: center;
+    gap: calc(12 * var(--u));
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.deck-foot-der {
+    display: flex;
+    align-items: center;
+    gap: calc(16 * var(--u));
+    flex-shrink: 0;
+}
+
+.deck-foot-procedencia { display: inline-flex; align-items: center; flex-wrap: wrap; }
+.deck-foot-parte { display: inline-flex; align-items: center; }
+.deck-foot-sep { margin: 0 calc(7 * var(--u)); opacity: .55; }
+.deck-foot-consulta { color: var(--text-secondary); font-weight: var(--weight-medium); }
+.deck-foot-dato--aviso { color: var(--color-warning); }
+.deck-foot-salvedad { font-style: italic; }
+
+/* Las variables activas van como chips y no como texto: se leen de un vistazo
+   desde el fondo de la sala, y dejan claro que el deck es paramétrico. */
+.deck-foot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--u));
+    color: var(--text-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    padding: calc(4 * var(--u)) calc(11 * var(--u));
+    white-space: nowrap;
+}
+.deck-foot-chip i {
+    width: calc(7 * var(--u));
+    height: calc(7 * var(--u));
+    border-radius: 50%;
+    background-color: var(--accent-primary);
+    flex-shrink: 0;
+}
+
+.deck-foot-sello { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); }
+/* Pasada una semana se marca: un número viejo presentado como fresco es el
+   peor fallo que puede tener una herramienta de análisis. */
+.deck-foot-sello--rancio { color: var(--color-warning); }
+.deck-foot-num { font-variant-numeric: tabular-nums; }
+
+/* ── La escala de la lámina ───────────────────────────────────────────────
+   Una lámina se lee a tres metros; un documento, a medio. Por eso el texto
+   deja de heredar la escala del preview de markdown —pensada para leer un .md
+   sentado— y pasa a la del contrato, en unidades de diseño. Todo va acotado a
+   `.deck-slide`: el mismo MarkdownPreview sigue igual en el editor de
+   documentos y en los notebooks. */
+.deck-slide .mde-preview-body { font-size: var(--t-cuerpo); }
+.deck-slide .mde-preview-body > :first-child { margin-top: 0; }
+
+/* El título es la afirmación de la lámina, no un encabezado de documento: sin
+   filete inferior, y con sitio para dos líneas. */
+.deck-slide .mde-preview-body h1,
+.deck-slide .mde-preview-body h2,
+.deck-slide .mde-preview-body h3 {
+    border-bottom: none;
+    padding-bottom: 0;
+    text-wrap: balance;
+}
+.deck-slide .mde-preview-body h1 {
+    font-size: var(--t-portada);
+    font-weight: var(--weight-bold);
+    letter-spacing: -.04em;
+    line-height: 1.04;
+    max-width: 20ch;
+    margin: 0;
+}
+.deck-slide .mde-preview-body h2 {
+    font-size: var(--t-titulo);
+    font-weight: var(--weight-bold);
+    letter-spacing: -.022em;
+    line-height: 1.16;
+    max-width: 36ch;
+    margin: 0;
+}
+.deck-slide .mde-preview-body h3 {
+    font-size: calc(26 * var(--u));
+    line-height: 1.25;
+    margin: calc(26 * var(--u)) 0 0;
+}
+
+/* La bajada: el párrafo que sigue al título. Matiza el alcance, nunca lo repite. */
+.deck-slide .mde-preview-body h1 + p,
+.deck-slide .mde-preview-body h2 + p {
+    font-size: var(--t-bajada);
+    color: var(--text-secondary);
+    max-width: 62ch;
+    margin-top: calc(11 * var(--u));
+}
+
+.deck-slide .mde-preview-body p {
+    font-size: var(--t-cuerpo);
+    line-height: 1.5;
+    max-width: 56ch;
+    margin: calc(16 * var(--u)) 0 0;
+}
+.deck-slide .mde-preview-body ul,
+.deck-slide .mde-preview-body ol {
+    margin: calc(18 * var(--u)) 0 0;
+    padding-left: calc(26 * var(--u));
+}
+.deck-slide .mde-preview-body li {
+    font-size: var(--t-cuerpo);
+    line-height: 1.4;
+    margin-top: calc(12 * var(--u));
+}
+.deck-slide .mde-preview-body li::marker { color: var(--accent-primary); }
+
+/* Un `>` a secas es la conclusión de la lámina: filete de acento y nada más.
+   Sin fondo — a este tamaño la mancha de color pesa demasiado. Las alertas
+   (`> [!note]`, `> [!warning]`) conservan su aspecto y sólo cambian de escala:
+   ya existían en MarkdownPreview, aquí no se reinventan. */
+.deck-slide .mde-preview-body blockquote:not(.mde-alert) {
+    background-color: transparent;
+    border-left-width: calc(2 * var(--u));
+    border-radius: 0;
+    font-size: calc(19 * var(--u));
+    line-height: 1.44;
+    margin: calc(20 * var(--u)) 0 0;
+    padding: 0 0 0 calc(16 * var(--u));
+}
+.deck-slide .mde-preview-body .mde-alert {
+    font-size: calc(17 * var(--u));
+    margin: calc(20 * var(--u)) 0 0;
+    padding: calc(14 * var(--u)) calc(16 * var(--u));
+}
+.deck-slide .mde-preview-body .mde-alert-head { font-size: calc(13 * var(--u)); }
+
+/* Tablas, código, matemáticas y diagramas a la misma escala, para que nada
+   dentro de la lámina se lea como si viniera de otro documento. */
+.deck-slide .mde-preview-body table { font-size: var(--t-tabla); }
+.deck-slide .mde-preview-body th,
+.deck-slide .mde-preview-body td { padding: calc(10 * var(--u)) calc(12 * var(--u)); }
+.deck-slide .mde-preview-body code { font-size: calc(16 * var(--u)); }
+.deck-slide .mde-preview-body pre code { font-size: calc(15 * var(--u)); }
+.deck-slide .mde-preview-body .katex-display { margin: calc(20 * var(--u)) 0 0; }
+.deck-slide .mde-preview-body .mermaid-diagram svg {
+    max-height: calc(430 * var(--u));
+    width: auto;
+}
+
+/* Aviso de desborde: la contrapartida honesta de quitar el scroll. Sin él,
+   quitarlo sólo cambia un fallo visible por uno silencioso. */
+.deck-desborde {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-warning, #d9a441);
+    background-color: var(--surface-inset);
+    border: 1px solid var(--color-warning, #d9a441);
+    border-radius: var(--radius-sm);
+    padding: 4px 9px;
+    pointer-events: none;
 }
 
 .deck-slide .mde-preview-body {
@@ -81,58 +846,66 @@
 }
 
 /* title — centered, larger type */
-.deck-slide--title {
+.deck-slide-body--cover {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
 }
-.deck-slide--title .mde-preview-body { max-width: 720px; }
-.deck-slide--title .mde-preview-body h1 { font-size: 2.6rem; border-bottom: none; padding-bottom: 0; }
-.deck-slide--title .mde-preview-body h2 { font-size: 1.3rem; font-weight: var(--weight-normal); color: var(--text-secondary); border-bottom: none; }
+.deck-slide-body--cover .mde-preview-body { max-width: none; }
+.deck-slide-body--cover .mde-preview-body h2 {
+    font-size: var(--t-bajada);
+    font-weight: var(--weight-normal);
+    color: var(--text-secondary);
+    max-width: 48ch;
+    margin-top: calc(20 * var(--u));
+}
 
 /* chart-full — the amoxchart embed fills essentially the whole slide */
-.deck-slide--chart-full { display: flex; flex-direction: column; }
-.deck-slide--chart-full .mde-preview-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.deck-slide--chart-full .amoxchart-embed { flex: 1; min-height: 320px; }
+.deck-slide-body--chart-full { display: flex; flex-direction: column; }
+.deck-slide-body--chart-full .mde-preview-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.deck-slide-body--chart-full .amoxchart-embed { flex: 1; min-height: calc(240 * var(--u)); }
 
 /* content-chart / two-col — two CSS columns filling the slide height.
    content-chart favors the chart column (text is usually a short narrative,
    while the chart needs room for axis labels + data). */
-.deck-slide--content-chart {
+.deck-slide-body--finding {
     display: grid;
-    grid-template-columns: 0.85fr 1.15fr;
-    gap: 32px;
-    height: 100%;
+    grid-template-columns: 5fr 7fr;   /* 5/7 a favor de la figura */
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: calc(22 * var(--u)) var(--s-gap-col);
     box-sizing: border-box;
 }
+/* La afirmación cruza las dos columnas: es lo que la lámina sostiene, no una
+   nota de la columna izquierda. Metida dentro de 5/12 se parte en cuatro
+   líneas y empuja al resto fuera de la diapositiva. */
+.deck-slide-cabecera { grid-column: 1 / -1; min-width: 0; }
 
-.deck-slide--two-col {
+.deck-slide-body--two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 32px;
-    height: 100%;
+    gap: var(--s-gap-col);
     box-sizing: border-box;
 }
 
 .deck-slide-col {
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
 .deck-slide-col--text .mde-preview-body { padding: 0; }
 .deck-slide-col--chart { flex: 1; }
-.deck-slide-col--chart .amoxchart-embed { flex: 1; height: 100%; min-height: 240px; }
+.deck-slide-col--chart .amoxchart-embed { flex: 1; height: 100%; min-height: calc(200 * var(--u)); }
 
 /* ── Chart embed states ── */
 .amoxchart-embed {
     display: flex;
     flex-direction: column;
-    min-height: 200px;
+    min-height: calc(160 * var(--u));
 }
 
 .amoxchart-embed--status {
@@ -634,6 +1407,7 @@
 
 /* The active slide as a single large 16:9 canvas */
 .deck-design-canvas {
+    container-type: inline-size;   /* ver la nota en .deck-slide-card */
     width: 100%;
     max-width: 1180px;
     flex-shrink: 0;
@@ -784,7 +1558,7 @@
 .deck-chart-remove:hover { color: var(--feedback-error, #ef4444); border-color: var(--feedback-error, #ef4444); }
 
 /* Design canvas: chart-full arrangement */
-.deck-slide--design-chartfull {
+.deck-slide-body--design-chartfull {
     display: flex;
     flex-direction: column;
     gap: 12px;

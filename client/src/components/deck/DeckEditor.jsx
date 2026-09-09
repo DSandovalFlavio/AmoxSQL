@@ -38,7 +38,11 @@ import SlidePreview from './SlidePreview';
 import '../MarkdownEditor.css';
 import './deck.css';
 
-const ASPECT_MAP = { '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1' };
+// El lienzo no es configurable: 16:9 y nada más. Cada reparto del contrato
+// visual (docs/dev/sistema_deck.html) está calculado sobre 1600 x 900, y
+// sostener un segundo formato obligaría a duplicar todas esas reglas. El
+// front-matter puede seguir trayendo `aspect` de decks antiguos; se ignora.
+const SLIDE_ASPECT = '16 / 9';
 const VALID_VIEWS = ['design', 'present', 'source'];
 
 const DeckEditor = ({
@@ -61,6 +65,9 @@ const DeckEditor = ({
     const [sidePanelCollapsed, setSidePanelCollapsed] = useState(() => localStorage.getItem('amoxsql-deck-panel-collapsed') === '1');
     const [activeSlideIndex, setActiveSlideIndex] = useState(0);
     const [refreshToken, setRefreshToken] = useState(0);
+    // Marca de refresco para las láminas SIN figura: las que la tienen usan la
+    // hora real en que se ejecutó su consulta, que es más honesta.
+    const [refreshedAt, setRefreshedAt] = useState(() => Date.now());
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showSaveMenu, setShowSaveMenu] = useState(false);
     const [showPptxMenu, setShowPptxMenu] = useState(false);
@@ -72,7 +79,24 @@ const DeckEditor = ({
     const slideCardRefs = useRef(new Map());
 
     const deck = useMemo(() => parseDeck(content || ''), [content]);
-    const aspectRatio = ASPECT_MAP[deck.frontMatter?.aspect] || '16 / 9';
+    const aspectRatio = SLIDE_ASPECT;
+
+    // El antetítulo de una lámina: el suyo si lo declara —incluso vacío, que
+    // significa "aquí no"— y si no, el hilo del deck.
+    const seccionDelDeck = deck.frontMatter?.section || '';
+    const antetituloDe = useCallback(
+        (slide) => ((slide?.eyebrow === null || slide?.eyebrow === undefined) ? seccionDelDeck : slide.eyebrow),
+        [seccionDelDeck],
+    );
+
+    // Un deck escrito antes de fijar el lienzo puede traer `aspect`. Se ignora,
+    // pero se dice una vez para que nadie crea que la clave sigue haciendo algo.
+    const aspectDeclarado = deck.frontMatter?.aspect;
+    useEffect(() => {
+        if (aspectDeclarado && aspectDeclarado !== '16:9') {
+            console.warn(`Report Flow: "aspect: ${aspectDeclarado}" se ignora — las láminas son siempre 16:9.`);
+        }
+    }, [aspectDeclarado]);
 
     // Keep the active slide index within bounds as slides are added/removed.
     useEffect(() => {
@@ -99,6 +123,7 @@ const DeckEditor = ({
 
     const handleRefreshAll = useCallback(() => {
         setIsRefreshing(true);
+        setRefreshedAt(Date.now());
         setRefreshToken((t) => t + 1);
         setTimeout(() => setIsRefreshing(false), 600);
     }, []);
@@ -146,7 +171,11 @@ const DeckEditor = ({
         const current = splitSlideContent(slide.markdown);
         const raw = buildSlideRaw({
             layout: patch.layout !== undefined ? patch.layout : slide.layout,
+            eyebrow: patch.eyebrow !== undefined ? patch.eyebrow : slide.eyebrow,
+            footer: patch.footer !== undefined ? patch.footer : slide.footer,
+            tone: patch.tone !== undefined ? patch.tone : slide.tone,
             prose: patch.prose !== undefined ? patch.prose : current.prose,
+            charts: patch.charts !== undefined ? patch.charts : current.charts,
             chartSrc: patch.chartSrc !== undefined ? patch.chartSrc : current.chartSrc,
             notes: patch.notes !== undefined ? patch.notes : current.notes,
         });
@@ -157,15 +186,32 @@ const DeckEditor = ({
     const handleEditProse = useCallback((prose) => updateSlideAt(activeSlideIndex, { prose }), [updateSlideAt, activeSlideIndex]);
     const handleEditNotes = useCallback((notes) => updateSlideAt(activeSlideIndex, { notes }), [updateSlideAt, activeSlideIndex]);
     const handleApplyLayout = useCallback((layout) => updateSlideAt(activeSlideIndex, { layout }), [updateSlideAt, activeSlideIndex]);
-    const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { chartSrc: null }), [updateSlideAt, activeSlideIndex]);
+    const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { charts: [] }), [updateSlideAt, activeSlideIndex]);
+
+    /** Quita UNA figura de una lámina que tiene varias. */
+    const handleRemoveChartAt = useCallback((i) => {
+        const slide = deck.slides[activeSlideIndex];
+        if (!slide) return;
+        const { charts } = splitSlideContent(slide.markdown);
+        updateSlideAt(activeSlideIndex, { charts: charts.filter((_, k) => k !== i) });
+    }, [deck.slides, activeSlideIndex, updateSlideAt]);
 
     const handleInsertChart = useCallback((src) => {
         // Set/replace the chart on the ACTIVE slide (never append to the file).
         // A plain 'content' slide gains a chart slot by promoting it to
         // content-chart so the chart has somewhere to render.
         const slide = deck.slides[activeSlideIndex];
-        const patch = { chartSrc: src };
-        if (slide && slide.layout === 'content') patch.layout = 'content-chart';
+        // En una lámina de varias figuras la nueva se AÑADE; en las demás
+        // reemplaza, que es lo que se espera de un hueco único.
+        const varias = slide && (slide.layout === 'chart-grid' || slide.layout === 'compare');
+        if (varias) {
+            const { charts } = splitSlideContent(slide.markdown);
+            const tope = slide.layout === 'compare' ? 2 : 4;
+            updateSlideAt(activeSlideIndex, { charts: [...charts, { src }].slice(0, tope) });
+            return;
+        }
+        const patch = { charts: [{ src }] };
+        if (slide && slide.layout === 'content') patch.layout = 'finding';
         updateSlideAt(activeSlideIndex, patch);
     }, [deck.slides, activeSlideIndex, updateSlideAt]);
 
@@ -410,6 +456,11 @@ const DeckEditor = ({
                                         >
                                             <SlidePreview
                                                 slide={slide}
+                                                eyebrow={antetituloDe(slide)}
+                                                deckFooter={deck.frontMatter?.footer}
+                                                slideNumber={deck.slides.indexOf(slide) + 1}
+                                                refreshedAt={refreshedAt}
+                                                frontMatter={deck.frontMatter}
                                                 variables={deck.frontMatter?.variables}
                                                 refreshToken={refreshToken}
                                                 onOpenFile={onOpenFile}
@@ -428,6 +479,11 @@ const DeckEditor = ({
                             ) : (
                                 <SlideDesigner
                                     slide={activeSlide}
+                                    eyebrow={antetituloDe(activeSlide)}
+                                    deckFooter={deck.frontMatter?.footer}
+                                    slideNumber={activeSlideIndex + 1}
+                                    refreshedAt={refreshedAt}
+                                    frontMatter={deck.frontMatter}
                                     index={activeSlideIndex}
                                     total={deck.slides.length}
                                     aspectRatio={aspectRatio}
@@ -438,6 +494,7 @@ const DeckEditor = ({
                                     onEditProse={handleEditProse}
                                     onEditNotes={handleEditNotes}
                                     onRemoveChart={handleRemoveChart}
+                                    onRemoveChartAt={handleRemoveChartAt}
                                     onRequestAddChart={requestAddChart}
                                     onPrev={() => goToSlide(activeSlideIndex - 1)}
                                     onNext={() => goToSlide(activeSlideIndex + 1)}

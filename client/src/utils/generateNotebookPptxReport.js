@@ -131,7 +131,7 @@ export async function generateNotebookPptxReport(cells, results, hideCode = fals
     pptx.title = title;
 
     const titleSlide = pptx.addSlide();
-    const full = layoutBoxes('title').full;
+    const full = layoutBoxes('cover').full;
     titleSlide.addText(title, { x: full.x, y: full.h * 0.4, w: full.w, h: 1, fontSize: 36, bold: true, align: 'center', color: '1A1A1A' });
     titleSlide.addText(`Generated on ${new Date().toLocaleString()}`, { x: full.x, y: full.h * 0.4 + 1.1, w: full.w, h: 0.5, fontSize: 14, align: 'center', color: '888888' });
 
@@ -159,7 +159,7 @@ export async function generateNotebookPptxReport(cells, results, hideCode = fals
         // beside — a table already reads as the full slide, same as the deck
         // model's own chart-full/content-chart split.
         const boxes = hasChart
-            ? (showCode ? layoutBoxes('content-chart') : layoutBoxes('chart-full'))
+            ? (showCode ? layoutBoxes('finding') : layoutBoxes('chart-full'))
             : layoutBoxes('content');
 
         if (showCode && hasChart) {

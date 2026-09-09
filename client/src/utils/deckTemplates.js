@@ -12,18 +12,127 @@
 import { parseAmoxChartBlock } from './deckParser';
 
 const CHART_PLACEHOLDER = 'charts/example.amoxvis';
-const AMOXCHART_FENCE_RE = /```amoxchart\n([\s\S]*?)```/;
+// `\r?\n` y no `\n`: en Windows un .amoxdeck guardado por cualquier editor
+// llega con CRLF, y con el salto sin contemplar el retorno esta expresion no
+// casaba. El grafico seguia dibujandose (lo pinta MarkdownPreview por su cuenta),
+// asi que el fallo era invisible: lo unico que se perdia era el reparto en dos
+// columnas de la lamina, que caia al cuerpo generico sin decir nada.
+const AMOXCHART_FENCE_RE = /```amoxchart\r?\n([\s\S]*?)```/;
 // Speaker notes (Fase 5): a fenced block, not an HTML comment, so multi-line
 // notes containing arbitrary text (including a literal `-->`) round-trip
 // without escaping — same reasoning as the amoxchart block above.
-const NOTES_FENCE_RE = /```notes\n([\s\S]*?)```/;
+const NOTES_FENCE_RE = /```notes\r?\n([\s\S]*?)```/;
+
+// La cerca de un bloque va por variable y no escrita a mano: tres acentos
+// graves dentro de un template literal de JS hay que escaparlos uno a uno, y
+// eso se rompe en cuanto alguien edita la plantilla.
+const F = '`' + '`' + '`';
 
 /** Body markdown (WITHOUT the layout directive) seeded for each layout. */
 export const DECK_LAYOUT_TEMPLATES = {
-    title: `# Slide title
+    // ── Apertura ──
+    cover: `# Deck title
 
-## Subtitle goes here`,
+## What this answers, in one line`,
 
+    section: `# Section name`,
+
+    closing: `# Thank you
+
+## Questions, or the detail behind any number`,
+
+    // ── Evidencia ──
+    finding: `## The claim this slide can defend
+
+Short narrative. The query re-runs on **Refresh all**, so the chart stays
+current without redoing the analysis.
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    'chart-full': `## A chart that needs the whole width
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    'chart-grid': `## Same shape, one per category
+
+Small multiples share one vertical scale — otherwise the comparison lies.
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    compare: `## Before and after, and which one wins
+
+${F}amoxchart
+src: ${CHART_PLACEHOLDER}
+${F}`,
+
+    // ── Dato ──
+    summary: `## If you only read one slide, read this
+
+${F}kpis
+- label: Total cost
+  value: $1.24M
+  delta: +18.4%
+  trend: bad
+  base: vs. previous period
+- label: Clicks
+  value: 486K
+  delta: +6.1%
+${F}
+
+- First finding
+- Second finding
+- Third finding`,
+
+    metric: `${F}metric
+value: 64
+unit: "%"
+label: What this number means
+${F}`,
+
+    table: `## The detail, ranked
+
+${F}rank
+columns: [Name, Value, Weight]
+bar: Weight
+highlight: 2
+rows:
+  - [First, $284K, 59]
+  - [Second, $231K, 41]
+  - [Third, $198K, 28]
+${F}`,
+
+    steps: `## How we get there
+
+${F}steps
+- title: First phase
+  when: IN PROGRESS
+  detail: What happens here
+  state: active
+- title: Second phase
+  when: WEEK 2
+- title: Decide
+  when: WEEK 3
+${F}`,
+
+    actions: `## What we propose
+
+${F}actions
+- action: Do this first
+  why: What it buys us, quantified
+  owner: Team
+  due: 8 Oct
+- action: Then this
+  owner: Team
+  due: 15 Oct
+${F}`,
+
+    // ── Texto ──
     content: `## Section heading
 
 Write your point here.
@@ -32,20 +141,7 @@ Write your point here.
 - Second point
 - Third point`,
 
-    'content-chart': `## Narrative + chart
-
-Explain what the chart shows. The query re-runs on **Refresh all**, so it
-stays current without redoing the analysis.
-
-\`\`\`amoxchart
-src: ${CHART_PLACEHOLDER}
-\`\`\``,
-
-    'chart-full': `## Full-width chart
-
-\`\`\`amoxchart
-src: ${CHART_PLACEHOLDER}
-\`\`\``,
+    statement: `# The one sentence you want remembered`,
 
     'two-col': `## Left column
 
@@ -58,11 +154,27 @@ src: ${CHART_PLACEHOLDER}
 
 - Point C
 - Point D`,
+
+    method: `## How this is calculated
+
+- **Metric** defined here, aggregated before dividing.
+- **Period** compared against the previous one, both complete.
+- **Exclusions** and why they were left out.
+
+> [!warning]
+> What this analysis does NOT say.`,
 };
 
-/** A fenced amoxchart block referencing a `.amoxvis` file by project path. */
-export function buildChartBlock(src) {
-    return '```amoxchart\nsrc: ' + (src || CHART_PLACEHOLDER) + '\n```';
+/**
+ * A fenced amoxchart block referencing a `.amoxvis` file by project path.
+ * `slot` coloca la figura en un hueco concreto de las láminas de varias
+ * figuras; `card` fuerza o quita su tarjeta.
+ */
+export function buildChartBlock(src, { slot = null, card = null } = {}) {
+    const lineas = ['src: ' + (src || CHART_PLACEHOLDER)];
+    if (slot) lineas.push('slot: ' + slot);
+    if (card === true || card === false) lineas.push('card: ' + card);
+    return '```amoxchart\n' + lineas.join('\n') + '\n```';
 }
 
 /** A fenced notes block holding this slide's speaker notes verbatim. */
@@ -90,21 +202,46 @@ export function buildSlideSnippet(layout) {
  */
 export function splitSlideContent(markdown) {
     let rest = markdown || '';
-    let chartSrc = null;
+    const charts = [];
     let notes = '';
 
-    const chartMatch = rest.match(AMOXCHART_FENCE_RE);
-    if (chartMatch) {
-        chartSrc = parseAmoxChartBlock(chartMatch[1]).src || null;
-        rest = rest.slice(0, chartMatch.index) + rest.slice(chartMatch.index + chartMatch[0].length);
+    // Todas las figuras, no sólo la primera. Antes se tomaba una y las demás se
+    // quedaban dentro de la prosa, donde se pintaban sueltas y sin sitio: por
+    // eso una rejilla de small multiples era imposible de montar.
+    const global = new RegExp(AMOXCHART_FENCE_RE.source, 'g');
+    let m;
+    const trozos = [];
+    let cursor = 0;
+    while ((m = global.exec(rest)) !== null) {
+        const bloque = parseAmoxChartBlock(m[1]);
+        if (bloque.src) {
+            charts.push({
+                src: bloque.src,
+                slot: bloque.slot || null,
+                card: bloque.card === true ? true : (bloque.card === false ? false : null),
+            });
+        }
+        trozos.push(rest.slice(cursor, m.index));
+        cursor = m.index + m[0].length;
     }
+    trozos.push(rest.slice(cursor));
+    rest = trozos.join('');
+
     const notesMatch = rest.match(NOTES_FENCE_RE);
     if (notesMatch) {
-        notes = notesMatch[1].replace(/\n$/, '');
+        notes = notesMatch[1].replace(/\r?\n$/, '');
         rest = rest.slice(0, notesMatch.index) + rest.slice(notesMatch.index + notesMatch[0].length);
     }
 
-    return { prose: rest.trim(), chartSrc, notes };
+    // Sacar N bloques deja N huecos de líneas en blanco pegados. Se colapsan a
+    // una línea vacía, que es lo que el autor escribió entre párrafos: si no,
+    // la prosa vuelve al archivo con el hueco dentro y va creciendo con cada
+    // edición.
+    rest = rest.replace(/\n{3,}/g, '\n\n');
+
+    // `chartSrc` se mantiene para todo lo que sólo entiende de una figura —el
+    // hueco del diseñador, el pie, el export— y siempre es la primera.
+    return { prose: rest.trim(), chartSrc: charts[0]?.src || null, charts, notes };
 }
 
 /**
@@ -114,13 +251,30 @@ export function splitSlideContent(markdown) {
  * default. Notes are appended last so they never interrupt the prose/chart
  * reading order in Source view.
  */
-export function buildSlideRaw({ layout, prose, chartSrc, notes }) {
+export function buildSlideRaw({ layout, eyebrow, footer, tone, prose, chartSrc, charts, notes }) {
     const directive = layout && layout !== 'content' ? `<!-- layout: ${layout} -->\n` : '';
+    // El antetítulo es una directiva, no prosa: si no se vuelve a escribir aquí,
+    // editar el texto de la lámina lo borraría en silencio.
+    const eyebrowDirective = (eyebrow !== null && eyebrow !== undefined)
+        ? `<!-- eyebrow: ${eyebrow} -->\n`
+        : '';
+    const footerDirective = (footer !== null && footer !== undefined)
+        ? `<!-- footer: ${footer} -->\n`
+        : '';
+    const toneDirective = tone ? `<!-- tone: ${tone} -->\n` : '';
     const parts = [];
     const trimmedProse = (prose || '').trim();
     if (trimmedProse) parts.push(trimmedProse);
-    if (chartSrc) parts.push(buildChartBlock(chartSrc));
+    // `charts` manda cuando viene; `chartSrc` es el atajo de una sola figura y
+    // se sigue aceptando para no tocar a quien ya lo usaba.
+    if (Array.isArray(charts)) {
+        for (const c of charts) {
+            if (c?.src) parts.push(buildChartBlock(c.src, { slot: c.slot, card: c.card }));
+        }
+    } else if (chartSrc) {
+        parts.push(buildChartBlock(chartSrc));
+    }
     const trimmedNotes = (notes || '').trim();
     if (trimmedNotes) parts.push(buildNotesBlock(trimmedNotes));
-    return `${directive}${parts.join('\n\n')}`.trim();
+    return `${directive}${eyebrowDirective}${footerDirective}${toneDirective}${parts.join('\n\n')}`.trim();
 }

@@ -29,6 +29,7 @@ import { exportChartAsPng, exportChartAsSvg, exportChartAsPptx, saveChartConfig,
 import { buildSlideRaw } from '../../utils/deckTemplates';
 import { serializeDeck } from '../../utils/deckParser';
 import { renderRichText } from './utils/richText';
+import { formatNumber } from './utils/numberFormat';
 import { getLegendTextColors } from './utils/legendColors';
 import InlineLegend from './InlineLegend';
 
@@ -72,9 +73,17 @@ const TABS = [
  * `retiradas` es el conjunto de piezas que no caben; se comprueba aquí y no en
  * cada rama para que el orden de retirada sea el mismo en las tres.
  */
-function componerFigura(modo, piezas, retiradas, kpiEnCabecera) {
+function componerFigura(modo, piezas, retiradas, kpiEnCabecera, desnuda) {
     const hay = (k) => !retiradas.has(k);
     const p = (k) => (hay(k) ? piezas[k] : null);
+
+    /* Figura desnuda: sólo el lienzo. Dentro de una lámina de Report Flow la
+       tarjeta se disuelve —la lámina YA es la tarjeta: pone fondo, borde,
+       título, conclusión y firma— y sus piezas suben de nivel a través de
+       `onPiezas`. Meter aquí otra tarjeta duplicaría las cinco y sumaría los
+       rellenos, dejando al dibujo poco más de la mitad del hueco.
+       Ver docs/dev/sistema_deck.html, apartado 05. */
+    if (desnuda) return piezas.lienzo;
 
     /* La cifra va donde tú digas, no donde la deje la maqueta. Antes el modo
        'split-header' la mandaba a la derecha por su cuenta y saltaba de sitio al
@@ -147,7 +156,11 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null }) => {
+    // 'none' disuelve la tarjeta y deja sólo el lienzo: lo que necesita una
+    // lámina de Report Flow, que ya aporta el marco. `isReportMode` NO sirve
+    // para esto — sólo oculta los controles y transparenta el fondo.
+    const desnuda = chrome === 'none';
     // ── State ──
     const {
         state, setField, setFields, loadConfig, resetConfig,
@@ -259,6 +272,39 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
         computeHeadline(processedData, state.yAxisKeys, state.headline.metric, state.headline.compareWith, state.headline.window),
         [processedData, state.yAxisKeys, state.headline.metric, state.headline.compareWith, state.headline.window]
     );
+
+    /* ── Las piezas de la tarjeta, hacia arriba ──
+       Cuando la tarjeta se disuelve dentro de una lámina, sus piezas no
+       desaparecen: suben de nivel y las coloca la lámina (el título pasa a ser
+       la afirmación, el KPI entra en la tira, la conclusión se queda con su
+       filete). Se emiten desde aquí y no se recalculan fuera a propósito: la
+       matriz de validez del KPI vive en `computeHeadline` y duplicarla ya
+       costó una ronda de correcciones.
+       El número va ya formateado para que quien lo reciba no necesite conocer
+       `numberFormat` ni `decimalPlaces`. */
+    const onPiezasRef = useRef(onPiezas);
+    useEffect(() => { onPiezasRef.current = onPiezas; }, [onPiezas]);
+    useEffect(() => {
+        if (!onPiezasRef.current) return;
+        const fmt = (v) => formatNumber(v, state.numberFormat, state.decimalPlaces);
+        const hayKpi = state.headline?.visible && headlineData?.value !== null && headlineData?.value !== undefined;
+        onPiezasRef.current({
+            title: state.chartTitle || '',
+            subtitle: state.chartSubtitle || '',
+            takeaway: state.takeaway || '',
+            footnote: state.chartFootnote || '',
+            kpi: hayKpi ? {
+                label: (state.yAxisKeys && state.yAxisKeys[0]) || '',
+                value: fmt(headlineData.value),
+                deltaPercent: headlineData.deltaPercent,
+                delta: headlineData.deltaPercent !== null ? fmt(Math.abs(headlineData.delta)) : null,
+                compareLabel: headlineData.compareLabel || null,
+            } : null,
+        });
+    }, [
+        state.chartTitle, state.chartSubtitle, state.takeaway, state.chartFootnote,
+        state.headline, state.numberFormat, state.decimalPlaces, state.yAxisKeys, headlineData,
+    ]);
 
     // ── Config change notification ──
     useConfigChangeNotifier(onConfigChange);
@@ -866,12 +912,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     : { flex: 1, height: '100%' }),
                 display: 'flex', flexDirection: 'column', minWidth: 0,
                 position: 'relative',   // ancla de la barra de botones flotante
-                backgroundColor: isReportMode ? 'transparent' : 'var(--chart-bg)',
+                backgroundColor: (isReportMode || desnuda) ? 'transparent' : 'var(--chart-bg)',
                 overflow: isReportMode ? 'visible' : 'hidden',
                 ...((!isReportMode && !isFullscreen) ? { margin: '14px 16px 16px' } : {}),
-                ...bgStyle,
-                ...borderCss,
-                ...cardCss,
+                // Desnuda: ni fondo, ni filete, ni sombra, ni radio. Los pone la lámina.
+                ...(desnuda ? {} : bgStyle),
+                ...(desnuda ? {} : borderCss),
+                ...(desnuda ? {} : cardCss),
                 ...(isFullscreen ? {
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     zIndex: 9999, padding: '40px',
@@ -923,17 +970,20 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                        de los lados, y el contenido se veía pegado al filete —
                        sobre todo al exportar, donde la barra de botones no sale y
                        ese hueco desaparece del todo. */
-                    padding: isFullscreen
-                        ? '48px 48px 40px'
-                        : `${Math.round(30 * escalaTexto)}px ${Math.round(34 * escalaTexto)}px ${Math.round(30 * escalaTexto)}px`,
-                    display: 'flex', flexDirection: 'column', minHeight: '300px',
+                    padding: desnuda
+                        ? 0
+                        : (isFullscreen
+                            ? '48px 48px 40px'
+                            : `${Math.round(30 * escalaTexto)}px ${Math.round(34 * escalaTexto)}px ${Math.round(30 * escalaTexto)}px`),
+                    display: 'flex', flexDirection: 'column',
+                    minHeight: desnuda ? 0 : '300px',
                     fontFamily,
                     // Contain layout/paint so the chart's internal reflow stays local,
                     // without forcing a giant GPU texture (translateZ) — a fullscreen SVG
                     // layer saturates the compositor and makes scrollbars stutter.
                     contain: 'layout paint',
                 }}>
-                    {componerFigura(modoLayout, piezas, retiradas, (state.headline?.position || 'below') === 'header-right' || modoLayout === 'split-header')}
+                    {componerFigura(modoLayout, piezas, retiradas, (state.headline?.position || 'below') === 'header-right' || modoLayout === 'split-header', desnuda)}
                 </div>
             </div>
             </div>

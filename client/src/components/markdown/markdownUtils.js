@@ -59,7 +59,16 @@ function visit(node, type, fn) {
 // ── remark plugin: GitHub-style alerts / admonitions ────────────────────────
 // Converts `> [!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` / `[!CAUTION]`
 // blockquotes into styled callouts by tagging the blockquote with a className.
-const ALERT_RE = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$/i;
+// La forma canónica de una alerta pone el marcador en su propia línea:
+//
+//   > [!WARNING]
+//   > el texto
+//
+// En mdast eso es UN solo nodo de texto con el salto dentro ("[!WARNING]\nel
+// texto"), así que el `$` de la expresión anterior nunca llegaba a casarse y
+// la alerta se pintaba como una cita normal con el marcador a la vista. Ahora
+// se aceptan las dos formas: marcador solo, y marcador con texto detrás.
+const ALERT_RE = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\r?\n?([\s\S]*)$/i;
 
 export function remarkAlerts() {
     return (tree) => {
