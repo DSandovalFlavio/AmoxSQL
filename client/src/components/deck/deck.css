@@ -158,19 +158,40 @@
     justify-content: flex-end;
 }
 
-/* El separador invierte tinta y fondo: el corte visual es la señal, no el
-   texto. Es la única lámina que puede llevar color a sangre. */
 .deck-slide-body--section { display: flex; flex-direction: column; justify-content: flex-end; }
-.deck-slide:has(.deck-slide-body--section) {
+
+/* ── El tono de una lámina ───────────────────────────────────────────────
+   `tone:` en el front-matter o por lámina. `invert` cambia tinta por papel;
+   `dark` y `light` piden un color de fondo, no una inversión, así que sólo
+   invierten cuando el modo de la app es el contrario. El defecto es `theme`,
+   que no toca nada — un separador que se invierte por su cuenta sorprende, y
+   su fuerza está en el número gigante, no en el fondo. */
+.deck-slide[data-tone="invert"],
+body:not(.mode-light) .deck-slide[data-tone="light"],
+body.mode-light .deck-slide[data-tone="dark"] {
     background-color: var(--text-primary);
     color: var(--surface-raised);
 }
-.deck-slide:has(.deck-slide-body--section) .mde-preview-body,
-.deck-slide:has(.deck-slide-body--section) .mde-preview-body h1,
-.deck-slide:has(.deck-slide-body--section) .mde-preview-body h2 { color: var(--surface-raised); }
-.deck-slide:has(.deck-slide-body--section) .deck-slide-foot {
+.deck-slide[data-tone="invert"] .mde-preview-body,
+.deck-slide[data-tone="invert"] .mde-preview-body h1,
+.deck-slide[data-tone="invert"] .mde-preview-body h2,
+body:not(.mode-light) .deck-slide[data-tone="light"] .mde-preview-body,
+body:not(.mode-light) .deck-slide[data-tone="light"] .mde-preview-body h1,
+body:not(.mode-light) .deck-slide[data-tone="light"] .mde-preview-body h2,
+body.mode-light .deck-slide[data-tone="dark"] .mde-preview-body,
+body.mode-light .deck-slide[data-tone="dark"] .mde-preview-body h1,
+body.mode-light .deck-slide[data-tone="dark"] .mde-preview-body h2 { color: var(--surface-raised); }
+
+.deck-slide[data-tone="invert"] .deck-slide-foot,
+body:not(.mode-light) .deck-slide[data-tone="light"] .deck-slide-foot,
+body.mode-light .deck-slide[data-tone="dark"] .deck-slide-foot {
     border-top-color: color-mix(in srgb, var(--surface-raised) 20%, transparent);
     color: color-mix(in srgb, var(--surface-raised) 60%, transparent);
+}
+.deck-slide[data-tone="invert"] .deck-slide-eyebrow,
+body:not(.mode-light) .deck-slide[data-tone="light"] .deck-slide-eyebrow,
+body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
+    color: color-mix(in srgb, var(--surface-raised) 55%, transparent);
 }
 .deck-slide-indice {
     flex-shrink: 0;

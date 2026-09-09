@@ -173,6 +173,7 @@ const DeckEditor = ({
             layout: patch.layout !== undefined ? patch.layout : slide.layout,
             eyebrow: patch.eyebrow !== undefined ? patch.eyebrow : slide.eyebrow,
             footer: patch.footer !== undefined ? patch.footer : slide.footer,
+            tone: patch.tone !== undefined ? patch.tone : slide.tone,
             prose: patch.prose !== undefined ? patch.prose : current.prose,
             charts: patch.charts !== undefined ? patch.charts : current.charts,
             chartSrc: patch.chartSrc !== undefined ? patch.chartSrc : current.chartSrc,

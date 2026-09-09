@@ -51,6 +51,26 @@ const LAYOUT_DIRECTIVE_RE = /^\s*<!--\s*layout:\s*([\w-]+)\s*-->\s*\n?/;
 const EYEBROW_DIRECTIVE_RE = /^\s*<!--\s*eyebrow:\s*([^\n]*?)\s*-->\s*\n?/;
 // Pie de procedencia: qué campos enseña esta lámina. `false` lo apaga.
 const FOOTER_DIRECTIVE_RE = /^\s*<!--\s*footer:\s*([^\n]*?)\s*-->\s*\n?/;
+// Tono: sobre qué fondo se lee la lámina.
+const TONE_DIRECTIVE_RE = /^\s*<!--\s*tone:\s*([\w-]+)\s*-->\s*\n?/;
+
+/**
+ * El tono de una lámina.
+ *
+ *   theme   sigue el tema de la app (el defecto — nunca sorprende)
+ *   invert  cambia tinta por papel: el separador clásico
+ *   dark    fondo oscuro pase lo que pase
+ *   light   fondo claro pase lo que pase
+ *
+ * `dark` y `light` no son una inversión por sí mismos: piden un color de
+ * fondo, así que sólo invierten cuando el modo de la app es el contrario.
+ */
+export const DECK_TONES = ['theme', 'invert', 'dark', 'light'];
+
+export function resolveTone({ slideTone, deckTone } = {}) {
+    const t = String(slideTone ?? deckTone ?? '').trim().toLowerCase();
+    return DECK_TONES.includes(t) ? t : 'theme';
+}
 
 /** Los campos del pie, en el orden en que se pintan. */
 export const FOOTER_FIELDS = ['source', 'query', 'rows', 'vars', 'refreshed', 'number'];
@@ -95,6 +115,7 @@ function readDirectives(raw) {
     let layout = null;
     let eyebrow = null;
     let footer = null;
+    let tone = null;
 
     for (let guard = 0; guard < 8; guard++) {
         const l = rest.match(LAYOUT_DIRECTIVE_RE);
@@ -116,9 +137,15 @@ function readDirectives(raw) {
             rest = rest.slice(f[0].length);
             continue;
         }
+        const t = rest.match(TONE_DIRECTIVE_RE);
+        if (t) {
+            tone = t[1].toLowerCase();
+            rest = rest.slice(t[0].length);
+            continue;
+        }
         break;
     }
-    return { layout, eyebrow, footer, markdown: rest };
+    return { layout, eyebrow, footer, tone, markdown: rest };
 }
 
 /**
@@ -194,6 +221,7 @@ export function parseDeck(content) {
                 layout: declared.layout || DEFAULT_LAYOUT,
                 eyebrow: declared.eyebrow,
                 footer: declared.footer,
+                tone: declared.tone,
                 markdown: declared.markdown.trim(),
                 raw: chunk.raw,
                 // +1 → 1-based line numbers (Monaco convention).

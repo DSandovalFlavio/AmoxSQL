@@ -18,7 +18,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import AmoxChartEmbed from './AmoxChartEmbed';
-import { parseAmoxChartBlock, resolveFooterFields } from '../../utils/deckParser';
+import { parseAmoxChartBlock, resolveFooterFields, resolveTone } from '../../utils/deckParser';
 import { splitSlideContent } from '../../utils/deckTemplates';
 import DeckFooter from './DeckFooter';
 import SlideCharts from './SlideCharts';
@@ -31,7 +31,7 @@ import { renderDeckBlock } from './deckBlocks';
 // asi que el fallo era invisible: lo unico que se perdia era el reparto en dos
 // columnas de la lamina, que caia al cuerpo generico sin decir nada.
 const AMOXCHART_FENCE_RE = /```amoxchart\r?\n([\s\S]*?)```/;
-const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
+export const COL_BREAK_RE = /^\s*<!--\s*col\s*-->\s*$/m;
 // Speaker notes (Fase 5) live in a fenced block same as the chart — but they
 // are for the presenter, never the audience. Stripped once below, before any
 // of the layout branches see the markdown, so a notes block can never
@@ -109,6 +109,7 @@ const SlidePreview = ({
     // viaja a cada figura. Así una lámina y su gráfico no pueden discrepar.
     const acento = frontMatter?.accent || null;
     const paleta = frontMatter?.palette || null;
+    const tono = resolveTone({ slideTone: slide.tone, deckTone: frontMatter?.tone });
     // La procedencia la reporta la figura cuando termina de ejecutarse; la
     // lámina la guarda para su pie. Sin contexto global: el dato nace y muere
     // dentro de la misma lámina.
@@ -225,6 +226,7 @@ const SlidePreview = ({
         <div
             className={`deck-slide${acento ? ` accent-${acento}` : ''}`}
             data-accent={acento || undefined}
+            data-tone={tono !== 'theme' ? tono : undefined}
         >
             <SlideEyebrow eyebrow={eyebrow} layout={slide.layout} />
             <SlideSectionIndex layout={slide.layout} slideNumber={slideNumber} />

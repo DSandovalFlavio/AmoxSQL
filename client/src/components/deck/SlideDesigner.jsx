@@ -13,14 +13,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
-import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta } from './SlidePreview';
+import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta, COL_BREAK_RE } from './SlidePreview';
 import DeckFooter from './DeckFooter';
 import SlideCharts from './SlideCharts';
 import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio, partirCabecera } from './SlideFigureParts';
 import { renderDeckBlock } from './deckBlocks';
 import AmoxChartEmbed from './AmoxChartEmbed';
 import { splitSlideContent } from '../../utils/deckTemplates';
-import { resolveFooterFields } from '../../utils/deckParser';
+import { resolveFooterFields, resolveTone } from '../../utils/deckParser';
 import { DECK_LAYOUT_META } from './deckLayoutPreviews';
 
 /**
@@ -197,12 +197,23 @@ const SlideDesigner = ({
     const meta = DECK_LAYOUT_META[layout];
     const acento = frontMatter?.accent || null;
     const paleta = frontMatter?.palette || null;
+    const tono = resolveTone({ slideTone: slide.tone, deckTone: frontMatter?.tone });
     const canvasRef = useRef(null);
     const desborde = useDesborde(canvasRef);
     const [procedencia, setProcedencia] = useState(null);
     const recibirProcedencia = useCallback((datos) => setProcedencia(datos), []);
     const [piezas, setPiezas] = useState(null);
     const recibirPiezas = useCallback((p) => setPiezas(p), []);
+
+    /* Design edita UNA lámina a la vez sin desmontar el componente, así que lo
+       que reportó la figura anterior sigue en el estado al pasar de lámina: un
+       separador sin gráfico enseñaba en su pie la nota del hallazgo anterior.
+       El estado derivado de una entrada se vuelve a validar cuando la entrada
+       cambia. */
+    useEffect(() => {
+        setPiezas(null);
+        setProcedencia(null);
+    }, [slide.id, chartSrc]);
     const camposPie = resolveFooterFields({
         slideFooter: slide.footer,
         deckFooter,
@@ -265,6 +276,19 @@ const SlideDesigner = ({
                 </div>
             </div>
         );
+    } else if (layout === 'two-col') {
+        const [izq = '', der = ''] = prose.split(COL_BREAK_RE);
+        const unir = (a, b) => [a.trim(), '<!-- col -->', b.trim()].join('\n\n');
+        cuerpo = (
+            <div className="deck-slide-body deck-slide-body--two-col">
+                <div className="deck-slide-col">
+                    <EditableProse value={izq.trim()} placeholder="Click to add the left column" onCommit={(v) => onEditProse(unir(v, der))} theme={theme} onOpenFile={onOpenFile} />
+                </div>
+                <div className="deck-slide-col">
+                    <EditableProse value={der.trim()} placeholder="Click to add the right column" onCommit={(v) => onEditProse(unir(izq, v))} theme={theme} onOpenFile={onOpenFile} />
+                </div>
+            </div>
+        );
     } else if (layout === 'finding') {
         cuerpo = (
             <div className="deck-slide-body deck-slide-body--finding">
@@ -301,6 +325,7 @@ const SlideDesigner = ({
         <div
             className={`deck-slide${acento ? ` accent-${acento}` : ''}`}
             data-accent={acento || undefined}
+            data-tone={tono !== 'theme' ? tono : undefined}
         >
             <SlideEyebrow eyebrow={eyebrow} layout={layout} />
             <SlideSectionIndex layout={layout} slideNumber={slideNumber} />
