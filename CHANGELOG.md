@@ -5,6 +5,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.2.1] — 2026-09-09
+
+### Corregido
+
+Tres fallos del gráfico visto **desde un editor de consultas** — el camino que nunca se
+había recorrido de principio a fin, porque siempre se abría desde un `.amoxvis` ya
+guardado.
+
+- **La figura se abría recortada.** Una figura 4:3 mide 827 × 620 en su tamaño natural y
+  el panel de resultados ronda los 570 de alto: no cabía, el hueco la recortaba, y lo que
+  se veía era un gráfico sin bordes y aparentemente ampliado — con el control marcando
+  100 %, que además era verdad. Ahora el zoom pedido se acota a lo que cabe, y sólo hacia
+  abajo: por encima del tamaño natural no se agranda nunca, y si pides menos se respeta.
+  Lo pedido y lo dibujado son el mismo número, así que el control no puede mentir.
+- **El PNG salía con un rectángulo opaco alrededor.** El exportador rellenaba la imagen
+  entera con el color del tema y dibujaba la tarjeta encima, así que al pegarla en una
+  presentación aparecía un cuadrado de fondo con la tarjeta flotando dentro. Ahora lo que
+  rodea a la tarjeta es transparente y se pega con sus esquinas redondeadas.
+- **La descarga cortaba las etiquetas del eje X.** Tras cambiar el tamaño de la tarjeta se
+  esperaban 120 ms fijos, y en ese momento el trabajo no ha terminado: la escala del texto
+  se recalcula y el gráfico vuelve a repartir sus márgenes. La captura caía entre medias.
+  Ahora se espera hasta que dos fotogramas seguidos midan lo mismo.
+
+---
+
 ## [5.2.0] — 2026-09-08
 
 ### Report Flow: la diapositiva
