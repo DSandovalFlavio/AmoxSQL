@@ -218,6 +218,40 @@ La fase que rompe un contrato. Va sola y al final.
 - [x] Plantilla de arranque nueva: un deck de ejemplo que use portada, resumen,
       hallazgo y acciones — lo que alguien copiaría de verdad.
 
+## Fase 9 — El pase
+
+Esto no estaba en el contrato: el contrato define la lámina, no lo que se hace con ella
+delante de una sala. Se añadió después, y por eso va como fase aparte.
+
+- [x] `DeckShow`: overlay a pantalla completa, una lámina cada vez, por portal a `<body>`
+      —la pestaña del Studio vive dentro de paneles con `overflow: hidden` y basta un
+      `transform` en cualquier ancestro para recortar un `position: fixed`.
+- [x] La lámina se dimensiona con unidades de contenedor: `container-type: size` en el
+      escenario y `width: min(100cqw, 100cqh * 16/9)` en la tarjeta. Medido: a 1280x760
+      da 1244x699,8 (razón 1,7778) y con las notas abiertas 908,8x511,2 — misma razón, y
+      la escala de diseño sigue dando 72 u de margen y 40 u de título en ambos casos.
+      **Nada de `max-height` sobre `aspect-ratio`**: esa combinación ya deformó una
+      figura a 827x284 en el lienzo de Story Flow.
+- [x] Se montan tres láminas —anterior, actual y siguiente— y no una ni todas. Cada
+      figura ejecuta su consulta al montarse: todas es el bloqueo conocido con N
+      gráficos; sólo la actual enseña el «Loading…» en cada avance. La oculta va con
+      `visibility` y no con `display`, porque una figura sin caja medible no se dibuja.
+- [x] Teclado: avance, retroceso, primera/última, salto por número, vista general,
+      notas, negro, cronómetro, pantalla completa y ayuda. En captura y cortando la
+      propagación, para que Ctrl+Tab no cambie de pestaña en mitad de una presentación.
+- [x] El Escape tiene dos tiempos: el primero lo consume el navegador para salir de
+      pantalla completa y el segundo cierra el pase. Salir de las dos cosas de un golpe
+      es justo lo que nadie quiere delante de una sala.
+- [x] La vista que se llamaba «Present» pasa a llamarse **Review**. Estaba ocupando el
+      nombre de la cosa que de verdad presenta. La clave de `localStorage` sigue siendo
+      `present` para no invalidar la preferencia de quien ya la tuviera.
+
+**Lo que queda fuera de esta fase, a propósito:** la pantalla de presentador en un
+segundo monitor (ventana aparte con la lámina siguiente y las notas). Las notas se ven
+hoy en una banda inferior del mismo monitor, que es lo útil cuando se presenta desde un
+portátil o compartiendo pantalla; la ventana secundaria es otra conversación y se apoya
+en el `popout` de Electron que ya existe.
+
 ---
 
 ## Lo que este plan deja fuera, y por qué
@@ -225,10 +259,8 @@ La fase que rompe un contrato. Va sola y al final.
 Nada del contrato. Lo que sigue son cosas que **no están en el contrato** y que menciono
 para que no parezcan olvidos:
 
-- **Modo presentación a pantalla completa** (pasar láminas con el teclado, pantalla de
-  presentador con las notas). El contrato define la lámina, no el pase. Es una feature
-  aparte y merece su propia conversación.
-- **Transiciones y animación entre láminas.** Misma razón.
+- **Transiciones y animación entre láminas.** Hay un fundido de 180 ms entre láminas y
+  nada más. Una biblioteca de transiciones es decoración, no argumento.
 - **Edición colaborativa o comentarios.** Fuera del alcance del producto hoy.
 - **Un lienzo distinto de 16:9.** Decidido: no.
 

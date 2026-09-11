@@ -194,6 +194,21 @@ export function buildSlideSnippet(layout) {
 }
 
 /**
+ * El nombre corto de una lámina: su primer encabezado, y si no tiene, la
+ * primera línea con texto. Vive aquí y no en el panel que lo estrenó porque
+ * ahora lo piden tres sitios —el esquema del Studio, la vista general de la
+ * presentación y la barra del presentador— y tres copias de la misma regla se
+ * separan a la primera.
+ */
+export function slideTitle(markdown) {
+    const heading = (markdown || '').match(/^#{1,6}\s+(.+)$/m);
+    if (heading) return heading[1].trim();
+    const firstLine = (markdown || '').split('\n').map((l) => l.trim()).find((l) => l.length > 0);
+    if (!firstLine) return '(empty slide)';
+    return firstLine.length > 48 ? `${firstLine.slice(0, 48)}…` : firstLine;
+}
+
+/**
  * Splits a slide's body markdown (layout directive already stripped by the
  * parser) into its editable prose, its single chart reference, and its
  * speaker notes. In this visual model a slide holds at most one chart and

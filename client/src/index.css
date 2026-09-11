@@ -378,6 +378,92 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   ICONOS — compensacion optica del trazo en tamanos pequenos
+
+   Lucide esta dibujado a 24 px con un trazo de 2 unidades. El trazo se
+   escala con el icono, asi que el grosor que acaba en pantalla es
+   `2 x tamano / 24`: a 24 px son 2 px, pero a 12 px es 1 px justo y a 10 px
+   son 0,83 px — por debajo del pixel, que el navegador resuelve con un gris
+   claro en vez de una linea. De ahi que un icono pequeno no se vea pequeno:
+   se ve DESTENIDO, y a ojo eso se lee como "chico".
+
+   La aplicacion pone casi todos sus iconos entre 10 y 14 px (1.100 iconos,
+   de los cuales ~860 caen en ese rango), asi que el problema es de toda la
+   interfaz y no de una barra concreta. Corregirlo icono a icono serian
+   1.100 ediciones que se desincronizan a la primera; se corrige aqui, una
+   vez, con la regla que faltaba.
+
+   Los valores no son inventados: son los que ya habia elegido a mano quien
+   escribio `strokeWidth={2.4}` a 15 px y `{2.2}` a 16 px — 1,5 px en
+   pantalla. La rampa de abajo extiende ESE criterio a los demas tamanos, y
+   se tope en 2,75 porque mas grosor empieza a cerrar los huecos de los
+   iconos densos (el engranaje de ajustes es el primero en sufrirlo).
+
+   `[stroke-width="2"]` no esta de adorno: limita la regla a los iconos que
+   siguen con el valor de fabrica. Quien haya puesto un grosor a mano —el
+   2,5 del panel de IA, el 1 del icono de 40 px de un estado vacio— decidio
+   algo, y esa decision no se pisa. Tampoco alcanza a los SVG dibujados a
+   mano de la app: ninguno es un <svg> raiz con estos tres atributos.
+
+   Tamano   Antes    Ahora
+   10 px    0,83 px  1,15 px
+   12 px    1,00 px  1,38 px
+   13 px    1,08 px  1,41 px
+   14 px    1,17 px  1,43 px
+   16 px    1,33 px  1,50 px
+   18 px+   1,50 px+ sin tocar — ahi el trazo de fabrica ya es el correcto
+   ═══════════════════════════════════════════════════════════════ */
+/* Un icono nunca se aplasta.
+
+   Un <svg> dentro de un contenedor flex es un item mas y encoge como
+   cualquier otro cuando el sitio no da — y a diferencia del texto, encogerlo
+   no lo reordena: lo DEFORMA. Un glifo de 18 px sale a 8 px de ancho por 18
+   de alto, y eso a ojo no se lee como "aplastado", se lee como "pequeno".
+   Medido sobre la interfaz en marcha: 15 de los 148 iconos montados estaban
+   asi, el peor el de enviar del compositor de IA (18 -> 8 px, un 44 %) y el
+   asa del panel de IA (10 -> 6 px). La barra del pase era otro.
+
+   `viewBox="0 0 24 24"` ademas de los otros dos atributos deja la regla
+   dentro de Lucide y fuera de todo lo demas: ni Recharts, ni Mermaid, ni los
+   SVG dibujados a mano de la casa (el logotipo va ceñido a `70 42 260 260`,
+   los controles de ventana a `0 0 12 12`) entran aqui.
+
+   El efecto secundario es intencionado: donde antes se deformaba el icono,
+   ahora se recorta o se ajusta el texto de al lado. Es el orden correcto —
+   el texto sabe elidirse, un glifo no. */
+svg[stroke="currentColor"][fill="none"][viewBox="0 0 24 24"] {
+  flex-shrink: 0;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="8"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="9"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="10"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="11"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="12"] {
+  stroke-width: 2.75;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="13"] {
+  stroke-width: 2.6;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="14"] {
+  stroke-width: 2.45;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="15"] {
+  stroke-width: 2.4;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="16"] {
+  stroke-width: 2.25;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
+  stroke-width: 2.1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    ACCESSIBILITY — Reduced Motion
    Honor the OS "reduce motion" setting app-wide. We keep opacity
    changes (instant) but strip movement and looping animation so the
@@ -1119,43 +1205,48 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
 
 /* ═══════════════════════════════════════════════
    DARK THEME: STERLING DEEP
-   Anchored on a MUTED grey-violet (#0c0a14 sidebar) — croma bajo, con el fondo
-   de la app y del editor cayendo por debajo hasta #08060f.
-   La paleta de Sterling en sintaxis y feedback, pero sobre superficies mas
-   hondas se lee rica en vez de estridente. Valores derivados de Sterling
-   (MIT) © La Matemaga.
+   Superficies propias, ancladas en un gris-violeta de croma bajo (#13131f) y
+   con el acento en lima. La PALETA de Sterling se mantiene donde importa —
+   sintaxis, feedback y tipos de dato— asi que el tema sigue leyendose Sterling
+   aunque el suelo ya no venga de alli. Paleta (MIT) © La Matemaga,
+   https://github.com/LaMatemaga/sterling; las superficies y el acento son
+   nuestros.
+
+   El lima y el gris-violeta no chocan con nada aqui porque este es el unico
+   tema cuyo color de exito ya era TEAL (#5ec9ae) y no verde — Sterling lo
+   necesitaba para no competir con su violeta, y ahora nos sirve para no
+   competir con la lima.
    ═══════════════════════════════════════════════ */
 .theme-sterlingdeep {
-  /* Anclado en el gris-violeta apagado de la barra lateral, de croma bajo. Toda
-     la escala mantiene ese caracter callado para que nada se lea brillante. */
-  --surface-base:    #08060f;   /* app + editor background — below the sidebar */
-  --surface-raised:  #0c0a14;   /* panels, sidebar, table header (reference).
-                          Era #0b0912: el escalon con el lienzo se quedaba en
-                          1.018 y el panel no llegaba a separarse. Subirlo dos
-                          puntos de luminosidad no cambia el caracter hondo del
-                          tema y lo pone en 1.025. */
-  --surface-overlay: #14111e;   /* modals, popovers, row hover — elevation */
-  --surface-inset:   #05040b;   /* wells: gutter, inputs, code blocks — deepest */
+  /* La escalera entera se rederiva desde el lienzo, conservando los MISMOS
+     saltos de luminosidad que tenia: cambiar solo el fondo dejaba los paneles
+     con el matiz anterior y el tema se partia en dos familias de color.
+     De paso los escalones ganan: sobre un lienzo mas claro el mismo salto de L
+     rinde mas contraste (base->panel pasa de 1.025 a 1.048). */
+  --surface-base:    #13131f;   /* app + editor background */
+  --surface-raised:  #181824;   /* panels, sidebar, table header (reference) */
+  --surface-overlay: #202030;   /* modals, popovers, row hover — elevation */
+  --surface-inset:   #0f0f1a;   /* wells: gutter, inputs, code blocks — deepest */
 
-  /* Very quiet borders — muted grey-violet, low chroma */
-  --border-subtle:  #191622;
-  --border-default: #221e2c;
-  --border-strong:  #332f41;   /* era #2e2a3a, 1.45 contra el lienzo — justo en
-                          el limite del rango, asi que el borde "fuerte" no
-                          llegaba a leerse como fuerte. Ahora 1.56. */
+  /* Very quiet borders — muted grey-violet, low chroma. Rederivados al matiz
+     nuevo reproduciendo el contraste que tenian: 1.13 / 1.24 / 1.56. */
+  --border-subtle:  #1e1f2d;
+  --border-default: #262636;
+  --border-strong:  #35364a;
 
   --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
   --text-secondary: #a99fc4;   /* Sterling muted */
   --text-tertiary:  #8b7fa8;
   --text-disabled:  #5c5178;
 
-  /* Lavender "period" accent stays (overridable via .theme-sterlingdeep:not(...)). */
+  /* El acento lima vive en .theme-sterlingdeep:not([class*="accent-"]) mas
+     abajo, para que un acento elegido por el usuario siga mandando. */
 
-  /* Estaban en 0.05 / 0.09, que sobre estas superficies tan hondas daba 1.07 y
-     1.14 — por debajo de lo que dan el resto de oscuros (1.12-1.14 y 1.22-1.30).
-     Sobre un fondo casi negro hace falta MAS alfa para el mismo efecto. */
-  --hover-bg:   rgba(196, 181, 253, 0.08);
-  --active-bg:  rgba(196, 181, 253, 0.14);
+  /* El tinte pasa de lavanda al gris-violeta del lienzo, y el alfa se recalcula
+     contra el fondo nuevo para caer en la misma banda que el resto de oscuros
+     (hover 1.12-1.14, activo 1.22-1.30): sale 1.133 y 1.265. */
+  --hover-bg:   rgba(139, 143, 167, 0.10);
+  --active-bg:  rgba(139, 143, 167, 0.17);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.65);
@@ -1200,7 +1291,7 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
-  --button-text-color: #08060f;   /* deep ink on the lavender accent */
+  --button-text-color: #13131f;   /* la tinta del propio lienzo sobre la lima */
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --table-row-hover: rgba(196, 181, 253, 0.03);
@@ -1475,7 +1566,7 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
 /* Sterling themes ship the Sterling "period" accent by default (overridable).
    Values from Sterling (MIT) © La Matemaga. */
 .theme-sterlingdeep:not([class*="accent-"]) {
-  --accent-primary: #c4b5fd;
+  --accent-primary: #b6f09c;   /* lima — 13.97 sobre el lienzo, 13.33 sobre panel */
 }
 .theme-sterlinglight:not([class*="accent-"]) {
   /* Mismo tono y croma que el violeta de Sterling, bajado a la banda legible:

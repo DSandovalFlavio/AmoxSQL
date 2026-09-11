@@ -1573,3 +1573,25 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     display: flex;
     flex-direction: column;
 }
+
+/* ── «Present», la acción principal del Studio ──────────────────────────
+   Es a un deck lo que «Run» a una consulta: aquello a lo que conduce todo lo
+   demás. Por eso se pinta con el acento y no como un botón fantasma más en
+   una fila donde ya hay seis. */
+.deck-studio .ep-action-btn--primary {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--button-text-color);
+    font-weight: var(--weight-medium);
+}
+
+.deck-studio .ep-action-btn--primary:hover {
+    background-color: color-mix(in oklch, var(--accent-primary) 85%, black);
+    color: var(--button-text-color);
+}
+
+.deck-studio .ep-action-group:has(.ep-action-btn--primary) .ep-action-chevron {
+    border-color: var(--accent-primary);
+    background-color: color-mix(in oklch, var(--accent-primary) 16%, transparent);
+    color: var(--accent-primary);
+}

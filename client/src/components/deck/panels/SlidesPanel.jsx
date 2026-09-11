@@ -10,14 +10,7 @@
  */
 import { LuChevronUp, LuChevronDown, LuTrash2, LuPlus } from 'react-icons/lu';
 import { DECK_LAYOUT_META } from '../deckLayoutPreviews';
-
-function extractSlideTitle(markdown) {
-    const heading = (markdown || '').match(/^#{1,6}\s+(.+)$/m);
-    if (heading) return heading[1].trim();
-    const firstLine = (markdown || '').split('\n').map((l) => l.trim()).find((l) => l.length > 0);
-    if (!firstLine) return '(empty slide)';
-    return firstLine.length > 48 ? `${firstLine.slice(0, 48)}…` : firstLine;
-}
+import { slideTitle } from '../../../utils/deckTemplates';
 
 const SlidesPanel = ({ slides, activeSlideIndex, onNavigate, onMove, onDelete, onAddSlide }) => {
     return (
@@ -37,7 +30,7 @@ const SlidesPanel = ({ slides, activeSlideIndex, onNavigate, onMove, onDelete, o
                             >
                                 <span className="deck-outline-item-index">{index + 1}</span>
                                 <div className="deck-outline-item-info">
-                                    <span className="deck-outline-item-title">{extractSlideTitle(slide.markdown)}</span>
+                                    <span className="deck-outline-item-title">{slideTitle(slide.markdown)}</span>
                                     <span className="deck-outline-item-layout">{meta?.label || slide.layout}</span>
                                 </div>
                             </button>

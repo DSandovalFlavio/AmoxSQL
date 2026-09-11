@@ -1,0 +1,469 @@
+/* ═══════════════════════════════════════════════════════════
+   DeckShow — modo presentación de Report Flow
+   ═══════════════════════════════════════════════════════════ */
+
+.deck-show {
+    position: fixed;
+    inset: 0;
+    /* Por encima de TODO, barra de título incluida (9999). Comprobado: con un
+       valor por debajo, la barra de la ventana se queda dibujada sobre la
+       lámina en cuanto no hay pantalla completa —y sin ella el pase es un
+       recuadro con la aplicación asomando por arriba. Es la superficie más
+       alta de la aplicación mientras dura, y sólo mientras dura. */
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    /* El marco no es negro puro ni el lienzo de la aplicación: es el lienzo
+       llevado hacia el negro. Así un tema claro proyecta sobre gris profundo
+       en vez de sobre blanco —que deslumbra en una sala a oscuras— y uno
+       oscuro sigue leyéndose como el mismo producto. */
+    background: color-mix(in oklch, var(--surface-base) 45%, black);
+    color: var(--text-primary);
+    outline: none;
+    overflow: hidden;
+}
+
+.deck-show[data-barra="off"] { cursor: none; }
+
+/* ── Escenario y lámina ─────────────────────────────────────────────────
+   `container-type: size` en el escenario y la tarjeta expresada en `cq`: la
+   lámina es el 16:9 más grande que cabe, calculado por el navegador en cada
+   repintado. Nada de medir con ResizeObserver, y nada de `max-height` sobre
+   `aspect-ratio` — esa combinación ya deformó una figura en Story Flow. */
+.deck-show-stage {
+    flex: 1;
+    min-height: 0;
+    container-type: size;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    box-sizing: border-box;
+}
+
+.deck-show:fullscreen .deck-show-stage { padding: 0; }
+
+.deck-show-card {
+    position: relative;
+    container-type: inline-size;
+    width: min(100cqw, calc(100cqh * 16 / 9));
+    aspect-ratio: 16 / 9;
+    background-color: var(--surface-raised);
+    overflow: hidden;
+}
+
+/* El redondeo sólo cuando hay marco alrededor. A pantalla completa y borde con
+   borde, unas esquinas redondeadas serían cuatro muescas negras en la
+   proyección. */
+.deck-show:not(:fullscreen) .deck-show-card {
+    border-radius: var(--radius-md);
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+
+/* Las tres láminas montadas ocupan el mismo hueco; sólo una se ve. La oculta
+   va con `visibility` y no con `display`, porque una figura sin caja medible
+   no se dibuja — y el sentido de tenerla montada es justamente que llegue
+   dibujada a su turno. */
+.deck-show-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 180ms ease;
+}
+
+.deck-show-layer[data-current] {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Pantalla en negro: la lámina se apaga, el marco se queda. Es la tecla para
+   que la sala te mire a ti y no a la diapositiva. */
+.deck-show[data-negro] .deck-show-stage { opacity: 0; }
+/* Con la lámina apagada, todo el escenario es marco: el clic tiene que llegar
+   al contenedor y no perderse en una figura invisible. */
+.deck-show[data-negro] .deck-show-card { pointer-events: none; }
+.deck-show[data-negro] { background: #000; }
+.deck-show[data-negro] .deck-show-progress { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+    .deck-show-layer { transition: none; }
+}
+
+/* ── Barra de control ───────────────────────────────────────────────────── */
+.deck-show-bar {
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    /* `left: 50%` sin `right` deja a la barra con la MITAD de la ventana como
+       ancho disponible. Con el contenido que lleva no le cabe, y al ser flex
+       lo que hace es encoger a sus hijos: medido, los iconos de 18 px salian
+       a 8 x 18 — aplastados al 44 %. Por eso se veian pequenos; el trazo no
+       tenia nada que ver. `max-content` le da su ancho intrinseco. */
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 7px;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--surface-overlay) 88%, transparent);
+    border: 1px solid var(--border-default);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.deck-show[data-barra="off"] .deck-show-bar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(8px);
+}
+
+/* Con las notas abiertas la barra sube: si no, se queda encima del panel. */
+.deck-show[data-notas] .deck-show-bar { bottom: calc(28vh + 20px); }
+
+/* Los iconos van a 18 px y en `--text-primary`, y no es capricho.
+   `--text-secondary` es el gris de un texto secundario: aplicado a una linea
+   de 1,5 px sobre el violeta de la pastilla, lo que queda es un trazo apagado
+   que el contador blanco de al lado se come. Y 18 px es el primer tamano
+   donde el trazo de fabrica de Lucide ya rinde 1,5 px sin compensacion
+   ninguna — por debajo de ahi esta barra estaba pidiendo prestado a la regla
+   global en vez de estar bien dimensionada. */
+.deck-show-bar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+/* El cinturon: aunque la barra se quede sin sitio, un icono no se deforma.
+   Un SVG dentro de un flex es un item mas y encoge como cualquier otro — y a
+   diferencia del texto, encogerlo no lo reordena: lo aplasta. */
+.deck-show-bar svg,
+.deck-show-bar button { flex-shrink: 0; }
+
+.deck-show-bar button:hover:not(:disabled) {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.deck-show-bar button:disabled { opacity: 0.3; cursor: default; }
+.deck-show-bar button[data-on] { background: var(--accent-muted); color: var(--accent-primary); }
+.deck-show-bar button.deck-show-salir:hover {
+    background: color-mix(in srgb, var(--color-error) 12%, transparent);
+    color: var(--color-error);
+}
+
+.deck-show-bar-sep {
+    width: 1px;
+    height: 18px;
+    margin: 0 5px;
+    background: var(--border-default);
+}
+
+.deck-show-contador {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-primary);
+    padding: 0 8px 0 6px;
+    font-variant-numeric: tabular-nums;
+    /* «5 / 17» partido en tres líneas ensancha la barra y descoloca el resto.
+       Visto en una ventana estrecha. */
+    white-space: nowrap;
+}
+.deck-show-contador i { color: var(--text-tertiary); font-style: normal; }
+
+.deck-show-reloj {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Progreso ───────────────────────────────────────────────────────────
+   Se queda siempre. Es la única pieza que la sala también agradece: dice
+   cuánto falta sin que nadie tenga que preguntarlo. */
+.deck-show-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+    transition: opacity 160ms ease;
+}
+
+.deck-show-progress i {
+    display: block;
+    height: 100%;
+    background: var(--accent-primary);
+    transform-origin: left center;
+    transition: transform 220ms ease;
+}
+
+/* ── Salto por número ───────────────────────────────────────────────────── */
+.deck-show-salto {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 20px 30px;
+    border-radius: var(--radius-lg);
+    background: color-mix(in oklch, var(--surface-overlay) 92%, transparent);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(10px);
+    font-family: var(--font-mono);
+    font-size: 44px;
+    font-weight: var(--weight-semibold);
+    color: var(--accent-primary);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
+.deck-show-salto small {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+
+/* ── Notas del orador ───────────────────────────────────────────────────
+   Ocupan su propia banda y no flotan sobre la lámina: el escenario es flex y
+   al abrirse el panel la tarjeta se recalcula sola —las unidades de
+   contenedor miden el hueco que queda, no el que había. */
+.deck-show-notes {
+    flex-shrink: 0;
+    height: 28vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-base);
+    border-top: 1px solid var(--border-default);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.deck-show-notes header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.deck-show-notes-eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent-primary);
+    flex-shrink: 0;
+}
+
+.deck-show-notes-title {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.deck-show-notes header button {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.deck-show-notes header button:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.deck-show-notes-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 18px 18px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+}
+
+/* Las notas se leen de cerca, en un monitor, no desde el fondo de la sala:
+   van a escala de interfaz y no a la escala de la lámina. */
+.deck-show-notes-body .mde-preview-body { font-size: var(--text-base); }
+
+.deck-show-notes-empty {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+}
+
+/* ── Vista general ──────────────────────────────────────────────────────── */
+.deck-show-overview {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    background: color-mix(in oklch, var(--surface-base) 88%, black);
+    backdrop-filter: blur(6px);
+}
+
+.deck-show-overview-head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 20px 26px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.deck-show-overview-head span {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+}
+.deck-show-overview-head small {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+}
+
+.deck-show-overview-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px;
+    padding: 20px 26px 30px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+}
+
+.deck-show-thumb {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.deck-show-thumb:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+
+.deck-show-thumb[data-current] {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.deck-show-thumb-art { pointer-events: none; }
+
+.deck-show-thumb-pie {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.deck-show-thumb-num {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+.deck-show-thumb[data-current] .deck-show-thumb-num { color: var(--accent-primary); }
+
+.deck-show-thumb-title {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Atajos ─────────────────────────────────────────────────────────────── */
+.deck-show-help {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    background: color-mix(in oklch, var(--surface-base) 70%, transparent);
+    backdrop-filter: blur(4px);
+}
+
+.deck-show-help-card {
+    width: min(520px, 88vw);
+    max-height: 82vh;
+    overflow-y: auto;
+    padding: 24px 28px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    background: var(--surface-raised);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.deck-show-help-card h3 {
+    margin: 0 0 16px;
+    font-size: var(--text-base);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+}
+
+.deck-show-help-card dl {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.deck-show-help-card dl > div {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    gap: 14px;
+    align-items: baseline;
+}
+
+.deck-show-help-card dt {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--accent-primary);
+}
+
+.deck-show-help-card dd {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.deck-show-help-card p {
+    margin: 18px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+}

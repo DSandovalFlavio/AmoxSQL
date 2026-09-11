@@ -10,8 +10,12 @@
  *     edit; the chart is a live slot; the side panel's Layouts/Charts act on
  *     the ACTIVE slide (picking a chart replaces this slide's chart — it is
  *     never appended to the end of the file).
- *   - Present: all slides rendered read-only (review + the DOM source for
- *     image-mode PowerPoint export).
+ *   - Review: all slides rendered read-only (revisión + the DOM source for
+ *     image-mode PowerPoint export). Se llamaba «Present», y el nombre estaba
+ *     ocupando el de la cosa que de verdad presenta: ahora presentar es
+ *     `DeckShow`, un overlay a pantalla completa con el teclado por mando.
+ *     La clave guardada en localStorage sigue siendo `present` para no
+ *     invalidar la preferencia de quien ya la tuviera.
  *   - Source: the raw markdown in Monaco, for power users.
  *
  * Shell: a toolbar + a two-column body — an in-tab side panel
@@ -27,7 +31,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import {
     LuPencilLine, LuPresentation, LuRefreshCw, LuSave, LuChevronDown, LuBot, LuX,
-    LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode,
+    LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode, LuPlay,
 } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../../monacoTheme.js';
 import { parseDeck, serializeDeck } from '../../utils/deckParser';
@@ -35,6 +39,7 @@ import { buildSlideSnippet, buildSlideRaw, splitSlideContent } from '../../utils
 import DeckSidePanel from './DeckSidePanel';
 import SlideDesigner from './SlideDesigner';
 import SlidePreview from './SlidePreview';
+import DeckShow from './DeckShow';
 import '../MarkdownEditor.css';
 import './deck.css';
 
@@ -71,9 +76,15 @@ const DeckEditor = ({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showSaveMenu, setShowSaveMenu] = useState(false);
     const [showPptxMenu, setShowPptxMenu] = useState(false);
+    // Desde qué lámina arranca la presentación; `null` es "no se está
+    // presentando". Un número y no un booleano porque «desde la actual» y
+    // «desde el principio» son la misma acción con distinto punto de partida.
+    const [presentandoDesde, setPresentandoDesde] = useState(null);
+    const [showPresentMenu, setShowPresentMenu] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
     const saveMenuRef = useRef(null);
     const pptxMenuRef = useRef(null);
+    const presentMenuRef = useRef(null);
     const presentRef = useRef(null);
     const editorRef = useRef(null);
     const slideCardRefs = useRef(new Map());
@@ -104,6 +115,20 @@ const DeckEditor = ({
             setActiveSlideIndex(Math.max(0, deck.slides.length - 1));
         }
     }, [deck.slides.length, activeSlideIndex]);
+
+    // Los tres menús de la barra se cierran al pinchar fuera. Los `ref` ya
+    // estaban puestos desde el primer día pero nadie los leía: un menú abierto
+    // se quedaba abierto hasta volver a pulsar su propio chevron.
+    useEffect(() => {
+        if (!showSaveMenu && !showPptxMenu && !showPresentMenu) return undefined;
+        const fuera = (e) => {
+            if (!saveMenuRef.current?.contains(e.target)) setShowSaveMenu(false);
+            if (!pptxMenuRef.current?.contains(e.target)) setShowPptxMenu(false);
+            if (!presentMenuRef.current?.contains(e.target)) setShowPresentMenu(false);
+        };
+        document.addEventListener('mousedown', fuera);
+        return () => document.removeEventListener('mousedown', fuera);
+    }, [showSaveMenu, showPptxMenu, showPresentMenu]);
 
     const switchView = (mode) => {
         setViewMode(mode);
@@ -315,6 +340,31 @@ const DeckEditor = ({
                             </button>
                         </div>
 
+                        {deck.slides.length > 0 && (
+                            <div className="ep-action-group" ref={presentMenuRef}>
+                                <button
+                                    className="ep-action-btn ep-action-btn--primary"
+                                    title="Present — full screen, one slide at a time"
+                                    onClick={() => { setShowPresentMenu(false); setPresentandoDesde(0); }}
+                                >
+                                    <LuPlay size={13} /> Present
+                                </button>
+                                <button className="ep-action-chevron" onClick={() => setShowPresentMenu((v) => !v)}>
+                                    <LuChevronDown size={10} />
+                                </button>
+                                {showPresentMenu && (
+                                    <div className="ep-action-dropdown" style={{ right: 0, left: 'auto' }}>
+                                        <div className="ep-action-dropdown-item" onClick={() => { setShowPresentMenu(false); setPresentandoDesde(0); }}>
+                                            From the beginning
+                                        </div>
+                                        <div className="ep-action-dropdown-item" onClick={() => { setShowPresentMenu(false); setPresentandoDesde(activeSlideIndex); }}>
+                                            From slide {activeSlideIndex + 1}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {showExport && (
                             <>
                                 <span className="mde-sep" />
@@ -342,10 +392,10 @@ const DeckEditor = ({
                                                 aria-disabled={viewMode !== 'present'}
                                                 title={viewMode === 'present'
                                                     ? 'Export chart images'
-                                                    : 'Cambia a la vista Present para capturar las imágenes de los gráficos'}
+                                                    : 'Switch to the Review view so the charts are mounted and can be captured'}
                                                 style={viewMode !== 'present' ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                                             >
-                                                Image charts {viewMode !== 'present' ? '(cambia a Present)' : ''}
+                                                Image charts {viewMode !== 'present' ? '(switch to Review)' : ''}
                                             </div>
                                         </div>
                                     )}
@@ -365,10 +415,10 @@ const DeckEditor = ({
                             </button>
                             <button
                                 className={`seg-item${viewMode === 'present' ? ' seg-item--active' : ''}`}
-                                title="Present — review all slides"
+                                title="Review — every slide at once"
                                 onClick={() => switchView('present')}
                             >
-                                <LuPresentation size={13} /> Present
+                                <LuPresentation size={13} /> Review
                             </button>
                             <button
                                 className={`seg-item${viewMode === 'source' ? ' seg-item--active' : ''}`}
@@ -504,6 +554,23 @@ const DeckEditor = ({
                     </div>
                 </div>
             </div>
+
+            {/* La presentación se monta fuera del cuerpo del Studio (portal a
+                <body> dentro del propio componente) y sólo mientras dura. */}
+            {presentandoDesde !== null && (
+                <DeckShow
+                    slides={deck.slides}
+                    frontMatter={deck.frontMatter}
+                    eyebrowOf={antetituloDe}
+                    deckFooter={deck.frontMatter?.footer}
+                    refreshedAt={refreshedAt}
+                    refreshToken={refreshToken}
+                    variables={deck.frontMatter?.variables}
+                    theme={theme}
+                    startIndex={presentandoDesde}
+                    onClose={() => setPresentandoDesde(null)}
+                />
+            )}
         </div>
     );
 };

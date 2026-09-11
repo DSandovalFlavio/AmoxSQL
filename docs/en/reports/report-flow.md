@@ -37,9 +37,32 @@ The deck opens in the IDE when you double-click an `.amoxdeck`. From here you ca
 2. Each chart re-runs its query against the deck's **current variables** (`{{variable}}`), updating the data.
 
 ### Review and export
-1. The **Present** view renders all slides read-only, for review (and it's the DOM source for exporting charts as images).
+1. The **Review** view renders all slides read-only, to look them over at once (and it's the DOM source for exporting charts as images).
 2. The **Source** view shows the raw markdown in the editor, for power users.
 3. **Export PowerPoint** builds the presentation (see [Export to Office](export-to-office.md)).
+
+### Present
+1. Click **Present** in the toolbar. The slide goes full screen, one at a time, and the keyboard takes over.
+2. The dropdown beside it offers **From the beginning** or **From slide N** (whichever is active in Design), for picking a rehearsal back up mid-deck.
+3. Advance with `→`, `↓`, `Space`, `Enter`, or a click on the black frame. Go back with `←`, `↑`, or `Backspace`.
+
+| Key | What it does |
+|---|---|
+| `→` `↓` `Space` `Enter` | Next slide |
+| `←` `↑` `Backspace` | Previous slide |
+| `Home` · `End` | First · last |
+| `1`…`9` then `Enter` | Jump straight to that slide |
+| `O` | Overview: every slide in a grid, arrows to move, `Enter` to go |
+| `S` | Speaker notes for the current slide |
+| `B` or `.` | Blank the screen (so the room looks at you instead) |
+| `T` | Reset the timer |
+| `F` | Enter or leave full screen |
+| `?` | The shortcut list, from inside the presentation |
+| `Esc` | Leaves full screen; press again to close |
+
+The control bar and the cursor withdraw after a couple of seconds of stillness and come back on mouse movement. A thin progress line stays along the bottom edge.
+
+> Charts really run during the presentation: the previous, current and next slides stay mounted, so the one coming up is already drawn by the time it's shown. Jump by number to a distant slide and its chart takes as long as its query takes.
 
 ## Reference
 
@@ -66,8 +89,9 @@ The `<!-- layout: X -->` directive is the first line of the slide; it defaults t
 | Element | What it does |
 |---|---|
 | Design view | Edits the active slide (click-to-edit prose + chart slot) |
-| Present view | All slides read-only (review + source for image export) |
+| Review view | All slides read-only (review + source for image export) |
 | Source view | Raw markdown in the editor |
+| Present button | Full-screen presentation, one slide at a time, driven by the keyboard |
 | Slides panel | Reorder, move, delete, add slides |
 | Layouts panel | Apply a layout to the active slide |
 | Charts panel | Insert/replace the active slide's chart |
