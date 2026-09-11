@@ -37,9 +37,32 @@ El deck se abre en el IDE al hacer doble clic en un `.amoxdeck`. Desde aquí pue
 2. Cada gráfico re-ejecuta su query contra las **variables actuales** del deck (`{{variable}}`), actualizando los datos.
 
 ### Revisar y exportar
-1. La vista **Present** renderiza todas las slides en solo lectura, para revisar (y es el origen DOM del export de gráficos como imagen).
+1. La vista **Review** renderiza todas las slides en solo lectura, para revisar de un vistazo (y es el origen DOM del export de gráficos como imagen).
 2. La vista **Source** muestra el markdown crudo en el editor, para usuarios avanzados.
 3. **Export PowerPoint** genera la presentación (ver [Exportar a Office](export-to-office.md)).
+
+### Presentar
+1. Pulsa **Present** en la barra de herramientas. La slide pasa a pantalla completa, una cada vez, y el teclado toma el mando.
+2. El desplegable de al lado ofrece **From the beginning** o **From slide N** (la que tengas activa en Design), por si retomas un ensayo por la mitad.
+3. Avanza con `→`, `↓`, `Espacio`, `Intro` o un clic en el marco negro. Retrocede con `←`, `↑` o `Retroceso`.
+
+| Tecla | Qué hace |
+|---|---|
+| `→` `↓` `Espacio` `Intro` | Siguiente slide |
+| `←` `↑` `Retroceso` | Slide anterior |
+| `Inicio` · `Fin` | Primera · última |
+| `1`…`9` y luego `Intro` | Ir directamente a esa slide |
+| `O` | Vista general: todas las slides en rejilla, flechas para moverte, `Intro` para ir |
+| `S` | Notas del orador de la slide actual |
+| `B` o `.` | Pantalla en negro (para que la sala te mire a ti) |
+| `T` | Reinicia el cronómetro |
+| `F` | Entrar o salir de pantalla completa |
+| `?` | La lista de atajos, dentro de la presentación |
+| `Esc` | Sale de pantalla completa; púlsalo otra vez para cerrar |
+
+La barra de control y el cursor se retiran solos tras un par de segundos de quietud y vuelven al mover el ratón. Abajo del todo queda siempre una línea fina de progreso.
+
+> Los gráficos se ejecutan de verdad durante la presentación: se mantienen montadas la slide anterior, la actual y la siguiente, de modo que la que viene ya está dibujada cuando le toca. Si saltas por número a una slide lejana, su gráfico tarda lo que tarde su query.
 
 ## Referencia de opciones
 
@@ -66,8 +89,9 @@ La directiva `<!-- layout: X -->` es la primera línea de la slide; por defecto 
 | Elemento | Qué hace |
 |---|---|
 | Vista Design | Edita la slide activa (prosa click-to-edit + hueco de gráfico) |
-| Vista Present | Todas las slides en solo lectura (revisión + origen para export como imagen) |
+| Vista Review | Todas las slides en solo lectura (revisión + origen para export como imagen) |
 | Vista Source | Markdown crudo en el editor |
+| Botón Present | Presentación a pantalla completa, una slide cada vez, con control por teclado |
 | Panel Slides | Reordenar, mover, borrar, añadir slides |
 | Panel Layouts | Aplicar un layout a la slide activa |
 | Panel Charts | Insertar/reemplazar el gráfico de la slide activa |
