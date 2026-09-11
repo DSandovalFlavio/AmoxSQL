@@ -5,6 +5,61 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.3.0] — 2026-09-11
+
+### Report Flow: el pase
+
+Report Flow sabía construir una presentación y exportarla, pero no **darla**. La vista
+que enseñaba todas las láminas a la vez se llamaba «Present» y no presentaba nada: servía
+para revisar. Ahora presentar es una cosa aparte.
+
+- **Botón `Present` en la barra del Studio.** Una lámina cada vez, a pantalla completa, y
+  el teclado como mando: avance y retroceso, primera y última, salto tecleando el número,
+  vista general en rejilla, notas del orador, pantalla en negro, cronómetro y una lista de
+  atajos dentro del propio pase. El desplegable arranca desde el principio o desde la
+  lámina que tengas abierta.
+- **La vista de revisión pasa a llamarse «Review»,** que es lo que siempre hizo. La
+  preferencia guardada de quien ya la usaba sigue valiendo.
+- **El `Esc` tiene dos tiempos:** el primero abandona la pantalla completa y el segundo
+  cierra el pase. Salir de las dos cosas de un golpe es justo lo que nadie quiere delante
+  de una sala.
+- **Se montan tres láminas, no una ni todas.** Cada figura ejecuta su consulta al montarse:
+  todas es el bloqueo conocido con N gráficos, y sólo la actual enseña «Loading…» en cada
+  avance. Con la anterior y la siguiente montadas, la que viene llega dibujada.
+- La lámina se dimensiona con unidades de contenedor —el 16:9 más grande que cabe,
+  resuelto por el navegador— y no midiendo con `ResizeObserver`. Medido: 1244 × 699,8 a
+  1280 × 760, y 908,8 × 511,2 con las notas abiertas; misma razón, y la escala de diseño
+  sigue dando 72 u de margen y 40 u de título en ambos casos.
+
+### Sterling Deep se repinta
+
+El tema pasa del gris azulado al violeta hondo, con acento lima. La escalera entera se
+rederiva desde el lienzo conservando los mismos saltos de luminosidad: cambiar sólo el
+fondo dejaba los paneles con el matiz anterior y el tema se partía en dos familias de
+color. De paso los escalones ganan — el salto de lienzo a panel pasa de 1,025 a 1,048.
+
+Contraste del texto 15,41 / 7,40 / 5,00 contra pisos de 10 / 5,5 / 3; los bordes conservan
+exactamente sus 1,13 / 1,24 / 1,56; el acento rinde 13,97 sobre el lienzo.
+
+### Corregido
+
+- **Los iconos estaban aplastados, no eran finos.** Un `<svg>` dentro de un contenedor flex
+  es un item más y encoge cuando falta sitio — y a diferencia del texto, encogerlo no lo
+  reordena: lo deforma. Medido sobre la interfaz en marcha, **15 de los 148 iconos montados
+  salían deformados**: el de enviar del compositor de IA a 8 px de ancho por 18 de alto (un
+  44 %), el asa del panel de IA de 10 a 6, los doce de la barra de actividad de 20 a 19. A
+  ojo eso no se lee como «aplastado», se lee como «pequeño», que es exactamente como se
+  reportó. Un icono ya no encoge nunca.
+- **El trazo de los iconos pequeños.** Lucide está dibujado a 24 px con trazo de 2, y el
+  trazo se escala con el icono: a 12 px queda en 1 px justo y a 10 px en 0,83 — por debajo
+  del píxel, que el navegador resuelve con un gris claro en vez de una línea. Unos 860 de
+  los 1.106 iconos de la aplicación viven entre 10 y 14 px. Se compensa con una rampa que
+  extiende a todos los tamaños el criterio que ya estaba elegido a mano en la casa (1,5 px
+  en pantalla), sin tocar los que alguien había ajustado a propósito ni los de 18 px para
+  arriba, donde el trazo de fábrica ya es el correcto.
+
+---
+
 ## [5.2.1] — 2026-09-09
 
 ### Corregido
