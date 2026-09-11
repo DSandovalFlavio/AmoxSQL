@@ -1119,43 +1119,48 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
 
 /* ═══════════════════════════════════════════════
    DARK THEME: STERLING DEEP
-   Anchored on a MUTED grey-violet (#0c0a14 sidebar) — croma bajo, con el fondo
-   de la app y del editor cayendo por debajo hasta #08060f.
-   La paleta de Sterling en sintaxis y feedback, pero sobre superficies mas
-   hondas se lee rica en vez de estridente. Valores derivados de Sterling
-   (MIT) © La Matemaga.
+   Superficies propias, ancladas en un gris-violeta de croma bajo (#13131f) y
+   con el acento en lima. La PALETA de Sterling se mantiene donde importa —
+   sintaxis, feedback y tipos de dato— asi que el tema sigue leyendose Sterling
+   aunque el suelo ya no venga de alli. Paleta (MIT) © La Matemaga,
+   https://github.com/LaMatemaga/sterling; las superficies y el acento son
+   nuestros.
+
+   El lima y el gris-violeta no chocan con nada aqui porque este es el unico
+   tema cuyo color de exito ya era TEAL (#5ec9ae) y no verde — Sterling lo
+   necesitaba para no competir con su violeta, y ahora nos sirve para no
+   competir con la lima.
    ═══════════════════════════════════════════════ */
 .theme-sterlingdeep {
-  /* Anclado en el gris-violeta apagado de la barra lateral, de croma bajo. Toda
-     la escala mantiene ese caracter callado para que nada se lea brillante. */
-  --surface-base:    #08060f;   /* app + editor background — below the sidebar */
-  --surface-raised:  #0c0a14;   /* panels, sidebar, table header (reference).
-                          Era #0b0912: el escalon con el lienzo se quedaba en
-                          1.018 y el panel no llegaba a separarse. Subirlo dos
-                          puntos de luminosidad no cambia el caracter hondo del
-                          tema y lo pone en 1.025. */
-  --surface-overlay: #14111e;   /* modals, popovers, row hover — elevation */
-  --surface-inset:   #05040b;   /* wells: gutter, inputs, code blocks — deepest */
+  /* La escalera entera se rederiva desde el lienzo, conservando los MISMOS
+     saltos de luminosidad que tenia: cambiar solo el fondo dejaba los paneles
+     con el matiz anterior y el tema se partia en dos familias de color.
+     De paso los escalones ganan: sobre un lienzo mas claro el mismo salto de L
+     rinde mas contraste (base->panel pasa de 1.025 a 1.048). */
+  --surface-base:    #13131f;   /* app + editor background */
+  --surface-raised:  #181824;   /* panels, sidebar, table header (reference) */
+  --surface-overlay: #202030;   /* modals, popovers, row hover — elevation */
+  --surface-inset:   #0f0f1a;   /* wells: gutter, inputs, code blocks — deepest */
 
-  /* Very quiet borders — muted grey-violet, low chroma */
-  --border-subtle:  #191622;
-  --border-default: #221e2c;
-  --border-strong:  #332f41;   /* era #2e2a3a, 1.45 contra el lienzo — justo en
-                          el limite del rango, asi que el borde "fuerte" no
-                          llegaba a leerse como fuerte. Ahora 1.56. */
+  /* Very quiet borders — muted grey-violet, low chroma. Rederivados al matiz
+     nuevo reproduciendo el contraste que tenian: 1.13 / 1.24 / 1.56. */
+  --border-subtle:  #1e1f2d;
+  --border-default: #262636;
+  --border-strong:  #35364a;
 
   --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
   --text-secondary: #a99fc4;   /* Sterling muted */
   --text-tertiary:  #8b7fa8;
   --text-disabled:  #5c5178;
 
-  /* Lavender "period" accent stays (overridable via .theme-sterlingdeep:not(...)). */
+  /* El acento lima vive en .theme-sterlingdeep:not([class*="accent-"]) mas
+     abajo, para que un acento elegido por el usuario siga mandando. */
 
-  /* Estaban en 0.05 / 0.09, que sobre estas superficies tan hondas daba 1.07 y
-     1.14 — por debajo de lo que dan el resto de oscuros (1.12-1.14 y 1.22-1.30).
-     Sobre un fondo casi negro hace falta MAS alfa para el mismo efecto. */
-  --hover-bg:   rgba(196, 181, 253, 0.08);
-  --active-bg:  rgba(196, 181, 253, 0.14);
+  /* El tinte pasa de lavanda al gris-violeta del lienzo, y el alfa se recalcula
+     contra el fondo nuevo para caer en la misma banda que el resto de oscuros
+     (hover 1.12-1.14, activo 1.22-1.30): sale 1.133 y 1.265. */
+  --hover-bg:   rgba(139, 143, 167, 0.10);
+  --active-bg:  rgba(139, 143, 167, 0.17);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.65);
@@ -1200,7 +1205,7 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
-  --button-text-color: #08060f;   /* deep ink on the lavender accent */
+  --button-text-color: #13131f;   /* la tinta del propio lienzo sobre la lima */
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
   --table-row-hover: rgba(196, 181, 253, 0.03);
@@ -1475,7 +1480,7 @@ body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; 
 /* Sterling themes ship the Sterling "period" accent by default (overridable).
    Values from Sterling (MIT) © La Matemaga. */
 .theme-sterlingdeep:not([class*="accent-"]) {
-  --accent-primary: #c4b5fd;
+  --accent-primary: #b6f09c;   /* lima — 13.97 sobre el lienzo, 13.33 sobre panel */
 }
 .theme-sterlinglight:not([class*="accent-"]) {
   /* Mismo tono y croma que el violeta de Sterling, bajado a la banda legible:
