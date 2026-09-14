@@ -14,6 +14,7 @@ import ExtensionExplorer from './components/ExtensionExplorer';
 import SnippetsPanel from './components/SnippetsPanel';
 import DbtPanel from './components/DbtPanel';
 import GitPanel from './components/GitPanel';
+import SearchPanel from './components/SearchPanel';
 import QueryHistoryPanel from './components/QueryHistoryPanel';
 import SaveQueryModal from './components/SaveQueryModal';
 import ImportModal from './components/ImportModal';
@@ -39,7 +40,7 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
@@ -464,6 +465,11 @@ function App() {
         return;
       }
       // File Explorer: Ctrl+Shift+E
+      if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+        e.preventDefault();
+        handleSidebarTabClick('search');
+        return;
+      }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') {
         e.preventDefault();
         setActiveSidebarTab('files');
@@ -1295,6 +1301,7 @@ function App() {
         files={paletteFiles}
         schema={paletteSchema}
         onOpenFile={handleFileOpen}
+        onBuscarProyecto={() => handleSidebarTabClick('search')}
         onPreviewTable={handlePreviewFromPalette}
       />
 
@@ -1326,6 +1333,13 @@ function App() {
                 title="Explorer (Ctrl+Shift+E)"
               >
                 <LuFolder size={20} />
+              </button>
+              <button
+                onClick={() => handleSidebarTabClick('search')}
+                className={`activity-bar-btn ${activeSidebarTab === 'search' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                title="Buscar en el proyecto (Ctrl+Shift+F)"
+              >
+                <LuSearch size={20} />
               </button>
               <button
                 onClick={() => handleSidebarTabClick('schema')}
@@ -1513,6 +1527,11 @@ function App() {
               </div>
             )}
 
+            {visitedSidebarTabs.has('search') && (
+              <div className={activeSidebarTab === 'search' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'search' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+                <SearchPanel onOpenFile={handleFileOpen} projectPath={projectPath} />
+              </div>
+            )}
             {visitedSidebarTabs.has('git') && (
               <div className={activeSidebarTab === 'git' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'git' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
                 <GitPanel projectPath={projectPath} />
@@ -1689,6 +1708,7 @@ function App() {
               <div style={{ flex: 1, overflow: 'hidden', display: 'block' }}>
                 <LayoutManager
                   ref={layoutRef}
+                  onBuscarProyecto={() => handleSidebarTabClick('search')}
                   projectPath={projectPath}
                   theme={theme}
                   editorLayout={editorLayout}

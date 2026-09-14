@@ -5,6 +5,115 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.4.0] — 2026-09-13
+
+### El editor de documentos, en tres columnas
+
+El editor de markdown funcionaba, pero pesaba: antes de escribir una palabra
+había veintiún controles del mismo tamaño pidiendo atención, una tira de
+metadatos peleando por la misma banda horizontal y la estructura del documento
+metida en una tarjeta que flotaba encima del texto. No estaban mal colocados;
+es que no había jerarquía que colocar, porque negrita, ancho de columna y dueño
+del documento vivían en la misma fila.
+
+Un criterio ordena el rediseño: **cada control vive donde vive lo que toca.**
+
+- **Se va la barra de formato.** Negrita, cursiva, tachado, código y enlace solo
+  tienen sentido con algo seleccionado; el resto del tiempo son ruido. Viven en
+  la isla que aparece sobre la selección y se va con ella.
+- **Los bloques se insertan en el cursor.** El catálogo de 30 entradas responde
+  a <kbd>/</kbd> y a una manija nueva en el margen de la línea, que abre el
+  mismo menú y lista además las cadenas del proyecto para generar su diagrama.
+  Con eso desaparecen el selector de bloque, el botón de tabla y el menú
+  «Insertar».
+- **Arriba solo queda la sesión:** qué archivo, si está guardado, cómo lo miro y
+  el asistente. *Guardar* deja de ser un botón permanente y pasa a ser un estado
+  que se vuelve accionable cuando hay algo que guardar; el hueco se reserva para
+  que la barra no baile al cambiar.
+- **La estructura deja de ser una tarjeta y pasa a ser el margen:** sin fondo,
+  sin borde, sin esquinas, con el progreso de cada sección como una barra de
+  2 px en vez de una insignia. Se pliega entera — nada de dejar una tira de
+  iconos.
+- **La columna derecha reúne lo que estaba repartido en tres sitios:** dueño,
+  estado y vigencia; las tareas del documento con una pestaña para las de todo
+  el proyecto; los enlaces, distinguiendo los que salen de los que entran —la
+  pregunta real es a quién rompes si tocas esto—; y las acciones con nombre, no
+  iconos mudos. Lo que no tiene contenido no se dibuja.
+- **Al escribir, el lienzo pierde el andamiaje:** sin números de línea, sin
+  resaltado de línea activa y sin guías de sangría, con medida de lectura fija.
+  En vista dividida se conservan, porque ahí sí estás mirando el markdown como
+  código.
+
+De veintiún controles permanentes a cinco, y de 64 px de cromo horizontal a 38.
+
+### Lo que se nota al usarlo
+
+- **Las dos mitades van juntas.** En vista dividida el desplazamiento está
+  sincronizado, y alineado por contenido en vez de por porcentaje: cada bloque
+  de la vista previa sabe de qué línea sale. Una regla de tres sobre la altura
+  total parece equivalente y no lo es —un diagrama alto o un bloque de código
+  largo ocupan cosas muy distintas a cada lado— y el texto acabaría desfasado
+  justo cuando más falta hace que cuadre.
+- **El front-matter ya no se lee como un párrafo de YAML.** Es metadato: lo
+  enseña la columna derecha con sus fichas.
+- **Las columnas laterales se leen.** Estaban en los peldaños más bajos de la
+  escala tipográfica; ahora las filas van al mismo tamaño que el árbol de
+  archivos.
+- **Plegar la barra lateral ya no da tirones.** El contenedor de paneles medía
+  su ancho en cada fotograma y avisaba a toda la aplicación, que se redibujaba
+  entera durante la animación. Ese ancho solo lo consume la vista dividida, así
+  que ahora solo se mide ahí. Medido: los fotogramas largos por plegado pasan de
+  cuatro o cinco a uno, con un markdown o con una consulta delante.
+
+### Búsqueda por proyecto
+
+- **Buscar en todos los archivos del proyecto**, desde el panel lateral o desde
+  el propio documento. Recorre el código fuente —`.sql`, `.sqlnb`, `.sqlchain`,
+  `.amoxvis`, `.amoxdeck`, `.md`— y deja fuera los archivos de datos: un volcado
+  de filas se come todos los resultados sin aportar ninguno. Los de texto plano
+  se pueden activar aparte cuando hagan falta.
+- Respeta el `.gitignore` del proyecto, salta lo binario y corta por tamaño, con
+  un tope de resultados por archivo para que uno solo no monopolice la lista.
+
+### Documentos que no mienten
+
+- **Cabecera de vigencia:** dueño, estado, etiquetas y fecha de revisión, como
+  fichas en vez de YAML a mano. El aviso de «revisado hace ocho meses» es
+  deliberadamente incómodo, y marcarlo pone la fecha de hoy de un clic.
+- **Tareas del proyecto:** las casillas de todos los documentos, con responsable
+  (`@alguien`) y vencimiento (`vence AAAA-MM-DD`), agrupadas por archivo.
+  Marcarlas escribe en el documento, nunca directamente en el disco.
+- **Diagramas desde una cadena:** el menú de insertar lista los `.sqlchain` del
+  proyecto y genera su diagrama, con forma según el tipo de nodo. Se genera una
+  vez y a partir de ahí es markdown editable.
+- **Cambios por sección:** cuánto ha cambiado cada parte del documento desde el
+  último commit. Solo con el documento guardado — el diff habla del archivo en
+  disco y el panel del documento en memoria, así que con cambios pendientes los
+  números mentirían.
+- **Enlaces entre artefactos:** `@` completa archivos del proyecto y tablas de
+  la base, y el documento sabe quién le enlaza a él.
+
+### Exportación
+
+- **PDF de verdad,** por el motor de impresión de Chromium en vez de una captura
+  rasterizada: texto seleccionable y buscable, enlaces vivos y saltos de página
+  que no parten títulos ni tablas. Sale siempre en claro, porque un PDF oscuro
+  es ilegible impreso. Si estás escribiendo, la vista previa se monta sola para
+  exportar y se vuelve a dejar como estaba.
+
+### Corregido
+
+- El editor de markdown nunca recibía la ruta del archivo abierto. Eso tenía
+  apagados sin hacer ruido los cambios de Git por sección, los enlaces entrantes,
+  el nombre del archivo en el PDF exportado y el resaltado del documento actual
+  en la lista de pendientes.
+- Insertar cualquier cosa con el documento recién abierto partía el front-matter
+  en dos y dejaba de ser YAML válido.
+- «Ancho completo» solo afectaba a la lectura, así que el editor se veía siempre
+  centrado.
+
+---
+
 ## [5.3.0] — 2026-09-11
 
 ### Report Flow: el pase

@@ -4555,6 +4555,37 @@ app.post('/api/bookmarks', (req, res) => {
     }
 });
 
+/* --- Project Search API ---
+ * Un solo recorrido del proyecto sirve la búsqueda global y el índice de
+ * documentos: son la misma lectura. La lógica vive en projectSearch.js, con
+ * sus categorías (fuente / datos de texto / binarios), su caché por mtime y
+ * los extractores de los formatos propios.
+ */
+const projectSearch = require('./projectSearch');
+
+app.get('/api/search', (req, res) => {
+    const { q, scope, limit } = req.query;
+    try {
+        res.json(projectSearch.searchProject(ROOT_DIR, {
+            q,
+            scope: ['fuente', 'datos', 'todo'].includes(scope) ? scope : 'fuente',
+            limit: Math.min(1000, parseInt(limit, 10) || 500),
+        }));
+    } catch (err) {
+        console.error('Search failed:', err.message);
+        res.status(500).json({ error: 'Search failed', details: err.message });
+    }
+});
+
+app.get('/api/docs/index', (req, res) => {
+    try {
+        res.json(projectSearch.docsIndex(ROOT_DIR));
+    } catch (err) {
+        console.error('Failed to index documents:', err.message);
+        res.status(500).json({ error: 'Failed to index documents', details: err.message });
+    }
+});
+
 /* --- Notebook State Persistence API --- */
 app.get('/api/notebook-state', (req, res) => {
     const filePath = req.query.path;

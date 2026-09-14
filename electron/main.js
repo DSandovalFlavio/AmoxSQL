@@ -87,6 +87,43 @@ ipcMain.handle('shell:openExternal', async (_event, url) => {
     }
 });
 
+// IPC Handler: Export HTML to a real, paginated PDF.
+//
+// La exportación anterior rasterizaba la vista previa con html2canvas: el
+// resultado era una imagen dentro de un PDF — texto no seleccionable, no
+// buscable, enlaces muertos y cortes de página a ciegas. printToPDF usa el
+// motor de impresión de Chromium, que es el mismo que produce un PDF de
+// verdad: texto real, enlaces vivos y paginación que respeta los saltos.
+//
+// Se hace en una ventana oculta y no en la del usuario para poder imponer el
+// ancho de página sin deformarle la interfaz mientras exporta.
+ipcMain.handle('export:pdf', async (_event, { html, landscape = false } = {}) => {
+    if (typeof html !== 'string' || !html) return { error: 'Sin contenido que exportar' };
+
+    const ventana = new BrowserWindow({
+        show: false,
+        webPreferences: { offscreen: true, javascript: false },
+    });
+
+    try {
+        await ventana.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+        // Un respiro para que se apliquen las fuentes antes de medir las páginas.
+        await new Promise(r => setTimeout(r, 350));
+        const pdf = await ventana.webContents.printToPDF({
+            printBackground: true,
+            landscape,
+            margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 },
+            pageSize: 'A4',
+        });
+        return { data: pdf.toString('base64') };
+    } catch (err) {
+        console.error('[export] printToPDF failed:', err.message);
+        return { error: err.message };
+    } finally {
+        ventana.destroy();
+    }
+});
+
 // IPC Handler: Reveal a file in the OS file manager (Explorer/Finder) —
 // used by the tab context menu's "Reveal in Explorer".
 ipcMain.handle('shell:showItemInFolder', (_event, itemPath) => {

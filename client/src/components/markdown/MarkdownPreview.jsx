@@ -1,5 +1,5 @@
 import { API_BASE } from '../../api.js';
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Children, useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import mermaid from 'mermaid';
+import { frontmatterRange } from './markdownModel.js';
 import 'katex/dist/katex.min.css';
 import {
     LuMaximize2, LuX, LuCopy, LuCheck, LuInfo, LuTriangleAlert, LuLightbulb,
@@ -304,8 +305,37 @@ function FileLink({ href, children, onOpenFile }) {
     );
 }
 
+// ── Task list item ──────────────────────────────────────────────────────────
+// La casilla de la vista previa escribe en el documento: es la interacción
+// principal de un runbook o una lista de pendientes, y hasta ahora era decorado.
+// La línea sale de la posición del <li> en el original, así que no hace falta
+// ningún estado paralelo — el markdown sigue siendo la única verdad.
+function TaskItem({ node, className, children, onToggleTask, ...props }) {
+    const line = node?.position?.start?.line;
+    const kids = Children.toArray(children);
+    const box = kids.find(c => c?.props?.type === 'checkbox');
+    const rest = kids.filter(c => c !== box);
+    const checked = !!box?.props?.checked;
+
+    if (!onToggleTask || !line) {
+        return <li className={className} {...props}>{children}</li>;
+    }
+
+    return (
+        <li className={`${className || ''} mde-task`} {...props}>
+            <input
+                type="checkbox"
+                className="mde-task-box"
+                checked={checked}
+                onChange={() => onToggleTask(line)}
+            />
+            {rest}
+        </li>
+    );
+}
+
 // ── Heading with anchor ─────────────────────────────────────────────────────
-function makeHeading(level) {
+function makeHeading(level, progress) {
     const Tag = `h${level}`;
     return function Heading({ node, children, ...props }) {
         const id = props.id || node?.properties?.id;
@@ -315,12 +345,42 @@ function makeHeading(level) {
             const el = document.getElementById(id);
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
+        // Cuántas casillas lleva hechas la sección. Una sección de trabajo sin
+        // avance lo dice aquí, que es donde se mira.
+        const avance = progress?.get(node?.position?.start?.line);
         return (
             <Tag {...props} id={id} className="mde-heading">
                 {id && <a href={`#${id}`} className="mde-anchor" onClick={onAnchor} aria-hidden="true">#</a>}
                 {children}
+                {avance?.total > 0 && (
+                    <span className="mde-progress" title={`${avance.done} de ${avance.total} hechas`}>
+                        <span className="mde-progress-rail">
+                            <span className="mde-progress-fill" style={{ width: `${(avance.done / avance.total) * 100}%` }} />
+                        </span>
+                        {avance.done}/{avance.total}
+                    </span>
+                )}
             </Tag>
         );
+    };
+}
+
+/**
+ * Marca cada bloque de primer nivel con la línea del documento de la que sale.
+ *
+ * Es lo que permite sincronizar el desplazamiento en vista dividida alineando
+ * por CONTENIDO y no por porcentaje: un diagrama alto o un bloque de código
+ * largo ocupan cosas muy distintas a cada lado, y una regla de tres deja el
+ * texto desfasado justo cuando más falta hace que cuadre.
+ */
+function rehypeLineas() {
+    return (tree) => {
+        for (const nodo of tree.children || []) {
+            const linea = nodo.position?.start?.line;
+            if (nodo.type === 'element' && linea) {
+                nodo.properties = { ...nodo.properties, 'data-line': linea };
+            }
+        }
     };
 }
 
@@ -333,7 +393,22 @@ function makeHeading(level) {
 // claim any other fenced language and returns null to decline. Report Flow uses
 // it for the slide's data objects (```kpis, ```metric, ```steps, ```actions,
 // ```rank), which stay plain code blocks anywhere else in the app.
-const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath }) => {
+const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath, onToggleTask, taskProgress }) => {
+    // El front-matter es metadato, no documento: ya lo enseña la columna
+    // derecha con sus fichas, y aquí salía como un párrafo suelto de YAML.
+    //
+    // Se sustituye por líneas VACÍAS en vez de recortarlo. Las casillas
+    // escriben en el documento por número de línea (`node.position.start.line`),
+    // así que recortar movería todas las líneas y marcar una casilla acabaría
+    // escribiendo en la de al lado.
+    const cuerpo = useMemo(() => {
+        const fm = frontmatterRange(content || '');
+        if (!fm) return content || '';
+        const lineas = (content || '').split(/\r?\n/);
+        for (let n = fm.startLine - 1; n < fm.endLine && n < lineas.length; n++) lineas[n] = '';
+        return lineas.join('\n');
+    }, [content]);
+
     const baseDir = useMemo(() => {
         if (!filePath) return '';
         const norm = filePath.replace(/\\/g, '/');
@@ -344,8 +419,9 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
     const components = useMemo(() => ({
         a: (p) => <FileLink {...p} onOpenFile={onOpenFile} />,
         img: (p) => <ZoomableImage {...p} baseDir={baseDir} />,
-        h1: makeHeading(1), h2: makeHeading(2), h3: makeHeading(3),
-        h4: makeHeading(4), h5: makeHeading(5), h6: makeHeading(6),
+        li: (p) => <TaskItem {...p} onToggleTask={onToggleTask} />,
+        h1: makeHeading(1, taskProgress), h2: makeHeading(2, taskProgress), h3: makeHeading(3, taskProgress),
+        h4: makeHeading(4, taskProgress), h5: makeHeading(5, taskProgress), h6: makeHeading(6, taskProgress),
         code: ({ node, className, children, ...props }) => (
             <code className={className} {...props}>{children}</code>
         ),
@@ -381,17 +457,17 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             }
             return <blockquote className={className} {...props}>{children}</blockquote>;
         },
-    }), [onOpenFile, theme, renderChartBlock, renderBlock, baseDir]);
+    }), [onOpenFile, theme, renderChartBlock, renderBlock, baseDir, onToggleTask, taskProgress]);
 
     return (
         <div className={`mde-preview-body mde-preview-body--${widthMode}`} ref={bodyRef}>
-            {content?.trim() ? (
+            {cuerpo?.trim() ? (
                 <ReactMarkdown
                     remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }], remarkAlerts]}
-                    rehypePlugins={[rehypeSlug, rehypeKatex, [rehypeHighlight, { ignoreMissing: true }]]}
+                    rehypePlugins={[rehypeSlug, rehypeLineas, rehypeKatex, [rehypeHighlight, { ignoreMissing: true }]]}
                     components={components}
                 >
-                    {content}
+                    {cuerpo}
                 </ReactMarkdown>
             ) : (
                 <span className="mde-preview-empty">Empty document — switch to Edit to start writing.</span>
