@@ -31,20 +31,25 @@ preguntas caen en cinco huecos, y el plan es cerrarlos en ese orden.
 
 Sin esto ninguna de las otras cinco fases tiene dónde agarrarse.
 
-- [ ] **Modelo de regiones por disposición.** Una tabla que diga, para cada uno de los 16
+- [x] **Modelo de regiones por disposición.** Una tabla que diga, para cada uno de los 16
       layouts, qué regiones tiene, cómo se llaman y en qué orden se recorren. Hoy esa
       información existe pero **repartida entre dos archivos y en forma de JSX**:
       `SlidePreview.jsx` y `SlideDesigner.jsx` construyen cada disposición a mano y cada
       uno a su manera. Se extrae a un solo sitio y los dos lo consumen.
-- [ ] Dibujar las regiones **en reposo**: filete de puntos y nombre en versalitas,
-      expresado en unidades de diseño (`--u`) como todo lo demás de la lámina.
-- [ ] Selección: pinchar una región la selecciona; `Tab` pasa a la siguiente; `Intro` o el
+- [x] Dibujar las regiones **en reposo**: filete de puntos y nombre en versalitas.
+      El plan decía «en unidades de diseño (`--u`) como todo lo demás de la lámina» y
+      **se hizo en píxeles**: lo de dentro de la lámina va en `--u` porque es contenido
+      y tiene que escalar con ella, pero esto es interfaz del editor — en `--u` una
+      etiqueta baja de 5 px con el panel estrecho. Y el filete va en `outline`, no en
+      `border`: un borde de 1 px dentro de una celda de la retícula desplazaría el
+      contenido, y se vería una cosa distinta de la que se va a presentar.
+- [x] Selección: pinchar una región la selecciona; `Tab` pasa a la siguiente; `Intro` o el
       segundo clic entran a editar; `Esc` sale.
       **Cuidado:** hoy el primer clic entra directamente a editar (`EditableProse`). El
       cambio a «primer clic selecciona» es deliberado —es lo que permite que el inspector
       tenga contexto— pero hay que conservar el doble clic como atajo directo a editar.
-- [ ] Vista limpia (`Ctrl+.`): apaga las regiones sin salir de Design.
-- [ ] El aviso de desborde señala **qué región** desborda, no sólo la lámina. `useDesborde`
+- [x] Vista limpia (`Ctrl+.`): apaga las regiones sin salir de Design.
+- [x] El aviso de desborde señala **qué región** desborda, no sólo la lámina. `useDesborde`
       ya mide caja por caja; hoy se queda con el peor y tira el resto.
 
 **Riesgo:** el modelo de regiones es una refactorización de dos componentes que hoy
