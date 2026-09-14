@@ -126,16 +126,29 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // vs gap+link-button+gap up there), so it gets this exact pixel width
     // instead and computes matching pixel math. See App.jsx's tab-bar-card
     // sizing.
+    //
+    // Solo se mide en vista dividida, que es lo unico que lo consume: con un
+    // panel unico nadie lee este ancho, pero medirlo costaba caro igualmente.
+    // Cambia en cada fotograma de cualquier animacion de ancho —plegar el arbol
+    // de archivos, por ejemplo— y alimenta el efecto de mas abajo, que avisa a
+    // App: el arbol entero se volvia a dibujar durante toda la animacion, y eso
+    // se veia como tirones. Con `splitEnabled` en falso no hay observador.
     const [lmPanesWidth, setLmPanesWidth] = useState(0);
     useEffect(() => {
         const el = lmContainerRef.current;
-        if (!el || typeof ResizeObserver === 'undefined') return;
+        if (!el || typeof ResizeObserver === 'undefined') return undefined;
+        if (!splitEnabled) {
+            // Se deja a cero: App cae a su reparto por porcentaje, que es el
+            // camino que ya usaba antes de tener la medida.
+            setLmPanesWidth(0);
+            return undefined;
+        }
         const ro = new ResizeObserver((entries) => {
             for (const entry of entries) setLmPanesWidth(entry.contentRect.width);
         });
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
+    }, [splitEnabled]);
 
     // Drag & Drop State (declared here so stateRef below can reference it)
     const [draggedTab, setDraggedTab] = useState(null); // { tabId, sourcePane }
