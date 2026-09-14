@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio de Report Flow — rediseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --surface-base:    #13131f;
+  --surface-raised:  #181824;
+  --surface-overlay: #202030;
+  --surface-inset:   #0f0f1a;
+  --border-subtle:  #1e1f2d;
+  --border-default: #262636;
+  --border-strong:  #35364a;
+  --text-primary:   #ede9f5;
+  --text-secondary: #a99fc4;
+  --text-tertiary:  #8b7fa8;
+  --text-disabled:  #5c5178;
+  --accent:         #b6f09c;
+  --accent-ink:     #13131f;
+  --accent-muted:   color-mix(in oklch, var(--accent) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent) 8%, transparent);
+  --hover-bg:  rgba(139,143,167,.10);
+  --active-bg: rgba(139,143,167,.17);
+  --ok:   oklch(0.74 0.16 150);
+  --warn: oklch(0.80 0.14 78);
+  --err:  #ff7a7a;
+  --sans: 'Manrope','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono: 'JetBrains Mono','Cascadia Code',Consolas,monospace;
+  --shadow-lg: 0 10px 34px rgba(0,0,0,.55);
+  --shadow-pop: 0 6px 22px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-base);color:var(--text-secondary);font-family:var(--sans);font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:default;padding:0;text-align:left}
+a{color:var(--accent);text-decoration:none}
+code{font-family:var(--mono);font-size:.9em;color:var(--text-primary);background:var(--surface-inset);padding:.1em .36em;border-radius:4px}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+svg.i.xs{width:11px;height:11px}
+svg.i.sm{width:12px;height:12px}
+svg.i.lg{width:17px;height:17px}
+.sprite{display:none}
+
+/* ── armazón del documento ─────────────────────────────────────── */
+.page{display:grid;grid-template-columns:236px minmax(0,1fr);gap:46px;max-width:1560px;margin:0 auto;padding:0 30px 130px}
+.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:34px 0 40px;border-right:1px solid var(--border-subtle)}
+.toc-brand{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--text-primary);letter-spacing:-.012em;font-size:14px}
+.toc-brand svg{color:var(--accent)}
+.toc-sub{font-size:11px;color:var(--text-tertiary);margin:2px 0 22px;padding-left:22px}
+.toc a{display:block;padding:5px 10px 5px 22px;border-radius:6px;color:var(--text-secondary);font-size:12px;border-left:2px solid transparent}
+.toc a:hover{background:var(--hover-bg);color:var(--text-primary)}
+.toc .grp{margin:19px 0 6px;padding-left:22px;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--text-disabled)}
+main{padding-top:34px;min-width:0}
+
+h1.doc{font-size:33px;line-height:1.12;letter-spacing:-.026em;color:var(--text-primary);margin:0 0 14px;font-weight:800;text-wrap:balance}
+.lede{font-size:15px;line-height:1.62;max-width:74ch;color:var(--text-secondary)}
+.lede strong{color:var(--text-primary);font-weight:600}
+h2.sec{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin:78px 0 14px;font-weight:700;display:flex;align-items:center;gap:10px}
+h2.sec::after{content:'';flex:1;height:1px;background:var(--border-subtle)}
+h3.sub{font-size:19px;color:var(--text-primary);margin:38px 0 9px;font-weight:700;letter-spacing:-.016em}
+p{max-width:74ch}
+.note{border-left:2px solid var(--accent);padding:2px 0 2px 15px;margin:20px 0;color:var(--text-secondary);max-width:72ch}
+.note b{color:var(--text-primary)}
+.bad{border-left-color:var(--err)}
+.warnbox{border-left-color:var(--warn)}
+
+/* ── maqueta de la aplicación ──────────────────────────────────── */
+.app{border:1px solid var(--border-default);border-radius:11px;overflow:hidden;background:var(--surface-base);box-shadow:var(--shadow-lg);margin:22px 0 8px}
+.app-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 12px;min-height:40px;background:var(--surface-raised);border-bottom:1px solid var(--border-subtle)}
+.app-title{display:flex;align-items:center;gap:7px;color:var(--text-primary);font-weight:600;font-size:12.5px}
+.app-count{font-size:11px;color:var(--text-tertiary)}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;height:25px;border:1px solid var(--border-subtle);border-radius:6px;color:var(--text-secondary);font-size:12px;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.on{background:var(--accent-muted);border-color:transparent;color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--border-subtle);border-radius:6px;overflow:hidden}
+.seg .btn{border:none;border-radius:0;height:23px}
+.seg .btn.on{background:var(--accent-muted);color:var(--accent)}
+.vsep{width:1px;height:16px;background:var(--border-subtle);margin:0 3px}
+
+.app-body{display:grid;grid-template-columns:206px minmax(0,1fr) 244px;min-height:430px}
+.app-body.nopanel{grid-template-columns:206px minmax(0,1fr)}
+.col{min-width:0;display:flex;flex-direction:column}
+.col--outline{border-right:1px solid var(--border-subtle);background:var(--surface-raised)}
+.col--inspect{border-left:1px solid var(--border-subtle);background:var(--surface-raised)}
+.col--stage{background:var(--surface-base);padding:16px;gap:10px;align-items:center}
+
+.colhead{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px solid var(--border-subtle);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-disabled);font-weight:700}
+.colbody{padding:8px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+
+/* esquema */
+.oq{margin:9px 0 3px;padding:0 4px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700;display:flex;align-items:center;gap:6px}
+.oq::after{content:'';flex:1;height:1px;background:var(--border-subtle)}
+.orow{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;font-size:11.5px;color:var(--text-secondary)}
+.orow:hover{background:var(--hover-bg)}
+.orow.on{background:var(--active-bg);color:var(--text-primary)}
+.orow .n{font-family:var(--mono);font-size:10px;color:var(--text-disabled);width:13px;flex:none}
+.orow.on .n{color:var(--accent)}
+.orow .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.orow .lay{font-size:9px;color:var(--text-disabled);font-family:var(--mono)}
+.grip{color:var(--text-disabled);opacity:0;flex:none}
+.orow:hover .grip{opacity:1}
+
+/* lienzo */
+.stagebar{display:flex;align-items:center;gap:8px;width:100%;font-size:11px;color:var(--text-tertiary)}
+.slide{width:100%;aspect-ratio:16/9;background:var(--surface-raised);border:1px solid var(--border-subtle);border-radius:8px;position:relative;overflow:hidden;container-type:inline-size}
+.sl{--u:calc(100cqw / 1600);position:absolute;inset:0;padding:calc(72*var(--u));display:flex;flex-direction:column}
+
+/* LAS REGIONES — el corazón del rediseño */
+.rg{position:relative;border:1px dashed var(--border-strong);border-radius:calc(8*var(--u));transition:border-color .12s,background-color .12s}
+.rg::before{content:attr(data-rg);position:absolute;top:calc(-9*var(--u));left:calc(10*var(--u));padding:0 calc(6*var(--u));background:var(--surface-raised);font-family:var(--mono);font-size:calc(13*var(--u));letter-spacing:.1em;text-transform:uppercase;color:var(--text-disabled)}
+.rg:hover{border-color:var(--accent);background:var(--accent-subtle)}
+.rg:hover::before{color:var(--accent)}
+.rg.sel{border-style:solid;border-color:var(--accent);background:var(--accent-subtle)}
+.rg.sel::before{color:var(--accent)}
+.rg.empty{display:flex;align-items:center;justify-content:center;color:var(--text-disabled);font-size:calc(19*var(--u));font-style:italic}
+.clean .rg{border-color:transparent;background:none}
+.clean .rg::before{opacity:0}
+
+.eyebrow{font-family:var(--mono);font-size:calc(13*var(--u));letter-spacing:.16em;text-transform:uppercase;color:var(--text-tertiary);padding:calc(5*var(--u)) calc(8*var(--u));margin-bottom:calc(12*var(--u))}
+.claim{font-size:calc(40*var(--u));line-height:1.14;font-weight:700;color:var(--text-primary);letter-spacing:-.02em;padding:calc(8*var(--u)) calc(10*var(--u));margin-bottom:calc(18*var(--u));text-wrap:balance}
+.cols{flex:1;display:grid;grid-template-columns:1fr 1.25fr;gap:calc(40*var(--u));min-height:0}
+.narr{font-size:calc(19*var(--u));line-height:1.5;color:var(--text-secondary);padding:calc(10*var(--u))}
+.fig{padding:calc(8*var(--u));display:flex;align-items:center;justify-content:center}
+.figart{width:100%;height:100%;display:flex;align-items:flex-end;gap:calc(9*var(--u));padding:calc(10*var(--u)) 0}
+.figart i{flex:1;background:linear-gradient(180deg,var(--accent),color-mix(in oklch,var(--accent) 30%,transparent));border-radius:calc(3*var(--u)) calc(3*var(--u)) 0 0;display:block}
+.foot{display:flex;gap:calc(14*var(--u));padding:calc(6*var(--u)) calc(8*var(--u));margin-top:calc(14*var(--u));border-top:1px solid var(--border-subtle);font-family:var(--mono);font-size:calc(12.5*var(--u));color:var(--text-disabled)}
+
+.ovf{position:absolute;right:9px;bottom:9px;display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;background:color-mix(in oklch,var(--warn) 18%,var(--surface-overlay));color:var(--warn);font-size:10.5px;border:1px solid color-mix(in oklch,var(--warn) 35%,transparent)}
+
+/* inspector */
+.insp{padding:10px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.ig{display:flex;flex-direction:column;gap:7px}
+.igt{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-disabled);font-weight:700}
+.field{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.flab{font-size:11.5px;color:var(--text-secondary)}
+.ctl{display:flex;align-items:center;gap:4px;padding:3px 7px;border:1px solid var(--border-subtle);border-radius:5px;background:var(--surface-inset);font-size:11px;color:var(--text-primary);min-width:0}
+.sw{display:flex;gap:4px}
+.sw i{width:16px;height:16px;border-radius:4px;border:1px solid var(--border-default);display:block}
+.sw i.on{outline:2px solid var(--accent);outline-offset:1px}
+.tog{width:30px;height:17px;border-radius:999px;background:var(--border-default);position:relative;flex:none}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--text-tertiary)}
+.tog.on{background:var(--accent-muted)}
+.tog.on::after{left:15px;background:var(--accent)}
+.chk{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-secondary)}
+.chk i{width:13px;height:13px;border-radius:3px;border:1px solid var(--border-strong);flex:none;display:grid;place-items:center}
+.chk i.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.lays{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.lay{aspect-ratio:16/9;border:1px solid var(--border-subtle);border-radius:4px;background:var(--surface-inset);padding:4px;display:flex;flex-direction:column;gap:2px}
+.lay.on{border-color:var(--accent);background:var(--accent-subtle)}
+.lay u{display:block;height:3px;border-radius:1px;background:var(--text-disabled);text-decoration:none}
+.lay u.w{width:62%}
+.lay .r{flex:1;display:flex;gap:2px}
+.lay .r b{flex:1;border-radius:2px;background:var(--border-default);display:block}
+
+/* barra flotante de formato */
+.float{display:inline-flex;align-items:center;gap:2px;padding:4px;border-radius:8px;background:var(--surface-overlay);border:1px solid var(--border-strong);box-shadow:var(--shadow-pop)}
+.float .b{display:grid;place-items:center;width:26px;height:26px;border-radius:5px;color:var(--text-secondary)}
+.float .b:hover{background:var(--hover-bg);color:var(--text-primary)}
+.float .b.on{background:var(--accent-muted);color:var(--accent)}
+
+/* menú de inserción */
+.menu{width:298px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface-overlay);box-shadow:var(--shadow-pop);overflow:hidden}
+.menu .q{display:flex;align-items:center;gap:7px;padding:8px 11px;border-bottom:1px solid var(--border-subtle);color:var(--text-tertiary);font-size:12px}
+.menu .g{padding:7px 11px 3px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-disabled);font-weight:700}
+.mi{display:flex;align-items:center;gap:9px;padding:6px 11px;font-size:12px;color:var(--text-secondary)}
+.mi.on{background:var(--accent-subtle);color:var(--text-primary)}
+.mi .ic{display:grid;place-items:center;width:22px;height:22px;border-radius:5px;background:var(--surface-inset);color:var(--accent);flex:none}
+.mi .d{font-size:10.5px;color:var(--text-disabled);margin-left:auto}
+
+/* crudo */
+.raw{border:1px solid var(--border-subtle);border-radius:8px;background:var(--surface-inset);overflow:hidden}
+.rawhead{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--border-subtle);font-size:11px;color:var(--text-tertiary)}
+pre.code{margin:0;padding:11px 13px;font-family:var(--mono);font-size:11.5px;line-height:1.62;color:var(--text-secondary);overflow-x:auto;white-space:pre}
+.dir{color:var(--text-disabled)}
+.kw{color:var(--accent)}
+.str{color:#9ec9ff}
+
+/* tabla */
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:12.5px}
+th{text-align:left;padding:7px 11px;border-bottom:1px solid var(--border-default);color:var(--text-disabled);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+td{padding:8px 11px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td:first-child{color:var(--text-primary);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+.cap{font-size:11.5px;color:var(--text-disabled);margin:8px 0 30px;max-width:74ch}
+.cap b{color:var(--text-tertiary)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;margin:20px 0}
+@media(max-width:1150px){.page{grid-template-columns:1fr;gap:0}.toc{display:none}.two{grid-template-columns:1fr}.app-body{grid-template-columns:1fr}.col--outline,.col--inspect{display:none}}
+.kbd{font-family:var(--mono);font-size:10.5px;padding:1px 5px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:4px;color:var(--text-primary);background:var(--surface-inset);white-space:nowrap}
+ul.tight{margin:10px 0;padding-left:19px;max-width:74ch}
+ul.tight li{margin:5px 0}
+</style>
+</head>
+<body>
+
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg"><defs>
+<g id="i-deck"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></g>
+<g id="i-play"><path d="M6 3l14 9-14 9z"/></g>
+<g id="i-refresh"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></g>
+<g id="i-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></g>
+<g id="i-layout"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></g>
+<g id="i-code"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></g>
+<g id="i-eye"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></g>
+<g id="i-chart"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="13" y="8" width="3" height="10"/><rect x="19" y="5" width="2" height="13"/></g>
+<g id="i-image"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></g>
+<g id="i-bold"><path d="M6 4h7a4 4 0 0 1 0 8H6zM6 12h8a4 4 0 0 1 0 8H6z"/></g>
+<g id="i-italic"><path d="M19 4h-9M14 20H5M15 4L9 20"/></g>
+<g id="i-list"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></g>
+<g id="i-quote"><path d="M3 21c3-3 3-7 3-11H3M14 21c3-3 3-7 3-11h-3"/></g>
+<g id="i-link"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></g>
+<g id="i-grip"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></g>
+<g id="i-warn"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></g>
+<g id="i-plus"><path d="M12 5v14M5 12h14"/></g>
+<g id="i-search"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></g>
+<g id="i-hash"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></g>
+<g id="i-gauge"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M13.4 10.6 19 5"/><path d="M20.5 16a9 9 0 1 0-17 0"/></g>
+<g id="i-steps"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h3M14 12h3"/></g>
+<g id="i-table"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></g>
+<g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+<g id="i-palette"><circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="15.5" cy="10" r="1"/></g>
+<g id="i-note"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M8 8h8M8 12h8M8 16h4"/></g>
+<g id="i-split"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></g>
+<g id="i-copy"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></g>
+</defs></svg>
+
+<div class="page">
+
+<nav class="toc">
+  <div class="toc-brand"><svg class="i lg"><use href="#i-deck"/></svg> Studio de Report Flow</div>
+  <div class="toc-sub">Rediseño de la interfaz · 2026-09-14</div>
+  <div class="grp">El problema</div>
+  <a href="#diag">El diagnóstico</a>
+  <a href="#antes">Lo que hay hoy</a>
+  <div class="grp">El rediseño</div>
+  <a href="#armazon">01 · El armazón</a>
+  <a href="#regiones">02 · Las regiones</a>
+  <a href="#inspector">03 · El inspector</a>
+  <a href="#escribir">04 · Escribir</a>
+  <a href="#datos">05 · Bloques de dato</a>
+  <a href="#figura">06 · La figura</a>
+  <a href="#marca">07 · La marca del deck</a>
+  <a href="#crudo">08 · Crudo por lámina</a>
+  <a href="#estructura">09 · Estructura</a>
+  <a href="#repaso">10 · Repaso previo</a>
+  <div class="grp">Cierre</div>
+  <a href="#atajos">Atajos</a>
+  <a href="#notoca">Lo que no se toca</a>
+</nav>
+
+<main>
+
+<h1 class="doc">El Studio enseña el resultado<br>y esconde los mandos</h1>
+<p class="lede">
+El formato está bien y la lámina está bien: el contrato visual se implementó entero y una
+presentación terminada se ve como debe. Lo que no funciona es <strong>llegar hasta
+ahí</strong>. Este documento propone el rediseño que sale de las
+<a href="auditoria_studio_deck.md">50 preguntas de la auditoría</a>.
+</p>
+
+<h2 class="sec" id="diag">El diagnóstico</h2>
+<p>
+La lámina se pinta exactamente como va a salir. Eso es una virtud y no se toca. Pero de ahí
+se dedujo —sin decirlo nunca— que la interfaz de edición también tenía que ser invisible.
+Y una interfaz invisible sólo la usa quien la escribió.
+</p>
+<div class="note bad">
+<b>Las cincuenta preguntas caen en cinco huecos, y sólo cinco:</b> el lienzo no declara sus
+regiones · no hay mandos para escribir · no hay inspector, sólo un catálogo de objetos ·
+el crudo es del archivo entero y no de la lámina · faltan los gestos de estructura
+(duplicar, arrastrar, deshacer).
+</div>
+
+<h2 class="sec" id="antes">Lo que hay hoy</h2>
+<div class="app">
+  <div class="app-bar">
+    <span class="app-title"><svg class="i sm"><use href="#i-deck"/></svg> Revisión de inversión en campañas</span>
+    <span class="app-count">17 láminas</span>
+    <span class="spacer"></span>
+    <span class="btn"><svg class="i sm"><use href="#i-refresh"/></svg> Refrescar</span>
+    <span class="btn primary"><svg class="i sm"><use href="#i-play"/></svg> Present</span>
+    <span class="seg"><span class="btn on">Design</span><span class="btn">Review</span><span class="btn">Source</span></span>
+  </div>
+  <div class="app-body nopanel">
+    <div class="col col--outline">
+      <div class="colhead">Slides · Layouts · Charts · Images</div>
+      <div class="colbody">
+        <div class="orow on"><span class="n">1</span><span class="t">Revisión de inversión</span></div>
+        <div class="orow"><span class="n">2</span><span class="t">El total apenas se movió</span></div>
+        <div class="orow"><span class="n">3</span><span class="t">Bajar el gasto no es…</span></div>
+        <div class="orow"><span class="n">4</span><span class="t">Dónde se fue el dinero</span></div>
+        <div class="orow"><span class="n">5</span><span class="t">El coste mensual no…</span></div>
+      </div>
+    </div>
+    <div class="col col--stage">
+      <div class="stagebar"><span class="spacer"></span><span>Lámina 5 / 17 · hallazgo</span><span class="spacer"></span></div>
+      <div class="slide"><div class="sl clean">
+        <div class="eyebrow">Inversión en campañas</div>
+        <div class="claim">El coste mensual no tiene tendencia: tiene picos</div>
+        <div class="cols">
+          <div class="narr">Serie mensual del periodo completo. Lo que se mueve son meses sueltos.</div>
+          <div class="fig"><div class="figart"><i style="height:44%"></i><i style="height:61%"></i><i style="height:53%"></i><i style="height:78%"></i><i style="height:70%"></i><i style="height:92%"></i></div></div>
+        </div>
+        <div class="foot"><span>Data/dataset.csv</span><span>13 filas</span><span>periodo = 6 meses</span></div>
+      </div></div>
+    </div>
+  </div>
+</div>
+<p class="cap">
+<b>Todo correcto, y nada accionable.</b> ¿Dónde se pincha para escribir? ¿Dónde se cambia el
+color? ¿Dónde se pone una tira de métricas? La respuesta de hoy es: pasa el ratón por
+encima a ver qué se enciende, y para el resto, escribe YAML en la vista Source.
+</p>
+
+<h2 class="sec" id="armazon">01 · El armazón: navegación a la izquierda, propiedades a la derecha</h2>
+<p>
+El panel de hoy mezcla dos cosas distintas en cuatro pestañas: <b>Slides</b> es navegación,
+pero <b>Layouts</b>, <b>Charts</b> e <b>Images</b> son propiedades de lo que tengas
+seleccionado. Se separan.
+</p>
+
+<div class="app">
+  <div class="app-bar">
+    <span class="app-title"><svg class="i sm"><use href="#i-deck"/></svg> Revisión de inversión en campañas</span>
+    <span class="app-count">17 láminas · ~12 min</span>
+    <span class="spacer"></span>
+    <span class="btn"><svg class="i sm"><use href="#i-refresh"/></svg> Refrescar</span>
+    <span class="btn"><svg class="i sm"><use href="#i-check"/></svg> Repasar</span>
+    <span class="btn primary"><svg class="i sm"><use href="#i-play"/></svg> Present</span>
+    <span class="vsep"></span>
+    <span class="seg"><span class="btn on">Design</span><span class="btn">Review</span><span class="btn">Source</span></span>
+    <span class="btn"><svg class="i sm"><use href="#i-save"/></svg> Guardar</span>
+  </div>
+  <div class="app-body">
+    <div class="col col--outline">
+      <div class="colhead"><svg class="i xs"><use href="#i-layout"/></svg> Esquema</div>
+      <div class="colbody">
+        <div class="oq">Apertura</div>
+        <div class="orow"><svg class="i xs grip"><use href="#i-grip"/></svg><span class="n">1</span><span class="t">Revisión de inversión</span><span class="lay">portada</span></div>
+        <div class="orow"><svg class="i xs grip"><use href="#i-grip"/></svg><span class="n">2</span><span class="t">El total apenas se movió</span><span class="lay">resumen</span></div>
+        <div class="oq">Dónde se fue el dinero</div>
+        <div class="orow"><svg class="i xs grip"><use href="#i-grip"/></svg><span class="n">4</span><span class="t">Dónde se fue el dinero</span><span class="lay">sección</span></div>
+        <div class="orow on"><svg class="i xs grip"><use href="#i-grip"/></svg><span class="n">5</span><span class="t">El coste mensual…</span><span class="lay">hallazgo</span></div>
+        <div class="orow"><svg class="i xs grip"><use href="#i-grip"/></svg><span class="n">6</span><span class="t">Las cuatro regiones</span><span class="lay">figura</span></div>
+        <div class="orow"><svg class="i xs grip"><use href="#i-grip"/></svg><span class="n">7</span><span class="t">Reparto parejo</span><span class="lay">hallazgo</span></div>
+        <div class="orow" style="color:var(--text-disabled)"><svg class="i xs"><use href="#i-plus"/></svg><span class="t">Añadir lámina</span></div>
+      </div>
+    </div>
+
+    <div class="col col--stage">
+      <div class="stagebar">
+        <span class="btn" style="height:22px">‹</span>
+        <span class="spacer"></span><span>Lámina 5 / 17</span><span class="spacer"></span>
+        <span class="btn" style="height:22px"><svg class="i xs"><use href="#i-eye"/></svg> Vista limpia</span>
+        <span class="btn" style="height:22px">›</span>
+      </div>
+      <div class="slide"><div class="sl">
+        <div class="rg eyebrow" data-rg="antetítulo">Inversión en campañas</div>
+        <div class="rg claim sel" data-rg="afirmación">El coste mensual no tiene tendencia: tiene picos</div>
+        <div class="cols">
+          <div class="rg narr" data-rg="narrativa">Serie mensual del periodo completo. Lo que se mueve son meses sueltos, no una pendiente.</div>
+          <div class="rg fig" data-rg="figura"><div class="figart"><i style="height:44%"></i><i style="height:61%"></i><i style="height:53%"></i><i style="height:78%"></i><i style="height:70%"></i><i style="height:92%"></i></div></div>
+        </div>
+        <div class="foot"><span>Data/dataset.csv</span><span>13 filas</span><span>periodo = 6 meses</span><span style="margin-left:auto">05</span></div>
+      </div></div>
+      <div class="stagebar"><span class="btn" style="height:22px"><svg class="i xs"><use href="#i-note"/></svg> Notas del orador · 2 líneas</span></div>
+    </div>
+
+    <div class="col col--inspect">
+      <div class="colhead"><svg class="i xs"><use href="#i-hash"/></svg> Afirmación</div>
+      <div class="insp">
+        <div class="ig">
+          <div class="igt">Texto</div>
+          <div class="float" style="align-self:flex-start">
+            <span class="b on"><svg class="i sm"><use href="#i-bold"/></svg></span>
+            <span class="b"><svg class="i sm"><use href="#i-italic"/></svg></span>
+            <span class="b"><svg class="i sm"><use href="#i-link"/></svg></span>
+            <span class="b"><svg class="i sm"><use href="#i-list"/></svg></span>
+            <span class="b"><svg class="i sm"><use href="#i-quote"/></svg></span>
+          </div>
+        </div>
+        <div class="ig">
+          <div class="igt">Ocupación</div>
+          <div class="field"><span class="flab">46 de 3 líneas</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ok)">cabe</span></div>
+          <div style="height:3px;border-radius:2px;background:var(--border-default)"><i style="display:block;height:100%;width:52%;border-radius:2px;background:var(--ok)"></i></div>
+        </div>
+        <div class="ig">
+          <div class="igt">Insertar aquí</div>
+          <div class="field"><span class="btn" style="width:100%"><svg class="i sm"><use href="#i-plus"/></svg> Bloque, figura o imagen <span class="kbd" style="margin-left:auto">/</span></span></div>
+        </div>
+        <div class="ig">
+          <div class="igt">La lámina</div>
+          <div class="field"><span class="flab">Disposición</span><span class="ctl">hallazgo</span></div>
+          <div class="field"><span class="flab">Tono</span><span class="ctl">del tema</span></div>
+          <div class="field"><span class="flab">Pie</span><span class="tog on"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="cap">
+<b>Izquierda: dónde estoy.</b> El esquema se agrupa por secciones —el separador ya marca el
+corte, así que la información ya existe— y se arrastra para reordenar.
+<b>Centro: la lámina, con sus regiones dibujadas.</b>
+<b>Derecha: qué le puedo hacer a lo que he seleccionado.</b>
+</p>
+
+<h2 class="sec" id="regiones">02 · Las regiones se dibujan en reposo</h2>
+<p>
+Es la pieza que sostiene todas las demás. Cada disposición tiene sus regiones y hoy son
+invisibles: el aviso «Edit text» sólo aparece al pasar el ratón por encima. La lámina pasa
+a enseñar, con filete de puntos y su nombre en versalitas, <b>qué huecos tiene y cómo se
+llaman</b>.
+</p>
+
+<div class="two">
+  <div>
+    <div class="slide" style="max-width:none"><div class="sl">
+      <div class="rg eyebrow" data-rg="antetítulo">Inversión en campañas</div>
+      <div class="rg claim" data-rg="afirmación">La afirmación que esta lámina puede defender</div>
+      <div class="cols">
+        <div class="rg narr empty" data-rg="narrativa">la narrativa</div>
+        <div class="rg fig empty" data-rg="figura">elige una figura</div>
+      </div>
+      <div class="foot"><span>el pie se deriva solo</span></div>
+    </div></div>
+    <p class="cap"><b>Una lámina vacía ya no es un hueco mudo.</b> Dice cuántas regiones tiene, cómo se llaman y en qué orden se recorren con el tabulador.</p>
+  </div>
+  <div>
+    <div class="slide" style="max-width:none"><div class="sl clean">
+      <div class="rg eyebrow" data-rg="antetítulo">Inversión en campañas</div>
+      <div class="rg claim" data-rg="afirmación">El coste mensual no tiene tendencia: tiene picos</div>
+      <div class="cols">
+        <div class="rg narr" data-rg="narrativa">Serie mensual del periodo completo. Lo que se mueve son meses sueltos, no una pendiente.</div>
+        <div class="rg fig" data-rg="figura"><div class="figart"><i style="height:44%"></i><i style="height:61%"></i><i style="height:53%"></i><i style="height:78%"></i><i style="height:70%"></i><i style="height:92%"></i></div></div>
+      </div>
+      <div class="foot"><span>Data/dataset.csv</span><span>13 filas</span></div>
+    </div></div>
+    <p class="cap"><b>Vista limpia</b> <span class="kbd">Ctrl</span> <span class="kbd">.</span> — apaga las regiones sin salir de Design, para comprobar que lo que se ve es lo que va a salir.</p>
+  </div>
+</div>
+
+<div class="note">
+<b>La pregunta 14, contestada de frente:</b> «¿puedo mover esa caja un poco a la izquierda?»
+No. La retícula es el contrato visual y por eso todas las láminas se parecen entre sí. La
+salida no es arrastrar cajas: es cambiar de disposición. Y eso hay que <em>decirlo</em>, no
+dejar que se descubra a base de intentarlo.
+</div>
+
+<h2 class="sec" id="inspector">03 · El inspector, en sus cuatro estados</h2>
+<p>El panel derecho refleja lo seleccionado. No hay pestañas: hay contexto.</p>
+
+<table>
+<tr><th>Selección</th><th>El inspector muestra</th></tr>
+<tr><td>Nada, o la lámina</td><td>Disposición · tono · campos del pie · notas · ocultar del pase</td></tr>
+<tr><td>Una región de texto</td><td>Formato · insertar · ocupación de la región</td></tr>
+<tr><td>La figura</td><td>Origen · tarjeta sí/no · paleta · frescura · abrir en Story&nbsp;Flow</td></tr>
+<tr><td>El deck (sin lámina activa)</td><td>Marca · acento · paleta · autor · periodo · fuente</td></tr>
+</table>
+
+<div class="two">
+  <div>
+    <div class="app" style="margin:0"><div style="width:100%;background:var(--surface-raised)">
+      <div class="colhead"><svg class="i xs"><use href="#i-layout"/></svg> Lámina 5 · hallazgo</div>
+      <div class="insp">
+        <div class="ig">
+          <div class="igt">Disposición</div>
+          <div class="lays">
+            <div class="lay"><u class="w"></u><div class="r"><b></b></div></div>
+            <div class="lay on"><u class="w"></u><div class="r"><b style="flex:.8"></b><b></b></div></div>
+            <div class="lay"><u class="w"></u><div class="r"><b></b><b></b><b></b></div></div>
+          </div>
+          <div class="field"><span class="flab" style="color:var(--text-disabled);font-size:10.5px">Al cambiar a «figura completa» la narrativa se queda sin hueco. Se conserva en el crudo.</span></div>
+        </div>
+        <div class="ig">
+          <div class="igt">Tono</div>
+          <div class="seg" style="width:100%"><span class="btn on" style="flex:1;justify-content:center">tema</span><span class="btn" style="flex:1;justify-content:center">claro</span><span class="btn" style="flex:1;justify-content:center">oscuro</span></div>
+        </div>
+        <div class="ig">
+          <div class="igt">Pie de procedencia</div>
+          <div class="chk"><i class="on"><svg class="i xs"><use href="#i-check"/></svg></i> Fuente</div>
+          <div class="chk"><i class="on"><svg class="i xs"><use href="#i-check"/></svg></i> Filas devueltas</div>
+          <div class="chk"><i class="on"><svg class="i xs"><use href="#i-check"/></svg></i> Variables activas</div>
+          <div class="chk"><i></i> Consulta</div>
+          <div class="chk"><i class="on"><svg class="i xs"><use href="#i-check"/></svg></i> Número de lámina</div>
+        </div>
+      </div>
+    </div></div>
+    <p class="cap"><b>Lámina seleccionada.</b> Lo que hoy son tres directivas HTML que hay que memorizar —<code>layout</code>, <code>tone</code>, <code>footer</code>— son tres controles. El markdown se sigue escribiendo igual, pero lo escribe el inspector.</p>
+  </div>
+  <div>
+    <div class="app" style="margin:0"><div style="width:100%;background:var(--surface-raised)">
+      <div class="colhead"><svg class="i xs"><use href="#i-chart"/></svg> Figura</div>
+      <div class="insp">
+        <div class="ig">
+          <div class="igt">Origen</div>
+          <div class="field"><span class="ctl" style="width:100%"><svg class="i xs"><use href="#i-chart"/></svg> 03_linea.amoxvis</span></div>
+          <div class="field"><span class="btn" style="flex:1;justify-content:center">Sustituir</span><span class="btn" style="flex:1;justify-content:center">Abrir en Story Flow</span></div>
+        </div>
+        <div class="ig">
+          <div class="igt">Presentación</div>
+          <div class="field"><span class="flab">Tarjeta propia</span><span class="tog"></span></div>
+          <div class="field"><span class="flab" style="color:var(--text-disabled);font-size:10.5px">Apagada, la lámina es la tarjeta. Enciéndela sólo si la figura necesita marco propio.</span></div>
+          <div class="field"><span class="flab">Paleta</span><div class="sw"><i class="on" style="background:#b6f09c"></i><i style="background:#7fd4f5"></i><i style="background:#f5b97f"></i><i style="background:#c9a0f5"></i></div></div>
+        </div>
+        <div class="ig">
+          <div class="igt">Frescura</div>
+          <div class="field"><span class="flab">13 filas · hoy 06:08</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ok)">al día</span></div>
+        </div>
+      </div>
+    </div></div>
+    <p class="cap"><b>Figura seleccionada.</b> Contesta las preguntas 27 a 31 donde el usuario está mirando, no en un panel que hay que saber que existe.</p>
+  </div>
+</div>
+
+<h2 class="sec" id="escribir">04 · Escribir: barra al seleccionar, menú al insertar</h2>
+<p>
+Dos mecanismos, y los dos <b>ya están escritos</b> en el editor de documentos
+(<code>markdownInsertables.js</code> y <code>slashMenu.js</code>). Aquí se reutilizan tal cual.
+</p>
+
+<div class="two">
+  <div>
+    <div style="padding:26px;background:var(--surface-base);border:1px solid var(--border-subtle);border-radius:9px;display:flex;flex-direction:column;align-items:center;gap:14px">
+      <div class="float">
+        <span class="b on"><svg class="i"><use href="#i-bold"/></svg></span>
+        <span class="b"><svg class="i"><use href="#i-italic"/></svg></span>
+        <span class="b"><svg class="i"><use href="#i-link"/></svg></span>
+        <span class="vsep"></span>
+        <span class="b"><svg class="i"><use href="#i-list"/></svg></span>
+        <span class="b"><svg class="i"><use href="#i-quote"/></svg></span>
+        <span class="b"><svg class="i"><use href="#i-code"/></svg></span>
+      </div>
+      <div style="font-size:15px;color:var(--text-primary);max-width:34ch;text-align:center">Dos campañas concentran el <span style="background:var(--accent-muted);border-radius:3px;padding:0 3px">90&nbsp;%</span> de todo lo que sube</div>
+    </div>
+    <p class="cap"><b>Seleccionas, aparece la barra.</b> Y <span class="kbd">Ctrl</span> <span class="kbd">B</span> sigue funcionando. Escribir <code>**</code> a mano también: no se quita nada, se añade el camino corto.</p>
+  </div>
+  <div>
+    <div style="padding:26px;background:var(--surface-base);border:1px solid var(--border-subtle);border-radius:9px;display:flex;justify-content:center">
+      <div class="menu">
+        <div class="q"><svg class="i sm"><use href="#i-search"/></svg> métr</div>
+        <div class="g">Dato</div>
+        <div class="mi on"><span class="ic"><svg class="i sm"><use href="#i-gauge"/></svg></span> Tira de métricas <span class="d">2 a 5</span></div>
+        <div class="mi"><span class="ic"><svg class="i sm"><use href="#i-hash"/></svg></span> Cifra ancla <span class="d">una sola</span></div>
+        <div class="mi"><span class="ic"><svg class="i sm"><use href="#i-table"/></svg></span> Tabla clasificada</div>
+        <div class="g">Contenido</div>
+        <div class="mi"><span class="ic"><svg class="i sm"><use href="#i-chart"/></svg></span> Figura de Story Flow</div>
+        <div class="mi"><span class="ic"><svg class="i sm"><use href="#i-image"/></svg></span> Imagen</div>
+        <div class="mi"><span class="ic"><svg class="i sm"><use href="#i-steps"/></svg></span> Pasos <span class="d">o acciones</span></div>
+      </div>
+    </div>
+    <p class="cap"><b>Escribes <code>/</code> y aparece el menú</b>, en la región donde estabas — no al final del texto, que es donde cae hoy una imagen.</p>
+  </div>
+</div>
+
+<h2 class="sec" id="datos">05 · Los bloques de dato dejan de ser YAML a mano</h2>
+<p>
+Cinco bloques —<code>kpis</code>, <code>metric</code>, <code>steps</code>,
+<code>actions</code>, <code>rank</code>— son hoy la única forma de meter datos estructurados
+en una lámina, y la única forma de escribirlos es teclear YAML dentro de una cerca. Es la
+distancia más larga entre lo que el usuario quiere y lo que tiene que hacer.
+</p>
+
+<div class="two">
+  <div>
+    <div class="app" style="margin:0"><div style="width:100%;background:var(--surface-raised)">
+      <div class="colhead"><svg class="i xs"><use href="#i-gauge"/></svg> Tira de métricas · 4</div>
+      <div class="insp">
+        <div class="ig">
+          <div class="igt">Métrica 1</div>
+          <div class="field"><span class="flab">Etiqueta</span><span class="ctl">Coste</span></div>
+          <div class="field"><span class="flab">Valor</span><span class="ctl">$521,982</span></div>
+          <div class="field"><span class="flab">Variación</span><span class="ctl">−3.3%</span></div>
+          <div class="field"><span class="flab">Lectura</span><div class="seg"><span class="btn on" style="height:21px">buena</span><span class="btn" style="height:21px">plana</span><span class="btn" style="height:21px">mala</span></div></div>
+          <div class="field"><span class="flab">Destacar</span><span class="tog"></span></div>
+        </div>
+        <div class="ig">
+          <div class="igt" style="color:var(--text-disabled)">Métrica 2 · Clics · 13.76M</div>
+          <div class="igt" style="color:var(--text-disabled)">Métrica 3 · Coste / 1.000 clics</div>
+          <div class="igt" style="color:var(--text-disabled)">Métrica 4 · Impresiones</div>
+          <div class="field"><span class="btn" style="width:100%;justify-content:center"><svg class="i sm"><use href="#i-plus"/></svg> Añadir métrica</span></div>
+          <div class="field"><span class="flab" style="color:var(--warn);font-size:10.5px">Con seis, cada una baja de 240 u y deja de leerse.</span></div>
+        </div>
+      </div>
+    </div></div>
+    <p class="cap"><b>El formulario</b>, con la regla del contrato visual dicha donde importa: al ir a añadir la sexta.</p>
+  </div>
+  <div>
+    <div class="raw">
+      <div class="rawhead"><svg class="i xs"><use href="#i-code"/></svg> lo que se escribe en el archivo</div>
+<pre class="code"><span class="dir">```kpis</span>
+<span class="kw">- label:</span> Coste
+  <span class="kw">value:</span> <span class="str">$521,982</span>
+  <span class="kw">delta:</span> <span class="str">-3.3%</span>
+  <span class="kw">trend:</span> good
+  <span class="kw">base:</span> vs. semestre anterior
+<span class="kw">- label:</span> Clics
+  <span class="kw">value:</span> <span class="str">13.76M</span>
+  <span class="kw">delta:</span> <span class="str">-3.9%</span>
+  <span class="kw">trend:</span> bad
+<span class="dir">```</span></pre>
+    </div>
+    <p class="cap"><b>El markdown no cambia ni un carácter.</b> Sigue siendo la única verdad y sigue siendo editable a mano por quien lo prefiera. Lo único que cambia es que ya no es el <em>único</em> camino.</p>
+  </div>
+</div>
+
+<h2 class="sec" id="figura">06 · La figura se elige desde su hueco</h2>
+<p>
+Hoy: pulsar el hueco vacío te dice «Pick one from the Charts panel». Te manda a otro sitio
+y te deja ahí. El selector se abre <b>encima</b>, con miniatura viva, porque nadie recuerda
+sus <code>.amoxvis</code> por el nombre del archivo.
+</p>
+<div style="padding:24px;background:var(--surface-base);border:1px solid var(--border-subtle);border-radius:9px;display:flex;justify-content:center">
+  <div class="menu" style="width:430px">
+    <div class="q"><svg class="i sm"><use href="#i-search"/></svg> Buscar una figura del proyecto…</div>
+    <div class="g">galeria_graficos</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:7px 11px 11px">
+      <div style="border:1px solid var(--accent);border-radius:6px;background:var(--accent-subtle);padding:6px">
+        <div style="aspect-ratio:16/9;display:flex;align-items:flex-end;gap:3px"><i style="flex:1;height:40%;background:var(--accent);border-radius:2px 2px 0 0;display:block"></i><i style="flex:1;height:66%;background:var(--accent);border-radius:2px 2px 0 0;display:block"></i><i style="flex:1;height:52%;background:var(--accent);border-radius:2px 2px 0 0;display:block"></i><i style="flex:1;height:88%;background:var(--accent);border-radius:2px 2px 0 0;display:block"></i></div>
+        <div style="font-size:10.5px;color:var(--text-primary);margin-top:5px">03_linea · coste mensual</div>
+      </div>
+      <div style="border:1px solid var(--border-subtle);border-radius:6px;padding:6px">
+        <div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center"><div style="width:54%;aspect-ratio:1;border-radius:50%;border:7px solid var(--text-disabled);border-right-color:var(--border-default)"></div></div>
+        <div style="font-size:10.5px;color:var(--text-secondary);margin-top:5px">06_columnas · por región</div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="cap"><b>Miniatura viva, no nombre de archivo.</b> Y desde la figura ya colocada: sustituir, abrir en Story Flow, o quitar.</p>
+
+<h2 class="sec" id="marca">07 · La marca del deck existe por fin</h2>
+<p>
+Acento, paleta, tono, título, autor, periodo, fecha, fuente y campos del pie. Nueve cosas
+que hoy <b>sólo</b> se tocan escribiendo front-matter en la vista Source. Es el hueco más
+grande de los cinco.
+</p>
+<div class="app" style="max-width:520px">
+  <div class="app-bar"><span class="app-title"><svg class="i sm"><use href="#i-palette"/></svg> El deck</span></div>
+  <div style="background:var(--surface-raised)"><div class="insp">
+    <div class="ig">
+      <div class="igt">Identidad</div>
+      <div class="field"><span class="flab">Título</span><span class="ctl">Revisión de inversión…</span></div>
+      <div class="field"><span class="flab">Hilo de sección</span><span class="ctl">Inversión en campañas</span></div>
+      <div class="field"><span class="flab">Marca</span><span class="btn"><svg class="i xs"><use href="#i-image"/></svg> Logotipo…</span></div>
+    </div>
+    <div class="ig">
+      <div class="igt">Color</div>
+      <div class="field"><span class="flab">Acento</span><div class="sw"><i class="on" style="background:#b6f09c"></i><i style="background:#7fd4f5"></i><i style="background:#f5b97f"></i><i style="background:#c9a0f5"></i><i style="background:#f57f9c"></i></div></div>
+      <div class="field"><span class="flab">Paleta de figuras</span><span class="ctl">sterlingDark</span></div>
+      <div class="field"><span class="flab">Tono</span><div class="seg"><span class="btn" style="height:21px">tema</span><span class="btn on" style="height:21px">oscuro</span><span class="btn" style="height:21px">claro</span></div></div>
+    </div>
+    <div class="ig">
+      <div class="igt">Procedencia</div>
+      <div class="field"><span class="flab">Autor</span><span class="ctl">Flavio Sandoval</span></div>
+      <div class="field"><span class="flab">Periodo</span><span class="ctl">feb–ago 2024</span></div>
+      <div class="field"><span class="flab">Corte de datos</span><span class="ctl">14 ago 2024</span></div>
+    </div>
+  </div></div>
+</div>
+<p class="cap"><b>Vista previa en vivo:</b> tocar el acento repinta las láminas del esquema mientras se elige. Y el contraste se comprueba solo — un acento que no se lea sobre el lienzo del tono elegido se avisa antes de aplicarlo, no en la sala.</p>
+
+<h2 class="sec" id="crudo">08 · El crudo, de esta lámina</h2>
+<p>
+Hoy la vista Source abre el <code>.amoxdeck</code> entero: 260 líneas para retocar una
+lámina. Se añade el crudo <b>de la lámina activa</b>, junto al lienzo. La vista del archivo
+completo se queda tal cual para quien la quiera.
+</p>
+<div class="raw" style="max-width:640px">
+  <div class="rawhead"><svg class="i xs"><use href="#i-code"/></svg> Lámina 5 · crudo <span class="spacer"></span><span class="kbd">Ctrl</span> <span class="kbd">⇧</span> <span class="kbd">E</span></div>
+<pre class="code"><span class="dir">&lt;!-- layout: finding --&gt;      ← lo escribe el inspector</span>
+<span class="kw">##</span> El coste mensual no tiene tendencia: tiene picos
+
+Serie mensual del periodo completo. Lo que se mueve
+son meses sueltos, no una pendiente.
+
+<span class="dir">```amoxchart</span>
+<span class="kw">src:</span> galeria_graficos/03_linea.amoxvis
+<span class="dir">```</span></pre>
+</div>
+<p class="cap"><b>Las directivas salen atenuadas y explicadas</b>, no como ruido que hay que aprender. Si se rompe el markdown se dice en el momento, señalando la línea, sin dejar de renderizar lo que sí se entiende.</p>
+
+<h2 class="sec" id="estructura">09 · Los gestos que faltaban</h2>
+<table>
+<tr><th>Gesto</th><th>Hoy</th><th>Rediseño</th></tr>
+<tr><td>Deshacer</td><td>no existe</td><td><span class="kbd">Ctrl</span> <span class="kbd">Z</span> en todo el Studio, no sólo dentro de un cuadro de texto</td></tr>
+<tr><td>Duplicar lámina</td><td>no existe</td><td><span class="kbd">Ctrl</span> <span class="kbd">D</span> y en el menú de la lámina</td></tr>
+<tr><td>Reordenar</td><td>flechas arriba/abajo</td><td>arrastrar en el esquema; las flechas se quedan</td></tr>
+<tr><td>Agrupar</td><td>—</td><td>el esquema pliega por sección, usando el separador que ya existe</td></tr>
+<tr><td>Ocultar del pase</td><td>—</td><td>sin borrar del archivo</td></tr>
+<tr><td>Duración</td><td>—</td><td>estimación en la cabecera del esquema</td></tr>
+</table>
+
+<h2 class="sec" id="repaso">10 · Repaso previo</h2>
+<p>
+Un botón en la barra que contesta la pregunta 48 —«¿está todo listo?»— antes de que la
+conteste la sala.
+</p>
+<div style="max-width:560px;border:1px solid var(--border-subtle);border-radius:9px;overflow:hidden;background:var(--surface-raised)">
+  <div class="colhead"><svg class="i xs"><use href="#i-check"/></svg> Repaso · 17 láminas</div>
+  <div style="padding:4px 0">
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid var(--border-subtle)"><svg class="i sm" style="color:var(--warn)"><use href="#i-warn"/></svg><span style="color:var(--text-primary)">Lámina 5</span><span>la narrativa desborda por 124 px</span><span class="spacer"></span><span class="btn" style="height:22px">Partir en dos</span></div>
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid var(--border-subtle)"><svg class="i sm" style="color:var(--warn)"><use href="#i-warn"/></svg><span style="color:var(--text-primary)">Lámina 11</span><span>una figura sin datos</span><span class="spacer"></span><span class="btn" style="height:22px">Ir</span></div>
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid var(--border-subtle)"><svg class="i sm" style="color:var(--text-disabled)"><use href="#i-refresh"/></svg><span style="color:var(--text-primary)">4 figuras</span><span>ejecutadas hace 9 días</span><span class="spacer"></span><span class="btn" style="height:22px">Refrescar</span></div>
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 13px"><svg class="i sm" style="color:var(--ok)"><use href="#i-check"/></svg><span>Todo lo demás, en orden</span></div>
+  </div>
+</div>
+
+<h2 class="sec" id="atajos">Atajos</h2>
+<table>
+<tr><th>Tecla</th><th>Qué hace</th></tr>
+<tr><td><span class="kbd">Tab</span></td><td>Siguiente región de la lámina</td></tr>
+<tr><td><span class="kbd">Intro</span></td><td>Editar la región seleccionada</td></tr>
+<tr><td><span class="kbd">Esc</span></td><td>Cancelar la edición · deseleccionar</td></tr>
+<tr><td><span class="kbd">Ctrl</span> <span class="kbd">Intro</span></td><td>Confirmar</td></tr>
+<tr><td><span class="kbd">/</span></td><td>Menú de inserción, en la región activa</td></tr>
+<tr><td><span class="kbd">Ctrl</span> <span class="kbd">B</span> · <span class="kbd">I</span> · <span class="kbd">K</span></td><td>Negrita · cursiva · enlace</td></tr>
+<tr><td><span class="kbd">Ctrl</span> <span class="kbd">.</span></td><td>Vista limpia</td></tr>
+<tr><td><span class="kbd">Ctrl</span> <span class="kbd">⇧</span> <span class="kbd">E</span></td><td>Crudo de esta lámina</td></tr>
+<tr><td><span class="kbd">Ctrl</span> <span class="kbd">D</span></td><td>Duplicar lámina</td></tr>
+<tr><td><span class="kbd">Ctrl</span> <span class="kbd">Z</span></td><td>Deshacer</td></tr>
+<tr><td><span class="kbd">Alt</span> <span class="kbd">↑</span> <span class="kbd">↓</span></td><td>Lámina anterior · siguiente</td></tr>
+</table>
+
+<h2 class="sec" id="notoca">Lo que no se toca</h2>
+<ul class="tight">
+<li><b>La lámina renderizada.</b> El contrato visual está implementado y validado. Ninguna de las cincuenta preguntas pide cambiarlo.</li>
+<li><b>Review y Present.</b> Funcionan.</li>
+<li><b>El markdown como almacenamiento.</b> Sigue siendo la única verdad. Todo lo que añade el inspector se serializa al <code>.amoxdeck</code> exactamente como hoy, y todo se puede seguir escribiendo a mano.</li>
+<li><b>16:9 fijo y la retícula.</b> La pregunta 14 se contesta explicándola, no cediendo.</li>
+</ul>
+
+<div class="note" style="margin-top:34px">
+<b>El plan de implementación</b> vive en <a href="plan_studio_deck.md"><code>plan_studio_deck.md</code></a>,
+y sale de aquí: seis fases, y la primera es la de las regiones porque sin ella las otras
+cinco son adivinar.
+</div>
+
+</main>
+</div>
+</body>
+</html>
