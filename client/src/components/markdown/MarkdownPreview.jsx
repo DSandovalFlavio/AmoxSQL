@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import mermaid from 'mermaid';
+import { frontmatterRange } from './markdownModel.js';
 import 'katex/dist/katex.min.css';
 import {
     LuMaximize2, LuX, LuCopy, LuCheck, LuInfo, LuTriangleAlert, LuLightbulb,
@@ -364,6 +365,25 @@ function makeHeading(level, progress) {
     };
 }
 
+/**
+ * Marca cada bloque de primer nivel con la línea del documento de la que sale.
+ *
+ * Es lo que permite sincronizar el desplazamiento en vista dividida alineando
+ * por CONTENIDO y no por porcentaje: un diagrama alto o un bloque de código
+ * largo ocupan cosas muy distintas a cada lado, y una regla de tres deja el
+ * texto desfasado justo cuando más falta hace que cuadre.
+ */
+function rehypeLineas() {
+    return (tree) => {
+        for (const nodo of tree.children || []) {
+            const linea = nodo.position?.start?.line;
+            if (nodo.type === 'element' && linea) {
+                nodo.properties = { ...nodo.properties, 'data-line': linea };
+            }
+        }
+    };
+}
+
 // ── Main preview ────────────────────────────────────────────────────────────
 // `renderChartBlock`, when provided, renders fenced ```amoxchart blocks (used
 // by Report Flow decks to embed a live, refreshable .amoxvis chart) — it
@@ -374,6 +394,21 @@ function makeHeading(level, progress) {
 // it for the slide's data objects (```kpis, ```metric, ```steps, ```actions,
 // ```rank), which stay plain code blocks anywhere else in the app.
 const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath, onToggleTask, taskProgress }) => {
+    // El front-matter es metadato, no documento: ya lo enseña la columna
+    // derecha con sus fichas, y aquí salía como un párrafo suelto de YAML.
+    //
+    // Se sustituye por líneas VACÍAS en vez de recortarlo. Las casillas
+    // escriben en el documento por número de línea (`node.position.start.line`),
+    // así que recortar movería todas las líneas y marcar una casilla acabaría
+    // escribiendo en la de al lado.
+    const cuerpo = useMemo(() => {
+        const fm = frontmatterRange(content || '');
+        if (!fm) return content || '';
+        const lineas = (content || '').split(/\r?\n/);
+        for (let n = fm.startLine - 1; n < fm.endLine && n < lineas.length; n++) lineas[n] = '';
+        return lineas.join('\n');
+    }, [content]);
+
     const baseDir = useMemo(() => {
         if (!filePath) return '';
         const norm = filePath.replace(/\\/g, '/');
@@ -426,13 +461,13 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
 
     return (
         <div className={`mde-preview-body mde-preview-body--${widthMode}`} ref={bodyRef}>
-            {content?.trim() ? (
+            {cuerpo?.trim() ? (
                 <ReactMarkdown
                     remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }], remarkAlerts]}
-                    rehypePlugins={[rehypeSlug, rehypeKatex, [rehypeHighlight, { ignoreMissing: true }]]}
+                    rehypePlugins={[rehypeSlug, rehypeLineas, rehypeKatex, [rehypeHighlight, { ignoreMissing: true }]]}
                     components={components}
                 >
-                    {content}
+                    {cuerpo}
                 </ReactMarkdown>
             ) : (
                 <span className="mde-preview-empty">Empty document — switch to Edit to start writing.</span>

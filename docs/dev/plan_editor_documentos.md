@@ -422,3 +422,62 @@ estado en cada fotograma y eso alimenta un efecto que avisa a `App`, con lo que
 el árbol entero se vuelve a dibujar durante toda la animación —`FileExplorer`
 aparece en el perfil sin tener por qué—. Arreglarlo toca `LayoutManager` y
 `App`, fuera del editor de documentos.
+
+#### La causa de fondo, ya corregida
+
+`LayoutManager` medía el ancho de sus paneles con un `ResizeObserver` sin
+condiciones y lo guardaba en estado. Ese ancho alimenta un efecto que avisa a
+`App`, así que durante cualquier animación de ancho —plegar el árbol de
+archivos— el árbol entero se volvía a dibujar en cada fotograma.
+
+Lo consume **solo la vista dividida**: `App` lo usa para calcular al píxel el
+ancho de las dos barras de pestañas y que cuadren con los dos paneles de debajo.
+Con un panel único nadie lo lee. Ahora el observador solo existe con la división
+encendida; sin ella el ancho se queda en cero y `App` cae a su reparto por
+porcentaje, que es el mismo camino que ya usaba antes de que el observador
+hubiera medido nada.
+
+Medido, cuatro plegados por tanda:
+
+| | React | Fotogramas > 60 ms por plegado |
+|---|---|---|
+| markdown, antes | 1346 ms | 4 |
+| markdown, ahora | **330 ms** | **1** |
+| `.sql`, antes | 1298 ms | 5 |
+| `.sql`, ahora | **274 ms** | **1** |
+
+El fotograma largo que queda es el del principio de la transición, cuando React
+confirma el cambio de estado de la barra lateral. Un traspié al arrancar se lee
+distinto que un tirón sostenido.
+
+**Sin verificar accionando:** la vista dividida. No conseguí encenderla desde
+fuera (el atajo no responde a eventos sintéticos y forzarla por el estado
+guardado tampoco la restauró), así que ese camino está comprobado leyendo el
+código, no ejercitándolo. El riesgo acotado es que las dos barras de pestañas
+usen el reparto por porcentaje durante el primer pintado en división —que es
+justo lo que ya hacían antes de que el observador midiera por primera vez—.
+
+### Ajustes tras probarlo de verdad
+
+Cuatro cosas que solo se ven usándolo:
+
+- **Las dos columnas se leían pequeñas.** Había tirado de los peldaños más
+  bajos de la escala: 8 px (`--text-2xs`, «badge micro») para etiquetas, claves
+  y fichas, y 11 px para las filas. Ahora las filas van a 13 px
+  (`--text-base`, el «body default»), que es exactamente lo que usa el árbol de
+  archivos de la aplicación; las etiquetas de sección a 10 px. Con la letra más
+  grande las columnas pasan a 230 y 292 px, y los umbrales a 990 / 760.
+- **El front-matter salía como un párrafo de YAML en la lectura.** Es metadato:
+  ya lo enseña la columna derecha con sus fichas. La vista previa lo sustituye
+  por líneas **vacías**, no lo recorta — las casillas escriben en el documento
+  por número de línea, y recortar movería todas.
+- **«Ancho completo» no tocaba el lienzo**, solo la lectura, así que el editor
+  se veía siempre centrado. Ahora suelta también la medida del lienzo.
+- **El desplazamiento en vista dividida no estaba sincronizado.** Se alinea por
+  contenido, no por porcentaje: un plugin marca cada bloque de la vista previa
+  con la línea de la que sale (`data-line`) y la sincronía interpola entre los
+  dos bloques que rodean la posición. Una regla de tres sobre la altura total
+  parece equivalente y no lo es: un diagrama alto o un bloque de código largo
+  ocupan cosas muy distintas a cada lado. Un pestillo de 120 ms evita el bucle
+  —quien empieza el gesto manda hasta que lo suelta— y el front-matter no tiene
+  anclaje, así que la lectura se queda arriba mientras el cursor lo recorre.

@@ -369,9 +369,9 @@ const MarkdownEditor = ({
         if (!nodo || typeof ResizeObserver === 'undefined') return undefined;
         const ro = new ResizeObserver(([e]) => {
             const w = e.contentRect.width;
-            setCabe(prev => (prev.rail === (w >= 960) && prev.panel === (w >= 740)
+            setCabe(prev => (prev.rail === (w >= 990) && prev.panel === (w >= 760)
                 ? prev
-                : { rail: w >= 960, panel: w >= 740 }));
+                : { rail: w >= 990, panel: w >= 760 }));
         });
         ro.observe(nodo);
         return () => ro.disconnect();
@@ -981,6 +981,86 @@ ${snippet}` : snippet);
 
     // ── Monaco options ────────────────────────────────────────────────────────
 
+    // ── Desplazamiento sincronizado en vista dividida ────────────────────────
+    //
+    // Se alinea por CONTENIDO, no por porcentaje. Cada bloque de la vista previa
+    // lleva la línea del documento de la que sale (`data-line`), así que basta
+    // con buscar los dos bloques que rodean la posición actual e interpolar
+    // entre ellos. Una regla de tres sobre la altura total parece equivalente y
+    // no lo es: un diagrama alto o un bloque de código largo ocupan cosas muy
+    // distintas a cada lado y el texto acaba desfasado.
+    //
+    // El pestillo evita el bucle: mover un lado mueve el otro, que volvería a
+    // mover el primero. Quien empieza el gesto manda hasta que lo suelta.
+    const previewPaneRef = useRef(null);
+    const mandaRef = useRef(null);          // 'editor' | 'preview' | null
+    const soltarRef = useRef(null);
+
+    const tomarMando = useCallback((quien) => {
+        mandaRef.current = quien;
+        clearTimeout(soltarRef.current);
+        soltarRef.current = setTimeout(() => { mandaRef.current = null; }, 120);
+    }, []);
+
+    useEffect(() => () => clearTimeout(soltarRef.current), []);
+
+    useEffect(() => {
+        const editor = editorInstance;
+        const panel = previewPaneRef.current;
+        if (viewMode !== 'split' || !editor || !panel) return undefined;
+
+        // Los anclajes se recalculan en cada gesto: el documento cambia, las
+        // imágenes terminan de cargar y los diagramas se dibujan tarde.
+        const anclajes = () => {
+            const base = panel.getBoundingClientRect().top - panel.scrollTop;
+            return [...panel.querySelectorAll('[data-line]')]
+                .map(el => ({ linea: Number(el.dataset.line), y: el.getBoundingClientRect().top - base }))
+                .filter(a => Number.isFinite(a.linea))
+                .sort((a, b) => a.linea - b.linea);
+        };
+
+        /** Interpola `valor` entre dos listas de puntos paralelas. */
+        const proyectar = (puntos, de, a, valor) => {
+            if (puntos.length === 0) return null;
+            if (puntos.length === 1 || valor <= puntos[0][de]) return puntos[0][a];
+            for (let i = 0; i < puntos.length - 1; i++) {
+                const p = puntos[i], q = puntos[i + 1];
+                if (valor >= p[de] && valor <= q[de]) {
+                    const tramo = q[de] - p[de];
+                    const razon = tramo > 0 ? (valor - p[de]) / tramo : 0;
+                    return p[a] + (q[a] - p[a]) * razon;
+                }
+            }
+            return puntos[puntos.length - 1][a];
+        };
+
+        const puntos = () => anclajes().map(an => ({
+            editor: editor.getTopForLineNumber(an.linea),
+            preview: an.y,
+        })).sort((x, y) => x.editor - y.editor);
+
+        const delEditor = () => {
+            if (mandaRef.current === 'preview') return;
+            tomarMando('editor');
+            const destino = proyectar(puntos(), 'editor', 'preview', editor.getScrollTop());
+            if (destino !== null) panel.scrollTop = Math.max(0, destino);
+        };
+
+        const delPanel = () => {
+            if (mandaRef.current === 'editor') return;
+            tomarMando('preview');
+            const destino = proyectar(puntos(), 'preview', 'editor', panel.scrollTop);
+            if (destino !== null) editor.setScrollTop(Math.max(0, destino));
+        };
+
+        const sub = editor.onDidScrollChange(e => { if (e.scrollTopChanged) delEditor(); });
+        panel.addEventListener('scroll', delPanel, { passive: true });
+        return () => {
+            sub?.dispose?.();
+            panel.removeEventListener('scroll', delPanel);
+        };
+    }, [viewMode, editorInstance, tomarMando]);
+
     // En «escribir» se le quitan a Monaco las tres cosas que delatan que debajo
     // hay un editor de código: los números de línea, el resaltado de la línea
     // activa y las guías de sangría. En «dividido» se quedan, porque ahí sí
@@ -1098,7 +1178,7 @@ ${snippet}` : snippet);
                 )}
 
                 {/* ── Las tres columnas ── */}
-                <div className={`mde-content mde-content--${viewMode}`} ref={containerRef}>
+                <div className={`mde-content mde-content--${viewMode}${widthMode === 'full' ? ' mde-content--ancho' : ''}`} ref={containerRef}>
 
                     {railVisible && (
                         <OutlinePanel
@@ -1151,7 +1231,7 @@ ${snippet}` : snippet);
                     )}
 
                     {(viewMode === 'preview' || viewMode === 'split') && (
-                        <div className="mde-preview-pane" style={previewStyle}>
+                        <div className="mde-preview-pane" style={previewStyle} ref={previewPaneRef}>
                             <MarkdownPreview
                                 content={content}
                                 theme={theme}
