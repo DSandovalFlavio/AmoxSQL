@@ -51,7 +51,7 @@ const setSqlFilePref = (path, pref) => {
     } catch { /* non-fatal */ }
 };
 
-const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar, onBuscarProyecto }, ref) => {
     const toast = useToast();
     const dialog = useDialog();
     // Layout State
@@ -1783,6 +1783,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     style={splitEnabled ? { flex: `0 0 calc((100% - ${SPLITTER_WIDTH}px) * ${splitRatio})` } : { flex: 1 }}
                 >
                     <EditorPane
+                            onBuscarProyecto={onBuscarProyecto}
                         paneId="left"
                         isActive={activePane === 'left'}
                         tabs={leftTabs}
@@ -1841,6 +1842,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
                         <div className="lm-pane-slot" style={{ flex: `0 0 calc((100% - ${SPLITTER_WIDTH}px) * ${1 - splitRatio})` }}>
                             <EditorPane
+                            onBuscarProyecto={onBuscarProyecto}
                                 paneId="right"
                                 isActive={activePane === 'right'}
                                 tabs={rightTabs}

@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de documentos — mockup de la interfaz propuesta</title>
+<style>
+:root{
+  --surface-base:    oklch(0.145 0.012 270);
+  --surface-raised:  oklch(0.175 0.014 270);
+  --surface-overlay: oklch(0.195 0.014 270);
+  --surface-inset:   oklch(0.160 0.013 270);
+  --border-subtle:  rgba(255,255,255,.085);
+  --border-default: rgba(255,255,255,.10);
+  --border-strong:  rgba(255,255,255,.16);
+  --text-primary:   rgba(255,255,255,.92);
+  --text-secondary: rgba(255,255,255,.56);
+  --text-tertiary:  rgba(255,255,255,.36);
+  --text-disabled:  rgba(255,255,255,.20);
+  --accent:         oklch(0.730 0.155 195);
+  --accent-muted:   color-mix(in oklch, var(--accent) 18%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent) 8%, transparent);
+  --hover-bg:  rgba(255,255,255,.06);
+  --active-bg: rgba(255,255,255,.10);
+  --ok:   oklch(0.72 0.19 155);
+  --warn: oklch(0.75 0.16 70);
+  --err:  oklch(0.65 0.22 25);
+  --sans: 'Manrope','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono: 'JetBrains Mono','Cascadia Code',Consolas,monospace;
+  --shadow-lg: 0 8px 30px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-base);color:var(--text-secondary);font-family:var(--sans);font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+a{color:var(--accent);text-decoration:none}
+code{font-family:var(--mono);font-size:.92em;color:var(--text-primary)}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+svg.i.sm{width:12px;height:12px}
+svg.i.xs{width:10px;height:10px}
+svg.i.lg{width:16px;height:16px}
+.sprite{display:none}
+
+.page{display:grid;grid-template-columns:236px minmax(0,1fr);gap:44px;max-width:1460px;margin:0 auto;padding:0 30px 130px}
+.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:34px 0 40px;border-right:1px solid var(--border-subtle)}
+.toc-brand{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--text-primary);letter-spacing:-.01em;font-size:14px;margin-bottom:3px}
+.toc-brand svg{color:var(--accent)}
+.toc-sub{font-size:11px;color:var(--text-tertiary);margin-bottom:20px;padding-left:22px}
+.toc a{display:block;padding:5px 10px 5px 22px;border-radius:6px;color:var(--text-secondary);font-size:12px;border-left:2px solid transparent}
+.toc a:hover{background:var(--hover-bg);color:var(--text-primary)}
+.toc a.on{color:var(--accent);border-left-color:var(--accent);background:var(--accent-subtle)}
+.toc .grp{margin:18px 0 6px;padding-left:22px;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-disabled)}
+main{padding-top:34px;min-width:0}
+
+h1.doc{font-size:31px;line-height:1.15;letter-spacing:-.022em;color:var(--text-primary);margin:0 0 12px;font-weight:750}
+.lede{font-size:14.5px;max-width:78ch;margin:0 0 10px}
+.meta{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-tertiary);font-family:var(--mono);margin-bottom:36px;padding-bottom:20px;border-bottom:1px solid var(--border-subtle)}
+section{margin:0 0 76px;scroll-margin-top:20px}
+h2.s{display:flex;align-items:baseline;gap:12px;font-size:20px;color:var(--text-primary);letter-spacing:-.018em;margin:0 0 10px;font-weight:700}
+h2.s .n{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:500}
+h3.s{font-size:13.5px;color:var(--text-primary);margin:32px 0 10px;font-weight:650}
+p{max-width:84ch;margin:0 0 12px}
+.dim{color:var(--text-tertiary)}
+kbd{font-family:var(--mono);font-size:10px;background:var(--surface-overlay);border:1px solid var(--border-default);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--text-primary);white-space:nowrap}
+ul.clean{margin:0 0 14px;padding-left:18px;max-width:84ch}
+ul.clean li{margin-bottom:6px}
+ul.clean li::marker{color:var(--text-disabled)}
+ul.clean b{color:var(--text-primary);font-weight:600}
+
+.note{display:flex;gap:10px;padding:11px 14px;border-radius:8px;background:var(--accent-subtle);border:1px solid var(--accent-muted);color:var(--text-primary);font-size:12px;margin:0 0 18px;max-width:92ch;line-height:1.5}
+.note svg{color:var(--accent);margin-top:2px;flex:none}
+.note.warn{background:color-mix(in oklch,var(--warn) 8%,transparent);border-color:color-mix(in oklch,var(--warn) 26%,transparent)}
+.note.warn svg{color:var(--warn)}
+
+.frame{border:1px solid var(--border-default);border-radius:12px;overflow:hidden;background:var(--surface-base);box-shadow:var(--shadow-lg);margin:16px 0 10px}
+.frame-cap{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface-overlay);border-bottom:1px solid var(--border-default);font-size:11px;color:var(--text-tertiary);font-family:var(--mono);letter-spacing:.02em}
+.frame-cap b{color:var(--text-secondary);font-weight:500}
+.frame-cap .spacer{flex:1}
+.caption{font-size:11.5px;color:var(--text-tertiary);margin:0 0 24px;max-width:84ch;line-height:1.6}
+.caption b{color:var(--text-secondary);font-weight:600}
+
+.tb{display:flex;align-items:center;gap:5px;padding:7px 10px;background:var(--surface-raised);border-bottom:1px solid var(--border-default);flex-wrap:wrap}
+.tb .spacer{flex:1;min-width:8px}
+.tb .div{width:1px;height:18px;background:var(--border-default);margin:0 3px}
+.grp{display:flex;align-items:center;gap:1px}
+.b{display:inline-flex;align-items:center;gap:5px;height:27px;padding:0 7px;border-radius:6px;color:var(--text-secondary);white-space:nowrap;font-size:12px}
+.b:hover{background:var(--hover-bg);color:var(--text-primary)}
+.b.on{background:var(--active-bg);color:var(--text-primary)}
+.b.accent{background:var(--accent);color:oklch(.16 .02 240);font-weight:650}
+.b.ghost{border:1px solid var(--border-default)}
+.b .cap{font-size:11.5px}
+.b.lit{box-shadow:0 0 0 2px var(--accent);background:var(--accent-subtle);color:var(--text-primary)}
+.sel{display:inline-flex;align-items:center;gap:7px;height:27px;padding:0 8px;border-radius:6px;border:1px solid var(--border-default);background:var(--surface-inset);color:var(--text-primary);font-size:12px;min-width:124px}
+.sel .lbl{flex:1;text-align:left}
+.pill{display:inline-flex;align-items:center;gap:5px;height:21px;padding:0 8px;border-radius:999px;font-size:10px;font-family:var(--mono);letter-spacing:.02em;border:1px solid var(--border-default);color:var(--text-tertiary)}
+.pill.ok{color:var(--ok);border-color:color-mix(in oklch,var(--ok) 34%,transparent);background:color-mix(in oklch,var(--ok) 9%,transparent)}
+.pill.warn{color:var(--warn);border-color:color-mix(in oklch,var(--warn) 34%,transparent);background:color-mix(in oklch,var(--warn) 9%,transparent)}
+.pill.acc{color:var(--accent);border-color:var(--accent-muted);background:var(--accent-subtle)}
+
+.canvas{display:flex;background:var(--surface-base);position:relative}
+.gutter{width:36px;flex:none;padding:14px 0;text-align:right;font-family:var(--mono);font-size:11px;color:var(--text-disabled);line-height:22px;user-select:none;border-right:1px solid var(--border-subtle)}
+.doc{flex:1;min-width:0;padding:14px 20px;font-family:var(--mono);font-size:12.5px;line-height:22px;color:var(--text-secondary);position:relative}
+.doc .ln{white-space:pre-wrap;min-height:22px}
+.doc .h{color:var(--accent);font-weight:600}
+.doc .sy{color:var(--text-disabled)}
+.doc .st{color:var(--text-primary)}
+.caret{display:inline-block;width:1.5px;height:14px;background:var(--accent);vertical-align:-2px;animation:bl 1.1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.hl{background:var(--accent-muted);border-radius:2px;box-shadow:0 0 0 1px var(--accent-muted)}
+.float{position:absolute;z-index:5}
+
+.side{width:236px;flex:none;border-left:1px solid var(--border-subtle);background:var(--surface-raised);padding:11px 0}
+.side.l{border-left:none;border-right:1px solid var(--border-subtle)}
+.side-h{display:flex;align-items:center;gap:7px;padding:0 12px 10px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-tertiary)}
+.side-h .spacer{flex:1}
+.outline-i{display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;color:var(--text-secondary);border-left:2px solid transparent;cursor:pointer}
+.outline-i:hover{background:var(--hover-bg);color:var(--text-primary)}
+.outline-i.on{color:var(--text-primary);border-left-color:var(--accent);background:var(--accent-subtle)}
+.outline-i .gr{color:var(--text-disabled)}
+.outline-i.drag{background:var(--surface-overlay);box-shadow:var(--shadow-lg);border:1px dashed var(--accent-muted);border-radius:6px;margin:0 8px;color:var(--text-primary)}
+.outline-i .badge{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--text-disabled)}
+.dropzone{height:2px;background:var(--accent);margin:2px 12px;border-radius:2px;position:relative}
+.dropzone::before{content:'';position:absolute;left:-3px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+
+.pop{background:var(--surface-overlay);border:1px solid var(--border-default);border-radius:10px;box-shadow:var(--shadow-lg);overflow:hidden}
+.pop-search{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border-subtle);color:var(--text-tertiary);font-size:12px}
+.pop-search .q{color:var(--text-primary);font-family:var(--mono)}
+.pop-grp{padding:9px 12px 4px;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-disabled)}
+.pop-i{display:flex;align-items:center;gap:10px;padding:6px 12px;font-size:12.5px;color:var(--text-secondary)}
+.pop-i:hover{background:var(--hover-bg)}
+.pop-i.on{background:var(--accent-subtle);color:var(--text-primary);box-shadow:inset 2px 0 0 var(--accent)}
+.pop-i .ico{width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:6px;background:var(--surface-inset);border:1px solid var(--border-subtle);color:var(--text-tertiary)}
+.pop-i.on .ico{color:var(--accent);border-color:var(--accent-muted);background:var(--accent-subtle)}
+.pop-i .tx{flex:1;min-width:0}
+.pop-i .tx b{display:block;color:var(--text-primary);font-weight:550;font-size:12.5px;line-height:1.35}
+.pop-i .tx span{font-size:10.5px;color:var(--text-tertiary)}
+.pop-i .k{font-family:var(--mono);font-size:10px;color:var(--text-disabled)}
+.pop-foot{display:flex;align-items:center;gap:14px;padding:7px 12px;border-top:1px solid var(--border-subtle);background:var(--surface-raised);font-size:10.5px;color:var(--text-disabled);flex-wrap:wrap}
+.pop-foot span{display:flex;align-items:center;gap:5px}
+.bubble{display:inline-flex;align-items:center;gap:2px;padding:4px;border-radius:9px;background:var(--surface-overlay);border:1px solid var(--border-strong);box-shadow:var(--shadow-lg)}
+
+.blk{border:1px solid var(--border-default);border-radius:9px;background:var(--surface-inset);overflow:hidden;margin:10px 0;font-family:var(--sans)}
+.blk.lit{border-color:var(--accent-muted);box-shadow:0 0 0 1px var(--accent-muted)}
+.blk-h{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface-raised);border-bottom:1px solid var(--border-subtle);font-size:11px;color:var(--text-tertiary)}
+.blk-h .spacer{flex:1}
+.blk-h .name{color:var(--text-primary);font-weight:550;font-family:var(--mono);font-size:11px}
+.code{padding:10px 12px;font-family:var(--mono);font-size:11.5px;line-height:19px;color:var(--text-secondary);white-space:pre-wrap}
+.kw{color:oklch(.67 .12 250)}.fn{color:oklch(.82 .06 95)}.str{color:oklch(.72 .10 45)}.num{color:oklch(.83 .06 140)}.cm{color:var(--text-disabled)}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:0 6px;border-radius:5px;background:var(--accent-subtle);border:1px solid var(--accent-muted);color:var(--accent);font-family:var(--mono);font-size:11px}
+.chip.tag{background:var(--surface-overlay);border-color:var(--border-default);color:var(--text-secondary)}
+
+/* casillas */
+.task{display:flex;align-items:flex-start;gap:9px;padding:3px 0;font-size:13px;color:var(--text-secondary);font-family:var(--sans)}
+.box{width:15px;height:15px;flex:none;border-radius:4px;border:1.5px solid var(--border-strong);margin-top:2px;display:grid;place-items:center;color:transparent}
+.task.done .box{background:var(--accent);border-color:var(--accent);color:oklch(.16 .02 240)}
+.task.done{color:var(--text-tertiary);text-decoration:line-through;text-decoration-color:var(--text-disabled)}
+.task .who{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-disabled);white-space:nowrap}
+.prog{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--text-tertiary)}
+.prog .rail{width:54px;height:4px;border-radius:2px;background:var(--border-default);overflow:hidden}
+.prog .fill{height:100%;background:var(--accent)}
+
+/* pasos */
+.step{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--border-subtle)}
+.step:last-child{border-bottom:none}
+.step .no{width:21px;height:21px;flex:none;border-radius:50%;border:1px solid var(--border-strong);display:grid;place-items:center;font-family:var(--mono);font-size:10.5px;color:var(--text-tertiary)}
+.step.done .no{background:var(--accent);border-color:var(--accent);color:oklch(.16 .02 240)}
+.step .body{flex:1;min-width:0}
+.step .body b{display:block;color:var(--text-primary);font-size:12.5px;font-weight:600;margin-bottom:5px}
+.cmd{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:6px;background:var(--surface-base);border:1px solid var(--border-subtle);font-family:var(--mono);font-size:11px;color:var(--text-secondary)}
+.cmd .spacer{flex:1}
+
+/* diagrama */
+.mbox{display:flex;align-items:center;justify-content:center;gap:10px;padding:22px 14px;background:var(--surface-base);flex-wrap:wrap}
+.mnode{padding:7px 12px;border-radius:7px;border:1px solid var(--border-strong);background:var(--surface-raised);color:var(--text-primary);font-size:11.5px;white-space:nowrap}
+.mnode.acc{border-color:var(--accent-muted);background:var(--accent-subtle);color:var(--accent)}
+.mnode.warnn{border-color:color-mix(in oklch,var(--warn) 34%,transparent);background:color-mix(in oklch,var(--warn) 9%,transparent);color:var(--warn)}
+.marrow{color:var(--text-disabled)}
+
+/* front-matter */
+.fm{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface-raised);border-bottom:1px solid var(--border-default);flex-wrap:wrap;font-size:11.5px}
+.fm .k{color:var(--text-disabled);font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+
+table.g{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 20px;border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden}
+table.g th{text-align:left;padding:8px 12px;background:var(--surface-raised);color:var(--text-tertiary);font-weight:500;font-size:10px;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border-default)}
+table.g td{padding:9px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top;line-height:1.5}
+table.g tr:last-child td{border-bottom:none}
+table.g tbody tr:hover{background:var(--hover-bg)}
+table.g td.q{color:var(--text-primary);width:38%}
+table.g td.k{white-space:nowrap;width:1%}
+.scroll{overflow-x:auto}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:14px 0 22px}
+.card{padding:14px 15px;border-radius:10px;background:var(--surface-raised);border:1px solid var(--border-subtle)}
+.card h4{margin:0 0 6px;font-size:12.5px;color:var(--text-primary);display:flex;align-items:center;gap:7px;font-weight:600}
+.card h4 svg{color:var(--accent)}
+.card p{margin:0;font-size:11.5px;color:var(--text-secondary);max-width:none;line-height:1.55}
+.card .tagn{font-family:var(--mono);font-size:9.5px;color:var(--text-disabled);display:block;margin-top:9px}
+
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0 8px}
+.ba h4{margin:0 0 8px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);display:flex;align-items:center;gap:8px}
+.ba h4 .tag{font-family:var(--mono);font-size:9.5px;padding:1px 6px;border-radius:4px;border:1px solid var(--border-default);letter-spacing:0;text-transform:none;color:var(--text-tertiary)}
+.ba .next h4 .tag{color:var(--accent);border-color:var(--accent-muted);background:var(--accent-subtle)}
+@media(max-width:1180px){.ba{grid-template-columns:1fr}.page{grid-template-columns:1fr;gap:0;padding:0 18px 90px}.toc{display:none}}
+
+.tpl{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:10px;padding:16px}
+.tpl-c{padding:13px;border-radius:9px;border:1px solid var(--border-subtle);background:var(--surface-raised);cursor:pointer}
+.tpl-c:hover{border-color:var(--accent-muted);background:var(--accent-subtle)}
+.tpl-c.on{border-color:var(--accent);background:var(--accent-subtle)}
+.tpl-c .ic{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;background:var(--surface-inset);border:1px solid var(--border-subtle);color:var(--accent);margin-bottom:9px}
+.tpl-c b{display:block;color:var(--text-primary);font-size:12.5px;font-weight:600;margin-bottom:3px}
+.tpl-c span{font-size:11px;color:var(--text-tertiary);line-height:1.45;display:block}
+
+.sb{display:flex;align-items:center;gap:16px;padding:5px 12px;background:var(--surface-raised);border-top:1px solid var(--border-default);font-size:10.5px;color:var(--text-tertiary);font-family:var(--mono);flex-wrap:wrap}
+.sb .spacer{flex:1}
+.sb i{font-style:normal;display:inline-flex;align-items:center;gap:5px}
+
+.pv{padding:22px 28px;background:var(--surface-base);font-family:var(--sans)}
+.pv h1{font-size:23px;color:var(--text-primary);margin:0 0 4px;letter-spacing:-.02em;font-weight:700}
+.pv h2{font-size:15.5px;color:var(--text-primary);margin:20px 0 8px;font-weight:650;padding-bottom:6px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px}
+.pv p{font-size:13px;color:var(--text-secondary);margin:0 0 11px;max-width:72ch;line-height:1.7}
+.pv .callout{display:flex;gap:10px;padding:11px 13px;border-radius:8px;border:1px solid color-mix(in oklch,var(--err) 28%,transparent);background:color-mix(in oklch,var(--err) 7%,transparent);margin:0 0 14px;max-width:72ch}
+.pv .callout svg{color:var(--err);margin-top:2px}
+.pv .callout b{display:block;color:var(--err);font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px}
+.pv .callout p{margin:0;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-bold" viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 0 1 0 8H6z"/><path d="M6 12h9a4 4 0 0 1 0 8H6z"/></symbol>
+<symbol id="i-italic" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4 9 20"/></symbol>
+<symbol id="i-strike" viewBox="0 0 24 24"><path d="M16 4H9a3 3 0 0 0-2.83 4M14 12a4 4 0 0 1 0 8H6M4 12h16"/></symbol>
+<symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+<symbol id="i-quote" viewBox="0 0 24 24"><path d="M17 6H3M21 12H8M21 18H8M3 12v6"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+<symbol id="i-listo" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></symbol>
+<symbol id="i-todo" viewBox="0 0 24 24"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4M13 6h8M13 12h8M13 18h8"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+<symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
+<symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7M7 3v4a1 1 0 0 0 1 1h7"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4M8 16h.01M16 16h.01"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-split" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+<symbol id="i-tree" viewBox="0 0 24 24"><path d="M21 12h-8M21 6h-8M21 18h-8M3 4v13a2 2 0 0 0 2 2h3M8 12H5"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></symbol>
+<symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/></symbol>
+<symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.6-4.6a2 2 0 0 0-2.8 0L3 21"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="8" r="3"/><path d="M18 11a6 6 0 0 1-6 6H6M6 9v6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></symbol>
+<symbol id="i-enter" viewBox="0 0 24 24"><path d="M9 10 4 15l5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></symbol>
+<symbol id="i-braces" viewBox="0 0 24 24"><path d="M7 3H6a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1M17 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1"/></symbol>
+<symbol id="i-sql" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M10 12l-2 2 2 2M14 12l2 2-2 2"/></symbol>
+<symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></symbol>
+<symbol id="i-slash" viewBox="0 0 24 24"><path d="M15 3 9 21"/><rect x="3" y="3" width="18" height="18" rx="3"/></symbol>
+<symbol id="i-net" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M5 16v-2h14v2"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+<symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></symbol>
+<symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+<symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6M12 19h8"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.4 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.4-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.8 1.1z"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+</defs></svg>
+
+<div class="page">
+
+<nav class="toc">
+  <div class="toc-brand"><svg class="i lg"><use href="#i-file"/></svg> Editor de documentos</div>
+  <div class="toc-sub">Mockup de interfaz · v2</div>
+  <div class="grp">Contexto</div>
+  <a href="#premisa">Premisa y reparto</a>
+  <a href="#usos">Para qué se usa</a>
+  <div class="grp">La interfaz</div>
+  <a href="#barra">1 · Barra de herramientas</a>
+  <a href="#slash">2 · Menú de inserción /</a>
+  <a href="#burbuja">3 · Formato contextual</a>
+  <a href="#tareas">4 · Tareas y casillas</a>
+  <a href="#pasos">5 · Procedimientos</a>
+  <a href="#diagramas">6 · Diagramas de flujo</a>
+  <a href="#enlaces">7 · Enlaces al proyecto</a>
+  <a href="#cabecera">8 · Cabecera y vigencia</a>
+  <a href="#estructura">9 · Estructura y estado</a>
+  <a href="#plantillas">10 · Plantillas</a>
+  <a href="#render">11 · El runbook terminado</a>
+  <div class="grp">Cierre</div>
+  <a href="#atajos">Atajos de teclado</a>
+</nav>
+
+<main>
+
+<h1 class="doc">Editor de documentos</h1>
+<p class="lede">Rediseño del editor de archivos <code>.md</code> de AmoxSQL para su uso real: <b style="color:var(--text-primary)">documentación de procesos, flujos y notas escrita por ingenieros de datos</b>. No es un editor de informes analíticos — eso son los notebooks. Es la capa de conocimiento operativo del proyecto, y su única métrica es cuántas pulsaciones cuesta dejar algo escrito.</p>
+<div class="meta">
+  <span>docs/dev/mockup_editor_markdown.html</span>
+  <span>auditoría: auditoria_editor_documentos.md</span>
+  <span>plan: plan_editor_documentos.md</span>
+  <span>v2 · 2026-09-12</span>
+</div>
+
+<!-- ══════════════════ PREMISA ══════════════════ -->
+<section id="premisa">
+  <h2 class="s"><span class="n">00</span> Premisa: el `.md` no ejecuta nada</h2>
+  <p>La primera versión de este mockup trataba el documento markdown como un informe analítico: consultas ejecutables, gráficos incrustados, frescura de datos. <b style="color:var(--text-primary)">Eso invadía el terreno de los notebooks</b>, que ya lo hacen mejor y con todo el aparato alrededor (entorno, caché de resultados, historial).</p>
+
+  <table class="g">
+    <thead><tr><th>Formato</th><th>Trabajo</th><th class="k">Ejecuta</th></tr></thead>
+    <tbody>
+      <tr><td class="q"><code>.sqlnb</code> Notebook</td><td>Analizar: celdas SQL, resultados, gráficos</td><td class="k">sí</td></tr>
+      <tr><td class="q"><code>.amoxvis</code> Story Flow</td><td>Un gráfico con su narrativa</td><td class="k">sí</td></tr>
+      <tr><td class="q"><code>.amoxdeck</code> Report Flow</td><td>Presentar el análisis</td><td class="k">sí</td></tr>
+      <tr><td class="q"><code>.sqlchain</code> Data Flow</td><td>Construir y correr un pipeline: DAG, logs, linaje</td><td class="k">sí</td></tr>
+      <tr><td class="q"><code>.md</code> <b>Documento</b></td><td><b style="color:var(--text-primary)">Lo que hay que saber, no lo que hay que correr</b></td><td class="k" style="color:var(--accent)">no</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <svg class="i"><use href="#i-info"/></svg>
+    <div>Si el documento necesita ejecutar algo para tener sentido, es un notebook o una chain. Si su valor está en lo que dice y en a qué apunta, es un <code>.md</code>. <b>El documento no ejecuta: enlaza a lo que sí ejecuta.</b></div>
+  </div>
+
+  <h3 class="s">Lo que esto elimina del diseño anterior</h3>
+  <p>Bloques SQL ejecutables, gráficos incrustados, diccionarios generados desde el perfilado, fichas de métrica, «refrescar todo», «congelar», indicadores de frescura, el sidecar de estado, el grupo «Datos» de la barra y las variables <code>{{ }}</code>. <b style="color:var(--text-primary)">La interfaz resultante es más pequeña que la actual, no más grande.</b></p>
+</section>
+
+<!-- ══════════════════ USOS ══════════════════ -->
+<section id="usos">
+  <h2 class="s"><span class="n">01</span> Para qué se usa de verdad</h2>
+  <p>Cuatro familias, y tres de ellas son texto estructurado <b style="color:var(--text-primary)">con estado</b>: pasos, casillas, responsables, fechas.</p>
+
+  <div class="cards">
+    <div class="card">
+      <h4><svg class="i"><use href="#i-terminal"/></svg> Procedimientos</h4>
+      <p>Runbook de la carga que falla a las 3:00. Checklist de despliegue. Puesta a punto del entorno para quien entra nuevo.</p>
+      <span class="tagn">pasos · comandos · verificaciones</span>
+    </div>
+    <div class="card">
+      <h4><svg class="i"><use href="#i-net"/></svg> Descripción de flujos</h4>
+      <p>Qué hace <code>carga_diaria.sqlchain</code>, cuándo corre, de qué depende, qué se rompe aguas abajo. Contrato de una tabla: dueño, frescura esperada, consumidores.</p>
+      <span class="tagn">diagramas · enlaces · acuerdos</span>
+    </div>
+    <div class="card">
+      <h4><svg class="i"><use href="#i-book"/></svg> Memoria</h4>
+      <p>Por qué este particionado y qué se descartó. Postmortem con cronología y acciones. Convenciones de nomenclatura del proyecto.</p>
+      <span class="tagn">decisiones · incidencias · normas</span>
+    </div>
+    <div class="card">
+      <h4><svg class="i"><use href="#i-todo"/></svg> Notas y pendientes</h4>
+      <p>El pendiente de la migración. Lo que se apunta a media tarea y no puede esperar a tener forma.</p>
+      <span class="tagn">casillas · captura rápida</span>
+    </div>
+  </div>
+
+  <p class="caption">Las 20 preguntas que sostienen cada decisión de este mockup están en <a href="auditoria_editor_documentos.md">la auditoría</a>, §3.</p>
+</section>
+
+<!-- ══════════════════ 1 · BARRA ══════════════════ -->
+<section id="barra">
+  <h2 class="s"><span class="n">1</span> Barra de herramientas: tres grupos</h2>
+  <p>Hoy son dieciocho botones del mismo peso visual, sin etiquetas. La propuesta los reduce a tres grupos y una puerta única a todo lo demás.</p>
+
+  <div class="ba">
+    <div class="now">
+      <h4>Hoy <span class="tag">18 botones planos</span></h4>
+      <div class="frame" style="margin-top:0">
+        <div class="tb" style="gap:3px">
+          <button class="b"><svg class="i sm"><use href="#i-type"/></svg><span class="cap">H</span><svg class="i xs"><use href="#i-chev"/></svg></button>
+          <span class="div"></span>
+          <button class="b"><svg class="i sm"><use href="#i-bold"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-italic"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-strike"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-code"/></svg></button>
+          <span class="div"></span>
+          <button class="b"><svg class="i sm"><use href="#i-quote"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-sql"/></svg></button>
+          <span class="div"></span>
+          <button class="b"><svg class="i sm"><use href="#i-list"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-listo"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-todo"/></svg></button>
+          <span class="div"></span>
+          <button class="b"><svg class="i sm"><use href="#i-link"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-table"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-minus"/></svg></button>
+          <span class="spacer"></span>
+          <button class="b"><svg class="i sm"><use href="#i-tree"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-download"/></svg></button>
+          <button class="b on"><svg class="i sm"><use href="#i-pencil"/></svg></button>
+          <button class="b"><svg class="i sm"><use href="#i-eye"/></svg></button>
+        </div>
+        <div style="padding:16px 18px;font-family:var(--mono);font-size:12px;color:var(--text-tertiary);line-height:22px">
+          <span class="h"># Nuevo documento</span><br><br>Escribe tus notas aquí…<span class="caret"></span>
+        </div>
+      </div>
+      <p class="caption">Callouts, diagramas y casillas con responsable no tienen botón: hay que recordar la sintaxis.</p>
+    </div>
+
+    <div class="next">
+      <h4>Propuesta <span class="tag">bloque · formato · insertar</span></h4>
+      <div class="frame" style="margin-top:0">
+        <div class="tb">
+          <button class="sel"><svg class="i sm"><use href="#i-type"/></svg><span class="lbl">Título 2</span><svg class="i xs"><use href="#i-chev"/></svg></button>
+          <span class="div"></span>
+          <div class="grp">
+            <button class="b on"><svg class="i sm"><use href="#i-bold"/></svg></button>
+            <button class="b"><svg class="i sm"><use href="#i-italic"/></svg></button>
+            <button class="b"><svg class="i sm"><use href="#i-code"/></svg></button>
+            <button class="b"><svg class="i sm"><use href="#i-link"/></svg></button>
+          </div>
+          <span class="div"></span>
+          <div class="grp">
+            <button class="b"><svg class="i sm"><use href="#i-todo"/></svg></button>
+            <button class="b"><svg class="i sm"><use href="#i-table"/></svg></button>
+            <button class="b lit"><svg class="i sm"><use href="#i-plus"/></svg><span class="cap">Insertar</span></button>
+          </div>
+          <span class="spacer"></span>
+          <div class="grp">
+            <button class="b on"><svg class="i sm"><use href="#i-tree"/></svg></button>
+            <button class="b"><svg class="i sm"><use href="#i-pencil"/></svg></button>
+            <button class="b on"><svg class="i sm"><use href="#i-split"/></svg></button>
+            <button class="b"><svg class="i sm"><use href="#i-eye"/></svg></button>
+          </div>
+          <span class="div"></span>
+          <button class="b ghost"><svg class="i sm"><use href="#i-save"/></svg><span class="cap">Guardar</span></button>
+          <button class="b accent"><svg class="i sm"><use href="#i-bot"/></svg><span class="cap">Assist</span></button>
+        </div>
+        <div style="padding:16px 18px;font-family:var(--mono);font-size:12px;color:var(--text-tertiary);line-height:22px">
+          <span class="h">## Recuperar la carga diaria</span><br><br>Si falla el nodo de ingesta en <span class="chip"><svg class="i xs"><use href="#i-net"/></svg>carga_diaria</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="caption"><b>Bloque</b> (qué es esta línea) · <b>Formato</b> (los cuatro de siempre) · <b>Insertar</b> (casilla, tabla y la puerta a todo lo demás). A la derecha: estructura, vista, guardar y el Assist que ya existe.</p>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <svg class="i"><use href="#i-alert"/></svg>
+    <div><b>Sin grupo «Datos».</b> No hay nada que ejecutar, refrescar ni congelar. El botón <b>Assist</b> se queda tal cual está hoy: el asistente ya puede editar el markdown, y con eso basta.</div>
+  </div>
+</section>
+
+<!-- ══════════════════ 2 · SLASH ══════════════════ -->
+<section id="slash">
+  <h2 class="s"><span class="n">2</span> Menú de inserción con <kbd>/</kbd></h2>
+  <p>El corazón de la velocidad. <kbd>/</kbd> en línea vacía, se filtra escribiendo, <kbd>Enter</kbd> inserta. Mismo gesto que el <code>@</code> que ya existe en el editor.</p>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-slash"/></svg><b>runbook_carga_diaria.md</b><span class="spacer"></span>filtrando por «pas»</div>
+    <div class="tb">
+      <button class="sel"><svg class="i sm"><use href="#i-type"/></svg><span class="lbl">Párrafo</span><svg class="i xs"><use href="#i-chev"/></svg></button>
+      <span class="div"></span>
+      <div class="grp">
+        <button class="b"><svg class="i sm"><use href="#i-bold"/></svg></button>
+        <button class="b"><svg class="i sm"><use href="#i-italic"/></svg></button>
+        <button class="b"><svg class="i sm"><use href="#i-code"/></svg></button>
+        <button class="b"><svg class="i sm"><use href="#i-link"/></svg></button>
+      </div>
+      <span class="div"></span>
+      <div class="grp">
+        <button class="b"><svg class="i sm"><use href="#i-todo"/></svg></button>
+        <button class="b"><svg class="i sm"><use href="#i-table"/></svg></button>
+        <button class="b"><svg class="i sm"><use href="#i-plus"/></svg><span class="cap">Insertar</span></button>
+      </div>
+      <span class="spacer"></span>
+      <div class="grp">
+        <button class="b"><svg class="i sm"><use href="#i-tree"/></svg></button>
+        <button class="b on"><svg class="i sm"><use href="#i-pencil"/></svg></button>
+      </div>
+      <button class="b ghost"><svg class="i sm"><use href="#i-save"/></svg><span class="cap">Guardar</span></button>
+    </div>
+    <div class="canvas" style="min-height:420px">
+      <div class="gutter">22<br>23<br>24<br>25<br>26</div>
+      <div class="doc">
+        <div class="ln"><span class="h">## Recuperación manual</span></div>
+        <div class="ln"></div>
+        <div class="ln">Solo si el reintento automático falló dos veces.</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="st">/pas</span><span class="caret"></span></div>
+        <div class="float pop" style="left:20px;top:120px;width:398px">
+          <div class="pop-search"><svg class="i sm"><use href="#i-search"/></svg><span>Insertar</span><span class="q">/pas</span><span style="margin-left:auto;font-size:10px;color:var(--text-disabled)">3 de 21</span></div>
+          <div class="pop-grp">Coincidencias</div>
+          <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-listo"/></svg></span><span class="tx"><b>Pasos de procedimiento</b><span>numerados, con comando y casilla</span></span><span class="k">Ctrl+Shift+P</span></div>
+          <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-terminal"/></svg></span><span class="tx"><b>Comando</b><span>bloque de shell con botón de copiar</span></span></div>
+          <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-shield"/></svg></span><span class="tx"><b>Paso de verificación</b><span>cómo confirmar que quedó bien</span></span></div>
+          <div class="pop-foot">
+            <span><svg class="i xs"><use href="#i-chev"/></svg> navegar</span>
+            <span><svg class="i xs"><use href="#i-enter"/></svg> insertar</span>
+            <span>Esc cerrar</span>
+            <span style="margin-left:auto"><svg class="i xs"><use href="#i-link"/></svg> @ para enlazar al proyecto</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="s">El catálogo: 21 elementos, tres familias</h3>
+
+  <div class="frame" style="max-width:880px">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-layers"/></svg><b>Catálogo de inserción</b><span class="spacer"></span>misma lista para <kbd>/</kbd> y para el botón Insertar</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface-base)">
+      <div style="border-right:1px solid var(--border-subtle);padding:4px 0 10px">
+        <div class="pop-grp">Texto</div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-hash"/></svg></span><span class="tx"><b>Título 1–6</b></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-list"/></svg></span><span class="tx"><b>Lista</b></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-listo"/></svg></span><span class="tx"><b>Lista numerada</b></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-todo"/></svg></span><span class="tx"><b>Tarea</b><span>con responsable y fecha</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-quote"/></svg></span><span class="tx"><b>Cita</b></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-table"/></svg></span><span class="tx"><b>Tabla</b></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-minus"/></svg></span><span class="tx"><b>Separador</b></span></div>
+      </div>
+      <div style="border-right:1px solid var(--border-subtle);padding:4px 0 10px">
+        <div class="pop-grp">Procedimiento</div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-listo"/></svg></span><span class="tx"><b>Pasos</b><span>numerados con casilla</span></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-terminal"/></svg></span><span class="tx"><b>Comando</b><span>copiable</span></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-shield"/></svg></span><span class="tx"><b>Verificación</b></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-bulb"/></svg></span><span class="tx"><b>Callout</b><span>5 niveles de aviso</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-code"/></svg></span><span class="tx"><b>Código</b><span>con lenguaje</span></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-net"/></svg></span><span class="tx"><b>Diagrama</b><span>4 plantillas</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-image"/></svg></span><span class="tx"><b>Imagen</b></span></div>
+      </div>
+      <div style="padding:4px 0 10px">
+        <div class="pop-grp">Documento y proyecto</div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-net"/></svg></span><span class="tx"><b>Diagrama desde una chain</b><span>lee el DAG de un .sqlchain</span></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-file"/></svg></span><span class="tx"><b>Enlace a artefacto</b><span>.sqlchain · .sqlnb · .sql · .md</span></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-db"/></svg></span><span class="tx"><b>Mención de tabla</b><span>del esquema real</span></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-user"/></svg></span><span class="tx"><b>Cabecera del documento</b><span>dueño, estado, revisión</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-tree"/></svg></span><span class="tx"><b>Índice</b></span></div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-clock"/></svg></span><span class="tx"><b>Entrada con fecha</b><span>para cronologías y notas</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-book"/></svg></span><span class="tx"><b>Sección de plantilla</b></span></div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">Resaltadas, las entradas que hoy no existen en ningún sitio. Ninguna ejecuta nada: todas son texto, estado o un enlace a algo que vive en otro formato.</p>
+</section>
+
+<!-- ══════════════════ 3 · BURBUJA ══════════════════ -->
+<section id="burbuja">
+  <h2 class="s"><span class="n">3</span> Formato contextual</h2>
+  <p>Al seleccionar, una burbuja con el formato en línea. Dentro de una tabla o un bloque de código, la barra del bloque. Nada más: <b style="color:var(--text-primary)">sin acciones de asistente</b> — para eso está el panel lateral que ya existe.</p>
+
+  <div class="ba">
+    <div class="next">
+      <h4>Selección <span class="tag">solo formato</span></h4>
+      <div class="frame" style="margin-top:0">
+        <div class="canvas" style="min-height:200px">
+          <div class="doc">
+            <div class="ln"><span class="h">### Causa raíz</span></div>
+            <div class="ln"></div>
+            <div class="ln">El conector se quedó con la <span class="hl">marca de agua del día</span></div>
+            <div class="ln">anterior tras el reinicio del servicio.</div>
+            <div class="float" style="left:18px;top:44px">
+              <div class="bubble">
+                <button class="b"><svg class="i sm"><use href="#i-bold"/></svg></button>
+                <button class="b"><svg class="i sm"><use href="#i-italic"/></svg></button>
+                <button class="b"><svg class="i sm"><use href="#i-strike"/></svg></button>
+                <button class="b"><svg class="i sm"><use href="#i-code"/></svg></button>
+                <span class="div"></span>
+                <button class="b"><svg class="i sm"><use href="#i-link"/></svg></button>
+                <button class="b"><svg class="i sm"><use href="#i-quote"/></svg></button>
+                <button class="b"><svg class="i sm"><use href="#i-todo"/></svg></button>
+                <button class="b"><svg class="i sm"><use href="#i-type"/></svg><svg class="i xs"><use href="#i-chev"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">El último botón convierte la selección en tarea — el gesto de «esto hay que hacerlo» mientras se escribe el postmortem.</p>
+    </div>
+
+    <div class="next">
+      <h4>Dentro de una tabla <span class="tag">barra del bloque</span></h4>
+      <div class="frame" style="margin-top:0">
+        <div style="padding:14px;background:var(--surface-base);min-height:200px">
+          <div class="bubble" style="margin-bottom:8px">
+            <button class="b"><svg class="i sm"><use href="#i-plus"/></svg><span class="cap">Fila</span></button>
+            <button class="b"><svg class="i sm"><use href="#i-plus"/></svg><span class="cap">Columna</span></button>
+            <span class="div"></span>
+            <button class="b on"><span class="cap">Izq</span></button>
+            <button class="b"><span class="cap">Centro</span></button>
+            <span class="div"></span>
+            <button class="b lit"><svg class="i sm"><use href="#i-refresh"/></svg><span class="cap">Formatear</span></button>
+          </div>
+          <div style="font-family:var(--mono);font-size:11.5px;line-height:20px;color:var(--text-secondary)">
+            <span class="sy">| </span>Tabla<span class="sy">        | </span>Dueño<span class="sy">   | </span>Frescura<span class="sy"> |</span><br>
+            <span class="sy">|--------------|---------|----------|</span><br>
+            <span class="sy">| </span>raw.eventos<span class="sy">  | </span>datos<span class="sy">   | </span>15 min<span class="sy">   |</span><span class="caret"></span><br>
+            <span class="sy">| </span>dim.clientes<span class="sy"> | </span>negocio<span class="sy"> | </span>diaria<span class="sy">   |</span>
+          </div>
+        </div>
+      </div>
+      <p class="caption"><b>Formatear</b> realinea los guiones de toda la tabla. Es el gesto que más fricción quita en documentos de contratos y convenciones.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 4 · TAREAS ══════════════════ -->
+<section id="tareas">
+  <h2 class="s"><span class="n">4</span> Tareas y casillas</h2>
+  <p>La interacción más usada de estos documentos, y hoy inexistente: las casillas se renderizan pero no se pueden marcar. <b style="color:var(--text-primary)">Marcar una casilla en la vista previa escribe en el archivo</b>, y el proyecto entero sabe sumarlas.</p>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-todo"/></svg><b>migracion_duckdb.md</b> · vista previa<span class="spacer"></span>las casillas son interactivas</div>
+    <div class="canvas" style="min-height:380px">
+      <div style="flex:1;padding:18px 22px;font-family:var(--sans)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <h3 style="margin:0;font-size:15px;color:var(--text-primary);font-weight:650">Preparación</h3>
+          <span class="prog"><span class="rail"><span class="fill" style="width:75%"></span></span> 3/4</span>
+        </div>
+        <div class="task done"><span class="box"><svg class="i xs"><use href="#i-check"/></svg></span> Inventario de tablas afectadas <span class="who">@flavio · 02-09</span></div>
+        <div class="task done"><span class="box"><svg class="i xs"><use href="#i-check"/></svg></span> Copia de seguridad verificada <span class="who">@flavio</span></div>
+        <div class="task done"><span class="box"><svg class="i xs"><use href="#i-check"/></svg></span> Ventana de mantenimiento acordada</div>
+        <div class="task"><span class="box"></span> Avisar a los consumidores aguas abajo <span class="who">vence 14-09</span></div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin:22px 0 14px">
+          <h3 style="margin:0;font-size:15px;color:var(--text-primary);font-weight:650">Ejecución</h3>
+          <span class="prog"><span class="rail"><span class="fill" style="width:0%"></span></span> 0/3</span>
+        </div>
+        <div class="task"><span class="box"></span> Pausar <span class="chip"><svg class="i xs"><use href="#i-net"/></svg>carga_diaria</span></div>
+        <div class="task"><span class="box"></span> Migrar el esquema y validar conteos</div>
+        <div class="task"><span class="box"></span> Reanudar y vigilar dos ciclos completos</div>
+      </div>
+
+      <div class="side" style="width:272px">
+        <div class="side-h"><svg class="i sm"><use href="#i-inbox"/></svg> Pendientes del proyecto<span class="spacer"></span><span class="pill">11</span></div>
+        <div style="padding:0 12px 10px">
+          <div style="display:flex;gap:5px;margin-bottom:10px">
+            <button class="b ghost" style="flex:1;justify-content:center;height:24px"><span class="cap">Todas</span></button>
+            <button class="b" style="flex:1;justify-content:center;height:24px"><span class="cap">Mías</span></button>
+            <button class="b" style="flex:1;justify-content:center;height:24px"><span class="cap">Vencidas</span></button>
+          </div>
+        </div>
+        <div class="side-h" style="padding-bottom:5px"><svg class="i xs"><use href="#i-file"/></svg> migracion_duckdb.md<span class="spacer"></span><span style="font-family:var(--mono);font-size:9.5px">4</span></div>
+        <div class="outline-i" style="padding-left:22px">Avisar a consumidores<span class="badge" style="color:var(--warn)">14-09</span></div>
+        <div class="outline-i" style="padding-left:22px">Pausar carga_diaria</div>
+        <div class="outline-i" style="padding-left:22px">Migrar el esquema</div>
+        <div class="side-h" style="padding-bottom:5px;margin-top:10px"><svg class="i xs"><use href="#i-file"/></svg> incidencia_2026-08-30.md<span class="spacer"></span><span style="font-family:var(--mono);font-size:9.5px">3</span></div>
+        <div class="outline-i" style="padding-left:22px">Alerta de marca de agua<span class="badge" style="color:var(--err)">vencida</span></div>
+        <div class="outline-i" style="padding-left:22px">Reintento con tope</div>
+        <div class="side-h" style="padding-bottom:5px;margin-top:10px"><svg class="i xs"><use href="#i-file"/></svg> notas.md<span class="spacer"></span><span style="font-family:var(--mono);font-size:9.5px">4</span></div>
+        <div class="outline-i" style="padding-left:22px">Revisar particionado de eventos</div>
+      </div>
+    </div>
+    <div class="sb">
+      <i><svg class="i xs"><use href="#i-todo"/></svg> 3 de 7 hechas en este documento</i>
+      <span class="spacer"></span>
+      <i><svg class="i xs"><use href="#i-plus"/></svg> Captura rápida <kbd style="font-size:9px">Ctrl+Shift+N</kbd></i>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><h4><svg class="i"><use href="#i-check"/></svg> Marcar escribe en el archivo</h4><p>La casilla del preview cambia el <code>- [ ]</code> por <code>- [x]</code> en la línea exacta. Sin estado paralelo, sin sidecar: el markdown es la verdad.</p><span class="tagn">interacción principal</span></div>
+    <div class="card"><h4><svg class="i"><use href="#i-inbox"/></svg> Panel de pendientes</h4><p>Agrega los <code>- [ ]</code> de todos los <code>.md</code> del proyecto, agrupados por documento, filtrables por responsable o vencimiento.</p><span class="tagn">nuevo panel</span></div>
+    <div class="card"><h4><svg class="i"><use href="#i-user"/></svg> Responsable y fecha</h4><p>Convención de texto plano: <code>@nombre</code> y <code>vence YYYY-MM-DD</code> al final de la línea. Se resaltan y se filtran, pero siguen siendo markdown legible.</p><span class="tagn">sin formato propietario</span></div>
+    <div class="card"><h4><svg class="i"><use href="#i-plus"/></svg> Captura rápida</h4><p>Una tarea nueva al documento de notas sin cambiar de pestaña, con la fecha puesta. Para lo que se ocurre a media faena.</p><span class="tagn">Ctrl+Shift+N</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ 5 · PASOS ══════════════════ -->
+<section id="pasos">
+  <h2 class="s"><span class="n">5</span> Procedimientos</h2>
+  <p>Un runbook se lee a las tres de la mañana con la carga caída. Necesita tres cosas: orden, comandos que se copien de un clic y saber por dónde ibas.</p>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-terminal"/></svg><b>Bloque de pasos</b> · vista previa<span class="spacer"></span>numeración automática · progreso persistente</div>
+    <div style="padding:16px 20px;background:var(--surface-base)">
+      <div class="step done">
+        <span class="no"><svg class="i xs"><use href="#i-check"/></svg></span>
+        <div class="body">
+          <b>Confirmar que el reintento automático agotó los intentos</b>
+          <div class="cmd"><svg class="i xs"><use href="#i-terminal"/></svg> tail -n 50 logs/carga_diaria.log<span class="spacer"></span><button class="b" style="height:20px"><svg class="i xs"><use href="#i-copy"/></svg></button></div>
+        </div>
+      </div>
+      <div class="step done">
+        <span class="no"><svg class="i xs"><use href="#i-check"/></svg></span>
+        <div class="body">
+          <b>Pausar la chain para que no se solape con la recuperación</b>
+          <div style="font-size:12px;color:var(--text-secondary)">Abrir <span class="chip"><svg class="i xs"><use href="#i-net"/></svg>carga_diaria.sqlchain</span> y pulsar Pausar en la barra inferior.</div>
+        </div>
+      </div>
+      <div class="step">
+        <span class="no">3</span>
+        <div class="body">
+          <b>Reponer la marca de agua al último corte bueno</b>
+          <div style="display:flex;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid color-mix(in oklch,var(--err) 28%,transparent);background:color-mix(in oklch,var(--err) 7%,transparent);margin-bottom:8px;max-width:64ch">
+            <svg class="i" style="color:var(--err);margin-top:2px"><use href="#i-alert"/></svg>
+            <div><b style="display:block;color:var(--err);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px">Atención</b><span style="font-size:12.5px;color:var(--text-primary)">Esto reprocesa el día completo. Confirmar primero que no hay consumidores leyendo.</span></div>
+          </div>
+          <div class="cmd"><svg class="i xs"><use href="#i-terminal"/></svg> python scripts/reset_watermark.py --fecha 2026-09-11<span class="spacer"></span><button class="b" style="height:20px"><svg class="i xs"><use href="#i-copy"/></svg></button></div>
+        </div>
+      </div>
+      <div class="step">
+        <span class="no">4</span>
+        <div class="body">
+          <b>Verificar</b>
+          <div style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--text-secondary)">
+            <svg class="i sm" style="color:var(--ok);margin-top:3px"><use href="#i-shield"/></svg>
+            <span>El conteo del día debe cuadrar con <span class="chip"><svg class="i xs"><use href="#i-sql"/></svg>Queries/control_diario.sql</span>. Si no cuadra a la primera, esperar un ciclo antes de repetir.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">En el archivo es una lista numerada con casillas y bloques de código normales: fuera de AmoxSQL se lee igual. Lo que aporta la interfaz es la numeración automática al insertar y reordenar, el botón de copiar y que el progreso <b>sobreviva a cerrar el documento</b> — porque está escrito en el propio markdown.</p>
+</section>
+
+<!-- ══════════════════ 6 · DIAGRAMAS ══════════════════ -->
+<section id="diagramas">
+  <h2 class="s"><span class="n">6</span> Diagramas de flujo</h2>
+  <p>Mermaid ya se renderiza en la vista previa. Lo que falta es poder insertarlo sin recordar la sintaxis y —lo que de verdad cambia el trabajo— <b style="color:var(--text-primary)">generarlo desde una chain que ya existe</b>.</p>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-net"/></svg><b>Insertar diagrama</b><span class="spacer"></span>cuatro plantillas + leer un .sqlchain</div>
+    <div style="display:flex;background:var(--surface-base)">
+      <div style="width:300px;flex:none;border-right:1px solid var(--border-subtle);padding:6px 0">
+        <div class="pop-grp">Plantillas</div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-net"/></svg></span><span class="tx"><b>Flujo</b><span>cajas y flechas</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-arrow"/></svg></span><span class="tx"><b>Secuencia</b><span>quién llama a quién</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-target"/></svg></span><span class="tx"><b>Estados</b><span>ciclo de vida de un proceso</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-db"/></svg></span><span class="tx"><b>Entidad-relación</b></span></div>
+        <div class="pop-grp">Desde el proyecto</div>
+        <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-net"/></svg></span><span class="tx"><b>carga_diaria.sqlchain</b><span>7 nodos · genera el flujo</span></span></div>
+        <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-net"/></svg></span><span class="tx"><b>refresco_dimensiones.sqlchain</b><span>4 nodos</span></span></div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="blk" style="margin:14px 16px">
+          <div class="blk-h"><svg class="i sm"><use href="#i-net"/></svg><span class="name">mermaid</span><span class="spacer"></span><span class="pill acc">generado desde la chain</span><button class="b"><svg class="i sm"><use href="#i-refresh"/></svg></button></div>
+          <div class="code"><span class="kw">flowchart</span> LR
+  A[raw.eventos] <span class="sy">--&gt;</span> B(limpieza)
+  B <span class="sy">--&gt;</span> C{validación}
+  C <span class="sy">--&gt;</span>|ok| D[stg.eventos]
+  C <span class="sy">--&gt;</span>|falla| E[cuarentena]</div>
+          <div class="mbox" style="border-top:1px solid var(--border-subtle)">
+            <span class="mnode">raw.eventos</span>
+            <span class="marrow">→</span>
+            <span class="mnode">limpieza</span>
+            <span class="marrow">→</span>
+            <span class="mnode acc">validación</span>
+            <span class="marrow">→</span>
+            <span class="mnode">stg.eventos</span>
+            <span class="marrow">→</span>
+            <span class="mnode warnn">cuarentena</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption"><b>El DAG ya está construido</b> en Data Flow, con sus nodos y sus aristas: serializarlo a mermaid es recorrer una estructura que existe. Genera el esqueleto una vez y a partir de ahí es markdown editable — no un enlace vivo, porque el documento describe el flujo, no lo refleja en tiempo real.</p>
+</section>
+
+<!-- ══════════════════ 7 · ENLACES ══════════════════ -->
+<section id="enlaces">
+  <h2 class="s"><span class="n">7</span> Enlaces al proyecto</h2>
+  <p>El autocompletado con <code>@</code> ya existe y consulta el esquema real, pero inserta texto plano. La propuesta: fichas con identidad que abren la pestaña correspondiente, y la vuelta — saber quién enlaza a este documento.</p>
+
+  <div class="ba">
+    <div class="next">
+      <h4>Enlazar <span class="tag">@</span></h4>
+      <div class="frame" style="margin-top:0">
+        <div class="canvas" style="min-height:250px">
+          <div class="doc">
+            <div class="ln">Depende de <span class="st">@carga</span><span class="caret"></span></div>
+            <div class="float pop" style="left:100px;top:26px;width:320px">
+              <div class="pop-search"><svg class="i sm"><use href="#i-search"/></svg><span>Proyecto</span><span class="q">@carga</span></div>
+              <div class="pop-i on"><span class="ico"><svg class="i sm"><use href="#i-net"/></svg></span><span class="tx"><b>carga_diaria.sqlchain</b><span>Data Flow · 7 nodos</span></span></div>
+              <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-sql"/></svg></span><span class="tx"><b>Queries/carga_incremental.sql</b><span>consulta</span></span></div>
+              <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-file"/></svg></span><span class="tx"><b>runbook_carga_diaria.md</b><span>documento</span></span></div>
+              <div class="pop-i"><span class="ico"><svg class="i sm"><use href="#i-db"/></svg></span><span class="tx"><b>raw.carga_log</b><span>tabla · 4,1 M filas</span></span></div>
+              <div class="pop-foot"><span><svg class="i xs"><use href="#i-enter"/></svg> insertar ficha</span><span>abre la pestaña al pulsar</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">Una ficha a un <code>.sqlchain</code> abre Data Flow; a un <code>.sql</code>, el editor. El documento se vuelve el índice navegable del proyecto.</p>
+    </div>
+
+    <div class="next">
+      <h4>Retroenlaces <span class="tag">quién apunta aquí</span></h4>
+      <div class="frame" style="margin-top:0">
+        <div style="min-height:250px;background:var(--surface-raised);padding:11px 0">
+          <div class="side-h"><svg class="i sm"><use href="#i-link"/></svg> Enlazado desde<span class="spacer"></span><span class="pill">3</span></div>
+          <div class="outline-i"><svg class="i xs"><use href="#i-file"/></svg> README.md<span class="badge">mapa del proyecto</span></div>
+          <div class="outline-i"><svg class="i xs"><use href="#i-file"/></svg> incidencia_2026-08-30.md<span class="badge">acciones</span></div>
+          <div class="outline-i"><svg class="i xs"><use href="#i-file"/></svg> convenciones.md<span class="badge">ingesta</span></div>
+          <div class="side-h" style="margin-top:16px"><svg class="i sm"><use href="#i-arrow"/></svg> Este documento enlaza a<span class="spacer"></span><span class="pill">5</span></div>
+          <div class="outline-i"><svg class="i xs"><use href="#i-net"/></svg> carga_diaria.sqlchain</div>
+          <div class="outline-i"><svg class="i xs"><use href="#i-sql"/></svg> Queries/control_diario.sql</div>
+          <div class="outline-i"><svg class="i xs"><use href="#i-db"/></svg> raw.eventos</div>
+        </div>
+      </div>
+      <p class="caption">Se calcula recorriendo los <code>.md</code> del proyecto, igual que el panel de pendientes. Es lo que convierte una carpeta de documentos sueltos en una base de conocimiento.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 8 · CABECERA ══════════════════ -->
+<section id="cabecera">
+  <h2 class="s"><span class="n">8</span> Cabecera y vigencia</h2>
+  <p>Una documentación de procesos sin fecha miente a los seis meses. El front-matter YAML —estándar, legible fuera de la app— se edita como fichas en la cabecera, no escribiendo YAML a mano.</p>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-user"/></svg><b>runbook_carga_diaria.md</b><span class="spacer"></span>front-matter editable</div>
+    <div class="fm">
+      <span class="k">Dueño</span><span class="chip"><svg class="i xs"><use href="#i-user"/></svg>flavio</span>
+      <span class="k">Estado</span><span class="pill ok"><svg class="i xs"><use href="#i-check"/></svg> vigente</span>
+      <span class="k">Revisado</span><span class="pill warn"><svg class="i xs"><use href="#i-clock"/></svg> hace 7 meses</span>
+      <span class="k">Etiquetas</span><span class="chip tag">ingesta</span><span class="chip tag">runbook</span><span class="chip tag">turno-noche</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="b ghost"><svg class="i sm"><use href="#i-check"/></svg><span class="cap">Marcar revisado</span></button>
+    </div>
+    <div class="canvas" style="min-height:150px">
+      <div class="gutter">1<br>2<br>3<br>4<br>5<br>6<br>7</div>
+      <div class="doc">
+        <div class="ln"><span class="sy">---</span></div>
+        <div class="ln"><span class="st">owner:</span> flavio</div>
+        <div class="ln"><span class="st">estado:</span> vigente</div>
+        <div class="ln"><span class="st">revisado:</span> 2026-02-10</div>
+        <div class="ln"><span class="st">tags:</span> [ingesta, runbook, turno-noche]</div>
+        <div class="ln"><span class="sy">---</span></div>
+        <div class="ln"><span class="h"># Runbook — carga diaria</span><span class="caret"></span></div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">El aviso de «hace 7 meses» es deliberadamente incómodo, y <b>Marcar revisado</b> pone la fecha de hoy de un clic. Umbral configurable por proyecto. El bloque YAML es estándar: cualquier visor lo entiende o lo ignora sin romperse.</p>
+</section>
+
+<!-- ══════════════════ 9 · ESTRUCTURA ══════════════════ -->
+<section id="estructura">
+  <h2 class="s"><span class="n">9</span> Estructura, búsqueda y estado</h2>
+  <p>Hoy el índice solo existe si hay vista previa (<code>tocEnabled = viewMode !== 'edit'</code>) y solo sirve para saltar. Pasa a panel permanente: navegar, reordenar y buscar en todos los documentos.</p>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-tree"/></svg><b>Estructura</b><span class="spacer"></span>arrastrando «Verificación» sobre «Recuperación manual»</div>
+    <div class="canvas" style="min-height:320px">
+      <div class="side l" style="width:250px">
+        <div class="side-h"><svg class="i sm"><use href="#i-tree"/></svg> Estructura<span class="spacer"></span><button class="b"><svg class="i xs"><use href="#i-search"/></svg></button></div>
+        <div class="outline-i on"><svg class="i xs gr"><use href="#i-grip"/></svg> Runbook — carga diaria<span class="badge">H1</span></div>
+        <div class="outline-i" style="padding-left:26px"><svg class="i xs gr"><use href="#i-grip"/></svg> Cuándo aplica<span class="badge">H2</span></div>
+        <div class="outline-i" style="padding-left:26px"><svg class="i xs gr"><use href="#i-grip"/></svg> Diagnóstico rápido<span class="badge">H2</span></div>
+        <div class="dropzone"></div>
+        <div class="outline-i drag" style="margin-left:26px"><svg class="i xs gr"><use href="#i-grip"/></svg> Verificación<span class="badge">H2 · 4 pasos</span></div>
+        <div class="outline-i" style="padding-left:26px"><svg class="i xs gr"><use href="#i-grip"/></svg> Recuperación manual<span class="badge">2/6</span></div>
+        <div class="outline-i" style="padding-left:26px"><svg class="i xs gr"><use href="#i-grip"/></svg> A quién avisar<span class="badge">H2</span></div>
+        <div class="outline-i" style="padding-left:26px"><svg class="i xs gr"><use href="#i-grip"/></svg> Historial de incidencias<span class="badge">H2</span></div>
+        <div class="side-h" style="margin-top:14px"><svg class="i sm"><use href="#i-branch"/></svg> Cambios sin guardar</div>
+        <div class="outline-i" style="padding-left:26px;color:var(--ok)"><svg class="i xs"><use href="#i-plus"/></svg> Verificación<span class="badge">+12 líneas</span></div>
+      </div>
+      <div class="doc" style="opacity:.6">
+        <div class="ln"><span class="h"># Runbook — carga diaria</span></div>
+        <div class="ln"></div>
+        <div class="ln"><span class="h">## Cuándo aplica</span></div>
+        <div class="ln">Cuando el reintento automático agota los tres intentos.</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="h">## Diagnóstico rápido</span></div>
+        <div class="ln"><span class="sy">1.</span> Revisar el log del nodo de ingesta</div>
+        <div class="ln"><span class="sy">2.</span> Comprobar la marca de agua</div>
+      </div>
+    </div>
+    <div class="sb">
+      <i><svg class="i xs"><use href="#i-file"/></svg> 842 palabras</i>
+      <i><svg class="i xs"><use href="#i-clock"/></svg> 4 min de lectura</i>
+      <i><svg class="i xs"><use href="#i-tree"/></svg> 7 secciones</i>
+      <i><svg class="i xs"><use href="#i-todo"/></svg> 2 de 6 pasos</i>
+      <span class="spacer"></span>
+      <i><svg class="i xs"><use href="#i-branch"/></svg> main · +12 −0</i>
+      <i style="color:var(--warn)"><svg class="i xs"><use href="#i-clock"/></svg> revisado hace 7 meses</i>
+      <i><svg class="i xs"><use href="#i-target"/></svg> Foco <kbd style="font-size:9px">Ctrl+Shift+F</kbd></i>
+    </div>
+  </div>
+  <p class="caption">Mover una sección arrastra el título y todo su contenido, en una sola operación deshacible. El badge <code>2/6</code> son las casillas de esa sección. La lupa busca en el contenido de <b>todos</b> los <code>.md</code> del proyecto, no solo en este.</p>
+</section>
+
+<!-- ══════════════════ 10 · PLANTILLAS ══════════════════ -->
+<section id="plantillas">
+  <h2 class="s"><span class="n">10</span> Plantillas</h2>
+  <p>Hoy un <code>.md</code> nuevo nace con «# New Markdown File». Un ingeniero de datos casi siempre escribe uno de seis documentos.</p>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-book"/></svg><b>Nuevo documento</b><span class="spacer"></span>archivos markdown en templates/, editables</div>
+    <div class="tpl">
+      <div class="tpl-c on"><div class="ic"><svg class="i"><use href="#i-terminal"/></svg></div><b>Runbook</b><span>Cuándo aplica, diagnóstico, pasos de recuperación, verificación, a quién avisar.</span></div>
+      <div class="tpl-c"><div class="ic"><svg class="i"><use href="#i-alert"/></svg></div><b>Incidencia</b><span>Cronología, impacto, causa raíz y acciones con responsable.</span></div>
+      <div class="tpl-c"><div class="ic"><svg class="i"><use href="#i-net"/></svg></div><b>Documentación de flujo</b><span>Qué hace, cuándo corre, dependencias, diagrama y contratos.</span></div>
+      <div class="tpl-c"><div class="ic"><svg class="i"><use href="#i-book"/></svg></div><b>Decisión técnica</b><span>Contexto, opciones evaluadas, elección y consecuencias.</span></div>
+      <div class="tpl-c"><div class="ic"><svg class="i"><use href="#i-todo"/></svg></div><b>Checklist</b><span>Despliegue o migración: fases con casillas y ventana acordada.</span></div>
+      <div class="tpl-c"><div class="ic"><svg class="i"><use href="#i-file"/></svg></div><b>Nota</b><span>Front-matter mínimo y nada más.</span></div>
+    </div>
+    <div style="padding:0 16px 16px">
+      <div class="blk" style="margin:0">
+        <div class="blk-h"><svg class="i sm"><use href="#i-eye"/></svg><span class="name">Vista previa · Runbook</span></div>
+        <div class="code" style="color:var(--text-tertiary)"><span class="sy">---</span>
+<span class="st">owner:</span>     <span class="cm">— se rellena con el usuario actual</span>
+<span class="st">estado:</span>    borrador
+<span class="st">revisado:</span>  2026-09-12
+<span class="sy">---</span>
+
+<span class="h"># Runbook — {{proceso}}</span>
+
+<span class="h">## Cuándo aplica</span>
+<span class="h">## Diagnóstico rápido</span>
+<span class="sy">1.</span> …
+<span class="h">## Recuperación</span>
+<span class="sy">- [ ]</span> …
+<span class="h">## Verificación</span>
+<span class="h">## A quién avisar</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">Mismo enfoque que <code>agent/skills/</code> y <code>.amoxsql/context/</code>: son archivos en el proyecto, no una lista en el código. Lo único que hace la interfaz es rellenar dueño y fecha.</p>
+</section>
+
+<!-- ══════════════════ 11 · RENDER ══════════════════ -->
+<section id="render">
+  <h2 class="s"><span class="n">11</span> El runbook terminado</h2>
+
+  <div class="frame">
+    <div class="frame-cap"><svg class="i sm"><use href="#i-eye"/></svg><b>Vista previa</b> · ancho de lectura<span class="spacer"></span>lo que se exporta a PDF</div>
+    <div class="fm">
+      <span class="k">Dueño</span><span class="chip"><svg class="i xs"><use href="#i-user"/></svg>flavio</span>
+      <span class="k">Estado</span><span class="pill ok"><svg class="i xs"><use href="#i-check"/></svg> vigente</span>
+      <span class="k">Revisado</span><span class="pill">hoy</span>
+      <span class="chip tag">ingesta</span><span class="chip tag">runbook</span>
+    </div>
+    <div class="pv">
+      <h1>Runbook — carga diaria</h1>
+      <p>Aplica cuando el nodo de ingesta de <span class="chip"><svg class="i xs"><use href="#i-net"/></svg>carga_diaria.sqlchain</span> agota sus tres reintentos. Tiempo estimado: 20 minutos.</p>
+      <h2>Diagnóstico rápido <span class="prog"><span class="rail"><span class="fill" style="width:100%"></span></span> 2/2</span></h2>
+      <div class="task done"><span class="box"><svg class="i xs"><use href="#i-check"/></svg></span> El log muestra <code>watermark mismatch</code></div>
+      <div class="task done"><span class="box"><svg class="i xs"><use href="#i-check"/></svg></span> <span class="chip"><svg class="i xs"><use href="#i-db"/></svg>raw.carga_log</span> no tiene filas de hoy</div>
+      <h2>Recuperación <span class="prog"><span class="rail"><span class="fill" style="width:33%"></span></span> 1/3</span></h2>
+      <div class="callout">
+        <svg class="i"><use href="#i-alert"/></svg>
+        <div><b>Atención</b><p>El paso 2 reprocesa el día completo. Confirmar antes que no hay consumidores leyendo la tabla.</p></div>
+      </div>
+      <div class="step done"><span class="no"><svg class="i xs"><use href="#i-check"/></svg></span><div class="body"><b>Pausar la chain</b><div style="font-size:12.5px">Data Flow → barra inferior → Pausar.</div></div></div>
+      <div class="step"><span class="no">2</span><div class="body"><b>Reponer la marca de agua</b><div class="cmd"><svg class="i xs"><use href="#i-terminal"/></svg> python scripts/reset_watermark.py --fecha 2026-09-11<span class="spacer"></span><button class="b" style="height:20px"><svg class="i xs"><use href="#i-copy"/></svg></button></div></div></div>
+      <div class="step"><span class="no">3</span><div class="body"><b>Reanudar y vigilar dos ciclos</b></div></div>
+      <h2>A quién avisar</h2>
+      <p>Si a las 06:00 sigue sin cuadrar: avisar al equipo de negocio antes del informe de apertura. Historial de veces que ha pasado en <span class="chip"><svg class="i xs"><use href="#i-file"/></svg>incidencia_2026-08-30.md</span>.</p>
+    </div>
+  </div>
+  <p class="caption">Todo lo que se ve aquí es markdown plano: front-matter YAML, listas con casillas, bloques de código, callouts <code>&gt; [!CAUTION]</code> y enlaces relativos. Abierto fuera de AmoxSQL sigue siendo un runbook perfectamente legible.</p>
+</section>
+
+<!-- ══════════════════ ATAJOS ══════════════════ -->
+<section id="atajos">
+  <h2 class="s"><span class="n">12</span> Atajos de teclado</h2>
+  <p>Los tres primeros ya existen.</p>
+
+  <div class="ba">
+    <table class="g">
+      <thead><tr><th>Acción</th><th class="k">Atajo</th></tr></thead>
+      <tbody>
+        <tr><td>Guardar</td><td class="k"><kbd>Ctrl</kbd>+<kbd>S</kbd></td></tr>
+        <tr><td>Negrita · cursiva · enlace</td><td class="k"><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>K</kbd></td></tr>
+        <tr><td>Cambiar de vista</td><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd></td></tr>
+        <tr><td>Menú de inserción</td><td class="k"><kbd>/</kbd></td></tr>
+        <tr><td>Título 1–6 · párrafo</td><td class="k"><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>6</kbd> · <kbd>Ctrl</kbd>+<kbd>0</kbd></td></tr>
+        <tr><td>Código en línea</td><td class="k"><kbd>Ctrl</kbd>+<kbd>E</kbd></td></tr>
+      </tbody>
+    </table>
+    <table class="g">
+      <thead><tr><th>Acción</th><th class="k">Atajo</th></tr></thead>
+      <tbody>
+        <tr><td>Convertir la línea en tarea</td><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td></tr>
+        <tr><td>Marcar o desmarcar la casilla</td><td class="k"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td></tr>
+        <tr><td>Captura rápida de nota</td><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></td></tr>
+        <tr><td>Panel de estructura</td><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></td></tr>
+        <tr><td>Mover sección arriba / abajo</td><td class="k"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td></tr>
+        <tr><td>Modo foco</td><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+const links = [...document.querySelectorAll('.toc a')];
+const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    const a = map.get(e.target.id);
+    if (!a) return;
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('on'));
+      a.classList.add('on');
+    }
+  });
+}, { rootMargin: '-10% 0px -80% 0px' });
+document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

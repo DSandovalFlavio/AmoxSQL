@@ -79,6 +79,7 @@ const EditorPane = ({
     showAiSidebar,    // boolean — AI sidebar visible?
     onToggleAi,       // () -> toggle AI sidebar
     onOpenFile,       // (filePath) -> open a file in a new tab (used by ChainEditor)
+    onBuscarProyecto, // abre el panel de busqueda del proyecto (editor de markdown)
     availableTables,  // Data Diving only
     onExportNotebook, // Data Diving only
     onExportAmoxvis, // Data Diving chart export
@@ -582,6 +583,9 @@ const EditorPane = ({
                             showAiSidebar={showAiSidebar}
                             isActive={isActive}
                             onOpenFile={onOpenFile}
+                            onBuscarProyecto={onBuscarProyecto}
+                            filePath={activeTab.path || null}
+                            isDirty={!!activeTab.dirty}
                         />
                         </Suspense>
                     </div>

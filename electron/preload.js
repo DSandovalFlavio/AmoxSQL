@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveFileDialog: (opts) => ipcRenderer.invoke('dialog:saveFile', opts),
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
     showItemInFolder: (itemPath) => ipcRenderer.invoke('shell:showItemInFolder', itemPath),
+    // Devuelve el PDF en base64, o { error }. Texto real, no una captura.
+    exportPdf: (opts) => ipcRenderer.invoke('export:pdf', opts),
     // Lets main.js default export downloads (chart PNG, HTML/Word/PPT
     // reports) into the current project's charts/ or reports/ folder.
     setProjectRoot: (rootPath) => ipcRenderer.send('project:set-root', rootPath),

@@ -18,175 +18,357 @@
     overflow: hidden;
 }
 
-/* ── Toolbar extras ── */
-.mde-toolbar {
-    overflow: visible;
-    flex-wrap: wrap;
-    scrollbar-width: none;
+/* ── Barra de estado ── */
+.mde-status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
     flex-shrink: 0;
-    gap: 4px;
-    height: auto !important; /* override ep-action-bar fixed height */
-    min-height: 40px;
-    padding: 4px 12px !important;
-}
-
-.mde-toolbar .ep-action-left,
-.mde-toolbar .ep-action-right {
-    flex-wrap: wrap;
-}
-
-.mde-toolbar::-webkit-scrollbar { display: none; }
-
-.mde-sep {
-    display: inline-block;
-    width: 1px;
-    height: 16px;
-    background-color: var(--border-subtle);
-    margin: 0 2px;
-    flex-shrink: 0;
-    align-self: center;
-}
-
-.mde-heading-btn {
-    gap: 3px;
-    padding: 4px 8px;
-}
-
-/* ── Heading dropdown ── */
-.mde-heading-dropdown {
-    min-width: 160px;
-}
-
-.mde-heading-item {
+    padding: 4px 12px;
+    background-color: var(--surface-raised);
+    border-top: 1px solid var(--border-default);
     font-family: var(--font-mono);
-    font-weight: var(--weight-medium);
+    font-size: var(--text-mini);
+    color: var(--text-tertiary);
+    flex-wrap: wrap;
+}
+
+.mde-status-ok { color: var(--color-success); }
+.mde-status-gap { flex: 1; }
+
+.mde-status-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+}
+
+.mde-status-btn:hover { color: var(--text-primary); }
+
+.mde-status kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    background-color: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    padding: 0 4px;
+}
+
+/* ── Modo foco ──
+   Fuera todo lo que no es el texto. La barra se oculta desde el componente;
+   aquí se estrecha la columna y se apaga el cromado que queda. */
+.mde-focus .mde-status { opacity: 0.35; }
+.mde-focus .mde-status:hover { opacity: 1; }
+
+/* ── Progreso de casillas junto al título ── */
+.mde-preview-body .mde-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+    font-family: var(--font-mono);
+    font-size: var(--text-mini);
+    font-weight: var(--weight-normal);
+    color: var(--text-tertiary);
+    vertical-align: middle;
+}
+
+.mde-preview-body .mde-progress-rail {
+    width: 52px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--border-default);
+    overflow: hidden;
+}
+
+.mde-preview-body .mde-progress-fill {
+    display: block;
+    height: 100%;
+    background-color: var(--accent-primary);
+    transition: width var(--transition-fast);
+}
+
+/* ── Panel de pendientes del proyecto ── */
+.mde-tasks {
+    width: 268px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-left: 1px solid var(--border-subtle);
+    background-color: var(--surface-raised);
+    padding: 12px 0;
+    scrollbar-width: thin;
+}
+
+.mde-tasks-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 12px 10px;
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+
+.mde-tasks-count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-mini);
     color: var(--text-secondary);
+    background-color: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    padding: 1px 7px;
+    letter-spacing: 0;
 }
 
-.mde-heading-clear {
-    border-top: 1px solid var(--border-subtle);
-    color: var(--text-tertiary) !important;
-    font-size: var(--text-xs) !important;
+.mde-tasks-reload {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+}
+
+.mde-tasks-reload:hover:not(:disabled) { color: var(--text-primary); }
+.mde-tasks-reload:disabled { opacity: 0.5; cursor: default; }
+
+@keyframes mde-spin { to { transform: rotate(360deg); } }
+.mde-spin { animation: mde-spin 0.9s linear infinite; }
+
+.mde-tasks-filters {
+    display: flex;
+    gap: 4px;
+    padding: 0 12px 10px;
+}
+
+.mde-tasks-filter {
+    flex: 1;
+    padding: 3px 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    background-color: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.mde-tasks-filter:hover { color: var(--text-primary); }
+
+.mde-tasks-filter.active {
+    color: var(--accent-primary);
+    border-color: var(--accent-muted);
+    background-color: var(--accent-subtle);
+}
+
+.mde-tasks-empty {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+.mde-tasks-group { margin-bottom: 10px; }
+
+.mde-tasks-doc {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+
+.mde-tasks-doc:hover { color: var(--text-primary); }
+.mde-tasks-doc.current { color: var(--accent-primary); }
+
+.mde-tasks-doc-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mde-tasks-doc-count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-disabled);
+}
+
+.mde-tasks-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 3px 12px 3px 22px;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.mde-tasks-item:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+.mde-tasks-item.done { color: var(--text-disabled); text-decoration: line-through; }
+
+.mde-tasks-box {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    margin-top: 3px;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+}
+
+.mde-tasks-box.on {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.mde-tasks-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.mde-tasks-owner,
+.mde-tasks-due {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-disabled);
+    display: flex;
+    align-items: center;
+    gap: 2px;
     margin-top: 2px;
-    padding-top: 6px;
 }
 
-/* ── Table picker ── */
-.mde-table-anchor {
+.mde-tasks-due.late { color: var(--color-error); }
+
+/* ── Casillas de la vista previa ──
+   Interactivas: marcar escribe en el documento. El puntero y el acento las
+   distinguen de las casillas muertas que se renderizaban antes. */
+.mde-preview-body .mde-task {
+    list-style: none;
+    margin-left: -1.35em;
+}
+
+.mde-preview-body .mde-task-box {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    vertical-align: -1px;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+}
+
+.mde-preview-body .mde-task-box:hover {
+    filter: brightness(1.25);
+}
+
+.mde-preview-body .mde-task-box:checked + * {
+    color: var(--text-tertiary);
+}
+
+/* ── Overlay sobre el lienzo del editor ──
+   Burbuja de selección y barra de bloque. Posicionadas en píxeles desde
+   `getScrolledVisiblePosition`, por eso el panel es el contenedor relativo. */
+.mde-editor-pane {
     position: relative;
 }
 
-.mde-table-picker {
+.mde-overlay {
     position: absolute;
-    top: calc(100% + 4px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 3px;
+    background-color: var(--surface-overlay);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    white-space: nowrap;
+}
+
+.mde-overlay-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 6px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.mde-overlay-btn:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.mde-overlay-btn.wide {
+    padding: 0 8px;
+}
+
+.mde-overlay-sep {
+    width: 1px;
+    height: 15px;
+    background-color: var(--border-default);
+    margin: 0 3px;
+    flex-shrink: 0;
+}
+
+/* ── Selector de lenguaje del bloque de código ── */
+.mde-lang-anchor {
+    position: relative;
+}
+
+.mde-lang-menu {
+    position: absolute;
+    top: calc(100% + 5px);
     left: 0;
+    min-width: 128px;
+    padding: 4px 0;
     background-color: var(--surface-overlay);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
-    padding: 10px;
-    z-index: 1010;
-    user-select: none;
+    z-index: 31;
 }
 
-.mde-table-picker-label {
-    font-size: var(--text-xs);
-    color: var(--text-tertiary);
-    margin-bottom: 8px;
-    text-align: center;
-    min-width: 100px;
-}
-
-.mde-table-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.mde-table-row {
-    display: flex;
-    gap: 3px;
-}
-
-.mde-table-cell {
-    width: 18px;
-    height: 18px;
-    border-radius: 3px;
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-raised);
+.mde-lang-item {
+    padding: 4px 12px;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.mde-table-cell.on {
-    background-color: var(--accent-subtle);
-    border-color: var(--accent-primary);
+.mde-lang-item:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
 }
 
-.mde-table-cell:hover {
-    border-color: var(--accent-primary);
-}
-
-/* ── Content area ── */
-.mde-content {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    min-height: 0;
-}
-
-/* Edit mode: single Monaco pane */
-.mde-content--edit .mde-editor-pane {
-    flex: 1;
-    overflow: hidden;
-    min-width: 0;
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-}
-
-/* Force Monaco to inherit the correct background */
-.mde-editor-pane .monaco-editor,
-.mde-editor-pane .monaco-editor-background,
-.mde-editor-pane .margin {
-    background-color: transparent !important;
-}
-
-/* Preview mode: single preview pane */
-.mde-content--preview .mde-preview-pane {
-    flex: 1;
-    overflow-y: auto;
-    min-width: 0;
-}
-
-/* Split mode */
-.mde-content--split .mde-editor-pane {
-    flex: 1;
-    overflow: hidden;
-    min-width: 160px;
-    border-radius: 0 0 0 var(--radius-lg);
-}
-
-.mde-content--split .mde-preview-pane {
-    flex: 1;
-    overflow-y: auto;
-    min-width: 160px;
-    border-left: 1px solid var(--border-subtle);
-    border-radius: 0 0 var(--radius-lg) 0;
-}
-
-/* Split drag handle */
-.mde-split-handle {
-    width: 5px;
-    background-color: transparent;
-    cursor: col-resize;
-    flex-shrink: 0;
-    transition: background-color var(--transition-fast);
-    position: relative;
-    z-index: 1;
-}
-
-.mde-split-handle:hover,
-.mde-split-handle:active {
-    background-color: var(--accent-muted);
+.mde-lang-item.active {
+    color: var(--accent-primary);
 }
 
 /* ── Preview content ── */
@@ -609,45 +791,897 @@
 }
 .mde-fs-mermaid svg { max-width: none !important; height: auto; }
 
-/* ═══════════════════════════════════════════════
-   Outline / table of contents
-   ═══════════════════════════════════════════════ */
-.mde-toc {
-    width: 230px;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REDISEÑO — tres columnas sin cromo
+
+   Un criterio ordena todo lo demás: cada control vive donde vive lo que toca.
+   El formato en línea, sobre la selección. Los bloques, en el cursor. Las
+   propiedades del documento, en la columna derecha. La navegación, en la
+   izquierda. Y arriba solo la sesión: qué archivo, si está guardado, cómo lo
+   miro y el asistente.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Barra de sesión ──
+   Cinco controles permanentes donde antes había veintiuno. */
+.mde-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     flex-shrink: 0;
-    overflow-y: auto;
-    border-right: 1px solid var(--border-subtle);
-    padding: 12px 6px;
+    height: 38px;
+    padding: 0 10px 0 12px;
+    border-bottom: 1px solid var(--border-subtle);
     background-color: var(--surface-base);
-    scrollbar-width: thin;
 }
-.mde-toc-title {
-    font-size: var(--text-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-tertiary);
-    font-weight: var(--weight-semibold);
-    padding: 0 8px 8px;
-}
-.mde-toc-empty {
-    font-size: var(--text-xs);
-    color: var(--text-tertiary);
-    padding: 4px 8px;
-    font-style: italic;
-}
-.mde-toc-list { list-style: none; margin: 0; padding: 0; }
-.mde-toc-item {
+
+.mde-topbar.foco { opacity: 0.4; }
+.mde-topbar.foco:hover { opacity: 1; }
+
+.mde-topbar-file {
     font-size: var(--text-sm);
-    color: var(--text-secondary);
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 320px;
+}
+
+.mde-topbar-file .ext { color: var(--text-disabled); font-weight: var(--weight-normal); }
+
+/* Guardar es un estado, no un botón permanente. */
+.mde-topbar-state {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+.mde-topbar-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+.mde-topbar-state.sucio { color: var(--color-warning); }
+.mde-topbar-gap { flex: 1; }
+
+/* El hueco se reserva aunque esté vacío: si no, la barra baila cada vez que
+   el documento pasa de guardado a sucio. */
+.mde-topbar-save {
+    min-width: 118px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.mde-top-icon,
+.mde-top-ghost {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+    white-space: nowrap;
     transition: background-color var(--transition-fast), color var(--transition-fast);
 }
-.mde-toc-item:hover {
-    background-color: var(--surface-raised);
+
+.mde-top-icon { padding: 5px; color: var(--text-tertiary); }
+
+.mde-top-icon:hover,
+.mde-top-ghost:hover {
+    background-color: var(--hover-bg);
     color: var(--text-primary);
 }
+
+.mde-top-ghost.acento {
+    color: var(--accent-primary);
+    background-color: var(--accent-subtle);
+}
+
+.mde-top-ghost kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-tertiary);
+    opacity: 0.8;
+}
+
+/* Vista: con etiqueta, porque un lápiz y un ojo no dicen cuál es cuál. */
+.mde-seg {
+    display: flex;
+    gap: 1px;
+    padding: 2px;
+    background-color: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.mde-seg button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.mde-seg button:hover { color: var(--text-primary); }
+
+.mde-seg button.on {
+    background-color: var(--surface-overlay);
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+}
+
+/* ── Las tres columnas ──
+   Fijas a los lados, flexible en medio. El texto no se estira: se queda en su
+   medida y el sobrante se reparte como margen. */
+.mde-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 214px minmax(0, 1fr) 274px;
+    /* La fila TIENE que ser explícita. Sin esto la rejilla la dimensiona por
+       contenido, y en el primer pintado no hay contenido: Monaco se mide a cero,
+       se queda clavado en 5x5 y ya no se recupera aunque la fila crezca después.
+       Con el reparto anterior en flex no pasaba porque `flex: 1` daba altura
+       definida desde el principio. */
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Lo que no está montado no ocupa columna. */
+.mde-content:not(:has(.mde-rail)) { grid-template-columns: minmax(0, 1fr) 274px; }
+.mde-content:not(:has(.mde-panel)) { grid-template-columns: 214px minmax(0, 1fr); }
+.mde-content:not(:has(.mde-rail)):not(:has(.mde-panel)) { grid-template-columns: minmax(0, 1fr); }
+
+/* En dividido la columna central se parte en dos y se lleva el tirador. El
+   margen izquierdo nunca se muestra aquí, así que solo hay dos casos.
+   Los `:not(:has())` de arriba pesan lo mismo o más que un `.clase` suelta, de
+   ahí que estas reglas repitan las guardas: si no, la de «sin margen» ganaba y
+   metía cuatro columnas en dos. */
+.mde-content--split:has(.mde-panel) { grid-template-columns: minmax(0, 1fr) 5px minmax(0, 1fr) 274px; }
+.mde-content--split:not(:has(.mde-panel)):not(:has(.mde-rail)) { grid-template-columns: minmax(0, 1fr) 5px minmax(0, 1fr); }
+
+.mde-editor-pane { min-width: 0; overflow: hidden; }
+.mde-preview-pane { min-width: 0; overflow-y: auto; }
+
+/* La medida de lectura del lienzo. El botón de «ancho completo» existía porque
+   a 1900 px una línea de párrafo es ilegible; con la medida fijada el problema
+   no existe y el botón sobra. */
+.mde-content--edit .mde-editor-pane {
+    max-width: 74ch;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.mde-content--split .mde-preview-pane { border-left: 1px solid var(--border-subtle); }
+
+.mde-editor-pane .monaco-editor,
+.mde-editor-pane .monaco-editor-background,
+.mde-editor-pane .margin {
+    background-color: transparent !important;
+}
+
+/* ── El margen izquierdo ──
+   No es una tarjeta: es el margen. Sin fondo propio, sin borde, sin esquinas.
+   Solo tipografía sobre el fondo de la aplicación y un filete que lo separa. */
+.mde-rail {
+    /* Su interior no depende del ancho de las otras columnas, asi que el motor
+       no tiene que volver a medirlo cuando la ventana o el arbol de archivos
+       cambian de tamano. Solo `layout`: con `paint` se recortaria el menu de
+       estado, que se sale del panel a proposito. */
+    contain: layout;
+    overflow-y: auto;
+    padding: 18px 10px 18px 14px;
+    border-right: 1px solid var(--border-subtle);
+    scrollbar-width: thin;
+    min-width: 0;
+}
+
+.mde-rail-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-left: 11px;
+    color: var(--text-disabled);
+}
+
+.mde-rail-head > span:first-child {
+    font-size: var(--text-2xs);
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    font-weight: var(--weight-semibold);
+    flex: 1;
+}
+
+.mde-rail-plegar {
+    display: flex;
+    padding: 2px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-disabled);
+    cursor: pointer;
+}
+
+.mde-rail-plegar:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+
+.mde-rail-empty {
+    padding: 6px 11px;
+    font-size: var(--text-xs);
+    color: var(--text-disabled);
+    font-style: italic;
+}
+
+.mde-rail-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 6px 5px 11px;
+    border-left: 2px solid transparent;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.mde-rail-item.l2 { padding-left: 23px; color: var(--text-tertiary); }
+.mde-rail-item.l3 { padding-left: 35px; color: var(--text-tertiary); font-size: var(--text-2xs); }
+.mde-rail-item.l4 { padding-left: 45px; color: var(--text-disabled); font-size: var(--text-2xs); }
+
+.mde-rail-item:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+
+/* El degradado se apaga hacia la derecha: marca sin encajonar. */
+.mde-rail-item.active {
+    color: var(--text-primary);
+    border-left-color: var(--accent-primary);
+    background: linear-gradient(90deg, var(--accent-subtle), transparent 72%);
+}
+
+.mde-rail-item.dragging { opacity: 0.4; }
+.mde-rail-item.over { box-shadow: inset 0 2px 0 var(--accent-primary); }
+
+.mde-rail-grip {
+    flex-shrink: 0;
+    opacity: 0;
+    color: var(--text-disabled);
+    cursor: grab;
+    transition: opacity var(--transition-fast);
+}
+
+.mde-rail-item:hover .mde-rail-grip { opacity: 1; }
+
+.mde-rail-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mde-rail-moves {
+    display: flex;
+    gap: 1px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.mde-rail-item:hover .mde-rail-moves { opacity: 1; }
+
+.mde-rail-move {
+    display: flex;
+    padding: 1px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+
+.mde-rail-move:hover { background-color: var(--active-bg); color: var(--text-primary); }
+
+.mde-rail-frac {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-disabled);
+    flex-shrink: 0;
+}
+
+.mde-rail-frac.ok { color: var(--color-success); }
+
+.mde-rail-git {
+    display: flex;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    flex-shrink: 0;
+}
+
+.mde-rail-git .mas { color: var(--color-success); font-weight: var(--weight-normal); }
+.mde-rail-git .menos { color: var(--color-error); font-weight: var(--weight-normal); }
+
+.mde-outline-git-off {
+    font-size: var(--text-2xs);
+    color: var(--text-disabled);
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* El progreso como barra de 2 px: se ve de reojo, sin leer un número. */
+.mde-rail-bar {
+    height: 2px;
+    margin: 2px 6px 2px 13px;
+    border-radius: 2px;
+    background-color: var(--border-default);
+    overflow: hidden;
+}
+
+.mde-rail-bar.l2 { margin-left: 25px; }
+.mde-rail-bar.l3 { margin-left: 37px; }
+.mde-rail-bar.l4 { margin-left: 47px; }
+
+.mde-rail-bar i {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background-color: var(--accent-primary);
+}
+
+.mde-rail-foot {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.mde-rail-link {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 5px 8px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.mde-rail-link:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+
+/* ── La columna derecha ──
+   Todo lo que responde a «qué es este documento». Bloques separados por
+   filetes, no tarjetas: un panel de propiedades no es una colección de
+   objetos, es una sola cosa con apartados. */
+.mde-panel {
+    contain: layout;
+    overflow-y: auto;
+    padding: 16px 14px 20px;
+    border-left: 1px solid var(--border-subtle);
+    scrollbar-width: thin;
+    min-width: 0;
+}
+
+.mde-panel-grp {
+    padding-bottom: 15px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.mde-panel-grp:last-child {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.mde-panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: var(--text-2xs);
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    font-weight: var(--weight-semibold);
+    color: var(--text-disabled);
+}
+
+.mde-panel-cnt {
+    font-family: var(--font-mono);
+    letter-spacing: 0;
+    font-size: var(--text-2xs);
+    color: var(--text-tertiary);
+}
+
+.mde-panel-cnt.ok { color: var(--color-success); }
+
+.mde-panel-vacio {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 7px 8px;
+    background: none;
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.mde-panel-vacio:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+
+/* Pestañas de tareas: este documento o todo el proyecto. */
+.mde-panel-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    margin-bottom: 8px;
+    background-color: var(--surface-inset);
+    border-radius: var(--radius-md);
+}
+
+.mde-panel-tabs button {
+    flex: 1;
+    padding: 3px 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: var(--text-2xs);
+    cursor: pointer;
+}
+
+.mde-panel-tabs button:hover { color: var(--text-primary); }
+
+.mde-panel-tabs button.on {
+    background-color: var(--surface-overlay);
+    color: var(--text-primary);
+}
+
+.mde-panel-tareas { max-height: 260px; overflow-y: auto; scrollbar-width: thin; }
+
+.mde-panel-tarea {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 5px 6px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.mde-panel-tarea:hover { background-color: var(--hover-bg); }
+
+.mde-panel-tarea.hecha {
+    color: var(--text-disabled);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-disabled);
+}
+
+.mde-panel-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 13px;
+    height: 13px;
+    margin-top: 2px;
+    padding: 0;
+    background: none;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 3.5px;
+    color: var(--surface-base);
+    cursor: pointer;
+}
+
+.mde-panel-box:hover { border-color: var(--accent-primary); }
+
+.mde-panel-box.on {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.mde-panel-tarea-txt { min-width: 0; }
+
+.mde-panel-owner {
+    margin-left: 5px;
+    color: var(--accent-primary);
+    font-weight: var(--weight-medium);
+}
+
+.mde-panel-due {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-tertiary);
+}
+
+.mde-panel-due.vencida { color: var(--color-error); }
+
+/* Enlaces: sale y entra se distinguen, porque la pregunta real es a quién
+   rompo si toco esto — y esa la contestan los que entran. */
+.mde-panel-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 6px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.mde-panel-link:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+.mde-panel-link > svg:first-child { flex-shrink: 0; color: var(--text-tertiary); }
+
+.mde-panel-link-n {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mde-panel-link-d { flex-shrink: 0; color: var(--text-disabled); }
+.mde-panel-link-d.entra { color: var(--accent-primary); opacity: 0.7; }
+
+/* Acciones: verbos con nombre, no iconos mudos. */
+.mde-panel-act {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 6px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.mde-panel-act:hover:not(:disabled) { background-color: var(--hover-bg); color: var(--text-primary); }
+.mde-panel-act:disabled { opacity: 0.5; cursor: default; }
+.mde-panel-act > svg { flex-shrink: 0; color: var(--text-tertiary); }
+
+.mde-panel-act kbd {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-disabled);
+}
+
+/* Los pendientes del proyecto, dentro de la columna: sin su propio marco. */
+.mde-tasks--embebido {
+    width: auto;
+    border: none;
+    padding: 0;
+    max-height: 300px;
+    background: none;
+}
+
+/* ── La cabecera del documento, en vertical ──
+   En horizontal solo caben cuatro campos apretados y la caducidad no tiene
+   sitio para hacerse notar. */
+.mde-doc-header { display: flex; flex-direction: column; gap: 1px; }
+
+.mde-dh-row {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+
+.mde-dh-row--top { align-items: flex-start; padding-top: 5px; }
+
+.mde-dh-k {
+    font-size: var(--text-2xs);
+    color: var(--text-tertiary);
+}
+
+.mde-dh-owner {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 2px 5px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    width: 100%;
+    outline: none;
+}
+
+.mde-dh-owner:hover { border-color: var(--border-subtle); }
+.mde-dh-owner:focus { border-color: var(--accent-primary); background-color: var(--surface-inset); }
+.mde-dh-owner::placeholder { color: var(--text-disabled); font-style: italic; }
+
+.mde-dh-anchor { position: relative; }
+
+.mde-dh-estado {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    background-color: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: var(--text-2xs);
+    cursor: pointer;
+}
+
+.mde-dh-estado.borrador {
+    color: var(--color-warning);
+    border-color: color-mix(in oklch, var(--color-warning) 30%, transparent);
+    background-color: color-mix(in oklch, var(--color-warning) 9%, transparent);
+}
+
+.mde-dh-estado.vigente {
+    color: var(--color-success);
+    border-color: color-mix(in oklch, var(--color-success) 30%, transparent);
+    background-color: color-mix(in oklch, var(--color-success) 9%, transparent);
+}
+
+.mde-dh-estado.obsoleto { color: var(--text-disabled); text-decoration: line-through; }
+
+.mde-dh-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 40;
+    min-width: 110px;
+    padding: 4px;
+    background-color: var(--surface-overlay);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+
+.mde-dh-menu-item {
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.mde-dh-menu-item:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+
+.mde-dh-fecha {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.mde-dh-fecha.caducado { color: var(--color-warning); }
+
+/* Deliberadamente incómodo: una documentación sin revisar miente. Y solo
+   aparece el día que caduca, que es cuando sirve de algo. */
+.mde-dh-revisar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px;
+    background-color: var(--accent-subtle);
+    border: 1px solid var(--accent-muted);
+    border-radius: var(--radius-md);
+    color: var(--accent-primary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.mde-dh-revisar:hover { background-color: var(--accent-muted); }
+
+.mde-dh-etiquetas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.mde-dh-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 4px 1px 7px;
+    background-color: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    color: var(--text-secondary);
+    font-size: var(--text-2xs);
+}
+
+.mde-dh-tag-x {
+    display: flex;
+    padding: 1px;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    color: var(--text-disabled);
+    cursor: pointer;
+}
+
+.mde-dh-tag-x:hover { color: var(--color-error); }
+
+.mde-dh-tag-add {
+    display: flex;
+    padding: 3px;
+    background: none;
+    border: 1px dashed var(--border-default);
+    border-radius: 50%;
+    color: var(--text-disabled);
+    cursor: pointer;
+}
+
+.mde-dh-tag-add:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+.mde-dh-tag-input {
+    width: 80px;
+    background-color: var(--surface-inset);
+    border: 1px solid var(--accent-muted);
+    border-radius: var(--radius-sm);
+    padding: 1px 5px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-2xs);
+    outline: none;
+}
+
+/* ── La manija del margen ──
+   Fuera de la medida de lectura, en el hueco que deja lineDecorationsWidth. */
+.mde-gutter-handle {
+    position: absolute;
+    /* Por encima de los nodos del margen de Monaco, que se dibujan en el mismo
+       contexto de apilamiento y ocupan justo este hueco. */
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-disabled);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.mde-gutter-handle:hover,
+.mde-gutter-handle.abierta {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+/* ── El catálogo de bloques ──
+   El mismo que responde a «/», anclado a la manija en vez de a un botón de
+   una barra que ya no existe. */
+.mde-insert-menu {
+    position: absolute;
+    z-index: 50;
+    width: 270px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 5px;
+    background-color: var(--surface-overlay);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    scrollbar-width: thin;
+}
+
+.mde-insert-hint {
+    padding: 6px 9px 8px;
+    font-size: var(--text-2xs);
+    color: var(--text-tertiary);
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 4px;
+}
+
+.mde-insert-hint kbd {
+    font-family: var(--font-mono);
+    background-color: var(--surface-inset);
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    padding: 0 4px;
+    color: var(--text-primary);
+}
+
+.mde-insert-group {
+    padding: 7px 9px 4px;
+    font-size: var(--text-2xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: var(--weight-semibold);
+    color: var(--text-disabled);
+}
+
+.mde-insert-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.mde-insert-item:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+.mde-insert-item > svg { flex-shrink: 0; color: var(--text-tertiary); }
+
+.mde-insert-item-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mde-insert-hint-key {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-disabled);
+    flex-shrink: 0;
+}
+
+/* ── Modo foco ──
+   El salto es de verdad drástico porque ahora hay dos columnas que retirar. */
+.mde-focus .mde-content { grid-template-columns: minmax(0, 1fr); }
+
+/* ── Tirador de la vista dividida ──
+   Es una columna de la rejilla, de ahi que no necesite flex-shrink. */
+.mde-split-handle {
+    background-color: transparent;
+    cursor: col-resize;
+    position: relative;
+    transition: background-color var(--transition-fast);
+}
+
+.mde-split-handle:hover,
+.mde-split-handle:active { background-color: var(--accent-primary); }

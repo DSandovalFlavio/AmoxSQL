@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de documentos — rediseño de la interfaz (v3)</title>
+<style>
+:root{
+  --surface-base:    oklch(0.145 0.012 270);
+  --surface-raised:  oklch(0.175 0.014 270);
+  --surface-overlay: oklch(0.198 0.014 270);
+  --surface-inset:   oklch(0.160 0.013 270);
+  --border-subtle:  rgba(255,255,255,.075);
+  --border-default: rgba(255,255,255,.10);
+  --border-strong:  rgba(255,255,255,.17);
+  --text-primary:   rgba(255,255,255,.92);
+  --text-secondary: rgba(255,255,255,.56);
+  --text-tertiary:  rgba(255,255,255,.36);
+  --text-disabled:  rgba(255,255,255,.20);
+  --accent:         oklch(0.730 0.155 195);
+  --accent-muted:   color-mix(in oklch, var(--accent) 20%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent) 9%, transparent);
+  --hover-bg:  rgba(255,255,255,.055);
+  --active-bg: rgba(255,255,255,.10);
+  --ok:   oklch(0.72 0.19 155);
+  --warn: oklch(0.76 0.15 70);
+  --err:  oklch(0.66 0.21 25);
+  --sans: 'Manrope','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono: 'JetBrains Mono','Cascadia Code',Consolas,monospace;
+  --shadow-lg: 0 10px 34px rgba(0,0,0,.55);
+  --shadow-pop: 0 6px 22px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-base);color:var(--text-secondary);font-family:var(--sans);font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:default;padding:0}
+a{color:var(--accent);text-decoration:none}
+code{font-family:var(--mono);font-size:.9em;color:var(--text-primary)}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+svg.i.xs{width:10px;height:10px}
+svg.i.sm{width:12px;height:12px}
+svg.i.lg{width:16px;height:16px}
+.sprite{display:none}
+
+/* ── armazón del documento de diseño ───────────────────────────── */
+.page{display:grid;grid-template-columns:230px minmax(0,1fr);gap:46px;max-width:1500px;margin:0 auto;padding:0 30px 130px}
+.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:34px 0 40px;border-right:1px solid var(--border-subtle)}
+.toc-brand{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--text-primary);letter-spacing:-.012em;font-size:14px;margin-bottom:2px}
+.toc-brand svg{color:var(--accent)}
+.toc-sub{font-size:11px;color:var(--text-tertiary);margin-bottom:22px;padding-left:22px}
+.toc a{display:block;padding:5px 10px 5px 22px;border-radius:6px;color:var(--text-secondary);font-size:12px;border-left:2px solid transparent}
+.toc a:hover{background:var(--hover-bg);color:var(--text-primary)}
+.toc .grp{margin:19px 0 6px;padding-left:22px;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--text-disabled)}
+main{padding-top:34px;min-width:0}
+
+h1.doc{font-size:32px;line-height:1.13;letter-spacing:-.024em;color:var(--text-primary);margin:0 0 13px;font-weight:750}
+.lede{font-size:14.5px;max-width:80ch;margin:0 0 10px}
+.meta{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-tertiary);font-family:var(--mono);margin-bottom:40px;padding-bottom:20px;border-bottom:1px solid var(--border-subtle)}
+section{margin:0 0 78px;scroll-margin-top:20px}
+h2.s{display:flex;align-items:baseline;gap:12px;font-size:21px;color:var(--text-primary);letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+h2.s .n{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:500}
+h3.s{font-size:13.5px;color:var(--text-primary);margin:34px 0 10px;font-weight:650}
+p{max-width:86ch;margin:0 0 12px}
+.dim{color:var(--text-tertiary)}
+b{color:var(--text-primary);font-weight:600}
+kbd{font-family:var(--mono);font-size:10px;background:var(--surface-overlay);border:1px solid var(--border-default);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--text-primary);white-space:nowrap}
+ul.clean{margin:0 0 14px;padding-left:18px;max-width:86ch}
+ul.clean li{margin-bottom:7px}
+ul.clean li::marker{color:var(--text-disabled)}
+
+.note{display:flex;gap:10px;padding:11px 14px;border-radius:8px;background:var(--accent-subtle);border:1px solid var(--accent-muted);color:var(--text-primary);font-size:12px;margin:0 0 18px;max-width:94ch;line-height:1.52}
+.note svg{color:var(--accent);margin-top:2px;flex:none}
+.note.warn{background:color-mix(in oklch,var(--warn) 8%,transparent);border-color:color-mix(in oklch,var(--warn) 26%,transparent)}
+.note.warn svg{color:var(--warn)}
+
+.frame{border:1px solid var(--border-default);border-radius:12px;overflow:hidden;background:var(--surface-base);box-shadow:var(--shadow-lg);margin:18px 0 10px}
+.frame-cap{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface-overlay);border-bottom:1px solid var(--border-default);font-size:11px;color:var(--text-tertiary);font-family:var(--mono);letter-spacing:.02em}
+.frame-cap b{color:var(--text-secondary);font-weight:500}
+.frame-cap .spacer{flex:1}
+.caption{font-size:11.5px;color:var(--text-tertiary);margin:0 0 26px;max-width:88ch;line-height:1.62}
+.caption b{color:var(--text-secondary);font-weight:600}
+
+table.t{width:100%;border-collapse:collapse;font-size:12px;margin:14px 0 10px;max-width:100ch}
+table.t th{text-align:left;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-disabled);font-weight:600;padding:0 12px 7px 0;border-bottom:1px solid var(--border-default)}
+table.t td{padding:9px 12px 9px 0;border-bottom:1px solid var(--border-subtle);vertical-align:top;color:var(--text-secondary)}
+table.t td:first-child{color:var(--text-primary);font-weight:550;white-space:nowrap}
+.tag{display:inline-block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;font-weight:600}
+.tag.go{background:color-mix(in oklch,var(--ok) 15%,transparent);color:var(--ok)}
+.tag.no{background:color-mix(in oklch,var(--err) 15%,transparent);color:var(--err)}
+.tag.mv{background:var(--accent-subtle);color:var(--accent)}
+
+/* ── maqueta del editor ────────────────────────────────────────── */
+.app{background:var(--surface-base);display:grid;grid-template-rows:auto 1fr auto;font-size:12px}
+.app-top{display:flex;align-items:center;gap:10px;height:38px;padding:0 10px 0 14px;border-bottom:1px solid var(--border-subtle);flex:none}
+.app-file{display:flex;align-items:baseline;gap:7px;color:var(--text-primary);font-weight:600;font-size:12.5px;letter-spacing:-.01em}
+.app-file .ext{color:var(--text-disabled);font-weight:400}
+.app-state{font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:5px}
+.app-state.dirty{color:var(--warn)}
+.app-state .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.app-top .spacer{flex:1}
+.seg{display:flex;background:var(--surface-inset);border:1px solid var(--border-subtle);border-radius:7px;padding:2px;gap:1px}
+.seg button{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;color:var(--text-tertiary);font-size:11px}
+.seg button.on{background:var(--surface-overlay);color:var(--text-primary);box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.ghost{display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:7px;color:var(--text-secondary);font-size:11.5px}
+.ghost:hover{background:var(--hover-bg)}
+.ghost.accent{color:var(--accent);background:var(--accent-subtle)}
+
+.app-body{display:grid;min-height:0}
+.app-body.full{grid-template-columns:214px minmax(0,1fr) 274px}
+.app-body.sinrail{grid-template-columns:minmax(0,1fr) 274px}
+.app-body.foco{grid-template-columns:minmax(0,1fr)}
+
+/* margen izquierdo: sin tarjeta, sin fondo, solo un filete */
+.rail{padding:20px 14px 20px 18px;border-right:1px solid var(--border-subtle);min-width:0}
+.rail-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;color:var(--text-disabled)}
+.rail-head span{font-size:9px;letter-spacing:.13em;text-transform:uppercase;font-weight:600}
+.rail-item{display:block;width:100%;text-align:left;padding:5px 8px 5px 11px;border-left:2px solid transparent;color:var(--text-secondary);font-size:12px;border-radius:0 5px 5px 0;line-height:1.4;position:relative}
+.rail-item:hover{background:var(--hover-bg);color:var(--text-primary)}
+.rail-item.on{color:var(--text-primary);border-left-color:var(--accent);background:linear-gradient(90deg,var(--accent-subtle),transparent 70%)}
+.rail-item.l2{padding-left:23px;font-size:11.5px;color:var(--text-tertiary)}
+.rail-item.l3{padding-left:35px;font-size:11px;color:var(--text-disabled)}
+.rail-item .frac{float:right;font-family:var(--mono);font-size:9.5px;color:var(--text-disabled);margin-left:8px}
+.rail-bar{height:2px;border-radius:2px;background:var(--border-default);margin:4px 0 0 11px;overflow:hidden}
+.rail-bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.rail-foot{margin-top:20px;padding-top:14px;border-top:1px solid var(--border-subtle)}
+.rail-link{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:5px;color:var(--text-tertiary);font-size:11px}
+.rail-link:hover{background:var(--hover-bg);color:var(--text-secondary)}
+.rail-link svg{color:var(--text-disabled)}
+
+/* lienzo de escritura */
+.canvas{padding:36px 0 30px;overflow:hidden;position:relative;min-width:0}
+.sheet{max-width:66ch;margin:0 auto;padding:0 28px;position:relative}
+.sheet.ancho{max-width:none;padding:0 56px}
+.d-h1{font-size:27px;line-height:1.16;letter-spacing:-.024em;color:var(--text-primary);font-weight:730;margin:0 0 14px}
+.d-h2{font-size:16px;letter-spacing:-.015em;color:var(--text-primary);font-weight:670;margin:30px 0 10px}
+.d-h3{font-size:13px;color:var(--text-primary);font-weight:650;margin:22px 0 8px}
+.d-p{font-size:13.5px;line-height:1.72;color:var(--text-secondary);margin:0 0 13px}
+.d-p.lead{font-size:14.5px;color:var(--text-secondary)}
+.d-task{display:flex;gap:9px;align-items:flex-start;padding:4px 0;font-size:13px;line-height:1.6}
+.d-box{width:13px;height:13px;border-radius:3.5px;border:1.5px solid var(--border-strong);flex:none;margin-top:4px;display:flex;align-items:center;justify-content:center}
+.d-box.on{background:var(--accent);border-color:var(--accent);color:var(--surface-base)}
+.d-task.done{color:var(--text-tertiary)}
+.d-at{color:var(--accent);font-weight:600}
+.d-due{color:var(--warn);font-family:var(--mono);font-size:11px}
+.d-code{font-family:var(--mono);font-size:11.5px;background:var(--surface-inset);border:1px solid var(--border-subtle);border-radius:8px;padding:11px 13px;color:var(--text-secondary);margin:0 0 13px;line-height:1.65;white-space:pre}
+.d-quote{border-left:2px solid var(--border-strong);padding-left:14px;color:var(--text-tertiary);font-style:italic;margin:0 0 13px;font-size:13px}
+.d-sel{background:color-mix(in oklch,var(--accent) 26%,transparent);border-radius:2px;padding:1px 0}
+.caret{display:inline-block;width:1.5px;height:1.05em;background:var(--accent);vertical-align:text-bottom;margin-left:1px}
+
+/* manija de la izquierda del bloque */
+.d-line{position:relative}
+.d-handle{position:absolute;left:-34px;top:2px;display:flex;gap:1px;color:var(--text-disabled)}
+.d-handle b{display:flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:4px}
+.d-handle b:hover{background:var(--hover-bg);color:var(--text-secondary)}
+
+/* isla flotante de selección */
+.isla{display:inline-flex;align-items:center;gap:1px;background:var(--surface-overlay);border:1px solid var(--border-strong);border-radius:9px;padding:3px;box-shadow:var(--shadow-pop)}
+.isla button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:var(--text-secondary)}
+.isla button:hover{background:var(--hover-bg);color:var(--text-primary)}
+.isla button.on{background:var(--accent-subtle);color:var(--accent)}
+.isla .sep{width:1px;height:15px;background:var(--border-default);margin:0 4px}
+.isla-wrap{position:absolute;z-index:5}
+.isla-wrap:after{content:'';position:absolute;left:22px;bottom:-4px;width:8px;height:8px;background:var(--surface-overlay);border-right:1px solid var(--border-strong);border-bottom:1px solid var(--border-strong);transform:rotate(45deg)}
+
+/* panel derecho */
+.aside{border-left:1px solid var(--border-subtle);padding:18px 16px 20px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.as-grp{padding:0 0 16px;margin-bottom:14px;border-bottom:1px solid var(--border-subtle)}
+.as-grp:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.as-title{display:flex;align-items:center;justify-content:space-between;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-disabled);font-weight:600;margin-bottom:11px}
+.as-title .cnt{font-family:var(--mono);letter-spacing:0;font-size:10px;color:var(--text-tertiary)}
+.as-row{display:grid;grid-template-columns:74px minmax(0,1fr);align-items:center;gap:8px;padding:3.5px 0;font-size:11.5px}
+.as-row .k{color:var(--text-tertiary);font-size:10.5px}
+.as-row .v{color:var(--text-primary);display:flex;align-items:center;gap:6px;min-width:0}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:20px;font-size:10.5px;background:var(--surface-inset);border:1px solid var(--border-subtle);color:var(--text-secondary)}
+.pill.borrador{color:var(--warn);border-color:color-mix(in oklch,var(--warn) 30%,transparent);background:color-mix(in oklch,var(--warn) 9%,transparent)}
+.pill.vigente{color:var(--ok);border-color:color-mix(in oklch,var(--ok) 30%,transparent);background:color-mix(in oklch,var(--ok) 9%,transparent)}
+.pill.add{color:var(--text-disabled);border-style:dashed}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.stale{color:var(--warn);display:flex;align-items:center;gap:5px;font-size:11px}
+.as-task{display:flex;gap:8px;align-items:flex-start;padding:5px 6px;border-radius:6px;font-size:11.5px;line-height:1.45;color:var(--text-secondary)}
+.as-task:hover{background:var(--hover-bg)}
+.as-task.done{color:var(--text-disabled);text-decoration:line-through;text-decoration-color:var(--text-disabled)}
+.as-task .d-box{margin-top:2px;width:12px;height:12px}
+.as-link{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;color:var(--text-secondary);font-size:11.5px;min-width:0}
+.as-link:hover{background:var(--hover-bg)}
+.as-link svg{color:var(--text-disabled);flex:none}
+.as-link .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.as-link .q{color:var(--text-disabled);font-size:10px;margin-left:auto;flex:none}
+.as-act{display:flex;align-items:center;gap:9px;padding:6px;border-radius:6px;color:var(--text-secondary);font-size:11.5px;width:100%;text-align:left}
+.as-act:hover{background:var(--hover-bg);color:var(--text-primary)}
+.as-act svg{color:var(--text-tertiary)}
+.as-act .k{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--text-disabled)}
+.mini-tabs{display:flex;gap:2px;background:var(--surface-inset);border-radius:6px;padding:2px}
+.mini-tabs button{flex:1;padding:3px 0;border-radius:4px;font-size:10px;color:var(--text-tertiary)}
+.mini-tabs button.on{background:var(--surface-overlay);color:var(--text-primary)}
+
+.app-bottom{display:flex;align-items:center;gap:14px;height:26px;padding:0 14px;border-top:1px solid var(--border-subtle);font-size:10.5px;color:var(--text-disabled);flex:none}
+.app-bottom .spacer{flex:1}
+.app-bottom .mono{font-family:var(--mono)}
+
+/* menú de barra inclinada */
+.slash{width:280px;background:var(--surface-overlay);border:1px solid var(--border-strong);border-radius:10px;box-shadow:var(--shadow-pop);padding:5px;overflow:hidden}
+.slash-grp{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-disabled);padding:7px 9px 4px;font-weight:600}
+.slash-item{display:flex;align-items:center;gap:9px;padding:5.5px 9px;border-radius:6px;color:var(--text-secondary);font-size:11.5px}
+.slash-item.on{background:var(--accent-subtle);color:var(--text-primary)}
+.slash-item .ic{width:20px;height:20px;border-radius:5px;background:var(--surface-inset);display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);flex:none}
+.slash-item.on .ic{background:var(--accent-muted);color:var(--accent)}
+.slash-item .kb{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--text-disabled)}
+
+/* comparativas */
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:18px 0 10px}
+@media(max-width:1100px){.cols2{grid-template-columns:1fr}}
+.lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.lbl.antes{color:var(--err)}
+.lbl.despues{color:var(--ok)}
+.callout{position:relative}
+.pin{position:absolute;z-index:6;width:17px;height:17px;border-radius:50%;background:var(--err);color:#fff;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--mono);box-shadow:0 0 0 2.5px var(--surface-base)}
+.pinlist{list-style:none;margin:12px 0 0;padding:0;max-width:88ch}
+.pinlist li{display:flex;gap:10px;margin-bottom:9px;font-size:12px;line-height:1.5}
+.pinlist .n{width:17px;height:17px;border-radius:50%;background:color-mix(in oklch,var(--err) 22%,transparent);color:var(--err);font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--mono);flex:none;margin-top:1px}
+
+/* barra vieja, para la comparación */
+.old-bar{display:flex;align-items:center;gap:5px;padding:6px 8px;border-bottom:1px solid var(--border-subtle);flex-wrap:nowrap;overflow:hidden}
+.old-btn{width:25px;height:25px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);background:var(--surface-inset);border:1px solid var(--border-subtle);flex:none}
+.old-btn.w{width:auto;padding:0 9px;gap:5px;font-size:11px}
+.old-sep{width:1px;height:16px;background:var(--border-default);margin:0 3px;flex:none}
+.old-meta{display:flex;align-items:center;gap:14px;padding:5px 10px;border-bottom:1px solid var(--border-subtle);font-size:10px;color:var(--text-tertiary)}
+.old-meta .k{font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--text-disabled)}
+.old-card{margin:10px;border:1px solid var(--border-default);border-radius:8px;background:var(--surface-raised);padding:9px}
+
+/* tema claro */
+.claro{
+  --surface-base:oklch(0.995 0 0);--surface-raised:oklch(0.975 0.002 270);
+  --surface-overlay:#fff;--surface-inset:oklch(0.968 0.003 270);
+  --border-subtle:rgba(0,0,0,.075);--border-default:rgba(0,0,0,.11);--border-strong:rgba(0,0,0,.16);
+  --text-primary:oklch(0.22 0.015 270);--text-secondary:oklch(0.42 0.012 270);
+  --text-tertiary:oklch(0.58 0.01 270);--text-disabled:oklch(0.70 0.008 270);
+  --accent:oklch(0.56 0.16 260);--hover-bg:rgba(0,0,0,.042);--active-bg:rgba(0,0,0,.07);
+  --shadow-pop:0 6px 20px rgba(0,0,0,.10);--warn:oklch(0.62 0.15 55);--ok:oklch(0.55 0.16 155);
+}
+.grid-ov{position:relative}
+.grid-ov .gm{position:absolute;top:0;bottom:0;border-left:1px dashed var(--accent-muted);border-right:1px dashed var(--accent-muted);background:var(--accent-subtle);pointer-events:none}
+.dim-num{font-family:var(--mono);font-size:10px;color:var(--accent);position:absolute;top:4px;left:50%;transform:translateX(-50%);background:var(--surface-base);padding:0 5px}
+</style>
+</head>
+<body>
+
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+<symbol id="i-tree" viewBox="0 0 24 24"><path d="M21 12h-8M21 6h-8M21 18h-8M3 4v13a2 2 0 0 0 2 2h3M3 10h5"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-chevl" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-pen" viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></symbol>
+<symbol id="i-cols" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4M8 4h8"/><circle cx="8.5" cy="14" r="1"/><circle cx="15.5" cy="14" r="1"/></symbol>
+<symbol id="i-bold" viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 0 1 0 8H6zM6 12h9a4 4 0 0 1 0 8H6z"/></symbol>
+<symbol id="i-ital" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4 9 20"/></symbol>
+<symbol id="i-strike" viewBox="0 0 24 24"><path d="M16 4H9a3 3 0 0 0-2 5M4 12h16M8 16a3 3 0 0 0 3 4h4"/></symbol>
+<symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
+<symbol id="i-todo" viewBox="0 0 24 24"><path d="m3 7 2 2 4-4M3 17l2 2 4-4M13 6h8M13 12h8M13 18h8"/></symbol>
+<symbol id="i-chain" viewBox="0 0 24 24"><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/><path d="M8 12h8"/></symbol>
+<symbol id="i-nb" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+<symbol id="i-flow" viewBox="0 0 24 24"><rect x="4" y="3" width="7" height="5" rx="1"/><rect x="13" y="16" width="7" height="5" rx="1"/><path d="M7.5 8v6a2 2 0 0 0 2 2h3"/></symbol>
+<symbol id="i-arrl" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+<symbol id="i-arrr" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-warn2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></symbol>
+<symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></symbol>
+<symbol id="i-max" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+</svg>
+
+<div class="page">
+<nav class="toc">
+  <div class="toc-brand"><svg class="i lg"><use href="#i-book"/></svg> Editor de documentos</div>
+  <div class="toc-sub">Rediseño de la interfaz · v3</div>
+  <div class="grp">El problema</div>
+  <a href="#diagnostico">1 · Qué falla hoy</a>
+  <a href="#principio">2 · El principio</a>
+  <div class="grp">La propuesta</div>
+  <a href="#rejilla">3 · La rejilla</a>
+  <a href="#completa">4 · La pantalla</a>
+  <a href="#superior">5 · La barra superior</a>
+  <a href="#izquierda">6 · El margen izquierdo</a>
+  <a href="#lienzo">7 · El lienzo</a>
+  <a href="#isla">8 · La isla flotante</a>
+  <a href="#derecha">9 · El panel derecho</a>
+  <div class="grp">Los estados</div>
+  <a href="#foco">10 · Foco</a>
+  <a href="#estrecho">11 · Ventana estrecha</a>
+  <a href="#claro">12 · Tema claro</a>
+  <div class="grp">El cierre</div>
+  <a href="#inventario">13 · Antes y después</a>
+  <a href="#codigo">14 · Qué toca en el código</a>
+</nav>
+
+<main>
+
+<h1 class="doc">Un documento, tres columnas<br>y ninguna barra de formato</h1>
+<p class="lede">El editor de hoy funciona, pero pesa. Antes de escribir una palabra hay veintiún controles del mismo tamaño pidiendo atención, una tira de metadatos peleando por la misma banda horizontal y la estructura del documento metida en una tarjeta que flota encima del texto. Este documento propone cambiar el reparto, no las funciones.</p>
+<div class="meta"><span>Rediseño de interfaz</span><span>v3 — sustituye a la v2</span><span>Sin funciones nuevas</span></div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="diagnostico">
+<h2 class="s"><span class="n">01</span> Qué falla hoy</h2>
+<p>No es que los botones estén mal colocados. Es que no hay ninguna jerarquía que colocar: negrita, ancho de columna y dueño del documento viven en la misma banda, con el mismo tamaño y el mismo peso visual, y son tres cosas que no se parecen en nada.</p>
+
+<div class="frame callout">
+  <div class="frame-cap"><b>Hoy</b><span class="spacer"></span>21 controles antes de la primera palabra</div>
+  <div style="position:relative">
+    <div class="pin" style="top:6px;left:10px">1</div>
+    <div class="pin" style="top:6px;left:352px">2</div>
+    <div class="pin" style="top:42px;left:10px">3</div>
+    <div class="pin" style="top:92px;left:10px">4</div>
+    <div class="pin" style="top:92px;right:14px">5</div>
+
+    <div class="old-bar">
+      <div class="old-btn w" style="width:118px;justify-content:space-between"><span style="color:var(--text-secondary)">Párrafo</span><svg class="i xs"><use href="#i-chev"/></svg></div>
+      <span class="old-sep"></span>
+      <div class="old-btn"><svg class="i sm"><use href="#i-bold"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-ital"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-strike"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-code"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-link"/></svg></div>
+      <span class="old-sep"></span>
+      <div class="old-btn"><svg class="i sm"><use href="#i-todo"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-table"/></svg></div>
+      <div class="old-btn w"><svg class="i sm"><use href="#i-plus"/></svg> Insertar <svg class="i xs"><use href="#i-chev"/></svg></div>
+      <span class="spacer" style="flex:1"></span>
+      <div class="old-btn"><svg class="i sm"><use href="#i-tree"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-todo"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-max"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-down"/></svg></div>
+      <span class="old-sep"></span>
+      <div class="old-btn"><svg class="i sm"><use href="#i-pen"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-cols"/></svg></div>
+      <div class="old-btn"><svg class="i sm"><use href="#i-eye"/></svg></div>
+      <span class="old-sep"></span>
+      <div class="old-btn w"><svg class="i sm"><use href="#i-save"/></svg> Save</div>
+      <div class="old-btn w"><svg class="i sm"><use href="#i-bot"/></svg> Assist</div>
+    </div>
+
+    <div class="old-meta">
+      <span class="k">Dueño</span><span style="color:var(--text-secondary)">flavio</span>
+      <span class="k">Estado</span><span class="pill borrador">borrador</span>
+      <span class="k">Revisado</span><span style="color:var(--text-secondary)">este mes</span>
+      <span class="pill">ingesta</span><span class="pill">runbook</span>
+      <span class="spacer" style="flex:1"></span>
+      <svg class="i sm" style="color:var(--text-disabled)"><use href="#i-user"/></svg>
+    </div>
+
+    <div style="display:grid;grid-template-columns:200px 1fr 1fr;height:210px">
+      <div style="padding:8px;border-right:1px solid var(--border-subtle)">
+        <div class="old-card">
+          <div style="display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:8px"><svg class="i xs"><use href="#i-tree"/></svg> Estructura</div>
+          <div style="font-size:11px;color:var(--text-secondary);padding:3px 0">Runbook de validación</div>
+          <div style="font-size:11px;color:var(--text-tertiary);padding:3px 0 3px 10px">Preparación</div>
+          <div style="font-size:11px;color:var(--text-tertiary);padding:3px 0 3px 10px">Flujo</div>
+          <div style="font-size:11px;color:var(--text-tertiary);padding:3px 0 3px 10px">Verificación</div>
+        </div>
+      </div>
+      <div style="padding:12px 10px;border-right:1px solid var(--border-subtle);font-family:var(--mono);font-size:10.5px;color:var(--text-tertiary);line-height:1.85">
+        <div><span style="color:var(--text-disabled);margin-right:10px">1</span>---</div>
+        <div><span style="color:var(--text-disabled);margin-right:10px">2</span>owner: flavio</div>
+        <div><span style="color:var(--text-disabled);margin-right:10px">3</span>estado: borrador</div>
+        <div><span style="color:var(--text-disabled);margin-right:10px">4</span>---</div>
+        <div><span style="color:var(--text-disabled);margin-right:10px">5</span></div>
+        <div><span style="color:var(--text-disabled);margin-right:10px">6</span><span style="color:var(--accent)"># Runbook de validación</span></div>
+      </div>
+      <div style="padding:14px 16px">
+        <div style="font-size:11px;color:var(--text-tertiary);border:1px solid var(--border-subtle);border-radius:6px;padding:6px 8px;margin-bottom:12px">owner: flavio estado: borrador tags: [ingesta, runbook]</div>
+        <div style="font-size:17px;color:var(--text-primary);font-weight:700">Runbook de validación</div>
+      </div>
+    </div>
+    <div class="app-bottom"><span>36 palabras</span><span>1 min de lectura</span><span>4 secciones</span><span>1 de 2 casillas</span><span class="spacer"></span><span>Foco <span class="mono">Ctrl+Shift+M</span></span></div>
+  </div>
+</div>
+
+<ul class="pinlist">
+  <li><span class="n">1</span><span><b>Tres categorías en una sola banda.</b> Cómo se ve el texto (negrita), qué estoy mirando (vista, ancho) y qué es el documento (dueño, estado) comparten fila. El ojo no puede agruparlas porque nada las separa salvo dos filetes verticales.</span></li>
+  <li><span class="n">2</span><span><b>Todo pesa igual.</b> Negrita —que usas cien veces al día— y exportar a PDF —que usas una vez al mes— son el mismo cuadrado de 25&nbsp;px. Sin jerarquía, la barra se lee como una lista, y una lista de veintiún elementos no se lee: se ignora.</span></li>
+  <li><span class="n">3</span><span><b>Los metadatos son una tira.</b> Al ser horizontales caben cuatro campos apretados y ya no hay sitio para nada más. Y comen 26&nbsp;px de alto en todos los documentos, tengan front-matter o no.</span></li>
+  <li><span class="n">4</span><span><b>La estructura es una tarjeta.</b> Borde, fondo propio, cabecera con título. Se lee como un widget aparcado <em>encima</em> del documento, no como el margen del documento. Y necesita un botón en la barra para aparecer.</span></li>
+  <li><span class="n">5</span><span><b>Lo que importa está escondido y lo que no, a la vista.</b> Las tareas —la razón por la que un ingeniero abre un runbook— viven tras un botón. Los números vivos (palabras, casillas) están en la línea más baja de la pantalla, lo más lejos posible de donde miras.</span></li>
+</ul>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="principio">
+<h2 class="s"><span class="n">02</span> El principio</h2>
+<p>Un solo criterio ordena todo lo demás: <b>cada control vive donde vive lo que toca.</b></p>
+
+<table class="t">
+  <thead><tr><th style="width:150px">Lo que toca</th><th style="width:170px">Dónde vive</th><th>Por qué</th></tr></thead>
+  <tbody>
+    <tr><td>Un trozo de texto</td><td>Encima del texto</td><td>Negrita, cursiva, código y enlace solo tienen sentido con algo seleccionado. Fuera de ese momento son ruido. Aparecen en una isla flotante sobre la selección y se van con ella.</td></tr>
+    <tr><td>Un bloque nuevo</td><td>En el cursor</td><td><code>/</code> ya abre el catálogo de 30 entradas. Para el ratón, una manija discreta en el margen de la línea. El menú «Insertar» de la barra desaparece.</td></tr>
+    <tr><td>El documento entero</td><td>Columna derecha</td><td>Dueño, estado, vigencia, etiquetas, tareas, enlaces y acciones. Son propiedades del archivo, no del texto: merecen una columna vertical, no una tira.</td></tr>
+    <tr><td>Dónde estoy</td><td>Columna izquierda</td><td>La estructura es navegación. Va en el margen, plana sobre el fondo, sin tarjeta.</td></tr>
+    <tr><td>La sesión</td><td>Barra superior</td><td>Qué archivo, si está guardado, cómo lo miro y el Assist. Cuatro cosas.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><svg class="i"><use href="#i-warn2"/></svg><span>El criterio se paga con una regla incómoda y hay que asumirla: <b>si algo no encaja en ninguna de las cinco filas, no va en la interfaz</b>, va en la paleta de comandos. Eso es lo que mata los cuatro botones de los que nadie se acuerda.</span></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="rejilla">
+<h2 class="s"><span class="n">03</span> La rejilla</h2>
+<p>Tres columnas de anchura fija en los lados y flexible en medio. El texto nunca se estira: se queda en una medida de lectura cómoda y el espacio sobrante se reparte a los lados, que es exactamente lo que hace la referencia que te gusta.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Anatomía</b><span class="spacer"></span>anchuras en píxeles lógicos</div>
+  <div class="app" style="height:290px">
+    <div class="app-top"><span style="font-size:10px;font-family:var(--mono);color:var(--text-disabled)">38 px · barra de sesión</span></div>
+    <div class="app-body full grid-ov" style="position:relative">
+      <div style="border-right:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:center;position:relative;background:rgba(255,255,255,.012)">
+        <span style="font-size:10px;font-family:var(--mono);color:var(--text-tertiary);writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.1em">ESTRUCTURA · 214</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;position:relative">
+        <div style="max-width:66ch;width:100%;height:100%;border-left:1px dashed var(--accent-muted);border-right:1px dashed var(--accent-muted);background:var(--accent-subtle);display:flex;align-items:center;justify-content:center">
+          <span style="font-size:10.5px;font-family:var(--mono);color:var(--accent);text-align:center;line-height:2">LIENZO<br>medida fija de 66 caracteres<br><span style="color:var(--text-tertiary)">el resto es margen, no columna</span></span>
+        </div>
+      </div>
+      <div style="border-left:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.012)">
+        <span style="font-size:10px;font-family:var(--mono);color:var(--text-tertiary);writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.1em">DOCUMENTO · 274</span>
+      </div>
+    </div>
+    <div class="app-bottom"><span class="mono" style="font-size:9.5px">26 px · estado</span></div>
+  </div>
+</div>
+<p class="caption"><b>Por qué la medida es fija.</b> El botón de «ancho completo» de hoy existe porque el texto se estira hasta el borde de la ventana y a 1900&nbsp;px una línea de párrafo es ilegible. Con la medida fijada en 66 caracteres el problema no existe y el botón sobra. Solo sobrevive como excepción para documentos con tablas anchas, y vive en el menú de la vista, no en la barra.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="completa">
+<h2 class="s"><span class="n">04</span> La pantalla</h2>
+<p>El mismo documento de la captura de hoy, con el reparto nuevo. Nada de lo que había se ha perdido: se ha movido a donde corresponde.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Editor de documentos</b><span class="spacer"></span>vista «escribir» · 5 controles permanentes</div>
+  <div class="app">
+    <div class="app-top">
+      <span class="app-file">runbook-validacion<span class="ext">.md</span></span>
+      <span class="app-state"><span class="dot"></span> guardado</span>
+      <span class="spacer"></span>
+      <div class="seg">
+        <button class="on"><svg class="i sm"><use href="#i-pen"/></svg> Escribir</button>
+        <button><svg class="i sm"><use href="#i-cols"/></svg> Dividido</button>
+        <button><svg class="i sm"><use href="#i-eye"/></svg> Leer</button>
+      </div>
+      <button class="ghost"><svg class="i sm"><use href="#i-bot"/></svg> Assist</button>
+    </div>
+
+    <div class="app-body full">
+      <!-- margen izquierdo -->
+      <div class="rail">
+        <div class="rail-head"><span>Estructura</span><svg class="i xs"><use href="#i-chevl"/></svg></div>
+        <button class="rail-item">Runbook de validación<span class="frac">1/2</span></button>
+        <div class="rail-bar"><i style="width:50%"></i></div>
+        <button class="rail-item l2 on">Preparación<span class="frac">1/2</span></button>
+        <button class="rail-item l2">Flujo</button>
+        <button class="rail-item l2">Verificación</button>
+        <button class="rail-item l3">Consulta de control</button>
+        <div class="rail-foot">
+          <button class="rail-link"><svg class="i sm"><use href="#i-search"/></svg> Buscar en el proyecto</button>
+        </div>
+      </div>
+
+      <!-- lienzo -->
+      <div class="canvas">
+        <div class="sheet">
+          <div class="d-line"><h1 class="d-h1">Runbook de validación</h1></div>
+          <p class="d-p lead">Documento para comprobar la cabecera, los diagramas y la exportación antes de publicar la ingesta diaria.</p>
+
+          <h2 class="d-h2">Preparación</h2>
+          <div class="d-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar que la carga de ayer cerró sin filas rechazadas</span></div>
+          <div class="d-task"><span class="d-box"></span><span>Revisar el umbral de nulos en <code>cliente_id</code> <span class="d-at">@ana</span> <span class="d-due">vence 14 sep</span></span></div>
+
+          <h2 class="d-h2">Flujo</h2>
+          <p class="d-p">El diagrama sale de <a href="#">test.sqlchain</a>; si cambia la cadena hay que regenerarlo desde el catálogo.</p>
+          <div class="d-code">flowchart LR
+  extraccion[("export")] --> filtro["Filter"]
+  filtro --> carga[("almacen")]</div>
+
+          <h2 class="d-h2">Verificación</h2>
+          <p class="d-p">Comparar el conteo contra el <a href="#">control-diario.sqlnb</a> y anotar aquí la diferencia.<span class="caret"></span></p>
+          <div class="d-line" style="height:22px">
+            <div class="d-handle"><b><svg class="i sm"><use href="#i-plus"/></svg></b><b><svg class="i sm"><use href="#i-grip"/></svg></b></div>
+            <span style="font-size:12.5px;color:var(--text-disabled)">Escribe, o pulsa <kbd>/</kbd> para insertar</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- panel derecho -->
+      <div class="aside">
+        <div class="as-grp">
+          <div class="as-title"><span>Documento</span></div>
+          <div class="as-row"><span class="k">Dueño</span><span class="v"><svg class="i xs" style="color:var(--text-disabled)"><use href="#i-user"/></svg> flavio</span></div>
+          <div class="as-row"><span class="k">Estado</span><span class="v"><span class="pill borrador">borrador <svg class="i xs"><use href="#i-chev"/></svg></span></span></div>
+          <div class="as-row"><span class="k">Revisado</span><span class="v" style="color:var(--text-secondary)">este mes</span></div>
+          <div class="as-row" style="align-items:flex-start;padding-top:6px"><span class="k">Etiquetas</span><span class="v"><span class="tags"><span class="pill">ingesta</span><span class="pill">runbook</span><span class="pill add"><svg class="i xs"><use href="#i-plus"/></svg></span></span></span></div>
+        </div>
+
+        <div class="as-grp">
+          <div class="as-title"><span>Tareas</span><span class="cnt">1/2</span></div>
+          <div class="mini-tabs" style="margin-bottom:8px"><button class="on">Este documento</button><button>Proyecto · 7</button></div>
+          <div class="as-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar que la carga de ayer cerró</span></div>
+          <div class="as-task"><span class="d-box"></span><span>Revisar el umbral de nulos <span class="d-at">@ana</span><br><span class="d-due">vence 14 sep</span></span></div>
+        </div>
+
+        <div class="as-grp">
+          <div class="as-title"><span>Enlaces</span></div>
+          <button class="as-link"><svg class="i sm"><use href="#i-chain"/></svg><span class="n">test.sqlchain</span><span class="q"><svg class="i xs"><use href="#i-arrr"/></svg></span></button>
+          <button class="as-link"><svg class="i sm"><use href="#i-nb"/></svg><span class="n">control-diario.sqlnb</span><span class="q"><svg class="i xs"><use href="#i-arrr"/></svg></span></button>
+          <button class="as-link"><svg class="i sm"><use href="#i-book"/></svg><span class="n">notas-ingesta.md</span><span class="q"><svg class="i xs"><use href="#i-arrl"/></svg></span></button>
+        </div>
+
+        <div class="as-grp">
+          <div class="as-title"><span>Acciones</span></div>
+          <button class="as-act"><svg class="i sm"><use href="#i-check"/></svg> Marcar revisado</button>
+          <button class="as-act"><svg class="i sm"><use href="#i-down"/></svg> Exportar<span class="k">PDF</span></button>
+          <button class="as-act"><svg class="i sm"><use href="#i-save"/></svg> Guardar como…</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-bottom"><span>36 palabras</span><span>1 min</span><span>4 secciones</span><span class="spacer"></span><span>Foco <span class="mono">Ctrl+Shift+M</span></span></div>
+  </div>
+</div>
+<p class="caption">Los controles permanentes bajan de <b>21 a 5</b>: tres de vista, el Assist y el estado de guardado. Todo lo demás aparece cuando tiene sentido —al seleccionar texto, al pulsar <kbd>/</kbd>, al pasar por una línea vacía— o vive en la columna derecha, que no es una barra: es contenido.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="superior">
+<h2 class="s"><span class="n">05</span> La barra superior</h2>
+<p>Lo único que sobrevive arriba es lo que pertenece a la sesión, no al texto. Y el botón <b>Save</b> deja de ser un botón permanente para convertirse en un <b>estado que solo se vuelve accionable cuando hay algo que guardar</b>.</p>
+
+<div class="cols2">
+  <div>
+    <div class="lbl antes"><svg class="i sm"><use href="#i-x"/></svg> Guardado</div>
+    <div class="frame" style="margin-top:0">
+      <div class="app"><div class="app-top">
+        <span class="app-file">runbook-validacion<span class="ext">.md</span></span>
+        <span class="app-state"><span class="dot"></span> guardado</span>
+        <span class="spacer"></span>
+        <div class="seg"><button class="on"><svg class="i sm"><use href="#i-pen"/></svg></button><button><svg class="i sm"><use href="#i-cols"/></svg></button><button><svg class="i sm"><use href="#i-eye"/></svg></button></div>
+        <button class="ghost"><svg class="i sm"><use href="#i-bot"/></svg> Assist</button>
+      </div></div>
+    </div>
+    <p class="caption">Sin cambios pendientes no hay botón que pulsar. Un punto y una palabra.</p>
+  </div>
+  <div>
+    <div class="lbl despues"><svg class="i sm"><use href="#i-pen"/></svg> Con cambios</div>
+    <div class="frame" style="margin-top:0">
+      <div class="app"><div class="app-top">
+        <span class="app-file">runbook-validacion<span class="ext">.md</span></span>
+        <span class="app-state dirty"><span class="dot"></span> sin guardar</span>
+        <span class="spacer"></span>
+        <button class="ghost accent"><svg class="i sm"><use href="#i-save"/></svg> Guardar <span style="font-family:var(--mono);font-size:9.5px;opacity:.7">⌃S</span></button>
+        <div class="seg"><button class="on"><svg class="i sm"><use href="#i-pen"/></svg></button><button><svg class="i sm"><use href="#i-cols"/></svg></button><button><svg class="i sm"><use href="#i-eye"/></svg></button></div>
+        <button class="ghost"><svg class="i sm"><use href="#i-bot"/></svg> Assist</button>
+      </div></div>
+    </div>
+    <p class="caption">El botón aparece con el primer carácter y se va al guardar. Es el mismo aviso que ya llevaba el punto naranja, pero ahora es accionable.</p>
+  </div>
+</div>
+
+<div class="note"><svg class="i"><use href="#i-warn2"/></svg><span>El movimiento tiene un coste real: <b>un control que aparece y desaparece es un blanco móvil</b>. Se compensa con dos cosas: <kbd>Ctrl+S</kbd> sigue funcionando siempre, y el hueco que ocupa el botón se reserva aunque esté vacío, así la barra no baila cuando cambia de estado.</span></div>
+
+<table class="t">
+  <thead><tr><th style="width:180px">Control de hoy</th><th style="width:110px">Destino</th><th>Dónde acaba</th></tr></thead>
+  <tbody>
+    <tr><td>Selector de bloque</td><td><span class="tag no">Fuera</span></td><td>La manija del margen y <kbd>Ctrl+1..6</kbd> hacen lo mismo sin ocupar 118&nbsp;px fijos.</td></tr>
+    <tr><td>Negrita, cursiva, tachado, código, enlace</td><td><span class="tag mv">Se mueve</span></td><td>Isla flotante sobre la selección.</td></tr>
+    <tr><td>Tarea, tabla, Insertar</td><td><span class="tag mv">Se mueve</span></td><td>Menú de <kbd>/</kbd> y manija <kbd>+</kbd> del margen.</td></tr>
+    <tr><td>Estructura</td><td><span class="tag no">Fuera</span></td><td>La columna izquierda ya está ahí; se pliega desde su propia cabecera.</td></tr>
+    <tr><td>Pendientes del proyecto</td><td><span class="tag mv">Se mueve</span></td><td>Segunda pestaña del bloque «Tareas» del panel derecho.</td></tr>
+    <tr><td>Ancho completo</td><td><span class="tag no">Fuera</span></td><td>Deja de hacer falta con medida fija; queda en el menú de la vista.</td></tr>
+    <tr><td>Exportar</td><td><span class="tag mv">Se mueve</span></td><td>Bloque «Acciones» del panel derecho.</td></tr>
+    <tr><td>Vista (3)</td><td><span class="tag go">Se queda</span></td><td>Con etiqueta de texto, no solo icono.</td></tr>
+    <tr><td>Save + su desplegable</td><td><span class="tag mv">Se mueve</span></td><td>Estado condicional arriba; «Guardar como» a Acciones.</td></tr>
+    <tr><td>Assist</td><td><span class="tag go">Se queda</span></td><td>Sin cambios.</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="izquierda">
+<h2 class="s"><span class="n">06</span> El margen izquierdo</h2>
+<p>Lo que pediste: que no se vea como una tarjeta, sino como un espacio asignado. En la práctica son cuatro renuncias —fondo propio, borde, esquinas redondeadas y cabecera con icono— y una permanencia: un filete vertical de un píxel que separa margen de texto.</p>
+
+<div class="cols2">
+  <div>
+    <div class="lbl antes"><svg class="i sm"><use href="#i-x"/></svg> Tarjeta</div>
+    <div class="frame" style="margin-top:0"><div class="app" style="height:200px"><div style="padding:10px;background:var(--surface-base);height:100%">
+      <div class="old-card" style="margin:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:9px"><span style="display:flex;gap:6px;align-items:center"><svg class="i xs"><use href="#i-tree"/></svg> Estructura</span><span class="mono" style="font-size:9px">4</span></div>
+        <div style="font-size:11.5px;color:var(--text-secondary);padding:4px 6px;border-radius:4px;background:var(--surface-inset)">Runbook de validación</div>
+        <div style="font-size:11px;color:var(--text-tertiary);padding:4px 6px 4px 16px">Preparación</div>
+        <div style="font-size:11px;color:var(--text-tertiary);padding:4px 6px 4px 16px">Flujo</div>
+        <div style="font-size:11px;color:var(--text-tertiary);padding:4px 6px 4px 16px">Verificación</div>
+      </div>
+    </div></div></div>
+    <p class="caption">Cuatro bordes, dos fondos y una cabecera: la vista tiene que procesar un recuadro antes de leer un nombre de sección.</p>
+  </div>
+  <div>
+    <div class="lbl despues"><svg class="i sm"><use href="#i-check"/></svg> Margen</div>
+    <div class="frame" style="margin-top:0"><div class="app" style="height:200px"><div class="rail" style="height:100%;border-right:none">
+      <div class="rail-head"><span>Estructura</span><svg class="i xs"><use href="#i-chevl"/></svg></div>
+      <button class="rail-item">Runbook de validación<span class="frac">1/2</span></button>
+      <div class="rail-bar"><i style="width:50%"></i></div>
+      <button class="rail-item l2 on">Preparación<span class="frac">1/2</span></button>
+      <button class="rail-item l2">Flujo</button>
+      <button class="rail-item l2">Verificación</button>
+    </div></div></div>
+    <p class="caption">Tipografía sobre el fondo de la aplicación. La sección activa se marca con un filete de acento y un degradado que se apaga; el progreso es una barra de 2&nbsp;px, no una insignia.</p>
+  </div>
+</div>
+
+<h3 class="s">Plegado</h3>
+<p>La chevron de la cabecera pliega la columna. No queda una tira de iconos: <b>desaparece entera</b> y el lienzo se recentra, porque una tira de 44&nbsp;px con un icono es justo la clase de resto que ensucia. Para volver, <kbd>Ctrl+Shift+O</kbd> o el borde izquierdo, que revela la columna al pasar por encima sin empujar el texto.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Plegada</b><span class="spacer"></span>el lienzo se recentra, no se estira</div>
+  <div class="app" style="height:210px">
+    <div class="app-top">
+      <button class="ghost" style="padding:4px 6px"><svg class="i sm"><use href="#i-panel"/></svg></button>
+      <span class="app-file">runbook-validacion<span class="ext">.md</span></span>
+      <span class="app-state"><span class="dot"></span> guardado</span>
+      <span class="spacer"></span>
+      <div class="seg"><button class="on"><svg class="i sm"><use href="#i-pen"/></svg> Escribir</button><button><svg class="i sm"><use href="#i-cols"/></svg></button><button><svg class="i sm"><use href="#i-eye"/></svg></button></div>
+      <button class="ghost"><svg class="i sm"><use href="#i-bot"/></svg> Assist</button>
+    </div>
+    <div class="app-body sinrail">
+      <div class="canvas" style="padding-top:26px">
+        <div class="sheet">
+          <h1 class="d-h1">Runbook de validación</h1>
+          <p class="d-p lead">Documento para comprobar la cabecera, los diagramas y la exportación antes de publicar la ingesta diaria.</p>
+          <h2 class="d-h2">Preparación</h2>
+          <div class="d-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar que la carga de ayer cerró sin filas rechazadas</span></div>
+        </div>
+      </div>
+      <div class="aside">
+        <div class="as-grp">
+          <div class="as-title"><span>Documento</span></div>
+          <div class="as-row"><span class="k">Dueño</span><span class="v">flavio</span></div>
+          <div class="as-row"><span class="k">Estado</span><span class="v"><span class="pill borrador">borrador</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="lienzo">
+<h2 class="s"><span class="n">07</span> El lienzo</h2>
+<p>Es el cambio que más se nota y el que menos código toca. El editor sigue siendo el mismo, pero en la vista «escribir» se le quitan tres cosas que delatan que debajo hay un editor de código: <b>los números de línea, el resaltado de la línea activa y la regla de columnas</b>. Lo que queda es un documento.</p>
+
+<div class="cols2">
+  <div>
+    <div class="lbl antes"><svg class="i sm"><use href="#i-x"/></svg> Hoy</div>
+    <div class="frame" style="margin-top:0"><div class="app" style="height:216px"><div style="padding:14px 12px;font-family:var(--mono);font-size:11px;line-height:1.95;color:var(--text-tertiary)">
+      <div><span style="color:var(--text-disabled);margin-right:12px">14</span><span style="color:var(--accent)"># Runbook de validación</span></div>
+      <div><span style="color:var(--text-disabled);margin-right:12px">15</span></div>
+      <div style="background:rgba(255,255,255,.03)"><span style="color:var(--text-disabled);margin-right:12px">16</span>Documento para comprobar la</div>
+      <div><span style="color:var(--text-disabled);margin-right:12px">17</span>cabecera y los diagramas.</div>
+      <div><span style="color:var(--text-disabled);margin-right:12px">18</span></div>
+      <div><span style="color:var(--text-disabled);margin-right:12px">19</span><span style="color:var(--accent)">## Preparación</span></div>
+      <div><span style="color:var(--text-disabled);margin-right:12px">20</span></div>
+      <div><span style="color:var(--text-disabled);margin-right:12px">21</span>- [x] Confirmar la carga</div>
+      <div><span style="color:var(--text-disabled);margin-right:12px">22</span>- [ ] Revisar nulos @ana</div>
+    </div></div></div>
+    <p class="caption">Nueve elementos de andamiaje para cuatro frases. Los números de línea son útiles en un <code>.sql</code>; en un runbook no sirven para nada.</p>
+  </div>
+  <div>
+    <div class="lbl despues"><svg class="i sm"><use href="#i-check"/></svg> Propuesta</div>
+    <div class="frame" style="margin-top:0"><div class="app" style="height:216px"><div style="padding:18px 22px">
+      <h1 class="d-h1" style="font-size:22px;margin-bottom:10px">Runbook de validación</h1>
+      <p class="d-p" style="font-size:12.5px;margin-bottom:16px">Documento para comprobar la cabecera y los diagramas.</p>
+      <h2 class="d-h2" style="margin-top:0;font-size:14px">Preparación</h2>
+      <div class="d-task done" style="font-size:12px"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar la carga</span></div>
+      <div class="d-task" style="font-size:12px"><span class="d-box"></span><span>Revisar nulos <span class="d-at">@ana</span></span></div>
+    </div></div></div>
+    <p class="caption">La sintaxis sigue ahí —es markdown, el archivo no cambia— pero los marcadores se atenúan y los títulos toman su tamaño real. Interlineado de 1,72 y medida de 66 caracteres.</p>
+  </div>
+</div>
+
+<div class="note warn"><svg class="i"><use href="#i-alert"/></svg><span><b>Dónde está el límite honesto.</b> Esto no es un editor visual: sigues escribiendo <code>##</code> y <code>- [ ]</code>, y los verás. Lo que cambia es el <em>peso</em> de cada cosa. La vista «dividido» conserva los números de línea, porque ahí sí estás mirando el código del documento.</span></div>
+
+<h3 class="s">La manija del margen</h3>
+<p>Al pasar por una línea aparecen dos afordancias a 34&nbsp;px a su izquierda, fuera de la medida de lectura: <b>añadir</b> abre el mismo catálogo que <kbd>/</kbd>, <b>arrastrar</b> mueve el bloque. Es lo que sustituye al selector de bloque y a los botones de lista y tabla.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Al pasar el ratón por una línea</b></div>
+  <div class="app" style="padding:26px 0 30px">
+    <div class="sheet">
+      <p class="d-p" style="opacity:.5">Comparar el conteo contra el control diario y anotar la diferencia.</p>
+      <div class="d-line" style="background:var(--hover-bg);border-radius:5px;margin:0 -10px;padding:3px 10px">
+        <div class="d-handle" style="left:-30px;top:5px;color:var(--text-tertiary)"><b style="background:var(--hover-bg)"><svg class="i sm"><use href="#i-plus"/></svg></b><b><svg class="i sm"><use href="#i-grip"/></svg></b></div>
+        <span class="d-p" style="margin:0">Si la diferencia supera el 2&nbsp;% hay que parar la carga.<span class="caret"></span></span>
+      </div>
+      <p class="d-p" style="opacity:.5;margin-top:13px">Anotar el incidente en la bitácora del equipo.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="isla">
+<h2 class="s"><span class="n">08</span> La isla flotante</h2>
+<p>Es el movimiento que ya hicimos en la sección de flujos: quitar la barra fija y dejar una isla que solo existe cuando hay algo que hacer con ella. Aparece sobre la selección, a 8&nbsp;px, y se va al soltarla.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Al seleccionar texto</b><span class="spacer"></span>5 marcas + desbordamiento</div>
+  <div class="app" style="padding:46px 0 34px">
+    <div class="sheet" style="position:relative">
+      <div class="isla-wrap" style="top:-14px;left:28px">
+        <div class="isla">
+          <button class="on"><svg class="i sm"><use href="#i-bold"/></svg></button>
+          <button><svg class="i sm"><use href="#i-ital"/></svg></button>
+          <button><svg class="i sm"><use href="#i-strike"/></svg></button>
+          <button><svg class="i sm"><use href="#i-code"/></svg></button>
+          <span class="sep"></span>
+          <button><svg class="i sm"><use href="#i-link"/></svg></button>
+          <button><svg class="i sm"><use href="#i-more"/></svg></button>
+        </div>
+      </div>
+      <p class="d-p" style="margin-top:24px">Si la diferencia supera el <span class="d-sel">2&nbsp;% hay que parar la carga</span> y avisar en el canal del equipo antes de reintentar.</p>
+    </div>
+  </div>
+</div>
+<p class="caption">Cuatro marcas de texto, un enlace y un <b>desbordamiento</b> con lo que se usa de tarde en tarde: convertir en título, cita, tarea o bloque de código. El desbordamiento existe para que la isla no crezca; el día que quieras añadir algo, va ahí, no a la barra.</p>
+
+<h3 class="s">Y para los bloques, la barra inclinada</h3>
+<p>Las treinta entradas del catálogo ya están construidas y ya responden a <kbd>/</kbd>. Lo único que cambia es que ahora es <b>la única</b> forma de insertar desde el teclado, así que gana sitio: el menú se abre en el cursor, no anclado a un botón de la barra.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Al escribir «/di» en una línea vacía</b></div>
+  <div class="app" style="padding:24px 0 30px;min-height:290px">
+    <div class="sheet" style="position:relative">
+      <h2 class="d-h2" style="margin-top:0">Flujo</h2>
+      <p class="d-p" style="margin-bottom:4px"><span style="color:var(--text-tertiary)">/di</span><span class="caret"></span></p>
+      <div style="position:absolute;top:66px;left:28px;z-index:4">
+        <div class="slash">
+          <div class="slash-grp">Diagramas</div>
+          <div class="slash-item on"><span class="ic"><svg class="i sm"><use href="#i-flow"/></svg></span> Diagrama de flujo<span class="kb">↵</span></div>
+          <div class="slash-item"><span class="ic"><svg class="i sm"><use href="#i-chain"/></svg></span> Diagrama de secuencia</div>
+          <div class="slash-item"><span class="ic"><svg class="i sm"><use href="#i-table"/></svg></span> Diagrama de estados</div>
+          <div class="slash-grp">Desde el proyecto</div>
+          <div class="slash-item"><span class="ic"><svg class="i sm"><use href="#i-chain"/></svg></span> Diagrama de <b style="font-weight:600">test.sqlchain</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="derecha">
+<h2 class="s"><span class="n">09</span> El panel derecho</h2>
+<p>Aquí va todo lo que responde a «qué es este documento», en el orden en que un ingeniero lo pregunta: <b>de quién es y si vale → qué falta → con qué se conecta → qué puedo hacer con él</b>. Cuatro bloques separados por filetes, sin tarjetas y sin scroll propio salvo en las tareas.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Columna «Documento»</b><span class="spacer"></span>274 px · siempre visible</div>
+  <div class="app" style="display:block;padding:0">
+    <div class="aside" style="border-left:none;width:274px;margin:0 auto">
+      <div class="as-grp">
+        <div class="as-title"><span>Documento</span><button style="color:var(--text-disabled)"><svg class="i xs"><use href="#i-more"/></svg></button></div>
+        <div class="as-row"><span class="k">Dueño</span><span class="v"><svg class="i xs" style="color:var(--text-disabled)"><use href="#i-user"/></svg> flavio</span></div>
+        <div class="as-row"><span class="k">Estado</span><span class="v"><span class="pill borrador">borrador <svg class="i xs"><use href="#i-chev"/></svg></span></span></div>
+        <div class="as-row"><span class="k">Revisado</span><span class="v"><span class="stale"><svg class="i xs"><use href="#i-clock"/></svg> hace 14 meses</span></span></div>
+        <div class="as-row" style="align-items:flex-start;padding-top:6px"><span class="k">Etiquetas</span><span class="v"><span class="tags"><span class="pill">ingesta</span><span class="pill">runbook</span><span class="pill add"><svg class="i xs"><use href="#i-plus"/></svg></span></span></span></div>
+        <button class="as-act" style="margin-top:8px;background:var(--accent-subtle);color:var(--accent)"><svg class="i sm" style="color:var(--accent)"><use href="#i-check"/></svg> Marcar revisado hoy</button>
+      </div>
+
+      <div class="as-grp">
+        <div class="as-title"><span>Tareas</span><span class="cnt">2/5</span></div>
+        <div class="mini-tabs" style="margin-bottom:9px"><button class="on">Este documento</button><button>Proyecto · 7</button></div>
+        <div class="as-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar que la carga cerró</span></div>
+        <div class="as-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Regenerar el diagrama</span></div>
+        <div class="as-task"><span class="d-box"></span><span>Revisar el umbral de nulos <span class="d-at">@ana</span><br><span class="d-due">vence 14 sep</span></span></div>
+        <div class="as-task"><span class="d-box"></span><span>Comparar contra el control diario</span></div>
+        <div class="as-task"><span class="d-box"></span><span>Anotar la diferencia en la bitácora</span></div>
+      </div>
+
+      <div class="as-grp">
+        <div class="as-title"><span>Enlaces</span></div>
+        <button class="as-link"><svg class="i sm"><use href="#i-chain"/></svg><span class="n">test.sqlchain</span><span class="q">sale</span></button>
+        <button class="as-link"><svg class="i sm"><use href="#i-nb"/></svg><span class="n">control-diario.sqlnb</span><span class="q">sale</span></button>
+        <button class="as-link"><svg class="i sm"><use href="#i-book"/></svg><span class="n">notas-ingesta.md</span><span class="q">entra</span></button>
+      </div>
+
+      <div class="as-grp">
+        <div class="as-title"><span>Acciones</span></div>
+        <button class="as-act"><svg class="i sm"><use href="#i-search"/></svg> Buscar en el proyecto<span class="k">⌃⇧F</span></button>
+        <button class="as-act"><svg class="i sm"><use href="#i-down"/></svg> Exportar a PDF</button>
+        <button class="as-act"><svg class="i sm"><use href="#i-save"/></svg> Guardar como…</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<table class="t">
+  <thead><tr><th style="width:130px">Bloque</th><th style="width:170px">De dónde sale</th><th>Decisión de diseño</th></tr></thead>
+  <tbody>
+    <tr><td>Documento</td><td>La tira de metadatos</td><td>De horizontal a vertical: caben las cuatro claves con aire, y la vigencia caducada puede gritar en ámbar sin apretar a nadie. «Marcar revisado» solo aparece si hace falta.</td></tr>
+    <tr><td>Tareas</td><td>Panel escondido tras un botón</td><td>Deja de estar escondido: es lo que se viene a ver. La pestaña «Proyecto» absorbe el botón de pendientes globales.</td></tr>
+    <tr><td>Enlaces</td><td>Pie de la estructura</td><td>Sube a primera fila y distingue <b>sale</b> de <b>entra</b>, que es la pregunta real: «si toco esto, ¿a quién rompo?».</td></tr>
+    <tr><td>Acciones</td><td>Cuatro iconos sueltos</td><td>Verbos con nombre y atajo. Un icono de descarga sin etiqueta no dice si exporta el documento, la selección o el proyecto.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><svg class="i"><use href="#i-warn2"/></svg><span><b>La regla del panel vacío.</b> Un <code>.md</code> sin front-matter, sin tareas y sin enlaces dejaría tres bloques vacíos, que es peor que no tener panel. En ese caso el panel muestra solo «Acciones» y una línea discreta que ofrece añadir la cabecera del documento. El panel crece con el documento, no al revés.</span></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="foco">
+<h2 class="s"><span class="n">10</span> Foco</h2>
+<p><kbd>Ctrl+Shift+M</kbd> retira las dos columnas y la barra de estado. Queda la barra superior —que ya es casi nada— y el texto centrado. Es el mismo modo que ya existe, pero ahora el salto es de verdad drástico porque hay dos columnas que retirar.</p>
+
+<div class="frame">
+  <div class="frame-cap"><b>Modo foco</b></div>
+  <div class="app" style="height:300px">
+    <div class="app-top" style="opacity:.45">
+      <span class="app-file">runbook-validacion<span class="ext">.md</span></span>
+      <span class="app-state"><span class="dot"></span> guardado</span>
+      <span class="spacer"></span>
+      <button class="ghost"><svg class="i sm"><use href="#i-x"/></svg> Salir del foco</button>
+    </div>
+    <div class="app-body foco">
+      <div class="canvas" style="padding-top:40px">
+        <div class="sheet">
+          <h1 class="d-h1">Runbook de validación</h1>
+          <p class="d-p lead">Documento para comprobar la cabecera, los diagramas y la exportación antes de publicar la ingesta diaria.</p>
+          <h2 class="d-h2">Preparación</h2>
+          <div class="d-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar que la carga de ayer cerró sin filas rechazadas</span></div>
+          <div class="d-task"><span class="d-box"></span><span>Revisar el umbral de nulos en <code>cliente_id</code> <span class="d-at">@ana</span><span class="caret"></span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="estrecho">
+<h2 class="s"><span class="n">11</span> Ventana estrecha</h2>
+<p>Tres columnas necesitan sitio. Con el Assist abierto o la ventana a media pantalla no caben, y hay que decidir qué se sacrifica antes de que la decisión la tome un <code>overflow</code>.</p>
+
+<table class="t">
+  <thead><tr><th style="width:150px">Anchura del panel</th><th style="width:190px">Qué pasa</th><th>Por qué en ese orden</th></tr></thead>
+  <tbody>
+    <tr><td>≥ 1240 px</td><td>Las tres columnas</td><td>El reparto completo.</td></tr>
+    <tr><td>1040 – 1240 px</td><td>Cae la izquierda</td><td>La estructura es navegación y tiene sustituto inmediato: <kbd>Ctrl+Shift+O</kbd> la trae flotando encima. Los metadatos no tienen sustituto.</td></tr>
+    <tr><td>&lt; 1040 px</td><td>Cae la derecha</td><td>Pasa a un panel deslizante desde el borde. A esa anchura el lienzo ya está por debajo de su medida y el texto manda.</td></tr>
+    <tr><td>Vista dividida</td><td>Cae la izquierda</td><td>La previsualización ocupa media columna central; tres paneles y dos textos es demasiado.</td></tr>
+  </tbody>
+</table>
+
+<div class="frame">
+  <div class="frame-cap"><b>Estrecho</b><span class="spacer"></span>solo lienzo y documento</div>
+  <div class="app" style="max-width:760px;height:230px">
+    <div class="app-top">
+      <button class="ghost" style="padding:4px 6px"><svg class="i sm"><use href="#i-panel"/></svg></button>
+      <span class="app-file">runbook-validacion<span class="ext">.md</span></span>
+      <span class="spacer"></span>
+      <div class="seg"><button class="on"><svg class="i sm"><use href="#i-pen"/></svg></button><button><svg class="i sm"><use href="#i-cols"/></svg></button><button><svg class="i sm"><use href="#i-eye"/></svg></button></div>
+      <button class="ghost"><svg class="i sm"><use href="#i-bot"/></svg></button>
+    </div>
+    <div class="app-body sinrail">
+      <div class="canvas" style="padding-top:24px">
+        <div class="sheet" style="padding:0 24px">
+          <h1 class="d-h1" style="font-size:23px">Runbook de validación</h1>
+          <p class="d-p">Documento para comprobar la cabecera y los diagramas.</p>
+          <h2 class="d-h2">Preparación</h2>
+          <div class="d-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar la carga de ayer</span></div>
+        </div>
+      </div>
+      <div class="aside">
+        <div class="as-grp">
+          <div class="as-title"><span>Documento</span></div>
+          <div class="as-row"><span class="k">Dueño</span><span class="v">flavio</span></div>
+          <div class="as-row"><span class="k">Estado</span><span class="v"><span class="pill borrador">borrador</span></span></div>
+          <div class="as-row"><span class="k">Revisado</span><span class="v" style="color:var(--text-secondary)">este mes</span></div>
+        </div>
+        <div class="as-grp">
+          <div class="as-title"><span>Tareas</span><span class="cnt">1/2</span></div>
+          <div class="as-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar la carga</span></div>
+          <div class="as-task"><span class="d-box"></span><span>Revisar nulos <span class="d-at">@ana</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="claro">
+<h2 class="s"><span class="n">12</span> Tema claro</h2>
+<p>La referencia que más te gustó es clara, y conviene comprobar que el diseño aguanta sin el contraste del tema oscuro. Aguanta porque no depende de bordes: depende de espacio, tamaño de letra y un acento. Los mismos tokens, otros valores.</p>
+
+<div class="frame claro" style="background:var(--surface-base)">
+  <div class="frame-cap" style="background:var(--surface-inset);color:var(--text-tertiary)"><b>Editor de documentos</b><span class="spacer"></span>tema claro</div>
+  <div class="app">
+    <div class="app-top">
+      <span class="app-file">runbook-validacion<span class="ext">.md</span></span>
+      <span class="app-state"><span class="dot"></span> guardado</span>
+      <span class="spacer"></span>
+      <div class="seg">
+        <button class="on"><svg class="i sm"><use href="#i-pen"/></svg> Escribir</button>
+        <button><svg class="i sm"><use href="#i-cols"/></svg> Dividido</button>
+        <button><svg class="i sm"><use href="#i-eye"/></svg> Leer</button>
+      </div>
+      <button class="ghost"><svg class="i sm"><use href="#i-bot"/></svg> Assist</button>
+    </div>
+    <div class="app-body full">
+      <div class="rail">
+        <div class="rail-head"><span>Estructura</span><svg class="i xs"><use href="#i-chevl"/></svg></div>
+        <button class="rail-item">Runbook de validación<span class="frac">1/2</span></button>
+        <div class="rail-bar"><i style="width:50%"></i></div>
+        <button class="rail-item l2 on">Preparación<span class="frac">1/2</span></button>
+        <button class="rail-item l2">Flujo</button>
+        <button class="rail-item l2">Verificación</button>
+        <div class="rail-foot"><button class="rail-link"><svg class="i sm"><use href="#i-search"/></svg> Buscar en el proyecto</button></div>
+      </div>
+      <div class="canvas">
+        <div class="sheet">
+          <h1 class="d-h1">Runbook de validación</h1>
+          <p class="d-p lead">Documento para comprobar la cabecera, los diagramas y la exportación antes de publicar la ingesta diaria.</p>
+          <h2 class="d-h2">Preparación</h2>
+          <div class="d-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar que la carga de ayer cerró sin filas rechazadas</span></div>
+          <div class="d-task"><span class="d-box"></span><span>Revisar el umbral de nulos en <code>cliente_id</code> <span class="d-at">@ana</span> <span class="d-due">vence 14 sep</span></span></div>
+          <h2 class="d-h2">Flujo</h2>
+          <p class="d-p">El diagrama sale de <a href="#">test.sqlchain</a>; si cambia la cadena hay que regenerarlo.<span class="caret"></span></p>
+        </div>
+      </div>
+      <div class="aside">
+        <div class="as-grp">
+          <div class="as-title"><span>Documento</span></div>
+          <div class="as-row"><span class="k">Dueño</span><span class="v">flavio</span></div>
+          <div class="as-row"><span class="k">Estado</span><span class="v"><span class="pill borrador">borrador <svg class="i xs"><use href="#i-chev"/></svg></span></span></div>
+          <div class="as-row"><span class="k">Revisado</span><span class="v" style="color:var(--text-secondary)">este mes</span></div>
+          <div class="as-row" style="align-items:flex-start;padding-top:6px"><span class="k">Etiquetas</span><span class="v"><span class="tags"><span class="pill">ingesta</span><span class="pill">runbook</span></span></span></div>
+        </div>
+        <div class="as-grp">
+          <div class="as-title"><span>Tareas</span><span class="cnt">1/2</span></div>
+          <div class="mini-tabs" style="margin-bottom:8px"><button class="on">Este documento</button><button>Proyecto · 7</button></div>
+          <div class="as-task done"><span class="d-box on"><svg class="i xs" style="stroke-width:3.4"><use href="#i-check"/></svg></span><span>Confirmar que la carga cerró</span></div>
+          <div class="as-task"><span class="d-box"></span><span>Revisar el umbral de nulos</span></div>
+        </div>
+        <div class="as-grp">
+          <div class="as-title"><span>Acciones</span></div>
+          <button class="as-act"><svg class="i sm"><use href="#i-down"/></svg> Exportar a PDF</button>
+        </div>
+      </div>
+    </div>
+    <div class="app-bottom"><span>36 palabras</span><span>4 secciones</span><span class="spacer"></span><span>Foco <span class="mono">Ctrl+Shift+M</span></span></div>
+  </div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="inventario">
+<h2 class="s"><span class="n">13</span> Antes y después</h2>
+
+<div class="cols2">
+  <div>
+    <div class="lbl antes"><svg class="i sm"><use href="#i-x"/></svg> Hoy</div>
+    <ul class="clean" style="font-size:12.5px">
+      <li><b>21</b> controles permanentes en la barra</li>
+      <li><b>64 px</b> de cromo horizontal antes del texto</li>
+      <li><b>3</b> categorías mezcladas en una banda</li>
+      <li>Metadatos en una tira de 4 campos</li>
+      <li>Tareas escondidas tras un botón</li>
+      <li>Estructura en tarjeta, con borde y cabecera</li>
+      <li>Texto estirado hasta el borde de la ventana</li>
+      <li>Números de línea en un documento de prosa</li>
+    </ul>
+  </div>
+  <div>
+    <div class="lbl despues"><svg class="i sm"><use href="#i-check"/></svg> Propuesta</div>
+    <ul class="clean" style="font-size:12.5px">
+      <li><b>5</b> controles permanentes</li>
+      <li><b>38 px</b> de barra, sin tira de metadatos</li>
+      <li><b>1</b> categoría por zona de la pantalla</li>
+      <li>Metadatos en columna, con sitio para crecer</li>
+      <li>Tareas siempre visibles, con pestaña de proyecto</li>
+      <li>Estructura plana sobre el fondo, plegable</li>
+      <li>Medida fija de 66 caracteres</li>
+      <li>Sin números de línea al escribir</li>
+    </ul>
+  </div>
+</div>
+
+<div class="note"><svg class="i"><use href="#i-warn2"/></svg><span><b>Lo que se pierde.</b> Vale la pena decirlo antes de construirlo: quien use el ratón para poner negrita tendrá que seleccionar primero —la isla no existe sin selección—, y quien busque «Insertar» en la barra no lo va a encontrar. Son dos hábitos que se rompen a cambio de una pantalla que no pide nada cuando no la necesitas.</span></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="codigo">
+<h2 class="s"><span class="n">14</span> Qué toca en el código</h2>
+<p>El rediseño es casi todo reparto y estilos. La lógica ya construida —el modelo del documento, el catálogo, el menú de barra inclinada, las tareas, la vigencia, los enlaces, la exportación— no se toca: cambia dónde se dibuja.</p>
+
+<table class="t">
+  <thead><tr><th style="width:250px">Archivo</th><th style="width:100px">Alcance</th><th>Qué cambia</th></tr></thead>
+  <tbody>
+    <tr><td>MarkdownEditor.jsx</td><td><span class="tag no">Grande</span></td><td>La barra pasa de 21 controles a 5 y el cuerpo pasa a una rejilla de tres columnas. Es donde vive casi todo el trabajo.</td></tr>
+    <tr><td>MarkdownEditor.css</td><td><span class="tag no">Grande</span></td><td>Rejilla nueva, medida fija, tipografía del lienzo, reglas de ventana estrecha.</td></tr>
+    <tr><td>DocHeader.jsx</td><td><span class="tag mv">Se rehace</span></td><td>De tira horizontal a bloque vertical. La lógica de vigencia y de escritura del front-matter se conserva entera.</td></tr>
+    <tr><td>OutlinePanel.jsx</td><td><span class="tag mv">Estilos</span></td><td>Se le quita el cromo de tarjeta. El arrastre de secciones y los enlaces se quedan como están.</td></tr>
+    <tr><td>TasksPanel.jsx</td><td><span class="tag mv">Se integra</span></td><td>Deja de ser un panel suelto y se convierte en la pestaña «Proyecto» del bloque de tareas.</td></tr>
+    <tr><td>EditorOverlay.jsx</td><td><span class="tag go">Se amplía</span></td><td>Ya sabe posicionar capas sobre el editor; la isla de selección y la manija del margen se apoyan en él.</td></tr>
+    <tr><td>markdownModel.js, slashMenu.js, markdownInsertables.js, gitSections.js, diagramFromChain.js</td><td><span class="tag go">Intacto</span></td><td>Nada. El modelo del documento no se entera del rediseño.</td></tr>
+    <tr><td>Servidor</td><td><span class="tag go">Intacto</span></td><td>Ni un endpoint nuevo.</td></tr>
+  </tbody>
+</table>
+
+<h3 class="s">Las tres piezas que hay que construir de verdad</h3>
+<ul class="clean">
+  <li><b>La isla de selección.</b> Hay que escuchar el cambio de selección del editor, traducir la posición a coordenadas de pantalla y decidir cuándo esconderla (al desplazar, al perder el foco, al colapsar la selección). Es la única pieza con riesgo de parpadeo.</li>
+  <li><b>La manija del margen.</b> Requiere saber sobre qué línea está el ratón y colocar dos botones fuera de la medida de lectura, sin robarle el foco al cursor.</li>
+  <li><b>El lienzo sin andamiaje.</b> Quitar números de línea y resaltados por vista es configuración, pero la tipografía —títulos con su tamaño real, marcadores atenuados— hay que decidirla token a token.</li>
+</ul>
+
+<div class="note"><svg class="i"><use href="#i-warn2"/></svg><span>Ninguna de las tres exige tocar el modelo ni el servidor, así que el rediseño se puede hacer por partes y con la aplicación funcionando: primero el reparto de columnas, luego el lienzo, y la isla al final, que es la que más puede dar guerra.</span></div>
+</section>
+
+</main>
+</div>
+</body>
+</html>
