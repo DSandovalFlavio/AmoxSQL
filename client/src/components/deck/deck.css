@@ -1595,3 +1595,63 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     background-color: color-mix(in oklch, var(--accent-primary) 16%, transparent);
     color: var(--accent-primary);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   La barra del Studio — propia, no prestada
+   ═══════════════════════════════════════════════════════════
+
+   `.ep-action-bar` fija 40 px de alto y no envuelve, que es lo correcto para
+   un editor de consultas con tres botones. Esta barra lleva SIETE grupos
+   —refrescar, presentar, exportar, las tres vistas, guardar y Assist— y en un
+   panel estrecho no caben en una fila: medido en la aplicacion, 955 px de
+   contenido dentro de una barra de 735.
+
+   Esto vivia prestado de `.mde-toolbar`, del editor de documentos. Cuando ese
+   editor se rehizo «sin cromo y sin barra de formato» la clase desaparecio del
+   CSS, y con ella se fueron fuera de la barra Review, Source, Save y Assist:
+   guardar dejo de poder pulsarse. El prestamo no fallo por descuido de nadie
+   —quien limpia su propia casa no tiene por que saber quien le copiaba las
+   llaves—, fallo por ser un prestamo. Por eso estas reglas son del deck.
+
+   Sin `!important`, a diferencia del original: `.deck-studio .deck-toolbar`
+   son (0,2,0) contra los (0,1,0) de `.ep-action-bar`, y la especificidad ya
+   basta. */
+.deck-studio .deck-toolbar {
+    height: auto;
+    min-height: 40px;
+    padding: 4px 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+    /* Los desplegables de Present, Export y Save salen por debajo del borde
+       inferior de la barra. */
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+/* Envolver la barra no sirve de nada si sus dos mitades no envuelven tambien:
+   son ellas las que llevan los botones. */
+.deck-studio .deck-toolbar .ep-action-left,
+.deck-studio .deck-toolbar .ep-action-right {
+    flex-wrap: wrap;
+}
+
+/* El filete entre grupos. */
+.deck-studio .deck-sep {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background-color: var(--border-subtle);
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* La vista Source tambien dejaba de tomar prestado. Lo unico que necesitaba de
+   `.mde-editor-pane` era esto —el resto (min-width, overflow) ya lo tiene
+   `.deck-main-editor` de siempre—: que Monaco no pinte su propio fondo, para
+   que se vea el de la lamina. */
+.deck-main-editor .monaco-editor,
+.deck-main-editor .monaco-editor-background,
+.deck-main-editor .margin {
+    background-color: transparent !important;
+}

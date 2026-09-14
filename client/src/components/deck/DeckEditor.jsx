@@ -319,7 +319,7 @@ const DeckEditor = ({
             <div className="ep-editor-card deck-studio-card">
 
                 {/* ── Toolbar ── */}
-                <div className="ep-action-bar mde-toolbar">
+                <div className="ep-action-bar deck-toolbar">
                     <div className="ep-action-left">
                         <span className="deck-title-badge" title="Deck title (from front matter)">
                             <LuPresentation size={13} />
@@ -367,7 +367,7 @@ const DeckEditor = ({
 
                         {showExport && (
                             <>
-                                <span className="mde-sep" />
+                                <span className="deck-sep" />
                                 <div className="ep-action-group" ref={pptxMenuRef}>
                                     <button
                                         className="ep-action-btn"
@@ -403,7 +403,7 @@ const DeckEditor = ({
                             </>
                         )}
 
-                        <span className="mde-sep" />
+                        <span className="deck-sep" />
 
                         <div className="seg deck-view-seg">
                             <button
@@ -477,7 +477,7 @@ const DeckEditor = ({
 
                     <div className="deck-main">
                         {viewMode === 'source' ? (
-                            <div className="deck-main-editor mde-editor-pane">
+                            <div className="deck-main-editor">
                                 <Editor
                                     value={content}
                                     language="markdown"
