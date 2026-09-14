@@ -1565,7 +1565,6 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 .deck-slide-chartfull-caption { flex-shrink: 0; }
 .deck-slide-chartfull-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.deck-slide-chartfull-editcaption { flex-shrink: 0; }
 
 .deck-slide-inline-chart {
     margin-top: 16px;
@@ -1655,3 +1654,139 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .deck-main-editor .margin {
     background-color: transparent !important;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Fase 0 — la lámina declara sus regiones
+   ═══════════════════════════════════════════════════════════
+
+   Hasta ahora el único indicio de que algo se podía editar era un «Edit text»
+   que salía al pasar el ratón. Una lámina en reposo era indistinguible de una
+   imagen, y de ahí la primera queja de quien la usó: «no sabes cómo ni dónde
+   editar». Ahora cada hueco lleva su filete y su nombre desde el principio.
+
+   El borde va en `outline` y no en `border`: la lámina es una retícula medida
+   al píxel de diseño, y un borde de 1 px dentro de una celda desplazaría el
+   contenido y cambiaría lo que se ve respecto de lo que se va a presentar. El
+   `outline` no ocupa sitio.
+
+   Y el cromo va en PÍXELES, no en `--u`. Todo lo que hay dentro de la lámina
+   se mide en unidades de diseño porque tiene que escalar con ella; esto no es
+   contenido de la lámina, es interfaz del editor, y a media anchura de panel
+   una etiqueta en `--u` bajaría de 5 px. */
+.deck-rg {
+    position: relative;
+    outline: 1px dashed var(--border-strong);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+    transition: outline-color 120ms ease, background-color 120ms ease;
+}
+
+/* El nombre del hueco. `attr()` y no un nodo: una región es un sitio, no un
+   componente, y así ninguna disposición puede olvidarse de ponerle etiqueta. */
+.deck-rg::before {
+    content: attr(data-rg);
+    position: absolute;
+    top: -9px;
+    left: 9px;
+    z-index: 2;
+    padding: 0 5px;
+    background: var(--surface-raised);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    pointer-events: none;
+    transition: color 120ms ease, opacity 120ms ease;
+}
+
+.deck-rg:hover {
+    outline-color: var(--accent-primary);
+    background: color-mix(in oklch, var(--accent-primary) 5%, transparent);
+}
+.deck-rg:hover::before { color: var(--accent-primary); }
+
+.deck-rg--sel {
+    outline: 2px solid var(--accent-primary);
+    background: color-mix(in oklch, var(--accent-primary) 7%, transparent);
+}
+.deck-rg--sel::before { color: var(--accent-primary); }
+
+.deck-rg--editando {
+    display: flex;
+    flex-direction: column;
+    outline: 2px solid var(--accent-primary);
+}
+
+/* Cómo se sale, dicho donde se está. La pregunta 10 de la auditoría. */
+.deck-rg-ayuda {
+    align-self: flex-end;
+    margin-top: 3px;
+    font-size: 9.5px;
+    color: var(--text-disabled);
+}
+.deck-rg-ayuda kbd {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 0 3px;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+}
+
+/* Vista limpia: comprobar que lo que se ve es lo que va a salir, sin salir de
+   Design. El contenido no se mueve —el outline nunca ocupó sitio—, así que lo
+   único que cambia es que el cromo se apaga. */
+.deck-design-canvas--limpia .deck-rg,
+.deck-design-canvas--limpia .deck-rg:hover {
+    outline-color: transparent;
+    background: none;
+}
+.deck-design-canvas--limpia .deck-rg::before { opacity: 0; }
+.deck-design-canvas--limpia .deck-prose-edit-hint { display: none; }
+
+.deck-design-limpia {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.deck-design-limpia:hover { background: var(--hover-bg); color: var(--text-primary); }
+.deck-design-limpia--on { background: var(--accent-muted); border-color: transparent; color: var(--accent-primary); }
+
+/* El hueco vacío de figura pasa a ser una región con un botón dentro, y no un
+   botón a secas: la región tiene que poder seleccionarse sin disparar la
+   acción de añadir. */
+.deck-chart-slot-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+/* Dentro de la lámina, el suelo del hueco de figura va en unidades de diseño.
+
+   `.deck-chart-slot` traía `min-height: 220px` y su figura otros 200. Son
+   píxeles dentro de una lámina que se mide en `--u`: con el lienzo estrecho la
+   columna de la figura mide menos que ese suelo y la lámina se declara
+   desbordada — 124 px en el deck de demo, que es el aviso sin atribuir que
+   quedaba anotado desde la v5.4.0. Ahora se sabe de quién era porque el aviso
+   nombra la región.
+
+   El suelo sigue haciendo falta (si no, una figura sin datos colapsa a cero),
+   pero expresado en la misma unidad que todo lo demás no puede pasarse. */
+.deck-slide .deck-chart-slot { min-height: calc(120 * var(--u)); }
+.deck-slide .deck-chart-slot .amoxchart-embed { min-height: 0; }
