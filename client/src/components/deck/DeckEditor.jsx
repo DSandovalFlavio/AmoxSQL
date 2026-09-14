@@ -40,6 +40,7 @@ import DeckSidePanel from './DeckSidePanel';
 import SlideDesigner from './SlideDesigner';
 import SlidePreview from './SlidePreview';
 import DeckShow from './DeckShow';
+import DeckInspector from './DeckInspector';
 import '../MarkdownEditor.css';
 import './deck.css';
 
@@ -66,7 +67,12 @@ const DeckEditor = ({
         const saved = localStorage.getItem('amoxsql-deck-view-mode');
         return VALID_VIEWS.includes(saved) ? saved : 'design';
     });
-    const [activePanel, setActivePanel] = useState(() => localStorage.getItem('amoxsql-deck-panel') || 'slides');
+    // 'layouts' desaparecio del panel izquierdo al mudarse al inspector, pero
+    // sigue guardado en quien lo tuviera elegido: cae al esquema.
+    const [activePanel, setActivePanel] = useState(() => {
+        const guardado = localStorage.getItem('amoxsql-deck-panel');
+        return ['slides', 'charts', 'images'].includes(guardado) ? guardado : 'slides';
+    });
     const [sidePanelCollapsed, setSidePanelCollapsed] = useState(() => localStorage.getItem('amoxsql-deck-panel-collapsed') === '1');
     const [activeSlideIndex, setActiveSlideIndex] = useState(0);
     const [refreshToken, setRefreshToken] = useState(0);
@@ -81,6 +87,13 @@ const DeckEditor = ({
     // «desde el principio» son la misma acción con distinto punto de partida.
     const [presentandoDesde, setPresentandoDesde] = useState(null);
     const [showPresentMenu, setShowPresentMenu] = useState(false);
+    // La seleccion de region vive AQUI y no en el diseñador: el inspector es
+    // una columna hermana del lienzo, no un hijo suyo, y los dos tienen que
+    // estar mirando lo mismo.
+    const [selRegionId, setSelRegionId] = useState(null);
+    const [inspectorColapsado, setInspectorColapsado] = useState(() => localStorage.getItem('amoxsql-deck-inspector-colapsado') === '1');
+    // La procedencia la reporta la figura al terminar; el inspector la enseña.
+    const [procedenciaActiva, setProcedenciaActiva] = useState(null);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
     const saveMenuRef = useRef(null);
     const pptxMenuRef = useRef(null);
@@ -212,6 +225,15 @@ const DeckEditor = ({
     const handleEditNotes = useCallback((notes) => updateSlideAt(activeSlideIndex, { notes }), [updateSlideAt, activeSlideIndex]);
     const handleApplyLayout = useCallback((layout) => updateSlideAt(activeSlideIndex, { layout }), [updateSlideAt, activeSlideIndex]);
     const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { charts: [] }), [updateSlideAt, activeSlideIndex]);
+    const handleSetTone = useCallback((tone) => updateSlideAt(activeSlideIndex, { tone }), [updateSlideAt, activeSlideIndex]);
+    const handleSetFooter = useCallback((footer) => updateSlideAt(activeSlideIndex, { footer }), [updateSlideAt, activeSlideIndex]);
+    const alternarInspector = useCallback(() => {
+        setInspectorColapsado((prev) => {
+            const next = !prev;
+            localStorage.setItem('amoxsql-deck-inspector-colapsado', next ? '1' : '0');
+            return next;
+        });
+    }, []);
 
     /** Quita UNA figura de una lámina que tiene varias. */
     const handleRemoveChartAt = useCallback((i) => {
@@ -312,6 +334,11 @@ const DeckEditor = ({
     };
 
     const activeSlide = deck.slides[activeSlideIndex] || null;
+    // Lo que el inspector necesita de la lamina activa, troceado una sola vez.
+    const { chartSrc: activeChartSrc, charts: activeCharts } = useMemo(
+        () => (activeSlide ? splitSlideContent(activeSlide.markdown) : { chartSrc: null, charts: [] }),
+        [activeSlide],
+    );
     const showExport = viewMode !== 'source' && deck.slides.length > 0;
 
     return (
@@ -470,7 +497,6 @@ const DeckEditor = ({
                         onMoveSlide={handleMoveSlide}
                         onDeleteSlide={handleDeleteSlide}
                         onAddSlide={handleAddSlide}
-                        onApplyLayout={handleApplyLayout}
                         onInsertChart={handleInsertChart}
                         onInsertImage={handleInsertImage}
                     />
@@ -548,10 +574,36 @@ const DeckEditor = ({
                                     onRequestAddChart={requestAddChart}
                                     onPrev={() => goToSlide(activeSlideIndex - 1)}
                                     onNext={() => goToSlide(activeSlideIndex + 1)}
+                                    selRegionId={selRegionId}
+                                    onSelectRegion={setSelRegionId}
+                                    onProcedenciaChange={setProcedenciaActiva}
                                 />
                             )
                         )}
                     </div>
+
+                    {/* El inspector es columna hermana del lienzo, no hija: en
+                        Review y en Source no hay seleccion de la que hablar. */}
+                    {viewMode === 'design' && (
+                        <DeckInspector
+                            colapsado={inspectorColapsado}
+                            onAlternarColapso={alternarInspector}
+                            slide={activeSlide}
+                            layout={activeSlide?.layout}
+                            chartSrc={activeChartSrc}
+                            charts={activeCharts}
+                            frontMatter={deck.frontMatter}
+                            deckFooter={deck.frontMatter?.footer}
+                            seleccion={selRegionId}
+                            procedencia={procedenciaActiva}
+                            onApplyLayout={handleApplyLayout}
+                            onSetTone={handleSetTone}
+                            onSetFooter={handleSetFooter}
+                            onRemoveChart={handleRemoveChart}
+                            onRequestAddChart={requestAddChart}
+                            onOpenFile={onOpenFile}
+                        />
+                    )}
                 </div>
             </div>
 

@@ -218,6 +218,7 @@ const SlideDesigner = ({
     refreshedAt, frontMatter, variables = {}, refreshToken = 0, theme,
     onOpenFile, onEditProse, onEditNotes, onRemoveChart, onRemoveChartAt,
     onRequestAddChart, onPrev, onNext,
+    selRegionId = null, onSelectRegion, onProcedenciaChange,
 }) => {
     const { prose, chartSrc, charts, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
@@ -228,7 +229,10 @@ const SlideDesigner = ({
     const canvasRef = useRef(null);
     const desborde = useDesborde(canvasRef);
     const [procedencia, setProcedencia] = useState(null);
-    const recibirProcedencia = useCallback((datos) => setProcedencia(datos), []);
+    const recibirProcedencia = useCallback((datos) => {
+        setProcedencia(datos);
+        onProcedenciaChange?.(datos);
+    }, [onProcedenciaChange]);
     const [piezas, setPiezas] = useState(null);
     const recibirPiezas = useCallback((p) => setPiezas(p), []);
 
@@ -237,7 +241,11 @@ const SlideDesigner = ({
     // Las de texto y figura son las que se pueden recorrer; el antetítulo es
     // una directiva y su control llega con el inspector (fase 1).
     const recorribles = useMemo(() => regiones.filter((r) => r.tipo === 'texto' || r.tipo === 'figura'), [regiones]);
-    const [selId, setSelId] = useState(null);
+    // La seleccion vive en DeckEditor: el inspector es columna hermana y los
+    // dos tienen que estar mirando lo mismo. Editar, en cambio, es asunto del
+    // lienzo y se queda aqui.
+    const selId = selRegionId;
+    const setSelId = onSelectRegion;
     const [editId, setEditId] = useState(null);
     const [limpia, setLimpia] = useState(false);
 
@@ -249,6 +257,10 @@ const SlideDesigner = ({
         setEditId(null);
         setPiezas(null);
         setProcedencia(null);
+        onProcedenciaChange?.(null);
+        // `setSelId` es el `setState` del padre y es estable; no entra en las
+        // dependencias para no relanzar el efecto en cada render suyo.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [slide.id, layout, chartSrc]);
 
     const irARegion = useCallback((paso) => {
