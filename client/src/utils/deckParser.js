@@ -325,3 +325,70 @@ src: charts/example.amoxvis
   due: 8 Oct
 \`\`\`
 `;
+
+/**
+ * Escribe claves en el front-matter **sin reescribirlo**.
+ *
+ * Es la pieza delicada de la fase 2 del rediseño del Studio, y por eso no
+ * pasa por `yaml.dump` del objeto entero: volcar lo parseado y volver a
+ * serializarlo devuelve un YAML equivalente pero **no el mismo archivo** —
+ * pierde los comentarios, reordena las claves y normaliza las comillas. Quien
+ * escribió el deck a mano encontraría su cabecera «corregida» cada vez que
+ * tocase un color, y ese es justo el tipo de cosa que hace desconfiar de una
+ * herramienta.
+ *
+ * Así que se edita línea a línea: las claves que se tocan se sustituyen en su
+ * sitio, las que no se tocan no se miran, y las nuevas se añaden al final.
+ *
+ * Un valor `null` borra la clave. Y si la clave llevaba un bloque anidado
+ * debajo (`variables:` con sus pares), sus líneas sangradas viajan con ella:
+ * borrarla dejando las hijas huérfanas produciría un YAML que ya no parsea.
+ *
+ * El formato de cada valor lo decide `js-yaml`, no nosotros: entrecomillar a
+ * mano un título que lleve dos puntos es la clase de detalle que se olvida una
+ * vez y rompe el archivo.
+ */
+export function setFrontMatterKeys(frontMatterText, cambios) {
+    const claves = Object.keys(cambios || {});
+    if (!claves.length) return frontMatterText;
+
+    const texto = frontMatterText || '';
+    const eol = /\r\n/.test(texto) ? '\r\n' : '\n';
+    const m = texto.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n?$/);
+    const lineas = m && m[1] ? m[1].split(/\r?\n/) : [];
+
+    const borra = (k) => cambios[k] === null || cambios[k] === undefined;
+    const pendientes = new Set(claves.filter((k) => !borra(k)));
+    const salida = [];
+
+    const lineaDe = (clave, valor) =>
+        yaml.dump({ [clave]: valor }, { lineWidth: -1, flowLevel: 1 }).replace(/\s*$/, '');
+
+    for (let i = 0; i < lineas.length; i++) {
+        const linea = lineas[i];
+        const mk = linea.match(/^([A-Za-z0-9_-]+):(.*)$/);
+        if (!mk) { salida.push(linea); continue; }
+
+        const clave = mk[1];
+        // Un valor vacío abre un bloque: todo lo sangrado de debajo es suyo.
+        const hijas = [];
+        if (mk[2].trim() === '') {
+            while (i + 1 < lineas.length && /^\s+\S/.test(lineas[i + 1])) hijas.push(lineas[++i]);
+        }
+
+        if (claves.includes(clave) && borra(clave)) continue;
+        if (pendientes.has(clave)) {
+            salida.push(lineaDe(clave, cambios[clave]));
+            pendientes.delete(clave);
+            continue;
+        }
+        salida.push(linea, ...hijas);
+    }
+
+    for (const k of claves) {
+        if (pendientes.has(k)) salida.push(lineaDe(k, cambios[k]));
+    }
+
+    if (!salida.length) return '';
+    return `---${eol}${salida.join(eol)}${eol}---${eol}`;
+}

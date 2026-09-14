@@ -34,7 +34,7 @@ import {
     LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode, LuPlay,
 } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../../monacoTheme.js';
-import { parseDeck, serializeDeck } from '../../utils/deckParser';
+import { parseDeck, serializeDeck, setFrontMatterKeys } from '../../utils/deckParser';
 import { buildSlideSnippet, buildSlideRaw, splitSlideContent } from '../../utils/deckTemplates';
 import DeckSidePanel from './DeckSidePanel';
 import SlideDesigner from './SlideDesigner';
@@ -226,6 +226,14 @@ const DeckEditor = ({
     const handleApplyLayout = useCallback((layout) => updateSlideAt(activeSlideIndex, { layout }), [updateSlideAt, activeSlideIndex]);
     const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { charts: [] }), [updateSlideAt, activeSlideIndex]);
     const handleSetTone = useCallback((tone) => updateSlideAt(activeSlideIndex, { tone }), [updateSlideAt, activeSlideIndex]);
+    /**
+     * Escribe en la cabecera del archivo. Pasa por `setFrontMatterKeys` y no
+     * por un volcado de YAML: lo que no se toca tiene que volver byte a byte,
+     * comentarios y orden incluidos. Ver la nota de esa funcion.
+     */
+    const handleSetFrontMatter = useCallback((cambios) => {
+        onChange(serializeDeck(setFrontMatterKeys(deck.frontMatterText, cambios), deck.slides));
+    }, [deck, onChange]);
     const handleSetFooter = useCallback((footer) => updateSlideAt(activeSlideIndex, { footer }), [updateSlideAt, activeSlideIndex]);
     const alternarInspector = useCallback(() => {
         setInspectorColapsado((prev) => {
@@ -599,6 +607,7 @@ const DeckEditor = ({
                             onApplyLayout={handleApplyLayout}
                             onSetTone={handleSetTone}
                             onSetFooter={handleSetFooter}
+                            onSetFrontMatter={handleSetFrontMatter}
                             onRemoveChart={handleRemoveChart}
                             onRequestAddChart={requestAddChart}
                             onOpenFile={onOpenFile}

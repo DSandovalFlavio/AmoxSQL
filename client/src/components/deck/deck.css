@@ -2019,3 +2019,76 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 .dki-casilla input:checked + i { background: var(--accent-primary); border-color: var(--accent-primary); }
 .dki-casilla input:focus-visible + i { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* ── Fase 2 — el ámbito del deck en el inspector ───────────────────────── */
+
+/* Lámina o deck. No es una pestaña de contexto —el contexto no se elige— sino
+   de ÁMBITO: son dos objetos distintos, y el deck no se puede seleccionar en
+   el lienzo porque no está dibujado en ninguna parte. */
+.deck-inspector-ambito {
+    flex-shrink: 0;
+    display: flex;
+    gap: 2px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.deck-inspector-ambito button {
+    flex: 1;
+    padding: 4px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.deck-inspector-ambito button:hover { background: var(--hover-bg); color: var(--text-primary); }
+.deck-inspector-ambito .dki-ambito--on { background: var(--active-bg); color: var(--text-primary); font-weight: var(--weight-medium); }
+
+.dki-texto { display: flex; flex-direction: column; gap: 3px; }
+.dki-texto input,
+.dki-select {
+    width: 100%;
+    padding: 4px 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+    color: var(--text-primary);
+    font-size: var(--text-xs);
+    font-family: inherit;
+}
+.dki-texto input:focus,
+.dki-select:focus { outline: none; border-color: var(--accent-primary); }
+.dki-texto input::placeholder { color: var(--text-disabled); }
+
+/* Las muestras de acento. El color que se pinta NO sale de una tabla: se
+   resuelve del DOM con la clase aplicada, que es lo único que refleja el tema
+   y el tono reales. Ver deckColor.js. */
+.dki-muestras { display: flex; flex-wrap: wrap; gap: 5px; }
+.dki-muestra {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    border: 1px solid var(--border-default);
+    cursor: pointer;
+    color: #000;
+}
+.dki-muestra--on { outline: 2px solid var(--text-primary); outline-offset: 1.5px; }
+/* El acento que no llega al piso de contraste no se esconde ni se deshabilita:
+   se marca. Prohibirlo sería decidir por el autor, que puede tener un motivo
+   —una marca corporativa— para quererlo igual. */
+.dki-muestra--flojo { opacity: .55; }
+
+.dki-tira { display: flex; height: 10px; border-radius: 3px; overflow: hidden; }
+.dki-tira i { flex: 1; display: block; }
+
+.dki-nota--aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    color: var(--color-warning);
+}
+.dki-nota--aviso svg { flex: none; margin-top: 2px; }

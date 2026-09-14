@@ -17,14 +17,17 @@
  * No lleva pestañas a propósito. Una pestaña es algo que el usuario tiene que
  * elegir; el contexto no se elige, se tiene.
  */
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
     LuLayoutTemplate, LuChartBar, LuHash, LuExternalLink, LuRefreshCw,
-    LuPanelRightClose, LuPanelRightOpen, LuTriangleAlert, LuCheck,
+    LuPanelRightClose, LuPanelRightOpen, LuTriangleAlert, LuCheck, LuPalette,
 } from 'react-icons/lu';
 import { DECK_LAYOUT_GALLERY_BY_FAMILY, DECK_LAYOUT_META } from './deckLayoutPreviews';
 import { FOOTER_FIELDS, resolveFooterFields, resolveTone } from '../../utils/deckParser';
 import { regionesDe } from './deckRegions';
+import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../../accents.js';
+import { COLOR_PALETTES } from '../DataVisualizer/constants';
+import { medirAcentos, PISO_CONTRASTE } from './deckColor';
 
 /** Cómo se llama cada campo del pie donde lo lee una persona. */
 const NOMBRE_CAMPO = {
@@ -41,6 +44,41 @@ const TONOS = [
     { id: 'light', label: 'claro' },
     { id: 'dark', label: 'oscuro' },
 ];
+
+/**
+ * Un campo de texto del front-matter. Confirma al salir y con Intro, y `Esc`
+ * devuelve lo que habia: escribir en la cabecera del archivo en cada pulsacion
+ * reescribiria el documento entero letra a letra.
+ */
+function CampoTexto({ etiqueta, valor, placeholder, onCommit }) {
+    const [borrador, setBorrador] = useState(valor || '');
+    const refValor = useRef(valor);
+    useEffect(() => { if (refValor.current !== valor) { refValor.current = valor; setBorrador(valor || ''); } }, [valor]);
+
+    const confirmar = () => {
+        const limpio = borrador.trim();
+        if (limpio === (valor || '')) return;
+        onCommit(limpio || null);
+    };
+
+    return (
+        <div className="dki-texto">
+            <span className="dki-campo-etiqueta">{etiqueta}</span>
+            <input
+                type="text"
+                value={borrador}
+                placeholder={placeholder}
+                onChange={(e) => setBorrador(e.target.value)}
+                onBlur={confirmar}
+                onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') { e.currentTarget.blur(); }
+                    if (e.key === 'Escape') { setBorrador(valor || ''); e.currentTarget.blur(); }
+                }}
+            />
+        </div>
+    );
+}
 
 function Grupo({ titulo, children }) {
     return (
@@ -84,13 +122,149 @@ function figurasSinHueco(layoutNuevo, charts) {
     return Math.max(0, cuantas - capacidad);
 }
 
+
+/**
+ * El ámbito «deck»: lo que vale para toda la presentación y no para una lámina.
+ *
+ * Es el hueco más grande de los cinco de la auditoría porque hasta ahora **no
+ * existía interfaz**: acento, paleta, tono, autor, periodo y fecha se tocaban
+ * escribiendo YAML en la vista Source, con la ortografía exacta de cada clave.
+ *
+ * Todo lo de aquí escribe en el front-matter y nada más; ver la nota de
+ * `setFrontMatterKeys` sobre por qué se edita línea a línea.
+ */
+function PanelDeck({ frontMatter, onSetFrontMatter }) {
+    const fm = frontMatter || {};
+    const tonoDeck = ['light', 'dark'].includes(String(fm.tone || '').toLowerCase())
+        ? String(fm.tone).toLowerCase() : 'theme';
+
+    // Se mide contra la lámina de verdad, no contra el tema: una lámina con el
+    // tono invertido tiene el lienzo al revés y el acento que ahí se lee es
+    // otro. Se recalcula cuando cambia el tono, que es cuando cambia el fondo.
+    // La lámina se busca en el DOM en vez de encadenar un `ref` por tres
+    // componentes para una medición: es exactamente el elemento que queremos y
+    // nadie más lo pinta.
+    //
+    // Y se mide en un efecto, no en un `useMemo`. Un memo se evalúa DURANTE el
+    // render, cuando el navegador todavía no ha repintado la lámina con el tono
+    // nuevo: el contraste saldría medido contra el fondo anterior y el aviso
+    // llegaría siempre un paso tarde. Medir el DOM es sincronizarse con un
+    // sistema externo, que es justo para lo que está un efecto.
+    const [medidas, setMedidas] = useState(() => new Map());
+    useEffect(() => {
+        setMedidas(medirAcentos(
+            [...VIBRANT_ACCENTS, ...SOBER_ACCENTS],
+            document.querySelector('.deck-design-canvas .deck-slide'),
+        ));
+    }, [tonoDeck, fm.accent]);
+
+    const paletas = useMemo(() => Object.keys(COLOR_PALETTES), []);
+    const paletaActual = fm.palette && COLOR_PALETTES[fm.palette] ? fm.palette : '';
+
+    const muestra = (acento) => {
+        const m = medidas.get(acento.id);
+        const elegido = fm.accent === acento.id;
+        return (
+            <button
+                key={acento.id}
+                type="button"
+                className={`dki-muestra${elegido ? ' dki-muestra--on' : ''}${m && !m.pasa ? ' dki-muestra--flojo' : ''}`}
+                style={{ backgroundColor: m?.color || acento.color }}
+                onClick={() => onSetFrontMatter({ accent: elegido ? null : acento.id })}
+                title={m?.razon
+                    ? `${acento.label} — ${m.razon.toFixed(2)}:1 sobre el lienzo${m.pasa ? '' : `, por debajo del piso de ${PISO_CONTRASTE}:1`}`
+                    : acento.label}
+            >
+                {m && !m.pasa && <LuTriangleAlert size={9} />}
+            </button>
+        );
+    };
+
+    const flojos = [...VIBRANT_ACCENTS, ...SOBER_ACCENTS]
+        .filter((a) => medidas.get(a.id) && !medidas.get(a.id).pasa).length;
+
+    return (
+        <>
+            <Grupo titulo="Identidad">
+                <CampoTexto etiqueta="Título" valor={fm.title} placeholder="El título del deck" onCommit={(v) => onSetFrontMatter({ title: v })} />
+                <CampoTexto etiqueta="Hilo de sección" valor={fm.section} placeholder="Sale como antetítulo" onCommit={(v) => onSetFrontMatter({ section: v })} />
+            </Grupo>
+
+            <Grupo titulo="Color">
+                <span className="dki-campo-etiqueta">Acento</span>
+                <div className="dki-muestras">
+                    {VIBRANT_ACCENTS.map(muestra)}
+                    {SOBER_ACCENTS.map(muestra)}
+                </div>
+                {flojos > 0 && (
+                    <p className="dki-nota dki-nota--aviso">
+                        <LuTriangleAlert size={10} /> {flojos} {flojos === 1 ? 'acento no llega' : 'acentos no llegan'} a
+                        {' '}{PISO_CONTRASTE}:1 sobre este lienzo. Proyectados en una sala se pierden.
+                    </p>
+                )}
+                <p className="dki-nota dki-nota--tenue">Sin acento elegido, el deck sigue el de la aplicación.</p>
+
+                <span className="dki-campo-etiqueta">Paleta de figuras</span>
+                <select
+                    className="dki-select"
+                    value={paletaActual}
+                    onChange={(e) => onSetFrontMatter({ palette: e.target.value || null })}
+                >
+                    <option value="">la de cada figura</option>
+                    {paletas.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+                {paletaActual && (
+                    <div className="dki-tira">
+                        {COLOR_PALETTES[paletaActual].slice(0, 8).map((c, i) => (
+                            <i key={`${c}-${i}`} style={{ backgroundColor: c }} />
+                        ))}
+                    </div>
+                )}
+                <p className="dki-nota dki-nota--tenue">
+                    La paleta del deck manda sobre la que traiga cada `.amoxvis`: si no, dos figuras
+                    guardadas en sesiones distintas discrepan dentro de la misma lámina.
+                </p>
+
+                <span className="dki-campo-etiqueta">Tono</span>
+                <div className="dki-seg">
+                    {TONOS.map((t) => (
+                        <button
+                            key={t.id}
+                            type="button"
+                            className={tonoDeck === t.id ? 'dki-seg--on' : ''}
+                            onClick={() => onSetFrontMatter({ tone: t.id === 'theme' ? null : t.id })}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+            </Grupo>
+
+            <Grupo titulo="Procedencia">
+                <CampoTexto etiqueta="Autor" valor={fm.author} placeholder="Quién firma el análisis" onCommit={(v) => onSetFrontMatter({ author: v })} />
+                <CampoTexto etiqueta="Periodo" valor={fm.period} placeholder="feb–ago 2024" onCommit={(v) => onSetFrontMatter({ period: v })} />
+                <CampoTexto etiqueta="Corte de datos" valor={fm.date} placeholder="14 ago 2024" onCommit={(v) => onSetFrontMatter({ date: v })} />
+                <CampoTexto etiqueta="Fuente" valor={fm.source} placeholder="Data/dataset.csv" onCommit={(v) => onSetFrontMatter({ source: v })} />
+                <p className="dki-nota dki-nota--tenue">
+                    Los cuatro salen en grande en la portada. El pie de cada lámina deriva los suyos
+                    de la consulta que ejecutó, no de aquí.
+                </p>
+            </Grupo>
+        </>
+    );
+}
+
 const DeckInspector = ({
     colapsado, onAlternarColapso,
     slide, layout, chartSrc, charts, frontMatter, deckFooter,
     seleccion, procedencia,
     onApplyLayout, onSetTone, onSetFooter, onRemoveChart, onRequestAddChart,
-    onOpenFile,
+    onOpenFile, onSetFrontMatter,
 }) => {
+    // Lámina o deck. No es una pestaña de contexto —eso seguiría estando mal—
+    // sino de ÁMBITO: son dos objetos distintos, y el deck no se puede
+    // seleccionar en el lienzo porque no está dibujado en ninguna parte.
+    const [ambito, setAmbito] = useState('lamina');
     const regiones = useMemo(() => regionesDe(layout), [layout]);
     const region = seleccion ? regiones.find((r) => r.id === seleccion) : null;
     const tono = resolveTone({ slideTone: slide?.tone, deckTone: frontMatter?.tone });
@@ -139,15 +313,24 @@ const DeckInspector = ({
     return (
         <div className="deck-inspector">
             <div className="deck-inspector-cabecera">
-                <Icono size={13} />
-                <span>{titulo}</span>
+                {ambito === 'deck' ? <LuPalette size={13} /> : <Icono size={13} />}
+                <span>{ambito === 'deck' ? 'El deck' : titulo}</span>
                 <button type="button" onClick={onAlternarColapso} title="Ocultar el inspector"><LuPanelRightClose size={15} /></button>
+            </div>
+
+            <div className="deck-inspector-ambito">
+                <button type="button" className={ambito === 'lamina' ? 'dki-ambito--on' : ''} onClick={() => setAmbito('lamina')}>Lámina</button>
+                <button type="button" className={ambito === 'deck' ? 'dki-ambito--on' : ''} onClick={() => setAmbito('deck')}>Deck</button>
             </div>
 
             <div className="deck-inspector-cuerpo">
 
+                {ambito === 'deck' && (
+                    <PanelDeck frontMatter={frontMatter} onSetFrontMatter={onSetFrontMatter} />
+                )}
+
                 {/* ── La región seleccionada ── */}
-                {region && !esFigura && (
+                {ambito === 'lamina' && region && !esFigura && (
                     <Grupo titulo="La región">
                         <p className="dki-nota">{region.pista}</p>
                         <p className="dki-nota dki-nota--tenue">
@@ -157,7 +340,7 @@ const DeckInspector = ({
                 )}
 
                 {/* ── La figura ── */}
-                {esFigura && (
+                {ambito === 'lamina' && esFigura && (
                     <>
                         <Grupo titulo="Origen">
                             {chartSrc ? (
@@ -214,6 +397,7 @@ const DeckInspector = ({
                 )}
 
                 {/* ── La lámina ── siempre, porque siempre hay una */}
+                {ambito === 'lamina' && (<>
                 <Grupo titulo="Disposición">
                     {DECK_LAYOUT_GALLERY_BY_FAMILY.map((familia) => (
                         <div key={familia.key} className="dki-familia">
@@ -284,6 +468,7 @@ const DeckInspector = ({
                         ))
                     )}
                 </Grupo>
+                </>)}
 
             </div>
         </div>
