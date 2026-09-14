@@ -57,18 +57,25 @@ funcionan. Se hace primero justamente por eso — cuanto más tarde, más códig
 
 ## Fase 1 — El inspector
 
-- [ ] Tercera columna a la derecha, plegable. Refleja la selección; no lleva pestañas.
-- [ ] Cuatro estados: nada/lámina · región de texto · figura · deck.
-- [ ] **Estado lámina:** disposición (galería), tono, campos del pie con casillas. Son las
+- [x] Tercera columna a la derecha, plegable. Refleja la selección; no lleva pestañas.
+- [~] **Tres** estados, no cuatro: lámina · región de texto · figura. El de la marca del
+      deck llega en la fase 2 con su contenido — montar aquí la pestaña vacía sería
+      enseñar un hueco con una disculpa dentro.
+- [x] **Estado lámina:** disposición (galería), tono, campos del pie con casillas. Son las
       tres directivas que hoy hay que memorizar (`layout`, `tone`, `footer`).
-- [ ] Al cambiar de disposición, decir **qué se queda huérfano** antes de aplicar. El
-      contenido no se pierde nunca: sigue en el markdown aunque la disposición nueva no
-      tenga hueco para pintarlo.
-- [ ] **Estado figura:** origen, sustituir, abrir en Story Flow, tarjeta sí/no, paleta,
+- [x] Al cambiar de disposición, decir **qué se queda huérfano** antes de aplicar.
+      **Corregido a mitad:** el aviso es sobre FIGURAS, no sobre texto. La primera versión
+      comparaba partes de prosa y saltaba en cuatro tarjetas sin motivo — las partes no son
+      trozos distintos, son vistas del mismo string y entre todas cubren siempre la prosa
+      entera. Con las figuras sí pasa: una rejilla admite cuatro y un hallazgo una.
+- [x] **Estado figura:** origen, sustituir, abrir en Story Flow, tarjeta sí/no, paleta,
       frescura.
-- [ ] El panel izquierdo se queda **sólo con el esquema**. Layouts se va al inspector;
-      Charts e Images pasan a invocarse desde donde se usan (fase 3).
-- [ ] Plegado del inspector con memoria en `localStorage`, como el panel izquierdo.
+- [~] El panel izquierdo pierde **Layouts**, que se va al inspector. Figuras e Imágenes
+      siguen ahí hasta la fase 3, que es cuando pasan a invocarse desde donde se usan:
+      quitarlas antes dejaría el deck sin ninguna forma de insertar nada.
+- [x] Plegado del inspector con memoria en `localStorage`, y plegado **automático** con
+      `@container` por debajo de 900 px de Studio — midiendo el panel y no la ventana, que
+      en vista partida no son lo mismo.
 
 **Riesgo:** tres columnas en un panel partido se quedan sin sitio. El inspector tiene que
 plegarse solo por debajo de cierto ancho, no esperar a que el usuario lo haga.
