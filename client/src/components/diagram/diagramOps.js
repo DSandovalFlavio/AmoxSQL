@@ -9,13 +9,15 @@
  * guarda el texto de cada paso, y una mutación silenciosa haría que deshacer
  * devolviera un estado que ya venía modificado.
  */
-import { FORMA_POR_DEFECTO, ESTILO_POR_DEFECTO, idLibre, grupoDe } from '../markdown/mermaidFlow.js';
+import { FORMA_POR_DEFECTO, ESTILO_POR_DEFECTO, idLibre, grupoDe, defineCapa } from '../markdown/mermaidFlow.js';
 
 /** Una copia en profundidad de lo que se va a tocar. */
 function clonar(g) {
     return {
         direccion: g.direccion,
-        nodos: g.nodos.map((n) => ({ ...n })),
+        // Las clases se copian como lista propia: sin esto, `asignarCapa` sobre
+        // la copia le cambiaría la capa también al original.
+        nodos: g.nodos.map((n) => ({ ...n, clases: [...(n.clases || [])] })),
         aristas: g.aristas.map((a) => ({ ...a })),
         subgrafos: g.subgrafos.map((s) => ({ ...s, nodos: [...s.nodos] })),
         conservado: [...g.conservado],
@@ -31,7 +33,7 @@ export function idsUsados(g) {
 export function anadirNodo(g, { texto = 'Sin nombre', forma = FORMA_POR_DEFECTO, grupo = null } = {}) {
     const n = clonar(g);
     const id = idLibre(texto, idsUsados(n));
-    n.nodos.push({ id, texto, forma });
+    n.nodos.push({ id, texto, forma, clases: [] });
     if (grupo) {
         const sg = n.subgrafos.find((s) => s.id === grupo);
         if (sg) sg.nodos.push(id);
@@ -77,7 +79,9 @@ export function duplicarNodo(g, id) {
     const n = clonar(g);
     const nuevo = idLibre(orig.texto, idsUsados(n));
     const donde = n.nodos.findIndex((x) => x.id === id);
-    n.nodos.splice(donde + 1, 0, { id: nuevo, texto: orig.texto, forma: orig.forma });
+    // La copia hereda la capa: duplicar una fuente para hacer la siguiente y
+    // que salga de otro color sería tener que acordarse de repintarla.
+    n.nodos.splice(donde + 1, 0, { id: nuevo, texto: orig.texto, forma: orig.forma, clases: [...(orig.clases || [])] });
     const sg = n.subgrafos.find((s) => s.nodos.includes(id));
     if (sg) sg.nodos.splice(sg.nodos.indexOf(id) + 1, 0, nuevo);
     return { grafo: n, id: nuevo };
@@ -177,6 +181,106 @@ export function estiloArista(g, indice, estilo) {
 export function cambiarDireccion(g, direccion) {
     const n = clonar(g);
     n.direccion = direccion;
+    return n;
+}
+
+// ── capas ───────────────────────────────────────────────────────────────────
+
+/**
+ * Mete o saca una caja de una capa.
+ *
+ * Una caja puede llevar varias clases —mermaid las acumula— pero en esta
+ * interfaz una capa es **una**: «origen», «refinado», «consumo». Asignar una
+ * quita la anterior, porque si no, dos rellenos se pisan y el color que sale
+ * depende del orden de las líneas, que es justo lo que nadie quiere depurar.
+ */
+export function asignarCapa(g, id, capa) {
+    const n = clonar(g);
+    const nodo = n.nodos.find((x) => x.id === id);
+    if (!nodo) return n;
+    const conocidas = new Set(capasConocidas(n));
+    nodo.clases = (nodo.clases || []).filter((c) => !conocidas.has(c));
+    if (capa) nodo.clases.push(capa);
+    return n;
+}
+
+/** Los nombres de capa que el diagrama define con un `classDef`. */
+export function capasConocidas(g) {
+    return (g?.conservado || [])
+        .map((l) => /^classDef\s+([A-Za-z_][A-Za-z0-9_-]*)\s/.exec(l))
+        .filter(Boolean)
+        .map((m) => m[1]);
+}
+
+/**
+ * Declara una capa nueva y se la pone a la caja.
+ *
+ * Añade una línea a lo conservado, que es lo único que este editor escribe ahí.
+ * Añadir no es lo mismo que tocar: las líneas que había siguen intactas, y una
+ * definición nueva no cambia el aspecto de ninguna caja que no la use.
+ */
+export function crearCapa(g, id, nombre, fill, stroke) {
+    const limpio = String(nombre || '').replace(/[^A-Za-z0-9_-]/g, '').toLowerCase() || 'capa';
+    const usados = new Set(capasConocidas(g));
+    let final = limpio;
+    let i = 2;
+    while (usados.has(final)) final = `${limpio}${i++}`;
+
+    const n = clonar(g);
+    n.conservado.push(defineCapa(final, fill, stroke));
+    return { grafo: id ? asignarCapa(n, id, final) : n, capa: final };
+}
+
+// ── grupos ──────────────────────────────────────────────────────────────────
+
+/**
+ * Agrupa varias cajas en una zona.
+ *
+ * **Es la operación central de este editor**, no un detalle de acabado: quien
+ * dibuja una arquitectura piensa en aterrizaje, refinado y consumo antes que en
+ * las cajas que hay dentro.
+ *
+ * Una caja sólo puede estar en un grupo —mermaid tampoco admite más— así que
+ * agrupar la saca del anterior. Y un grupo que se queda sin cajas desaparece:
+ * un recuadro vacío en el dibujo no significa nada.
+ */
+export function agrupar(g, ids, titulo = 'Zona') {
+    const dentro = (ids || []).filter((id) => g.nodos.some((x) => x.id === id));
+    if (!dentro.length) return { grafo: g, id: null };
+
+    const n = clonar(g);
+    const id = idLibre(titulo, idsUsados(n));
+    for (const sg of n.subgrafos) sg.nodos = sg.nodos.filter((x) => !dentro.includes(x));
+    n.subgrafos.push({ id, titulo, nodos: dentro });
+    n.subgrafos = n.subgrafos.filter((sg) => sg.nodos.length);
+    return { grafo: n, id };
+}
+
+/** Deshace el grupo. Las cajas se quedan; lo que desaparece es el recuadro. */
+export function desagrupar(g, sgId) {
+    const n = clonar(g);
+    n.subgrafos = n.subgrafos.filter((sg) => sg.id !== sgId);
+    return n;
+}
+
+/** El título de un grupo — lo que se lee en el recuadro. */
+export function renombrarGrupo(g, sgId, titulo) {
+    const n = clonar(g);
+    const sg = n.subgrafos.find((x) => x.id === sgId);
+    if (sg) sg.titulo = titulo;
+    return n;
+}
+
+/** Mueve una caja a otro grupo, o la deja fuera de todos con `null`. */
+export function moverAGrupo(g, id, sgId) {
+    if (!g.nodos.some((x) => x.id === id)) return g;
+    const n = clonar(g);
+    for (const sg of n.subgrafos) sg.nodos = sg.nodos.filter((x) => x !== id);
+    if (sgId) {
+        const destino = n.subgrafos.find((sg) => sg.id === sgId);
+        if (destino) destino.nodos.push(id);
+    }
+    n.subgrafos = n.subgrafos.filter((sg) => sg.nodos.length);
     return n;
 }
 

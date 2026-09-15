@@ -73,16 +73,24 @@ export const DIRECCIONES = ['TB', 'TD', 'BT', 'LR', 'RL'];
 /**
  * Las líneas que no entendemos pero **no tocamos**. El orden importa: se prueban
  * de más específica a menos, y `%%{` tiene que ir antes que `%%`.
+ *
+ * `class` estuvo aquí y **se ha promovido**: asignar una capa a una caja es lo
+ * que pedía la pregunta 26 de la auditoría, y no se puede ofrecer si la línea
+ * que lo dice es opaca. La distinción que queda es la correcta: entendemos
+ * **qué caja pertenece a qué clase** y no tocamos **qué aspecto tiene esa
+ * clase** — el `classDef` sigue siendo del autor, palabra por palabra.
  */
 const CONSERVADAS = [
     /^%%\{/,
     /^%%/,
     /^classDef\s/,
-    /^class\s/,
     /^style\s/,
     /^linkStyle\s/,
     /^click\s/,
 ];
+
+/** `class a,b,c nombre` — la asignación de capas, que sí se entiende. */
+const RE_CLASE = /^class\s+([A-Za-z0-9_,\-\s]+?)\s+([A-Za-z_][A-Za-z0-9_-]*)$/;
 
 /** Los cercos ordenados por longitud: `[(` tiene que probarse antes que `[`. */
 const APERTURAS = Object.entries(FORMAS)
@@ -203,6 +211,7 @@ export function parsearFlujo(texto) {
                 id: spec.id,
                 texto: spec.conCerco ? spec.texto : spec.id,
                 forma: spec.conCerco ? spec.forma : FORMA_POR_DEFECTO,
+                clases: [],
             });
         } else if (spec.conCerco) {
             previo.texto = spec.texto;
@@ -211,11 +220,24 @@ export function parsearFlujo(texto) {
         if (enSubgrafo && !enSubgrafo.nodos.includes(spec.id)) enSubgrafo.nodos.push(spec.id);
     };
 
+    // Las asignaciones de clase se apuntan y se aplican al final: un
+    // `class erp,web origen` puede estar escrito antes de que las cajas se
+    // declaren, y en mermaid vale igual.
+    const asignaciones = [];
+
     for (const lineaCruda of lineas) {
         const linea = lineaCruda.trim();
         if (!linea) continue;
 
         if (CONSERVADAS.some((re) => re.test(linea))) { conservado.push(linea); continue; }
+
+        const clase = RE_CLASE.exec(linea);
+        if (clase) {
+            for (const id of clase[1].split(',').map((x) => x.trim()).filter(Boolean)) {
+                asignaciones.push([id, clase[2]]);
+            }
+            continue;
+        }
 
         if (direccion === null) {
             const cab = /^(?:flowchart|graph)(?:\s+([A-Za-z]{2}))?$/.exec(linea);
@@ -280,6 +302,14 @@ export function parsearFlujo(texto) {
 
     if (direccion === null) return null;         // vacío no es un diagrama
     if (pila.length) return null;                // un `subgraph` sin `end`
+
+    for (const [id, clase] of asignaciones) {
+        const nodo = nodos.get(id);
+        // Una clase asignada a algo que no existe se descarta en silencio: es
+        // exactamente lo que hace mermaid, y avisar de ello sería avisar de un
+        // problema del documento que no hemos causado ni sabemos arreglar.
+        if (nodo && !nodo.clases.includes(clase)) nodo.clases.push(clase);
+    }
 
     return { direccion, nodos: [...nodos.values()], aristas, subgrafos, conservado };
 }
@@ -353,6 +383,21 @@ export function flujoAMermaid(grafo) {
 
     for (const linea of grafo.conservado || []) lineas.push(`  ${linea}`);
 
+    // Las asignaciones de clase, **agrupadas por clase**: `class erp,web origen`
+    // en vez de una línea por caja. Es como se escribe a mano, y mantiene el
+    // diff corto cuando se añade una caja a una capa que ya existe.
+    //
+    // Van después del `classDef`, que vive en lo conservado: mermaid no lo
+    // exige, pero un archivo donde la definición precede al uso se lee mejor.
+    const porClase = new Map();
+    for (const n of nodos) {
+        for (const c of n.clases || []) {
+            if (!porClase.has(c)) porClase.set(c, []);
+            porClase.get(c).push(n.id);
+        }
+    }
+    for (const [clase, ids] of porClase) lineas.push(`  class ${ids.join(',')} ${clase}`);
+
     return lineas.join('\n');
 }
 
@@ -383,6 +428,36 @@ export function idLibre(texto, usados) {
     let i = 2;
     while (tomados.has(`${raiz}_${i}`)) i++;
     return `${raiz}_${i}`;
+}
+
+/**
+ * Las capas declaradas en el diagrama, con el color que el autor les dio.
+ *
+ * Se leen de los `classDef` **sin tocarlos**: el editor necesita el color para
+ * pintar la caja igual que la va a pintar mermaid, pero la definición sigue
+ * siendo del autor. Si mañana escribe ahí un degradado o una propiedad que no
+ * conocemos, el `classDef` sobrevive entero y nosotros nos quedamos sin color,
+ * que es la forma correcta de fallar.
+ */
+export function capasDe(grafo) {
+    const fuera = [];
+    for (const linea of grafo?.conservado || []) {
+        const m = /^classDef\s+([A-Za-z_][A-Za-z0-9_-]*)\s+(.*)$/.exec(linea);
+        if (!m) continue;
+        const props = Object.fromEntries(
+            m[2].split(',')
+                .map((p) => p.split(':').map((x) => x.trim()))
+                .filter((p) => p.length >= 2)
+                .map(([k, ...v]) => [k, v.join(':')]),
+        );
+        fuera.push({ nombre: m[1], fill: props.fill || null, stroke: props.stroke || null });
+    }
+    return fuera;
+}
+
+/** Una definición de capa nueva, con el color dado. */
+export function defineCapa(nombre, fill, stroke) {
+    return `classDef ${nombre} fill:${fill},stroke:${stroke}`;
 }
 
 /** El subgrafo al que pertenece un nodo, si pertenece a alguno. */

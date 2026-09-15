@@ -367,16 +367,50 @@ pasaron por encima sin decir nada; lo cazó la consola del navegador a la primer
 
 ## Fase 4 — Lo que pide una arquitectura
 
-- [ ] **Agrupar.** Seleccionar varias cajas → «agrupar» en un subgrafo; renombrar, meter y
+- [x] **Agrupar.** Seleccionar varias cajas → «agrupar» en un subgrafo; renombrar, meter y
       sacar. **Es la operación central del ingeniero de datos**, no un detalle de acabado:
       zonas de aterrizaje, refinado y consumo son subgrafos.
-- [ ] **Color por clase.** Una vez el nivel «conservo» mantiene `classDef`, asignar una
+- [x] **Color por clase.** Una vez el nivel «conservo» mantiene `classDef`, asignar una
       clase a un nodo es una línea. Es lo que responde a «colorear por capa o por equipo».
-- [ ] **Estilo de flecha** para distinguir lotes de continuo (`-->` / `-.->` / `==>`).
-- [ ] **Repaso de cabos sueltos:** nodos sin conectar, grupos vacíos, etiquetas duplicadas.
+- [x] **Estilo de flecha** para distinguir lotes de continuo (`-->` / `-.->` / `==>`).
+- [x] **Repaso de cabos sueltos:** nodos sin conectar, grupos vacíos, etiquetas duplicadas.
       Barato, y es justo lo que alguien quiere mirar antes de enseñar una arquitectura.
-- [ ] **Plantillas para este público**, que las cuatro de hoy son genéricas: una arquitectura
+- [x] **Plantillas para este público**, que las cuatro de hoy son genéricas: una arquitectura
       por capas, una ingesta por lotes frente a una continua, un flujo de experimento.
+
+**Cumplido.** `probarOpsDiagrama` sube a 102 comprobaciones y `probarMermaidFlow` a 151.
+Verificado en la aplicación: se abre un diagrama con dos zonas y tres capas, se seleccionan
+dos cajas con `Ctrl`, se agrupan, el grupo aparece con su recuadro y el inspector pasa a
+hablar de él; y crear una capa nueva pinta la caja de su color y añade su `classDef` sin
+tocar los que había.
+
+**El cambio de fondo de esta fase no está en la lista: `class` dejó de ser opaca.**
+
+La fase 0 metió `class a,b origen` en el saco de lo conservado, junto a `classDef`. Al
+llegar aquí eso hacía imposible la pregunta 26 de la auditoría —asignar una capa desde la
+interfaz— porque la línea que lo dice era intocable. La distinción correcta resultó ser más
+fina: se entiende **qué caja pertenece a qué clase** y no se toca **qué aspecto tiene esa
+clase**. El `classDef` sigue siendo del autor, palabra por palabra; la asignación viaja en
+la caja.
+
+Eso tuvo un efecto secundario bueno y otro que hubo que arreglar. El bueno: la capa
+**sobrevive al renombrado del identificador** sin necesitar el cinturón de seguridad, porque
+ya no vive en una línea que nombra la caja por id. El que hubo que arreglar: el cinturón
+seguía haciendo falta para `style` y `click`, que sí se conservan, y la prueba que lo
+vigilaba usaba justo una línea `class` — pasó a usar un `style`, que es el caso real.
+
+Dos decisiones de la interfaz que conviene tener escritas:
+
+- **Una caja lleva una capa, no varias.** Mermaid las acumula, pero dos rellenos se pisan y
+  el color que sale depende del orden de las líneas. Eso no se depura: se evita.
+- **El color de una capa nueva no se pregunta.** Elegir relleno y filete que contrasten es
+  trabajo, y equivocarse produce una caja ilegible. Se toma el siguiente de una paleta de
+  cinco; quien quiera otro edita su `classDef`, que sigue siendo suyo, desde el panel de
+  texto.
+
+Y una consecuencia en el lienzo: **la caja se pinta con el color de su `classDef`**, no con
+uno nuestro. Un editor que colorea a su manera vuelve a separar el dibujo del resultado, que
+es justo lo que este diseño evita.
 
 ## Fase 5 — Salir
 

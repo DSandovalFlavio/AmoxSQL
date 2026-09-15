@@ -15,9 +15,10 @@
 import {
     anadirNodo, encadenarNodo, borrarNodo, duplicarNodo, renombrarNodo, cambiarForma,
     conectar, desconectar, etiquetarArista, estiloArista, cambiarDireccion,
-    buscarNodos, idsUsados,
+    buscarNodos, idsUsados, asignarCapa, crearCapa, capasConocidas,
+    agrupar, desagrupar, renombrarGrupo, moverAGrupo,
 } from '../client/src/components/diagram/diagramOps.js';
-import { parsearFlujo, flujoAMermaid, grupoDe } from '../client/src/components/markdown/mermaidFlow.js';
+import { parsearFlujo, flujoAMermaid, grupoDe, capasDe } from '../client/src/components/markdown/mermaidFlow.js';
 
 let ok = 0, mal = 0;
 const eq = (nombre, a, b) => {
@@ -36,6 +37,7 @@ const base = () => parsearFlujo([
     '  land --> qa{"¿Calidad?"}',
     '  classDef origen fill:#1b3a52',
     '  class erp,web origen',
+    '  style qa fill:#333',
 ].join('\n'));
 
 /** Ninguna operación puede tocar el grafo que recibe. */
@@ -103,8 +105,9 @@ eq('renombra', renombrarNodo(base(), 'land', 'Zona de aterrizaje').nodos.find((n
 // El ID NO cambia con el texto: las líneas conservadas nombran las cajas por
 // id, y renombrarlo las dejaría apuntando a algo que ya no existe.
 eq('pero NO el identificador', renombrarNodo(base(), 'erp', 'Otra cosa').nodos[0].id, 'erp');
-eq('y la línea conservada sigue valiendo',
-    renombrarNodo(base(), 'erp', 'Otra cosa').conservado.includes('class erp,web origen'), true);
+// La capa sí sobrevive al renombrado, y ahora por otro camino: desde que se
+// entiende, viaja EN la caja en vez de en una línea que la nombra por id.
+eq('la capa sigue puesta', renombrarNodo(base(), 'erp', 'Otra cosa').nodos[0].clases, ['origen']);
 eq('cambia la forma', cambiarForma(base(), 'land', 'decision').nodos.find((n) => n.id === 'land').forma, 'decision');
 
 // La excepción: la caja recién creada, que todavía arrastra el id del marcador
@@ -119,11 +122,12 @@ eq('las flechas la siguen', b2.aristas.at(-1).hasta, 'almacen');
 const enGrupo = anadirNodo(base(), { grupo: 'G1' }).grafo;
 eq('y el grupo también',
     renombrarNodo(enGrupo, 'sin_nombre', 'Almacén', { tambienId: true }).subgrafos[0].nodos.includes('almacen'), true);
-// El cinturón de seguridad: si una línea conservada la nombra, no se toca.
+// El cinturón de seguridad: si una línea conservada la nombra —un `style qa`,
+// un `click qa`— el id no se toca, porque esa línea dejaría de aplicarse.
 eq('si una línea conservada la nombra, el id NO cambia',
-    renombrarNodo(base(), 'erp', 'Otra cosa', { tambienId: true }).nodos[0].id, 'erp');
+    renombrarNodo(base(), 'qa', 'Otra cosa', { tambienId: true }).nodos.find((n) => n.texto === 'Otra cosa').id, 'qa');
 eq('pero el texto sí',
-    renombrarNodo(base(), 'erp', 'Otra cosa', { tambienId: true }).nodos[0].texto, 'Otra cosa');
+    renombrarNodo(base(), 'qa', 'Otra cosa', { tambienId: true }).nodos.some((n) => n.texto === 'Otra cosa'), true);
 eq('y sin pedirlo, nunca cambia', renombrarNodo(recien, 'sin_nombre', 'Almacén').nodos.at(-1).id, 'sin_nombre');
 inmutable('renombrarNodo con id', (x) => renombrarNodo(x, 'land', 'X', { tambienId: true }));
 inmutable('renombrarNodo', (g) => renombrarNodo(g, 'land', 'X'));
@@ -180,6 +184,57 @@ eq('y da el mismo grafo', releido, g);
 eq('con las cajas que tocan', releido.nodos.map((n) => n.id), ['erp', 'land', 'qa', 'refinado', 'almacen']);
 eq('el grupo se quedó con una', releido.subgrafos[0].nodos, ['erp']);
 eq('y las líneas conservadas siguen ahí', releido.conservado.length, 2);
+
+// ── capas ───────────────────────────────────────────────────────────────────
+eq('las capas declaradas', capasConocidas(base()), ['origen']);
+eq('con su color', capasDe(base()).map((c) => [c.nombre, c.fill]), [['origen', '#1b3a52']]);
+eq('asigna una capa', asignarCapa(base(), 'land', 'origen').nodos.find((n) => n.id === 'land').clases, ['origen']);
+// Una caja lleva UNA capa: dos rellenos se pisan y el color que sale depende
+// del orden de las líneas, que es justo lo que nadie quiere depurar.
+const dosCapas = crearCapa(base(), null, 'refinado', '#123', '#456').grafo;
+const cambiada = asignarCapa(asignarCapa(dosCapas, 'land', 'origen'), 'land', 'refinado');
+eq('asignar otra quita la anterior', cambiada.nodos.find((n) => n.id === 'land').clases, ['refinado']);
+eq('y con null se queda sin capa', asignarCapa(cambiada, 'land', null).nodos.find((n) => n.id === 'land').clases, []);
+eq('la capa nueva se declara', capasConocidas(dosCapas), ['origen', 'refinado']);
+eq('sin pisar la que había', dosCapas.conservado[0], 'classDef origen fill:#1b3a52');
+eq('un nombre repetido se numera', crearCapa(base(), null, 'origen', '#1', '#2').capa, 'origen2');
+eq('un nombre con espacios se sanea', crearCapa(base(), null, 'Zona de aterrizaje', '#1', '#2').capa, 'zonadeaterrizaje');
+eq('y se le pone a la caja si se pide',
+    crearCapa(base(), 'land', 'refinado', '#1', '#2').grafo.nodos.find((n) => n.id === 'land').clases, ['refinado']);
+// El ida y vuelta: la asignación se escribe agrupada y se vuelve a leer igual.
+const conCapa = asignarCapa(base(), 'land', 'origen');
+eq('se escribe agrupada por capa', flujoAMermaid(conCapa).includes('class erp,web,land origen'), true);
+eq('y el ida y vuelta la conserva', parsearFlujo(flujoAMermaid(conCapa)), conCapa);
+inmutable('asignarCapa', (g) => asignarCapa(g, 'land', 'origen'));
+inmutable('crearCapa', (g) => crearCapa(g, 'land', 'nueva', '#1', '#2'));
+
+// ── grupos ──────────────────────────────────────────────────────────────────
+const ag = agrupar(base(), ['land', 'qa'], 'Refinado');
+eq('agrupa', ag.grafo.subgrafos.length, 2);
+eq('con su título', ag.grafo.subgrafos.at(-1).titulo, 'Refinado');
+eq('y sus cajas', ag.grafo.subgrafos.at(-1).nodos, ['land', 'qa']);
+eq('devuelve el id para poder seleccionarlo', ag.id, 'refinado');
+// Una caja sólo puede estar en un grupo, y un grupo sin cajas no significa
+// nada: se va.
+const robadas = agrupar(base(), ['erp', 'web'], 'Otra zona');
+eq('robarle las cajas a un grupo lo deja vacío… y lo borra', robadas.grafo.subgrafos.length, 1);
+eq('y las cajas están en el nuevo', robadas.grafo.subgrafos[0].nodos, ['erp', 'web']);
+eq('agrupar nada no hace nada', agrupar(base(), [], 'X').id, null);
+eq('agrupar fantasmas tampoco', agrupar(base(), ['no-existe'], 'X').id, null);
+
+eq('desagrupa', desagrupar(base(), 'G1').subgrafos.length, 0);
+eq('y las cajas se quedan', desagrupar(base(), 'G1').nodos.length, 4);
+eq('renombra el grupo', renombrarGrupo(base(), 'G1', 'Fuentes').subgrafos[0].titulo, 'Fuentes');
+eq('mueve una caja a un grupo', grupoDe(moverAGrupo(base(), 'land', 'G1'), 'land')?.id, 'G1');
+eq('y la saca con null', grupoDe(moverAGrupo(base(), 'erp', null), 'erp'), null);
+eq('sacar la última caja borra el grupo',
+    moverAGrupo(moverAGrupo(base(), 'erp', null), 'web', null).subgrafos.length, 0);
+inmutable('agrupar', (g) => agrupar(g, ['land'], 'X'));
+inmutable('desagrupar', (g) => desagrupar(g, 'G1'));
+inmutable('moverAGrupo', (g) => moverAGrupo(g, 'land', 'G1'));
+
+// Y el ida y vuelta de un grupo creado desde la interfaz.
+eq('un grupo nuevo se escribe y se vuelve a leer', parsearFlujo(flujoAMermaid(ag.grafo)), ag.grafo);
 
 console.log(`\n${ok} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);

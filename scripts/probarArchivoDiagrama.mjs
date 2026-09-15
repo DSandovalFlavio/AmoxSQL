@@ -139,7 +139,13 @@ eq('salen las cuatro cajas y el grupo', nodos.length, 5);
 // parecerían deshabilitadas.
 eq('el grupo va el primero', nodos[0].type, 'grupo');
 eq('con su identificador con prefijo', nodos[0].id, 'grupo:G1');
-eq('y no se puede arrastrar ni seleccionar', [nodos[0].draggable, nodos[0].selectable], [false, false]);
+// Arrastrarlo no: la posición la calcula mermaid. Seleccionarlo SÍ, desde que
+// hay que poder renombrarlo y deshacerlo — un recuadro que no responde al ratón
+// parece decorado, y el inspector no tendría cómo hablar de él.
+eq('no se arrastra', nodos[0].draggable, false);
+eq('pero se selecciona', nodos[0].selectable !== false, true);
+eq('y sabe si está seleccionado',
+    nodosDeLienzo(arq, medidas, { tipo: 'grupo', id: 'G1' })[0].selected, true);
 eq('el recuadro lleva alto explícito', nodos[0].style.height, 190);
 // El tamaño va también en el NODO, no sólo en su estilo: React Flow dibuja en
 // el minimapa únicamente los nodos que lo declaran, y sin él se veía un

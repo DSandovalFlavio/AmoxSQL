@@ -29,14 +29,34 @@ import { nodosDeLienzo, aristasDeLienzo } from './diagramGraph';
 import {
     anadirNodo, encadenarNodo, borrarNodo, duplicarNodo, renombrarNodo, cambiarForma,
     conectar, desconectar, etiquetarArista, estiloArista, cambiarDireccion,
+    asignarCapa, crearCapa, agrupar, desagrupar, renombrarGrupo, moverAGrupo,
 } from './diagramOps';
-import { cabosSueltos } from '../markdown/mermaidFlow';
+import { cabosSueltos, capasDe } from '../markdown/mermaidFlow';
 import { reemplazarCercado, bloquesCercados } from '../markdown/fencedBlocks';
 import { useHistorial, esAtajoDeHistorial } from '../../hooks/useHistorial';
 import { isLightTheme } from '../../theme.js';
 import './diagram.css';
 
 const AVISO_MOVER = 'amoxsql-diagram-aviso-mover';
+
+/**
+ * Los colores con los que nace una capa nueva.
+ *
+ * Son valores fijos y no tokens del tema a propósito: van al archivo, dentro de
+ * un `classDef`, y ahí tienen que seguir significando lo mismo cuando el
+ * documento se lea en otro sitio. Un `var(--algo)` en un `classDef` no se
+ * resuelve fuera de esta aplicación.
+ *
+ * Relleno oscuro y filete claro del mismo tono: es lo que mantiene legible el
+ * texto blanco que mermaid pone encima.
+ */
+const PALETA_CAPAS = [
+    { nombre: 'origen', fill: '#1b3a52', stroke: '#4a9fd8' },
+    { nombre: 'proceso', fill: '#1d4034', stroke: '#4fb286' },
+    { nombre: 'salida', fill: '#4a3a16', stroke: '#d9a441' },
+    { nombre: 'alerta', fill: '#4d2323', stroke: '#d86a6a' },
+    { nombre: 'apoyo', fill: '#332a4d', stroke: '#8f7ad8' },
+];
 
 const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, filePath, isDirty, procedencia, onOpenFile }) => {
     const [verTexto, setVerTexto] = useState(false);
@@ -105,7 +125,16 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
 
     const borrarSeleccion = useCallback(() => {
         if (!g || !seleccion) return;
-        aplicar(seleccion.tipo === 'nodo' ? borrarNodo(g, seleccion.id) : desconectar(g, seleccion.indice));
+        if (seleccion.tipo === 'arista') aplicar(desconectar(g, seleccion.indice));
+        else if (seleccion.tipo === 'grupo') aplicar(desagrupar(g, seleccion.id));
+        else {
+            // Varias cajas se borran de una, no una a una: cada `borrarNodo`
+            // devuelve un grafo nuevo, así que encadenarlos es lo correcto —
+            // aplicarlos todos contra el mismo original perdería todo menos el
+            // último.
+            const ids = seleccion.tipo === 'varios' ? seleccion.ids : [seleccion.id];
+            aplicar(ids.reduce((acc, id) => borrarNodo(acc, id), g));
+        }
         setSeleccion(null);
     }, [g, seleccion, aplicar]);
 
@@ -115,6 +144,51 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
         if (!r.id) return;
         aplicar(r.grafo);
         setSeleccion({ tipo: 'nodo', id: r.id });
+    }, [g, aplicar]);
+
+    /**
+     * Pinchar una caja con `Ctrl` o `Mayús` la suma a la selección.
+     *
+     * Es lo que hace posible agrupar, que es la operación central de este
+     * editor. Se resuelve aquí y no con la selección interna de React Flow
+     * porque la verdad del lienzo es el archivo: dos sistemas de selección
+     * acabarían discrepando sobre qué hay marcado.
+     */
+    const elegirNodo = useCallback((id, sumando) => {
+        setEditandoId(null);
+        setSeleccion((prev) => {
+            if (!sumando) return { tipo: 'nodo', id };
+            const ya = prev?.tipo === 'varios' ? prev.ids : (prev?.tipo === 'nodo' ? [prev.id] : []);
+            const ids = ya.includes(id) ? ya.filter((x) => x !== id) : [...ya, id];
+            if (!ids.length) return null;
+            return ids.length === 1 ? { tipo: 'nodo', id: ids[0] } : { tipo: 'varios', ids };
+        });
+    }, []);
+
+    const agruparSeleccion = useCallback((ids) => {
+        if (!g) return;
+        const r = agrupar(g, ids, 'Zona');
+        if (!r.id) return;
+        aplicar(r.grafo);
+        // Se selecciona el grupo recién hecho: lo siguiente que quiere cualquiera
+        // es ponerle nombre, y el inspector ya está enseñando el campo.
+        setSeleccion({ tipo: 'grupo', id: r.id });
+    }, [g, aplicar]);
+
+    /**
+     * Una capa nueva, con un color tomado de la paleta editorial.
+     *
+     * El color no se pregunta: elegir un relleno y un filete que contrasten es
+     * trabajo, y equivocarse produce una caja ilegible. Se toma el siguiente
+     * color sin usar, y quien quiera otro lo cambia en el `classDef` —que sigue
+     * siendo suyo— desde el panel de texto.
+     */
+    const anadirCapa = useCallback((id) => {
+        if (!g) return;
+        const usados = capasDe(g).map((c) => c.fill);
+        const libre = PALETA_CAPAS.find((c) => !usados.includes(c.fill)) || PALETA_CAPAS[0];
+        const r = crearCapa(g, id, libre.nombre, libre.fill, libre.stroke);
+        aplicar(r.grafo);
     }, [g, aplicar]);
 
     /**
@@ -285,7 +359,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                         seleccion={seleccion}
                         consulta={consulta}
                         onConsulta={setConsulta}
-                        onElegir={(id) => { setSeleccion({ tipo: 'nodo', id }); setEditandoId(null); }}
+                        onElegir={(id) => elegirNodo(id, false)}
                         onAnadirForma={crear}
                     />
                 )}
@@ -315,7 +389,8 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                     nodos={nodos}
                                     aristas={aristas}
                                     colores={colores}
-                                    onElegirNodo={(id) => { setSeleccion({ tipo: 'nodo', id }); setEditandoId(null); }}
+                                    onElegirNodo={elegirNodo}
+                                    onElegirGrupo={(id) => { setSeleccion({ tipo: 'grupo', id }); setEditandoId(null); }}
                                     onElegirArista={(indice) => { setSeleccion({ tipo: 'arista', indice }); setEditandoId(null); }}
                                     onLimpiarSeleccion={() => { setSeleccion(null); setEditandoId(null); }}
                                     onConectar={(c) => aplicar(conectar(g, c.source, c.target))}
@@ -432,6 +507,12 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                             onDuplicar={duplicar}
                             onBorrar={borrarSeleccion}
                             onAnadir={() => crear()}
+                            onCapa={(id, capa) => aplicar(asignarCapa(g, id, capa))}
+                            onCrearCapa={anadirCapa}
+                            onMoverAGrupo={(id, sgId) => aplicar(moverAGrupo(g, id, sgId))}
+                            onAgrupar={agruparSeleccion}
+                            onDesagrupar={(id) => { aplicar(desagrupar(g, id)); setSeleccion(null); }}
+                            onRenombrarGrupo={(id, t) => aplicar(renombrarGrupo(g, id, t))}
                         />
                     </div>
                 )}

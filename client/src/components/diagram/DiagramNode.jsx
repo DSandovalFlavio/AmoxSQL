@@ -42,7 +42,13 @@ const DiagramNode = ({ id, data, selected }) => {
                 pudiera conectar: montarlos después movería el borde de cada caja
                 y el dibujo cambiaría sin que nadie hubiera tocado el diagrama. */}
             <Handle type="target" position={Position.Left} className="dgm-handle" />
-            <span className="dgm-node-body">
+            {/* El color viene del `classDef` del propio diagrama, no de una
+                paleta nuestra: así la caja se ve aquí igual que se verá en el
+                documento. Sin capa, manda el tema. */}
+            <span
+                className="dgm-node-body"
+                style={data.fill ? { background: data.fill, borderColor: data.stroke || data.fill, outlineColor: data.stroke || data.fill } : undefined}
+            >
                 {editando ? (
                     <input
                         key={data.texto}

@@ -356,6 +356,33 @@ textarea.dgm-texto-cod--mal { color: var(--text-primary); box-shadow: inset 2px 
 .dgm-dialogo p { margin: 0 0 14px; font-size: 12px; color: var(--text-secondary); }
 .dgm-dialogo-botones { display: flex; gap: 7px; justify-content: flex-end; flex-wrap: wrap; }
 
+/* ── capas ─────────────────────────────────────────────────────────── */
+.dgm-capas { display: flex; flex-wrap: wrap; gap: 5px; }
+.dgm-capa {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 23px; padding: 0 8px; border-radius: 12px;
+    border: 1px solid var(--border-subtle); background: none;
+    color: var(--text-secondary); font: inherit; font-size: 11px; cursor: pointer;
+}
+.dgm-capa:hover { border-color: var(--border-strong); }
+.dgm-capa--on { border-color: transparent; background: var(--active-bg, var(--hover-bg)); color: var(--text-primary); font-weight: 600; }
+.dgm-capa--nueva { color: var(--text-disabled); border-style: dashed; }
+.dgm-capa--nueva:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+.dgm-capa-pip { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.dgm-capa svg { flex: none; }
+.dgm-nota { margin: 10px 11px; font-size: 10.5px; color: var(--text-disabled); }
+
+/* Un `select` no hereda el aspecto de un `input`: hay que dárselo. */
+select.dgm-inp { appearance: none; padding-right: 26px; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-tertiary) 50%),
+                      linear-gradient(135deg, var(--text-tertiary) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 12px, calc(100% - 9px) 12px;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+/* Un grupo seleccionable ya no es decorado: responde al ratón. */
+.dgm-group { cursor: pointer; }
+.dgm-group:hover { border-color: var(--text-tertiary); }
+
 /* La fila del repaso es un botón desde que salta a la caja. */
 button.dgm-repaso-fila { width: 100%; border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 11.5px; }
 button.dgm-repaso-fila:hover { color: var(--text-primary); }

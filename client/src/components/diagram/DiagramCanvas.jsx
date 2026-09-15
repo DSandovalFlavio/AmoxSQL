@@ -36,7 +36,7 @@ const nada = () => {};
 
 const DiagramCanvas = ({
     nodos, aristas, colores, soloLectura = false,
-    onElegirNodo, onElegirArista, onLimpiarSeleccion,
+    onElegirNodo, onElegirGrupo, onElegirArista, onLimpiarSeleccion,
     onConectar, onDobleClicLienzo, onIntentarMover,
 }) => {
     const { fitView } = useReactFlow();
@@ -62,7 +62,12 @@ const DiagramCanvas = ({
                 defaultEdgeOptions={opcionesDeArista}
                 onNodesChange={nada}
                 onEdgesChange={nada}
-                onNodeClick={(_, n) => n.type === 'caja' && onElegirNodo?.(n.id)}
+                onNodeClick={(e, n) => {
+                    if (n.type === 'grupo') onElegirGrupo?.(n.id.replace(/^grupo:/, ''));
+                    // `Ctrl` o `Mayús` suman a la selección, que es lo que hace
+                    // posible agrupar. Sin modificador, se selecciona sólo ésa.
+                    else onElegirNodo?.(n.id, e.ctrlKey || e.metaKey || e.shiftKey);
+                }}
                 onEdgeClick={(_, a) => onElegirArista?.(a.data?.indice)}
                 onPaneClick={() => onLimpiarSeleccion?.()}
                 onConnect={onConectar}

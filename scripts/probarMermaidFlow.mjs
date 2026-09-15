@@ -168,9 +168,13 @@ const conEstilo = [
 ].join('\n');
 const g = parsearFlujo(conEstilo);
 eq('un diagrama con classDef SE ABRE', g !== null, true);
-eq('y conserva las siete líneas', g.conservado.length, 7);
+// Seis, no siete: `class` dejó de ser opaca cuando la fase 4 necesitó poder
+// asignar una capa desde la interfaz. Se entiende **qué caja lleva qué clase**;
+// lo que no se toca es **qué aspecto tiene esa clase**, que sigue en el
+// `classDef` del autor.
+eq('y conserva las seis líneas', g.conservado.length, 6);
 eq('en orden y verbatim', g.conservado[2], 'classDef origen fill:#1b3a52,stroke:#4a9fd8');
-eq('y la de clase justo después', g.conservado[3], 'class erp origen');
+eq('la asignación de clase ya no se conserva: se entiende', g.nodos[0].clases, ['origen']);
 eq('el comentario también', g.conservado[1], '%% revisado con el equipo de plataforma');
 eq('la directiva init también', g.conservado[0], '%%{init: {"theme":"dark"}}%%');
 eq('no se cuelan en los nodos', g.nodos.map(n => n.id), ['erp', 'land']);
@@ -199,14 +203,20 @@ eq('una comilla sin cerrar', parsearFlujo('flowchart LR\n  a["sin cerrar]'), nul
 // fallo, son otro tipo de diagrama.
 const cuerpoDe = (t) => bloquesCercados(t, ['mermaid'])[0].cuerpo.replace(/\n$/, '');
 for (const p of PLANTILLAS_DIAGRAMA) {
-    const abre = parsearFlujo(cuerpoDe(p.texto)) !== null;
-    eq(`plantilla «${p.label}» ${p.id === 'flujo' ? 'se abre' : 'no se abre'}`, abre, p.id === 'flujo');
+    const cuerpo = cuerpoDe(p.texto);
+    const esFlujo = /^\s*(flowchart|graph)\b/.test(cuerpo);
+    eq(`plantilla «${p.label}» ${esFlujo ? 'se abre' : 'no se abre'}`, parsearFlujo(cuerpo) !== null, esFlujo);
+    // **Toda plantilla de flujo tiene que estar ya en forma canónica**: si no,
+    // insertarla y guardarla produciría un diff de reformateo sin que nadie
+    // hubiera tocado nada.
+    if (esFlujo) eq(`  y en forma canónica · ${p.id}`, flujoAMermaid(parsearFlujo(cuerpo)), cuerpo);
 }
-// Y la de flujo tiene que estar ya en forma canónica: si no, insertarla y
-// guardarla produciría un diff de reformateo sin haber tocado nada.
-const flujoPlantilla = cuerpoDe(PLANTILLAS_DIAGRAMA.find(p => p.id === 'flujo').texto);
-eq('la plantilla de flujo ya está en forma canónica',
-    flujoAMermaid(parsearFlujo(flujoPlantilla)), flujoPlantilla);
+// Las de arquitectura llevan sus capas ya definidas, que es lo primero que hace
+// este público. Se comprueba que la asignación sobrevive el ida y vuelta.
+const capas = parsearFlujo(cuerpoDe(PLANTILLAS_DIAGRAMA.find(p => p.id === 'capas').texto));
+eq('la plantilla por capas trae tres capas', capas.conservado.filter(l => l.startsWith('classDef')).length, 3);
+eq('y las cajas asignadas', capas.nodos.filter(n => n.clases.length).length, 4);
+eq('con sus tres zonas', capas.subgrafos.map(s => s.titulo), ['Aterrizaje', 'Refinado', 'Consumo']);
 
 // ── forma canónica ──────────────────────────────────────────────────────────
 eq('el nodo se declara donde aparece por primera vez',

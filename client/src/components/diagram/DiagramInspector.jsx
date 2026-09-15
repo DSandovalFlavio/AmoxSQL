@@ -10,8 +10,8 @@
  * Ese estado existe porque si no, cambiar la dirección no tendría sitio: no es
  * propiedad de ninguna caja.
  */
-import { LuShare2, LuBox, LuMoveRight, LuCopy, LuTrash2, LuPlus } from 'react-icons/lu';
-import { FORMAS, ESTILOS_ARISTA, DIRECCIONES } from '../markdown/mermaidFlow';
+import { LuShare2, LuBox, LuBoxes, LuLayers, LuMoveRight, LuCopy, LuTrash2, LuPlus } from 'react-icons/lu';
+import { FORMAS, ESTILOS_ARISTA, DIRECCIONES, capasDe } from '../markdown/mermaidFlow';
 
 const DIRECCION_FLECHA = { LR: '→', TB: '↓', TD: '↓', BT: '↑', RL: '←' };
 const DIRECCION_NOMBRE = { LR: 'Izquierda a derecha', TB: 'Arriba abajo', BT: 'Abajo arriba', RL: 'Derecha a izquierda' };
@@ -36,9 +36,92 @@ function BotonForma({ forma, activa, onClick, titulo }) {
 const DiagramInspector = ({
     grafo, seleccion, onRenombrar, onForma, onEtiqueta, onEstiloArista,
     onDireccion, onDuplicar, onBorrar, onAnadir,
+    onCapa, onCrearCapa, onMoverAGrupo, onAgrupar, onDesagrupar, onRenombrarGrupo,
 }) => {
     const nodo = seleccion?.tipo === 'nodo' ? grafo.nodos.find((n) => n.id === seleccion.id) : null;
     const arista = seleccion?.tipo === 'arista' ? grafo.aristas[seleccion.indice] : null;
+    const grupoSel = seleccion?.tipo === 'grupo' ? grafo.subgrafos.find((s) => s.id === seleccion.id) : null;
+    const capas = capasDe(grafo);
+
+    // ── varias cajas ────────────────────────────────────────────────────────
+    // El estado que hace posible la operación central de este editor: agrupar.
+    if (seleccion?.tipo === 'varios') {
+        return (
+            <div className="dgm-insp">
+                <div className="dgm-insp-cab">
+                    <LuBoxes size={13} strokeWidth={2.3} />
+                    <div>
+                        <div className="dgm-insp-tipo">Selección</div>
+                        <div className="dgm-insp-que">{seleccion.ids.length} cajas</div>
+                    </div>
+                </div>
+                <div className="dgm-campo">
+                    <span className="dgm-campo-lab">Cuáles</span>
+                    <div className="dgm-dato">
+                        {seleccion.ids.map((id) => grafo.nodos.find((n) => n.id === id)?.texto).filter(Boolean).join(' · ')}
+                    </div>
+                </div>
+                <div className="dgm-campo">
+                    <span className="dgm-campo-lab">Capa</span>
+                    <div className="dgm-capas">
+                        {capas.map((c) => (
+                            <button key={c.nombre} type="button" className="dgm-capa"
+                                onClick={() => seleccion.ids.forEach((id) => onCapa(id, c.nombre))}>
+                                <i className="dgm-capa-pip" style={{ background: c.fill || 'var(--border-strong)' }} />
+                                {c.nombre}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="dgm-campo dgm-campo--acciones">
+                    <button type="button" className="dgm-btn dgm-btn--primary" onClick={() => onAgrupar(seleccion.ids)}>
+                        <LuLayers size={12} strokeWidth={2.3} /> Agrupar
+                    </button>
+                    <button type="button" className="dgm-btn" onClick={() => onBorrar()}>
+                        <LuTrash2 size={12} strokeWidth={2.3} /> Borrar
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ── un grupo ────────────────────────────────────────────────────────────
+    if (grupoSel) {
+        return (
+            <div className="dgm-insp">
+                <div className="dgm-insp-cab">
+                    <LuLayers size={13} strokeWidth={2.3} />
+                    <div>
+                        <div className="dgm-insp-tipo">Grupo</div>
+                        <div className="dgm-insp-que" title={grupoSel.titulo}>{grupoSel.titulo}</div>
+                    </div>
+                </div>
+                <div className="dgm-campo">
+                    <label className="dgm-campo-lab" htmlFor="dgm-grupo-tit">Título</label>
+                    <input
+                        id="dgm-grupo-tit"
+                        className="dgm-inp"
+                        value={grupoSel.titulo}
+                        onChange={(e) => onRenombrarGrupo(grupoSel.id, e.target.value)}
+                    />
+                </div>
+                <div className="dgm-campo">
+                    <span className="dgm-campo-lab">Contiene</span>
+                    <div className="dgm-dato">
+                        {grupoSel.nodos.map((id) => grafo.nodos.find((n) => n.id === id)?.texto).filter(Boolean).join(' · ')}
+                    </div>
+                </div>
+                <div className="dgm-campo dgm-campo--acciones">
+                    {/* Deshacer el grupo NO borra sus cajas, y el botón lo dice:
+                        «Borrar» aquí sería ambiguo de la peor manera. */}
+                    <button type="button" className="dgm-btn" onClick={() => onDesagrupar(grupoSel.id)}>
+                        <LuTrash2 size={12} strokeWidth={2.3} /> Deshacer el grupo
+                    </button>
+                </div>
+                <p className="dgm-nota">Las cajas se quedan; lo que desaparece es el recuadro.</p>
+            </div>
+        );
+    }
 
     // ── una flecha ──────────────────────────────────────────────────────────
     if (arista) {
@@ -129,10 +212,40 @@ const DiagramInspector = ({
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Grupo</span>
-                    <div className="dgm-inp dgm-inp--lectura">
-                        {grupo ? grupo.titulo : <span className="dgm-ph">sin grupo</span>}
+                    <span className="dgm-campo-lab">Capa</span>
+                    {/* Las capas son las del diagrama, con el color que el autor
+                        les dio en su `classDef`. No hay una paleta nuestra: la
+                        caja se ve aquí como se verá en el documento. */}
+                    <div className="dgm-capas">
+                        {capas.map((c) => (
+                            <button
+                                key={c.nombre}
+                                type="button"
+                                className={`dgm-capa${(nodo.clases || []).includes(c.nombre) ? ' dgm-capa--on' : ''}`}
+                                onClick={() => onCapa(nodo.id, (nodo.clases || []).includes(c.nombre) ? null : c.nombre)}
+                            >
+                                <i className="dgm-capa-pip" style={{ background: c.fill || 'var(--border-strong)' }} />
+                                {c.nombre}
+                            </button>
+                        ))}
+                        <button type="button" className="dgm-capa dgm-capa--nueva" onClick={() => onCrearCapa(nodo.id)}>
+                            <LuPlus size={11} strokeWidth={2.4} /> nueva
+                        </button>
                     </div>
+                </div>
+                <div className="dgm-campo">
+                    <label className="dgm-campo-lab" htmlFor="dgm-grupo">Grupo</label>
+                    <select
+                        id="dgm-grupo"
+                        className="dgm-inp"
+                        value={grupo?.id || ''}
+                        onChange={(e) => onMoverAGrupo(nodo.id, e.target.value || null)}
+                    >
+                        <option value="">sin grupo</option>
+                        {grafo.subgrafos.map((sg) => (
+                            <option key={sg.id} value={sg.id}>{sg.titulo}</option>
+                        ))}
+                    </select>
                 </div>
                 <div className="dgm-campo">
                     <span className="dgm-campo-lab">Conexiones</span>

@@ -5,7 +5,7 @@
  * aristas. Separado del componente para poder ejercitarlo desde Node — que es
  * lo que evitó que el orden de las capas se descubriera mirando la pantalla.
  */
-import { ESTILOS_ARISTA, ESTILO_POR_DEFECTO } from '../markdown/mermaidFlow.js';
+import { ESTILOS_ARISTA, ESTILO_POR_DEFECTO, capasDe } from '../markdown/mermaidFlow.js';
 
 /**
  * El tamaño de una caja, declarado **en el nodo** y no sólo en su CSS.
@@ -40,11 +40,25 @@ const TRAZO = {
  * taparía: se verían las cajas atenuadas detrás de un panel, y el usuario
  * pensaría que están deshabilitadas.
  */
+/** ¿Está esta caja dentro de la selección, sea única o múltiple? */
+export function estaSeleccionado(seleccion, id) {
+    if (!seleccion) return false;
+    if (seleccion.tipo === 'nodo') return seleccion.id === id;
+    if (seleccion.tipo === 'varios') return seleccion.ids.includes(id);
+    return false;
+}
+
 export function nodosDeLienzo(grafo, medidas, seleccion = null, extras = {}) {
     if (!grafo || !medidas) return [];
 
     const entrantes = new Map();
     for (const a of grafo.aristas) entrantes.set(a.hasta, (entrantes.get(a.hasta) || 0) + 1);
+
+    // El color de cada capa, leído de los `classDef` del propio diagrama. Se
+    // pinta la caja con él para que el lienzo enseñe **lo mismo** que va a
+    // renderizar el documento: un editor que colorea a su manera vuelve a
+    // separar el dibujo del resultado, que es lo que este diseño evita.
+    const colores = new Map(capasDe(grafo).map((c) => [c.nombre, c]));
 
     const grupos = grafo.subgrafos
         .filter((sg) => medidas.grupos.has(sg.id))
@@ -54,26 +68,29 @@ export function nodosDeLienzo(grafo, medidas, seleccion = null, extras = {}) {
                 id: `grupo:${sg.id}`,
                 type: 'grupo',
                 position: { x: c.x, y: c.y },
+                selected: seleccion?.tipo === 'grupo' && seleccion.id === sg.id,
                 data: { titulo: sg.titulo, ancho: c.ancho, alto: c.alto },
                 draggable: false,
-                selectable: false,
                 ...tamano(c),
             };
         });
 
     const cajas = grafo.nodos.map((n) => {
         const c = medidas.nodos.get(n.id) || { x: 0, y: 0, ancho: 120, alto: 38 };
+        const capa = (n.clases || []).map((x) => colores.get(x)).find(Boolean) || null;
         return {
             id: n.id,
             type: 'caja',
             position: { x: c.x, y: c.y },
-            selected: seleccion?.tipo === 'nodo' && seleccion.id === n.id,
+            selected: estaSeleccionado(seleccion, n.id),
             data: {
                 texto: n.texto,
                 forma: n.forma,
                 ancho: c.ancho,
                 alto: c.alto,
                 entrantes: entrantes.get(n.id) || 0,
+                fill: capa?.fill || null,
+                stroke: capa?.stroke || null,
                 ...extras,
             },
             ...tamano(c),

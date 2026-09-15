@@ -31,6 +31,28 @@ export const PLANTILLAS_DIAGRAMA = [
         detalle: 'cajas y flechas',
         texto: ['```mermaid', 'flowchart LR', '  A["origen"] --> B["transformación"]', '  B --> C["destino"]', '```', ''].join('\n'),
     },
+    // Las tres de arquitectura salen de la pregunta 21 de la auditoría: las
+    // genéricas —«flujo», «secuencia»— no son lo que empieza a escribir alguien
+    // que documenta una plataforma de datos. Llevan sus capas ya definidas,
+    // porque colorear por zona es la primera cosa que hace este público.
+    {
+        id: 'capas',
+        label: 'Arquitectura por capas',
+        detalle: 'aterrizaje, refinado, consumo',
+        texto: ['```mermaid', 'flowchart LR', '  subgraph z1["Aterrizaje"]', '    fuente[("Sistema de origen")]', '  end', '  subgraph z2["Refinado"]', '    limpieza["Limpieza"]', '    modelo["Modelo"]', '  end', '  subgraph z3["Consumo"]', '    tablero(("Tablero"))', '  end', '  fuente --> limpieza', '  limpieza --> modelo', '  modelo ==> tablero', '  classDef origen fill:#1b3a52,stroke:#4a9fd8', '  classDef proceso fill:#1d4034,stroke:#4fb286', '  classDef salida fill:#4a3a16,stroke:#d9a441', '  class fuente origen', '  class limpieza,modelo proceso', '  class tablero salida', '```', ''].join('\n'),
+    },
+    {
+        id: 'ingesta',
+        label: 'Ingesta',
+        detalle: 'por lotes frente a continua',
+        texto: ['```mermaid', 'flowchart LR', '  diario[("Carga diaria")] --> land["Zona de aterrizaje"]', '  eventos[("Eventos")] -.-> land', '  land --> calidad{"¿Pasa calidad?"}', '  calidad -->|sí| almacen[("Almacén")]', '  calidad -->|no| cuarentena[/"Cuarentena"/]', '```', ''].join('\n'),
+    },
+    {
+        id: 'experimento',
+        label: 'Experimento',
+        detalle: 'entrenar, evaluar, reentrenar',
+        texto: ['```mermaid', 'flowchart LR', '  rasgos[("Rasgos")] --> entrenar["Entrenar"]', '  entrenar --> evaluar{"¿Mejora?"}', '  evaluar -->|sí| publicar[\\"Publicar"\\]', '  evaluar -->|no| ajustar["Ajustar"]', '  ajustar --> entrenar', '```', ''].join('\n'),
+    },
     {
         id: 'secuencia',
         label: 'Secuencia',
