@@ -17,7 +17,7 @@
  * cromo de edición es un añadido, no un reemplazo— y toda edición devuelve la
  * prosa COMPLETA, así que una región nunca puede partir el archivo.
  */
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert, LuEye } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta } from './SlidePreview';
@@ -30,6 +30,8 @@ import { splitSlideContent } from '../../utils/deckTemplates';
 import { resolveFooterFields, resolveTone } from '../../utils/deckParser';
 import { DECK_LAYOUT_META } from './deckLayoutPreviews';
 import { regionesDe, leerParte, escribirParte, tieneTituloPropio } from './deckRegions';
+import { BarraFormato, MenuInsercion } from './DeckWriting';
+import { useMenuInsercion, ejecutarAccion, accionDeAtajo, restaurarSeleccion } from './deckWritingOps';
 
 /**
  * Una lámina es una página: `.deck-slide` recorta en vez de hacer scroll, así
@@ -124,9 +126,13 @@ function RegionTexto({
 }) {
     const [draft, setDraft] = useState(value);
     const areaRef = useRef(null);
+    const menu = useMenuInsercion(areaRef, setDraft);
 
     useEffect(() => { if (!editando) setDraft(value); }, [value, editando]);
     useEffect(() => { if (editando) areaRef.current?.focus(); }, [editando]);
+    // Después de que el DOM tenga el texto nuevo y antes de pintar: es el único
+    // momento en que colocar el cursor no se lo lleva por delante el repintado.
+    useLayoutEffect(() => { restaurarSeleccion(areaRef.current); }, [draft]);
 
     const commit = () => {
         onSalir();
@@ -136,14 +142,27 @@ function RegionTexto({
     if (editando) {
         return (
             <div className="deck-rg deck-rg--editando" data-rg={region.nombre}>
+                <BarraFormato areaRef={areaRef} onCambio={setDraft} onAbrirMenu={menu.abrir} />
                 <textarea
                     ref={areaRef}
                     className="deck-prose-editor"
                     value={draft}
                     spellCheck={false}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onBlur={commit}
+                    onChange={(e) => { setDraft(e.target.value); menu.revisar(); }}
+                    onSelect={menu.revisar}
+                    onBlur={(e) => {
+                        // Pulsar en la barra o en el menú no es salir de la
+                        // región: los dos previenen el `mousedown`, así que el
+                        // foco vuelve solo. Sin esta comprobación, confirmar
+                        // con el ratón cerraría la edición antes de aplicar.
+                        if (e.relatedTarget?.closest?.('.deck-barra, .deck-menu')) return;
+                        commit();
+                    }}
                     onKeyDown={(e) => {
+                        // Con el menú abierto manda él: se lo dejamos.
+                        if (menu.disparo && ['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) return;
+                        const atajo = accionDeAtajo(e);
+                        if (atajo) { e.preventDefault(); ejecutarAccion(areaRef.current, atajo, setDraft); e.stopPropagation(); return; }
                         // Esc cancela; Ctrl+Intro confirma. Los dos se paran
                         // aquí para que no lleguen al manejador de la lámina.
                         if (e.key === 'Escape') { setDraft(value); onSalir(); e.stopPropagation(); return; }
@@ -151,6 +170,13 @@ function RegionTexto({
                         e.stopPropagation();
                     }}
                 />
+                {menu.disparo && (
+                    <MenuInsercion
+                        consulta={menu.disparo.consulta}
+                        onElegir={menu.elegir}
+                        onCerrar={menu.cerrar}
+                    />
+                )}
                 <span className="deck-rg-ayuda"><kbd>Esc</kbd> cancelar · <kbd>Ctrl</kbd>+<kbd>Intro</kbd> confirmar</span>
             </div>
         );

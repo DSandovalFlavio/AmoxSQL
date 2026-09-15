@@ -2092,3 +2092,117 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     color: var(--color-warning);
 }
 .dki-nota--aviso svg { flex: none; margin-top: 2px; }
+
+/* ── Fase 3 — los mandos para escribir ─────────────────────────────────── */
+
+/* La barra NO flota sobre la selección, y es deliberado. Colocar algo encima
+   del cursor de un `<textarea>` exige duplicar su contenido en un div espejo y
+   medir ahí — frágil, y se rompe con cada salto de línea. Pero además la barra
+   fija es mejor AQUÍ: el diagnóstico de la auditoría es que el Studio esconde
+   los mandos, y una barra que sólo aparece si ya sabías que había que
+   seleccionar algo los sigue escondiendo. */
+.deck-barra {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+    padding: 3px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--surface-overlay);
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,.25));
+}
+
+.deck-barra button {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.deck-barra button:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.deck-barra-sep {
+    width: 1px;
+    height: 15px;
+    margin: 0 3px;
+    background: var(--border-default);
+    flex-shrink: 0;
+}
+
+.deck-barra-insertar {
+    width: auto !important;
+    gap: 5px;
+    padding: 0 8px;
+    display: inline-flex !important;
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+.deck-barra-insertar kbd {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 0 4px;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    color: var(--text-disabled);
+}
+
+/* El menú se ancla al pie de la región y no al cursor, por lo mismo. */
+.deck-menu {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    z-index: 20;
+    width: min(300px, 100%);
+    margin-top: 4px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-overlay);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .5);
+    overflow: hidden;
+}
+
+.deck-menu-consulta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+}
+
+.deck-menu-lista { max-height: 250px; overflow-y: auto; scrollbar-width: thin; }
+.deck-menu-vacio { padding: 10px; font-size: var(--text-xs); color: var(--text-disabled); }
+
+.deck-menu-grupo {
+    padding: 6px 10px 2px;
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    font-weight: var(--weight-semibold);
+}
+
+.deck-menu-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    text-align: left;
+}
+.deck-menu-item--on { background: var(--accent-subtle); color: var(--text-primary); }
+.deck-menu-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deck-menu-detalle { font-size: 10px; color: var(--text-disabled); flex-shrink: 0; }
