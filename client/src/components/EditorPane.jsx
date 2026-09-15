@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation } from "react-icons/lu";
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2 } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
@@ -369,6 +369,15 @@ const EditorPane = ({
                             <LuPresentation size={24} />
                             <span className="ep-empty-card-title">Report Flow</span>
                             <span className="ep-empty-card-desc">Slides from your analyses</span>
+                        </button>
+                        {/* Esta tarjeta faltaba, y no estaba en la lista de diez
+                            sitios del plan: es la PRIMERA pantalla de un proyecto
+                            recién abierto, donde todavía no hay barra de pestañas
+                            en la que buscar el «+». */}
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('amoxdiagram')}>
+                            <LuShare2 size={24} />
+                            <span className="ep-empty-card-title">Diagrama</span>
+                            <span className="ep-empty-card-desc">Arquitecturas y procesos</span>
                         </button>
                     </div>
                 </div>

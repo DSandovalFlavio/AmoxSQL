@@ -1,49 +1,68 @@
 /**
  * AmoxDiagram — la pestaña.
  *
- * Fase 1 del plan: el archivo se crea, se abre, se ve y se guarda. **El lienzo
- * todavía no edita**, y eso es deliberado. Parece media función, pero valida lo
- * caro —el parser, la geometría, el registro del tipo en la aplicación— sin
- * ninguna posibilidad de estropear el documento de nadie. Lo que escribe llega
- * en la fase 2, cuando leer ya esté asentado.
+ * **La verdad es el archivo.** Cada gesto produce un grafo nuevo, ese grafo se
+ * escribe al texto, y el lienzo se deriva del texto otra vez. Da una vuelta más
+ * larga que mantener el grafo en estado y guardar de vez en cuando, y a cambio
+ * no hay dos versiones de la misma cosa: lo que se ve dibujado es exactamente
+ * lo que hay en el archivo, siempre.
+ *
+ * De ahí sale gratis el historial: deshacer es volver a un texto anterior.
  *
  * El armazón sigue el contrato visual (`mockup_editor_mermaid.html`): barra
- * arriba en cuatro zonas, y debajo el lienzo con el panel de texto plegable. Las
- * columnas laterales —paleta e inspector— llegan con la edición; montarlas ahora
- * sería enseñar mandos que no hacen nada.
+ * arriba en cuatro zonas, tres columnas debajo, y el panel de texto plegable
+ * bajo el lienzo.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import {
     LuShare2, LuSave, LuCode, LuShieldCheck, LuTriangleAlert, LuChevronDown,
-    LuChevronUp, LuLink, LuFile,
+    LuChevronUp, LuLink, LuFile, LuUndo2, LuRedo2, LuPanelLeft, LuPanelRight,
 } from 'react-icons/lu';
 import DiagramCanvas from './DiagramCanvas';
+import DiagramInspector from './DiagramInspector';
+import DiagramOutline from './DiagramOutline';
 import { coloresDelTema } from './diagramTheme';
-import { leerDiagrama } from './diagramFile';
+import { leerDiagrama, escribirDiagrama } from './diagramFile';
 import { medirFlujo } from './mermaidGeometria';
 import { nodosDeLienzo, aristasDeLienzo } from './diagramGraph';
+import {
+    anadirNodo, encadenarNodo, borrarNodo, duplicarNodo, renombrarNodo, cambiarForma,
+    conectar, desconectar, etiquetarArista, estiloArista, cambiarDireccion,
+} from './diagramOps';
 import { cabosSueltos } from '../markdown/mermaidFlow';
+import { reemplazarCercado, bloquesCercados } from '../markdown/fencedBlocks';
+import { useHistorial, esAtajoDeHistorial } from '../../hooks/useHistorial';
 import { isLightTheme } from '../../theme.js';
 import './diagram.css';
 
-const DiagramEditor = ({ content, onSave, onRequestSaveAs, theme, filePath, isDirty, procedencia, onOpenFile }) => {
+const AVISO_MOVER = 'amoxsql-diagram-aviso-mover';
+
+const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, filePath, isDirty, procedencia, onOpenFile }) => {
     const [verTexto, setVerTexto] = useState(false);
     const [verRepaso, setVerRepaso] = useState(false);
+    const [verIzq, setVerIzq] = useState(true);
+    const [verDer, setVerDer] = useState(true);
+    const [seleccion, setSeleccion] = useState(null);
+    const [editandoId, setEditandoId] = useState(null);
+    const [consulta, setConsulta] = useState('');
+    const [avisoMover, setAvisoMover] = useState(false);
+    // La caja recién creada, mientras siga llamándose como el marcador de
+    // posición: es la única a la que el identificador todavía puede seguir.
+    const [sinBautizar, setSinBautizar] = useState(null);
+    const [borrador, setBorrador] = useState(null);
 
     const doc = useMemo(() => leerDiagrama(content), [content]);
     const colores = useMemo(() => coloresDelTema(theme), [theme]);
     const oscuro = !isLightTheme(theme);
+    const historial = useHistorial(content, onChange);
 
     /**
      * La medida es asíncrona porque el render de mermaid lo es, así que hay que
-     * saber **de qué texto** son las medidas que hay guardadas.
-     *
-     * Se guarda la clave junto al resultado en vez de llevar un contador de
-     * peticiones. Resuelve lo mismo —una medida lenta de un texto viejo que
-     * llega después de la del nuevo— y además contesta sola «¿esto que estoy a
-     * punto de dibujar corresponde a lo que hay en pantalla?», que es la
-     * pregunta que de verdad importa.
+     * saber **de qué texto** son las medidas guardadas. La clave viaja con el
+     * resultado en vez de llevar un contador de peticiones: resuelve lo mismo
+     * —una medida lenta de un texto viejo que llega después de la del nuevo— y
+     * además contesta sola «¿esto que voy a dibujar es lo que hay en pantalla?».
      */
     const [medido, setMedido] = useState({ clave: null, medidas: null });
 
@@ -60,22 +79,122 @@ const DiagramEditor = ({ content, onSave, onRequestSaveAs, theme, filePath, isDi
     const medidas = medido.clave === doc.mermaid ? medido.medidas : null;
     const midiendo = !!doc.grafo && !medidas;
 
-    const nodos = useMemo(() => nodosDeLienzo(doc.grafo, medidas), [doc.grafo, medidas]);
-    const aristas = useMemo(() => aristasDeLienzo(doc.grafo, colores.arista), [doc.grafo, colores.arista]);
-    const avisos = useMemo(() => (doc.grafo ? cabosSueltos(doc.grafo) : []), [doc.grafo]);
+    // ── escribir ────────────────────────────────────────────────────────────
+    /** Todo gesto pasa por aquí: grafo nuevo → texto → historial. */
+    const aplicar = useCallback((grafo) => {
+        historial.escribir(escribirDiagrama(content, grafo));
+    }, [content, historial]);
 
-    const guardar = useCallback(() => onSave?.(), [onSave]);
+    const g = doc.grafo;
 
+    const crear = useCallback((forma) => {
+        if (!g) return;
+        // Si hay una caja seleccionada, la nueva se encadena a ella. Es la única
+        // información que el gesto puede llevar: dónde sueltas no significa nada
+        // porque la posición la decide mermaid.
+        const r = seleccion?.tipo === 'nodo'
+            ? encadenarNodo(g, seleccion.id, { forma })
+            : anadirNodo(g, { forma });
+        if (!r.id) return;
+        aplicar(r.grafo);
+        setSeleccion({ tipo: 'nodo', id: r.id });
+        setEditandoId(r.id);
+        setSinBautizar(r.id);
+    }, [g, seleccion, aplicar]);
+
+    const borrarSeleccion = useCallback(() => {
+        if (!g || !seleccion) return;
+        aplicar(seleccion.tipo === 'nodo' ? borrarNodo(g, seleccion.id) : desconectar(g, seleccion.indice));
+        setSeleccion(null);
+    }, [g, seleccion, aplicar]);
+
+    const duplicar = useCallback((id) => {
+        if (!g) return;
+        const r = duplicarNodo(g, id);
+        if (!r.id) return;
+        aplicar(r.grafo);
+        setSeleccion({ tipo: 'nodo', id: r.id });
+    }, [g, aplicar]);
+
+    const intentarMover = useCallback(() => {
+        if (localStorage.getItem(AVISO_MOVER) === '1') return;
+        setAvisoMover(true);
+    }, []);
+
+    const cerrarAvisoMover = useCallback(() => {
+        try { localStorage.setItem(AVISO_MOVER, '1'); } catch { /* modo privado */ }
+        setAvisoMover(false);
+    }, []);
+
+    // ── el panel de texto ───────────────────────────────────────────────────
+    /**
+     * Mientras se escribe a mano, el borrador vive aquí y **no se escribe al
+     * archivo hasta que se puede leer**. Eso hace dos cosas a la vez: el dibujo
+     * se queda congelado en lo último bueno en vez de vaciarse —vaciarse da la
+     * sensación de haber perdido el trabajo— y el archivo nunca guarda algo que
+     * luego no sabríamos abrir.
+     */
+    const textoMostrado = borrador ?? doc.mermaid;
+    const errorTexto = useMemo(() => {
+        if (borrador === null || borrador === doc.mermaid) return null;
+        return 'No se entiende. El dibujo se queda como estaba y esto no se guarda hasta que se pueda leer.';
+    }, [borrador, doc.mermaid]);
+
+    const escribirTexto = useCallback((texto) => {
+        const bloque = bloquesCercados(content, ['mermaid'])[0];
+        if (!bloque) return;
+        // Se prueba a leerlo antes de tocar el archivo. Si se entiende, entra tal
+        // y como lo escribió el autor —sin pasarlo por la forma canónica— para
+        // que el cursor no salte mientras teclea.
+        const siguiente = reemplazarCercado(content, bloque, texto);
+        if (leerDiagrama(siguiente).grafo) {
+            setBorrador(null);
+            historial.escribir(siguiente);
+        } else {
+            setBorrador(texto);
+        }
+    }, [content, historial]);
+
+    // ── atajos ──────────────────────────────────────────────────────────────
     useEffect(() => {
         const alPulsar = (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); guardar(); }
+            const enCampo = e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement;
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); onSave?.(); return; }
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
-                e.preventDefault(); setVerTexto((v) => !v);
+                e.preventDefault(); setVerTexto((v) => !v); return;
             }
+            const accion = esAtajoDeHistorial(e);
+            if (accion) { e.preventDefault(); historial[accion](); return; }
+            if (enCampo) return;
+            if ((e.key === 'Delete' || e.key === 'Backspace') && seleccion) { e.preventDefault(); borrarSeleccion(); return; }
+            // `Tab` encadena desde la caja seleccionada: el camino de quien ya
+            // tiene el diagrama en la cabeza y sólo quiere volcarlo.
+            if (e.key === 'Tab' && seleccion?.tipo === 'nodo' && !e.shiftKey) { e.preventDefault(); crear(); }
         };
         window.addEventListener('keydown', alPulsar);
         return () => window.removeEventListener('keydown', alPulsar);
-    }, [guardar]);
+    }, [onSave, historial, seleccion, borrarSeleccion, crear]);
+
+    // ── lienzo ──────────────────────────────────────────────────────────────
+    /**
+     * Al bautizar una caja recién creada, el identificador la sigue; después
+     * ya no. Es lo que evita que el archivo acabe con `sin_nombre[("Almacén")]`
+     * sin meter churn en el diff cada vez que alguien retoca una etiqueta.
+     */
+    const renombrar = useCallback((id, texto) => {
+        aplicar(renombrarNodo(g, id, texto, { tambienId: id === sinBautizar }));
+        if (id === sinBautizar) setSinBautizar(null);
+    }, [g, aplicar, sinBautizar]);
+
+    const extras = useMemo(() => ({
+        editandoId,
+        onEditar: setEditandoId,
+        onRenombrar: renombrar,
+    }), [editandoId, renombrar]);
+
+    const nodos = useMemo(() => nodosDeLienzo(g, medidas, seleccion, extras), [g, medidas, seleccion, extras]);
+    const aristas = useMemo(() => aristasDeLienzo(g, colores.arista, seleccion), [g, colores.arista, seleccion]);
+    const avisos = useMemo(() => (g ? cabosSueltos(g) : []), [g]);
 
     const nombre = doc.titulo || (filePath || '').split(/[\\/]/).pop() || 'Diagrama';
     const destino = procedencia ? `Guardar en ${procedencia.split(/[\\/]/).pop()}` : 'Guardar el diagrama';
@@ -101,6 +220,16 @@ const DiagramEditor = ({ content, onSave, onRequestSaveAs, theme, filePath, isDi
                 )}
 
                 <div className="dgm-sep" />
+                <button type="button" className="dgm-btn dgm-btn--icono" onClick={historial.deshacer}
+                    disabled={!historial.puedeDeshacer} title="Deshacer (Ctrl+Z)">
+                    <LuUndo2 size={12} strokeWidth={2.3} />
+                </button>
+                <button type="button" className="dgm-btn dgm-btn--icono" onClick={historial.rehacer}
+                    disabled={!historial.puedeRehacer} title="Rehacer (Ctrl+Shift+Z)">
+                    <LuRedo2 size={12} strokeWidth={2.3} />
+                </button>
+
+                <div className="dgm-sep" />
                 <button type="button" className={`dgm-btn${verTexto ? ' dgm-btn--on' : ''}`}
                     onClick={() => setVerTexto((v) => !v)} title="Ver el mermaid (Ctrl+Shift+E)">
                     <LuCode size={12} strokeWidth={2.3} /> Texto
@@ -112,81 +241,153 @@ const DiagramEditor = ({ content, onSave, onRequestSaveAs, theme, filePath, isDi
                 </button>
 
                 <div className="dgm-spacer" />
+                <button type="button" className={`dgm-btn dgm-btn--icono${verIzq ? '' : ' dgm-btn--apagado'}`}
+                    onClick={() => setVerIzq((v) => !v)} title="Plegar la columna izquierda">
+                    <LuPanelLeft size={12} strokeWidth={2.3} />
+                </button>
+                <button type="button" className={`dgm-btn dgm-btn--icono${verDer ? '' : ' dgm-btn--apagado'}`}
+                    onClick={() => setVerDer((v) => !v)} title="Plegar el inspector">
+                    <LuPanelRight size={12} strokeWidth={2.3} />
+                </button>
+                <div className="dgm-sep" />
                 <button type="button" className="dgm-btn" onClick={() => onRequestSaveAs?.(content)}>
                     Guardar como…
                 </button>
-                <button type="button" className="dgm-btn dgm-btn--primary" onClick={guardar} disabled={!isDirty}>
+                <button type="button" className="dgm-btn dgm-btn--primary" onClick={() => onSave?.()} disabled={!isDirty}>
                     <LuSave size={12} strokeWidth={2.3} /> {destino}
                 </button>
             </div>
 
-            <div className="dgm-body">
-                <div className="dgm-stage">
-                    {!doc.grafo ? (
-                        <div className="dgm-vacio">
-                            <LuTriangleAlert size={22} strokeWidth={1.9} />
-                            <p><b>Este diagrama no se puede editar visualmente.</b></p>
-                            <p className="dgm-vacio-por">
-                                {doc.mermaid
-                                    ? 'Usa algo que el editor todavía no sabe dibujar. El texto está intacto y se puede editar a mano.'
-                                    : 'El archivo no tiene ningún bloque mermaid.'}
-                            </p>
-                            {doc.mermaid && (
-                                <button type="button" className="dgm-btn" onClick={() => setVerTexto(true)}>
-                                    <LuCode size={12} strokeWidth={2.3} /> Ver el texto
-                                </button>
-                            )}
-                        </div>
-                    ) : midiendo ? (
-                        <div className="dgm-vacio"><p>Midiendo el diagrama…</p></div>
-                    ) : (
-                        <ReactFlowProvider>
-                            <DiagramCanvas nodos={nodos} aristas={aristas} colores={colores} soloLectura />
-                        </ReactFlowProvider>
-                    )}
+            <div className="dgm-cuerpo">
+                {g && verIzq && (
+                    <DiagramOutline
+                        grafo={g}
+                        seleccion={seleccion}
+                        consulta={consulta}
+                        onConsulta={setConsulta}
+                        onElegir={(id) => { setSeleccion({ tipo: 'nodo', id }); setEditandoId(null); }}
+                        onAnadirForma={crear}
+                    />
+                )}
 
-                    {verRepaso && (
-                        <div className="dgm-repaso">
-                            <div className="dgm-repaso-tit"><LuShieldCheck size={13} strokeWidth={2.2} /> Repaso</div>
-                            {avisos.length === 0
-                                ? <div className="dgm-repaso-fila dgm-repaso-fila--ok">Ningún cabo suelto.</div>
-                                : avisos.map((a) => (
-                                    <div key={`${a.tipo}:${a.id}`} className="dgm-repaso-fila">
-                                        <LuTriangleAlert size={12} strokeWidth={2.2} /> {a.texto}
-                                    </div>
-                                ))}
-                            <p className="dgm-repaso-pie">No bloquea nada: un diagrama a medias es un estado legítimo.</p>
-                        </div>
-                    )}
-                </div>
+                <div className="dgm-centro">
+                    <div className="dgm-stage">
+                        {!g ? (
+                            <div className="dgm-vacio">
+                                <LuTriangleAlert size={22} strokeWidth={1.9} />
+                                <p><b>Este diagrama no se puede editar visualmente.</b></p>
+                                <p className="dgm-vacio-por">
+                                    {doc.mermaid
+                                        ? 'Usa algo que el editor todavía no sabe dibujar. El texto está intacto y se puede editar a mano.'
+                                        : 'El archivo no tiene ningún bloque mermaid.'}
+                                </p>
+                                {doc.mermaid && (
+                                    <button type="button" className="dgm-btn" onClick={() => setVerTexto(true)}>
+                                        <LuCode size={12} strokeWidth={2.3} /> Ver el texto
+                                    </button>
+                                )}
+                            </div>
+                        ) : midiendo ? (
+                            <div className="dgm-vacio"><p>Midiendo el diagrama…</p></div>
+                        ) : (
+                            <ReactFlowProvider>
+                                <DiagramCanvas
+                                    nodos={nodos}
+                                    aristas={aristas}
+                                    colores={colores}
+                                    onElegirNodo={(id) => { setSeleccion({ tipo: 'nodo', id }); setEditandoId(null); }}
+                                    onElegirArista={(indice) => { setSeleccion({ tipo: 'arista', indice }); setEditandoId(null); }}
+                                    onLimpiarSeleccion={() => { setSeleccion(null); setEditandoId(null); }}
+                                    onConectar={(c) => aplicar(conectar(g, c.source, c.target))}
+                                    onDobleClicLienzo={() => crear()}
+                                    onIntentarMover={intentarMover}
+                                />
+                            </ReactFlowProvider>
+                        )}
 
-                {verTexto && (
-                    <div className="dgm-texto">
-                        <div className="dgm-texto-cab">
-                            <LuCode size={12} strokeWidth={2.3} /> Mermaid
-                            <span className="dgm-spacer" />
-                            <span className="dgm-texto-n">
-                                {doc.mermaid.split('\n').length} líneas
-                                {doc.grafo?.conservado.length > 0 && ` · ${doc.grafo.conservado.length} conservadas`}
-                            </span>
-                            <button type="button" className="dgm-btn dgm-btn--icono" onClick={() => setVerTexto(false)}>
-                                <LuChevronDown size={12} strokeWidth={2.3} />
-                            </button>
-                        </div>
-                        {/* De sólo lectura en esta fase, por lo mismo que el
-                            lienzo: escribir aquí llega con la fase 2. */}
-                        <pre className="dgm-texto-cod">{doc.mermaid}</pre>
-                        {doc.grafo?.conservado.length > 0 && (
-                            <div className="dgm-texto-leyenda">
-                                <span><i className="dgm-pip dgm-pip--warn" /> se conserva tal cual, el editor no lo toca</span>
+                        {avisoMover && (
+                            <div className="dgm-globo">
+                                {/* El contrato visual decía aquí «arrastra para reordenar
+                                    y para cambiar de grupo». Las dos cosas llegan con los
+                                    grupos, en la fase 4 — y prometerlas ahora sería
+                                    exactamente la promesa incumplida que este editor
+                                    existe para evitar. El aviso dice lo que hoy es cierto. */}
+                                <p>
+                                    <b>Las cajas no se colocan a mano.</b> Su posición la calcula el
+                                    diagrama a partir de cómo están conectadas, así que nunca queda
+                                    torcido — y lo que ves aquí es lo que saldrá en el documento.
+                                </p>
+                                <button type="button" className="dgm-btn" onClick={cerrarAvisoMover}>Entendido</button>
+                            </div>
+                        )}
+
+                        {verRepaso && g && (
+                            <div className="dgm-repaso">
+                                <div className="dgm-repaso-tit"><LuShieldCheck size={13} strokeWidth={2.2} /> Repaso</div>
+                                {avisos.length === 0
+                                    ? <div className="dgm-repaso-fila dgm-repaso-fila--ok">Ningún cabo suelto.</div>
+                                    : avisos.map((a) => (
+                                        <button key={`${a.tipo}:${a.id}`} type="button" className="dgm-repaso-fila"
+                                            onClick={() => a.tipo !== 'grupo-vacio' && setSeleccion({ tipo: 'nodo', id: a.id })}>
+                                            <LuTriangleAlert size={12} strokeWidth={2.2} /> {a.texto}
+                                        </button>
+                                    ))}
+                                <p className="dgm-repaso-pie">No bloquea nada: un diagrama a medias es un estado legítimo.</p>
                             </div>
                         )}
                     </div>
-                )}
-                {!verTexto && (
-                    <button type="button" className="dgm-texto-plegado" onClick={() => setVerTexto(true)}>
-                        <LuChevronUp size={12} strokeWidth={2.3} /> Mermaid
-                    </button>
+
+                    {verTexto ? (
+                        <div className="dgm-texto">
+                            <div className="dgm-texto-cab">
+                                <LuCode size={12} strokeWidth={2.3} /> Mermaid
+                                <span className="dgm-spacer" />
+                                <span className="dgm-texto-n">
+                                    {textoMostrado.split('\n').length} líneas
+                                    {g?.conservado.length > 0 && ` · ${g.conservado.length} conservadas`}
+                                </span>
+                                <button type="button" className="dgm-btn dgm-btn--icono" onClick={() => setVerTexto(false)}>
+                                    <LuChevronDown size={12} strokeWidth={2.3} />
+                                </button>
+                            </div>
+                            <textarea
+                                className={`dgm-texto-cod${errorTexto ? ' dgm-texto-cod--mal' : ''}`}
+                                value={textoMostrado}
+                                spellCheck={false}
+                                onChange={(e) => escribirTexto(e.target.value)}
+                            />
+                            {errorTexto ? (
+                                <div className="dgm-texto-leyenda dgm-texto-leyenda--mal">
+                                    <LuTriangleAlert size={12} strokeWidth={2.2} /> {errorTexto}
+                                </div>
+                            ) : g?.conservado.length > 0 && (
+                                <div className="dgm-texto-leyenda">
+                                    <span><i className="dgm-pip dgm-pip--warn" /> se conserva tal cual, el editor no lo toca</span>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <button type="button" className="dgm-texto-plegado" onClick={() => setVerTexto(true)}>
+                            <LuChevronUp size={12} strokeWidth={2.3} /> Mermaid
+                        </button>
+                    )}
+                </div>
+
+                {g && verDer && (
+                    <div className="dgm-der">
+                        <DiagramInspector
+                            grafo={g}
+                            seleccion={seleccion}
+                            onRenombrar={renombrar}
+                            onForma={(id, forma) => aplicar(cambiarForma(g, id, forma))}
+                            onEtiqueta={(i, texto) => aplicar(etiquetarArista(g, i, texto))}
+                            onEstiloArista={(i, estilo) => aplicar(estiloArista(g, i, estilo))}
+                            onDireccion={(d) => aplicar(cambiarDireccion(g, d))}
+                            onDuplicar={duplicar}
+                            onBorrar={borrarSeleccion}
+                            onAnadir={() => crear()}
+                        />
+                    </div>
                 )}
             </div>
         </div>

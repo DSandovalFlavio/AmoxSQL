@@ -41,7 +41,7 @@ import SlideDesigner from './SlideDesigner';
 import SlidePreview from './SlidePreview';
 import DeckShow from './DeckShow';
 import DeckInspector from './DeckInspector';
-import { useHistorial, esAtajoDeHistorial } from './useHistorial';
+import { useHistorial, esAtajoDeHistorial } from '../../hooks/useHistorial';
 import DeckSlideRaw from './DeckSlideRaw';
 import '../MarkdownEditor.css';
 import './deck.css';

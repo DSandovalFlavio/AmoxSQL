@@ -1,7 +1,12 @@
 /**
- * Deshacer y rehacer en todo el Studio.
+ * Deshacer y rehacer, para cualquier editor cuyo estado sea un archivo.
  *
- * Fase 5 del rediseño. Hasta ahora no había ninguno: cambiar la disposición de
+ * Nació en el Studio del deck (fase 5 de su rediseño) y vive aquí desde que
+ * AmoxDiagram necesitó exactamente lo mismo. No se copió: el planteamiento —la
+ * pila es el TEXTO, no una lista de operaciones— no tiene nada de específico
+ * del deck, y dos copias serían dos sitios donde arreglar el mismo fallo.
+ *
+ * Del rediseño del deck. Hasta ahora no había ninguno: cambiar la disposición de
  * una lámina por error, o borrar una figura, o tocar un acento, no tenía vuelta
  * atrás más que reescribiéndolo a mano.
  *

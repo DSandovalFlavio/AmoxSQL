@@ -236,30 +236,30 @@ pintado —una captura— antes de medir nada.
 
 La primera fase que escribe.
 
-- [ ] Añadir nodo por **tres caminos**: doble clic en el lienzo, arrastrar desde una paleta,
+- [~] Añadir nodo por **tres caminos**: doble clic en el lienzo, arrastrar desde una paleta,
       y `Tab` desde un nodo seleccionado para encadenar. El tercero es el de quien ya sabe
       lo que va a dibujar.
-- [ ] Conectar y desconectar arrastrando desde el borde, como Data Flow.
-- [ ] **Editar el texto de una caja con doble clic, en el sitio.** Nunca un campo en un
+- [x] Conectar y desconectar arrastrando desde el borde, como Data Flow.
+- [x] **Editar el texto de una caja con doble clic, en el sitio.** Nunca un campo en un
       panel lejano para algo tan frecuente.
-- [ ] **Inspector a la derecha** con tres estados, como el Studio del deck: diagrama (sin
+- [x] **Inspector a la derecha** con tres estados, como el Studio del deck: diagrama (sin
       selección) · nodo · arista. Forma y clase en el nodo; etiqueta y estilo de flecha en
       la arista; dirección y título en el diagrama.
-- [ ] **Una arista es seleccionable**, no un adorno entre dos cajas.
-- [ ] Copiar, pegar y **duplicar** — quien dibuja tres fuentes parecidas no las escribe tres
+- [x] **Una arista es seleccionable**, no un adorno entre dos cajas.
+- [~] **Duplicar** — quien dibuja tres fuentes parecidas no las escribe tres
       veces.
-- [ ] **Buscar un nodo por su texto** y que el lienzo salte a él. Con cuarenta cajas, sin
+- [x] **Buscar un nodo por su texto** y que el lienzo salte a él. Con cuarenta cajas, sin
       esto no se navega.
-- [ ] Deshacer y rehacer. La pila es **el texto mermaid**, no una lista de operaciones —
+- [x] Deshacer y rehacer. La pila es **el texto mermaid**, no una lista de operaciones —
       mismo razonamiento que `deck/useHistorial.js`: no hay que escribir la inversa de cada
       acción.
-- [ ] **Panel de texto plegable al lado del lienzo**, editable, con el mermaid que se está
+- [x] **Panel de texto plegable al lado del lienzo**, editable, con el mermaid que se está
       generando. **Es una vista de primera clase, no una salida de emergencia:** la mitad
       del público sabe leer mermaid y va a querer comprobar qué se escribe en su archivo.
       Mismo papel que `DeckSlideRaw.jsx` en el deck.
-- [ ] Si lo escrito a mano deja de entenderse, **el lienzo se congela con un aviso**; no se
+- [x] Si lo escrito a mano deja de entenderse, **el lienzo se congela con un aviso**; no se
       vacía. Vaciarse da la sensación de haber perdido el trabajo.
-- [ ] **No se pueden fijar coordenadas, y se dice en la interfaz la primera vez.** Mermaid no
+- [~] **No se pueden fijar coordenadas, y se dice en la interfaz la primera vez.** Mermaid no
       tiene dónde guardarlas: si se permitiera, el usuario colocaría una caja, guardaría, y
       al reabrir la encontraría en otro sitio — el editor habría prometido algo que el
       formato no sostiene. Se arrastra para **reordenar** y para **cambiar de grupo**. A
@@ -269,6 +269,36 @@ La primera fase que escribe.
 
 **Criterio de hecho:** dibujar desde cero la arquitectura de un flujo por lotes, guardarla,
 cerrar la pestaña, reabrirla y encontrarla igual.
+
+**Cumplido.** `scripts/probarOpsDiagrama.mjs` añade 70 comprobaciones sobre las operaciones,
+que son puras justamente para esto: que borrar una caja **no deje flechas colgando** se
+contesta en un milisegundo en vez de descubrirlo al abrir un archivo roto.
+
+Cuatro desviaciones, todas deliberadas:
+
+1. **La paleta se pulsa, no se arrastra**, y el plan decía lo contrario. Al implementarla se
+   ve que arrastrar **sería mentira**: mermaid decide dónde va cada caja, así que el punto
+   donde sueltas no significa nada. Siguen siendo tres caminos —pulsar una forma, doble clic
+   en el vacío, `Tab` desde la selección— y los tres son honestos. Si hay una caja
+   seleccionada la nueva **se encadena a ella**, que es la única información que el gesto sí
+   puede llevar.
+2. **Copiar y pegar no están; duplicar sí.** Entre teclado y portapapeles hay más superficie
+   de la que esta fase necesitaba, y duplicar cubre el caso real —cinco fuentes parecidas—
+   sin ninguna de esas preguntas.
+3. **El aviso de arrastrar dice otra cosa.** El contrato visual lo redactó como «arrastra
+   para reordenar y para cambiar de grupo»; las dos cosas llegan con los grupos, en la fase
+   4. Prometerlas ahora sería exactamente la promesa incumplida que este editor existe para
+   evitar, así que el aviso dice lo que hoy es cierto: la posición la calcula el diagrama.
+4. **El identificador sigue al primer nombre.** No estaba en el plan y salió de mirar el
+   archivo: una caja creada y bautizada acababa como `sin_nombre[("Almacén")]` para siempre.
+   Ahora el id sigue al texto **la primera vez que se nombra una caja recién creada**, y
+   nunca más — renombrar siempre movería también todas las líneas de flecha, ensuciando el
+   diff. Con cinturón: si el id ya aparece en una línea conservada, no se toca.
+
+Y un hallazgo del entorno de verificación, no del producto: **la automatización del navegador
+no entregaba `Enter` al campo enfocado**, lo que hacía parecer que el renombrado en el sitio
+no guardaba. Con un evento de teclado real funcionaba. Estuve a punto de arreglar algo que no
+estaba roto.
 
 ## Fase 3 — La procedencia
 

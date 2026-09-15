@@ -40,7 +40,7 @@ const TRAZO = {
  * taparía: se verían las cajas atenuadas detrás de un panel, y el usuario
  * pensaría que están deshabilitadas.
  */
-export function nodosDeLienzo(grafo, medidas) {
+export function nodosDeLienzo(grafo, medidas, seleccion = null, extras = {}) {
     if (!grafo || !medidas) return [];
 
     const entrantes = new Map();
@@ -67,12 +67,14 @@ export function nodosDeLienzo(grafo, medidas) {
             id: n.id,
             type: 'caja',
             position: { x: c.x, y: c.y },
+            selected: seleccion?.tipo === 'nodo' && seleccion.id === n.id,
             data: {
                 texto: n.texto,
                 forma: n.forma,
                 ancho: c.ancho,
                 alto: c.alto,
                 entrantes: entrantes.get(n.id) || 0,
+                ...extras,
             },
             ...tamano(c),
         };
@@ -82,7 +84,7 @@ export function nodosDeLienzo(grafo, medidas) {
 }
 
 /** Las flechas del lienzo. */
-export function aristasDeLienzo(grafo, color) {
+export function aristasDeLienzo(grafo, color, seleccion = null) {
     if (!grafo) return [];
     return grafo.aristas.map((a, i) => {
         const trazo = TRAZO[a.estilo] || TRAZO[ESTILO_POR_DEFECTO];
@@ -97,8 +99,12 @@ export function aristasDeLienzo(grafo, color) {
             label: a.etiqueta || undefined,
             type: 'smoothstep',
             markerEnd: a.estilo === 'simple' ? undefined : { type: 'arrowclosed', color, width: 14, height: 14 },
+            selected: seleccion?.tipo === 'arista' && seleccion.indice === i,
             style: { stroke: color, ...trazo },
-            data: { estilo: a.estilo, nombre: ESTILOS_ARISTA[a.estilo]?.nombre },
+            // El indice viaja en los datos porque es como se nombra una flecha
+            // en el grafo: no tiene identificador propio, y dos cajas pueden
+            // estar unidas por varias.
+            data: { indice: i, estilo: a.estilo, nombre: ESTILOS_ARISTA[a.estilo]?.nombre },
         };
     });
 }

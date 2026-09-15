@@ -195,3 +195,147 @@
 .dgm-canvas .react-flow__edge-text { font-size: 9.5px; fill: var(--text-tertiary); font-weight: 600; }
 .dgm-canvas .react-flow__edge-textbg { fill: var(--surface-base); }
 .dgm-canvas .react-flow__node { font-family: inherit; }
+
+/* ── las tres columnas ─────────────────────────────────────────────── */
+.dgm-cuerpo { flex: 1; min-height: 0; display: flex; }
+.dgm-centro { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dgm-izq {
+    width: 168px; flex: none; display: flex; flex-direction: column; min-height: 0;
+    background: var(--surface-raised); border-right: 1px solid var(--border-subtle);
+}
+.dgm-der {
+    width: 248px; flex: none; overflow-y: auto;
+    background: var(--surface-raised); border-left: 1px solid var(--border-subtle);
+}
+.dgm-col-cab {
+    display: flex; align-items: center; gap: 6px; padding: 9px 11px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--text-disabled); font-weight: 700;
+}
+.dgm-col-n { text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--text-tertiary); }
+.dgm-btn--apagado { color: var(--text-disabled); }
+
+/* ── paleta y siluetas ─────────────────────────────────────────────── */
+.dgm-paleta, .dgm-formas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 9px 8px; }
+.dgm-formas { padding: 0; }
+.dgm-forma {
+    height: 30px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--surface-overlay); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+}
+.dgm-forma:hover { border-color: var(--border-strong); }
+.dgm-forma--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); }
+.dgm-forma--on .dgm-silueta { border-color: var(--accent-primary); background-color: var(--accent-primary); }
+
+/* Las siete siluetas, en CSS. Las recortadas llevan relleno en vez de filete:
+   a 12 px un contorno recortado por `clip-path` no se lee. */
+.dgm-silueta { display: block; width: 19px; height: 12px; border: 1.5px solid var(--text-tertiary); background: transparent; }
+.dgm-silueta--mini { width: 13px; height: 9px; border-width: 1.2px; flex: none; }
+.dgm-silueta--redondeado { border-radius: 6px; }
+.dgm-silueta--almacen { border-radius: 7px / 4px; }
+.dgm-silueta--hito { width: 13px; height: 13px; border-radius: 50%; }
+.dgm-silueta--mini.dgm-silueta--hito { width: 9px; height: 9px; }
+.dgm-silueta--decision { width: 13px; height: 13px; transform: rotate(45deg); }
+.dgm-silueta--mini.dgm-silueta--decision { width: 9px; height: 9px; }
+.dgm-silueta--entrada { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(16% 0, 100% 0, 84% 100%, 0 100%); }
+.dgm-silueta--salida { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 0, 100% 0, 84% 100%, 16% 100%); }
+.dgm-silueta--mini.dgm-silueta--entrada, .dgm-silueta--mini.dgm-silueta--salida { height: 8px; }
+
+/* ── buscador y esquema ────────────────────────────────────────────── */
+.dgm-buscador {
+    display: flex; align-items: center; gap: 6px; margin: 8px 8px 6px; padding: 0 8px;
+    height: 26px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--surface-inset, var(--surface-base)); color: var(--text-disabled);
+}
+.dgm-buscador svg { flex: none; }
+.dgm-buscador-inp { flex: 1; min-width: 0; border: none; background: none; color: var(--text-primary); font: inherit; font-size: 11.5px; outline: none; }
+.dgm-buscador-x { border: none; background: none; color: var(--text-disabled); cursor: pointer; display: flex; padding: 0; }
+.dgm-buscador-x:hover { color: var(--text-primary); }
+
+.dgm-lista { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.dgm-grupo-rot {
+    margin: 9px 0 3px; padding: 0 4px; font-size: 9px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent-primary); font-weight: 700;
+}
+.dgm-fila {
+    display: flex; align-items: center; gap: 7px; width: 100%; padding: 4px 7px;
+    border: none; border-radius: 6px; background: none; cursor: pointer;
+    font-size: 11.5px; color: var(--text-secondary); text-align: left; min-width: 0;
+}
+.dgm-fila:hover { background: var(--hover-bg); }
+.dgm-fila--on { background: var(--active-bg, var(--hover-bg)); color: var(--text-primary); }
+.dgm-fila-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dgm-lista-vacia { margin: 10px 4px; font-size: 11px; color: var(--text-disabled); }
+
+/* ── inspector ─────────────────────────────────────────────────────── */
+.dgm-insp { display: flex; flex-direction: column; }
+.dgm-insp-cab { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-bottom: 1px solid var(--border-subtle); min-width: 0; }
+.dgm-insp-cab > svg { color: var(--accent-primary); flex: none; }
+.dgm-insp-cab > div { min-width: 0; }
+.dgm-insp-tipo { font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--accent-primary); font-weight: 700; }
+.dgm-insp-que { font-size: 11.5px; color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dgm-campo { padding: 10px 11px; border-bottom: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 7px; }
+.dgm-campo--acciones { flex-direction: row; gap: 6px; }
+.dgm-campo-lab { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-disabled); font-weight: 700; }
+.dgm-inp {
+    height: 27px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--surface-inset, var(--surface-base)); padding: 0 9px;
+    font: inherit; font-size: 11.5px; color: var(--text-primary); outline: none; width: 100%;
+}
+.dgm-inp:focus { border-color: var(--accent-primary); }
+.dgm-inp--lectura { display: flex; align-items: center; color: var(--text-secondary); }
+.dgm-ph { color: var(--text-disabled); }
+.dgm-dato { font-size: 11.5px; color: var(--text-secondary); }
+.dgm-dato--warn { color: var(--color-warning, oklch(.8 .14 78)); }
+
+.dgm-dirs { display: flex; gap: 5px; }
+.dgm-dir {
+    flex: 1; height: 27px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: none; color: var(--text-secondary); cursor: pointer; font-size: 13px;
+}
+.dgm-dir:hover { border-color: var(--border-strong); }
+.dgm-dir--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); color: var(--accent-primary); }
+
+.dgm-flechas { display: flex; flex-direction: column; gap: 4px; }
+.dgm-flecha {
+    display: flex; align-items: center; gap: 9px; padding: 5px 9px;
+    border: 1px solid var(--border-subtle); border-radius: 6px; background: none;
+    color: var(--text-secondary); font-size: 11.5px; cursor: pointer; text-align: left;
+}
+.dgm-flecha:hover { border-color: var(--border-strong); }
+.dgm-flecha--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); color: var(--text-primary); }
+.dgm-trazo { display: block; width: 28px; flex: none; border-top: 1.6px solid var(--text-tertiary); }
+.dgm-trazo--continuo { border-top-style: dashed; }
+.dgm-trazo--principal { border-top-width: 3.2px; }
+.dgm-flecha--on .dgm-trazo { border-top-color: var(--accent-primary); }
+
+/* ── renombrar en el sitio ─────────────────────────────────────────── */
+.dgm-node-inp {
+    width: 100%; border: none; background: none; outline: none;
+    font: inherit; font-size: 11px; font-weight: 600; text-align: center;
+    color: var(--text-primary);
+}
+
+/* ── el globo de «las coordenadas no se fijan» ─────────────────────── */
+.dgm-globo {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 7;
+    display: flex; align-items: center; gap: 12px; max-width: 470px;
+    padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface-overlay); box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+}
+.dgm-globo p { margin: 0; font-size: 11.5px; color: var(--text-secondary); }
+.dgm-globo b { color: var(--text-primary); }
+
+/* ── el panel de texto, ahora editable ─────────────────────────────── */
+textarea.dgm-texto-cod {
+    width: 100%; border: none; outline: none; resize: none;
+    background: none; color: var(--text-secondary);
+}
+textarea.dgm-texto-cod--mal { color: var(--text-primary); box-shadow: inset 2px 0 0 var(--color-error, #ff7a7a); }
+.dgm-texto-leyenda--mal { display: flex; align-items: center; gap: 7px; color: var(--color-error, #ff7a7a); }
+.dgm-texto-leyenda--mal svg { flex: none; }
+
+/* La fila del repaso es un botón desde que salta a la caja. */
+button.dgm-repaso-fila { width: 100%; border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 11.5px; }
+button.dgm-repaso-fila:hover { color: var(--text-primary); }
