@@ -97,7 +97,23 @@ export async function medirFlujo(texto, grafo, { oscuro = true } = {}) {
             const re = new RegExp(`^${escapar(id)}-flowchart-${escapar(nodo.id)}-\\d+$`);
             const el = [...jaula.querySelectorAll('g.node')].find((g) => re.test(g.id));
             const caja = el ? cajaDe(el) : null;
-            nodos.set(nodo.id, caja || { x: 0, y: 0, ...CAJA_POR_DEFECTO });
+            /**
+             * **Si mermaid no le pinta etiqueta, nosotros tampoco.**
+             *
+             * Unas cuantas formas son símbolos puros —`hourglass`, `bolt`— y
+             * mermaid las dibuja sin texto por mucho que se lo des. Nuestra caja
+             * sí lo pintaba, y al ser diminuta salía un carácter recortado: el
+             * editor enseñaba algo que el documento no va a enseñar, que es
+             * justo lo que este diseño evita. Se pregunta, no se supone.
+             *
+             * Y se mira el **contenido**, no si el elemento existe: para un
+             * `hourglass` mermaid deja el hueco de la etiqueta puesto y vacío.
+             * Comprobar la presencia decía «sí lleva texto» y seguía saliendo la
+             * letra recortada.
+             */
+            const conEtiqueta = !el || [...el.querySelectorAll('foreignObject, .nodeLabel, text')]
+                .some((e) => (e.textContent || '').trim().length > 0);
+            nodos.set(nodo.id, { ...(caja || { x: 0, y: 0, ...CAJA_POR_DEFECTO }), conEtiqueta });
         }
 
         const grupos = new Map();

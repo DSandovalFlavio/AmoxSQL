@@ -5,7 +5,8 @@
  * aristas. Separado del componente para poder ejercitarlo desde Node — que es
  * lo que evitó que el orden de las capas se descubriera mirando la pantalla.
  */
-import { ESTILOS_ARISTA, ESTILO_POR_DEFECTO, capasDe } from '../markdown/mermaidFlow.js';
+import { ESTILOS_ARISTA, ESTILO_POR_DEFECTO, capasDe, esFormaNombrada, nombreDeForma } from '../markdown/mermaidFlow.js';
+import { mascaraDeSilueta } from './diagramShapes.js';
 
 /**
  * El tamaño de una caja, declarado **en el nodo** y no sólo en su CSS.
@@ -48,7 +49,7 @@ export function estaSeleccionado(seleccion, id) {
     return false;
 }
 
-export function nodosDeLienzo(grafo, medidas, seleccion = null, extras = {}) {
+export function nodosDeLienzo(grafo, medidas, seleccion = null, extras = {}, biblioteca = []) {
     if (!grafo || !medidas) return [];
 
     const entrantes = new Map();
@@ -76,8 +77,14 @@ export function nodosDeLienzo(grafo, medidas, seleccion = null, extras = {}) {
         });
 
     const cajas = grafo.nodos.map((n) => {
-        const c = medidas.nodos.get(n.id) || { x: 0, y: 0, ancho: 120, alto: 38 };
+        const c = medidas.nodos.get(n.id) || { x: 0, y: 0, ancho: 120, alto: 38, conEtiqueta: true };
         const capa = (n.clases || []).map((x) => colores.get(x)).find(Boolean) || null;
+        // Una forma aprendida se dibuja con el contorno que dio mermaid. Si
+        // todavia no esta en la biblioteca, la caja sale rectangular — se ve
+        // igual de bien y el aviso ya esta ofreciendo guardarla.
+        const silueta = esFormaNombrada(n.forma)
+            ? biblioteca.find((f) => f.nombre === nombreDeForma(n.forma))?.silueta
+            : null;
         return {
             id: n.id,
             type: 'caja',
@@ -89,6 +96,8 @@ export function nodosDeLienzo(grafo, medidas, seleccion = null, extras = {}) {
                 ancho: c.ancho,
                 alto: c.alto,
                 entrantes: entrantes.get(n.id) || 0,
+                mascara: silueta ? mascaraDeSilueta(silueta) : null,
+                sinEtiqueta: c.conEtiqueta === false,
                 fill: capa?.fill || null,
                 stroke: capa?.stroke || null,
                 ...extras,

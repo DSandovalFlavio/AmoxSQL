@@ -112,6 +112,80 @@ const CONSERVADAS = [
 /** `class a,b,c nombre` — la asignación de capas, que sí se entiende. */
 const RE_CLASE = /^class\s+([A-Za-z0-9_,\-\s]+?)\s+([A-Za-z_][A-Za-z0-9_-]*)$/;
 
+/**
+ * La otra sintaxis de forma: `id@{ shape: cyl, label: "Almacén" }`.
+ *
+ * Mermaid 11.3 la introdujo y con ella **más de cuarenta formas con nombre**.
+ * No están en `FORMAS` a propósito: una paleta de cuarenta y seis siluetas deja
+ * de ser una paleta y pasa a ser un catálogo que hay que buscar.
+ *
+ * Pero sí se **leen**, y ahí está la idea: quien necesite una forma rara la
+ * copia de la documentación de mermaid, la escribe a mano, y el editor la
+ * reconoce y ofrece guardarla. Así la base es corta para todos y cada uno se
+ * queda con las que de verdad usa.
+ *
+ * Una forma así se marca con `@` delante —`@cyl`— para que no pueda chocar con
+ * ninguna de las catorce.
+ */
+
+/** El prefijo que distingue una forma con nombre de una de las catorce. */
+export const PREFIJO_NOMBRADA = '@';
+
+/** ¿Esta forma es de las que se aprenden, en vez de una de las catorce? */
+export function esFormaNombrada(forma) {
+    return typeof forma === 'string' && forma.startsWith(PREFIJO_NOMBRADA);
+}
+
+/** El nombre que mermaid le da: `@cyl` → `cyl`. */
+export function nombreDeForma(forma) {
+    return esFormaNombrada(forma) ? forma.slice(1) : forma;
+}
+
+/**
+ * Parte `shape: cyl, label: "Ventas, netas"` en pares.
+ *
+ * A mano y no con un `split(',')`: una etiqueta puede llevar comas dentro de sus
+ * comillas, y partir por comas la trocearía por la mitad.
+ */
+function partirAtributos(cuerpo) {
+    const pares = [];
+    let clave = '';
+    let valor = '';
+    let enClave = true;
+    let comillas = false;
+    for (let i = 0; i < cuerpo.length; i++) {
+        const c = cuerpo[i];
+        if (c === '"') { comillas = !comillas; valor += c; continue; }
+        if (!comillas && c === ':' && enClave) { enClave = false; continue; }
+        if (!comillas && c === ',') {
+            if (clave.trim()) pares.push([clave.trim(), valor.trim()]);
+            clave = ''; valor = ''; enClave = true;
+            continue;
+        }
+        if (enClave) clave += c; else valor += c;
+    }
+    if (clave.trim()) pares.push([clave.trim(), valor.trim()]);
+    return comillas ? null : pares;
+}
+
+/** Le quita las comillas a un valor, si las lleva. */
+function sinComillas(v) {
+    return v.length >= 2 && v[0] === '"' && v.at(-1) === '"' ? v.slice(1, -1) : v;
+}
+
+/**
+ * Dónde cierra la llave abierta en `desde`, saltándose las que vayan
+ * entrecomilladas. Una etiqueta puede contener `}` y no por eso acaba el bloque.
+ */
+function cierraLlave(s, desde) {
+    let comillas = false;
+    for (let i = desde + 1; i < s.length; i++) {
+        if (s[i] === '"') comillas = !comillas;
+        else if (!comillas && s[i] === '}') return i;
+    }
+    return -1;
+}
+
 /** Los cercos ordenados por longitud: `[(` tiene que probarse antes que `[`. */
 const APERTURAS = Object.entries(FORMAS)
     .map(([forma, { cercos }]) => ({ forma, abre: cercos[0], cierra: cercos[1] }))
@@ -133,6 +207,31 @@ function leerNodo(s, pos) {
     if (!m) return null;
     const id = m[0];
     i += id.length;
+
+    /**
+     * `id@{ shape: … }` se lee **aquí dentro**, y no como una línea aparte.
+     *
+     * La primera versión lo trataba como una sentencia suelta, y con eso el
+     * escritor producía `a@{ shape: cyl } --> b` —que mermaid acepta— y el
+     * lector no sabía volver a leerlo. Escribir algo que uno mismo no puede
+     * abrir es el peor de los fallos posibles en un formato.
+     */
+    if (s.startsWith('@{', i)) {
+        const cierre = cierraLlave(s, i + 1);
+        if (cierre === -1) return null;
+        const pares = partirAtributos(s.slice(i + 2, cierre));
+        if (!pares) return null;
+        const attrs = Object.fromEntries(pares);
+        if (!attrs.shape) return null;
+        return {
+            id,
+            texto: sinComillas(attrs.label ?? `"${id}"`),
+            forma: PREFIJO_NOMBRADA + sinComillas(attrs.shape),
+            conCerco: true,
+            otros: pares.filter(([k]) => k !== 'shape' && k !== 'label'),
+            pos: cierre + 1,
+        };
+    }
 
     /**
      * **Un cerco de apertura no basta para saber la forma.**
@@ -263,10 +362,12 @@ function analizar(texto) {
                 texto: spec.conCerco ? spec.texto : spec.id,
                 forma: spec.conCerco ? spec.forma : FORMA_POR_DEFECTO,
                 clases: [],
+                ...(spec.otros?.length ? { otros: spec.otros } : {}),
             });
         } else if (spec.conCerco) {
             previo.texto = spec.texto;
             previo.forma = spec.forma;
+            if (spec.otros?.length) previo.otros = spec.otros;
         }
         if (enSubgrafo && !enSubgrafo.nodos.includes(spec.id)) enSubgrafo.nodos.push(spec.id);
     };
@@ -409,8 +510,20 @@ function textoSeguro(t) {
     return String(t ?? '').replace(/"/g, "'").replace(/\r?\n/g, ' ').trim();
 }
 
-/** `id["texto"]` con los cercos de su forma. Siempre con comillas. */
+/**
+ * `id["texto"]` con los cercos de su forma. Siempre con comillas.
+ *
+ * Una forma con nombre vuelve en **su** sintaxis, no traducida a cercos: la
+ * mayoría de esas cuarenta y tantas no tienen equivalente con cercos, y
+ * aproximarlas a la más parecida sería cambiarle el dibujo al autor por la
+ * espalda.
+ */
 function declarar(nodo) {
+    if (esFormaNombrada(nodo.forma)) {
+        const partes = [`shape: ${nombreDeForma(nodo.forma)}`, `label: "${textoSeguro(nodo.texto)}"`];
+        for (const [k, v] of nodo.otros || []) partes.push(`${k}: ${v}`);
+        return `${nodo.id}@{ ${partes.join(', ')} }`;
+    }
     const { cercos } = FORMAS[nodo.forma] || FORMAS[FORMA_POR_DEFECTO];
     return `${nodo.id}${cercos[0]}"${textoSeguro(nodo.texto)}"${cercos[1]}`;
 }
@@ -542,6 +655,22 @@ export function capasDe(grafo) {
 /** Una definición de capa nueva, con el color dado. */
 export function defineCapa(nombre, fill, stroke) {
     return `classDef ${nombre} fill:${fill},stroke:${stroke}`;
+}
+
+/**
+ * Las formas con nombre que este diagrama usa, sin repetir.
+ *
+ * Es lo que permite mirar un archivo recién abierto y preguntar «has escrito
+ * `hourglass` a mano, ¿la guardo en tu paleta?».
+ */
+export function formasNombradas(grafo) {
+    const fuera = [];
+    for (const n of grafo?.nodos || []) {
+        if (!esFormaNombrada(n.forma)) continue;
+        const nombre = nombreDeForma(n.forma);
+        if (!fuera.includes(nombre)) fuera.push(nombre);
+    }
+    return fuera;
 }
 
 /** El subgrafo al que pertenece un nodo, si pertenece a alguno. */

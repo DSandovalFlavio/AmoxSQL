@@ -32,7 +32,8 @@ import {
     conectar, desconectar, etiquetarArista, estiloArista, cambiarDireccion,
     asignarCapa, crearCapa, agrupar, desagrupar, renombrarGrupo, moverAGrupo,
 } from './diagramOps';
-import { cabosSueltos, capasDe, porQueNoSeAbre } from '../markdown/mermaidFlow';
+import { cabosSueltos, capasDe, porQueNoSeAbre, formasNombradas } from '../markdown/mermaidFlow';
+import { leerBiblioteca, aprenderForma, olvidarForma } from './diagramShapes';
 import { exportarSvg, exportarPng } from './diagramExport';
 import { reemplazarCercado, bloquesCercados } from '../markdown/fencedBlocks';
 import { useHistorial, esAtajoDeHistorial } from '../../hooks/useHistorial';
@@ -75,6 +76,8 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     const [borrador, setBorrador] = useState(null);
     const [conflicto, setConflicto] = useState(null);
     const [menuExportar, setMenuExportar] = useState(false);
+    const [biblioteca, setBiblioteca] = useState(() => leerBiblioteca());
+    const [descartadas, setDescartadas] = useState([]);
 
     const doc = useMemo(() => leerDiagrama(content), [content]);
     const colores = useMemo(() => coloresDelTema(theme), [theme]);
@@ -217,6 +220,30 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
         return () => window.removeEventListener('mousedown', fuera);
     }, [menuExportar]);
 
+    /**
+     * Las formas con nombre que este diagrama usa y no están en tu paleta.
+     *
+     * Es el mecanismo que permite tener una base corta —catorce— y que cada uno
+     * se quede con las que de verdad usa: mermaid trae más de cuarenta, y
+     * meterlas todas convertiría la paleta en un catálogo.
+     *
+     * `descartadas` es de esta sesión a propósito: decir «ahora no» no debe
+     * significar «no me lo vuelvas a ofrecer nunca», que es lo que pasa cuando
+     * un aviso así se guarda para siempre y alguien se arrepiente.
+     */
+    const porAprender = useMemo(
+        () => formasNombradas(g).filter((n) => !biblioteca.some((f) => f.nombre === n) && !descartadas.includes(n)),
+        [g, biblioteca, descartadas],
+    );
+
+    const aprender = useCallback(async (nombre) => {
+        const nueva = await aprenderForma(nombre, { oscuro });
+        // Si mermaid no sabe dibujarla, no se guarda: una paleta con nombres mal
+        // copiados se descubre pulsándolos, que es el peor momento.
+        if (!nueva) setDescartadas((d) => [...d, nombre]);
+        setBiblioteca(leerBiblioteca());
+    }, [oscuro]);
+
     const intentarMover = useCallback(() => {
         if (localStorage.getItem(AVISO_MOVER) === '1') return;
         setAvisoMover(true);
@@ -293,7 +320,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
         onRenombrar: renombrar,
     }), [editandoId, renombrar]);
 
-    const nodos = useMemo(() => nodosDeLienzo(g, medidas, seleccion, extras), [g, medidas, seleccion, extras]);
+    const nodos = useMemo(() => nodosDeLienzo(g, medidas, seleccion, extras, biblioteca), [g, medidas, seleccion, extras, biblioteca]);
     const aristas = useMemo(() => aristasDeLienzo(g, colores.arista, seleccion), [g, colores.arista, seleccion]);
     const avisos = useMemo(() => (g ? cabosSueltos(g) : []), [g]);
     const porque = useMemo(() => (g || !doc.mermaid ? null : porQueNoSeAbre(doc.mermaid)), [g, doc.mermaid]);
@@ -396,6 +423,8 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                         onConsulta={setConsulta}
                         onElegir={(id) => elegirNodo(id, false)}
                         onAnadirForma={crear}
+                        biblioteca={biblioteca}
+                        onOlvidarForma={(n) => { olvidarForma(n); setBiblioteca(leerBiblioteca()); }}
                     />
                 )}
 
@@ -449,6 +478,27 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                             Aparece con la selección y se va con ella; no hay botón
                             permanente de agrupar porque sin selección no
                             significaría nada. */}
+                        {/* Una forma que no conocemos, escrita a mano. No es un
+                            error —el diagrama se abre y se dibuja igual— así que
+                            no se avisa como tal: se ofrece. */}
+                        {porAprender.length > 0 && (
+                            <div className="dgm-globo dgm-globo--abajo">
+                                <p>
+                                    Este diagrama usa {porAprender.length === 1 ? 'la forma' : 'las formas'}{' '}
+                                    {porAprender.map((n) => <b key={n}>{n}</b>).reduce((a, b) => [a, ', ', b])}.
+                                    ¿{porAprender.length === 1 ? 'La añado' : 'Las añado'} a tu paleta?
+                                </p>
+                                <button type="button" className="dgm-btn dgm-btn--primary"
+                                    onClick={() => porAprender.forEach(aprender)}>
+                                    Añadir
+                                </button>
+                                <button type="button" className="dgm-btn"
+                                    onClick={() => setDescartadas((d) => [...d, ...porAprender])}>
+                                    Ahora no
+                                </button>
+                            </div>
+                        )}
+
                         {seleccion?.tipo === 'varios' && (
                             <div className="dgm-tira">
                                 <span className="dgm-tira-n">{seleccion.ids.length} cajas</span>

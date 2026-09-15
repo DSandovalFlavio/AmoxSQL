@@ -46,9 +46,14 @@ const DiagramNode = ({ id, data, selected }) => {
                 paleta nuestra: así la caja se ve aquí igual que se verá en el
                 documento. Sin capa, manda el tema. */}
             <span
-                className="dgm-node-body"
+                className={`dgm-node-body${data.mascara ? ' dgm-node-body--aprendida' : ''}`}
                 style={data.fill ? { background: data.fill, borderColor: data.stroke || data.fill, outlineColor: data.stroke || data.fill } : undefined}
             >
+                {/* Una forma aprendida no tiene CSS que la dibuje: su contorno lo
+                    dio mermaid y se pinta como máscara, en una capa detrás del
+                    texto. Si la máscara fuera del propio cuerpo se comería
+                    también la etiqueta. */}
+                {data.mascara && <span className="dgm-node-mascara" style={data.mascara} />}
                 {editando ? (
                     <input
                         key={data.texto}
@@ -67,7 +72,7 @@ const DiagramNode = ({ id, data, selected }) => {
                         }}
                     />
                 ) : (
-                    <span className="dgm-node-txt">{data.texto}</span>
+                    !data.sinEtiqueta && <span className="dgm-node-txt">{data.texto}</span>
                 )}
             </span>
             <Handle type="source" position={Position.Right} className="dgm-handle" />

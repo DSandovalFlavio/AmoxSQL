@@ -18,10 +18,11 @@
  * ahí el buscador, que filtra por texto sin acentos ni mayúsculas.
  */
 import { LuSearch, LuX } from 'react-icons/lu';
-import { FORMAS } from '../markdown/mermaidFlow';
+import { FORMAS, PREFIJO_NOMBRADA } from '../markdown/mermaidFlow';
+import { mascaraDeSilueta } from './diagramShapes';
 import { buscarNodos } from './diagramOps';
 
-const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAnadirForma }) => {
+const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAnadirForma, biblioteca = [], onOlvidarForma }) => {
     const encontrados = buscarNodos(grafo, consulta);
     const visibles = new Set(encontrados.map((n) => n.id));
     const sueltos = grafo.nodos.filter((n) => !grafo.subgrafos.some((s) => s.nodos.includes(n.id)));
@@ -34,7 +35,10 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
             onClick={() => onElegir(n.id)}
             title={n.texto}
         >
-            <i className={`dgm-silueta dgm-silueta--${n.forma} dgm-silueta--mini`} />
+            <i className={`dgm-silueta dgm-silueta--${n.forma.replace(/^@/, 'libre ')} dgm-silueta--mini`}
+               style={n.forma.startsWith(PREFIJO_NOMBRADA)
+                   ? (mascaraDeSilueta(biblioteca.find((f) => f.nombre === n.forma.slice(1))?.silueta) || undefined)
+                   : undefined} />
             <span className="dgm-fila-txt">{n.texto}</span>
         </button>
     );
@@ -52,6 +56,20 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
                         onClick={() => onAnadirForma(id)}
                     >
                         <i className={`dgm-silueta dgm-silueta--${id}`} />
+                    </button>
+                ))}
+                {/* Las aprendidas van **después** de las catorce y con su propio
+                    filete: son tuyas, no de la base, y conviene que se note —
+                    entre otras cosas porque son las únicas que se pueden quitar. */}
+                {biblioteca.map((f) => (
+                    <button
+                        key={f.nombre}
+                        type="button"
+                        className="dgm-forma dgm-forma--aprendida"
+                        title={`${f.nombre} — aprendida de un diagrama. Pulsa con Mayús para quitarla de la paleta.`}
+                        onClick={(e) => (e.shiftKey ? onOlvidarForma(f.nombre) : onAnadirForma(PREFIJO_NOMBRADA + f.nombre))}
+                    >
+                        <i className="dgm-silueta dgm-silueta--libre" style={mascaraDeSilueta(f.silueta) || undefined} />
                     </button>
                 ))}
             </div>

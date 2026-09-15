@@ -464,6 +464,28 @@ select.dgm-inp { appearance: none; padding-right: 26px; cursor: pointer;
 .dgm-group { cursor: pointer; }
 .dgm-group:hover { border-color: var(--text-tertiary); }
 
+/* ── formas aprendidas ─────────────────────────────────────────────── */
+/* Una silueta que viene de mermaid no tiene CSS propio: su contorno llega como
+   máscara y el color lo pone este `currentColor`, con lo cual sigue el tema
+   igual que las catorce dibujadas a mano. */
+.dgm-silueta--libre { border: none; background: transparent; width: 19px; height: 14px; color: var(--text-tertiary); }
+.dgm-silueta--mini.dgm-silueta--libre { width: 13px; height: 10px; }
+.dgm-forma--aprendida { border-style: dashed; }
+.dgm-forma--aprendida:hover { border-style: solid; border-color: var(--accent-primary); }
+.dgm-forma--aprendida .dgm-silueta--libre { color: var(--text-secondary); }
+
+/* En el lienzo, una caja aprendida deja el contorno a la máscara y se queda sin
+   filete propio: dos contornos encima el uno del otro se leen como un error. */
+.dgm-node-body--aprendida { background: none; border: none; outline: none; }
+.dgm-node-mascara {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    color: var(--border-strong);
+}
+.dgm-node--sel .dgm-node-mascara { color: var(--accent-primary); }
+.dgm-node-body--aprendida .dgm-node-txt { position: relative; z-index: 1; }
+
+.dgm-globo--abajo { top: auto; bottom: 14px; }
+
 /* ── el menú de exportar ───────────────────────────────────────────── */
 .dgm-menu { position: relative; display: inline-flex; }
 .dgm-menu-lista {

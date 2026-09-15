@@ -15,6 +15,7 @@
 import {
     parsearFlujo, flujoAMermaid, cabosSueltos, idLibre, grupoDe, flujoVacio,
     FORMAS, ESTILOS_ARISTA, porQueNoSeAbre, MOTIVOS_FLUJO,
+    esFormaNombrada, nombreDeForma, formasNombradas,
 } from '../client/src/components/markdown/mermaidFlow.js';
 import {
     bloquesCercados, cercadoEnCursor, reemplazarCercado,
@@ -426,6 +427,48 @@ ida('la arquitectura del mockup', [
     '  click ref "modelos/refinado.sql"',
     '  %% revisado con el equipo de plataforma',
 ].join('\n'));
+
+// ── formas con nombre ───────────────────────────────────────────────────────
+// La otra sintaxis de mermaid, con más de cuarenta formas. No están en la
+// paleta —sería un catálogo— pero SÍ se leen, para poder reconocerlas cuando
+// alguien las escribe a mano y ofrecerle guardarlas.
+const conNombrada = parsearFlujo('flowchart LR\n  a@{ shape: hourglass, label: "Espera" }\n  a --> b["B"]');
+eq('se lee una forma con nombre', conNombrada.nodos[0].forma, '@hourglass');
+eq('con su texto', conNombrada.nodos[0].texto, 'Espera');
+eq('y el resto del diagrama sigue', conNombrada.aristas.length, 1);
+eq('esFormaNombrada la distingue', [esFormaNombrada('@hourglass'), esFormaNombrada('proceso')], [true, false]);
+eq('nombreDeForma le quita la marca', nombreDeForma('@hourglass'), 'hourglass');
+eq('y no toca las de siempre', nombreDeForma('proceso'), 'proceso');
+eq('sin etiqueta, se llama como su id', parsearFlujo('flowchart LR\n  caja@{ shape: bolt }').nodos[0].texto, 'caja');
+// **Vuelve en SU sintaxis, no traducida a cercos**: la mayoría de esas formas no
+// tienen equivalente con cercos, y aproximarlas sería cambiarle el dibujo al
+// autor por la espalda.
+eq('se escribe en su sintaxis',
+    flujoAMermaid(parsearFlujo('flowchart LR\n  a@{ shape: cyl, label: "X" }')),
+    'flowchart LR\n  a@{ shape: cyl, label: "X" }');
+ida('forma con nombre', 'flowchart LR\n  a@{ shape: cyl, label: "X" } --> b["B"]');
+ida('forma con nombre en un grupo', 'flowchart LR\n  subgraph G1["Z"]\n    a@{ shape: bolt, label: "Rayo" }\n  end\n  a --> b["B"]');
+
+// Una etiqueta con comas dentro: partir por comas la trocearía por la mitad.
+eq('una etiqueta con comas sobrevive',
+    parsearFlujo('flowchart LR\n  a@{ shape: cyl, label: "Ventas, netas, 2024" }').nodos[0].texto, 'Ventas, netas, 2024');
+ida('etiqueta con comas', 'flowchart LR\n  a@{ shape: cyl, label: "Ventas, netas" }');
+
+// Lo que no sean `shape` ni `label` viaja con el nodo y vuelve igual: el mismo
+// trato que las líneas conservadas, aplicado dentro de una caja.
+const conExtra = parsearFlujo('flowchart LR\n  a@{ shape: cyl, label: "X", icon: "fa:fa-bell" }');
+eq('los atributos de más se conservan', conExtra.nodos[0].otros, [['icon', '"fa:fa-bell"']]);
+eq('y se vuelven a escribir',
+    flujoAMermaid(conExtra), 'flowchart LR\n  a@{ shape: cyl, label: "X", icon: "fa:fa-bell" }');
+
+eq('sin `shape` no se abre', parsearFlujo('flowchart LR\n  a@{ label: "X" }'), null);
+eq('con las llaves sin cerrar tampoco', parsearFlujo('flowchart LR\n  a@{ shape: cyl'), null);
+eq('con una comilla sin cerrar tampoco', parsearFlujo('flowchart LR\n  a@{ shape: cyl, label: "X }'), null);
+
+eq('lista las formas usadas', formasNombradas(parsearFlujo(
+    'flowchart LR\n  a@{ shape: cyl }\n  b@{ shape: bolt }\n  c@{ shape: cyl }\n  d["normal"]')), ['cyl', 'bolt']);
+eq('en un diagrama sin ninguna, lista vacía', formasNombradas(parsearFlujo('flowchart LR\n  a --> b')), []);
+eq('sin grafo tampoco falla', formasNombradas(null), []);
 
 // ── por qué no se abre ──────────────────────────────────────────────────────
 // La diferencia que vigila este bloque: un `sequenceDiagram` **no es un fallo**
