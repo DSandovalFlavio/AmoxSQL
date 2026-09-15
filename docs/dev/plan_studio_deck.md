@@ -140,12 +140,15 @@ conozcamos ni el orden de las que ya estaban.
 
 ## Fase 4 — Los bloques de dato
 
-- [ ] Formularios para los cinco: `kpis`, `metric`, `steps`, `actions`, `rank`.
-- [ ] Se abren desde el menú de `/` y desde el inspector cuando el cursor está dentro de un
-      bloque ya escrito.
-- [ ] Las reglas del contrato visual se dicen **en el formulario**, no en la documentación:
-      el aviso de la sexta métrica sale al ir a añadirla.
-- [ ] El YAML sigue siendo editable a mano. El formulario es un camino más, no el único.
+- [x] Formularios para los cinco: `kpis`, `metric`, `steps`, `actions`, `rank`.
+- [~] Se abren desde el inspector cuando la región está **seleccionada pero no en edición**,
+      no «cuando el cursor está dentro del bloque». El formulario trabaja sobre la prosa
+      confirmada: seguir el cursor dentro del `textarea` pondría dos escritores sobre la
+      misma cadena y el que pierde la carrera se lleva lo que el otro acababa de escribir.
+      Desde el menú de `/` se insertan, y al salir de la edición el formulario ya está ahí.
+- [x] Las reglas del contrato visual se dicen **en el formulario**. Comprobado en la
+      aplicación: al pasar de cinco métricas sale el aviso. Y son avisos, no prohibiciones.
+- [x] El YAML sigue siendo editable a mano. El formulario es un camino más, no el único.
 
 ## Fase 5 — El crudo y los gestos
 
