@@ -126,7 +126,42 @@
 }
 .dgm-node--salida .dgm-node-body {
     border: none; border-radius: 0;
-    clip-path: polygon(0 0, 100% 0, 87% 100%, 13% 100%);
+    clip-path: polygon(0 0, 78% 0, 100% 100%, 22% 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+
+/* Las siete que llegaron después. Las tres recortadas siguen el mismo patrón que
+   la decisión: sin borde, con `outline` hacia dentro, que es lo que sobrevive a
+   un `clip-path`. */
+.dgm-node--estadio .dgm-node-body { border-radius: 999px; }
+.dgm-node--subproceso .dgm-node-body {
+    border-radius: 3px;
+    box-shadow: inset 4px 0 0 -1.5px var(--border-strong), inset -4px 0 0 -1.5px var(--border-strong);
+}
+.dgm-node--fin .dgm-node-body { border-radius: 50%; padding: 4px; box-shadow: inset 0 0 0 2.5px var(--surface-base); }
+.dgm-node--preparacion .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 16px;
+    clip-path: polygon(11% 0, 89% 0, 100% 50%, 89% 100%, 11% 100%, 0 50%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+/* Estas cuatro salen de MEDIR lo que dibuja mermaid, no de deducirlo: la
+   primera versión puso el mismo recorte en `salida` y en `manual` —idénticas en
+   pantalla, que es un fallo sin mensaje— y las otras dos estaban del revés.
+   Leídas de su SVG: `[\ \]` es un paralelogramo inclinado a la izquierda,
+   `[/ \]` un trapecio ESTRECHO ARRIBA y `[\ /]` uno ANCHO arriba. */
+.dgm-node--manual .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 16px;
+    clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+.dgm-node--manualEntrada .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 16px;
+    clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+.dgm-node--nota .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 10px 6px 16px;
+    clip-path: polygon(0 50%, 14% 0, 100% 0, 100% 100%, 14% 100%);
     outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
 }
 
@@ -249,7 +284,7 @@
 .dgm-forma--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); }
 .dgm-forma--on .dgm-silueta { border-color: var(--accent-primary); background-color: var(--accent-primary); }
 
-/* Las siete siluetas, en CSS. Las recortadas llevan relleno en vez de filete:
+/* Las catorce siluetas, en CSS. Las recortadas llevan relleno en vez de filete:
    a 12 px un contorno recortado por `clip-path` no se lee. */
 .dgm-silueta { display: block; width: 19px; height: 12px; border: 1.5px solid var(--text-tertiary); background: transparent; }
 .dgm-silueta--mini { width: 13px; height: 9px; border-width: 1.2px; flex: none; }
@@ -259,9 +294,34 @@
 .dgm-silueta--mini.dgm-silueta--hito { width: 9px; height: 9px; }
 .dgm-silueta--decision { width: 13px; height: 13px; transform: rotate(45deg); }
 .dgm-silueta--mini.dgm-silueta--decision { width: 9px; height: 9px; }
-.dgm-silueta--entrada { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(16% 0, 100% 0, 84% 100%, 0 100%); }
-.dgm-silueta--salida { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 0, 100% 0, 84% 100%, 16% 100%); }
+/* Mismos recortes que las cajas del lienzo, y por la misma razón: una silueta
+   que no coincide con la forma que va a salir es peor que no tener silueta. */
+.dgm-silueta--entrada { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%); }
+.dgm-silueta--salida { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 0, 78% 0, 100% 100%, 22% 100%); }
 .dgm-silueta--mini.dgm-silueta--entrada, .dgm-silueta--mini.dgm-silueta--salida { height: 8px; }
+
+/* Las siete que llegaron después. El estadio y el fin usan el filete doble o el
+   radio completo para distinguirse de sus parientes de una sola línea. */
+.dgm-silueta--estadio { border-radius: 6px / 50%; }
+.dgm-silueta--subproceso { box-shadow: inset 2.5px 0 0 -1px var(--text-tertiary), inset -2.5px 0 0 -1px var(--text-tertiary); }
+.dgm-silueta--preparacion { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(14% 0, 86% 0, 100% 50%, 86% 100%, 14% 100%, 0 50%); }
+.dgm-silueta--manual { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%); }
+.dgm-silueta--manualEntrada { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%); }
+.dgm-silueta--nota { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 50%, 14% 0, 100% 0, 100% 100%, 14% 100%); }
+.dgm-silueta--fin { width: 13px; height: 13px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--text-tertiary); border-width: 1.5px; background-clip: padding-box; }
+.dgm-silueta--mini.dgm-silueta--fin { width: 9px; height: 9px; }
+.dgm-silueta--mini.dgm-silueta--preparacion,
+.dgm-silueta--mini.dgm-silueta--manual,
+.dgm-silueta--mini.dgm-silueta--manualEntrada,
+.dgm-silueta--mini.dgm-silueta--nota { height: 8px; }
+/* Una silueta rellena tiene que teñirse de acento igual que las de filete
+   cuando su forma está elegida. */
+.dgm-forma--on .dgm-silueta--preparacion, .dgm-forma--on .dgm-silueta--manual,
+.dgm-forma--on .dgm-silueta--manualEntrada, .dgm-forma--on .dgm-silueta--nota { background-color: var(--accent-primary); }
+.dgm-forma--on .dgm-silueta--subproceso, .dgm-forma--on .dgm-silueta--fin {
+    box-shadow: inset 2.5px 0 0 -1px var(--accent-primary), inset -2.5px 0 0 -1px var(--accent-primary);
+}
+.dgm-forma--on .dgm-silueta--fin { box-shadow: inset 0 0 0 1.5px var(--accent-primary); }
 
 /* ── buscador y esquema ────────────────────────────────────────────── */
 .dgm-buscador {

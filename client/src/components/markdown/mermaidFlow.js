@@ -40,15 +40,35 @@
  * con reordenaciones que nadie pidió, y estos archivos se versionan.
  */
 
-/** Las siete formas, y lo que significan. El orden es el de la paleta. */
+/**
+ * Las catorce formas de la sintaxis clásica, y lo que significa cada una.
+ *
+ * El orden es el de la paleta, y las siete primeras son las que hubo desde el
+ * principio: quien ya tenga el gesto aprendido las sigue encontrando donde
+ * estaban.
+ *
+ * **El criterio para incluir una forma no es que mermaid la dibuje, sino que
+ * signifique algo.** Una forma que el lector no sabe interpretar es ruido con
+ * contorno; por eso cada una lleva aquí su nombre y su explicación, y por eso
+ * no están las cuarenta y tantas de la sintaxis por nombre —ésas se aprenden
+ * una a una, cuando alguien las usa de verdad.
+ */
 export const FORMAS = {
-    proceso: { cercos: ['[', ']'], nombre: 'Proceso' },
-    redondeado: { cercos: ['(', ')'], nombre: 'Paso suave' },
-    almacen: { cercos: ['[(', ')]'], nombre: 'Almacén' },
-    decision: { cercos: ['{', '}'], nombre: 'Decisión' },
-    entrada: { cercos: ['[/', '/]'], nombre: 'Entrada' },
-    salida: { cercos: ['[\\', '\\]'], nombre: 'Salida' },
-    hito: { cercos: ['((', '))'], nombre: 'Hito' },
+    proceso: { cercos: ['[', ']'], nombre: 'Proceso', que: 'Un paso: una transformación, un trabajo' },
+    redondeado: { cercos: ['(', ')'], nombre: 'Paso suave', que: 'Un paso menor' },
+    almacen: { cercos: ['[(', ')]'], nombre: 'Almacén', que: 'Una base de datos, un archivo, un bucket' },
+    decision: { cercos: ['{', '}'], nombre: 'Decisión', que: 'Una bifurcación' },
+    entrada: { cercos: ['[/', '/]'], nombre: 'Entrada', que: 'Algo que llega de fuera' },
+    salida: { cercos: ['[\\', '\\]'], nombre: 'Salida', que: 'Algo que sale: un informe, un fichero' },
+    hito: { cercos: ['((', '))'], nombre: 'Hito', que: 'Un punto de referencia' },
+
+    estadio: { cercos: ['([', '])'], nombre: 'Principio o final', que: 'Donde empieza o acaba el flujo' },
+    subproceso: { cercos: ['[[', ']]'], nombre: 'Subproceso', que: 'Un proceso documentado aparte' },
+    preparacion: { cercos: ['{{', '}}'], nombre: 'Preparación', que: 'Lo que hay que dejar listo antes' },
+    manual: { cercos: ['[/', '\\]'], nombre: 'Operación manual', que: 'Un paso que hace una persona' },
+    manualEntrada: { cercos: ['[\\', '/]'], nombre: 'Entrada manual', que: 'Un dato que alguien teclea' },
+    nota: { cercos: ['>', ']'], nombre: 'Nota', que: 'Una marca al margen del flujo' },
+    fin: { cercos: ['(((', ')))'], nombre: 'Fin definitivo', que: 'Aquí se acaba, sin vuelta' },
 };
 
 export const FORMA_POR_DEFECTO = 'proceso';
@@ -114,29 +134,43 @@ function leerNodo(s, pos) {
     const id = m[0];
     i += id.length;
 
+    /**
+     * **Un cerco de apertura no basta para saber la forma.**
+     *
+     * `[/ … /]` es una entrada y `[/ … \]` una operación manual: abren igual y
+     * cierran distinto. Lo mismo con `[\ … \]` y `[\ … /]`. Así que se prueban
+     * todas las formas cuyo cerco de apertura encaje y gana **la que cierre
+     * antes** — quedarse con la primera de la lista elegiría por el orden en que
+     * están escritas, que no significa nada.
+     */
+    let mejor = null;
     for (const { forma, abre, cierra } of APERTURAS) {
-        if (s.startsWith(abre, i)) {
-            const dentroDesde = i + abre.length;
-            let texto;
-            let fin;
+        if (!s.startsWith(abre, i)) continue;
+        // Con un cerco más largo ya encontrado, uno más corto es una lectura
+        // peor: `((` sobre `(((` partiría el nodo por la mitad.
+        if (mejor && mejor.abre.length > abre.length) continue;
 
-            if (s[dentroDesde] === '"') {
-                // Con comillas el texto puede llevar cualquier cosa, cercos
-                // incluidos. Es la forma que emitimos siempre.
-                const cierraComilla = s.indexOf('"', dentroDesde + 1);
-                if (cierraComilla === -1) return null;
-                texto = s.slice(dentroDesde + 1, cierraComilla);
-                if (!s.startsWith(cierra, cierraComilla + 1)) return null;
-                fin = cierraComilla + 1 + cierra.length;
-            } else {
-                const cierraEn = s.indexOf(cierra, dentroDesde);
-                if (cierraEn === -1) return null;
-                texto = s.slice(dentroDesde, cierraEn).trim();
-                fin = cierraEn + cierra.length;
-            }
-            return { id, texto, forma, conCerco: true, pos: fin };
+        const dentroDesde = i + abre.length;
+        let texto;
+        let fin;
+
+        if (s[dentroDesde] === '"') {
+            // Con comillas el texto puede llevar cualquier cosa, cercos
+            // incluidos. Es la forma que emitimos siempre.
+            const cierraComilla = s.indexOf('"', dentroDesde + 1);
+            if (cierraComilla === -1) continue;
+            if (!s.startsWith(cierra, cierraComilla + 1)) continue;
+            texto = s.slice(dentroDesde + 1, cierraComilla);
+            fin = cierraComilla + 1 + cierra.length;
+        } else {
+            const cierraEn = s.indexOf(cierra, dentroDesde);
+            if (cierraEn === -1) continue;
+            texto = s.slice(dentroDesde, cierraEn).trim();
+            fin = cierraEn + cierra.length;
         }
+        if (!mejor || fin < mejor.fin) mejor = { forma, abre, texto, fin };
     }
+    if (mejor) return { id, texto: mejor.texto, forma: mejor.forma, conCerco: true, pos: mejor.fin };
 
     // Sin cerco es una referencia a un nodo, no una declaración.
     return { id, texto: null, forma: null, conCerco: false, pos: i };

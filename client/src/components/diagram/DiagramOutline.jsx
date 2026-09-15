@@ -43,12 +43,12 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
         <div className="dgm-izq">
             <div className="dgm-col-cab">Formas</div>
             <div className="dgm-paleta">
-                {Object.entries(FORMAS).map(([id, { nombre }]) => (
+                {Object.entries(FORMAS).map(([id, { nombre, que }]) => (
                     <button
                         key={id}
                         type="button"
                         className="dgm-forma"
-                        title={`Añadir · ${nombre}`}
+                        title={`${nombre} — ${que}`}
                         onClick={() => onAnadirForma(id)}
                     >
                         <i className={`dgm-silueta dgm-silueta--${id}`} />

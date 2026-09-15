@@ -200,11 +200,11 @@ const DiagramInspector = ({
                 <div className="dgm-campo">
                     <span className="dgm-campo-lab">Forma</span>
                     <div className="dgm-formas">
-                        {Object.entries(FORMAS).map(([id, { nombre }]) => (
+                        {Object.entries(FORMAS).map(([id, { nombre, que }]) => (
                             <BotonForma
                                 key={id}
                                 forma={id}
-                                titulo={nombre}
+                                titulo={`${nombre} — ${que}`}
                                 activa={nodo.forma === id}
                                 onClick={() => onForma(nodo.id, id)}
                             />

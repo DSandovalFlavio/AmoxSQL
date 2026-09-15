@@ -73,8 +73,49 @@ eq('las siete formas se leen', formas.nodos.map(n => n.forma),
     ['proceso', 'redondeado', 'almacen', 'decision', 'entrada', 'salida', 'hito']);
 eq('y su texto', formas.nodos.map(n => n.texto),
     ['proceso', 'redondeado', 'almacen', 'decision', 'entrada', 'salida', 'hito']);
-eq('están las siete declaradas', Object.keys(FORMAS).length, 7);
-ida('las siete formas', flujoAMermaid(formas));
+eq('están las catorce declaradas', Object.keys(FORMAS).length, 14);
+eq('y todas dicen qué significan', Object.values(FORMAS).every((f) => f.nombre && f.que), true);
+ida('las siete primeras formas', flujoAMermaid(formas));
+
+// Las siete que llegaron después.
+const masFormas = parsearFlujo([
+    'flowchart LR',
+    '  h(["estadio"])',
+    '  i[["subproceso"]]',
+    '  j{{"preparacion"}}',
+    '  k[/"manual"\\]',
+    '  l[\\"manualEntrada"/]',
+    '  m>"nota"]',
+    '  n((("fin")))',
+].join('\n'));
+eq('las otras siete se leen', masFormas.nodos.map(n => n.forma),
+    ['estadio', 'subproceso', 'preparacion', 'manual', 'manualEntrada', 'nota', 'fin']);
+eq('y su texto', masFormas.nodos.map(n => n.texto),
+    ['estadio', 'subproceso', 'preparacion', 'manual', 'manualEntrada', 'nota', 'fin']);
+ida('las otras siete formas', flujoAMermaid(masFormas));
+
+// **Lo que de verdad se vigila aquí.** `[/ … /]` y `[/ … \]` abren igual y
+// cierran distinto: elegir por el cerco de apertura no basta, y equivocarse no
+// da un error — da una caja con otra silueta.
+eq('`[/ /]` es entrada', parsearFlujo('flowchart LR\n  a[/"x"/]').nodos[0].forma, 'entrada');
+eq('`[/ \\]` es manual', parsearFlujo('flowchart LR\n  a[/"x"\\]').nodos[0].forma, 'manual');
+eq('`[\\ \\]` es salida', parsearFlujo('flowchart LR\n  a[\\"x"\\]').nodos[0].forma, 'salida');
+eq('`[\\ /]` es entrada manual', parsearFlujo('flowchart LR\n  a[\\"x"/]').nodos[0].forma, 'manualEntrada');
+// Y sin comillas, donde el cierre se busca por posición.
+eq('sin comillas, `[/ /]`', parsearFlujo('flowchart LR\n  a[/x/]').nodos[0].forma, 'entrada');
+eq('sin comillas, `[/ \\]`', parsearFlujo('flowchart LR\n  a[/x\\]').nodos[0].forma, 'manual');
+// Los cercos que se contienen: el más largo manda.
+eq('`(((` no se lee como `((`', parsearFlujo('flowchart LR\n  a((("x")))').nodos[0].forma, 'fin');
+eq('`((` no se lee como `(`', parsearFlujo('flowchart LR\n  a(("x"))').nodos[0].forma, 'hito');
+eq('`([` no se lee como `(`', parsearFlujo('flowchart LR\n  a(["x"])').nodos[0].forma, 'estadio');
+eq('`[[` no se lee como `[`', parsearFlujo('flowchart LR\n  a[["x"]]').nodos[0].forma, 'subproceso');
+eq('`{{` no se lee como `{`', parsearFlujo('flowchart LR\n  a{{"x"}}').nodos[0].forma, 'preparacion');
+eq('`[(` no se lee como `[`', parsearFlujo('flowchart LR\n  a[("x")]').nodos[0].forma, 'almacen');
+// Y una cadena con formas ambiguas seguidas, que es donde un cierre mal elegido
+// se comería la caja siguiente.
+const cadenaAmbigua = parsearFlujo('flowchart LR\n  a[/"uno"/] --> b[/"dos"\\] --> c[\\"tres"/]');
+eq('una cadena de formas ambiguas', cadenaAmbigua?.nodos.map(n => n.forma), ['entrada', 'manual', 'manualEntrada']);
+eq('con sus dos flechas', cadenaAmbigua?.aristas.length, 2);
 
 // `[(` tiene que probarse antes que `[`, y `((` antes que `(`.
 eq('almacén no se lee como proceso', parsearFlujo('flowchart LR\n  a[(x)]').nodos[0].forma, 'almacen');
