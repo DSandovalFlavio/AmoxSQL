@@ -414,18 +414,51 @@ es justo lo que este diseño evita.
 
 ## Fase 5 — Salir
 
-- [ ] **Exportar PNG y SVG.** El exportador de PNG ya está escrito y en uso por Story Flow
+- [~] **Exportar PNG y SVG.** El exportador de PNG ya está escrito y en uso por Story Flow
       (`DataVisualizer/utils/exportChart.js`). Es de las primeras cosas que se van a pedir:
       el diagrama acaba en un documento de diseño que no es este markdown.
+      **No se reutilizó**, y la razón es de fondo: aquél fotografía el DOM, y lo que hay en
+      el DOM es **nuestra** versión del diagrama —nuestras cajas, nuestro filete de
+      selección, nuestro fondo de puntos—. Se le vuelve a pedir a mermaid, que es quien lo
+      va a dibujar en el documento: sale en vector, sale más limpio, y no hay forma de que
+      la imagen y el documento discrepen.
 - [ ] **Comprobar que una lámina del deck renderiza bien un bloque mermaid.** Ya debería
       —el deck renderiza markdown— y es trabajo de una tarde, no de una fase.
-- [ ] **La salida digna.** Si no se entiende, el botón no aparece y el bloque se comporta
+      **Comprobado, y no: no se dibuja.** Medido sobre dos disposiciones —`finding` con
+      figura y `summary`— en Design y en Review: el bloque está en el markdown de la lámina
+      y no sale ni como diagrama ni como bloque de código.
+      La causa no es un descuido sino el contrato: **una lámina son regiones fijas**
+      —antetítulo, afirmación, detalle, figura— y «figura» significa un `.amoxvis`, no un
+      bloque cualquiera. Un diagrama no tiene hueco, y **inventarle uno es una decisión del
+      deck, no de esta iniciativa**: hay exportadores a PowerPoint y Word detrás. Queda
+      anotado para el plan del Studio, no arreglado aquí a medias.
+- [x] **La salida digna.** Si no se entiende, el botón no aparece y el bloque se comporta
       como hoy: silencio, no error. Salvo cuando es un flowchart que casi entendemos: ahí un
       aviso discreto que diga **qué línea** no se supo leer. La diferencia importa — un
       `sequenceDiagram` no es un fallo, es otro tipo de diagrama; un flowchart con algo raro
       es algo que el usuario esperaba poder abrir.
-- [ ] Documentación de usuario: qué se edita visualmente, qué se conserva sin tocar, y por
-      qué no se pueden mover las cajas.
+- [x] Documentación de usuario: qué se edita visualmente, qué se conserva sin tocar, y por
+      qué no se pueden mover las cajas. En `docs/es|en/editor/amoxdiagram.md`, con su fila
+      en el índice.
+
+**Cumplido salvo lo del deck.** Dos cosas salieron de medir en vez de suponer, y las dos
+estaban escritas al revés en el primer intento:
+
+1. **El PNG hay que pasarlo por un `data:`, no por un `blob:`.** Un SVG cargado desde una
+   URL de blob **contamina el lienzo** en Chromium, y `toBlob` revienta con un
+   `SecurityError`: el PNG no llegaba a existir. El SVG suelto sí se entrega como blob —
+   ahí no hay lienzo de por medio.
+2. **`htmlLabels: false` no hacía lo que decía el comentario.** Se puso «para que el PNG no
+   salga con las cajas vacías», y midiéndolo resultan dos cosas falsas: en mermaid 11.14
+   apagarlo **no** convierte las etiquetas en `<text>` —siguen en un `foreignObject`— y un
+   `foreignObject` **sí** se rasteriza entrando por un `data:`. Se comprobó comparando el
+   PNG con y sin esos nodos: 17,5 kB frente a 7,3 kB. Así que se deja como en el documento.
+
+Y una decisión sobre la tipografía que conviene tener escrita: **el diagrama exportado no
+usa la fuente de la aplicación**. Un SVG lleva los tamaños de caja ya calculados y se abre
+donde esa fuente no está cargada; si el texto se dibujara con otra, se saldría de su caja.
+Se mide y se dibuja con una familia que existe en todas partes: se ve un punto distinto del
+de la pantalla, y a cambio se ve igual en cualquier sitio donde acabe.
 
 ---
 

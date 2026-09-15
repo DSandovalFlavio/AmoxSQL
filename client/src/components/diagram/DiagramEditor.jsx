@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import {
     LuShare2, LuSave, LuCode, LuShieldCheck, LuTriangleAlert, LuChevronDown,
-    LuChevronUp, LuLink, LuFile, LuUndo2, LuRedo2, LuPanelLeft, LuPanelRight,
+    LuChevronUp, LuLink, LuFile, LuUndo2, LuRedo2, LuPanelLeft, LuPanelRight, LuImage,
 } from 'react-icons/lu';
 import DiagramCanvas from './DiagramCanvas';
 import DiagramInspector from './DiagramInspector';
@@ -31,7 +31,8 @@ import {
     conectar, desconectar, etiquetarArista, estiloArista, cambiarDireccion,
     asignarCapa, crearCapa, agrupar, desagrupar, renombrarGrupo, moverAGrupo,
 } from './diagramOps';
-import { cabosSueltos, capasDe } from '../markdown/mermaidFlow';
+import { cabosSueltos, capasDe, porQueNoSeAbre } from '../markdown/mermaidFlow';
+import { exportarSvg, exportarPng } from './diagramExport';
 import { reemplazarCercado, bloquesCercados } from '../markdown/fencedBlocks';
 import { useHistorial, esAtajoDeHistorial } from '../../hooks/useHistorial';
 import { isLightTheme } from '../../theme.js';
@@ -284,6 +285,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     const nodos = useMemo(() => nodosDeLienzo(g, medidas, seleccion, extras), [g, medidas, seleccion, extras]);
     const aristas = useMemo(() => aristasDeLienzo(g, colores.arista, seleccion), [g, colores.arista, seleccion]);
     const avisos = useMemo(() => (g ? cabosSueltos(g) : []), [g]);
+    const porque = useMemo(() => (g || !doc.mermaid ? null : porQueNoSeAbre(doc.mermaid)), [g, doc.mermaid]);
 
     const nombre = doc.titulo || (filePath || '').split(/[\\/]/).pop() || 'Diagrama';
     // La procedencia es un objeto —qué archivo, qué posición, cómo estaba— y no
@@ -334,6 +336,15 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                     {avisos.length > 0 && <span className="dgm-btn-n">{avisos.length}</span>}
                 </button>
 
+                <button type="button" className="dgm-btn" onClick={() => exportarSvg(doc.mermaid, { oscuro, titulo: nombre })}
+                    title="El diagrama en vector, tal y como lo dibuja el documento" disabled={!g}>
+                    <LuImage size={12} strokeWidth={2.3} /> SVG
+                </button>
+                <button type="button" className="dgm-btn" onClick={() => exportarPng(doc.mermaid, { oscuro, titulo: nombre })}
+                    title="Una imagen al doble de resolución" disabled={!g}>
+                    PNG
+                </button>
+
                 <div className="dgm-spacer" />
                 <button type="button" className={`dgm-btn dgm-btn--icono${verIzq ? '' : ' dgm-btn--apagado'}`}
                     onClick={() => setVerIzq((v) => !v)} title="Plegar la columna izquierda">
@@ -370,10 +381,15 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                             <div className="dgm-vacio">
                                 <LuTriangleAlert size={22} strokeWidth={1.9} />
                                 <p><b>Este diagrama no se puede editar visualmente.</b></p>
+                                {/* Se dice **qué línea** y **por qué**. Un
+                                    «no se puede» a secas deja al usuario mirando
+                                    catorce líneas sin saber cuál mirar. */}
                                 <p className="dgm-vacio-por">
-                                    {doc.mermaid
-                                        ? 'Usa algo que el editor todavía no sabe dibujar. El texto está intacto y se puede editar a mano.'
-                                        : 'El archivo no tiene ningún bloque mermaid.'}
+                                    {!doc.mermaid ? 'El archivo no tiene ningún bloque mermaid.'
+                                        : porque ? (porque.linea
+                                            ? `Línea ${porque.linea}: ${porque.texto}.`
+                                            : `${porque.texto[0].toUpperCase()}${porque.texto.slice(1)}.`)
+                                            : 'El texto está intacto y se puede editar a mano.'}
                                 </p>
                                 {doc.mermaid && (
                                     <button type="button" className="dgm-btn" onClick={() => setVerTexto(true)}>

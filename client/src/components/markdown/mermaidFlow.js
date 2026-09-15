@@ -186,16 +186,33 @@ function leerSubgrafo(resto, cuantos) {
     return { id: `sg${cuantos + 1}`, titulo: t.replace(/^"|"$/g, '') };
 }
 
+/** Por qué no se pudo abrir, en el idioma del usuario y no en el del programa. */
+export const MOTIVOS_FLUJO = {
+    'otro-tipo': 'no es un diagrama de flujo',
+    vacio: 'no hay ningún diagrama',
+    direccion: 'esa dirección no existe: usa TB, BT, LR o RL',
+    anidado: 'los grupos dentro de grupos todavía no se saben dibujar',
+    direccion_grupo: 'cambiar la dirección dentro de un grupo todavía no se sabe dibujar',
+    ampersand: 'varias cajas en una línea con «&» todavía no se saben escribir de vuelta',
+    'grupo-sin-cerrar': 'falta el «end» de un grupo',
+    'end-de-mas': 'hay un «end» que no cierra ningún grupo',
+    linea: 'esta línea no se entiende',
+};
+
 /**
- * Mermaid `flowchart` a grafo, o `null` si no se sabe leer.
+ * El análisis, con el motivo por el que se rinde.
  *
- * `null` es una respuesta **normal y frecuente**, no un fallo: un
- * `sequenceDiagram` no es un diagrama roto, es otro tipo de diagrama. Quien
- * llama decide qué hacer, y lo correcto casi siempre es no ofrecer el botón.
+ * Es la misma pasada que `parsearFlujo`: **una sola**, con dos puertas de
+ * salida. Tener un segundo recorrido «que además explique» habría sido dos
+ * gramáticas que mantener en paralelo, y la que explica se habría ido quedando
+ * atrás sin que nadie lo notase.
  */
-export function parsearFlujo(texto) {
+function analizar(texto) {
     const crudo = String(texto || '');
     const lineas = crudo.split(/\r?\n/);
+    // La línea en la que se está, para poder señalarla si algo falla.
+    let nLinea = 0;
+    const rendirse = (motivo) => ({ fallo: { linea: nLinea, motivo } });
 
     const nodos = new Map();
     const aristas = [];
@@ -226,6 +243,7 @@ export function parsearFlujo(texto) {
     const asignaciones = [];
 
     for (const lineaCruda of lineas) {
+        nLinea++;
         const linea = lineaCruda.trim();
         if (!linea) continue;
 
@@ -241,14 +259,14 @@ export function parsearFlujo(texto) {
 
         if (direccion === null) {
             const cab = /^(?:flowchart|graph)(?:\s+([A-Za-z]{2}))?$/.exec(linea);
-            if (!cab) return null;               // no es un flowchart: no se abre
+            if (!cab) return rendirse('otro-tipo');               // no es un flowchart: no se abre
             direccion = cab[1] || 'TB';
-            if (!DIRECCIONES.includes(direccion)) return null;
+            if (!DIRECCIONES.includes(direccion)) return rendirse('direccion');
             continue;
         }
 
         if (/^end$/i.test(linea)) {
-            if (!pila.length) return null;
+            if (!pila.length) return rendirse('end-de-mas');
             pila.pop();
             continue;
         }
@@ -258,9 +276,9 @@ export function parsearFlujo(texto) {
             // Un solo nivel de anidamiento. Más profundo se sabría leer, pero no
             // se sabría dibujar sin decidir cómo se anidan las cajas, y abrir
             // algo que luego no se guarda igual es peor que no abrirlo.
-            if (pila.length) return null;
+            if (pila.length) return rendirse('anidado');
             const cab = leerSubgrafo(sub[1], subgrafos.length);
-            if (!cab) return null;
+            if (!cab) return rendirse('anidado');
             const nuevo = { id: cab.id, titulo: cab.titulo, nodos: [] };
             subgrafos.push(nuevo);
             pila.push(nuevo);
@@ -270,24 +288,24 @@ export function parsearFlujo(texto) {
         // `direction TB` dentro de un subgrafo cambia la disposición de ese
         // grupo. Conservarlo sería mentir —se reescribiría fuera del subgrafo,
         // donde significa otra cosa— así que el diagrama no se abre.
-        if (/^direction\s/i.test(linea)) return null;
+        if (/^direction\s/i.test(linea)) return rendirse('direccion_grupo');
 
         // Nodos separados por `&` en la misma sentencia. Se sabe lo que es; no
         // se sabe escribirlo de vuelta sin cambiar la forma del archivo.
-        if (linea.includes('&')) return null;
+        if (linea.includes('&')) return rendirse('ampersand');
 
         const enSub = pila[pila.length - 1] || null;
         const primero = leerNodo(linea, 0);
-        if (!primero) return null;
+        if (!primero) return rendirse('linea');
         registrar(primero, enSub);
 
         let pos = primero.pos;
         let anterior = primero.id;
         while (pos < linea.length) {
             const con = leerConector(linea, pos);
-            if (!con) return null;
+            if (!con) return rendirse('linea');
             const sig = leerNodo(linea, con.pos);
-            if (!sig) return null;
+            if (!sig) return rendirse('linea');
             registrar(sig, enSub);
             aristas.push({
                 desde: anterior, hasta: sig.id,
@@ -300,8 +318,8 @@ export function parsearFlujo(texto) {
         }
     }
 
-    if (direccion === null) return null;         // vacío no es un diagrama
-    if (pila.length) return null;                // un `subgraph` sin `end`
+    if (direccion === null) { nLinea = 0; return rendirse('vacio'); }
+    if (pila.length) { nLinea = 0; return rendirse('grupo-sin-cerrar'); }
 
     for (const [id, clase] of asignaciones) {
         const nodo = nodos.get(id);
@@ -311,7 +329,39 @@ export function parsearFlujo(texto) {
         if (nodo && !nodo.clases.includes(clase)) nodo.clases.push(clase);
     }
 
-    return { direccion, nodos: [...nodos.values()], aristas, subgrafos, conservado };
+    return { grafo: { direccion, nodos: [...nodos.values()], aristas, subgrafos, conservado } };
+}
+
+/**
+ * Mermaid `flowchart` a grafo, o `null` si no se sabe leer.
+ *
+ * `null` es una respuesta **normal y frecuente**, no un fallo: un
+ * `sequenceDiagram` no es un diagrama roto, es otro tipo de diagrama. Quien
+ * llama decide qué hacer, y lo correcto casi siempre es no ofrecer el botón.
+ */
+export function parsearFlujo(texto) {
+    return analizar(texto).grafo || null;
+}
+
+/**
+ * Por qué no se abre, para poder decírselo a quien esperaba que se abriera.
+ *
+ * La diferencia importa y por eso hay dos respuestas distintas: un
+ * `sequenceDiagram` **no es un fallo** —es otro tipo de diagrama, y ahí lo
+ * correcto es callarse—, mientras que un flowchart con una línea rara sí es
+ * algo que el usuario esperaba poder abrir, y merece saber cuál.
+ *
+ * Devuelve `null` cuando sí se abre.
+ */
+export function porQueNoSeAbre(texto) {
+    const { fallo } = analizar(texto);
+    if (!fallo) return null;
+    return {
+        ...fallo,
+        // `otro-tipo` y `vacio` no son culpa de nadie: no se enseñan como error.
+        esperado: fallo.motivo === 'otro-tipo' || fallo.motivo === 'vacio',
+        texto: MOTIVOS_FLUJO[fallo.motivo] || MOTIVOS_FLUJO.linea,
+    };
 }
 
 // ── escribir ────────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@
  */
 import {
     parsearFlujo, flujoAMermaid, cabosSueltos, idLibre, grupoDe, flujoVacio,
-    FORMAS, ESTILOS_ARISTA,
+    FORMAS, ESTILOS_ARISTA, porQueNoSeAbre, MOTIVOS_FLUJO,
 } from '../client/src/components/markdown/mermaidFlow.js';
 import {
     bloquesCercados, cercadoEnCursor, reemplazarCercado,
@@ -385,6 +385,41 @@ ida('la arquitectura del mockup', [
     '  click ref "modelos/refinado.sql"',
     '  %% revisado con el equipo de plataforma',
 ].join('\n'));
+
+// ── por qué no se abre ──────────────────────────────────────────────────────
+// La diferencia que vigila este bloque: un `sequenceDiagram` **no es un fallo**
+// —es otro tipo de diagrama, y ahí lo correcto es callarse— mientras que un
+// flowchart con una línea rara sí es algo que el usuario esperaba poder abrir.
+eq('un flujo bueno no tiene motivo', porQueNoSeAbre('flowchart LR\n  a --> b'), null);
+
+const noAbre = (texto) => porQueNoSeAbre(texto);
+eq('otro tipo de diagrama es esperado', noAbre('sequenceDiagram\n  A->>B: x').esperado, true);
+eq('y un archivo vacío también', noAbre('').esperado, true);
+// Los demás sí son avisos, y llevan la línea.
+eq('grupos anidados: aviso', noAbre('flowchart LR\n  subgraph A\n    subgraph B\n      x\n    end\n  end').esperado, false);
+eq('y señala la línea del anidamiento', noAbre('flowchart LR\n  subgraph A\n    subgraph B\n      x\n    end\n  end').linea, 3);
+eq('una línea que no se entiende', noAbre('flowchart LR\n  a --> b\n  c ~~~ d').linea, 3);
+eq('nodos con &', noAbre('flowchart LR\n  a --> b & c').motivo, 'ampersand');
+eq('una dirección inventada', noAbre('flowchart XY\n  a --> b').motivo, 'direccion');
+eq('un grupo sin cerrar', noAbre('flowchart LR\n  subgraph G\n    a').motivo, 'grupo-sin-cerrar');
+eq('un end de más', noAbre('flowchart LR\n  a\n  end').motivo, 'end-de-mas');
+eq('`direction` dentro de un grupo',
+    noAbre('flowchart LR\n  subgraph G\n    direction TB\n    a\n  end').motivo, 'direccion_grupo');
+// Todo motivo tiene texto para el usuario: si no, el aviso diría un nombre en
+// clave y quien lo lea seguiría sin saber qué mirar.
+for (const motivo of Object.keys(MOTIVOS_FLUJO)) {
+    eq(`  con texto · ${motivo}`, typeof MOTIVOS_FLUJO[motivo] === 'string' && MOTIVOS_FLUJO[motivo].length > 8, true);
+}
+// Y el diagnóstico NO puede discrepar del parser: si dice que no se abre, no se
+// abre; si calla, se abre. Son la misma pasada, y esto lo vigila.
+for (const caso of [
+    'flowchart LR\n  a --> b', 'sequenceDiagram\n  A->>B: x', '',
+    'flowchart LR\n  a --> b & c', 'flowchart LR\n  subgraph G\n    a',
+    'flowchart TB\n  a["A"]\n  classDef x fill:#111',
+]) {
+    eq(`el diagnóstico concuerda con el parser · ${caso.slice(0, 18)}…`,
+        porQueNoSeAbre(caso) === null, parsearFlujo(caso) !== null);
+}
 
 console.log(`\n${ok} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);
