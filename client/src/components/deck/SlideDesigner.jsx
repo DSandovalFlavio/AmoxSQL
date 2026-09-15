@@ -202,7 +202,7 @@ function RegionTexto({
 
 /** El hueco de una figura, o el placeholder que abre el selector. */
 function RegionFigura({
-    region, chartSrc, variables, refreshToken, onRemove, onRequestAdd,
+    region, chartSrc, variables, refreshToken, palette, onRemove, onRequestAdd,
     onProcedencia, onPiezas, seleccionada, onSeleccionar,
 }) {
     const comun = {
@@ -227,10 +227,15 @@ function RegionFigura({
             <button type="button" className="deck-chart-remove" title="Quitar la figura" onClick={(e) => { e.stopPropagation(); onRemove(); }}>
                 <LuX size={13} />
             </button>
+            {/* La paleta del deck también aquí. Sin ella el diseñador pintaba
+                la figura con la del `.amoxvis` y la vista Review con la del
+                deck: la misma lámina salía de dos colores segun donde la
+                miraras, y el que manda es el del pase. */}
             <AmoxChartEmbed
                 src={chartSrc}
                 variables={variables}
                 refreshToken={refreshToken}
+                palette={palette}
                 onProcedencia={onProcedencia}
                 onPiezas={onPiezas}
             />
@@ -396,6 +401,7 @@ const SlideDesigner = ({
                 chartSrc={chartSrc}
                 variables={variables}
                 refreshToken={refreshToken}
+                palette={paleta}
                 onRemove={onRemoveChart}
                 onRequestAdd={onRequestAddChart}
                 onProcedencia={recibirProcedencia}
