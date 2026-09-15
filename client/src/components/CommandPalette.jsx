@@ -31,6 +31,7 @@ const CommandPalette = ({
     schema = [],         // [{ schema, tables: [{ name, columns: [{ column_name, data_type }] }] }]
     onOpenFile,
     onPreviewTable,
+    recientes = [],     // [{ name, path }] — los ultimos abiertos, mas reciente primero
 }) => {
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -55,6 +56,29 @@ const CommandPalette = ({
 
     const filtered = useMemo(() => {
         const out = [];
+
+        /**
+         * **Sin escribir nada, lo primero son los ultimos archivos que abriste.**
+         *
+         * La paleta sin termino solo enseñaba comandos, asi que «vuelve al que
+         * tenia abierto hace un rato» no tenia respuesta: habia que acordarse
+         * del nombre y escribirlo.
+         *
+         * Van ARRIBA, y eso es la mitad de la funcion: puestos detras de los
+         * cuarenta y un comandos quedaban en un sitio al que nadie llega
+         * bajando. Volcar mil archivos no ayudaria a nadie —por eso el resto
+         * sigue apareciendo solo al escribir—, pero cinco que ya tocaste si.
+         */
+        if (mode === 'all' && !term && recientes.length > 0) {
+            out.push(...recientes.slice(0, 5).map(r => ({
+                id: `reciente:${r.path}`,
+                label: r.name,
+                detail: r.path,
+                category: 'Recientes',
+                icon: LuHistory,
+                action: () => onOpenFile?.(r.path),
+            })));
+        }
 
         if (mode !== 'schema') {
             const cmds = term
@@ -130,7 +154,7 @@ const CommandPalette = ({
         }
 
         return out;
-    }, [mode, term, actions, files, schema, onOpenFile, onPreviewTable]);
+    }, [mode, term, actions, files, schema, recientes, onOpenFile, onPreviewTable]);
 
     // Group by category
     const grouped = useMemo(() => {
@@ -299,6 +323,7 @@ export function buildDefaultActions({
         { id: 'new-deck', label: 'New Report Flow Deck', category: 'File', icon: LuPresentation, action: () => layoutRef.current?.createNew('amoxdeck') },
         { id: 'new-diagram', label: 'New Diagram (AmoxDiagram)', category: 'File', icon: LuShare2, action: () => layoutRef.current?.createNew('amoxdiagram') },
         { id: 'new-chart', label: 'New Chart', category: 'File', icon: LuChartBar, action: () => layoutRef.current?.createNew('amoxvis') },
+        { id: 'new-text', label: 'New Text File', category: 'File', icon: LuFile, action: () => layoutRef.current?.createNew('texto') },
         { id: 'close-tab', label: 'Close Tab', category: 'File', icon: LuCommand, shortcut: 'Ctrl+W', action: () => layoutRef.current?.closeActiveTab() },
 
         // Navigation

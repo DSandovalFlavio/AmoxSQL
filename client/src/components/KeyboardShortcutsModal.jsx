@@ -1,34 +1,79 @@
 import { LuX, LuKeyboard } from 'react-icons/lu';
 
+/**
+ * Lo que responde la aplicacion, entero.
+ *
+ * Esta lista documentaba DOCE atajos cuando `App.jsx` registraba mas de veinte.
+ * Faltaban Ctrl+W, Ctrl+B, Ctrl+\, Ctrl+K, Ctrl+L y las de zoom: media
+ * aplicacion de teclado era invisible, y una funcion que nadie encuentra vale
+ * lo mismo que una que no existe.
+ *
+ * **La regla para mantenerla: si se añade un atajo en `App.jsx`, se añade
+ * aqui.** Y se incluyen tambien los que trae el editor de serie —ir a la linea,
+ * cursores multiples, plegar— porque el usuario no distingue quien los
+ * implementa; para el es la misma aplicacion.
+ */
 const SHORTCUTS = [
     {
         category: 'General', items: [
-            { keys: 'Ctrl + Shift + P', description: 'Command Palette' },
-            { keys: 'Ctrl + ,', description: 'Open Settings' },
-            { keys: 'Ctrl + S', description: 'Save File' },
+            { keys: 'Ctrl + K', description: 'Paleta de comandos' },
+            { keys: 'Ctrl + P', description: 'Saltar a un archivo, tabla o columna' },
+            { keys: 'Ctrl + Shift + P', description: 'Paleta de comandos (alias)' },
+            { keys: 'Ctrl + ,', description: 'Ajustes' },
+            { keys: 'Ctrl + Shift + /', description: 'Esta lista' },
         ]
     },
     {
-        category: 'Query', items: [
-            { keys: 'Ctrl + Enter', description: 'Run Query / Run Cell (selection or whole script)' },
-            { keys: 'Ctrl + Alt + Enter', description: 'Run only the statement under the cursor' },
-            { keys: 'Ctrl + Shift + A', description: 'Analyze Query Plan' },
+        category: 'Archivos', items: [
+            { keys: 'Ctrl + S', description: 'Guardar' },
+            { keys: 'Ctrl + Shift + S', description: 'Guardar como…' },
+            { keys: 'Ctrl + N', description: 'Consulta SQL nueva' },
+            { keys: 'Ctrl + Shift + N', description: 'Notebook nuevo' },
+            { keys: 'Ctrl + Shift + F', description: 'Buscar en todo el proyecto' },
         ]
     },
     {
-        category: 'Navigation', items: [
-            { keys: 'Ctrl + Shift + E', description: 'Focus File Explorer' },
-            { keys: 'Ctrl + Shift + D', description: 'Focus Database Explorer' },
-            { keys: 'Ctrl + Tab', description: 'Next Tab' },
+        category: 'Consultas', items: [
+            { keys: 'Ctrl + Enter', description: 'Ejecutar (la seleccion, o todo el script)' },
+            { keys: 'F5', description: 'Ejecutar' },
+            { keys: 'Ctrl + Alt + Enter', description: 'Ejecutar solo la sentencia del cursor' },
+            { keys: 'Ctrl + Shift + A', description: 'Analizar el plan de ejecucion' },
+            { keys: 'Ctrl + Shift + R', description: 'Recargar el esquema' },
+        ]
+    },
+    {
+        category: 'Pestañas', items: [
+            { keys: 'Ctrl + W', description: 'Cerrar la pestaña' },
+            { keys: 'Ctrl + Shift + T', description: 'Reabrir la ultima que cerraste' },
+            { keys: 'Alt + P', description: 'Fijar o soltar la pestaña' },
+            { keys: 'Ctrl + Tab', description: 'Ir a la usada mas recientemente' },
+            { keys: 'Ctrl + Shift + Tab', description: 'En sentido contrario' },
+            { keys: 'Alt + ←  /  Alt + →', description: 'Atras y adelante entre pestañas visitadas' },
+            { keys: 'Ctrl + \\', description: 'Partir la pantalla en dos' },
+            { keys: 'Ctrl + Shift + |', description: 'Cambiar la orientacion de la particion' },
+        ]
+    },
+    {
+        category: 'Paneles', items: [
+            { keys: 'Ctrl + B', description: 'Mostrar u ocultar la barra lateral' },
+            { keys: 'Ctrl + Shift + E', description: 'Ir al explorador de archivos' },
+            { keys: 'Ctrl + Shift + D', description: 'Ir al esquema de la base' },
+            { keys: 'Ctrl + L', description: 'Abrir o cerrar el asistente' },
+            { keys: 'Ctrl + +  /  Ctrl + -  /  Ctrl + 0', description: 'Escala de la interfaz' },
         ]
     },
     {
         category: 'Editor', items: [
-            { keys: 'Ctrl + /', description: 'Toggle Comment' },
-            { keys: 'Ctrl + D', description: 'Duplicate Line' },
-            { keys: 'Ctrl + Shift + K', description: 'Delete Line' },
-            { keys: 'Ctrl + F', description: 'Find in Editor' },
-            { keys: 'Ctrl + H', description: 'Find and Replace' },
+            { keys: 'Ctrl + /', description: 'Comentar o descomentar' },
+            { keys: 'Ctrl + D', description: 'Duplicar la linea' },
+            { keys: 'Ctrl + Shift + K', description: 'Borrar la linea' },
+            { keys: 'Ctrl + F', description: 'Buscar en el archivo' },
+            { keys: 'Ctrl + H', description: 'Buscar y reemplazar' },
+            { keys: 'Ctrl + G', description: 'Ir a una linea' },
+            { keys: 'Alt + clic', description: 'Añadir otro cursor' },
+            { keys: 'Ctrl + Shift + L', description: 'Un cursor en cada coincidencia' },
+            { keys: 'Alt + ↑  /  Alt + ↓', description: 'Mover la linea' },
+            { keys: 'Ctrl + Shift + [  /  ]', description: 'Plegar o desplegar el bloque' },
         ]
     },
 ];

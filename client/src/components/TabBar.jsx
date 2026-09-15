@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2 } from 'react-icons/lu';
+import { LuPin, LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2 } from 'react-icons/lu';
 
 const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew, onTabContextMenu, onTabRename }) => {
     const [showNewMenu, setShowNewMenu] = useState(false);
@@ -106,8 +106,12 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                                 e.stopPropagation();
                                 onTabContextMenu && onTabContextMenu(e, tab.id, paneId);
                             }}
-                            className={`tab-item${isActive ? ' active' : ''}`}
+                            className={`tab-item${isActive ? ' active' : ''}${tab.fijada ? ' tab-item--fijada' : ''}`}
                         >
+                            {/* La chincheta va DELANTE del nombre: es lo que hace
+                                que se distinga de un vistazo cual no se va a
+                                cerrar, sin tener que llegar al final del rotulo. */}
+                            {tab.fijada && <LuPin size={10} className="tab-pin" />}
                             <span
                                 className="tab-label"
                                 onDoubleClick={(e) => { e.stopPropagation(); onTabRename && onTabRename(tab.id, paneId); }}
@@ -116,13 +120,17 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                                 {tab.name}
                             </span>
                             {tab.dirty && <span className="tab-dirty">●</span>}
-                            <span
-                                className="tab-close"
-                                onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
-                                title="Close"
-                            >
-                                <LuX size={12} />
-                            </span>
+                            {/* En una fijada no se pinta la X: un boton de cerrar
+                                que no cierra es peor que no tener boton. */}
+                            {!tab.fijada && (
+                                <span
+                                    className="tab-close"
+                                    onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
+                                    title="Close"
+                                >
+                                    <LuX size={12} />
+                                </span>
+                            )}
                         </div>
                     );
                 })}

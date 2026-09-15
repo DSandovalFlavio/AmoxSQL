@@ -7,6 +7,7 @@ import { API_BASE } from './api.js';
 import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
+import { tipoDePestana, nombreDe } from './utils/tiposDeArchivo.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -40,7 +41,7 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
@@ -103,6 +104,9 @@ function App() {
 
   // Project State
   const [projectPath, setProjectPath] = useState('');
+  const [recientes, setRecientes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('amoxsql-recientes') || '[]'); } catch { return []; }
+  });
   // We repurpose dbSelectModal state to be part of the flow
   const [foundDbs, setFoundDbs] = useState([]);
 
@@ -429,6 +433,19 @@ function App() {
         setIsCommandPaletteOpen(prev => !prev);
         return;
       }
+      /**
+       * Ctrl+P — el mismo sitio, la tecla que la gente tiene en los dedos.
+       *
+       * Saltar a un archivo por su nombre ya funcionaba y esta bien hecho
+       * —busca archivos Y esquema en el mismo sitio—, pero solo respondia a
+       * Ctrl+K. Quien viene de un editor de codigo pulsa Ctrl+P, no encontraba
+       * nada, y concluia que la funcion no existe.
+       */
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+        return;
+      }
       // Only handle shortcuts in IDE phase
       if (appPhase !== PHASE.IDE) return;
 
@@ -519,6 +536,30 @@ function App() {
         return;
       }
       // Previous Tab: Ctrl+Shift+Tab
+      // Reabrir la ultima pestaña cerrada.
+      if (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't')) {
+        e.preventDefault();
+        layoutRef.current?.reabrirUltima();
+        return;
+      }
+      // Fijar o soltar la pestaña activa.
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        layoutRef.current?.alternarFijada();
+        return;
+      }
+      // Atras y adelante entre pestañas visitadas: deshace el salto que acabas
+      // de dar desde la paleta.
+      if (e.altKey && !e.ctrlKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        layoutRef.current?.navegarHistorial(true);
+        return;
+      }
+      if (e.altKey && !e.ctrlKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        layoutRef.current?.navegarHistorial(false);
+        return;
+      }
       if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
         e.preventDefault();
         layoutRef.current?.navigateTab(-1);
@@ -697,6 +738,9 @@ function App() {
     const meta = findTabMeta(tabId);
 
     switch (action) {
+      case 'fijar':
+        layoutRef.current?.alternarFijadaDe(tabId);
+        break;
       case 'rename':
         requestTabRename(tabId);
         break;
@@ -910,9 +954,22 @@ function App() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      // determine type
-      const type = path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.amoxdeck') ? 'amoxdeck' : path.endsWith('.amoxdiagram') ? 'amoxdiagram' : path.endsWith('.md') ? 'md' : 'sql';
-      layoutRef.current?.openFile(path, data.content, type);
+      // Lo dice la tabla, que es la misma que usan el explorador y el panel.
+      // Aquí vivía una CUARTA copia de la cadena de `endsWith` —la auditoría
+      // había encontrado tres— y como esta pasaba el tipo explícito, ganaba a
+      // todas las demás: era la que convertía en SQL cualquier archivo del que
+      // no supiéramos nada.
+      // La firma viaja con el contenido: es lo que despues permite saber si el
+      // archivo sigue siendo el que abrimos.
+      layoutRef.current?.openFile(path, data.content, tipoDePestana(path), { firma: data.firma });
+      // Los recientes son del USUARIO, no del proyecto: viven donde el tema y
+      // el acento. Se guarda la ruta, no el contenido — si el archivo cambio,
+      // lo que interesa es el de ahora.
+      setRecientes(prev => {
+        const lista = [{ name: nombreDe(path), path }, ...prev.filter(r => r.path !== path)].slice(0, 15);
+        try { localStorage.setItem('amoxsql-recientes', JSON.stringify(lista)); } catch { /* modo privado */ }
+        return lista;
+      });
 
     } catch (err) {
       toast.error(`Failed to open file: ${err.message}`);
@@ -1037,11 +1094,28 @@ function App() {
   const handleSaveAs = useCallback(async (filename, description) => {
     let contentToSave = pendingSaveContent;
     if (description) {
-      if (!filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
+      // La descripción se mete como comentario `/* … */`, que es sintaxis de
+      // SQL. En un archivo de texto no significa nada: metido en un YAML o en
+      // un Python lo rompe.
+      if (pendingSaveTab?.type !== 'texto'
+          && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
         contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
       }
     }
-    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
+    /**
+     * **A un archivo de texto no se le añade extensión.**
+     *
+     * Esta rama acababa en `filename += '.sql'`, así que guardar como
+     * `apuntes` producía `apuntes.sql` — y guardar un YAML como
+     * `profiles.yml` también, porque `.yml` no estaba en la lista de
+     * conocidas y se le pegaba `.sql` detrás.
+     *
+     * `Dockerfile`, `.env` y `profiles.yml` son nombres completos y
+     * legítimos. Si el usuario escribió un nombre, ése es el nombre.
+     */
+    if (pendingSaveTab?.type === 'texto') {
+      // nada que añadir
+    } else if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
       if (pendingSaveTab && pendingSaveTab.type === 'sqlnb') {
         filename += '.sqlnb';
       } else if (pendingSaveTab && pendingSaveTab.type === 'sqlchain') {
@@ -1305,6 +1379,7 @@ function App() {
         onOpenFile={handleFileOpen}
         onBuscarProyecto={() => handleSidebarTabClick('search')}
         onPreviewTable={handlePreviewFromPalette}
+        recientes={recientes}
       />
 
 
@@ -1456,6 +1531,7 @@ function App() {
               <div className={activeSidebarTab === 'files' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, overflow: 'hidden', display: activeSidebarTab === 'files' ? 'flex' : 'none', flexDirection: 'column' }}>
                 <FileExplorer
                   editorSettings={editorSettings}
+                  projectPath={projectPath}
                   onFileClick={handleFileClick}
                   onFileOpen={handleFileOpen}
                   onNewFile={handleNewFile}
@@ -1681,6 +1757,9 @@ function App() {
                   </div>
                   <div className="column-context-menu-item" onClick={() => handleTabMenuAction('duplicate')}>
                     <LuCopyPlus size={13} /> Abrir una copia al lado
+                  </div>
+                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('fijar')}>
+                    <LuPin size={13} /> {meta?.fijada ? 'Soltar' : 'Fijar'}
                   </div>
                   <div className="column-context-menu-separator" />
                   <div className="column-context-menu-item" onClick={() => handleTabMenuAction('close')}>

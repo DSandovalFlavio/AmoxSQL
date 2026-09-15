@@ -1,0 +1,82 @@
+/**
+ * El editor llano. Deliberadamente sin cromo: una franja de tres renglones que
+ * dice qué es el archivo, y todo lo demás es el editor.
+ */
+
+.txe {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--surface-base);
+}
+
+/* La franja. Misma altura y mismo peso que las cabeceras de columna del resto
+   de la aplicación, para que se lea como información y no como una alerta. */
+.txe-franja {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    height: 26px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--surface-raised);
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+    /* Sin envolver: con un nombre de archivo largo, una franja de dos filas
+       movería el editor hacia abajo cada vez que cambias de pestaña. */
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.txe-idioma {
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.txe-sep {
+    width: 1px;
+    height: 11px;
+    background: var(--border-default);
+}
+
+.txe-nota {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.txe-lienzo {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Un binario no se abre: se explica. */
+.txe-vacio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 100%;
+    padding: 24px;
+    color: var(--text-disabled);
+    text-align: center;
+}
+
+.txe-vacio-t {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.txe-vacio-d {
+    margin: 0;
+    max-width: 38ch;
+    color: var(--text-tertiary);
+    font-size: 11.5px;
+    line-height: 1.5;
+}

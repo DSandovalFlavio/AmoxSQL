@@ -16,8 +16,44 @@ import FilePreviewModal from './FilePreviewModal';
 import ExportAiContextModal from './ExportAiContextModal';
 import ExportDataModal from './ExportDataModal';
 import GSheetsSection from './GSheetsSection';
+import { useDialog } from './dialogs/DialogProvider';
+import { comoAbrir, recordarApertura, olvidarApertura, moverPreferencia } from '../utils/preferenciaApertura';
+import { tipoDeArchivo } from '../utils/tiposDeArchivo';
+import { vigilar } from '../state/vigilante';
 
-const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
+/**
+ * A partir de aquí se pregunta antes de abrir en el editor.
+ *
+ * No es el umbral del buscador del proyecto (2 MB) y no debe serlo: aquél lee
+ * *todos* los archivos y el coste se multiplica; aquí se lee **uno**, pedido a
+ * propósito. Lo que se evita no es el gasto sino la sorpresa.
+ */
+const AVISO_TAMANO = 5 * 1024 * 1024;
+
+/**
+ * «Hace 2 h», no «15/09/2026 13:41».
+ *
+ * Lo que se quiere saber mirando un árbol de archivos es **cuál se tocó hace
+ * poco**, y una fecha absoluta obliga a calcularlo de cabeza en cada fila. La
+ * exacta sigue estando al pasar el ratón, que es donde se busca cuando de
+ * verdad hace falta.
+ */
+function haceCuanto(ms) {
+    const seg = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    if (seg < 60) return 'ahora';
+    const min = Math.floor(seg / 60);
+    if (min < 60) return `${min} min`;
+    const hor = Math.floor(min / 60);
+    if (hor < 24) return `${hor} h`;
+    const dia = Math.floor(hor / 24);
+    if (dia < 7) return `${dia} d`;
+    // Pasada una semana el relativo deja de informar —«hace 43 d» no le dice
+    // nada a nadie— y la fecha vuelve a ser mejor.
+    return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
+    const { confirmAsync } = useDialog();
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
@@ -111,6 +147,11 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         }
     }, [editorSettings?.defaultExplorerSort]);
 
+    // El vigilante vive fuera del ciclo de render y necesita la carpeta ACTUAL
+    // sin volver a suscribirse cada vez que navegas.
+    const currentPathRef = useRef(currentPath);
+    currentPathRef.current = currentPath;
+
     useEffect(() => {
         fetchFiles(currentPath);
     }, [currentPath]);
@@ -125,6 +166,26 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         const handleClick = () => { setContextMenu(null); setLinkedChartsMenu(null); };
         window.addEventListener('click', handleClick);
         return () => window.removeEventListener('click', handleClick);
+    }, []);
+
+    /**
+     * El arbol se entera solo de lo que aparece y desaparece.
+     *
+     * Antes habia que pulsar refrescar: un proceso escribia un archivo y no
+     * salia hasta que lo pedias, con lo cual «no esta» y «no lo has mirado» se
+     * veian igual. Sale gratis del mismo vigilante que protege las pestañas.
+     *
+     * Se re-lee con retardo y sin spinner: un `git checkout` produce cientos de
+     * avisos seguidos, y volver a listar la carpeta en cada uno seria peor que
+     * no enterarse. Lo que importa es el estado en que queda, no cada paso.
+     */
+    useEffect(() => {
+        let t = null;
+        const quitar = vigilar(() => {
+            clearTimeout(t);
+            t = setTimeout(() => fetchFiles(currentPathRef.current, { silent: true }), 400);
+        });
+        return () => { clearTimeout(t); quitar(); };
     }, []);
 
 
@@ -168,12 +229,50 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         }
     };
 
+    /**
+     * Abre un archivo en el editor de texto, avisando antes si es enorme.
+     *
+     * El umbral es **mucho más alto que el del buscador del proyecto** (2 MB) y
+     * eso es deliberado: el buscador lee *todos* los archivos y el coste se
+     * multiplica, mientras que aquí se lee **uno** y el usuario lo ha pedido a
+     * propósito. Lo que se evita es distinto — no un gasto, sino una ventana
+     * bloqueada durante varios segundos sin que nadie avisara.
+     *
+     * Se pregunta, no se impide: si alguien quiere abrir un registro de 40 MB,
+     * es asunto suyo. Lo que no puede pasar es que se abra solo y parezca que
+     * la aplicación se colgó.
+     */
+    const abrirComoTexto = async (file) => {
+        if (file.sizeBytes != null && file.sizeBytes > AVISO_TAMANO) {
+            const sigue = await confirmAsync({
+                title: 'Es un archivo grande',
+                message: `${file.name} ocupa ${formatBytes(file.sizeBytes)}. Abrirlo puede tardar y dejar el editor lento un rato.`,
+                confirmLabel: 'Abrir igualmente',
+                cancelLabel: 'Cancelar',
+            });
+            if (!sigue) return;
+        }
+        onFileOpen(file.path);
+    };
+
     const handleNavigate = (file) => {
         if (renamingFile) return; // Don't navigate while renaming
         if (file.isDirectory) {
             setCurrentPath(file.path.replace(/\\/g, '/'));
         } else {
             const lowerName = file.name.toLowerCase();
+            /**
+             * **Lo que el usuario dijo de ESTE archivo gana a todo lo demás.**
+             *
+             * Va lo primero a propósito: si alguien marcó su `config.json` como
+             * texto, no hay regla por extensión que deba discutírselo. Es la
+             * única forma de resolver que un `.json` sea unas veces datos y
+             * otras configuración — por la extensión no se distinguen.
+             */
+            if (comoAbrir(projectPath, file.path) === 'texto') {
+                abrirComoTexto(file);
+                return;
+            }
             // SQL scripts & notebooks & markdown & deck files → open in editor
             if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md') || lowerName.endsWith('.amoxdeck') || lowerName.endsWith('.amoxdiagram')) {
                 onFileOpen(file.path);
@@ -193,7 +292,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                 }
                 // Everything else → open as text
             } else {
-                onFileOpen(file.path);
+                abrirComoTexto(file);
             }
         }
     };
@@ -246,6 +345,25 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         if (lowerName.match(/\.parquet$/i)) return <LuTable size={14} color="var(--icon-parquet)" />;
         if (lowerName.match(/\.json$/i)) return <LuTable size={14} color="var(--icon-json)" />;
         if (lowerName.match(/\.(duckdb|db)$/i)) return <LuDatabase size={14} color="var(--icon-default)" />;
+        /**
+         * Lo que la tabla reconoce como texto lleva icono, aunque no sea de los
+         * nuestros. Antes un `profiles.yml`, un `carga.py` y un binario
+         * compartían el mismo icono genérico: el árbol no distinguía **lo que
+         * se puede leer de lo que no**, que es lo primero que se mira.
+         */
+        const info = tipoDeArchivo(file.name);
+        if (info.tipo === 'texto') {
+            if (info.idioma === 'python' || info.idioma === 'r' || info.idioma === 'javascript'
+                || info.idioma === 'typescript' || info.idioma === 'shell' || info.idioma === 'powershell'
+                || info.idioma === 'bat') {
+                return <LuCode size={14} color="var(--icon-default)" />;
+            }
+            if (info.idioma === 'yaml' || info.idioma === 'ini' || info.idioma === 'dockerfile'
+                || info.idioma === 'makefile' || info.idioma === 'xml') {
+                return <LuFileCode2 size={14} color="var(--icon-default)" />;
+            }
+            return <LuFileText size={14} color="var(--icon-default)" />;
+        }
         return <LuFile size={14} color="var(--icon-default)" />;
     };
 
@@ -372,6 +490,11 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                 const data = await response.json();
                 throw new Error(data.error || 'Rename failed');
             }
+
+            // La preferencia de apertura va con el archivo: se guardó contra su
+            // ruta, y sin esto renombrar un `config.json` marcado como texto lo
+            // devolvería a abrirse como tabla sin que nadie lo pidiera.
+            moverPreferencia(projectPath, oldPath, newPath);
 
             setRenamingFile(null);
             fetchFiles(currentPath, { silent: true });
@@ -878,6 +1001,21 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                                             {formatBytes(file.sizeBytes)}
                                         </span>
                                     )}
+                                    {/* «Cuál toqué ayer» es la pregunta más
+                                        frecuente sobre un árbol de archivos, y
+                                        sólo se podía CONTESTAR ordenando. El
+                                        dato estaba; faltaba enseñarlo. Va en
+                                        relativo —«hace 2 h»— porque es lo que
+                                        se quiere saber; la fecha exacta, al
+                                        pasar el ratón. */}
+                                    {file.mtimeMs != null && (
+                                        <span
+                                            style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: '6px', flexShrink: 0 }}
+                                            title={new Date(file.mtimeMs).toLocaleString()}
+                                        >
+                                            {haceCuanto(file.mtimeMs)}
+                                        </span>
+                                    )}
                                     <span
                                         style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '12px', color: 'var(--text-muted)', cursor: 'context-menu', padding: '0 0 0 5px', display: 'flex', alignItems: 'center' }}
                                         onClick={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
@@ -944,18 +1082,50 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                         </>
                     )}
                     {/* ── Type-specific actions ── */}
+                    {/**
+                      * «Abrir como texto» va **la primera y para todos**.
+                      *
+                      * Es la salida que no existía: un `.json` de configuración
+                      * no es un conjunto de datos, y hasta ahora la aplicación
+                      * insistía en previsualizarlo como tabla sin dejar otra
+                      * opción. Por la extensión los dos casos no se distinguen,
+                      * así que la distinción la hace quien sí puede — y una vez
+                      * hecha, se recuerda.
+                      *
+                      * Para un binario no se ofrece: abrirlo como texto sólo
+                      * enseñaría ruido, y ofrecer algo que no va a servir es
+                      * otra forma de mentir.
+                      */}
+                    {tipoDeArchivo(contextMenu.file.name).tipo !== 'binario' && (
+                        <div
+                            onClick={() => {
+                                recordarApertura(projectPath, contextMenu.file.path, 'texto');
+                                const f = contextMenu.file;
+                                setContextMenu(null);
+                                abrirComoTexto(f);
+                            }}
+                            className="context-menu-item"
+                            title="Se abrirá así a partir de ahora"
+                        >
+                            <LuFileText size={14} /> Abrir como texto
+                        </div>
+                    )}
                     {contextMenu.file.name.match(/\.(csv|tsv|parquet|json|xlsx|xls)$/i) && (
-                        <div onClick={() => onImportFile(contextMenu.file.path, false)} className="context-menu-item">
+                        <div onClick={() => { olvidarApertura(projectPath, contextMenu.file.path); onImportFile(contextMenu.file.path, false); }} className="context-menu-item">
                             <LuDatabase size={14} /> Import to Database...
                         </div>
                     )}
                     {contextMenu.file.name.match(/\.(csv|parquet|json)$/i) && (
-                        <div onClick={() => { setPreviewFilePath(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
+                        <div onClick={() => { olvidarApertura(projectPath, contextMenu.file.path); setPreviewFilePath(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
                             <LuFileSpreadsheet size={14} /> Quick Preview
                         </div>
                     )}
+                    {/* Consultar es una elección tan explícita como «abrir como
+                        texto»: si el usuario lo hace sobre un archivo que había
+                        marcado como texto, manda esto. La aplicación no se queda
+                        discutiendo con él. Lo mismo vale para las dos de arriba. */}
                     {contextMenu.file.name.match(/\.(csv|tsv|xlsx|xls|parquet|json)$/i) && (
-                        <div onClick={() => { onQueryFile(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
+                        <div onClick={() => { olvidarApertura(projectPath, contextMenu.file.path); onQueryFile(contextMenu.file.path); setContextMenu(null); }} className="context-menu-item">
                             <LuSearch size={14} /> Direct Query
                         </div>
                     )}

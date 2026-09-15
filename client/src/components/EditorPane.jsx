@@ -8,6 +8,7 @@ import ScriptRunSummary from './ScriptRunSummary';
 import ExportDataModal from './ExportDataModal';
 import ExportAiContextModal from './ExportAiContextModal';
 import { VariablesToggle, VariablesPanel, resolveVariables } from './VariablesBar';
+import { idiomaDe } from '../utils/tiposDeArchivo';
 
 // Lazy pane types (G10): each of these pulls a heavy dependency tree
 // (Recharts, mermaid/katex/highlight via MarkdownPreview, @xyflow/react…).
@@ -20,6 +21,7 @@ const MarkdownEditor = lazy(() => import('./MarkdownEditor'));
 const DeckEditor = lazy(() => import('./deck/DeckEditor'));
 const DiagramEditor = lazy(() => import('./diagram/DiagramEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
+const TextEditor = lazy(() => import('./TextEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
 
 // Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
@@ -395,6 +397,14 @@ const EditorPane = ({
     const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
     const isDeck = activeTab.type === 'amoxdeck' || activeTab.name?.endsWith('.amoxdeck');
     const isDiagram = activeTab.type === 'amoxdiagram' || activeTab.name?.endsWith('.amoxdiagram');
+    /**
+     * Texto llano. **Aquí cae todo lo que antes se declaraba SQL por descarte**:
+     * un `.yml`, un `.py`, un `.json` de configuración, un archivo sin
+     * extensión. No lleva `endsWith` como sus vecinos porque la lista sería la
+     * de todo lo que existe; lo decide `tiposDeArchivo`, que es quien puso el
+     * tipo en la pestaña.
+     */
+    const isTexto = activeTab.type === 'texto';
 
     // Track last edit time on content change — ref only, no setState per keystroke
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -622,6 +632,20 @@ const EditorPane = ({
                         />
                         </Suspense>
                     </div>
+                ) : isTexto ? (
+                    /* Sin panel de resultados y sin barra de ejecutar: no es un
+                       recorte, es el arreglo. Lo que había era la promesa de que
+                       un archivo de configuración se podía correr. */
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
+                            <TextEditor
+                                key={activeTab.id}
+                                tab={activeTab}
+                                onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                                editorSettings={editorSettings}
+                            />
+                        </Suspense>
+                    </div>
                 ) : isNotebook ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <Suspense fallback={<PaneLoading />}>
@@ -804,7 +828,11 @@ const EditorPane = ({
                                     <SqlEditor
                                         tabId={activeTab.id}
                                         value={activeTab.content}
-                                        language={activeTab.type === 'md' ? 'markdown' : 'sql'}
+                                        // La línea que era toda la premisa:
+                                        // `md ? 'markdown' : 'sql'`. Lo dice la
+                                        // tabla, que además no se queda atrás
+                                        // cuando aparece un tipo nuevo.
+                                        language={idiomaDe(activeTab.path || activeTab.name)}
                                         onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                                         onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
                                         onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}

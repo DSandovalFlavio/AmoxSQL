@@ -2932,6 +2932,18 @@ body {
   flex-shrink: 0;
 }
 
+/* Una pestaña fijada. La chincheta va delante del nombre para que se distinga
+   de un vistazo cuál no se va a cerrar, sin llegar al final del rótulo. */
+.tab-item .tab-pin {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.tab-item--fijada .tab-label {
+  /* Sin la X, el rótulo puede ocupar lo que aquélla dejaba libre. */
+  padding-right: 2px;
+}
+
 .tab-item .tab-close {
   display: flex;
   align-items: center;
