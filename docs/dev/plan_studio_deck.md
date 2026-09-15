@@ -113,19 +113,30 @@ conozcamos ni el orden de las que ya estaban.
 
 ## Fase 3 — Escribir
 
-- [ ] Barra de formato flotante sobre la selección: negrita, cursiva, enlace, lista, cita,
-      código. Y `Ctrl+B` · `I` · `K`.
-- [ ] Menú de inserción con `/` dentro de una región.
-- [ ] **El catálogo se reutiliza; el menú no.** Comprobado: `markdownInsertables.js` no
-      tiene ni una referencia a Monaco —es una lista de entradas con sus snippets, y vale
-      tal cual—, pero `slashMenu.js` está montado **sobre el proveedor de completado de
-      Monaco** y las regiones del deck son `<textarea>`. Hace falta un widget propio que
-      consuma `INSERTABLES`, `GROUPS` y `snippetFor`, y que resuelva las paradas
-      `${1:texto}` seleccionando la primera. Unas 120 líneas. No es reutilización directa
-      y el plan no debe fingir que lo es.
-- [ ] Medidor de ocupación de la región: cuánto cabe, antes de pasarse.
-- [ ] Pegar HTML enriquecido se convierte a markdown; pegar una imagen la guarda en el
-      proyecto y la coloca en la región activa.
+- [~] Barra de formato: negrita, cursiva, código, enlace, lista y conclusión, con
+      `Ctrl+B` · `I` · `K`. **No flota sobre la selección**, va fija encima del cuadro
+      mientras editas. Colocar algo sobre el cursor de un `<textarea>` exige un div espejo
+      y medir ahí, que es frágil — pero además la fija es mejor aquí: el diagnóstico es que
+      el Studio esconde los mandos, y una barra que sólo aparece si ya sabías que había que
+      seleccionar algo los sigue escondiendo.
+- [x] Menú de inserción con `/` dentro de una región.
+- [~] **El catálogo tampoco se reutilizaba tal cual**, y eso el plan no lo vio. El widget
+      propio salió como se preveía (`slashMenu.js` está atado a Monaco), pero el catálogo
+      del editor de documentos **mentía por los dos lados** dentro de una lámina: ofrecía
+      la cabecera del documento, el índice y las casillas de tarea —que en una diapositiva
+      no significan nada— y **no ofrecía los cinco bloques de dato del deck**. Escribir
+      `/metr` y que no salga nada es peor que no tener menú. Hay un catálogo de lámina que
+      añade `kpis`, cifra ancla, tabla clasificada, acciones y figura, y quita lo que es
+      sólo de documento.
+      Sin paradas encadenadas: se selecciona la primera y el resto se queda con su texto
+      de ejemplo. Un `textarea` no sabe de eso.
+- [ ] Medidor de ocupación de la región. **Pendiente.** El aviso de desborde ya dice qué
+      región se pasa (fase 0), que es la mitad útil; falta el «cuánto queda» antes de
+      pasarse, y eso necesita medir la región contra su hueco en cada tecla.
+- [ ] Pegar HTML enriquecido y pegar imágenes. **Pendiente, y con una decisión detrás:**
+      convertir HTML a markdown en condiciones quiere una dependencia nueva, y eso no se
+      mete sin evaluarla antes. Pegar una imagen necesita además un punto de entrada en el
+      servidor para guardarla en el proyecto.
 
 ## Fase 4 — Los bloques de dato
 
