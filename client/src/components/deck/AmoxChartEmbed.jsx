@@ -54,6 +54,27 @@ function extensionVertical(filas, config) {
 
 const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, onPiezas, onMedida, yDomain = null, palette = null, card = false }) => {
     const [state, setState] = useState({ status: 'loading', data: null, config: null, query: '', error: null });
+
+    /**
+     * Las variables entran en `load` por su VALOR, no por su identidad.
+     *
+     * Con `[src, variables]` la consulta se relanza cada vez que el objeto
+     * cambia de referencia aunque diga exactamente lo mismo — y eso pasa más de
+     * lo que parece: un deck sin clave `variables:` en el front-matter recibe el
+     * `= {}` por defecto, que es un objeto nuevo en CADA render. El efecto
+     * dispara, pone estado, provoca el siguiente render, que trae otro `{}`, que
+     * vuelve a disparar. La figura se queda en «Loading…» para siempre y la
+     * aplicación se congela pidiendo el mismo archivo miles de veces.
+     *
+     * El fallo estaba latente desde que existe este componente: el deck de
+     * pruebas SÍ declara variables, así que nadie lo pisó hasta que el panel del
+     * deck empezó a reescribir el front-matter.
+     *
+     * Con la firma serializada, dos objetos que dicen lo mismo son lo mismo.
+     */
+    const firmaVariables = JSON.stringify(variables || {});
+    const variablesRef = useRef(variables);
+    variablesRef.current = variables;
     // Por referencia: el callback no debe entrar en las dependencias de `load`,
     // o un padre que lo redefina en cada render relanzaría la consulta en bucle.
     const onProcedenciaRef = useRef(onProcedencia);
@@ -72,7 +93,7 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
             if (fileData.error) throw new Error(fileData.error);
 
             const config = JSON.parse(fileData.content);
-            const query = injectEnvironmentVariables(config.query || '', variables);
+            const query = injectEnvironmentVariables(config.query || '', variablesRef.current);
             if (!query.trim()) throw new Error(`"${src}" has no stored query`);
 
             const queryRes = await fetch(`${API_BASE}/api/query`, {
@@ -106,7 +127,7 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
             setState({ status: 'error', data: null, config: null, query: '', error: err.message });
             onProcedenciaRef.current?.(null);
         }
-    }, [src, variables]);
+    }, [src, firmaVariables]);
 
     useEffect(() => { load(); }, [load, refreshToken]);
 

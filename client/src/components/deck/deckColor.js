@@ -71,6 +71,10 @@ export function medirAcentos(acentos, dentroDe) {
 
     const sonda = document.createElement('div');
     sonda.setAttribute('aria-hidden', 'true');
+    // La marca es para el observador de desborde del diseñador: la sonda entra
+    // y sale del lienzo que él vigila, y sin marcarla le hace medir doce veces
+    // seguidas para no cambiar nada. Ver la nota de `useDesborde`.
+    sonda.setAttribute('data-sonda', '1');
     sonda.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
     anfitrion.appendChild(sonda);
 

@@ -44,9 +44,24 @@ function useDesborde(canvasRef) {
         const canvas = canvasRef.current;
         if (!canvas) return undefined;
 
+        // Sólo se avisa a React cuando la medida CAMBIA de verdad.
+        //
+        // Esto no es una optimización, es lo que impide que la aplicación se
+        // congele. Antes de la fase 0 el estado era un número y `setDesborde(0)`
+        // con el mismo 0 no repintaba nada: React descarta la actualización
+        // cuando el valor es idéntico. Al pasar a `{px, region}` cada medición
+        // devolvía un objeto NUEVO, así que nunca era idéntico — y el bucle se
+        // cierra solo: el MutationObserver mira el lienzo, cualquier repintado
+        // toca el DOM (Recharts anima, MarkdownPreview rerenderiza), eso vuelve
+        // a disparar la medición, que vuelve a cambiar el estado. Una lámina con
+        // figura no llegaba nunca al reposo.
+        const publicar = (px, region) => setDesborde(
+            (prev) => (prev.px === px && prev.region === region ? prev : { px, region }),
+        );
+
         const medir = () => {
             const slide = canvas.querySelector('.deck-slide');
-            if (!slide) { setDesborde({ px: 0, region: null }); return; }
+            if (!slide) { publicar(0, null); return; }
             // No basta con medir la lámina: una columna que recorta esconde su
             // propio desborde sin que el alto de la lámina crezca.
             //
@@ -67,7 +82,7 @@ function useDesborde(canvasRef) {
             // desborda; si la que se pasa es la lámina entera, no hay una sola
             // culpable y el aviso se queda genérico.
             const rg = peorEl && peorEl !== slide ? peorEl.querySelector('[data-rg]') : null;
-            setDesborde({ px: Math.max(0, peorPx), region: rg?.getAttribute('data-rg') || null });
+            publicar(Math.max(0, peorPx), rg?.getAttribute('data-rg') || null);
         };
         medir();
 
@@ -75,7 +90,19 @@ function useDesborde(canvasRef) {
         // hacen falta las dos señales: la del tamaño y la del DOM.
         const ro = new ResizeObserver(medir);
         ro.observe(canvas);
-        const mo = new MutationObserver(medir);
+
+        // El inspector mete y saca una sonda dentro de la lámina para resolver
+        // el color de cada acento (ver deckColor.js). Es un nodo de cero por
+        // cero que no cambia ninguna medida, pero sí dispara al observador.
+        // Ignorarla no es imprescindible desde que `publicar` compara antes de
+        // avisar, pero medir doce veces seguidas para no cambiar nada es
+        // trabajo tirado en el hilo que pinta.
+        const esSonda = (n) => n?.nodeType === 1 && n.hasAttribute?.('data-sonda');
+        const soloSonda = (registros) => registros.every((r) => (
+            r.type === 'childList'
+            && [...r.addedNodes, ...r.removedNodes].every(esSonda)
+        ));
+        const mo = new MutationObserver((registros) => { if (!soloSonda(registros)) medir(); });
         mo.observe(canvas, { childList: true, subtree: true, characterData: true });
         return () => { ro.disconnect(); mo.disconnect(); };
     }, [canvasRef]);
@@ -303,8 +330,22 @@ const SlideDesigner = ({
         onSalir: () => setEditId(null),
     });
 
-    /** Una región de texto, leída y escrita por la tabla. Nada a mano. */
-    const Texto = ({ id }) => {
+    /**
+     * Una región de texto, leída y escrita por la tabla. Nada a mano.
+     *
+     * Son FUNCIONES que devuelven elementos, no componentes, y por eso van en
+     * minúscula. Definir un componente dentro del render —`const Texto = (...)`
+     * y usarlo como `<Texto />`— crea un tipo nuevo en cada pasada, y React no
+     * puede saber que es el mismo: desmonta el subárbol entero y lo vuelve a
+     * montar. Con una figura dentro eso significa que `AmoxChartEmbed` se monta
+     * otra vez, vuelve a pedir el `.amoxvis`, vuelve a ejecutar la consulta y
+     * vuelve a poner estado — que provoca el siguiente render. Medido: más de
+     * dos mil peticiones al servidor y la aplicación congelada.
+     *
+     * Llamándolas como funciones, lo que React ve es `<RegionTexto>`, que sí es
+     * un tipo estable.
+     */
+    const texto = (id) => {
         const region = regiones.find((r) => r.id === id);
         if (!region) return null;
         return (
@@ -319,7 +360,7 @@ const SlideDesigner = ({
         );
     };
 
-    const Figura = ({ id }) => {
+    const figura = (id) => {
         const region = regiones.find((r) => r.id === id);
         if (!region) return null;
         return (
@@ -353,7 +394,7 @@ const SlideDesigner = ({
     if (layout === 'chart-grid' || layout === 'compare') {
         cuerpo = (
             <div className={`deck-slide-body deck-slide-body--${layout}`}>
-                <div className="deck-slide-cabecera"><Texto id="claim" /></div>
+                <div className="deck-slide-cabecera">{texto('claim')}</div>
                 <SlideCharts
                     charts={charts}
                     variables={variables}
@@ -364,32 +405,32 @@ const SlideDesigner = ({
                     onQuitar={onRemoveChartAt}
                     onAnadir={onRequestAddChart}
                 />
-                <div className="deck-slide-cierre"><Texto id={layout === 'compare' ? 'veredicto' : 'cierre'} /></div>
+                <div className="deck-slide-cierre">{texto(layout === 'compare' ? 'veredicto' : 'cierre')}</div>
             </div>
         );
     } else if (layout === 'two-col') {
         cuerpo = (
             <div className="deck-slide-body deck-slide-body--two-col">
-                <div className="deck-slide-col"><Texto id="col-a" /></div>
-                <div className="deck-slide-col"><Texto id="col-b" /></div>
+                <div className="deck-slide-col">{texto('col-a')}</div>
+                <div className="deck-slide-col">{texto('col-b')}</div>
             </div>
         );
     } else if (layout === 'finding') {
         cuerpo = (
             <div className="deck-slide-body deck-slide-body--finding">
-                <div className="deck-slide-cabecera"><Texto id="claim" /></div>
+                <div className="deck-slide-cabecera">{texto('claim')}</div>
                 <div className="deck-slide-col deck-slide-col--text">
-                    <Texto id="detalle" />
+                    {texto('detalle')}
                     {heredadas}
                 </div>
-                <div className="deck-slide-col deck-slide-col--chart"><Figura id="figura" /></div>
+                <div className="deck-slide-col deck-slide-col--chart">{figura('figura')}</div>
             </div>
         );
     } else if (layout === 'chart-full') {
         cuerpo = (
             <div className="deck-slide-body deck-slide-body--chart-full deck-slide-body--design-chartfull">
-                <div className="deck-slide-chartfull-caption"><Texto id="texto" /></div>
-                <div className="deck-slide-chartfull-chart"><Figura id="figura" /></div>
+                <div className="deck-slide-chartfull-caption">{texto('texto')}</div>
+                <div className="deck-slide-chartfull-chart">{figura('figura')}</div>
             </div>
         );
     } else {
@@ -397,8 +438,8 @@ const SlideDesigner = ({
         // llegó con una (se puede escribir a mano en el crudo).
         cuerpo = (
             <div className={`deck-slide-body deck-slide-body--${layout}`}>
-                <Texto id="texto" />
-                {chartSrc && <div className="deck-slide-inline-chart"><Figura id="figura" /></div>}
+                {texto('texto')}
+                {chartSrc && <div className="deck-slide-inline-chart">{figura('figura')}</div>}
                 {chartSrc && heredadas}
             </div>
         );
