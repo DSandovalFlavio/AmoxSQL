@@ -152,16 +152,31 @@ conozcamos ni el orden de las que ya estaban.
 
 ## Fase 5 — El crudo y los gestos
 
-- [ ] Crudo **de la lámina activa** (`Ctrl+Shift+E`), junto al lienzo. La vista Source del
-      archivo completo se queda como está.
-- [ ] Las directivas salen atenuadas y con explicación al pasar por encima.
-- [ ] Error de markdown señalado en su línea, sin dejar de renderizar lo que sí se entiende.
-- [ ] Deshacer (`Ctrl+Z`) en todo el Studio. El estado es el contenido del archivo, así que
-      es una pila de cadenas — barato. **Ojo:** no debe pelearse con el deshacer nativo del
-      `<textarea>` mientras se está editando una región.
-- [ ] Duplicar lámina (`Ctrl+D`), arrastrar para reordenar, ocultar del pase sin borrar.
-- [ ] El esquema pliega por sección, usando el separador que ya marca el corte.
-- [ ] Repaso previo: desbordes, figuras sin datos, huecos vacíos, consultas viejas.
+- [x] Crudo **de la lámina activa** (`Ctrl+Shift+E`), junto al lienzo. Comprobado sobre la
+      lámina 5: nueve líneas en vez de doscientas sesenta. Va **debajo** del lienzo y no en
+      su lugar — la queja era tener que buscar una lámina, no que faltara el texto, y
+      viendo el markdown junto a la lámina que produce es como una directiva deja de ser
+      ruido.
+- [~] **Sin resaltado de sintaxis, con una leyenda en su lugar.** Es un `textarea` y no
+      puede colorear; montar Monaco para quince líneas es traerse un editor entero con su
+      ciclo de vida y su teclado para lo que aquí es un bloc de notas. La leyenda dice qué
+      directivas lleva **esta** lámina y qué hace cada una, que era el objetivo.
+- [~] Error señalado en su línea, **acotado al YAML de los bloques**: el markdown no tiene
+      errores de sintaxis —lo que no es markdown es texto— pero el YAML de un bloque sí, y
+      ése es el que deja la lámina con un hueco rojo sin decir dónde.
+- [x] Deshacer y **rehacer** en todo el Studio. Pila de cadenas, como preveía el plan. La
+      vista Source no pasa por ahí (Monaco tiene el suyo por pulsación) y mientras se
+      escribe en una región manda el deshacer nativo del `<textarea>`: sin esa comprobación,
+      `Ctrl+Z` a media frase tiraba la lámina entera.
+- [~] Duplicar lámina (`Ctrl+D`) y botón en el esquema: **hecho**. Arrastrar para reordenar
+      y ocultar del pase: **pendientes**. Ocultar necesita además decidir una directiva
+      nueva del formato, y eso no se inventa sobre la marcha.
+- [ ] El esquema pliega por sección. **Pendiente.**
+- [ ] Repaso previo. **Pendiente, y con un límite que conviene saber antes de empezarlo:**
+      «figuras sin datos» no se puede contestar sin ejecutar la consulta de cada lámina, y
+      sólo están montadas las de la lámina activa. O el repaso las ejecuta todas —y entonces
+      tarda lo que tarde el deck entero— o contesta sólo lo que se puede medir sin correr
+      nada: desbordes, huecos vacíos y la antigüedad del último refresco.
 
 ---
 
