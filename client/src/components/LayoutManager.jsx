@@ -15,6 +15,7 @@ import { fusionar, envoltorio, MOTIVOS } from './diagram/diagramMerge';
 import { bloquesCercados } from './markdown/fencedBlocks';
 import { invalidateSchema } from '../state/sidebarCache';
 import { splitSqlStatements } from '../utils/sqlSplitter';
+import { tipoDePestana } from '../utils/tiposDeArchivo';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 // Split geometry — kept in its OWN key so a schema change here never risks
@@ -262,7 +263,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
                             path: t.path,
                             name: t.name,
-                            type: t.type || 'sql',
+                            // Lo guardado manda, pero el descarte es la tabla y
+                            // no `'sql'`: una pestaña guardada por una versión
+                            // anterior a este cambio no trae `type`, y volvía
+                            // declarándose ejecutable fuera lo que fuera.
+                            type: t.type || tipoDePestana(t.path),
                             content: data.content,
                             results: null,
                             dirty: false
@@ -700,8 +705,25 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (!tab) return;
         if (tab.type === 'sql') {
             await executeQuery(tab.id, tab.content);
+            return;
         }
-    }, [getActiveTab, executeQuery]);
+        /**
+         * **Un atajo que no responde se lee como que la aplicación se colgó.**
+         *
+         * Antes esto era un `if` sin `else`: en un archivo que no fuera SQL,
+         * Ctrl+Enter no hacía absolutamente nada y no había forma de distinguir
+         * «aquí no aplica» de «se ha quedado pensando». Y como hasta ahora casi
+         * todo se declaraba SQL por descarte, el caso normal no era el silencio
+         * sino algo peor: **el archivo se mandaba de verdad a la base de datos.**
+         *
+         * Se avisa sólo en el llano. Un notebook, un deck o un diagrama tienen
+         * su propia idea de ejecutar y se la gestionan ellos; meter aquí un
+         * aviso les pisaría la suya.
+         */
+        if (tab.type === 'texto') {
+            toast.info(`${tab.name} no es un archivo que se ejecute.`);
+        }
+    }, [getActiveTab, executeQuery, toast]);
 
     /**
      * Guarda un diagrama dentro del markdown del que salió.
@@ -1380,7 +1402,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
                 path: path,
                 name: path.split(/[/\\]/).pop(),
-                type: type || (path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.md') ? 'md' : path.endsWith('.amoxvis') ? 'amoxvis' : 'sql'),
+                // Quien llama puede imponer el tipo; si no lo hace, lo dice la
+                // tabla. Antes había aquí una cadena de `endsWith` que no
+                // conocía `.amoxdeck` ni `.amoxdiagram` —así que un diagrama
+                // abierto por este camino llegaba marcado como SQL— y que
+                // acababa en `: 'sql'`, con lo que CUALQUIER archivo del que no
+                // supiéramos nada se declaraba ejecutable.
+                type: type || tipoDePestana(path),
                 content: finalContent,
                 results: null,
                 dirty: false,
@@ -1469,7 +1497,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
                 if (!data.error) {
-                    const type = lowerName.endsWith('.sqlnb') ? 'sqlnb' : lowerName.endsWith('.sqlchain') ? 'sqlchain' : lowerName.endsWith('.md') ? 'md' : 'sql';
+                    // La quinta copia de la misma cadena. Ahora la tabla.
+                    const type = tipoDePestana(filePath);
                     const existing = [...leftTabs, ...rightTabs].find(t => t.path === filePath);
                     if (existing) {
                         if (leftTabs.find(t => t.id === existing.id)) { setLeftActiveId(existing.id); setActivePane('left'); }

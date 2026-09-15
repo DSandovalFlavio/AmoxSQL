@@ -7,6 +7,7 @@ import { API_BASE } from './api.js';
 import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
+import { tipoDePestana } from './utils/tiposDeArchivo.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -910,9 +911,12 @@ function App() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      // determine type
-      const type = path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.amoxdeck') ? 'amoxdeck' : path.endsWith('.amoxdiagram') ? 'amoxdiagram' : path.endsWith('.md') ? 'md' : 'sql';
-      layoutRef.current?.openFile(path, data.content, type);
+      // Lo dice la tabla, que es la misma que usan el explorador y el panel.
+      // Aquí vivía una CUARTA copia de la cadena de `endsWith` —la auditoría
+      // había encontrado tres— y como esta pasaba el tipo explícito, ganaba a
+      // todas las demás: era la que convertía en SQL cualquier archivo del que
+      // no supiéramos nada.
+      layoutRef.current?.openFile(path, data.content, tipoDePestana(path));
 
     } catch (err) {
       toast.error(`Failed to open file: ${err.message}`);
@@ -1037,11 +1041,28 @@ function App() {
   const handleSaveAs = useCallback(async (filename, description) => {
     let contentToSave = pendingSaveContent;
     if (description) {
-      if (!filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
+      // La descripción se mete como comentario `/* … */`, que es sintaxis de
+      // SQL. En un archivo de texto no significa nada: metido en un YAML o en
+      // un Python lo rompe.
+      if (pendingSaveTab?.type !== 'texto'
+          && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
         contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
       }
     }
-    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
+    /**
+     * **A un archivo de texto no se le añade extensión.**
+     *
+     * Esta rama acababa en `filename += '.sql'`, así que guardar como
+     * `apuntes` producía `apuntes.sql` — y guardar un YAML como
+     * `profiles.yml` también, porque `.yml` no estaba en la lista de
+     * conocidas y se le pegaba `.sql` detrás.
+     *
+     * `Dockerfile`, `.env` y `profiles.yml` son nombres completos y
+     * legítimos. Si el usuario escribió un nombre, ése es el nombre.
+     */
+    if (pendingSaveTab?.type === 'texto') {
+      // nada que añadir
+    } else if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
       if (pendingSaveTab && pendingSaveTab.type === 'sqlnb') {
         filename += '.sqlnb';
       } else if (pendingSaveTab && pendingSaveTab.type === 'sqlchain') {
