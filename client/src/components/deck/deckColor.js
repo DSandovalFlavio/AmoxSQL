@@ -19,43 +19,14 @@
  * colores que no se leen.
  */
 
+// La aritmética del contraste vive en `utils/contraste.js`, compartida con las
+// etiquetas de los gráficos. Estaba aquí, y una tercera copia mal hecha en
+// `ChartRenderer` es la que pintaba etiquetas blancas sobre baldosas claras.
+import { aRgb, contraste } from '../../utils/contraste';
+
+export { contraste };
+
 export const PISO_CONTRASTE = 4.5;
-
-/** Un color CSS cualquiera a [r, g, b] 0-255. Devuelve null si no se entiende. */
-function aRgb(css) {
-    if (!css) return null;
-    const m = css.trim().match(/^rgba?\(([^)]+)\)$/i);
-    if (m) {
-        const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
-        if (p.length >= 3 && p.slice(0, 3).every(Number.isFinite)) return p.slice(0, 3);
-        return null;
-    }
-    const h = css.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-    if (h) {
-        const s = h[1].length === 3 ? h[1].split('').map((c) => c + c).join('') : h[1];
-        return [0, 2, 4].map((i) => parseInt(s.slice(i, i + 2), 16));
-    }
-    return null;
-}
-
-/** Luminancia relativa, WCAG 2.x. */
-function luminancia([r, g, b]) {
-    const c = [r, g, b].map((v) => {
-        const s = v / 255;
-        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-}
-
-/** La razón de contraste entre dos colores CSS. `null` si alguno no se entiende. */
-export function contraste(colorA, colorB) {
-    const a = aRgb(colorA);
-    const b = aRgb(colorB);
-    if (!a || !b) return null;
-    const la = luminancia(a);
-    const lb = luminancia(b);
-    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-}
 
 /**
  * Resuelve `--accent-primary` para cada acento **tal y como lo vería la lámina**,
