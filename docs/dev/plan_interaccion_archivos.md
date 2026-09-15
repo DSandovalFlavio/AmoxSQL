@@ -209,76 +209,132 @@ pregunta, no se impide: un registro de 9,5 MB se abre entero si se dice que sí 
 
 ## Fase 2 — Que no se pierda trabajo
 
-La fase que de verdad importa, y la única con infraestructura nueva.
+- [x] **Un vigilante de archivos en el servidor** (`server/vigilanteArchivos.js`) sobre la
+      raíz del proyecto, ignorando `.git`, `node_modules`, las carpetas de compilación y los
+      archivos de trabajo de la base.
+- [x] Se publica por el canal que **ya existía**: `GET /api/files/watch`, un flujo de
+      eventos como los cuatro que ya tenía el servidor. Sin dependencia nueva y sin sondeo.
+- [x] **Cambió fuera y aquí no está tocado: se recarga solo.**
+- [x] **Cambió fuera y aquí está sucio: se pregunta**, con tres salidas.
+- [x] **Comprobación al guardar**, además del aviso.
+- [x] El árbol se refresca solo cuando aparece o desaparece un archivo.
+- [x] Aviso si un archivo abierto se borra por fuera: la pestaña **no se cierra**.
+- [~] Conservar los finales de línea al guardar.
+- [x] Pruebas desde Node de la decisión: 32 comprobaciones en
+      `scripts/probarConflictoArchivo.mjs`.
 
-- [ ] **Un vigilante de archivos en el servidor** sobre la raíz del proyecto, con la lista
-      de ignorados de siempre (`.git`, `node_modules`, y lo que diga `.gitignore`).
-- [ ] Se publica por el canal que **ya existe**: hay cuatro endpoints de
-      `text/event-stream` en `server/index.js` y un consumidor en
-      `chains/useChainExecution.js`. **No hace falta un transporte nuevo**, ni una
-      dependencia, ni sondeo.
-- [ ] **Si el archivo cambió fuera y aquí no está tocado: se recarga solo.** Preguntar por
-      algo que no tiene conflicto es ruido, y el ruido enseña a ignorar los avisos.
-- [ ] **Si cambió fuera y aquí está sucio: se pregunta**, con las tres salidas de
-      `diagramMerge` —conservar lo mío, traer lo de fuera, ver las diferencias—. Nunca se
-      escribe encima en silencio.
-- [ ] **Comprobación al guardar**, además del aviso. El vigilante puede perderse un cambio
-      —un montaje de red, un archivo que llega mientras la aplicación no tiene el foco—, y
-      guardar es el último momento en que se puede evitar el daño. El aviso es la comodidad;
-      **esta comprobación es la garantía**, y por eso van las dos.
-- [ ] El árbol se refresca solo cuando aparece o desaparece un archivo (pregunta 53). Sale
-      gratis del mismo vigilante.
-- [ ] Aviso si un archivo abierto se borra por fuera: la pestaña lo dice y ofrece guardar su
-      contenido en otro sitio, en vez de quedarse apuntando a un fantasma.
-- [ ] **Conservar los finales de línea del archivo** al guardar (pregunta 96). En un
-      repositorio compartido entre sistemas, cambiarlos convierte un commit de una línea en
-      uno de doscientas, y quien lo sufre es el que revisa.
-- [ ] Pruebas desde Node de la decisión —**no del vigilante**—: dados «cambió fuera» y
-      «sucio aquí», qué salida corresponde. La tabla de verdad es lo que no puede fallar; el
-      vigilante se comprueba con la aplicación delante.
+**Criterio cumplido, verificado con la aplicación delante.** Los cinco escenarios, uno a
+uno: archivo limpio cambiado por fuera → se recargó solo, sin diálogo; archivo sucio
+cambiado por fuera → **el trabajo sobrevivió intacto** y al guardar salió el diálogo; las
+tres salidas hacen lo que dicen (cancelar no escribió nada y dejó la pestaña sucia,
+sobrescribir puso mi versión en el disco, descartar trajo la de fuera); borrar el archivo
+abierto dejó la pestaña con su contenido y marcada; y el árbol se enteró solo de un archivo
+nuevo y de uno borrado.
 
-**Criterio de terminado:** con un archivo abierto y sin tocar, un cambio por fuera se
-refleja solo. Con el mismo archivo tocado aquí, sale el diálogo y **no se pierde un solo
-byte, elija lo que elija.**
+### La firma, que es lo que hace esto tolerable
+
+Cada aviso lleva una **firma del contenido**, no la fecha. Dos razones, y sin ellas la
+característica sería peor que no tenerla:
+
+1. **Nuestra propia escritura dispara el vigilante.** Sin firma, cada guardado produciría
+   acto seguido un «este archivo cambió por fuera» sobre el cambio que acabas de hacer tú.
+   Comprobado explícitamente: tras sobrescribir no aparece ningún aviso fantasma.
+2. **Tocar un archivo no es cambiarlo.** Cambiar de rama y volver mueve la fecha sin mover
+   un byte. Preguntar ahí es ruido, y **el ruido enseña a ignorar los avisos** — con lo cual
+   el único aviso que evita perder trabajo dejaría de leerse.
+
+### Aviso *y* comprobación al guardar: no es redundancia
+
+El vigilante puede perderse un cambio —un montaje de red, un sistema sin vigilancia
+recursiva, un cambio llegado mientras la ventana no tenía el foco—, y guardar es el
+**último momento** en el que todavía se puede evitar el daño. El aviso es la comodidad;
+la comprobación en el servidor es la garantía. Por eso van las dos.
+
+### La tercera salida cambió respecto al plan
+
+El plan pedía *cancelar / conservar lo mío / **ver las diferencias***. Son
+*cancelar / guardar aparte / sobrescribir / descartar lo mío*, y «guardar aparte» va la
+primera **por ser la única sin pérdida**.
+
+Un visor de diferencias es otra herramienta entera, y lo que hace falta en ese instante no
+es *entender* el conflicto: es **no perder nada**. Guardar aparte da eso ya, deja las dos
+versiones en el disco y permite compararlas con lo que se quiera. Es además el mismo juego
+de salidas que usa AmoxDiagram al devolver un diagrama a su markdown, y que sea el mismo
+importa: son el mismo problema.
+
+### Los finales de línea ya se conservaban
+
+Marcado `[~]` porque **no hizo falta código**: el editor detecta el final de línea del
+archivo y lo mantiene. Se comprobó en vez de suponerlo — un archivo con CRLF, editado y
+guardado, salió con CRLF en las cuatro líneas, incluida la nueva.
 
 ---
 
 ## Fase 3 — Que se encuentre lo que ya existe
 
-Media docena de cosas construidas que nadie usa porque nadie sabe que están. Es el mismo
-fallo que tenía agrupar en AmoxDiagram, y sale igual de barato.
+- [x] **La lista de atajos, completa**: de 12 a 38.
+- [x] **Ctrl+P como alias de Ctrl+K.**
+- [x] **«Copiar ruta»** — **ya existía.** Ver abajo.
+- [x] **La fecha de modificación, visible** en la fila del archivo, en relativo.
+- [x] Los atajos que trae el editor de serie —ir a la línea, cursores múltiples, plegar—
+      nombrados en la lista.
 
-- [ ] **La lista de atajos, completa.** `KeyboardShortcutsModal.jsx` documenta doce; en
-      `App.jsx` hay más de veinte. Faltan Ctrl+W, Ctrl+B, Ctrl+\, Ctrl+K, Ctrl+L y las de
-      zoom. Es escribir una tabla.
-- [ ] **Ctrl+P como alias de Ctrl+K.** El gesto de «saltar a un archivo» ya funciona y está
-      bien hecho (busca archivos *y* esquema); lo que no responde es la tecla que estos
-      perfiles tienen en los dedos. Una línea.
-- [ ] **«Copiar ruta»** en el menú del archivo (pregunta 50). Se pide varias veces al día
-      para pegarla en un `read_csv`.
-- [ ] **La fecha de modificación, visible** en la fila del archivo. Ya se puede ordenar por
-      ella, o sea que el dato está ahí; sólo no se enseña. «Cuál toqué ayer» es la pregunta
-      más frecuente sobre un árbol de archivos.
-- [ ] Los atajos que trae el editor de serie —ir a la línea, cursores múltiples, plegar— se
-      **nombran** en la lista. No hay que construirlos: hay que decir que existen.
+### La auditoría se equivocaba, y el error es la lección
 
-**Criterio de terminado:** la lista de atajos coincide con lo que responde la aplicación.
-Nada más, y nada menos.
+La pregunta 50 decía que no había «copiar ruta». **Sí la hay**, y además dos variantes,
+junto a «Reveal in Explorer». Están **por debajo de «Delete»**, que es una frontera visual
+fuerte: lo que hay detrás de una opción roja se lee como zona peligrosa y no se explora.
+
+O sea que la respuesta correcta a la pregunta 50 no era «no existe» sino **«existe y no se
+encuentra»**, que es exactamente lo que dice esta fase. La auditoría acertó el diagnóstico
+fallando la pregunta.
 
 ---
 
 ## Fase 4 — Los gestos de volver atrás
 
-- [ ] **Reabrir la última pestaña cerrada.** De los gestos más automáticos que hay, y hoy
-      cerrar es definitivo.
-- [ ] **Fijar una pestaña.** Con quince abiertas, la consulta buena se cierra por accidente
-      igual que las demás. Junto con el punto anterior **son la misma herida vista dos
-      veces**: no hay forma de proteger lo que importa.
-- [ ] **Atrás y adelante entre posiciones.** Después de saltar desde la paleta no hay «vuelve
-      a donde estaba», y ese salto es justo el que se da para consultar algo un momento.
-- [ ] Archivos recientes, no sólo proyectos recientes.
-- [ ] Ctrl+Tab **por uso reciente** y no por posición. Hoy funciona, pero no sirve para
-      «vuelve a lo que estaba haciendo», que es para lo que se pulsa.
+- [x] **Reabrir la última pestaña cerrada** (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>).
+      Se **relee del disco**, no se resucita una copia en memoria.
+- [x] **Fijar una pestaña** (<kbd>Alt</kbd>+<kbd>P</kbd> o el menú). Una fijada no se cierra
+      ni con Ctrl+W ni con «cerrar las demás», lleva chincheta y **pierde la X**.
+- [x] **Atrás y adelante entre pestañas visitadas** (<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd>).
+- [x] **Archivos recientes**, los cinco últimos, **arriba del todo** en la paleta.
+- [x] **Ctrl+Tab por uso reciente** y no por posición.
+
+**Verificado en la aplicación:** cerrar y reabrir devolvió la pestaña; fijar hizo que Ctrl+W
+la rechazara con su aviso; desde `carga.py`, Ctrl+Tab fue a `enorme.log` —la visitada
+antes— y no a `logo.png`, que es la vecina en la barra; Alt+← recorrió hacia atrás dos
+saltos y Alt+→ volvió.
+
+### «Fijar» funcionaba y no se veía
+
+La primera vez, fijar **hizo lo correcto** —Ctrl+W lo rechazó con su mensaje— y la pestaña
+siguió sin chincheta y con su X. La barra de pestañas se pinta en `App.jsx` a partir de una
+**proyección** de cinco campos (`metaOf`, `LayoutManager.jsx:219`), y `fijada` no estaba en
+la lista: existía en el estado y no llegaba nunca a la barra.
+
+Es el mismo patrón que la fase 0 —un sitio de más que nadie recuerda al añadir un campo—
+y el mismo síntoma: **el comportamiento correcto sin nada que lo anuncie.** Peor que no
+funcionar, porque quien lo pruebe concluye que está roto.
+
+### Lo que se desvió del plan
+
+El plan decía «atrás y adelante entre **posiciones**». Es entre **pestañas**: volver al
+punto exacto dentro del archivo exige seguir el cursor y guardarlo por salto, y el gesto que
+de verdad falta es el otro —vas a mirar una cosa desde la paleta y no hay forma de volver—.
+Anotado por si se pide.
+
+### La trampa del día, tres veces
+
+Los escapes en los documentos de aquí adentro. Una expresión regular con `\\` se quedó en
+`\`, un `\n\n` se convirtió en saltos de línea de verdad dentro del servidor, y un
+`'Ctrl + \\'` acabó siendo `'Ctrl + \'` — una cadena sin cerrar.
+
+Las tres se arreglaron, pero la tercera merece contarse: **la miré con un script y creí que
+estaba bien.** El `repr` de Python enseña `\\` para una sola barra, lo leí como dos, y di
+por buena una línea rota. Sobrevivió a la compilación —el archivo se carga aparte— y la
+cazó el linter varios pasos después. **Para cualquier cosa con escapes, las herramientas de
+edición; y cuando se comprueba, comprobar con quien vaya a ejecutarlo.**
 
 ---
 

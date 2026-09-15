@@ -16,6 +16,8 @@ import { bloquesCercados } from './markdown/fencedBlocks';
 import { invalidateSchema } from '../state/sidebarCache';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 import { tipoDePestana } from '../utils/tiposDeArchivo';
+import { decidirAviso, decidirGuardado, ACCIONES } from '../utils/conflictoArchivo';
+import { vigilar } from '../state/vigilante';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 // Split geometry — kept in its OWN key so a schema change here never risks
@@ -215,7 +217,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const lastNotifiedMetaRef = useRef('');
     useEffect(() => {
         if (!onTabsChange) return;
-        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type });
+        // Lo que sale de aquí es lo ÚNICO que ve la barra de pestañas: un campo
+        // que no esté en esta lista existe en el estado y no se pinta nunca.
+        // `fijada` se quedó fuera al añadirla, y el resultado fue una pestaña
+        // que se negaba a cerrarse sin nada que lo anunciara.
+        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type, fijada: !!t.fijada });
         const leftMeta = leftTabs.map(metaOf);
         const rightMeta = rightTabs.map(metaOf);
         const payload = {
@@ -269,6 +275,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                             // declarándose ejecutable fuera lo que fuera.
                             type: t.type || tipoDePestana(t.path),
                             content: data.content,
+                            firma: data.firma || null,
                             results: null,
                             dirty: false
                         };
@@ -364,6 +371,53 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         else if (rightTabs.find(t => t.id === tabId)) updateTab('right', tabId, { content: convId });
     }, [updateTab]);
 
+    /**
+     * Las pestañas que se han cerrado, para poder recuperarlas.
+     *
+     * **Cerrar era definitivo.** Es de los gestos mas automaticos que hay —se
+     * cierra de mas y se vuelve— y aqui no habia vuelta: habia que acordarse de
+     * como se llamaba el archivo y buscarlo otra vez en el arbol.
+     *
+     * Solo se guarda lo justo para reabrir: ruta, nombre, tipo y panel. **El
+     * contenido no**, a proposito: un archivo con ruta sigue en el disco y se
+     * relee entero, que es mas correcto que resucitar una copia que puede haber
+     * envejecido. Un borrador sin ruta no entra en la pila porque no habria
+     * nada que releer.
+     */
+    const cerradasRef = useRef([]);
+
+    /**
+     * Ultimas pestañas visitadas, de mas reciente a menos.
+     *
+     * Sostiene dos cosas: Ctrl+Tab **por uso reciente** —que es para lo que se
+     * pulsa, «vuelve a lo que estaba haciendo», y no «la de al lado»— y
+     * Alt+Izquierda, que deshace el salto que acabas de dar desde la paleta.
+     */
+    const visitadasRef = useRef([]);
+    const adelanteRef = useRef([]);
+    // `openFile` se define mas abajo; el ref rompe el ciclo sin reordenar el
+    // archivo entero.
+    const openFileRef = useRef(null);
+
+    /**
+     * Apunta cada pestaña que se visita.
+     *
+     * Es lo que hace que Ctrl+Tab signifique «vuelve a lo que estaba haciendo»
+     * y que Alt+Izquierda deshaga el salto. Va en un ref y no en estado: cambia
+     * en cada cambio de pestaña y **nadie lo pinta**, asi que meterlo en estado
+     * seria un repintado por cada clic en la barra a cambio de nada.
+     */
+    useEffect(() => {
+        const tabId = activePane === 'left' ? leftActiveId : rightActiveId;
+        if (!tabId) return;
+        const cabeza = visitadasRef.current[0];
+        if (cabeza && cabeza.tabId === tabId && cabeza.pane === activePane) return;
+        visitadasRef.current = [
+            { pane: activePane, tabId },
+            ...visitadasRef.current.filter(v => v.tabId !== tabId),
+        ].slice(0, 30);
+    }, [activePane, leftActiveId, rightActiveId]);
+
     const handleTabClose = useCallback(async (tabId) => {
         const { leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
         const inLeft = leftTabs.some(t => t.id === tabId);
@@ -386,6 +440,19 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             });
             if (!ok) return;
         }
+        // Una pestaña fijada no se cierra por accidente. Es la mitad de la
+        // pareja: fijar protege lo que importa, reabrir rescata lo demas.
+        if (cerrando?.fijada) {
+            stateRef.current.toast.info(`${cerrando.name} esta fijada. Quitale la chincheta para cerrarla.`);
+            return;
+        }
+        if (cerrando?.path) {
+            cerradasRef.current = [
+                { path: cerrando.path, name: cerrando.name, type: cerrando.type, pane: inLeft ? 'left' : 'right' },
+                ...cerradasRef.current.filter(c => c.path !== cerrando.path),
+            ].slice(0, 20);
+        }
+
         const activeId = inLeft ? leftActiveId : rightActiveId;
         const setTabs = inLeft ? setLeftTabs : setRightTabs;
         const setActiveId = inLeft ? setLeftActiveId : setRightActiveId;
@@ -419,6 +486,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 destructive: true,
             });
             if (!ok) return;
+        }
+        for (const t of tabsToClose) {
+            if (!t.path) continue;
+            cerradasRef.current = [
+                { path: t.path, name: t.name, type: t.type, pane },
+                ...cerradasRef.current.filter(c => c.path !== t.path),
+            ].slice(0, 20);
         }
         const idsToClose = new Set(tabsToClose.map(t => t.id));
         const setTabs = pane === 'left' ? setLeftTabs : setRightTabs;
@@ -780,6 +854,125 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // context menu's "Guardar" (an EXPLICIT tab, which may not be active).
     // Resolves the pane via findTabPane, not `activePane` — an inactive tab
     // being saved from the context menu can live in either pane.
+    /**
+     * El diálogo de «esto cambió por fuera y tú tienes cambios sin guardar».
+     *
+     * **Tres salidas, y ninguna es la buena por omisión** — es el momento en el
+     * que la aplicación no puede elegir por el usuario, porque las dos versiones
+     * son trabajo de alguien:
+     *
+     * - *Sobrescribir*: mi versión gana. Lo de fuera se pierde.
+     * - *Guardar aparte*: **sobreviven las dos.** Es la única sin pérdida y por
+     *   eso va la primera.
+     * - *Descartar lo mío*: traer lo de fuera. Lo de aquí se pierde.
+     *
+     * El plan pedía «ver las diferencias» como tercera. Se cambia por «guardar
+     * aparte» a propósito: un visor de diferencias es otra herramienta entera, y
+     * lo que el usuario necesita en este instante **no es entender el conflicto,
+     * es no perder nada**. Guardar aparte le da eso ya, y con las dos versiones
+     * en el disco puede compararlas con lo que quiera.
+     *
+     * Es el mismo juego de salidas que usa AmoxDiagram al devolver un diagrama a
+     * su markdown. Que sea el mismo importa: son el mismo problema.
+     */
+    const resolverConflicto = useCallback(async (tab, pane, isSilent) => {
+        const { toast, onRequestSaveAs } = stateRef.current;
+        const nombre = tab.name || tab.path;
+        const elegido = await dialog.chooseAsync({
+            title: 'Este archivo cambió fuera de la aplicación',
+            message: `${nombre} no es el que abriste: alguien lo ha cambiado desde entonces, y tú tienes cambios sin guardar. Las dos versiones son trabajo.`,
+            options: [
+                { value: 'aparte', label: 'Guardar aparte…', primary: true, description: 'Conserva las dos versiones' },
+                { value: 'sobrescribir', label: 'Sobrescribir', description: 'Se pierde lo que cambió fuera' },
+                { value: 'descartar', label: 'Descartar lo mío', description: 'Se pierde lo que escribiste aquí' },
+            ],
+            cancelLabel: 'Cancelar',
+        });
+        const opcion = elegido?.value ?? elegido;
+
+        if (opcion === 'sobrescribir') {
+            return saveTabInternalRef.current(tab, isSilent, { forzar: true });
+        }
+        if (opcion === 'aparte') {
+            onRequestSaveAs?.(tab.content, tab);
+            return;
+        }
+        if (opcion === 'descartar') {
+            try {
+                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(tab.path)}`);
+                const datos = await res.json();
+                if (datos.error) throw new Error(datos.error);
+                updateTab(pane, tab.id, { content: datos.content, dirty: false, firma: datos.firma || null });
+                if (tab.path) clearDraft(tab.path);
+                toast.info(`${nombre}: traída la versión del disco.`);
+            } catch (e) {
+                toast.error(`No se pudo leer el archivo: ${e.message}`);
+            }
+            return;
+        }
+        // Cancelar: no se escribe nada y la pestaña sigue sucia, que es
+        // exactamente lo que el usuario ha pedido.
+    }, [dialog, updateTab]);
+
+    /**
+     * **Nadie vigilaba el disco.** Esto es lo que lo arregla.
+     *
+     * De las diez preguntas de la auditoría sobre archivos que cambian por
+     * fuera, diez salieron que no: un `git pull` cambiaba tres archivos
+     * abiertos, la pestaña seguía enseñando lo de antes, y al guardar los pisaba
+     * **sin un solo aviso**. Y no es un caso raro: el usuario tiene el proyecto
+     * abierto aquí y en su editor a la vez.
+     *
+     * La decisión —ignorar, recargar, preguntar o avisar de que ya no está—
+     * vive aparte en `conflictoArchivo.js`, es pura y tiene su tabla de verdad
+     * probada. Aquí sólo se ejecuta lo decidido.
+     */
+    useEffect(() => {
+        return vigilar(async (aviso) => {
+            const { leftTabs, rightTabs, toast } = stateRef.current;
+            for (const [pane, tabs] of [['left', leftTabs], ['right', rightTabs]]) {
+                for (const tab of tabs) {
+                    const accion = decidirAviso(tab, aviso);
+                    if (accion === ACCIONES.IGNORAR) continue;
+
+                    if (accion === ACCIONES.DESAPARECIDO) {
+                        /**
+                         * **La pestaña no se cierra sola.** Si había cambios, lo
+                         * único que queda de ese archivo está dentro de ella;
+                         * cerrarla sería borrar el trabajo por ser diligentes.
+                         * Se le quita la firma para que el próximo guardado no
+                         * compare contra una versión que ya no existe.
+                         */
+                        updateTab(pane, tab.id, { firma: null, dirty: true });
+                        toast.info(`${tab.name} ya no está en el disco. Lo que ves sigue aquí; guárdalo si lo quieres.`);
+                        continue;
+                    }
+
+                    if (accion === ACCIONES.RECARGAR) {
+                        // Sin nada que perder no se pregunta: preguntar por algo
+                        // que no tiene conflicto es ruido, y el ruido enseña a
+                        // ignorar los avisos — justo el que no puede ignorarse.
+                        try {
+                            const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(tab.path)}`);
+                            const datos = await res.json();
+                            if (datos.error) continue;
+                            updateTab(pane, tab.id, { content: datos.content, dirty: false, firma: datos.firma || null });
+                        } catch { /* si no se puede leer, se queda como estaba */ }
+                        continue;
+                    }
+
+                    if (accion === ACCIONES.PREGUNTAR) {
+                        // Aquí no se toca nada todavía: se marca y se avisa. El
+                        // usuario decide cuándo atenderlo, y el guardado no puede
+                        // colarse mientras tanto porque la firma ya no cuadra y
+                        // el servidor lo rechaza.
+                        toast.info(`${tab.name} cambió fuera de la aplicación y tienes cambios sin guardar. Al guardar se te preguntará.`);
+                    }
+                }
+            }
+        });
+    }, [updateTab]);
+
     const saveTabInternal = useCallback(async (tab, isSilent = false, opciones = {}) => {
         const { onRequestSaveAs, toast } = stateRef.current;
         if (!tab || !tab.dirty) return;
@@ -809,14 +1002,45 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 saveContent = JSON.stringify(newConfig, null, 2);
             }
 
+            /**
+             * **La firma dice de que version viene lo que estoy escribiendo.**
+             *
+             * El servidor se niega a escribir si el archivo ya no esta en esa
+             * version. Es la GARANTIA, no la comodidad: el aviso en vivo del
+             * vigilante puede perderse —un montaje de red, un sistema sin
+             * vigilancia recursiva, un cambio llegado mientras la ventana no
+             * tenia el foco— y guardar es el ultimo momento en el que todavia se
+             * puede evitar el daño.
+             *
+             * `forzar` la omite: es lo que eligio el usuario en el dialogo de
+             * conflicto, y despues de decir «sobrescribir» volver a preguntar
+             * seria no haberle escuchado.
+             */
             const response = await fetch(`${API_BASE}/api/file`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: tab.path, content: saveContent })
+                body: JSON.stringify({
+                    path: tab.path,
+                    content: saveContent,
+                    firmaEsperada: opciones.forzar ? undefined : tab.firma,
+                })
             });
 
+            if (response.status === 409) {
+                const datos = await response.json().catch(() => ({}));
+                if (decidirGuardado({ conflicto: true, firmaServidor: datos.firma, firmaPestana: tab.firma }) === ACCIONES.PREGUNTAR) {
+                    return resolverConflicto(tab, pane, isSilent);
+                }
+                // Misma firma: no habia nada que resolver, se escribe.
+                return saveTabInternal(tab, isSilent, { ...opciones, forzar: true });
+            }
+
             if (response.ok) {
-                updateTab(pane, tab.id, { dirty: false });
+                const datos = await response.json().catch(() => ({}));
+                // La pestaña se queda con la firma de lo que acaba de escribir:
+                // sin esto, el aviso que produce NUESTRO propio guardado se
+                // leeria como un cambio de fuera.
+                updateTab(pane, tab.id, { dirty: false, firma: datos.firma || null });
                 if (tab.path) clearDraft(tab.path);
                 if (!isSilent) toast.success("Saved!");
             } else {
@@ -827,7 +1051,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             console.error("Error saving: " + e.message);
             if (!isSilent) toast.error("Error saving: " + e.message);
         }
-    }, [findTabPane, updateTab]);
+    }, [findTabPane, updateTab, resolverConflicto]);
+
+    // `resolverConflicto` necesita volver a llamar a `saveTabInternal`, que se
+    // define despues: el ref rompe el ciclo sin ordenarlas al reves.
+    const saveTabInternalRef = useRef(null);
+    saveTabInternalRef.current = saveTabInternal;
 
     const handleSaveActive = useCallback((isSilent = false, opciones) => saveTabInternal(getActiveTab(), isSilent, opciones), [getActiveTab, saveTabInternal]);
 
@@ -1086,14 +1315,97 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const tabId = activePane === 'left' ? leftActiveId : rightActiveId;
             if (tabId) handleTabClose(tabId);
         },
+        /**
+         * Ctrl+Tab, **por uso reciente y no por posicion**.
+         *
+         * Funcionaba: iba a la de al lado. Pero eso no es para lo que se pulsa
+         * Ctrl+Tab — se pulsa para «vuelve a lo que estaba haciendo», y con seis
+         * pestañas abiertas la de al lado no tiene por que ser esa. Con dos
+         * abiertas las dos lecturas coinciden, que es por lo que el fallo no
+         * saltaba a la vista.
+         *
+         * Si no hay historial todavia —recien abierta la aplicacion— se cae al
+         * orden de la barra, que es mejor que no hacer nada.
+         */
         navigateTab: (direction) => {
             const tabs = activePane === 'left' ? leftTabs : rightTabs;
             const currentId = activePane === 'left' ? leftActiveId : rightActiveId;
             if (tabs.length < 2) return;
+            const setActivo = activePane === 'left' ? setLeftActiveId : setRightActiveId;
+
+            const recientes = visitadasRef.current
+                .filter(v => v.pane === activePane && v.tabId !== currentId && tabs.some(t => t.id === v.tabId));
+            if (recientes.length > 0) {
+                const destino = direction > 0 ? recientes[0] : recientes[recientes.length - 1];
+                setActivo(destino.tabId);
+                return;
+            }
+
             const idx = tabs.findIndex(t => t.id === currentId);
             const nextIdx = (idx + direction + tabs.length) % tabs.length;
-            if (activePane === 'left') setLeftActiveId(tabs[nextIdx].id);
-            else setRightActiveId(tabs[nextIdx].id);
+            setActivo(tabs[nextIdx].id);
+        },
+
+        /**
+         * Reabrir la ultima que se cerro.
+         *
+         * Se **relee del disco**, no se resucita una copia en memoria: el
+         * archivo puede haber cambiado desde que se cerro, y devolver una
+         * version vieja seria peor que no reabrir nada.
+         */
+        reabrirUltima: async () => {
+            const { toast } = stateRef.current;
+            const ultima = cerradasRef.current.shift();
+            if (!ultima) { toast.info('No hay ninguna pestaña cerrada que recuperar.'); return; }
+            try {
+                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ultima.path)}`);
+                const datos = await res.json();
+                if (datos.error) throw new Error(datos.error);
+                await openFileRef.current(ultima.path, datos.content, ultima.type, { firma: datos.firma }, ultima.pane);
+            } catch (e) {
+                toast.error(`No se pudo reabrir ${ultima.name}: ${e.message}`);
+            }
+        },
+
+        /** Fija o suelta la pestaña activa. Una fijada no se cierra por accidente. */
+        alternarFijada: () => {
+            const tab = getActiveTab();
+            if (!tab) return;
+            const pane = findTabPane(tab.id);
+            if (pane) updateTab(pane, tab.id, { fijada: !tab.fijada });
+        },
+
+        /** Lo mismo desde el menu contextual, que apunta a una pestaña concreta. */
+        alternarFijadaDe: (tabId) => {
+            const pane = findTabPane(tabId);
+            if (!pane) return;
+            const tabs = pane === 'left' ? leftTabs : rightTabs;
+            const tab = tabs.find(t => t.id === tabId);
+            if (tab) updateTab(pane, tabId, { fijada: !tab.fijada });
+        },
+
+        /**
+         * Atras y adelante entre pestañas visitadas.
+         *
+         * Es el gesto que faltaba despues de saltar a un archivo desde la
+         * paleta: se va a mirar una cosa y no habia forma de volver.
+         */
+        navegarHistorial: (haciaAtras) => {
+            const pila = haciaAtras ? visitadasRef.current : adelanteRef.current;
+            const otra = haciaAtras ? adelanteRef.current : visitadasRef.current;
+            const actual = { pane: activePane, tabId: activePane === 'left' ? leftActiveId : rightActiveId };
+            const tabsDe = (p) => (p === 'left' ? leftTabs : rightTabs);
+
+            while (pila.length > 0) {
+                const destino = pila.shift();
+                if (destino.tabId === actual.tabId) continue;
+                if (!tabsDe(destino.pane).some(t => t.id === destino.tabId)) continue;
+                if (actual.tabId) otra.unshift(actual);
+                setActivePane(destino.pane);
+                if (destino.pane === 'left') setLeftActiveId(destino.tabId);
+                else setRightActiveId(destino.tabId);
+                return;
+            }
         },
         toggleSplit: () => setSplitEnabled(v => !v),
         // Focus a pane without touching its tabs — used when the user clicks
@@ -1421,6 +1733,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 results: null,
                 dirty: false,
                 readOnly: options.readOnly || false,
+                // De que version del disco viene esta pestaña. Sin esto no hay
+                // forma de distinguir «cambio por fuera» de «lo guarde yo».
+                firma: options.firma || null,
                 initialChartConfig: initialChartConfig,
             };
             if (activePane === 'left') {
@@ -1432,6 +1747,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
         }
     }, [updateTab]);
+    openFileRef.current = openFile;
 
     const openAmoxvisAsSql = useCallback(async (tab) => {
         const config = tab.chartConfig || tab.initialChartConfig || {};

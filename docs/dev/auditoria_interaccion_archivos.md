@@ -259,7 +259,7 @@ dos ramas a la vez. Para comparar `staging/` con `marts/` hay que ir y volver.
 
 **53. ¿Se refresca solo si aparece un archivo nuevo por fuera?**
 **No.** Hay botón de refrescar manual. Si un proceso escribe un archivo, no aparece hasta
-que lo pidas.
+que lo pidas. *(Arreglado en la fase 2: el árbol se entera solo.)*
 
 **54. ¿Puedo tener dos carpetas de proyecto a la vez?**
 **No.** Un proyecto, una raíz.

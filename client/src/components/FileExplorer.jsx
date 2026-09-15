@@ -19,6 +19,7 @@ import GSheetsSection from './GSheetsSection';
 import { useDialog } from './dialogs/DialogProvider';
 import { comoAbrir, recordarApertura, olvidarApertura, moverPreferencia } from '../utils/preferenciaApertura';
 import { tipoDeArchivo } from '../utils/tiposDeArchivo';
+import { vigilar } from '../state/vigilante';
 
 /**
  * A partir de aquí se pregunta antes de abrir en el editor.
@@ -28,6 +29,28 @@ import { tipoDeArchivo } from '../utils/tiposDeArchivo';
  * propósito. Lo que se evita no es el gasto sino la sorpresa.
  */
 const AVISO_TAMANO = 5 * 1024 * 1024;
+
+/**
+ * «Hace 2 h», no «15/09/2026 13:41».
+ *
+ * Lo que se quiere saber mirando un árbol de archivos es **cuál se tocó hace
+ * poco**, y una fecha absoluta obliga a calcularlo de cabeza en cada fila. La
+ * exacta sigue estando al pasar el ratón, que es donde se busca cuando de
+ * verdad hace falta.
+ */
+function haceCuanto(ms) {
+    const seg = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    if (seg < 60) return 'ahora';
+    const min = Math.floor(seg / 60);
+    if (min < 60) return `${min} min`;
+    const hor = Math.floor(min / 60);
+    if (hor < 24) return `${hor} h`;
+    const dia = Math.floor(hor / 24);
+    if (dia < 7) return `${dia} d`;
+    // Pasada una semana el relativo deja de informar —«hace 43 d» no le dice
+    // nada a nadie— y la fecha vuelve a ser mejor.
+    return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
 
 const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
     const { confirmAsync } = useDialog();
@@ -124,6 +147,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         }
     }, [editorSettings?.defaultExplorerSort]);
 
+    // El vigilante vive fuera del ciclo de render y necesita la carpeta ACTUAL
+    // sin volver a suscribirse cada vez que navegas.
+    const currentPathRef = useRef(currentPath);
+    currentPathRef.current = currentPath;
+
     useEffect(() => {
         fetchFiles(currentPath);
     }, [currentPath]);
@@ -138,6 +166,26 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         const handleClick = () => { setContextMenu(null); setLinkedChartsMenu(null); };
         window.addEventListener('click', handleClick);
         return () => window.removeEventListener('click', handleClick);
+    }, []);
+
+    /**
+     * El arbol se entera solo de lo que aparece y desaparece.
+     *
+     * Antes habia que pulsar refrescar: un proceso escribia un archivo y no
+     * salia hasta que lo pedias, con lo cual «no esta» y «no lo has mirado» se
+     * veian igual. Sale gratis del mismo vigilante que protege las pestañas.
+     *
+     * Se re-lee con retardo y sin spinner: un `git checkout` produce cientos de
+     * avisos seguidos, y volver a listar la carpeta en cada uno seria peor que
+     * no enterarse. Lo que importa es el estado en que queda, no cada paso.
+     */
+    useEffect(() => {
+        let t = null;
+        const quitar = vigilar(() => {
+            clearTimeout(t);
+            t = setTimeout(() => fetchFiles(currentPathRef.current, { silent: true }), 400);
+        });
+        return () => { clearTimeout(t); quitar(); };
     }, []);
 
 
@@ -951,6 +999,21 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                     {(editorSettings?.showFileSizes ?? true) && file.sizeBytes != null && (
                                         <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
                                             {formatBytes(file.sizeBytes)}
+                                        </span>
+                                    )}
+                                    {/* «Cuál toqué ayer» es la pregunta más
+                                        frecuente sobre un árbol de archivos, y
+                                        sólo se podía CONTESTAR ordenando. El
+                                        dato estaba; faltaba enseñarlo. Va en
+                                        relativo —«hace 2 h»— porque es lo que
+                                        se quiere saber; la fecha exacta, al
+                                        pasar el ratón. */}
+                                    {file.mtimeMs != null && (
+                                        <span
+                                            style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: '6px', flexShrink: 0 }}
+                                            title={new Date(file.mtimeMs).toLocaleString()}
+                                        >
+                                            {haceCuanto(file.mtimeMs)}
                                         </span>
                                     )}
                                     <span

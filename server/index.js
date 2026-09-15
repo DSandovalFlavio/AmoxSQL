@@ -13,6 +13,7 @@ const dbManager        = require('./DatabaseManager');
 const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
+const { crearVigilante, firmaDe } = require('./vigilanteArchivos');
 
 const app = express();
 const PORT = 3001;
@@ -79,6 +80,18 @@ BigInt.prototype.toJSON = function () {
 let ROOT_DIR = process.cwd();
 const APP_DIR = process.cwd(); // AmoxSQL app directory — never changes, unlike ROOT_DIR
 
+/**
+ * El vigilante del disco (ver `vigilanteArchivos.js`).
+ *
+ * Vive aquí arriba porque mira **una** raíz y ROOT_DIR cambia al abrir otro
+ * proyecto: sin rearmarlo seguiría avisando de los archivos del anterior.
+ */
+let vigilante = null;
+function rearmarVigilante() {
+    try { vigilante?.parar(); } catch { /* ya estaba parado */ }
+    vigilante = crearVigilante(ROOT_DIR);
+}
+
 // Track in-flight user queries for cancellation support
 const activeQueries = new Map(); // queryId → { interrupt }
 
@@ -103,6 +116,9 @@ app.post('/api/project/open', async (req, res) => {
 
         ROOT_DIR = newPath;
         process.chdir(ROOT_DIR);
+        // El vigilante mira UNA raiz: al cambiar de proyecto hay que rearmarlo,
+        // o seguiria avisando de los archivos del proyecto anterior.
+        rearmarVigilante();
         console.log(`Project root changed to: ${ROOT_DIR}`);
         res.json({ success: true, path: ROOT_DIR });
     } catch (err) {
@@ -3256,11 +3272,15 @@ app.get('/api/files', (req, res) => {
 
         const fileList = files.map(file => {
             let sizeBytes = null;
+            let mtimeMs = null;
             const itemFullPath = path.join(fullPath, file.name);
             if (!file.isDirectory()) {
                 try {
                     const stats = fs.statSync(itemFullPath);
                     sizeBytes = stats.size;
+                    // Ya se podia ORDENAR por fecha, pero no se enseñaba: el
+                    // dato estaba y no llegaba al cliente.
+                    mtimeMs = stats.mtimeMs;
                 } catch (e) { /* ignore */ }
             }
             return {
@@ -3268,7 +3288,8 @@ app.get('/api/files', (req, res) => {
                 isDirectory: file.isDirectory(),
                 path: path.relative(ROOT_DIR, itemFullPath).replace(/\\/g, '/'),
                 fullPath: itemFullPath,
-                sizeBytes
+                sizeBytes,
+                mtimeMs
             };
         });
 
@@ -3302,7 +3323,10 @@ app.get('/api/file', (req, res) => {
 
     fs.readFile(fullPath, 'utf8', (err, data) => {
         if (err) return res.status(500).json({ error: 'Failed to read file', details: err.message });
-        res.json({ content: data });
+        // La firma viaja con el contenido para que quien lo abra sepa DE QUE
+        // version viene. Es lo que permite despues distinguir «cambio por
+        // fuera» de «lo guarde yo», y negarse a pisar lo que no se leyo.
+        res.json({ content: data, firma: firmaDe(fullPath) });
     });
 });
 
@@ -3314,6 +3338,40 @@ app.get('/api/file', (req, res) => {
  * SVG and PNG both work; the format was never the issue, the path was.
  * Confined to the project root; must not become an arbitrary-file-read.
  */
+/**
+ * GET /api/files/watch — el canal de avisos del vigilante.
+ *
+ * Un flujo de eventos abierto: cada vez que algo cambia en el proyecto sale un
+ * `{ ruta, firma, tipo }`. **No se sondea**; el disco avisa y esto lo reenvia.
+ *
+ * El primer evento dice si la vigilancia esta activa de verdad. Hay sistemas
+ * —montajes de red, contenedores— donde no se puede vigilar recursivamente, y
+ * el cliente tiene derecho a saber que aqui no van a llegar avisos en vez de
+ * suponer que no cambia nada.
+ */
+app.get('/api/files/watch', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    if (!vigilante) rearmarVigilante();
+    const enviar = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
+    enviar({ tipo: 'hola', activo: !!vigilante?.activo, raiz: ROOT_DIR });
+
+    const quitar = vigilante.suscribir(enviar);
+
+    // Un latido cada medio minuto: sin trafico, los intermediarios cierran la
+    // conexion en silencio y el cliente se queda creyendo que sigue vigilado.
+    const latido = setInterval(() => res.write(': latido\n\n'), 30000);
+
+    req.on('close', () => {
+        clearInterval(latido);
+        quitar();
+    });
+});
+
 app.get('/api/file/raw', (req, res) => {
     const filePath = req.query.path;
     if (!filePath) return res.status(400).json({ error: 'Path is required' });
@@ -3329,7 +3387,7 @@ app.get('/api/file/raw', (req, res) => {
 });
 
 app.post('/api/file', (req, res) => {
-    const { path: filePath, content } = req.body;
+    const { path: filePath, content, firmaEsperada } = req.body;
     if (!filePath || content === undefined) return res.status(400).json({ error: 'Path and content are required' });
 
     let fullPath = filePath;
@@ -3337,9 +3395,34 @@ app.post('/api/file', (req, res) => {
         fullPath = path.join(ROOT_DIR, filePath);
     }
 
+    /**
+     * **La garantia, no la comodidad.**
+     *
+     * El aviso en vivo del vigilante puede perderse —un montaje de red, un
+     * sistema sin vigilancia recursiva, un cambio llegado mientras la ventana
+     * no tenia el foco— y guardar es el ULTIMO momento en el que todavia se
+     * puede evitar el daño. Por eso van los dos: el aviso avisa, esto garantiza.
+     *
+     * Se comprueba solo si quien guarda dice de que version viene. Sin
+     * `firmaEsperada` se escribe como siempre: guardar un archivo nuevo, o
+     * desde un sitio que no lo leyo, no tiene con que comparar.
+     */
+    if (firmaEsperada) {
+        const actual = firmaDe(fullPath);
+        // `actual === null` es un archivo que ya no esta: escribirlo lo crea de
+        // nuevo, que es lo que el usuario espera y no destruye nada.
+        if (actual !== null && actual !== firmaEsperada) {
+            return res.status(409).json({
+                error: 'El archivo cambio fuera de la aplicacion desde que lo abriste.',
+                conflicto: true,
+                firma: actual,
+            });
+        }
+    }
+
     fs.writeFile(fullPath, content, 'utf8', (err) => {
         if (err) return res.status(500).json({ error: 'Failed to write file', details: err.message });
-        res.json({ success: true });
+        res.json({ success: true, firma: firmaDe(fullPath) });
     });
 });
 
