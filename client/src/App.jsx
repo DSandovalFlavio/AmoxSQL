@@ -911,7 +911,7 @@ function App() {
       if (data.error) throw new Error(data.error);
 
       // determine type
-      const type = path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.amoxdeck') ? 'amoxdeck' : path.endsWith('.md') ? 'md' : 'sql';
+      const type = path.endsWith('.sqlnb') ? 'sqlnb' : path.endsWith('.sqlchain') ? 'sqlchain' : path.endsWith('.amoxdeck') ? 'amoxdeck' : path.endsWith('.amoxdiagram') ? 'amoxdiagram' : path.endsWith('.md') ? 'md' : 'sql';
       layoutRef.current?.openFile(path, data.content, type);
 
     } catch (err) {
@@ -1037,17 +1037,19 @@ function App() {
   const handleSaveAs = useCallback(async (filename, description) => {
     let contentToSave = pendingSaveContent;
     if (description) {
-      if (!filename.endsWith('.md') && !filename.endsWith('.amoxdeck')) {
+      if (!filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
         contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
       }
     }
-    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck')) {
+    if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
       if (pendingSaveTab && pendingSaveTab.type === 'sqlnb') {
         filename += '.sqlnb';
       } else if (pendingSaveTab && pendingSaveTab.type === 'sqlchain') {
         filename += '.sqlchain';
       } else if (pendingSaveTab && pendingSaveTab.type === 'amoxdeck') {
         filename += '.amoxdeck';
+      } else if (pendingSaveTab && pendingSaveTab.type === 'amoxdiagram') {
+        filename += '.amoxdiagram';
       } else if (pendingSaveTab && pendingSaveTab.type === 'md') {
         filename += '.md';
       } else {

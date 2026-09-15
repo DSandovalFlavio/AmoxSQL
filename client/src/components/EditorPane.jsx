@@ -18,6 +18,7 @@ const DbtLineageGraph = lazy(() => import('./DbtLineageGraph'));
 const AmoxvisPane = lazy(() => import('./AmoxvisPane'));
 const MarkdownEditor = lazy(() => import('./MarkdownEditor'));
 const DeckEditor = lazy(() => import('./deck/DeckEditor'));
+const DiagramEditor = lazy(() => import('./diagram/DiagramEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
 
@@ -383,6 +384,7 @@ const EditorPane = ({
     const isAmoxvis = activeTab.type === 'amoxvis';
     const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
     const isDeck = activeTab.type === 'amoxdeck' || activeTab.name?.endsWith('.amoxdeck');
+    const isDiagram = activeTab.type === 'amoxdiagram' || activeTab.name?.endsWith('.amoxdiagram');
 
     // Track last edit time on content change — ref only, no setState per keystroke
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -564,6 +566,26 @@ const EditorPane = ({
                             onToggleAi={onToggleAi}
                             showAiSidebar={showAiSidebar}
                             isActive={isActive}
+                            onOpenFile={onOpenFile}
+                        />
+                        </Suspense>
+                    </div>
+                ) : isDiagram ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
+                        <DiagramEditor
+                            key={activeTab.id}
+                            content={activeTab.content}
+                            onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                            onSave={onSave}
+                            onRequestSaveAs={onRequestSaveAs}
+                            theme={theme}
+                            filePath={activeTab.path || null}
+                            isDirty={!!activeTab.dirty}
+                            // De dónde viene el diagrama cuando se abrió desde un
+                            // markdown. Lo rellena la fase 3; hasta entonces toda
+                            // pestaña es un archivo propio.
+                            procedencia={activeTab.procedencia || null}
                             onOpenFile={onOpenFile}
                         />
                         </Suspense>

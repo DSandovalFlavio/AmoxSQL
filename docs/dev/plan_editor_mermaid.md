@@ -160,11 +160,11 @@ debería desplazar todas las líneas del flujo en el diff.
 
 Un `.amoxdiagram` que se crea, se abre, se ve y se guarda. Sin editar todavía.
 
-- [ ] **El formato del archivo:** front-matter (`title`, `author`, `updated`) más **un**
+- [x] **El formato del archivo:** front-matter (`title`, `author`, `updated`) más **un**
       bloque mermaid. Mismo patrón que `.amoxdeck`, que ya es markdown con front-matter, y
       así el archivo se lee sin la aplicación. Un diagrama por archivo; varios conviven en
       un markdown, que es donde un diagrama tiene vecinos que lo explican.
-- [ ] **Registrar el tipo en los diez sitios.** Es mecánico pero se olvida la mitad, así que
+- [x] **Registrar el tipo en los diez sitios.** Es mecánico pero se olvida la mitad, así que
       va enumerado:
 
   | Dónde | Qué |
@@ -180,11 +180,11 @@ Un `.amoxdiagram` que se crea, se abre, se ve y se guarda. Sin editar todavía.
   | `FileExplorer.jsx:703` + `TabBar.jsx:79` + `CommandPalette.jsx:299` | los tres «nuevo» |
   | `server/projectSearch.js:27` | que la búsqueda del proyecto lo mire |
 
-- [ ] **`diagram/DiagramEditor.jsx`** — React Flow ocupando la pestaña.
+- [~] **`diagram/DiagramEditor.jsx`** — React Flow ocupando la pestaña.
       `ChainCanvas.jsx` es **referencia, no base**: importa 34 tipos de nodo atados a la
       ejecución de chains, validación de ciclos y configuración por nodo. De ahí se copia el
       montaje y el tematizado; no se extiende.
-- [ ] **Posiciones leídas del SVG de mermaid.** Se renderiza una vez en oculto y se mapean
+- [x] **Posiciones leídas del SVG de mermaid.** Se renderiza una vez en oculto y se mapean
       por el id del `<g>`. **Dos trampas, ya medidas en la fase 0 y con respuesta:**
 
   1. **No se parsea la cadena del SVG: se monta en el DOM.** Un diagrama con una
@@ -200,13 +200,37 @@ Un `.amoxdiagram` que se crea, se abre, se ve y se guarda. Sin editar todavía.
 
   Queda por comprobar, eso sí: qué pasa cuando dos nodos distintos sanean al mismo
   identificador, y si el índice final del id (`-0`, `-1`) es estable entre renders.
-- [ ] **Un solo tipo de nodo propio**, `DiagramNode`, con la forma pintada en CSS desde el
+- [x] **Un solo tipo de nodo propio**, `DiagramNode`, con la forma pintada en CSS desde el
       campo `forma`. Nada de un componente por forma.
-- [ ] El lienzo respeta el tema y el acento, como el de Data Flow.
-- [ ] Zoom, encuadrar todo y minimapa — los tres los da React Flow.
+- [x] El lienzo respeta el tema y el acento, como el de Data Flow.
+- [x] Zoom, encuadrar todo y minimapa — los tres los da React Flow.
 
 **Criterio de hecho:** crear un `.amoxdiagram` desde los tres sitios, abrirlo, y que el
 lienzo se parezca al SVG que renderiza el preview del mismo texto.
+
+**Cumplido**, y `scripts/probarArchivoDiagrama.mjs` añade 63 comprobaciones — sobre todo que
+guardar no toca ni la cabecera ni el texto de alrededor.
+
+La desviación de `DiagramEditor`: **no es un portal a pantalla completa como decía el plan,
+es la pestaña entera**, que es lo que pidió el usuario al replantear la arquitectura. Y las
+columnas laterales del contrato visual —paleta e inspector— no se montan todavía: sin
+edición serían mandos que no hacen nada.
+
+Dos fallos que **sólo aparecieron mirando la aplicación**, ninguno de los cuales podía
+delatar una prueba:
+
+1. **El minimapa salía vacío.** React Flow dibuja ahí sólo los nodos que **declaran** su
+   tamaño; los que él tiene que medir no salen. Se veía un recuadro negro flotando en la
+   esquina, que parece un fallo de pintado y no una lista vacía. Se arregla poniendo
+   `width`/`height` en el nodo, que además ahorra la medición entera — ya sabemos el
+   tamaño, nos lo acaba de decir mermaid.
+2. **El SVG del minimapa desbordaba su recuadro.** React Flow le pone 200×150 por atributo;
+   dentro de una caja de 112×62 eso no lo encoge, lo **recorta**, y sólo se veía su esquina.
+
+Y una trampa del entorno de verificación que conviene recordar: **React Flow mide con un
+`ResizeObserver`, que no dispara mientras la ventana está tapada.** Con la ventana detrás,
+el DOM decía cero aristas y cero texto, y las dos cosas estaban bien. Hay que forzar un
+pintado —una captura— antes de medir nada.
 
 ## Fase 2 — Editar
 

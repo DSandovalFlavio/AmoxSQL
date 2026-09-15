@@ -7,7 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
-import mermaid from 'mermaid';
+import { renderMermaid, idDeRender } from './mermaidRuntime';
 import { frontmatterRange } from './markdownModel.js';
 import 'katex/dist/katex.min.css';
 import {
@@ -107,35 +107,17 @@ function FullscreenViewer({ onClose, children }) {
 }
 
 // ── Mermaid diagram with fullscreen ─────────────────────────────────────────
-// Mermaid measures each label's width in a hidden container to size the node
-// box, then renders. If the measuring font differs from the rendered font, the
-// box comes out too narrow and the last letters get clipped. Mermaid's default
-// is trebuchet ms, but the preview renders in the app font (Manrope, wider), so
-// we pin BOTH measure and render to the same stack — mermaid injects its own
-// <style> with this fontFamily into the SVG, so measure == render everywhere
-// (preview and fullscreen portal alike).
-const MERMAID_FONT = "'Manrope', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-let lastMermaidTheme = null;
+// La configuración de mermaid vive en `mermaidRuntime.js` desde que AmoxDiagram
+// pasó a ser un segundo consumidor: `mermaid.initialize()` es global al módulo,
+// así que la caché de «último tema aplicado» que había aquí dejó de ser cierta
+// en cuanto otro sitio configuró por su cuenta.
 function MermaidDiagram({ code, theme }) {
     const [svg, setSvg] = useState('');
     const [fs, setFs] = useState(false);
 
     useEffect(() => {
-        const mermaidTheme = isLightTheme(theme) ? 'default' : 'dark';
-        if (lastMermaidTheme !== mermaidTheme) {
-            mermaid.initialize({
-                startOnLoad: false,
-                theme: mermaidTheme,
-                securityLevel: 'loose',
-                fontFamily: MERMAID_FONT,
-                themeVariables: { fontFamily: MERMAID_FONT },
-                flowchart: { htmlLabels: true, useMaxWidth: true },
-            });
-            lastMermaidTheme = mermaidTheme;
-        }
-        const id = `mermaid-${Math.random().toString(36).slice(2, 11)}`;
         let cancelled = false;
-        mermaid.render(id, code)
+        renderMermaid(idDeRender(), code, { oscuro: !isLightTheme(theme) })
             .then((r) => { if (!cancelled) setSvg(r.svg); })
             .catch(() => {
                 if (!cancelled) setSvg('<div class="mde-mermaid-error">Mermaid syntax error</div>');
