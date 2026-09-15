@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation } from "react-icons/lu";
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2 } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
@@ -18,6 +18,7 @@ const DbtLineageGraph = lazy(() => import('./DbtLineageGraph'));
 const AmoxvisPane = lazy(() => import('./AmoxvisPane'));
 const MarkdownEditor = lazy(() => import('./MarkdownEditor'));
 const DeckEditor = lazy(() => import('./deck/DeckEditor'));
+const DiagramEditor = lazy(() => import('./diagram/DiagramEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
 
@@ -80,6 +81,7 @@ const EditorPane = ({
     onToggleAi,       // () -> toggle AI sidebar
     onOpenFile,       // (filePath) -> open a file in a new tab (used by ChainEditor)
     onBuscarProyecto, // abre el panel de busqueda del proyecto (editor de markdown)
+    onAbrirDiagrama,  // ({archivo, indice, original, mermaid}) -> abre AmoxDiagram sobre un bloque de ESTE documento
     availableTables,  // Data Diving only
     onExportNotebook, // Data Diving only
     onExportAmoxvis, // Data Diving chart export
@@ -369,6 +371,15 @@ const EditorPane = ({
                             <span className="ep-empty-card-title">Report Flow</span>
                             <span className="ep-empty-card-desc">Slides from your analyses</span>
                         </button>
+                        {/* Esta tarjeta faltaba, y no estaba en la lista de diez
+                            sitios del plan: es la PRIMERA pantalla de un proyecto
+                            recién abierto, donde todavía no hay barra de pestañas
+                            en la que buscar el «+». */}
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('amoxdiagram')}>
+                            <LuShare2 size={24} />
+                            <span className="ep-empty-card-title">Diagrama</span>
+                            <span className="ep-empty-card-desc">Arquitecturas y procesos</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -383,6 +394,7 @@ const EditorPane = ({
     const isAmoxvis = activeTab.type === 'amoxvis';
     const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
     const isDeck = activeTab.type === 'amoxdeck' || activeTab.name?.endsWith('.amoxdeck');
+    const isDiagram = activeTab.type === 'amoxdiagram' || activeTab.name?.endsWith('.amoxdiagram');
 
     // Track last edit time on content change — ref only, no setState per keystroke
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -568,6 +580,26 @@ const EditorPane = ({
                         />
                         </Suspense>
                     </div>
+                ) : isDiagram ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
+                        <DiagramEditor
+                            key={activeTab.id}
+                            content={activeTab.content}
+                            onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                            onSave={onSave}
+                            onRequestSaveAs={onRequestSaveAs}
+                            theme={theme}
+                            filePath={activeTab.path || null}
+                            isDirty={!!activeTab.dirty}
+                            // De dónde viene el diagrama cuando se abrió desde un
+                            // markdown. Lo rellena la fase 3; hasta entonces toda
+                            // pestaña es un archivo propio.
+                            procedencia={activeTab.procedencia || null}
+                            onOpenFile={onOpenFile}
+                        />
+                        </Suspense>
+                    </div>
                 ) : isMarkdown ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <Suspense fallback={<PaneLoading />}>
@@ -586,6 +618,7 @@ const EditorPane = ({
                             onBuscarProyecto={onBuscarProyecto}
                             filePath={activeTab.path || null}
                             isDirty={!!activeTab.dirty}
+                            onAbrirDiagrama={onAbrirDiagrama}
                         />
                         </Suspense>
                     </div>

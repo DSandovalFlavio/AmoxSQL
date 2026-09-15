@@ -3,7 +3,7 @@ import {
     LuPlay, LuSave, LuFilePlus, LuSettings, LuMoon, LuSun,
     LuBot, LuDatabase, LuFolder, LuPuzzle, LuHistory,
     LuCode, LuBookOpen, LuSearch, LuActivity, LuCommand,
-    LuKeyboard, LuGitBranch, LuZap, LuLifeBuoy,
+    LuKeyboard, LuGitBranch, LuZap, LuLifeBuoy, LuShare2,
     LuPresentation, LuChartBar, LuFile, LuTable, LuColumns3,
 } from 'react-icons/lu';
 import { TOURS, openTour } from './onboarding/tourRegistry';
@@ -297,6 +297,7 @@ export function buildDefaultActions({
         { id: 'new-notebook', label: 'New Notebook', category: 'File', icon: LuBookOpen, shortcut: 'Ctrl+Shift+N', action: () => layoutRef.current?.createNew('notebook') },
         { id: 'new-chain', label: 'New Chain', category: 'File', icon: LuGitBranch, action: () => layoutRef.current?.createNew('sqlchain') },
         { id: 'new-deck', label: 'New Report Flow Deck', category: 'File', icon: LuPresentation, action: () => layoutRef.current?.createNew('amoxdeck') },
+        { id: 'new-diagram', label: 'New Diagram (AmoxDiagram)', category: 'File', icon: LuShare2, action: () => layoutRef.current?.createNew('amoxdiagram') },
         { id: 'new-chart', label: 'New Chart', category: 'File', icon: LuChartBar, action: () => layoutRef.current?.createNew('amoxvis') },
         { id: 'close-tab', label: 'Close Tab', category: 'File', icon: LuCommand, shortcut: 'Ctrl+W', action: () => layoutRef.current?.closeActiveTab() },
 

@@ -7,6 +7,7 @@ import {
 import './MarkdownEditor.css';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import MarkdownPreview from './markdown/MarkdownPreview';
+import { indicePorLinea } from './diagram/diagramMerge';
 import {
     parse, blockAt, replaceLineMarker, toggleTaskLine, sectionProgress,
     moveSection, tasks, enlacesSalientes, leerFrontmatter, escribirFrontmatter,
@@ -118,9 +119,32 @@ const MarkdownEditor = ({
     filePath,
     onBuscarProyecto,
     isDirty,
+    onAbrirDiagrama,
 }) => {
     const toast = useToast();
     const dialog = useDialog();
+
+    /**
+     * Abre un diagrama del documento en su propia pestaña.
+     *
+     * Lo que viaja no es sólo el texto: viaja la **procedencia** —qué archivo,
+     * qué posición entre los diagramas, y cómo estaba el bloque en este
+     * momento—. Sin eso, guardar desde la otra pestaña sería escribir a ciegas
+     * en un documento que puede haber cambiado.
+     */
+    const abrirDiagrama = useCallback((mermaid, linea) => {
+        if (!onAbrirDiagrama) return;
+        if (!filePath) {
+            toast.error('Guarda el documento antes de editar su diagrama.');
+            return;
+        }
+        onAbrirDiagrama({
+            archivo: filePath,
+            indice: indicePorLinea(content, linea),
+            original: mermaid,
+            mermaid,
+        });
+    }, [onAbrirDiagrama, filePath, content, toast]);
 
     const editorRef = useRef(null);
     const containerRef = useRef(null);
@@ -1240,6 +1264,7 @@ ${snippet}` : snippet);
                                 filePath={filePath}
                                 onToggleTask={handleToggleTask}
                                 taskProgress={taskProgress}
+                                onEditarDiagrama={abrirDiagrama}
                             />
                         </div>
                     )}

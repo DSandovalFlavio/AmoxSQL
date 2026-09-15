@@ -5,6 +5,60 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.6.0] — 2026-09-15
+
+### AmoxDiagram — un editor visual de diagramas
+
+Un editor con su propia pestaña y su propio archivo, igual que el de documentos.
+Se dibuja uno desde cero, o se abre el que ya vive dentro de un `.md` y se
+devuelve a su sitio **sin tocar el resto del documento**.
+
+La decisión que ordena todo lo demás: **la geometría no la ponemos nosotros.**
+Mermaid calcula las posiciones para dibujar y las publica en el SVG que
+devuelve, así que en vez de traerse una librería de disposición y colocar las
+cajas a nuestra manera, se le pregunta a quien va a dibujar el diagrama de
+verdad. El efecto secundario es el que importa: **el editor enseña exactamente
+lo que el documento va a renderizar.** No es que el problema de los dos dibujos
+se resuelva; es que deja de existir.
+
+La segunda: **tres niveles de comprensión, no dos.** *Entiendo* (lo edito),
+*conservo* (lo dejo literal donde estaba) y *no abro*. El nivel de en medio es
+el que permite abrir diagramas reales sin destruir lo que no sabemos leer — un
+`click`, un `classDef` raro, un comentario salen por donde entraron.
+
+- **Su formato.** `.amoxdiagram` es front-matter más un bloque de mermaid:
+  legible, diffeable y editable a mano. El serializador es **estable** — son
+  archivos versionados, y un guardado que reordena líneas convierte cada commit
+  en ruido.
+- **La vuelta al documento.** Si el diagrama vino de un `.md`, el botón lo dice:
+  *Guardar en arquitectura.md*. Se reescribe sólo ese bloque. Si alguien tocó el
+  documento mientras editabas, **se avisa antes de escribir** y hay tres salidas:
+  cancelar, guardar aparte como archivo propio, o sobrescribir. Todo lo demás en
+  este editor se deshace; esto no.
+- **Zonas y capas**, que son las dos cosas que convierten un montón de cajas en
+  una arquitectura. Una zona agrupa en un recuadro; una capa es un color, y sale
+  del `classDef` del propio diagrama y no de una paleta nuestra — así la caja se
+  ve en el editor igual que se verá en el documento.
+- **Catorce formas**, nombradas por su significado y no por su sintaxis. Y **la
+  paleta aprende**: mermaid dibuja bastantes más con nombre propio, y meterlas
+  todas la convertiría en un catálogo, así que la base es corta y cada uno se
+  queda con las que usa. Si el diagrama trae una desconocida, el editor ofrece
+  guardarla — le pregunta a mermaid cómo la dibuja y guarda su contorno.
+- **Exportar a SVG y PNG** pidiéndoselos a mermaid, no haciendo una captura del
+  lienzo. El SVG para imprimir o ampliar; el PNG para pegarlo en una
+  presentación.
+- **La salida digna.** Si el bloque no se entiende, el botón no aparece y todo
+  se comporta como antes: silencio, no error. Salvo cuando es un flowchart que
+  casi entendemos — ahí un aviso discreto que dice **qué línea** no se supo leer.
+
+Antes de escribir una sola línea se plantearon cuarenta preguntas de usabilidad
+desde la silla del ingeniero de datos (`docs/dev/auditoria_editor_mermaid.md`), y
+una de ellas tumbó una decisión del plan original. El plan es también la
+bitácora: cada desvío está escrito en `docs/dev/plan_editor_mermaid.md`.
+Documentación de usuario en `docs/es|en/editor/amoxdiagram.md`.
+
+---
+
 ## [5.5.0] — 2026-09-15
 
 ### El Studio de Report Flow, rediseñado

@@ -32,6 +32,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | History & bookmarks | [es](es/editor/history-and-bookmarks.md) | [en](en/editor/history-and-bookmarks.md) | 🟢 |
 | Command palette | [es](es/editor/command-palette.md) | [en](en/editor/command-palette.md) | 🟢 |
 | Layout, tabs & panes | [es](es/editor/layout-tabs-and-panes.md) | [en](en/editor/layout-tabs-and-panes.md) | 🟢 |
+| AmoxDiagram | [es](es/editor/amoxdiagram.md) | [en](en/editor/amoxdiagram.md) | 🟢 |
 
 ## Notebooks
 | Page | Español | English | Status |

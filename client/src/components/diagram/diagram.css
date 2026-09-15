@@ -1,0 +1,529 @@
+/**
+ * AmoxDiagram. Las medidas salen del contrato visual
+ * (docs/dev/mockup_editor_mermaid.html, sección «Las medidas»).
+ *
+ * Todo en píxeles: esto es interfaz del editor, no contenido que escale con un
+ * lienzo. Y los estilos son SUYOS, no prestados de otro componente — el Studio
+ * del deck se quedó sin barra cuando el editor de markdown se rediseñó y borró
+ * dos clases que aquél usaba sin declararlas.
+ */
+
+.dgm-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--surface-base); }
+
+/* ── barra ─────────────────────────────────────────────────────────── */
+/**
+ * La barra NO se parte en dos filas.
+ *
+ * Con `flex-wrap: wrap` lo hacía en silencio: al añadir los botones de exportar,
+ * 947 px de controles en un hueco de 921 dejaron **Guardar en una segunda fila**
+ * — el mismo fallo que dejó al Studio del deck sin su botón de guardar.
+ *
+ * Sin envolver, lo que cede es el **título**, que es lo único prescindible aquí:
+ * se recorta con puntos suspensivos. Así la barra aguanta un nombre de archivo
+ * de cualquier longitud sin empujar nada fuera.
+ */
+.dgm-bar {
+    display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+    padding: 6px 12px; min-height: 40px;
+    background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);
+}
+.dgm-title {
+    display: flex; align-items: center; gap: 7px;
+    color: var(--text-primary); font-weight: 600; font-size: 12.5px;
+    min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* La pastilla no encoge ni se parte: **el título es lo único que cede**. Dejando
+   que encogiera, «archivo propio» se partía en dos renglones y la barra parecía
+   rota; y es justo la etiqueta que contesta «¿de quién es este diagrama?». Lo
+   que sí se acota es el nombre del archivo de procedencia, que puede ser largo. */
+.dgm-origin { flex: none; white-space: nowrap; }
+.dgm-origin-file { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dgm-spacer { flex: 1; }
+.dgm-sep { width: 1px; height: 16px; background: var(--border-subtle); margin: 0 3px; }
+
+.dgm-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 9px; height: 25px; width: auto;
+    border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: transparent; color: var(--text-secondary);
+    font-size: 12px; white-space: nowrap; cursor: pointer;
+}
+.dgm-btn:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
+.dgm-btn:disabled { opacity: .45; cursor: default; }
+.dgm-btn--on { background: color-mix(in oklch, var(--accent-primary) 18%, transparent); border-color: transparent; color: var(--accent-primary); }
+.dgm-btn--primary { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--accent-contrast, #101018); font-weight: 600; }
+.dgm-btn--primary:hover:not(:disabled) { background: var(--accent-primary); filter: brightness(1.07); }
+.dgm-btn--icono { padding: 0; width: 22px; height: 22px; justify-content: center; border-color: transparent; }
+.dgm-btn-n {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px;
+    background: var(--color-warning, oklch(.8 .14 78)); color: #1a1a2e; font-size: 9px; font-weight: 800;
+}
+/* Un `svg` dentro de un contenedor flexible es un elemento flexible más y se
+   encoge cuando aprieta — sólo que encogerlo lo DEFORMA. Se midieron iconos de
+   18 px renderizados a 8×19 antes de arreglarlo en toda la aplicación. */
+.dgm-bar svg, .dgm-btn svg { flex: none; }
+
+.dgm-origin {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 9px 0 7px; border-radius: 12px;
+    background: color-mix(in oklch, var(--accent-primary) 8%, transparent);
+    border: 1px solid color-mix(in oklch, var(--accent-primary) 18%, transparent);
+    color: var(--accent-primary); font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.dgm-origin:hover { background: color-mix(in oklch, var(--accent-primary) 14%, transparent); }
+.dgm-origin-file { color: var(--text-primary); font-weight: 500; font-family: var(--font-mono, monospace); font-size: 10.5px; }
+.dgm-origin--propio {
+    background: var(--surface-overlay); border-color: var(--border-default);
+    color: var(--text-tertiary); cursor: default; font-weight: 500;
+}
+
+/* ── cuerpo ────────────────────────────────────────────────────────── */
+.dgm-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.dgm-stage { flex: 1; min-height: 0; position: relative; }
+.dgm-canvas { width: 100%; height: 100%; }
+
+.dgm-vacio {
+    height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 9px; color: var(--text-tertiary); text-align: center; padding: 26px;
+}
+.dgm-vacio p { margin: 0; max-width: 46ch; font-size: 12.5px; }
+.dgm-vacio b { color: var(--text-primary); }
+.dgm-vacio-por { color: var(--text-disabled); font-size: 11.5px; }
+
+/* ── caja ──────────────────────────────────────────────────────────── */
+.dgm-node {
+    display: flex; align-items: center; justify-content: center;
+    box-sizing: border-box; min-height: 32px;
+    font-size: 11px; font-weight: 600; line-height: 1.25; text-align: center;
+    color: var(--text-primary);
+}
+.dgm-node-body {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%; padding: 6px 10px;
+    background: var(--surface-overlay);
+    border: 1.5px solid var(--border-strong);
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.dgm-node-txt { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.dgm-node--redondeado .dgm-node-body { border-radius: 16px; }
+.dgm-node--almacen   .dgm-node-body { border-radius: 13px / 22px; }
+.dgm-node--hito      .dgm-node-body { border-radius: 50%; padding: 4px; }
+
+/* Un `clip-path` no deja NADA fuera del recorte, filete incluido. El contorno
+   se dibuja con `outline` hacia dentro, que sí sobrevive al recorte. */
+.dgm-node--decision .dgm-node-body {
+    border: none; border-radius: 0;
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+    padding: 6px 14px;
+}
+.dgm-node--entrada .dgm-node-body {
+    border: none; border-radius: 0;
+    clip-path: polygon(13% 0, 100% 0, 87% 100%, 0 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+.dgm-node--salida .dgm-node-body {
+    border: none; border-radius: 0;
+    clip-path: polygon(0 0, 78% 0, 100% 100%, 22% 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+
+/* Las siete que llegaron después. Las tres recortadas siguen el mismo patrón que
+   la decisión: sin borde, con `outline` hacia dentro, que es lo que sobrevive a
+   un `clip-path`. */
+.dgm-node--estadio .dgm-node-body { border-radius: 999px; }
+.dgm-node--subproceso .dgm-node-body {
+    border-radius: 3px;
+    box-shadow: inset 4px 0 0 -1.5px var(--border-strong), inset -4px 0 0 -1.5px var(--border-strong);
+}
+.dgm-node--fin .dgm-node-body { border-radius: 50%; padding: 4px; box-shadow: inset 0 0 0 2.5px var(--surface-base); }
+.dgm-node--preparacion .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 16px;
+    clip-path: polygon(11% 0, 89% 0, 100% 50%, 89% 100%, 11% 100%, 0 50%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+/* Estas cuatro salen de MEDIR lo que dibuja mermaid, no de deducirlo: la
+   primera versión puso el mismo recorte en `salida` y en `manual` —idénticas en
+   pantalla, que es un fallo sin mensaje— y las otras dos estaban del revés.
+   Leídas de su SVG: `[\ \]` es un paralelogramo inclinado a la izquierda,
+   `[/ \]` un trapecio ESTRECHO ARRIBA y `[\ /]` uno ANCHO arriba. */
+.dgm-node--manual .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 16px;
+    clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+.dgm-node--manualEntrada .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 16px;
+    clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+.dgm-node--nota .dgm-node-body {
+    border: none; border-radius: 0; padding: 6px 10px 6px 16px;
+    clip-path: polygon(0 50%, 14% 0, 100% 0, 100% 100%, 14% 100%);
+    outline: 1.5px solid var(--border-strong); outline-offset: -1.5px;
+}
+
+.dgm-node--sel .dgm-node-body { border-color: var(--accent-primary); outline-color: var(--accent-primary); }
+.dgm-node--sel { box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent-primary) 22%, transparent); border-radius: 5px; }
+
+.dgm-node-badge {
+    position: absolute; top: -7px; right: -7px;
+    height: 15px; padding: 0 5px; border-radius: 8px;
+    background: var(--accent-primary); color: var(--accent-contrast, #101018);
+    font-size: 9px; font-weight: 800; display: flex; align-items: center;
+}
+.dgm-handle { width: 7px; height: 7px; background: var(--border-strong); border: none; opacity: 0; }
+.dgm-node:hover .dgm-handle { opacity: 1; }
+
+/* ── grupo ─────────────────────────────────────────────────────────── */
+.dgm-group {
+    box-sizing: border-box; width: 100%; height: 100%;
+    border: 1.5px dashed var(--border-strong); border-radius: 8px;
+    background: color-mix(in oklch, var(--text-tertiary) 4%, transparent);
+}
+.dgm-group-tit {
+    position: absolute; top: -9px; left: 11px; padding: 0 7px;
+    background: var(--surface-base);
+    font-size: 9px; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--text-tertiary); font-weight: 700; white-space: nowrap;
+}
+.dgm-group--sel { border-color: var(--accent-primary); border-style: solid; }
+
+/* ── panel de texto ────────────────────────────────────────────────── */
+.dgm-texto { height: 190px; display: flex; flex-direction: column; border-top: 1px solid var(--border-default); background: var(--surface-inset, var(--surface-raised)); }
+.dgm-texto-cab {
+    display: flex; align-items: center; gap: 8px; padding: 6px 11px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--text-disabled); font-weight: 700;
+}
+.dgm-texto-n { text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+.dgm-texto-cod {
+    flex: 1; min-height: 0; margin: 0; padding: 9px 12px; overflow: auto;
+    font-family: var(--font-mono, monospace); font-size: 11px; line-height: 1.72;
+    color: var(--text-secondary); white-space: pre;
+}
+.dgm-texto-leyenda { padding: 7px 12px; border-top: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-tertiary); }
+.dgm-pip { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.dgm-pip--warn { background: var(--color-warning, oklch(.8 .14 78)); }
+.dgm-texto-plegado {
+    display: flex; align-items: center; gap: 7px; width: 100%; height: 27px; padding: 0 12px;
+    border: none; border-top: 1px solid var(--border-default); background: var(--surface-raised);
+    color: var(--text-disabled); font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
+    font-weight: 700; cursor: pointer;
+}
+.dgm-texto-plegado:hover { color: var(--text-secondary); }
+
+/* ── repaso ────────────────────────────────────────────────────────── */
+.dgm-repaso {
+    position: absolute; top: 12px; right: 12px; z-index: 6; width: 300px;
+    border: 1px solid var(--border-strong); border-radius: 10px;
+    background: var(--surface-raised); box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+    padding: 12px 13px;
+}
+.dgm-repaso-tit { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-primary); font-weight: 700; margin-bottom: 9px; }
+.dgm-repaso-fila { display: flex; align-items: flex-start; gap: 7px; font-size: 11.5px; color: var(--text-secondary); padding: 3px 0; }
+.dgm-repaso-fila svg { color: var(--color-warning, oklch(.8 .14 78)); margin-top: 2px; flex: none; }
+.dgm-repaso-fila--ok { color: var(--text-tertiary); }
+.dgm-repaso-pie { margin: 9px 0 0; font-size: 10.5px; color: var(--text-disabled); }
+
+/* ── React Flow, encajado en el tema ───────────────────────────────── */
+.dgm-canvas .react-flow__controls { box-shadow: none; }
+.dgm-canvas .react-flow__controls-button {
+    background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary); width: 25px; height: 25px;
+}
+.dgm-canvas .react-flow__controls-button svg { fill: currentColor; }
+.dgm-canvas .react-flow__controls-button:hover { background: var(--hover-bg); }
+.dgm-minimap {
+    width: 112px; height: 62px; overflow: hidden;
+    border: 1px solid var(--border-default); border-radius: 5px;
+    background: var(--surface-inset, var(--surface-raised));
+}
+/* React Flow le pone al SVG del minimapa un `width`/`height` fijos (200×150) por
+   atributo. Dentro de un recuadro de 112×62 eso no encoge el dibujo: lo recorta,
+   y sólo se ve su esquina superior izquierda — un rectángulo negro con un par de
+   cajas asomando, que parece un fallo de pintado. Forzándolo al 100 % el
+   `viewBox` hace su trabajo y el diagrama entero cabe. */
+.dgm-minimap .react-flow__minimap-svg { width: 100%; height: 100%; display: block; }
+.dgm-canvas .react-flow__edge-text { font-size: 9.5px; fill: var(--text-tertiary); font-weight: 600; }
+.dgm-canvas .react-flow__edge-textbg { fill: var(--surface-base); }
+.dgm-canvas .react-flow__node { font-family: inherit; }
+
+/* ── las tres columnas ─────────────────────────────────────────────── */
+.dgm-cuerpo { flex: 1; min-height: 0; display: flex; }
+.dgm-centro { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dgm-izq {
+    width: 168px; flex: none; display: flex; flex-direction: column; min-height: 0;
+    background: var(--surface-raised); border-right: 1px solid var(--border-subtle);
+}
+.dgm-der {
+    width: 248px; flex: none; overflow-y: auto;
+    background: var(--surface-raised); border-left: 1px solid var(--border-subtle);
+}
+.dgm-col-cab {
+    display: flex; align-items: center; gap: 6px; padding: 9px 11px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--text-disabled); font-weight: 700;
+}
+.dgm-col-n { text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--text-tertiary); }
+.dgm-btn--apagado { color: var(--text-disabled); }
+
+/* ── paleta y siluetas ─────────────────────────────────────────────── */
+.dgm-paleta, .dgm-formas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 9px 8px; }
+.dgm-formas { padding: 0; }
+.dgm-forma {
+    height: 30px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--surface-overlay); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+}
+.dgm-forma:hover { border-color: var(--border-strong); }
+.dgm-forma--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); }
+.dgm-forma--on .dgm-silueta { border-color: var(--accent-primary); background-color: var(--accent-primary); }
+
+/* Las catorce siluetas, en CSS. Las recortadas llevan relleno en vez de filete:
+   a 12 px un contorno recortado por `clip-path` no se lee. */
+.dgm-silueta { display: block; width: 19px; height: 12px; border: 1.5px solid var(--text-tertiary); background: transparent; }
+.dgm-silueta--mini { width: 13px; height: 9px; border-width: 1.2px; flex: none; }
+.dgm-silueta--redondeado { border-radius: 6px; }
+.dgm-silueta--almacen { border-radius: 7px / 4px; }
+.dgm-silueta--hito { width: 13px; height: 13px; border-radius: 50%; }
+.dgm-silueta--mini.dgm-silueta--hito { width: 9px; height: 9px; }
+.dgm-silueta--decision { width: 13px; height: 13px; transform: rotate(45deg); }
+.dgm-silueta--mini.dgm-silueta--decision { width: 9px; height: 9px; }
+/* Mismos recortes que las cajas del lienzo, y por la misma razón: una silueta
+   que no coincide con la forma que va a salir es peor que no tener silueta. */
+.dgm-silueta--entrada { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%); }
+.dgm-silueta--salida { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 0, 78% 0, 100% 100%, 22% 100%); }
+.dgm-silueta--mini.dgm-silueta--entrada, .dgm-silueta--mini.dgm-silueta--salida { height: 8px; }
+
+/* Las siete que llegaron después. El estadio y el fin usan el filete doble o el
+   radio completo para distinguirse de sus parientes de una sola línea. */
+.dgm-silueta--estadio { border-radius: 6px / 50%; }
+.dgm-silueta--subproceso { box-shadow: inset 2.5px 0 0 -1px var(--text-tertiary), inset -2.5px 0 0 -1px var(--text-tertiary); }
+.dgm-silueta--preparacion { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(14% 0, 86% 0, 100% 50%, 86% 100%, 14% 100%, 0 50%); }
+.dgm-silueta--manual { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(22% 0, 78% 0, 100% 100%, 0 100%); }
+.dgm-silueta--manualEntrada { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%); }
+.dgm-silueta--nota { border: none; height: 11px; background-color: var(--text-tertiary); clip-path: polygon(0 50%, 14% 0, 100% 0, 100% 100%, 14% 100%); }
+.dgm-silueta--fin { width: 13px; height: 13px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--text-tertiary); border-width: 1.5px; background-clip: padding-box; }
+.dgm-silueta--mini.dgm-silueta--fin { width: 9px; height: 9px; }
+.dgm-silueta--mini.dgm-silueta--preparacion,
+.dgm-silueta--mini.dgm-silueta--manual,
+.dgm-silueta--mini.dgm-silueta--manualEntrada,
+.dgm-silueta--mini.dgm-silueta--nota { height: 8px; }
+/* Una silueta rellena tiene que teñirse de acento igual que las de filete
+   cuando su forma está elegida. */
+.dgm-forma--on .dgm-silueta--preparacion, .dgm-forma--on .dgm-silueta--manual,
+.dgm-forma--on .dgm-silueta--manualEntrada, .dgm-forma--on .dgm-silueta--nota { background-color: var(--accent-primary); }
+.dgm-forma--on .dgm-silueta--subproceso, .dgm-forma--on .dgm-silueta--fin {
+    box-shadow: inset 2.5px 0 0 -1px var(--accent-primary), inset -2.5px 0 0 -1px var(--accent-primary);
+}
+.dgm-forma--on .dgm-silueta--fin { box-shadow: inset 0 0 0 1.5px var(--accent-primary); }
+
+/* ── buscador y esquema ────────────────────────────────────────────── */
+.dgm-buscador {
+    display: flex; align-items: center; gap: 6px; margin: 8px 8px 6px; padding: 0 8px;
+    height: 26px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--surface-inset, var(--surface-base)); color: var(--text-disabled);
+}
+.dgm-buscador svg { flex: none; }
+.dgm-buscador-inp { flex: 1; min-width: 0; border: none; background: none; color: var(--text-primary); font: inherit; font-size: 11.5px; outline: none; }
+.dgm-buscador-x { border: none; background: none; color: var(--text-disabled); cursor: pointer; display: flex; padding: 0; }
+.dgm-buscador-x:hover { color: var(--text-primary); }
+
+.dgm-lista { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.dgm-grupo-rot {
+    margin: 9px 0 3px; padding: 0 4px; font-size: 9px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent-primary); font-weight: 700;
+}
+.dgm-fila {
+    display: flex; align-items: center; gap: 7px; width: 100%; padding: 4px 7px;
+    border: none; border-radius: 6px; background: none; cursor: pointer;
+    font-size: 11.5px; color: var(--text-secondary); text-align: left; min-width: 0;
+}
+.dgm-fila:hover { background: var(--hover-bg); }
+.dgm-fila--on { background: var(--active-bg, var(--hover-bg)); color: var(--text-primary); }
+.dgm-fila-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dgm-lista-vacia { margin: 10px 4px; font-size: 11px; color: var(--text-disabled); }
+
+/* ── inspector ─────────────────────────────────────────────────────── */
+.dgm-insp { display: flex; flex-direction: column; }
+.dgm-insp-cab { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-bottom: 1px solid var(--border-subtle); min-width: 0; }
+.dgm-insp-cab > svg { color: var(--accent-primary); flex: none; }
+.dgm-insp-cab > div { min-width: 0; }
+.dgm-insp-tipo { font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--accent-primary); font-weight: 700; }
+.dgm-insp-que { font-size: 11.5px; color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dgm-campo { padding: 10px 11px; border-bottom: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 7px; }
+.dgm-campo--acciones { flex-direction: row; gap: 6px; }
+.dgm-campo-lab { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-disabled); font-weight: 700; }
+.dgm-inp {
+    height: 27px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--surface-inset, var(--surface-base)); padding: 0 9px;
+    font: inherit; font-size: 11.5px; color: var(--text-primary); outline: none; width: 100%;
+}
+.dgm-inp:focus { border-color: var(--accent-primary); }
+.dgm-inp--lectura { display: flex; align-items: center; color: var(--text-secondary); }
+.dgm-ph { color: var(--text-disabled); }
+.dgm-dato { font-size: 11.5px; color: var(--text-secondary); }
+.dgm-dato--warn { color: var(--color-warning, oklch(.8 .14 78)); }
+
+.dgm-dirs { display: flex; gap: 5px; }
+.dgm-dir {
+    flex: 1; height: 27px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: none; color: var(--text-secondary); cursor: pointer; font-size: 13px;
+}
+.dgm-dir:hover { border-color: var(--border-strong); }
+.dgm-dir--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); color: var(--accent-primary); }
+
+.dgm-flechas { display: flex; flex-direction: column; gap: 4px; }
+.dgm-flecha {
+    display: flex; align-items: center; gap: 9px; padding: 5px 9px;
+    border: 1px solid var(--border-subtle); border-radius: 6px; background: none;
+    color: var(--text-secondary); font-size: 11.5px; cursor: pointer; text-align: left;
+}
+.dgm-flecha:hover { border-color: var(--border-strong); }
+.dgm-flecha--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); color: var(--text-primary); }
+.dgm-trazo { display: block; width: 28px; flex: none; border-top: 1.6px solid var(--text-tertiary); }
+.dgm-trazo--continuo { border-top-style: dashed; }
+.dgm-trazo--principal { border-top-width: 3.2px; }
+.dgm-flecha--on .dgm-trazo { border-top-color: var(--accent-primary); }
+
+/* ── renombrar en el sitio ─────────────────────────────────────────── */
+.dgm-node-inp {
+    width: 100%; border: none; background: none; outline: none;
+    font: inherit; font-size: 11px; font-weight: 600; text-align: center;
+    color: var(--text-primary);
+}
+
+/* ── el globo de «las coordenadas no se fijan» ─────────────────────── */
+.dgm-globo {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 7;
+    display: flex; align-items: center; gap: 12px; max-width: 470px;
+    padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface-overlay); box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+}
+.dgm-globo p { margin: 0; font-size: 11.5px; color: var(--text-secondary); }
+.dgm-globo b { color: var(--text-primary); }
+
+/* ── el panel de texto, ahora editable ─────────────────────────────── */
+textarea.dgm-texto-cod {
+    width: 100%; border: none; outline: none; resize: none;
+    background: none; color: var(--text-secondary);
+}
+textarea.dgm-texto-cod--mal { color: var(--text-primary); box-shadow: inset 2px 0 0 var(--color-error, #ff7a7a); }
+.dgm-texto-leyenda--mal { display: flex; align-items: center; gap: 7px; color: var(--color-error, #ff7a7a); }
+.dgm-texto-leyenda--mal svg { flex: none; }
+
+/* ── el diálogo del conflicto ──────────────────────────────────────── */
+.dgm-velo {
+    position: absolute; inset: 0; z-index: 9;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in oklch, var(--surface-base) 72%, transparent);
+    padding: 20px;
+}
+.dgm-dialogo {
+    max-width: 440px; padding: 17px 18px;
+    border: 1px solid var(--border-strong); border-radius: 10px;
+    background: var(--surface-raised); box-shadow: 0 10px 34px rgba(0, 0, 0, .55);
+}
+.dgm-dialogo h5 {
+    margin: 0 0 8px; display: flex; align-items: center; gap: 8px;
+    font-size: 13.5px; color: var(--text-primary); font-weight: 700;
+}
+.dgm-dialogo h5 svg { color: var(--color-warning, oklch(.8 .14 78)); flex: none; }
+.dgm-dialogo p { margin: 0 0 14px; font-size: 12px; color: var(--text-secondary); }
+.dgm-dialogo-botones { display: flex; gap: 7px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* ── capas ─────────────────────────────────────────────────────────── */
+.dgm-capas { display: flex; flex-wrap: wrap; gap: 5px; }
+.dgm-capa {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 23px; padding: 0 8px; border-radius: 12px;
+    border: 1px solid var(--border-subtle); background: none;
+    color: var(--text-secondary); font: inherit; font-size: 11px; cursor: pointer;
+}
+.dgm-capa:hover { border-color: var(--border-strong); }
+.dgm-capa--on { border-color: transparent; background: var(--active-bg, var(--hover-bg)); color: var(--text-primary); font-weight: 600; }
+.dgm-capa--nueva { color: var(--text-disabled); border-style: dashed; }
+.dgm-capa--nueva:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+.dgm-capa-pip { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.dgm-capa svg { flex: none; }
+.dgm-nota { margin: 10px 11px; font-size: 10.5px; color: var(--text-disabled); }
+
+/* Un `select` no hereda el aspecto de un `input`: hay que dárselo. */
+select.dgm-inp { appearance: none; padding-right: 26px; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-tertiary) 50%),
+                      linear-gradient(135deg, var(--text-tertiary) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 12px, calc(100% - 9px) 12px;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+/* Un grupo seleccionable ya no es decorado: responde al ratón. */
+.dgm-group { cursor: pointer; }
+.dgm-group:hover { border-color: var(--text-tertiary); }
+
+/* ── formas aprendidas ─────────────────────────────────────────────── */
+/* Una silueta que viene de mermaid no tiene CSS propio: su contorno llega como
+   máscara y el color lo pone este `currentColor`, con lo cual sigue el tema
+   igual que las catorce dibujadas a mano. */
+.dgm-silueta--libre { border: none; background: transparent; width: 19px; height: 14px; color: var(--text-tertiary); }
+.dgm-silueta--mini.dgm-silueta--libre { width: 13px; height: 10px; }
+.dgm-forma--aprendida { border-style: dashed; }
+.dgm-forma--aprendida:hover { border-style: solid; border-color: var(--accent-primary); }
+.dgm-forma--aprendida .dgm-silueta--libre { color: var(--text-secondary); }
+
+/* En el lienzo, una caja aprendida deja el contorno a la máscara y se queda sin
+   filete propio: dos contornos encima el uno del otro se leen como un error. */
+.dgm-node-body--aprendida { background: none; border: none; outline: none; }
+.dgm-node-mascara {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    color: var(--border-strong);
+}
+.dgm-node--sel .dgm-node-mascara { color: var(--accent-primary); }
+.dgm-node-body--aprendida .dgm-node-txt { position: relative; z-index: 1; }
+
+.dgm-globo--abajo { top: auto; bottom: 14px; }
+
+/* ── el menú de exportar ───────────────────────────────────────────── */
+.dgm-menu { position: relative; display: inline-flex; }
+.dgm-menu-lista {
+    position: absolute; top: calc(100% + 5px); left: 0; z-index: 12; min-width: 210px;
+    display: flex; flex-direction: column; padding: 4px;
+    border: 1px solid var(--border-strong); border-radius: 8px;
+    background: var(--surface-overlay); box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+}
+.dgm-menu-lista button {
+    display: flex; align-items: baseline; gap: 8px; padding: 6px 9px;
+    border: none; border-radius: 6px; background: none; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 600; color: var(--text-primary); text-align: left;
+}
+.dgm-menu-lista button:hover { background: var(--hover-bg); }
+.dgm-menu-lista span { font-weight: 400; font-size: 11px; color: var(--text-tertiary); }
+
+/* ── la tira flotante sobre la selección ───────────────────────────── */
+.dgm-tira {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 7;
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface-overlay); box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+}
+.dgm-tira .dgm-btn { background: var(--surface-raised); }
+.dgm-tira .dgm-btn--primary { background: var(--accent-primary); }
+.dgm-tira-n {
+    padding: 0 6px 0 4px; font-size: 11px; font-weight: 600;
+    color: var(--text-tertiary); white-space: nowrap;
+}
+
+/* La pista de un atajo: se lee si se busca, y no compite con el campo. */
+.dgm-pista { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--text-disabled); }
+.dgm-pista kbd {
+    font: inherit; font-size: 9.5px; padding: 1px 4px;
+    border: 1px solid var(--border-default); border-radius: 4px;
+    background: var(--surface-inset, var(--surface-base)); color: var(--text-tertiary);
+}
+
+/* La fila del repaso es un botón desde que salta a la caja. */
+button.dgm-repaso-fila { width: 100%; border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 11.5px; }
+button.dgm-repaso-fila:hover { color: var(--text-primary); }

@@ -4,7 +4,7 @@ import {
     LuFolder, LuFolderPlus, LuFilePlus, LuRefreshCw,
     LuArrowUp, LuEllipsisVertical, LuFileCode, LuBookOpen,
     LuTable, LuDatabase, LuFile, LuSearch, LuFileSpreadsheet, LuChartBar,
-    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType,
+    LuPencil, LuTrash2, LuFileText, LuGitBranch, LuCopy, LuClipboard, LuType, LuShare2,
     LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader, LuBrain,
     LuFileCode2, LuPackage, LuBot,
     LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles, LuSparkles,
@@ -175,7 +175,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         } else {
             const lowerName = file.name.toLowerCase();
             // SQL scripts & notebooks & markdown & deck files → open in editor
-            if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md') || lowerName.endsWith('.amoxdeck')) {
+            if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md') || lowerName.endsWith('.amoxdeck') || lowerName.endsWith('.amoxdiagram')) {
                 onFileOpen(file.path);
                 // Chart configs → open chart editor
             } else if (lowerName.endsWith('.amoxvis')) {
@@ -239,6 +239,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         if (lowerName.endsWith('.sqlchain')) return <LuGitBranch size={14} color="var(--accent-primary)" />;
         if (lowerName.endsWith('.md')) return <LuFileText size={14} color="var(--icon-md)" />;
         if (lowerName.endsWith('.amoxdeck')) return <LuPresentation size={14} color="var(--accent-primary)" />;
+        if (lowerName.endsWith('.amoxdiagram')) return <LuShare2 size={14} color="var(--accent-primary)" />;
         if (lowerName.endsWith('.amoxvis')) return <LuChartBar size={14} color="var(--icon-parquet)" />;
         if (lowerName.match(/\.(xlsx|xls)$/i)) return <LuFileSpreadsheet size={14} color="var(--icon-excel)" />;
         if (lowerName.match(/\.csv$/i)) return <LuFileSpreadsheet size={14} color="var(--icon-csv)" />;
@@ -276,6 +277,7 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
         if (n.match(/\.(xlsx|xls)$/)) return '6_Excel';
         if (n.endsWith('.amoxvis')) return '7_Charts';
         if (n.endsWith('.amoxdeck')) return '7b_Decks';
+        if (n.endsWith('.amoxdiagram')) return '7c_Diagrams';
         if (n.match(/\.(md|mdx|txt|rst)$/)) return '8_Documentation';
         if (n.match(/\.(yml|yaml|toml|ini|env|cfg|conf)$/)) return '9_Config';
         return 'A_Other';
@@ -702,6 +704,9 @@ const FileExplorer = ({ editorSettings = {}, onFileClick, onFileOpen, onNewFile,
                     </button>
                     <button onClick={() => onNewFile(currentPath, 'amoxdeck')} title="New Report Flow Deck" className="fe-header-btn">
                         <LuPresentation size={13} />
+                    </button>
+                    <button onClick={() => onNewFile(currentPath, 'amoxdiagram')} title="Nuevo diagrama (AmoxDiagram)" className="fe-header-btn">
+                        <LuShare2 size={13} />
                     </button>
                     <button onClick={() => onNewFolder(currentPath)} title="New Folder" className="fe-header-btn">
                         <LuFolderPlus size={13} />

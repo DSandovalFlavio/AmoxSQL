@@ -7,12 +7,13 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
-import mermaid from 'mermaid';
+import { renderMermaid, idDeRender } from './mermaidRuntime';
+import { parsearFlujo } from './mermaidFlow';
 import { frontmatterRange } from './markdownModel.js';
 import 'katex/dist/katex.min.css';
 import {
     LuMaximize2, LuX, LuCopy, LuCheck, LuInfo, LuTriangleAlert, LuLightbulb,
-    LuOctagonAlert, LuCircleAlert, LuZoomIn, LuZoomOut, LuRotateCcw, LuFileCode2, LuEye,
+    LuOctagonAlert, LuCircleAlert, LuZoomIn, LuZoomOut, LuRotateCcw, LuFileCode2, LuEye, LuShare2,
 } from 'react-icons/lu';
 import { nodeToText, remarkAlerts, isExternalHref, cleanRelPath, INTERNAL_LINK_RE } from './markdownUtils';
 import { isLightTheme } from '../../theme.js';
@@ -107,35 +108,21 @@ function FullscreenViewer({ onClose, children }) {
 }
 
 // ── Mermaid diagram with fullscreen ─────────────────────────────────────────
-// Mermaid measures each label's width in a hidden container to size the node
-// box, then renders. If the measuring font differs from the rendered font, the
-// box comes out too narrow and the last letters get clipped. Mermaid's default
-// is trebuchet ms, but the preview renders in the app font (Manrope, wider), so
-// we pin BOTH measure and render to the same stack — mermaid injects its own
-// <style> with this fontFamily into the SVG, so measure == render everywhere
-// (preview and fullscreen portal alike).
-const MERMAID_FONT = "'Manrope', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-let lastMermaidTheme = null;
-function MermaidDiagram({ code, theme }) {
+// La configuración de mermaid vive en `mermaidRuntime.js` desde que AmoxDiagram
+// pasó a ser un segundo consumidor: `mermaid.initialize()` es global al módulo,
+// así que la caché de «último tema aplicado» que había aquí dejó de ser cierta
+// en cuanto otro sitio configuró por su cuenta.
+function MermaidDiagram({ code, theme, onEditar }) {
     const [svg, setSvg] = useState('');
     const [fs, setFs] = useState(false);
+    // El boton de editar solo aparece si el diagrama SE PUEDE abrir. Un boton
+    // que a veces da error es peor que un boton que a veces no esta: un
+    // `sequenceDiagram` no es un fallo, es otro tipo de diagrama.
+    const editable = !!onEditar && !!parsearFlujo(code);
 
     useEffect(() => {
-        const mermaidTheme = isLightTheme(theme) ? 'default' : 'dark';
-        if (lastMermaidTheme !== mermaidTheme) {
-            mermaid.initialize({
-                startOnLoad: false,
-                theme: mermaidTheme,
-                securityLevel: 'loose',
-                fontFamily: MERMAID_FONT,
-                themeVariables: { fontFamily: MERMAID_FONT },
-                flowchart: { htmlLabels: true, useMaxWidth: true },
-            });
-            lastMermaidTheme = mermaidTheme;
-        }
-        const id = `mermaid-${Math.random().toString(36).slice(2, 11)}`;
         let cancelled = false;
-        mermaid.render(id, code)
+        renderMermaid(idDeRender(), code, { oscuro: !isLightTheme(theme) })
             .then((r) => { if (!cancelled) setSvg(r.svg); })
             .catch(() => {
                 if (!cancelled) setSvg('<div class="mde-mermaid-error">Mermaid syntax error</div>');
@@ -146,6 +133,11 @@ function MermaidDiagram({ code, theme }) {
     return (
         <>
             <div className="mde-mermaid-wrap">
+                {editable && (
+                    <button className="mde-mermaid-edit" title="Editar en AmoxDiagram" onClick={onEditar}>
+                        <LuShare2 size={12} /> Editar
+                    </button>
+                )}
                 <button className="mde-mermaid-expand" title="Expand diagram" onClick={() => setFs(true)}>
                     <LuMaximize2 size={13} />
                 </button>
@@ -393,7 +385,7 @@ function rehypeLineas() {
 // claim any other fenced language and returns null to decline. Report Flow uses
 // it for the slide's data objects (```kpis, ```metric, ```steps, ```actions,
 // ```rank), which stay plain code blocks anywhere else in the app.
-const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath, onToggleTask, taskProgress }) => {
+const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath, onToggleTask, taskProgress, onEditarDiagrama }) => {
     // El front-matter es metadato, no documento: ya lo enseña la columna
     // derecha con sus fichas, y aquí salía como un párrafo suelto de YAML.
     //
@@ -432,7 +424,19 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             const langClass = arr.find((c) => typeof c === 'string' && c.startsWith('language-'));
             const lang = langClass ? langClass.replace('language-', '') : '';
             const raw = codeNode ? nodeToText(codeNode).replace(/\n$/, '') : '';
-            if (lang === 'mermaid') return <MermaidDiagram code={raw} theme={theme} />;
+            if (lang === 'mermaid') {
+                // `data-line` lo pone `rehypeLineas` en cada bloque de primer
+                // nivel. Es como el editor sabe DE CUAL de los diagramas del
+                // documento se trata cuando hay varios.
+                const linea = Number(node?.properties?.['data-line']) || 0;
+                return (
+                    <MermaidDiagram
+                        code={raw}
+                        theme={theme}
+                        onEditar={onEditarDiagrama ? () => onEditarDiagrama(raw, linea) : null}
+                    />
+                );
+            }
             if (lang === 'amoxchart' && renderChartBlock) return renderChartBlock(raw);
             // Gancho genérico: quien monta el preview puede reclamar otros
             // lenguajes cercados (Report Flow usa ```kpis, ```metric, ```steps,
@@ -457,7 +461,7 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             }
             return <blockquote className={className} {...props}>{children}</blockquote>;
         },
-    }), [onOpenFile, theme, renderChartBlock, renderBlock, baseDir, onToggleTask, taskProgress]);
+    }), [onOpenFile, theme, renderChartBlock, renderBlock, baseDir, onToggleTask, taskProgress, onEditarDiagrama]);
 
     return (
         <div className={`mde-preview-body mde-preview-body--${widthMode}`} ref={bodyRef}>

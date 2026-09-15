@@ -24,7 +24,7 @@ const path = require('path');
 
 // ── Categorías ──────────────────────────────────────────────────────────────
 const SOURCE_EXTS = new Set([
-    '.sql', '.md', '.amoxdeck', '.sqlnb', '.sqlchain', '.amoxvis',
+    '.sql', '.md', '.amoxdeck', '.amoxdiagram', '.sqlnb', '.sqlchain', '.amoxvis',
     '.yaml', '.yml', '.txt', '.json', '.rules',
 ]);
 const DATA_TEXT_EXTS = new Set(['.csv', '.tsv', '.jsonl', '.ndjson', '.log']);
