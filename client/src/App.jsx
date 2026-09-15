@@ -1477,6 +1477,7 @@ function App() {
               <div className={activeSidebarTab === 'files' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, overflow: 'hidden', display: activeSidebarTab === 'files' ? 'flex' : 'none', flexDirection: 'column' }}>
                 <FileExplorer
                   editorSettings={editorSettings}
+                  projectPath={projectPath}
                   onFileClick={handleFileClick}
                   onFileOpen={handleFileOpen}
                   onNewFile={handleNewFile}

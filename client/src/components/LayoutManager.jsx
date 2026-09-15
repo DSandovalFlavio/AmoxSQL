@@ -904,6 +904,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'er-diagram' ? (initialContent ? `ER · ${initialContent}` : 'ER Diagram')
                 : normalizedType === 'datadiving' ? 'Deep Dive'
                 : normalizedType === 'dbt-lineage' ? 'DBT Lineage'
+                // Un borrador que **no es de ninguno de los nuestros**. El
+                // mecanismo ya existía entero —siete variantes con `path: ''`
+                // que sólo eligen sitio al guardar—; lo que faltaba era poder
+                // pegar algo y mirarlo sin que naciera siendo SQL.
+                : normalizedType === 'texto' ? 'Untitled.txt'
                 : 'Untitled.sql',
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
@@ -917,6 +922,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 // ("No query" + Edit SQL) already guides the user from here;
                 // nothing new needed there.
                 : normalizedType === 'amoxvis' ? JSON.stringify({ chartType: 'bar', query: '' }, null, 2)
+                // En blanco a propósito: un borrador de texto no sabe para qué
+                // es, y cualquier plantilla habría que borrarla antes de usarlo.
+                : normalizedType === 'texto' ? ''
                 : normalizedType === 'er-diagram' ? ''
                 : normalizedType === 'datadiving' ? ''
                 : normalizedType === 'dbt-lineage' ? ''

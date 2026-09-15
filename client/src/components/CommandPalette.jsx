@@ -299,6 +299,7 @@ export function buildDefaultActions({
         { id: 'new-deck', label: 'New Report Flow Deck', category: 'File', icon: LuPresentation, action: () => layoutRef.current?.createNew('amoxdeck') },
         { id: 'new-diagram', label: 'New Diagram (AmoxDiagram)', category: 'File', icon: LuShare2, action: () => layoutRef.current?.createNew('amoxdiagram') },
         { id: 'new-chart', label: 'New Chart', category: 'File', icon: LuChartBar, action: () => layoutRef.current?.createNew('amoxvis') },
+        { id: 'new-text', label: 'New Text File', category: 'File', icon: LuFile, action: () => layoutRef.current?.createNew('texto') },
         { id: 'close-tab', label: 'Close Tab', category: 'File', icon: LuCommand, shortcut: 'Ctrl+W', action: () => layoutRef.current?.closeActiveTab() },
 
         // Navigation

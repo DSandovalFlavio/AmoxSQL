@@ -8,6 +8,7 @@ import ScriptRunSummary from './ScriptRunSummary';
 import ExportDataModal from './ExportDataModal';
 import ExportAiContextModal from './ExportAiContextModal';
 import { VariablesToggle, VariablesPanel, resolveVariables } from './VariablesBar';
+import { idiomaDe } from '../utils/tiposDeArchivo';
 
 // Lazy pane types (G10): each of these pulls a heavy dependency tree
 // (Recharts, mermaid/katex/highlight via MarkdownPreview, @xyflow/react…).
@@ -827,7 +828,11 @@ const EditorPane = ({
                                     <SqlEditor
                                         tabId={activeTab.id}
                                         value={activeTab.content}
-                                        language={activeTab.type === 'md' ? 'markdown' : 'sql'}
+                                        // La línea que era toda la premisa:
+                                        // `md ? 'markdown' : 'sql'`. Lo dice la
+                                        // tabla, que además no se queda atrás
+                                        // cuando aparece un tipo nuevo.
+                                        language={idiomaDe(activeTab.path || activeTab.name)}
                                         onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                                         onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
                                         onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}

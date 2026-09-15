@@ -145,26 +145,65 @@ primero.**
 
 ## Fase 1 — Que se vea como lo que es
 
-- [ ] **Idioma por extensión** en lugar de `md ? 'markdown' : 'sql'`. La tabla de la fase 0
-      ya lo dice. Coste medido: cero, por el hallazgo 2.
-- [ ] Al menos JSON, YAML, Python, XML, INI/TOML, shell y texto llano. Son los que aparecen
-      en los proyectos de estos tres perfiles.
-- [ ] **«Abrir como texto» en el menú contextual del archivo**, para todos. Es la salida que
-      faltaba en el caso que originó todo esto: un `.json` de configuración no es un
-      dataset, y sólo el usuario sabe cuál de las dos cosas tiene delante.
-- [ ] **Recordar la elección por archivo.** Si abriste `config.json` como texto, mañana se
-      abre como texto. Un ajuste global (`defaultDataFileAction`) no puede resolver algo que
-      varía archivo por archivo — pregunta 18.
-- [ ] Icono propio para los archivos de texto y configuración en el árbol, como ya lo tienen
-      los nuestros.
-- [ ] Borrador sin título **de tipo texto**. El mecanismo entero ya existe
-      (`LayoutManager.jsx:872`, siete variantes con `path: ''`); esto es una entrada más,
-      no una función nueva.
-- [ ] Aviso antes de abrir un archivo muy grande, con el peso a la vista. El criterio ya
-      está escrito y calibrado en `SearchPanel.jsx`; se reutiliza, no se reinventa.
+- [x] **Idioma por extensión** en lugar de `md ? 'markdown' : 'sql'`. Coste medido: cero,
+      por el hallazgo 2.
+- [x] JSON, YAML, Python, XML, INI/TOML, shell, R, JavaScript/TypeScript, `Dockerfile`,
+      `Makefile` y texto llano.
+- [x] **«Abrir como texto» en el menú contextual**, la primera entrada y para todos menos
+      los binarios — a un PNG no se le ofrece, porque no serviría.
+- [x] **Recordar la elección por archivo**, y por proyecto.
+- [x] Icono propio en el árbol para lo que la tabla reconoce como texto.
+- [x] Borrador sin título de tipo texto, desde la paleta de comandos.
+- [x] Aviso antes de abrir un archivo grande, con el peso a la vista.
 
-**Criterio de terminado:** el `.json` de configuración del caso original se abre con clic
-derecho → «Abrir como texto», sale coloreado como JSON, y la próxima vez se abre así solo.
+**Criterio cumplido, verificado con la aplicación delante:** el `config.json` del caso
+original se abre con clic derecho → «Abrir como texto», sale coloreado como JSON, y **al
+recargar la aplicación entera un clic normal lo vuelve a abrir así**. En la misma carpeta,
+`eventos.json` sigue abriéndose como datos. Los dos a la vez es exactamente lo que ningún
+ajuste global podía dar.
+
+### La decisión que sostiene la fase: quién gana
+
+La preferencia del archivo se consulta **antes que cualquier regla por extensión**. Si
+alguien marcó su `config.json` como texto, no hay tabla que deba discutírselo.
+
+Y la simétrica, que importa igual: **«Direct Query», «Quick Preview» e «Import to
+Database» borran la preferencia.** Consultar un archivo es una elección tan explícita como
+abrirlo como texto, y tiene que pesar lo mismo. Sin eso, un usuario que cambia de idea se
+queda peleando con una decisión que tomó una vez y no sabe dónde deshacer. Comprobado:
+tras «Direct Query», el almacén queda vacío.
+
+La preferencia también **viaja al renombrar**. Se guarda contra la ruta, así que sin eso
+renombrar un archivo marcado como texto lo devolvería a abrirse como tabla sin que nadie lo
+pidiera — y eso se vive como que la aplicación decide sola.
+
+### Por qué por proyecto y no sólo por ruta
+
+Las rutas del explorador son **relativas a la raíz del proyecto**, así que `config.json`
+existe en todos. Sin separar por proyecto, marcar uno como texto habría cambiado el
+comportamiento en los demás. Son 28 comprobaciones en
+`scripts/probarPreferenciaApertura.mjs`, y la que más vale es precisamente ésa.
+
+### El umbral del aviso no es el del buscador
+
+El buscador del proyecto se salta lo que pase de 2 MB; aquí se pregunta a partir de 5 MB.
+No es incoherencia: **el buscador lee todos los archivos y el coste se multiplica**,
+mientras que aquí se lee uno y el usuario lo ha pedido a propósito. Lo que se evita no es
+un gasto, es que la ventana se quede pensando varios segundos sin que nadie avisara. Y se
+pregunta, no se impide: un registro de 9,5 MB se abre entero si se dice que sí —comprobado,
+160.001 líneas.
+
+### Dos trampas del entorno, las dos caras
+
+- **Un comentario JSX dentro de un `&& (…)`** añade un segundo hijo donde sólo cabe uno. El
+  editor no dijo nada; lo cazó el build. Barato.
+- **Cara: Vite dejó la página con el módulo roto de ese error.** Al arreglarlo, la recarga
+  en caliente ya no pudo aplicar el módulo nuevo —`[vite] Failed to reload /src/App.jsx`— y
+  la página siguió ejecutando el código viejo. Pasé un rato diagnosticando un clic que «no
+  hacía nada» **sobre código que ya no existía**. Es la segunda vez en este plan que lo que
+  se está mirando no es lo que se está editando; la primera fueron las pestañas
+  restauradas. **Ante un comportamiento que no cuadra con el código, comprobar primero que
+  la página está ejecutando ese código.**
 
 ---
 
