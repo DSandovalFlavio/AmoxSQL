@@ -235,17 +235,29 @@ const DiagramInspector = ({
                 </div>
                 <div className="dgm-campo">
                     <label className="dgm-campo-lab" htmlFor="dgm-grupo">Grupo</label>
+                    {/* «Grupo nuevo…» estaba y no estaba: el desplegable sólo
+                        listaba los grupos EXISTENTES, así que en un diagrama sin
+                        ninguno no ofrecía nada y tampoco enseñaba el camino.
+                        Agrupar es la operación central de este editor; no puede
+                        depender de que ya haya un grupo. */}
                     <select
                         id="dgm-grupo"
                         className="dgm-inp"
                         value={grupo?.id || ''}
-                        onChange={(e) => onMoverAGrupo(nodo.id, e.target.value || null)}
+                        onChange={(e) => {
+                            if (e.target.value === '@nuevo') onAgrupar([nodo.id]);
+                            else onMoverAGrupo(nodo.id, e.target.value || null);
+                        }}
                     >
                         <option value="">sin grupo</option>
                         {grafo.subgrafos.map((sg) => (
                             <option key={sg.id} value={sg.id}>{sg.titulo}</option>
                         ))}
+                        <option value="@nuevo">Grupo nuevo…</option>
                     </select>
+                    <p className="dgm-pista">
+                        <kbd>Ctrl</kbd> + clic en otra caja para agrupar varias de una vez.
+                    </p>
                 </div>
                 <div className="dgm-campo">
                     <span className="dgm-campo-lab">Conexiones</span>

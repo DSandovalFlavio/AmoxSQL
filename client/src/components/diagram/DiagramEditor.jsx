@@ -18,6 +18,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import {
     LuShare2, LuSave, LuCode, LuShieldCheck, LuTriangleAlert, LuChevronDown,
     LuChevronUp, LuLink, LuFile, LuUndo2, LuRedo2, LuPanelLeft, LuPanelRight, LuImage,
+    LuLayers, LuTrash2,
 } from 'react-icons/lu';
 import DiagramCanvas from './DiagramCanvas';
 import DiagramInspector from './DiagramInspector';
@@ -73,6 +74,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     const [sinBautizar, setSinBautizar] = useState(null);
     const [borrador, setBorrador] = useState(null);
     const [conflicto, setConflicto] = useState(null);
+    const [menuExportar, setMenuExportar] = useState(false);
 
     const doc = useMemo(() => leerDiagrama(content), [content]);
     const colores = useMemo(() => coloresDelTema(theme), [theme]);
@@ -206,6 +208,15 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
         else setConflicto(null);
     }, [onSave]);
 
+    // Un menu que no se cierra al pulsar fuera es un menu que se queda abierto
+    // encima del dibujo.
+    useEffect(() => {
+        if (!menuExportar) return undefined;
+        const fuera = (e) => { if (!e.target.closest?.('.dgm-menu')) setMenuExportar(false); };
+        window.addEventListener('mousedown', fuera);
+        return () => window.removeEventListener('mousedown', fuera);
+    }, [menuExportar]);
+
     const intentarMover = useCallback(() => {
         if (localStorage.getItem(AVISO_MOVER) === '1') return;
         setAvisoMover(true);
@@ -336,14 +347,27 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                     {avisos.length > 0 && <span className="dgm-btn-n">{avisos.length}</span>}
                 </button>
 
-                <button type="button" className="dgm-btn" onClick={() => exportarSvg(doc.mermaid, { oscuro, titulo: nombre })}
-                    title="El diagrama en vector, tal y como lo dibuja el documento" disabled={!g}>
-                    <LuImage size={12} strokeWidth={2.3} /> SVG
-                </button>
-                <button type="button" className="dgm-btn" onClick={() => exportarPng(doc.mermaid, { oscuro, titulo: nombre })}
-                    title="Una imagen al doble de resolución" disabled={!g}>
-                    PNG
-                </button>
+                {/* Un botón, no dos. El contrato visual ponía «Exportar» y la
+                    fase 5 lo partió en SVG y PNG: con eso la barra pasó a medir
+                    947 px en un hueco de 921 y **Guardar caía a una segunda
+                    fila**. Es el mismo fallo que dejó el Studio del deck sin su
+                    botón de guardar, y se mide igual de fácil. */}
+                <div className="dgm-menu">
+                    <button type="button" className={`dgm-btn${menuExportar ? ' dgm-btn--on' : ''}`}
+                        onClick={() => setMenuExportar((v) => !v)} disabled={!g}>
+                        <LuImage size={12} strokeWidth={2.3} /> Exportar
+                    </button>
+                    {menuExportar && (
+                        <div className="dgm-menu-lista">
+                            <button type="button" onClick={() => { setMenuExportar(false); exportarSvg(doc.mermaid, { oscuro, titulo: nombre }); }}>
+                                SVG <span>vector, para ampliar o imprimir</span>
+                            </button>
+                            <button type="button" onClick={() => { setMenuExportar(false); exportarPng(doc.mermaid, { oscuro, titulo: nombre }); }}>
+                                PNG <span>al doble, para una presentación</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
 
                 <div className="dgm-spacer" />
                 <button type="button" className={`dgm-btn dgm-btn--icono${verIzq ? '' : ' dgm-btn--apagado'}`}
@@ -414,6 +438,28 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                     onIntentarMover={intentarMover}
                                 />
                             </ReactFlowProvider>
+                        )}
+
+                        {/* La tira flotante sobre la selección.
+                            Estaba en el contrato visual y no se implementó en la
+                            fase 4: el botón de agrupar quedó sólo en el inspector,
+                            que es justo donde no se mira mientras se arrastran
+                            cajas. Resultado: la operación central del editor sólo
+                            se alcanzaba con una tecla que nada anunciaba.
+                            Aparece con la selección y se va con ella; no hay botón
+                            permanente de agrupar porque sin selección no
+                            significaría nada. */}
+                        {seleccion?.tipo === 'varios' && (
+                            <div className="dgm-tira">
+                                <span className="dgm-tira-n">{seleccion.ids.length} cajas</span>
+                                <button type="button" className="dgm-btn dgm-btn--primary"
+                                    onClick={() => agruparSeleccion(seleccion.ids)}>
+                                    <LuLayers size={12} strokeWidth={2.3} /> Agrupar
+                                </button>
+                                <button type="button" className="dgm-btn" onClick={borrarSeleccion} title="Borrar las cajas">
+                                    <LuTrash2 size={12} strokeWidth={2.3} />
+                                </button>
+                            </div>
                         )}
 
                         {conflicto && (

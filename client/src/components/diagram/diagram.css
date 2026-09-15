@@ -11,12 +11,33 @@
 .dgm-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--surface-base); }
 
 /* ── barra ─────────────────────────────────────────────────────────── */
+/**
+ * La barra NO se parte en dos filas.
+ *
+ * Con `flex-wrap: wrap` lo hacía en silencio: al añadir los botones de exportar,
+ * 947 px de controles en un hueco de 921 dejaron **Guardar en una segunda fila**
+ * — el mismo fallo que dejó al Studio del deck sin su botón de guardar.
+ *
+ * Sin envolver, lo que cede es el **título**, que es lo único prescindible aquí:
+ * se recorta con puntos suspensivos. Así la barra aguanta un nombre de archivo
+ * de cualquier longitud sin empujar nada fuera.
+ */
 .dgm-bar {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
     padding: 6px 12px; min-height: 40px;
     background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);
 }
-.dgm-title { display: flex; align-items: center; gap: 7px; color: var(--text-primary); font-weight: 600; font-size: 12.5px; }
+.dgm-title {
+    display: flex; align-items: center; gap: 7px;
+    color: var(--text-primary); font-weight: 600; font-size: 12.5px;
+    min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* La pastilla no encoge ni se parte: **el título es lo único que cede**. Dejando
+   que encogiera, «archivo propio» se partía en dos renglones y la barra parecía
+   rota; y es justo la etiqueta que contesta «¿de quién es este diagrama?». Lo
+   que sí se acota es el nombre del archivo de procedencia, que puede ser largo. */
+.dgm-origin { flex: none; white-space: nowrap; }
+.dgm-origin-file { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dgm-spacer { flex: 1; }
 .dgm-sep { width: 1px; height: 16px; background: var(--border-subtle); margin: 0 3px; }
 
@@ -382,6 +403,44 @@ select.dgm-inp { appearance: none; padding-right: 26px; cursor: pointer;
 /* Un grupo seleccionable ya no es decorado: responde al ratón. */
 .dgm-group { cursor: pointer; }
 .dgm-group:hover { border-color: var(--text-tertiary); }
+
+/* ── el menú de exportar ───────────────────────────────────────────── */
+.dgm-menu { position: relative; display: inline-flex; }
+.dgm-menu-lista {
+    position: absolute; top: calc(100% + 5px); left: 0; z-index: 12; min-width: 210px;
+    display: flex; flex-direction: column; padding: 4px;
+    border: 1px solid var(--border-strong); border-radius: 8px;
+    background: var(--surface-overlay); box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+}
+.dgm-menu-lista button {
+    display: flex; align-items: baseline; gap: 8px; padding: 6px 9px;
+    border: none; border-radius: 6px; background: none; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 600; color: var(--text-primary); text-align: left;
+}
+.dgm-menu-lista button:hover { background: var(--hover-bg); }
+.dgm-menu-lista span { font-weight: 400; font-size: 11px; color: var(--text-tertiary); }
+
+/* ── la tira flotante sobre la selección ───────────────────────────── */
+.dgm-tira {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 7;
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface-overlay); box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+}
+.dgm-tira .dgm-btn { background: var(--surface-raised); }
+.dgm-tira .dgm-btn--primary { background: var(--accent-primary); }
+.dgm-tira-n {
+    padding: 0 6px 0 4px; font-size: 11px; font-weight: 600;
+    color: var(--text-tertiary); white-space: nowrap;
+}
+
+/* La pista de un atajo: se lee si se busca, y no compite con el campo. */
+.dgm-pista { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--text-disabled); }
+.dgm-pista kbd {
+    font: inherit; font-size: 9.5px; padding: 1px 4px;
+    border: 1px solid var(--border-default); border-radius: 4px;
+    background: var(--surface-inset, var(--surface-base)); color: var(--text-tertiary);
+}
 
 /* La fila del repaso es un botón desde que salta a la caja. */
 button.dgm-repaso-fila { width: 100%; border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 11.5px; }
