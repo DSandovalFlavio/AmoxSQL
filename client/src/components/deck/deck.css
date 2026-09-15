@@ -832,9 +832,9 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     gap: 6px;
     font-size: var(--text-xs);
     font-weight: var(--weight-medium);
-    color: var(--color-warning, #d9a441);
+    color: var(--color-warning);
     background-color: var(--surface-inset);
-    border: 1px solid var(--color-warning, #d9a441);
+    border: 1px solid var(--color-warning);
     border-radius: var(--radius-sm);
     padding: 4px 9px;
     pointer-events: none;
@@ -949,6 +949,10 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     flex: 1;
     overflow: hidden;
     min-height: 0;
+    /* Contenedor de consulta para que el inspector pueda plegarse solo cuando
+       el Studio —no la ventana— se queda estrecho: en vista partida la ventana
+       sigue siendo ancha y el que no cabe es el panel. */
+    container-type: inline-size;
 }
 
 .deck-main {
@@ -1364,10 +1368,33 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     scrollbar-color: var(--border-default) transparent;
 }
 
+/* La barra ocupa el ancho del lienzo: anterior a la izquierda, siguiente a la
+   derecha y el contador en medio.
+
+   Antes era un grupo apretado en el centro con `gap: 12px`, y al llegar «Vista
+   limpia» en la fase 0 se quedó sin sitio — la etiqueta partía en dos líneas y
+   los cinco elementos se amontonaban. Repartirlos por los extremos aprovecha un
+   espacio que ya estaba vacío, y de paso las flechas caen donde el ratón las
+   busca: en los bordes de la lámina. */
 .deck-design-nav {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 1180px;
+}
+
+/* El contador empuja a las flechas a los extremos, y puede encogerse: en un
+   panel estrecho es preferible recortar «Lámina 2 / 17» que aplastar un botón. */
+.deck-design-nav .deck-design-counter { flex: 1; justify-content: center; min-width: 0; }
+
+/* «Vista limpia» lleva texto, así que se sale del cuadrado de 30 px que la
+   regla de arriba impone a las flechas. Sin esto se quedaba en 30 px de ancho
+   con 53 de contenido: la etiqueta desbordaba y parecía amontonada. */
+.deck-design-nav .deck-design-limpia {
+    width: auto;
+    white-space: nowrap;
     flex-shrink: 0;
 }
 .deck-design-nav button {
@@ -1495,9 +1522,18 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     font-size: var(--text-sm);
 }
 
+/* El cuadro se estira hasta llenar su región.
+
+   Traía `min-height: 100%`, y eso dejó de resolver en la fase 3: al envolverlo
+   en `.deck-rg--editando` para colgarle la barra de formato, el padre pasó a
+   tener altura automática y un `100%` contra `auto` es cero. El `textarea`
+   caía a su alto por defecto —dos filas— dentro de una lámina entera vacía.
+   Con `flex: 1` toma lo que le deja su hueco, y el suelo en unidades de diseño
+   evita que en una banda estrecha se quede en un renglón. */
 .deck-prose-editor {
     width: 100%;
-    min-height: 100%;
+    flex: 1;
+    min-height: calc(110 * var(--u, 0.7));
     resize: none;
     border: 1px solid var(--accent-primary);
     border-radius: var(--radius-sm);
@@ -1565,7 +1601,6 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 .deck-slide-chartfull-caption { flex-shrink: 0; }
 .deck-slide-chartfull-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.deck-slide-chartfull-editcaption { flex-shrink: 0; }
 
 .deck-slide-inline-chart {
     margin-top: 16px;
@@ -1595,3 +1630,809 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     background-color: color-mix(in oklch, var(--accent-primary) 16%, transparent);
     color: var(--accent-primary);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   La barra del Studio — propia, no prestada
+   ═══════════════════════════════════════════════════════════
+
+   `.ep-action-bar` fija 40 px de alto y no envuelve, que es lo correcto para
+   un editor de consultas con tres botones. Esta barra lleva SIETE grupos
+   —refrescar, presentar, exportar, las tres vistas, guardar y Assist— y en un
+   panel estrecho no caben en una fila: medido en la aplicacion, 955 px de
+   contenido dentro de una barra de 735.
+
+   Esto vivia prestado de `.mde-toolbar`, del editor de documentos. Cuando ese
+   editor se rehizo «sin cromo y sin barra de formato» la clase desaparecio del
+   CSS, y con ella se fueron fuera de la barra Review, Source, Save y Assist:
+   guardar dejo de poder pulsarse. El prestamo no fallo por descuido de nadie
+   —quien limpia su propia casa no tiene por que saber quien le copiaba las
+   llaves—, fallo por ser un prestamo. Por eso estas reglas son del deck.
+
+   Sin `!important`, a diferencia del original: `.deck-studio .deck-toolbar`
+   son (0,2,0) contra los (0,1,0) de `.ep-action-bar`, y la especificidad ya
+   basta. */
+.deck-studio .deck-toolbar {
+    height: auto;
+    min-height: 40px;
+    padding: 4px 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+    /* Los desplegables de Present, Export y Save salen por debajo del borde
+       inferior de la barra. */
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+/* Envolver la barra no sirve de nada si sus dos mitades no envuelven tambien:
+   son ellas las que llevan los botones. */
+.deck-studio .deck-toolbar .ep-action-left,
+.deck-studio .deck-toolbar .ep-action-right {
+    flex-wrap: wrap;
+}
+
+/* El filete entre grupos. */
+.deck-studio .deck-sep {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background-color: var(--border-subtle);
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* La vista Source tambien dejaba de tomar prestado. Lo unico que necesitaba de
+   `.mde-editor-pane` era esto —el resto (min-width, overflow) ya lo tiene
+   `.deck-main-editor` de siempre—: que Monaco no pinte su propio fondo, para
+   que se vea el de la lamina. */
+.deck-main-editor .monaco-editor,
+.deck-main-editor .monaco-editor-background,
+.deck-main-editor .margin {
+    background-color: transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Fase 0 — la lámina declara sus regiones
+   ═══════════════════════════════════════════════════════════
+
+   Hasta ahora el único indicio de que algo se podía editar era un «Edit text»
+   que salía al pasar el ratón. Una lámina en reposo era indistinguible de una
+   imagen, y de ahí la primera queja de quien la usó: «no sabes cómo ni dónde
+   editar». Ahora cada hueco lleva su filete y su nombre desde el principio.
+
+   El borde va en `outline` y no en `border`: la lámina es una retícula medida
+   al píxel de diseño, y un borde de 1 px dentro de una celda desplazaría el
+   contenido y cambiaría lo que se ve respecto de lo que se va a presentar. El
+   `outline` no ocupa sitio.
+
+   Y el cromo va en PÍXELES, no en `--u`. Todo lo que hay dentro de la lámina
+   se mide en unidades de diseño porque tiene que escalar con ella; esto no es
+   contenido de la lámina, es interfaz del editor, y a media anchura de panel
+   una etiqueta en `--u` bajaría de 5 px. */
+.deck-rg {
+    position: relative;
+    outline: 1px dashed var(--border-strong);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+    transition: outline-color 120ms ease, background-color 120ms ease;
+}
+
+/* El nombre del hueco. `attr()` y no un nodo: una región es un sitio, no un
+   componente, y así ninguna disposición puede olvidarse de ponerle etiqueta. */
+.deck-rg::before {
+    content: attr(data-rg);
+    position: absolute;
+    top: -9px;
+    left: 9px;
+    z-index: 2;
+    padding: 0 5px;
+    background: var(--surface-raised);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    pointer-events: none;
+    transition: color 120ms ease, opacity 120ms ease;
+}
+
+.deck-rg:hover {
+    outline-color: var(--accent-primary);
+    background: color-mix(in oklch, var(--accent-primary) 5%, transparent);
+}
+.deck-rg:hover::before { color: var(--accent-primary); }
+
+.deck-rg--sel {
+    outline: 2px solid var(--accent-primary);
+    background: color-mix(in oklch, var(--accent-primary) 7%, transparent);
+}
+.deck-rg--sel::before { color: var(--accent-primary); }
+
+/* La región en edición llena su hueco para que el cuadro tenga de dónde
+   estirarse. Sin esto su altura la marcaría el contenido —la barra y dos filas
+   de texto— y daría igual lo que pida el `textarea`. */
+.deck-rg--editando {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: calc(150 * var(--u, 0.7));
+    outline: 2px solid var(--accent-primary);
+}
+
+/* Cómo se sale, dicho donde se está. La pregunta 10 de la auditoría. */
+.deck-rg-ayuda {
+    align-self: flex-end;
+    margin-top: 3px;
+    font-size: 9.5px;
+    color: var(--text-disabled);
+}
+.deck-rg-ayuda kbd {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 0 3px;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+}
+
+/* Vista limpia: comprobar que lo que se ve es lo que va a salir, sin salir de
+   Design. El contenido no se mueve —el outline nunca ocupó sitio—, así que lo
+   único que cambia es que el cromo se apaga. */
+.deck-design-canvas--limpia .deck-rg,
+.deck-design-canvas--limpia .deck-rg:hover {
+    outline-color: transparent;
+    background: none;
+}
+.deck-design-canvas--limpia .deck-rg::before { opacity: 0; }
+.deck-design-canvas--limpia .deck-prose-edit-hint { display: none; }
+
+.deck-design-limpia {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.deck-design-limpia:hover { background: var(--hover-bg); color: var(--text-primary); }
+.deck-design-limpia--on { background: var(--accent-muted); border-color: transparent; color: var(--accent-primary); }
+
+/* El hueco vacío de figura pasa a ser una región con un botón dentro, y no un
+   botón a secas: la región tiene que poder seleccionarse sin disparar la
+   acción de añadir. */
+.deck-chart-slot-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+/* Dentro de la lámina, el suelo del hueco de figura va en unidades de diseño.
+
+   `.deck-chart-slot` traía `min-height: 220px` y su figura otros 200. Son
+   píxeles dentro de una lámina que se mide en `--u`: con el lienzo estrecho la
+   columna de la figura mide menos que ese suelo y la lámina se declara
+   desbordada — 124 px en el deck de demo, que es el aviso sin atribuir que
+   quedaba anotado desde la v5.4.0. Ahora se sabe de quién era porque el aviso
+   nombra la región.
+
+   El suelo sigue haciendo falta (si no, una figura sin datos colapsa a cero),
+   pero expresado en la misma unidad que todo lo demás no puede pasarse. */
+.deck-slide .deck-chart-slot { min-height: calc(120 * var(--u)); }
+.deck-slide .deck-chart-slot .amoxchart-embed { min-height: 0; }
+
+/* ═══════════════════════════════════════════════════════════
+   Fase 1 — el inspector
+   ═══════════════════════════════════════════════════════════
+
+   Columna derecha: qué he seleccionado y qué puedo hacerle. Hermana del
+   lienzo, no hija — por eso vive en `.deck-studio-body` junto al panel
+   izquierdo y no dentro de `.deck-main`.
+
+   Es más estrecha que el panel izquierdo (232 contra 260) a propósito: aquél
+   lleva títulos de lámina, que son prosa y necesitan sitio; éste lleva
+   controles. */
+.deck-inspector {
+    width: 232px;
+    min-width: 232px;
+    background-color: var(--surface-raised);
+    border-left: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.deck-inspector--colapsado {
+    width: 34px;
+    min-width: 34px;
+    align-items: center;
+    padding-top: 8px;
+}
+
+/* Con el Studio estrecho el inspector se pliega SOLO. Tres columnas en un
+   panel partido no caben, y descubrirlo empujando el lienzo a 200 px es peor
+   que no tener inspector. */
+@container (max-width: 900px) {
+    .deck-inspector { display: none; }
+}
+
+.deck-inspector-expandir,
+.deck-inspector-cabecera button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.deck-inspector-expandir:hover,
+.deck-inspector-cabecera button:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.deck-inspector-cabecera {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 8px 7px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-xs);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-weight: var(--weight-semibold);
+    color: var(--accent-primary);
+}
+.deck-inspector-cabecera > span {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.deck-inspector-cuerpo {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+}
+
+.deck-inspector-vacio { padding: 16px 12px; font-size: var(--text-xs); color: var(--text-tertiary); }
+
+.dki-grupo { display: flex; flex-direction: column; gap: 7px; }
+.dki-grupo-titulo {
+    font-size: 9px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    font-weight: var(--weight-semibold);
+}
+
+.dki-campo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dki-campo-etiqueta { font-size: var(--text-xs); color: var(--text-secondary); }
+
+.dki-valor { font-size: var(--text-xs); color: var(--text-primary); }
+.dki-valor--mono {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 4px 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+    word-break: break-all;
+}
+
+.dki-nota { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--text-secondary); }
+.dki-nota--tenue { color: var(--text-disabled); }
+.dki-nota code {
+    font-family: var(--font-mono);
+    font-size: .92em;
+    color: var(--text-secondary);
+}
+
+.dki-botonera { display: flex; gap: 5px; }
+.dki-botonera button {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.dki-botonera button:hover { background: var(--hover-bg); color: var(--text-primary); }
+.dki-boton--quitar:hover {
+    background: color-mix(in srgb, var(--color-error) 12%, transparent) !important;
+    color: var(--color-error) !important;
+    border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+}
+
+/* ── La galería de disposiciones, ahora aquí ── */
+.dki-familia { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
+.dki-familia:first-of-type { margin-top: 0; }
+.dki-familia-label {
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+}
+.dki-rejilla { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
+
+.dki-lay {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+}
+.dki-lay:hover { border-color: var(--border-strong); background: var(--hover-bg); }
+.dki-lay--on { border-color: var(--accent-primary); background: var(--accent-subtle); }
+.dki-lay-label {
+    font-size: 9.5px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dki-lay--on .dki-lay-label { color: var(--accent-primary); }
+
+/* El aviso de que algo se queda sin hueco. Va en la tarjeta y no en un diálogo
+   al pulsar: enterarse ANTES de cambiar es lo que evita el susto. */
+.dki-lay-aviso {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: color-mix(in oklch, var(--color-warning) 22%, var(--surface-raised));
+    color: var(--color-warning);
+}
+
+/* ── Segmentado ── */
+.dki-seg { display: flex; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); overflow: hidden; }
+.dki-seg button {
+    flex: 1;
+    padding: 4px 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    cursor: pointer;
+}
+.dki-seg button:hover { background: var(--hover-bg); color: var(--text-primary); }
+.dki-seg .dki-seg--on { background: var(--accent-muted); color: var(--accent-primary); font-weight: var(--weight-medium); }
+
+/* ── Casillas ── */
+.dki-casilla {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.dki-casilla input { position: absolute; opacity: 0; width: 0; height: 0; }
+.dki-casilla i {
+    display: grid;
+    place-items: center;
+    width: 13px;
+    height: 13px;
+    flex: none;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    color: var(--button-text-color);
+}
+.dki-casilla input:checked + i { background: var(--accent-primary); border-color: var(--accent-primary); }
+.dki-casilla input:focus-visible + i { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* ── Fase 2 — el ámbito del deck en el inspector ───────────────────────── */
+
+/* Lámina o deck. No es una pestaña de contexto —el contexto no se elige— sino
+   de ÁMBITO: son dos objetos distintos, y el deck no se puede seleccionar en
+   el lienzo porque no está dibujado en ninguna parte. */
+.deck-inspector-ambito {
+    flex-shrink: 0;
+    display: flex;
+    gap: 2px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.deck-inspector-ambito button {
+    flex: 1;
+    padding: 4px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.deck-inspector-ambito button:hover { background: var(--hover-bg); color: var(--text-primary); }
+.deck-inspector-ambito .dki-ambito--on { background: var(--active-bg); color: var(--text-primary); font-weight: var(--weight-medium); }
+
+.dki-texto { display: flex; flex-direction: column; gap: 3px; }
+.dki-texto input,
+.dki-select {
+    width: 100%;
+    padding: 4px 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+    color: var(--text-primary);
+    font-size: var(--text-xs);
+    font-family: inherit;
+}
+.dki-texto input:focus,
+.dki-select:focus { outline: none; border-color: var(--accent-primary); }
+.dki-texto input::placeholder { color: var(--text-disabled); }
+
+/* Las muestras de acento. El color que se pinta NO sale de una tabla: se
+   resuelve del DOM con la clase aplicada, que es lo único que refleja el tema
+   y el tono reales. Ver deckColor.js. */
+.dki-muestras { display: flex; flex-wrap: wrap; gap: 5px; }
+.dki-muestra {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    border: 1px solid var(--border-default);
+    cursor: pointer;
+    color: #000;
+}
+.dki-muestra--on { outline: 2px solid var(--text-primary); outline-offset: 1.5px; }
+/* El acento que no llega al piso de contraste no se esconde ni se deshabilita:
+   se marca. Prohibirlo sería decidir por el autor, que puede tener un motivo
+   —una marca corporativa— para quererlo igual. */
+.dki-muestra--flojo { opacity: .55; }
+
+.dki-tira { display: flex; height: 10px; border-radius: 3px; overflow: hidden; }
+.dki-tira i { flex: 1; display: block; }
+
+.dki-nota--aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    color: var(--color-warning);
+}
+.dki-nota--aviso svg { flex: none; margin-top: 2px; }
+
+/* ── Fase 3 — los mandos para escribir ─────────────────────────────────── */
+
+/* La barra NO flota sobre la selección, y es deliberado. Colocar algo encima
+   del cursor de un `<textarea>` exige duplicar su contenido en un div espejo y
+   medir ahí — frágil, y se rompe con cada salto de línea. Pero además la barra
+   fija es mejor AQUÍ: el diagnóstico de la auditoría es que el Studio esconde
+   los mandos, y una barra que sólo aparece si ya sabías que había que
+   seleccionar algo los sigue escondiendo. */
+.deck-barra {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+    padding: 3px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--surface-overlay);
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,.25));
+}
+
+.deck-barra button {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.deck-barra button:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.deck-barra-sep {
+    width: 1px;
+    height: 15px;
+    margin: 0 3px;
+    background: var(--border-default);
+    flex-shrink: 0;
+}
+
+.deck-barra-insertar {
+    width: auto !important;
+    gap: 5px;
+    padding: 0 8px;
+    display: inline-flex !important;
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+.deck-barra-insertar kbd {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 0 4px;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    color: var(--text-disabled);
+}
+
+/* El menú se ancla al pie de la región y no al cursor, por lo mismo. */
+.deck-menu {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    z-index: 20;
+    width: min(300px, 100%);
+    margin-top: 4px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-overlay);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .5);
+    overflow: hidden;
+}
+
+.deck-menu-consulta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+}
+
+.deck-menu-lista { max-height: 250px; overflow-y: auto; scrollbar-width: thin; }
+.deck-menu-vacio { padding: 10px; font-size: var(--text-xs); color: var(--text-disabled); }
+
+.deck-menu-grupo {
+    padding: 6px 10px 2px;
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    font-weight: var(--weight-semibold);
+}
+
+.deck-menu-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    text-align: left;
+}
+.deck-menu-item--on { background: var(--accent-subtle); color: var(--text-primary); }
+.deck-menu-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deck-menu-detalle { font-size: 10px; color: var(--text-disabled); flex-shrink: 0; }
+
+/* ── Fase 4 — los formularios de los bloques de dato ───────────────────── */
+
+.dkb-lista { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.dkb-solapa {
+    padding: 3px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    cursor: pointer;
+}
+.dkb-solapa:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.dkb-solapa--on { background: var(--accent-muted); border-color: transparent; color: var(--accent-primary); }
+
+/* Cada registro de la lista lleva su propio marco: sin él, veinte campos
+   seguidos en una columna de 232 px son un muro y no se ve dónde acaba una
+   métrica y empieza la siguiente. */
+.dkb-registro {
+    padding: 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+}
+
+.dkb-fila {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+}
+
+.dkb-fila-cab {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-bottom: 2px;
+}
+.dkb-fila-cab > span {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--text-disabled);
+}
+.dkb-fila-cab button {
+    display: grid;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.dkb-fila-cab button:hover { background: var(--hover-bg); color: var(--text-primary); }
+.dkb-fila-cab button:disabled { opacity: .3; cursor: default; }
+.dkb-fila-cab button:last-child:hover {
+    background: color-mix(in srgb, var(--color-error) 14%, transparent);
+    color: var(--color-error);
+}
+
+.dkb-anadir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    padding: 5px;
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.dkb-anadir:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+.dkb-num { width: 56px; text-align: right; }
+
+/* El tic de una casilla dentro de un formulario de bloque. Se dibuja con CSS y
+   no con un icono porque a 13 px un SVG de Lucide pierde el trazo. */
+.dkb-tic {
+    display: block;
+    width: 4px;
+    height: 7px;
+    margin-top: -2px;
+    border: solid var(--button-text-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* ── Fase 5 — el crudo de una lámina ───────────────────────────────────── */
+
+/* Debajo del lienzo y no en lugar de él: la queja era tener que buscar una
+   lámina entre 260 líneas, no que faltara el texto. Aquí se ve el markdown Y
+   la lámina que produce, que es lo que hace entendible una directiva. */
+.deck-crudo {
+    width: 100%;
+    max-width: 1180px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    overflow: hidden;
+}
+
+.deck-crudo-cab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 8px 6px 11px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+}
+.deck-crudo-cab > span { flex: 1; color: var(--text-secondary); }
+.deck-crudo-cab kbd {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 1px 4px;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    color: var(--text-disabled);
+}
+.deck-crudo-cab button {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.deck-crudo-cab button:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.deck-crudo-area {
+    width: 100%;
+    min-height: 190px;
+    max-height: 340px;
+    resize: vertical;
+    border: none;
+    background: var(--surface-inset);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.65;
+    padding: 10px 13px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+/* La leyenda ocupa el sitio del resaltado de sintaxis que un `textarea` no
+   puede dar. Dice qué directivas lleva ESTA lámina y qué hace cada una, que era
+   el objetivo: que no parezcan ruido que hay que aprenderse. */
+.deck-crudo-pie {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 13px 10px;
+    border-top: 1px solid var(--border-subtle);
+}
+.deck-crudo-nota,
+.deck-crudo-error {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: var(--text-disabled);
+}
+.deck-crudo-nota b { color: var(--text-tertiary); font-weight: var(--weight-medium); }
+.deck-crudo-nota code,
+.deck-crudo-error code {
+    font-family: var(--font-mono);
+    font-size: .95em;
+    color: var(--text-secondary);
+}
+.deck-crudo-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    color: var(--color-error);
+}
+.deck-crudo-error svg { flex: none; margin-top: 2px; }
+.deck-crudo-error code { color: var(--color-error); }

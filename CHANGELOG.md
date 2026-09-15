@@ -5,6 +5,114 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.5.0] — 2026-09-15
+
+### El Studio de Report Flow, rediseñado
+
+El deck se podía construir, pero había que saber cómo. Al usarlo de verdad el
+problema salió entero: **no se veía dónde se podía escribir.** El lienzo pintaba
+una lámina terminada, sin decir qué partes de ella eran editables ni cómo se
+llegaba a cada una; el único camino fiable era abrir el markdown completo —
+doscientas sesenta líneas para cambiar un título— y buscar a mano la lámina que
+tocaba.
+
+El rediseño sale de una auditoría de cincuenta preguntas de usabilidad
+(`docs/dev/auditoria_studio_deck.md`) y de un criterio que las ordena: **el
+Studio enseña los huecos de la lámina y pone cada control junto al hueco que
+toca.**
+
+- **Las regiones se ven.** Cada disposición declara sus huecos —antetítulo,
+  afirmación, detalle, figura, columnas— y el lienzo los dibuja en reposo con un
+  filete de puntos y su nombre en versalitas. Se pincha para seleccionar,
+  <kbd>Tab</kbd> pasa a la siguiente, <kbd>Intro</kbd> entra a editar y
+  <kbd>Esc</kbd> sale. <kbd>Ctrl</kbd>+<kbd>.</kbd> apaga el andamiaje sin salir
+  de Design, para ver la lámina como se verá.
+- **El aviso de desborde señala la región**, no la lámina entera. Saber que algo
+  sobra 124 px no sirve de nada si hay cuatro cajas donde puede sobrar.
+- **Un inspector a la derecha** que refleja lo que está seleccionado y no tiene
+  pestañas: lámina, región de texto o figura. En estado lámina trae la galería de
+  las dieciséis disposiciones, el tono y los campos del pie; al cambiar de
+  disposición, **avisa de qué se queda huérfano antes de aplicar** — una retícula
+  sostiene cuatro figuras y un hallazgo sólo una.
+- **La marca del deck, por fin con interfaz.** Título, hilo de sección, autor,
+  periodo, fecha de corte, fuente, acento, paleta de figuras y tono. Antes era
+  front-matter a mano. La escritura es **línea a línea**: los comentarios, el
+  orden y el entrecomillado del archivo sobreviven byte a byte.
+- **Comprobación de contraste antes de aplicar un acento.** No se estima: se
+  monta una sonda dentro de la propia lámina, se lee el color que el navegador
+  resuelve de verdad —que cambia con el tema, con el modo y con el tono de la
+  lámina— y se mide contra el lienzo real. El piso es 4,5:1, el mismo que usa la
+  aplicación para sus propios acentos.
+- **Mandos para escribir dentro de la región:** negrita, cursiva, código,
+  enlace, lista y conclusión, todos alternan —vuelven a pulsarse para quitar—, y
+  un menú de inserción con <kbd>/</kbd> filtrado a lo que cabe en una lámina.
+- **Formularios para los cinco bloques de dato** (`kpis`, `metric`, `steps`,
+  `actions`, `rank`), con las reglas del contrato visual dichas en el propio
+  formulario: más de cinco KPI no caben, una acción sin responsable no es una
+  acción, dos pasos activos a la vez no son un plan. El YAML sigue editándose a
+  mano si se prefiere; el formulario es un camino más, no el único.
+- **El crudo, de la lámina activa** (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>),
+  al lado del lienzo. Nueve líneas en vez de doscientas sesenta, con una leyenda
+  que explica las directivas que hay **en esa lámina** y los errores de YAML
+  señalados en su línea.
+- **Deshacer y rehacer en todo el Studio** (<kbd>Ctrl</kbd>+<kbd>Z</kbd> /
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), que no existía: cambiar una
+  disposición por error o borrar una figura no tenía vuelta atrás. Mientras se
+  teclea manda el deshacer nativo del cuadro de texto, que es el que espera quien
+  está escribiendo.
+- **Duplicar lámina** (<kbd>Ctrl</kbd>+<kbd>D</kbd>), también desde el esquema.
+
+El plan completo, con lo que quedó pendiente y por qué, está en
+`docs/dev/plan_studio_deck.md`.
+
+### Las etiquetas del treemap ya se leen
+
+Tres cosas distintas encima de la misma etiqueta, y las tres se veían como «esa
+letra está rara»:
+
+- **El trazo del gráfico se heredaba al texto.** El `stroke` del treemap dibuja
+  el filete entre baldosas, pero en SVG lo heredan los textos hijos: cada letra
+  salía contorneada con el color de su propio fondo. A 11 px eso emborrona el
+  glifo.
+- **Había una etiqueta de más.** El motor pinta el contenido una vez por baldosa
+  **y una vez por el conjunto**; esa llamada llega sin nombre y con el total, y
+  se dibujaba en blanco justo encima de la primera baldosa. Dos textos
+  superpuestos.
+- **La tinta se elegía con la fórmula equivocada.** El cálculo decía ser WCAG y
+  era YIQ —brillo de televisión analógica, sin linearizar gamma— con un umbral
+  encima. De los ocho colores de la paleta editorial fallaba en tres, y eran
+  exactamente los tres que no se leían: sobre `#25A08D`, `#D45AC7` y `#5A83D7`
+  elegía blanco (3,2:1 · 3,5:1 · 3,7:1) teniendo la tinta oscura a 5,3:1 · 4,9:1
+  · 4,6:1.
+
+Ahora se miden las dos tintas y gana la que más contrasta, sin umbral que
+afinar. El cálculo vive en un solo sitio, compartido con el deck y con el mapa
+de calor —que usaba una tercera copia, con su propio umbral, sobre celdas
+interpoladas.
+
+### Correcciones
+
+- **La barra del Studio dejó de tomar prestado su estilo** del editor de
+  markdown. Al rediseñarse aquél en la v5.4.0 desaparecieron dos clases que esta
+  barra usaba sin declararlas: los controles pasaron a medir 955 px dentro de una
+  banda de 735, y **Guardar quedaba fuera de la pantalla**. Los estilos son ahora
+  suyos.
+- **El diseñador ignoraba la paleta del deck** al pintar la figura: usaba la
+  guardada en el `.amoxvis` mientras Review y el pase usaban la del deck, así que
+  la misma lámina salía de dos colores según dónde se mirara.
+- **La aplicación se congelaba al editar una lámina con figura.** Tres causas
+  encadenadas: componentes definidos dentro del render, que se desmontan y
+  vuelven a montar en cada pasada; una medición que publicaba un objeto nuevo
+  aunque el valor no cambiara; y las variables de una figura comparadas por
+  identidad y no por valor. Entre las tres cerraban un ciclo de repintado que
+  llegó a disparar dos mil seiscientas peticiones.
+- **El cuadro de escritura dejó de salir de dos renglones.** Al envolverlo en un
+  contenedor de altura automática, su `min-height: 100%` se quedó sin nada
+  contra lo que resolver. Y **la barra de láminas dejó de amontonarse**: un botón
+  con texto estaba heredando el ancho fijo de 30 px de los botones de icono.
+
+---
+
 ## [5.4.0] — 2026-09-13
 
 ### El editor de documentos, en tres columnas

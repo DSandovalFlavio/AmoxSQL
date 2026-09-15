@@ -8,11 +8,11 @@
  * mutate the underlying markdown through DeckEditor's serializeDeck-based
  * handlers — this panel is just the outline UI, not a parallel data model.
  */
-import { LuChevronUp, LuChevronDown, LuTrash2, LuPlus } from 'react-icons/lu';
+import { LuChevronUp, LuChevronDown, LuTrash2, LuPlus, LuCopy } from 'react-icons/lu';
 import { DECK_LAYOUT_META } from '../deckLayoutPreviews';
 import { slideTitle } from '../../../utils/deckTemplates';
 
-const SlidesPanel = ({ slides, activeSlideIndex, onNavigate, onMove, onDelete, onAddSlide }) => {
+const SlidesPanel = ({ slides, activeSlideIndex, onNavigate, onMove, onDelete, onAddSlide, onDuplicate }) => {
     return (
         <div className="deck-panel deck-panel--slides">
             <p className="deck-panel-hint">Click to open a slide; reorder or remove it.</p>
@@ -53,8 +53,15 @@ const SlidesPanel = ({ slides, activeSlideIndex, onNavigate, onMove, onDelete, o
                                 </button>
                                 <button
                                     type="button"
+                                    onClick={() => onDuplicate?.(index)}
+                                    title="Duplicar la lámina (Ctrl+D)"
+                                >
+                                    <LuCopy size={14} strokeWidth={2.2} />
+                                </button>
+                                <button
+                                    type="button"
                                     onClick={() => onDelete(index)}
-                                    title="Delete slide"
+                                    title="Borrar la lámina"
                                     className="deck-outline-item-delete"
                                 >
                                     <LuTrash2 size={15} strokeWidth={2.4} />

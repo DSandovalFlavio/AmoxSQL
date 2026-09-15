@@ -34,12 +34,15 @@ import {
     LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode, LuPlay,
 } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../../monacoTheme.js';
-import { parseDeck, serializeDeck } from '../../utils/deckParser';
+import { parseDeck, serializeDeck, setFrontMatterKeys } from '../../utils/deckParser';
 import { buildSlideSnippet, buildSlideRaw, splitSlideContent } from '../../utils/deckTemplates';
 import DeckSidePanel from './DeckSidePanel';
 import SlideDesigner from './SlideDesigner';
 import SlidePreview from './SlidePreview';
 import DeckShow from './DeckShow';
+import DeckInspector from './DeckInspector';
+import { useHistorial, esAtajoDeHistorial } from './useHistorial';
+import DeckSlideRaw from './DeckSlideRaw';
 import '../MarkdownEditor.css';
 import './deck.css';
 
@@ -66,7 +69,12 @@ const DeckEditor = ({
         const saved = localStorage.getItem('amoxsql-deck-view-mode');
         return VALID_VIEWS.includes(saved) ? saved : 'design';
     });
-    const [activePanel, setActivePanel] = useState(() => localStorage.getItem('amoxsql-deck-panel') || 'slides');
+    // 'layouts' desaparecio del panel izquierdo al mudarse al inspector, pero
+    // sigue guardado en quien lo tuviera elegido: cae al esquema.
+    const [activePanel, setActivePanel] = useState(() => {
+        const guardado = localStorage.getItem('amoxsql-deck-panel');
+        return ['slides', 'charts', 'images'].includes(guardado) ? guardado : 'slides';
+    });
     const [sidePanelCollapsed, setSidePanelCollapsed] = useState(() => localStorage.getItem('amoxsql-deck-panel-collapsed') === '1');
     const [activeSlideIndex, setActiveSlideIndex] = useState(0);
     const [refreshToken, setRefreshToken] = useState(0);
@@ -81,6 +89,17 @@ const DeckEditor = ({
     // «desde el principio» son la misma acción con distinto punto de partida.
     const [presentandoDesde, setPresentandoDesde] = useState(null);
     const [showPresentMenu, setShowPresentMenu] = useState(false);
+    // La seleccion de region vive AQUI y no en el diseñador: el inspector es
+    // una columna hermana del lienzo, no un hijo suyo, y los dos tienen que
+    // estar mirando lo mismo.
+    const [selRegionId, setSelRegionId] = useState(null);
+    const [inspectorColapsado, setInspectorColapsado] = useState(() => localStorage.getItem('amoxsql-deck-inspector-colapsado') === '1');
+    // La procedencia la reporta la figura al terminar; el inspector la enseña.
+    const [procedenciaActiva, setProcedenciaActiva] = useState(null);
+    // El crudo de la lamina activa, al lado del lienzo. La vista Source del
+    // archivo entero se queda como estaba: son dos cosas distintas y la queja
+    // era tener que buscar una lamina entre 260 lineas.
+    const [crudoAbierto, setCrudoAbierto] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
     const saveMenuRef = useRef(null);
     const pptxMenuRef = useRef(null);
@@ -91,6 +110,12 @@ const DeckEditor = ({
 
     const deck = useMemo(() => parseDeck(content || ''), [content]);
     const aspectRatio = SLIDE_ASPECT;
+
+    // Toda escritura del Studio pasa por `escribir`, que es lo que da el
+    // deshacer. La vista Source NO: Monaco tiene el suyo por pulsación y dos
+    // historiales encima del mismo documento se pelean.
+    const historial = useHistorial(content, onChange);
+    const escribir = historial.escribir;
 
     // El antetítulo de una lámina: el suyo si lo declara —incluso vacío, que
     // significa "aquí no"— y si no, el hilo del deck.
@@ -177,10 +202,10 @@ const DeckEditor = ({
         const snippet = buildSlideSnippet(layout);
         const trimmed = (content || '').replace(/\s*$/, '');
         const next = trimmed.length > 0 ? `${trimmed}\n\n---\n\n${snippet}\n` : `${snippet}\n`;
-        onChange(next);
+        escribir(next);
         // Focus the new slide (it becomes the last one).
         setActiveSlideIndex(deck.slides.length);
-    }, [content, onChange, deck.slides.length]);
+    }, [content, escribir, deck.slides.length]);
 
     /** Patch one slide (prose / layout / chartSrc / notes) and re-serialize losslessly. */
     const updateSlideAt = useCallback((index, patch) => {
@@ -189,7 +214,7 @@ const DeckEditor = ({
             // No slide to patch (e.g. empty deck) — seed one carrying the patch.
             const layout = patch.layout || 'content';
             const raw = buildSlideRaw({ layout, prose: patch.prose || '', chartSrc: patch.chartSrc || null, notes: patch.notes || '' });
-            onChange(serializeDeck(deck.frontMatterText, [{ raw }]));
+            escribir(serializeDeck(deck.frontMatterText, [{ raw }]));
             setActiveSlideIndex(0);
             return;
         }
@@ -205,13 +230,30 @@ const DeckEditor = ({
             notes: patch.notes !== undefined ? patch.notes : current.notes,
         });
         const nextSlides = deck.slides.map((s, i) => (i === index ? { ...s, raw } : s));
-        onChange(serializeDeck(deck.frontMatterText, nextSlides));
-    }, [deck, onChange]);
+        escribir(serializeDeck(deck.frontMatterText, nextSlides));
+    }, [deck, escribir]);
 
     const handleEditProse = useCallback((prose) => updateSlideAt(activeSlideIndex, { prose }), [updateSlideAt, activeSlideIndex]);
     const handleEditNotes = useCallback((notes) => updateSlideAt(activeSlideIndex, { notes }), [updateSlideAt, activeSlideIndex]);
     const handleApplyLayout = useCallback((layout) => updateSlideAt(activeSlideIndex, { layout }), [updateSlideAt, activeSlideIndex]);
     const handleRemoveChart = useCallback(() => updateSlideAt(activeSlideIndex, { charts: [] }), [updateSlideAt, activeSlideIndex]);
+    const handleSetTone = useCallback((tone) => updateSlideAt(activeSlideIndex, { tone }), [updateSlideAt, activeSlideIndex]);
+    /**
+     * Escribe en la cabecera del archivo. Pasa por `setFrontMatterKeys` y no
+     * por un volcado de YAML: lo que no se toca tiene que volver byte a byte,
+     * comentarios y orden incluidos. Ver la nota de esa funcion.
+     */
+    const handleSetFrontMatter = useCallback((cambios) => {
+        escribir(serializeDeck(setFrontMatterKeys(deck.frontMatterText, cambios), deck.slides));
+    }, [deck, escribir]);
+    const handleSetFooter = useCallback((footer) => updateSlideAt(activeSlideIndex, { footer }), [updateSlideAt, activeSlideIndex]);
+    const alternarInspector = useCallback(() => {
+        setInspectorColapsado((prev) => {
+            const next = !prev;
+            localStorage.setItem('amoxsql-deck-inspector-colapsado', next ? '1' : '0');
+            return next;
+        });
+    }, []);
 
     /** Quita UNA figura de una lámina que tiene varias. */
     const handleRemoveChartAt = useCallback((i) => {
@@ -271,20 +313,57 @@ const DeckEditor = ({
         if (target < 0 || target >= deck.slides.length) return;
         const next = [...deck.slides];
         [next[index], next[target]] = [next[target], next[index]];
-        onChange(serializeDeck(deck.frontMatterText, next));
+        escribir(serializeDeck(deck.frontMatterText, next));
         setActiveSlideIndex(target);
-    }, [deck, onChange]);
+    }, [deck, escribir]);
+
+    /** Duplicar: la copia entra justo detras y queda activa. */
+    const handleDuplicateSlide = useCallback((index) => {
+        const slide = deck.slides[index];
+        if (!slide) return;
+        const next = [...deck.slides];
+        next.splice(index + 1, 0, { raw: slide.raw });
+        escribir(serializeDeck(deck.frontMatterText, next));
+        setActiveSlideIndex(index + 1);
+    }, [deck, escribir]);
+
+    /** El crudo de UNA lamina, sustituido en su sitio. */
+    const handleEditRaw = useCallback((raw) => {
+        const next = deck.slides.map((s, i) => (i === activeSlideIndex ? { ...s, raw } : s));
+        escribir(serializeDeck(deck.frontMatterText, next));
+    }, [deck, escribir, activeSlideIndex]);
 
     const handleDeleteSlide = useCallback((index) => {
         const next = deck.slides.filter((_, i) => i !== index);
-        onChange(serializeDeck(deck.frontMatterText, next));
-    }, [deck, onChange]);
+        escribir(serializeDeck(deck.frontMatterText, next));
+    }, [deck, escribir]);
 
     const goToSlide = useCallback((idx) => {
         setActiveSlideIndex(Math.max(0, Math.min(idx, deck.slides.length - 1)));
     }, [deck.slides.length]);
 
     const requestAddChart = useCallback(() => { changePanel('charts'); setSidePanelCollapsed(false); }, []);
+
+    // Los atajos del Studio. Van en captura sobre el contenedor de la pestaña y
+    // no en `window`: con dos pestañas abiertas, el deshacer de una no puede
+    // tocar el deck de la otra.
+    useEffect(() => {
+        const el = document.querySelector('.deck-studio.active') || null;
+        const onKey = (e) => {
+            const accion = esAtajoDeHistorial(e);
+            if (accion === 'deshacer') { e.preventDefault(); historial.deshacer(); return; }
+            if (accion === 'rehacer') { e.preventDefault(); historial.rehacer(); return; }
+            if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+                const k = (e.key || '').toLowerCase();
+                const enTexto = e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement;
+                if (k === 'd' && !enTexto) { e.preventDefault(); handleDuplicateSlide(activeSlideIndex); return; }
+                if (k === 'e' && e.shiftKey) { e.preventDefault(); setCrudoAbierto((v) => !v); }
+            }
+        };
+        el?.addEventListener('keydown', onKey, true);
+        return () => el?.removeEventListener('keydown', onKey, true);
+    }, [historial, handleDuplicateSlide, activeSlideIndex, isActive]);
+
 
     const handleEditorWillMount = useCallback((monaco) => {
         registerMonaco(monaco);
@@ -312,6 +391,11 @@ const DeckEditor = ({
     };
 
     const activeSlide = deck.slides[activeSlideIndex] || null;
+    // Lo que el inspector necesita de la lamina activa, troceado una sola vez.
+    const { prose: activeProse, chartSrc: activeChartSrc, charts: activeCharts } = useMemo(
+        () => (activeSlide ? splitSlideContent(activeSlide.markdown) : { prose: '', chartSrc: null, charts: [] }),
+        [activeSlide],
+    );
     const showExport = viewMode !== 'source' && deck.slides.length > 0;
 
     return (
@@ -319,7 +403,7 @@ const DeckEditor = ({
             <div className="ep-editor-card deck-studio-card">
 
                 {/* ── Toolbar ── */}
-                <div className="ep-action-bar mde-toolbar">
+                <div className="ep-action-bar deck-toolbar">
                     <div className="ep-action-left">
                         <span className="deck-title-badge" title="Deck title (from front matter)">
                             <LuPresentation size={13} />
@@ -367,7 +451,7 @@ const DeckEditor = ({
 
                         {showExport && (
                             <>
-                                <span className="mde-sep" />
+                                <span className="deck-sep" />
                                 <div className="ep-action-group" ref={pptxMenuRef}>
                                     <button
                                         className="ep-action-btn"
@@ -403,7 +487,7 @@ const DeckEditor = ({
                             </>
                         )}
 
-                        <span className="mde-sep" />
+                        <span className="deck-sep" />
 
                         <div className="seg deck-view-seg">
                             <button
@@ -470,14 +554,14 @@ const DeckEditor = ({
                         onMoveSlide={handleMoveSlide}
                         onDeleteSlide={handleDeleteSlide}
                         onAddSlide={handleAddSlide}
-                        onApplyLayout={handleApplyLayout}
+                        onDuplicateSlide={handleDuplicateSlide}
                         onInsertChart={handleInsertChart}
                         onInsertImage={handleInsertImage}
                     />
 
                     <div className="deck-main">
                         {viewMode === 'source' ? (
-                            <div className="deck-main-editor mde-editor-pane">
+                            <div className="deck-main-editor">
                                 <Editor
                                     value={content}
                                     language="markdown"
@@ -548,10 +632,49 @@ const DeckEditor = ({
                                     onRequestAddChart={requestAddChart}
                                     onPrev={() => goToSlide(activeSlideIndex - 1)}
                                     onNext={() => goToSlide(activeSlideIndex + 1)}
+                                    selRegionId={selRegionId}
+                                    onSelectRegion={setSelRegionId}
+                                    onProcedenciaChange={setProcedenciaActiva}
+                                    crudoAbierto={crudoAbierto}
+                                    onAlternarCrudo={() => setCrudoAbierto((v) => !v)}
+                                    crudo={crudoAbierto ? (
+                                        <DeckSlideRaw
+                                            raw={activeSlide.raw}
+                                            numero={activeSlideIndex + 1}
+                                            onEditar={handleEditRaw}
+                                            onCerrar={() => setCrudoAbierto(false)}
+                                        />
+                                    ) : null}
                                 />
                             )
                         )}
                     </div>
+
+                    {/* El inspector es columna hermana del lienzo, no hija: en
+                        Review y en Source no hay seleccion de la que hablar. */}
+                    {viewMode === 'design' && (
+                        <DeckInspector
+                            colapsado={inspectorColapsado}
+                            onAlternarColapso={alternarInspector}
+                            slide={activeSlide}
+                            layout={activeSlide?.layout}
+                            prose={activeProse}
+                            chartSrc={activeChartSrc}
+                            charts={activeCharts}
+                            onEditProse={handleEditProse}
+                            frontMatter={deck.frontMatter}
+                            deckFooter={deck.frontMatter?.footer}
+                            seleccion={selRegionId}
+                            procedencia={procedenciaActiva}
+                            onApplyLayout={handleApplyLayout}
+                            onSetTone={handleSetTone}
+                            onSetFooter={handleSetFooter}
+                            onSetFrontMatter={handleSetFrontMatter}
+                            onRemoveChart={handleRemoveChart}
+                            onRequestAddChart={requestAddChart}
+                            onOpenFile={onOpenFile}
+                        />
+                    )}
                 </div>
             </div>
 

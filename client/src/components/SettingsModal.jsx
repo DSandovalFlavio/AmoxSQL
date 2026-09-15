@@ -9,6 +9,9 @@ import { useDialog } from './dialogs/DialogProvider';
 import { StoryFlowGuide } from './DataVisualizer/StoryFlowGuide';
 import { DataFlowGuide } from './chains/DataFlowGuide';
 import { openTour, hasSeenTour } from './onboarding/tourRegistry';
+// Los acentos viven fuera: el inspector del deck necesita la misma lista y no
+// puede importar 97 KB de modal para leer dos arrays.
+import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../accents.js';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
@@ -39,26 +42,6 @@ const THEMES = [
     { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
     { id: 'sterlinglight', label: 'Sterling Light', icon: <LuSun size={14} />,  sidebar: '#fbf9fe', editor: '#f6f3fb', text: '#7c5ce0', desc: 'Sterling · by La Matemaga' },
     { id: 'mist',      label: 'Mist',         icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
-];
-
-const VIBRANT_ACCENTS = [
-    { id: 'cyan', color: '#00FFFF', label: 'Cyan (Default)' },
-    { id: 'amox-2', color: '#00F5FF', label: 'Aqua' },
-    { id: 'amox-4', color: '#00DAFF', label: 'Sky' },
-    { id: 'amox-6', color: '#00B6FF', label: 'Azure' },
-    { id: 'amox-8', color: '#0090FF', label: 'Blue' },
-    { id: 'amox-10', color: '#0068FF', label: 'Cobalt' },
-    { id: 'linear',  color: '#5E6AD2', label: 'Linear Blue' },
-    { id: 'islands', color: '#548af7', label: 'Islands Blue' },
-];
-
-const SOBER_ACCENTS = [
-    { id: 'sage', color: '#7dab8a', label: 'Sage', checkColor: '#000' },
-    { id: 'amber', color: '#d4a853', label: 'Amber', checkColor: '#000' },
-    { id: 'rose', color: '#c97878', label: 'Rose', checkColor: '#000' },
-    { id: 'lavender', color: '#a88ec4', label: 'Lavender', checkColor: '#000' },
-    { id: 'steel', color: '#8a9bb0', label: 'Steel', checkColor: '#000' },
-    { id: 'copper', color: '#c4956a', label: 'Copper', checkColor: '#000' },
 ];
 
 // Esquinas del resplandor del fondo. Los ids coinciden con las clases body.glow-*

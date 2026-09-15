@@ -5,20 +5,22 @@
  * control sidebar: a panel that lives INSIDE the deck's own tab (not the
  * app's global activity-bar sidebar), collapsible, with a segmented-control
  * tab switcher (reusing the `.seg`/`.seg-item` classes from Story Flow) for
- * Slides / Layouts / Charts. Its Layouts/Charts actions operate on the ACTIVE
- * slide in the Design view.
+ * Esquema / Figuras / Imágenes. Es NAVEGACIÓN: dónde estoy en el deck. Las
+ * propiedades de lo seleccionado viven en el inspector, a la derecha.
  */
-import { LuLayers, LuLayoutTemplate, LuChartBar, LuImage, LuPanelLeftClose, LuPanelLeftOpen } from 'react-icons/lu';
+import { LuLayers, LuChartBar, LuImage, LuPanelLeftClose, LuPanelLeftOpen } from 'react-icons/lu';
 import SlidesPanel from './panels/SlidesPanel';
-import LayoutsPanel from './panels/LayoutsPanel';
 import ChartsPanel from './panels/ChartsPanel';
 import ImagesPanel from './panels/ImagesPanel';
 
+// Las disposiciones se fueron al inspector: son una propiedad de la lamina
+// activa, no un catalogo que se consulta. Aqui queda la navegacion —donde
+// estoy— y los dos catalogos que todavia son la unica via de insertar; esos se
+// mudan a donde se usan en la fase 3.
 const TABS = [
-    { key: 'slides', icon: LuLayers, title: 'Slides' },
-    { key: 'layouts', icon: LuLayoutTemplate, title: 'Layouts' },
-    { key: 'charts', icon: LuChartBar, title: 'Charts' },
-    { key: 'images', icon: LuImage, title: 'Images' },
+    { key: 'slides', icon: LuLayers, title: 'Esquema' },
+    { key: 'charts', icon: LuChartBar, title: 'Figuras' },
+    { key: 'images', icon: LuImage, title: 'Imágenes' },
 ];
 
 const DeckSidePanel = ({
@@ -32,7 +34,7 @@ const DeckSidePanel = ({
     onMoveSlide,
     onDeleteSlide,
     onAddSlide,
-    onApplyLayout,
+    onDuplicateSlide,
     onInsertChart,
     onInsertImage,
 }) => {
@@ -45,8 +47,6 @@ const DeckSidePanel = ({
             </div>
         );
     }
-
-    const activeLayout = slides?.[activeSlideIndex]?.layout;
 
     return (
         <div className="deck-side-panel">
@@ -80,9 +80,9 @@ const DeckSidePanel = ({
                         onMove={onMoveSlide}
                         onDelete={onDeleteSlide}
                         onAddSlide={onAddSlide}
+                        onDuplicate={onDuplicateSlide}
                     />
                 )}
-                {activePanel === 'layouts' && <LayoutsPanel onApplyLayout={onApplyLayout} activeLayout={activeLayout} />}
                 {activePanel === 'charts' && <ChartsPanel onInsertChart={onInsertChart} />}
                 {activePanel === 'images' && <ImagesPanel onInsertImage={onInsertImage} />}
             </div>

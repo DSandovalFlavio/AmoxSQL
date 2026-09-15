@@ -12,6 +12,7 @@ import {
 import { formatNumber, createFormatter, formatDateLabel, createTooltipFormatter } from '../utils/numberFormat';
 import { computeTrendLine, processDonutData } from '../utils/dataProcessing';
 import { getLegendTextColors, legendTextColorFor } from '../utils/legendColors';
+import { mejorTintaSobre } from '../../../utils/contraste';
 import RichTooltip from './RichTooltip';
 
 // ─── Helper: CustomizedDot ───────────────────────────────────
@@ -275,15 +276,12 @@ const ChartRenderer = memo(({
 
     // ── Label position mapping ──
     // ── Contrast color helper ──
-    const getContrastColor = useCallback((hexColor) => {
-        if (!hexColor || hexColor.length < 7) return '#ffffff';
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
-        // Relative luminance (WCAG formula)
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        return luminance > 0.55 ? '#1a1a2e' : '#ffffff';
-    }, []);
+    // La tinta que más contrasta sobre el relleno, medida de verdad. Antes se
+    // decidía por umbral sobre una fórmula que decía ser WCAG y era YIQ, y de
+    // los ocho colores de la paleta editorial fallaba en tres: escogía blanco
+    // sobre verdes y azules medios donde el oscuro contrasta casi el doble.
+    // Se veía en el treemap, con unas baldosas legibles y otras no.
+    const getContrastColor = useCallback((color) => mejorTintaSobre(color), []);
 
     const labelContentRenderer = useCallback((props) => {
         if (!showLabels) return null;
@@ -1003,13 +1001,10 @@ const ChartRenderer = memo(({
                 return `rgb(${r},${g},${b})`;
             };
 
-            const textColor = (bg) => {
-                // Simple luminance check
-                const hex = bg.replace('rgb(', '').replace(')', '');
-                const [r, g, b] = hex.split(',').map(Number);
-                const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                return lum > 0.5 ? '#1a1a1a' : '#ffffff';
-            };
+            // El mapa de calor interpola la celda entre dos colores de la paleta,
+            // así que los tonos intermedios —justo los que caen cerca de
+            // cualquier umbral— son la mitad de la tabla. Se mide, no se estima.
+            const textColor = (bg) => mejorTintaSobre(bg, '#1a1a1a');
 
             const cellSize = Math.max(24, Math.min(60, Math.floor(600 / Math.max(processedData.length, finalSeriesKeys.length))));
 
@@ -1083,18 +1078,30 @@ const ChartRenderer = memo(({
                             anclada a la esquina siempre se sabe de qué baldosa es.
                             El tamaño crece con la baldosa (entre 11 y 17 px) porque
                             un tamaño fijo se vuelve ilegible al exportar a 1920. */}
-                        {showLabels && width > 46 && height > 26 && (() => {
+                        {/* `name` en la condición no es una comprobación defensiva:
+                            es lo que descarta el nodo RAÍZ. Recharts llama a este
+                            contenido una vez por baldosa **y una vez por el
+                            conjunto**, y esa llamada llega sin nombre y con el
+                            total. Se pintaba, en blanco, justo encima de la
+                            primera etiqueta — de ahí que unas se leyeran y otras
+                            parecieran repujadas: eran dos textos superpuestos. */}
+                        {showLabels && name && width > 46 && height > 26 && (() => {
                             const tam = Math.max(11, Math.min(17, Math.round(Math.min(width, height) / 9)));
                             const cabe = name?.length > 15 && width < 110
                                 ? name.substring(0, 12) + '…' : name;
                             return (
                                 <>
-                                    <text x={x + 9} y={y + tam + 6}
+                                    {/* `stroke="none"` explícito. El `stroke` del
+                                        <Treemap> es para el filete entre baldosas,
+                                        pero en SVG el trazo SE HEREDA y acababa
+                                        contorneando cada letra con el violeta del
+                                        fondo: a 11 px eso emborrona el glifo. */}
+                                    <text x={x + 9} y={y + tam + 6} stroke="none"
                                           fill={textColor} fontSize={tam} fontWeight="700">
                                         {cabe}
                                     </text>
                                     {height > 44 && (
-                                        <text x={x + 9} y={y + tam * 2 + 9}
+                                        <text x={x + 9} y={y + tam * 2 + 9} stroke="none"
                                               fill={textColor} fontSize={tam - 2} opacity={0.75}>
                                             {fmt(value)}
                                         </text>
