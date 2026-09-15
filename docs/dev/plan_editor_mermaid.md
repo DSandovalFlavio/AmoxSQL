@@ -1,207 +1,308 @@
-# Plan de implementación — el editor visual de diagramas
+# Plan de implementación — AmoxDiagram
 
-Un editor de nodos por delante, **mermaid por detrás**. El usuario arrastra, conecta y
-escribe; el archivo sigue siendo un bloque ` ```mermaid ` dentro del documento.
+Un editor visual de diagramas con **pestaña y formato propios**, y mermaid como
+almacenamiento. Se crea un `.amoxdiagram` desde cero, o se abre el diagrama que ya vive
+dentro de un markdown y al guardar vuelve a su sitio sin tocar el resto del documento.
 
+Auditoría: [`auditoria_editor_mermaid.md`](auditoria_editor_mermaid.md) (las 40 preguntas).
 Este documento es el plan y también la bitácora: cada casilla se marca al cerrarse.
 
 ## Punto de partida
 
-Hoy, para dibujar un diagrama en un documento hay que escribir mermaid a mano. Funciona —
-`MarkdownPreview` lo renderiza y hay cuatro plantillas en el menú de `/` — pero escribir
-`A[origen] --> B{decide}` es programar, y quien documenta un pipeline no quiere programar
-el dibujo del pipeline.
+Hoy, para dibujar un diagrama hay que escribir mermaid a mano. Funciona —
+`MarkdownPreview` lo renderiza y hay cuatro plantillas en el menú de `/`— pero escribir
+`A[origen] --> B{decide}` es programar, y quien documenta una arquitectura no quiere
+programar el dibujo de la arquitectura.
 
-La pregunta que abrió esto fue si existe algo que enchufar o hay que hacerlo desde cero. La
-respuesta es **ni una cosa ni la otra**: media herramienta ya está en el repo.
+Media herramienta ya está en el repo:
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| El lienzo de nodos | `@xyflow/react` 12.10, montado en `chains/ChainCanvas.jsx` | Ya se usa y está tematizado |
-| El render | `mermaid` 11.14, montado en `markdown/MarkdownPreview.jsx` | Ya se usa |
+| El lienzo de nodos | `@xyflow/react` 12.10, en `chains/ChainCanvas.jsx` | Ya se usa y está tematizado |
+| El render | `mermaid` 11.14, en `markdown/MarkdownPreview.jsx:119` | Ya se usa |
 | Grafo → mermaid | `chainAMermaid()` en `markdown/diagramFromChain.js` | **Escrito**, 102 líneas |
-| Localizar un bloque cercado en el texto | `bloquesDe` / `reemplazarBloque` en `deck/deckBlockModel.js` | Escrito, atado al deck |
+| Localizar un bloque cercado | `bloquesDe` / `reemplazarBloque` en `deck/deckBlockModel.js` | Escrito, atado al deck |
+| Exportar un dibujo a PNG | `DataVisualizer/utils/exportChart.js`, sobre `html2canvas-pro` | Escrito |
+| Guardar como | `handleRequestSaveAs` en `App.jsx:1162` | Escrito, hay que enseñarle la extensión |
 | **mermaid → grafo** | — | **No existe. Aquí está el trabajo.** |
 
-## El hallazgo que cambia el planteamiento
+## Para quién
 
-El análisis original dio por hecho que habría que **calcular la disposición** de los nodos,
-porque el formato mermaid no guarda coordenadas. Eso apuntaba a una dependencia nueva
-(dagre, elk) y a un problema de fondo: el editor colocaría las cajas a su manera y el
-documento las renderizaría a la suya, enseñando dos dibujos distintos de lo mismo.
+**El ingeniero de datos es el usuario principal** y dibuja arquitecturas: sus cajas son
+sistemas, piensa en capas y las colorea, distingue lotes de continuo. El **científico de
+datos** dibuja procesos esperados, con bucles y decisiones. El **analista** dibuja de dónde
+sale el dato y quién lo toca, y es el que menos tolera la sintaxis.
+
+Dos consecuencias que se notan en todo el plan: **agrupar en capas es una operación
+central, no un adorno**, y **un diagrama con colores por capa tiene que abrirse**, porque
+es el que de verdad escribe este público.
+
+## Los dos hallazgos que ordenan el plan
+
+### Mermaid publica las posiciones
+
+El análisis original dio por hecho que habría que calcular la disposición, porque el formato
+no guarda coordenadas. Eso apuntaba a una dependencia nueva (dagre, elk) y a un problema de
+fondo: el editor colocaría las cajas a su manera y el documento las renderizaría a la suya.
 
 Se comprobó sobre mermaid 11.14, renderizando un flujo con decisión, subgrafo y cuatro
-formas, y leyendo el SVG que devuelve:
+formas, y leyendo el SVG:
 
 ```
 <g class="node default" id="probe1-flowchart-A-0"  transform="translate(60.4, 138.1)">
-<g class="node default" id="probe1-flowchart-B-1"  transform="translate(213.8, 138.1)">
 <path class="... flowchart-link" id="probe1-L_B_C_0">
 <g class="cluster" id="probe1-G">
 ```
 
-**Los identificadores del autor están en el DOM.** Cada nodo lleva su id dentro del `id`
-del `<g>` y su posición en el `transform`; cada arista lleva `L_<origen>_<destino>_<n>`;
-un subgrafo sale como `g.cluster`; las etiquetas de arista como `g.edgeLabel`.
+**Los identificadores del autor están en el DOM**, con su posición al lado. De ahí:
 
-De donde salen tres consecuencias, y conviene tenerlas claras antes de empezar:
-
-1. **No hace falta una librería de disposición.** Mermaid no guarda posiciones, pero las
-   calcula y las publica. Se leen de ahí.
+1. **No hace falta una librería de disposición.** Mermaid no las guarda, pero las calcula y
+   las publica.
 2. **El editor enseña exactamente lo que el documento va a dibujar**, porque la geometría
-   sale del mismo motor. El problema de los dos dibujos desaparece; no se resuelve, deja
-   de existir.
-3. **Sigue haciendo falta el parser de texto.** El SVG da la topología y la geometría, pero
-   no dice si una caja se escribió `[]`, `{}` o `[()]`, ni si la flecha era `-->` o `-.->`.
-   **El texto da la estructura y la intención; el render da la geometría.** Son dos fuentes
-   y cada una contesta lo suyo.
+   sale del mismo motor. El problema de los dos dibujos deja de existir.
+3. **Sigue haciendo falta el parser de texto**: el SVG no dice si una caja se escribió `[]`
+   o `{}`, ni si la flecha era `-->` o `-.->`. **El texto da la estructura y la intención;
+   el render da la geometría.**
+
+### Tres niveles de comprensión, no dos
+
+La primera versión de este plan decía que un diagrama con `classDef`, `style` o `click` no
+se abre, para no arriesgar pérdida de datos. La auditoría lo tumbó: colorear por capa es
+justo lo que hace un ingeniero de datos, así que la regla protectora acababa cerrando la
+puerta a los diagramas de su público principal.
+
+| Nivel | Qué entra | Qué hace el editor |
+|---|---|---|
+| **Entiendo** | nodos, aristas, formas, subgrafos, dirección | Lo edita |
+| **Conservo** | `classDef`, `class`, `style`, `linkStyle`, `click`, `%%{init}%%`, comentarios | **Lo guarda tal cual y lo vuelve a escribir igual** |
+| **No abro** | cualquier tipo que no sea flowchart | El botón no aparece |
+
+El nivel «conservo» es lo que permite que el editor sea **seguro sin ser cobarde**.
 
 ## El orden y por qué
 
-1. **La fase 0 es el formato, y va sola.** Es la única pieza sin la que nada funciona, es
-   la que se puede probar sin pintar un píxel, y es donde se decide el subconjunto de
-   mermaid que vamos a saber abrir. Sale con pruebas de ida y vuelta antes de que exista
-   interfaz.
-2. **La fase 1 es leer, no editar.** Abrir el diagrama en un lienzo y no dejar tocarlo
-   parece media función, pero valida lo caro —parser, geometría, correspondencia entre
-   texto y dibujo— con cero riesgo de perder el documento del usuario.
-3. **La fase 2 edita, y ahí entra el guardado.** Es la primera que escribe en el archivo,
-   así que va después de que leer esté asentado.
-4. **La fase 3 son las formas y el detalle**, que es lo que convierte un grafo en un
-   diagrama que alguien quiere enseñar.
-5. **La fase 4 es la salida digna**: lo que pasa cuando el parser no entiende algo.
-   Deliberadamente al final, porque hasta entonces el botón simplemente no aparece.
+1. **La fase 0 es el formato y va sola.** Es lo único sin lo que nada funciona y lo único
+   que se prueba entero sin pintar un píxel. Sale con pruebas de ida y vuelta.
+2. **La fase 1 es el archivo y la pestaña**, con un lienzo que sólo lee. Parece poco, pero
+   valida lo caro —parser, geometría, registro en la aplicación— sin riesgo de estropear
+   un documento.
+3. **La fase 2 edita**, y por tanto escribe. Va después de que leer esté asentado.
+4. **La fase 3 es la procedencia**, el camino de vuelta al markdown. Es la parte más
+   delicada del plan y por eso va cuando todo lo demás funciona sobre archivo propio.
+5. **La fase 4 es lo que pide una arquitectura**: capas, color, repaso.
+6. **La fase 5 es salir**: imagen, plantillas y la salida digna cuando algo no se entiende.
 
 ---
 
 ## Fase 0 — El formato
 
-Sin esto no hay editor. Con esto, aunque no se haga nada más, `diagramFromChain` queda
+Sin esto no hay editor. Con esto, aunque no se hiciera nada más, `diagramFromChain` queda
 mejor de lo que está.
 
-- [ ] **Un módulo de formato, `markdown/mermaidFlow.js`**, con las **dos** direcciones
-      dentro. No dos archivos: el ida y vuelta sólo sale exacto si las dos mitades conocen
-      el mismo subconjunto, y separadas se desincronizan en cuanto alguien añada una forma
-      a una y se olvide de la otra.
-- [ ] `parsearFlujo(texto)` → `{ nodos, aristas, subgrafos, direccion }` o `null`.
-      **Devolver `null` es una respuesta válida y frecuente**, no un fallo.
+- [ ] **Un módulo, `markdown/mermaidFlow.js`, con las dos direcciones dentro.** No dos
+      archivos: el ida y vuelta sólo sale exacto si las dos mitades conocen el mismo
+      subconjunto, y separadas se desincronizan en cuanto alguien añada una forma a una y
+      se olvide de la otra.
+- [ ] `parsearFlujo(texto)` → `{ nodos, aristas, subgrafos, direccion, conservado }` o
+      `null`. **Devolver `null` es una respuesta válida y frecuente**, no un fallo.
 - [ ] `flujoAMermaid(grafo)` → texto. La tabla `FORMA` se muda aquí desde
-      `diagramFromChain.js`, que pasa a ser **consumidor**: chain → grafo → `flujoAMermaid`,
-      en vez de componer cadenas a mano. `PLANTILLAS_DIAGRAMA` se queda donde está, que es
-      contenido de menú y no formato.
-- [ ] **El subconjunto, declarado en el propio archivo** y no repartido por el código:
-      `flowchart`/`graph` con dirección `TB|TD|BT|LR|RL`; siete formas de nodo — las cinco
-      que ya emite `chainAMermaid` (`[]`, `[()]`, `{}`, `(())`, `[//]`) más redondeado
-      `()` y trapecio `[\\]`; aristas
+      `diagramFromChain.js`, que pasa a ser **consumidor**: chain → grafo → `flujoAMermaid`
+      en vez de componer cadenas a mano. `PLANTILLAS_DIAGRAMA` se muda a
+      `markdownInsertables.js`, con el resto del catálogo del menú de `/`.
+- [ ] **El subconjunto, declarado en el propio archivo:** `flowchart`/`graph` con dirección
+      `TB|TD|BT|LR|RL`; siete formas de nodo —las cinco que ya emite `chainAMermaid`
+      (`[]`, `[()]`, `{}`, `(())`, `[//]`) más redondeado `()` y trapecio `[\\]`—; aristas
       `-->`, `---`, `-.->`, `==>` con etiqueta `|texto|` o `-- texto -->`; `subgraph`/`end`
       con un nivel de anidamiento.
-- [ ] **Todo lo demás hace que `parsearFlujo` devuelva `null`**: `%%{init}%%`, `classDef`,
-      `class`, `click`, `style`, `linkStyle`, anidamiento de subgrafos de más de un nivel,
-      y cualquier tipo que no sea flowchart. Abrir y tragarse la mitad al guardar es
-      pérdida de datos; negarse es gratis.
+- [ ] **`conservado`: las líneas que no entendemos, en orden y verbatim.** `classDef`,
+      `class`, `style`, `linkStyle`, `click`, `%%{init}%%` y los comentarios. Se vuelven a
+      escribir al serializar, en su sección, sin tocar un carácter.
+- [ ] **Sólo se rechaza el tipo de diagrama**: `sequenceDiagram`, `stateDiagram`, `erDiagram`,
+      `gantt` y compañía devuelven `null`.
+- [ ] **El serializador es estable:** mismo grafo, mismo texto, siempre — orden de nodos,
+      de aristas y de secciones fijado. **Es un requisito, no una cualidad**: el archivo se
+      versiona en git, y un serializador inestable ensucia cada diff con reordenaciones que
+      nadie hizo.
 - [ ] **Extraer el localizador de bloques cercados.** `bloquesDe` y `reemplazarBloque` ya
-      existen en `deck/deckBlockModel.js`, pero filtran por la lista de lenguajes del deck.
-      Se saca la parte genérica a `markdown/fencedBlocks.js` y la consumen los dos.
-      *(La función de contraste llegó a tener tres copias en el repo, y la tercera era la
-      mala. No se copia un helper: se muda.)*
-- [ ] `scripts/probarMermaidFlow.mjs`, con el ida y vuelta como criterio: parsear un texto,
-      serializarlo y volver a parsearlo tiene que dar el mismo grafo. Y una batería de
-      textos que **deben** rechazarse.
+      existen en `deck/deckBlockModel.js`, filtrando por la lista de lenguajes del deck. La
+      parte genérica se saca a `markdown/fencedBlocks.js` y la consumen los dos. *(La
+      función de contraste llegó a tener tres copias en el repo y la tercera era la mala. No
+      se copia un helper: se muda.)*
+- [ ] `scripts/probarMermaidFlow.mjs`. El criterio es el ida y vuelta —parsear, serializar,
+      volver a parsear, mismo grafo— más una batería de textos con `classDef` y `style` que
+      **deben sobrevivir intactos**, y otra de tipos que deben rechazarse.
 
-**Criterio de hecho:** las cuatro `PLANTILLAS_DIAGRAMA` y la salida de `chainAMermaid`
-sobre una chain real hacen el ida y vuelta sin perder nada.
+**Criterio de hecho:** las cuatro plantillas y la salida de `chainAMermaid` sobre una chain
+real hacen el ida y vuelta sin perder nada, y un diagrama con cuatro `classDef` sale byte a
+byte igual que entró.
 
-## Fase 1 — Leer
+## Fase 1 — El archivo y la pestaña
 
-Abrir el diagrama en un lienzo, sin dejar tocarlo todavía.
+Un `.amoxdiagram` que se crea, se abre, se ve y se guarda. Sin editar todavía.
 
-- [ ] **Botón «Editar» en el bloque renderizado**, junto al de expandir que ya existe en
-      `MermaidDiagram` (`MarkdownPreview.jsx:119`). **Sólo aparece si `parsearFlujo`
-      devuelve algo.** Un botón que a veces da error es peor que un botón que a veces no
-      está.
-- [ ] **`markdown/DiagramEditor.jsx`** — React Flow en un portal a pantalla completa,
-      reusando el patrón de `FullscreenViewer` que ya está en ese archivo.
+- [ ] **El formato del archivo:** front-matter (`title`, `author`, `updated`) más **un**
+      bloque mermaid. Mismo patrón que `.amoxdeck`, que ya es markdown con front-matter, y
+      así el archivo se lee sin la aplicación. Un diagrama por archivo; varios conviven en
+      un markdown, que es donde un diagrama tiene vecinos que lo explican.
+- [ ] **Registrar el tipo en los diez sitios.** Es mecánico pero se olvida la mitad, así que
+      va enumerado:
+
+  | Dónde | Qué |
+  |---|---|
+  | `App.jsx:914` | extensión → `type` |
+  | `App.jsx:1040-1050` | guardar como, y la extensión por defecto |
+  | `EditorPane.jsx:378-385` | `isDiagram` |
+  | `EditorPane.jsx:~553` | montar el editor |
+  | `LayoutManager.jsx:802,814` | nombre y plantilla del archivo nuevo |
+  | `FileExplorer.jsx:178` | que se pueda abrir |
+  | `FileExplorer.jsx:241` | icono propio |
+  | `FileExplorer.jsx:278` | grupo propio en el orden |
+  | `FileExplorer.jsx:703` + `TabBar.jsx:79` + `CommandPalette.jsx:299` | los tres «nuevo» |
+  | `server/projectSearch.js:27` | que la búsqueda del proyecto lo mire |
+
+- [ ] **`diagram/DiagramEditor.jsx`** — React Flow ocupando la pestaña.
       `ChainCanvas.jsx` es **referencia, no base**: importa 34 tipos de nodo atados a la
-      ejecución de chains, validación de ciclos y configuración por nodo. De ahí se copia
-      el montaje y el tematizado; no se extiende.
+      ejecución de chains, validación de ciclos y configuración por nodo. De ahí se copia el
+      montaje y el tematizado; no se extiende.
 - [ ] **Posiciones leídas del SVG de mermaid.** Se renderiza una vez en oculto, se leen los
-      `transform` y se mapean por el id del `<g>`. **Pendiente de comprobar en esta fase:**
-      qué ocurre cuando dos nodos distintos sanean al mismo identificador, y si el índice
-      final del id (`-0`, `-1`) es estable entre renders.
-- [ ] Un solo tipo de nodo propio, `DiagramNode`, con la forma pintada en CSS a partir del
-      campo `forma` del modelo. Nada de un componente por forma.
-- [ ] El lienzo **respeta el tema** y el acento, como el de Data Flow.
+      `transform` y se mapean por el id del `<g>`. **Dos cosas que comprobar aquí, no
+      antes:** qué pasa cuando dos nodos distintos sanean al mismo identificador, y si el
+      índice final del id (`-0`, `-1`) es estable entre renders.
+- [ ] **Un solo tipo de nodo propio**, `DiagramNode`, con la forma pintada en CSS desde el
+      campo `forma`. Nada de un componente por forma.
+- [ ] El lienzo respeta el tema y el acento, como el de Data Flow.
+- [ ] Zoom, encuadrar todo y minimapa — los tres los da React Flow.
 
-**Criterio de hecho:** abrir el diagrama de `PLANTILLAS_DIAGRAMA.flujo` y el generado por
-`chainAMermaid` sobre una chain de verdad, y que el lienzo se parezca al SVG.
+**Criterio de hecho:** crear un `.amoxdiagram` desde los tres sitios, abrirlo, y que el
+lienzo se parezca al SVG que renderiza el preview del mismo texto.
 
-## Fase 2 — Editar y guardar
+## Fase 2 — Editar
 
-La primera fase que escribe en el documento del usuario.
+La primera fase que escribe.
 
-- [ ] Añadir nodo, borrar nodo, conectar, desconectar, renombrar.
-- [ ] **Guardar reescribe el bloque, no el documento.** Se localiza el bloque por su línea
-      —`rehypeLineas` ya marca cada bloque de primer nivel con `data-line`, aunque hoy
-      `MermaidDiagram` no recibe esa propiedad: hay que pasársela— y se sustituye con
-      `reemplazarBloque`. Lo de fuera del bloque no se toca.
-- [ ] **El editor no guarda posiciones, y eso es una decisión, no una carencia.** Mermaid no
-      tiene dónde ponerlas. Si se dejara arrastrar libremente, el usuario colocaría una caja,
-      guardaría, y al reabrir la encontraría en otro sitio: el editor habría prometido algo
-      que el formato no sostiene. **Se puede arrastrar para reordenar y para cambiar de
-      subgrafo; no para fijar coordenadas.** Al guardar, la disposición se recalcula.
-- [ ] **Cancelar deja el texto intacto**, y cerrar con cambios sin guardar pregunta.
-- [ ] Deshacer y rehacer dentro del editor. La pila es **el texto mermaid**, no una lista de
-      operaciones — mismo razonamiento que en `deck/useHistorial.js`, y por la misma razón:
-      no hay que escribir la inversa de cada acción.
+- [ ] Añadir nodo por **tres caminos**: doble clic en el lienzo, arrastrar desde una paleta,
+      y `Tab` desde un nodo seleccionado para encadenar. El tercero es el de quien ya sabe
+      lo que va a dibujar.
+- [ ] Conectar y desconectar arrastrando desde el borde, como Data Flow.
+- [ ] **Editar el texto de una caja con doble clic, en el sitio.** Nunca un campo en un
+      panel lejano para algo tan frecuente.
+- [ ] **Inspector a la derecha** con tres estados, como el Studio del deck: diagrama (sin
+      selección) · nodo · arista. Forma y clase en el nodo; etiqueta y estilo de flecha en
+      la arista; dirección y título en el diagrama.
+- [ ] **Una arista es seleccionable**, no un adorno entre dos cajas.
+- [ ] Copiar, pegar y **duplicar** — quien dibuja tres fuentes parecidas no las escribe tres
+      veces.
+- [ ] **Buscar un nodo por su texto** y que el lienzo salte a él. Con cuarenta cajas, sin
+      esto no se navega.
+- [ ] Deshacer y rehacer. La pila es **el texto mermaid**, no una lista de operaciones —
+      mismo razonamiento que `deck/useHistorial.js`: no hay que escribir la inversa de cada
+      acción.
+- [ ] **Panel de texto plegable al lado del lienzo**, editable, con el mermaid que se está
+      generando. **Es una vista de primera clase, no una salida de emergencia:** la mitad
+      del público sabe leer mermaid y va a querer comprobar qué se escribe en su archivo.
+      Mismo papel que `DeckSlideRaw.jsx` en el deck.
+- [ ] Si lo escrito a mano deja de entenderse, **el lienzo se congela con un aviso**; no se
+      vacía. Vaciarse da la sensación de haber perdido el trabajo.
+- [ ] **No se pueden fijar coordenadas, y se dice en la interfaz la primera vez.** Mermaid no
+      tiene dónde guardarlas: si se permitiera, el usuario colocaría una caja, guardaría, y
+      al reabrir la encontraría en otro sitio — el editor habría prometido algo que el
+      formato no sostiene. Se arrastra para **reordenar** y para **cambiar de grupo**. A
+      cambio, el dibujo nunca queda torcido: lo ordena mermaid en cada render, y eso también
+      hay que contarlo, porque quien viene de otras herramientas espera pelearse con la
+      disposición.
 
-**Criterio de hecho:** un diagrama abierto, editado y guardado produce un bloque que el
-preview renderiza, y el resto del documento sale byte a byte igual.
+**Criterio de hecho:** dibujar desde cero la arquitectura de un flujo por lotes, guardarla,
+cerrar la pestaña, reabrirla y encontrarla igual.
 
-## Fase 3 — Las formas y el detalle
+## Fase 3 — La procedencia
 
-Lo que convierte un grafo en un diagrama presentable.
+El camino de vuelta al markdown. La parte más delicada del plan.
 
-- [ ] Cambiar la forma de un nodo desde el lienzo (las siete del subconjunto).
-- [ ] Etiqueta en la arista, y estilo de flecha (sólida, punteada, gruesa).
-- [ ] Dirección del diagrama (`LR`/`TB`/…), que es una propiedad del diagrama entero.
-- [ ] Subgrafos: crear, renombrar, meter y sacar nodos.
-- [ ] Insertar un diagrama **vacío** desde el menú de `/` y editarlo visualmente sin pasar
-      por el texto. Hoy las plantillas insertan texto; esto cierra el círculo.
+- [ ] **Botón «Editar en AmoxDiagram»** en el bloque renderizado del preview, junto al de
+      expandir. **Sólo aparece si `parsearFlujo` devuelve algo.** Un botón que a veces da
+      error es peor que un botón que a veces no está.
+- [ ] Abre **una pestaña nueva**, no un modal.
+- [ ] **La pestaña dice de dónde viene.** Un rótulo de procedencia con el nombre del
+      markdown que al pulsarlo abre ese archivo. **Ninguna pestaña de esta aplicación tiene
+      hoy dueño en otro archivo**: es un concepto nuevo y hay que enseñarlo, porque sin él
+      guardar es un acto a ciegas.
+- [ ] **El botón de guardar dice qué va a hacer**, no «Guardar» a secas: *Guardar en
+      `arquitectura.md`* o *Guardar el diagrama*. Es la pregunta donde se pierde la
+      confianza.
+- [ ] **Guardar reescribe el bloque, no el documento.** Se localiza con `fencedBlocks` y se
+      sustituye. Lo de fuera del bloque no se toca.
+- [ ] **Qué pasa si el markdown cambió debajo.** El bloque se ancla por su **posición entre
+      los bloques mermaid del archivo** más el **texto original**. Si al guardar el original
+      ya no coincide, **no se adivina**: se avisa y se ofrecen las dos salidas —sobrescribir,
+      o guardar como archivo nuevo. Perder el trabajo de otro en silencio es el único fallo
+      de este editor que no tiene arreglo.
+- [ ] **«Guardar como» → `.amoxdiagram`.** El flujo ya existe (`handleRequestSaveAs`); hay
+      que enseñarle la extensión. Resuelve además reutilizar un diagrama como plantilla.
+- [ ] Cancelar deja el texto intacto; cerrar con cambios sin guardar pregunta.
+- [ ] **Abrir en el editor el diagrama generado desde una chain.** Hoy `chainAMermaid`
+      inserta texto; que pueda abrirlo directamente.
 
-## Fase 4 — Cuando no se entiende
+**Criterio de hecho:** un markdown de 300 líneas con tres diagramas; se edita el segundo y
+el archivo sale byte a byte igual salvo ese bloque.
 
-- [ ] Si `parsearFlujo` devuelve `null`, **el botón no aparece** y el bloque se comporta
-      como hoy. Silencio, no error.
-- [ ] Salvo cuando es un flowchart que casi entendemos: ahí sí, un aviso discreto que diga
-      **qué línea** no se supo leer y ofrezca editarlo como texto. La diferencia importa —
-      un `sequenceDiagram` no es un fallo, es otro tipo de diagrama; un `flowchart` con un
-      `classDef` es algo que el usuario esperaba poder abrir.
-- [ ] Documentación de usuario: qué se puede editar visualmente y qué no, y por qué.
+## Fase 4 — Lo que pide una arquitectura
+
+- [ ] **Agrupar.** Seleccionar varias cajas → «agrupar» en un subgrafo; renombrar, meter y
+      sacar. **Es la operación central del ingeniero de datos**, no un detalle de acabado:
+      zonas de aterrizaje, refinado y consumo son subgrafos.
+- [ ] **Color por clase.** Una vez el nivel «conservo» mantiene `classDef`, asignar una
+      clase a un nodo es una línea. Es lo que responde a «colorear por capa o por equipo».
+- [ ] **Estilo de flecha** para distinguir lotes de continuo (`-->` / `-.->` / `==>`).
+- [ ] **Repaso de cabos sueltos:** nodos sin conectar, grupos vacíos, etiquetas duplicadas.
+      Barato, y es justo lo que alguien quiere mirar antes de enseñar una arquitectura.
+- [ ] **Plantillas para este público**, que las cuatro de hoy son genéricas: una arquitectura
+      por capas, una ingesta por lotes frente a una continua, un flujo de experimento.
+
+## Fase 5 — Salir
+
+- [ ] **Exportar PNG y SVG.** El exportador de PNG ya está escrito y en uso por Story Flow
+      (`DataVisualizer/utils/exportChart.js`). Es de las primeras cosas que se van a pedir:
+      el diagrama acaba en un documento de diseño que no es este markdown.
+- [ ] **Comprobar que una lámina del deck renderiza bien un bloque mermaid.** Ya debería
+      —el deck renderiza markdown— y es trabajo de una tarde, no de una fase.
+- [ ] **La salida digna.** Si no se entiende, el botón no aparece y el bloque se comporta
+      como hoy: silencio, no error. Salvo cuando es un flowchart que casi entendemos: ahí un
+      aviso discreto que diga **qué línea** no se supo leer. La diferencia importa — un
+      `sequenceDiagram` no es un fallo, es otro tipo de diagrama; un flowchart con algo raro
+      es algo que el usuario esperaba poder abrir.
+- [ ] Documentación de usuario: qué se edita visualmente, qué se conserva sin tocar, y por
+      qué no se pueden mover las cajas.
 
 ---
 
 ## Lo que este plan deja fuera, y por qué
 
-- **Secuencia, estados, Gantt, ER.** Sólo flowchart. Es lo que dibuja un analista
-  documentando un pipeline, y es lo que `chainAMermaid` ya emite. ER además ya existe,
-  generado desde la base de datos en `ErDiagram.jsx`.
-- **Un tipo de archivo `.diagram` propio.** El diagrama vive dentro del documento que lo
-  explica. Un archivo aparte obliga a inventar navegación, guardado y referencias para algo
-  que hoy es un bloque de texto.
+- **Secuencia, estados, Gantt.** Sólo flowchart. Es lo que dibuja este público y lo que
+  `chainAMermaid` ya emite. Entidad-relación además ya existe, generado desde la base de
+  datos en `ErDiagram.jsx`; no se duplica.
+- **Una biblioteca de iconos de proveedores.** No es una limitación técnica sino una regla
+  del proyecto: no se nombran ni se dibujan tecnologías ajenas en la interfaz. Lo que el
+  usuario escriba en su etiqueta es contenido suyo, y ahí no nos metemos. Se va a pedir.
+- **Que la IA dibuje el primer borrador.** Es la petición más natural del mundo y encaja
+  después sin tocar nada: si el editor abre cualquier mermaid del subconjunto, una
+  herramienta que emita mermaid entra sola. Fuera del alcance de este plan, no del producto.
+- **Crear enlaces `click` desde la interfaz.** Con el nivel «conservo» los enlaces que ya
+  existan sobreviven; crearlos es candidato claro para después.
 - **Usar el parser interno de mermaid.** Su API pública (`parse`, `render`, `detectType`)
-  valida y dice el tipo, pero no devuelve el grafo. Para eso hay que entrar por
-  `mermaidAPI`, marcado `@deprecated` y `@internal` en sus propios tipos: atarse a eso
-  significa que una subida de versión menor deja de abrir los diagramas de la gente.
-  **Usamos su render, que es API pública y estable, y nuestro parser.**
-- **Enlace vivo entre una chain y su diagrama.** `chainAMermaid` genera el esqueleto una
-  vez, a propósito: si lo reflejara en tiempo real, cualquier retoque de la chain borraría
-  lo que el autor escribió encima.
+  valida y dice el tipo, pero no devuelve el grafo. Para eso hay que entrar por `mermaidAPI`,
+  marcado `@deprecated` y `@internal` en sus propios tipos: atarse a eso significa que una
+  subida de versión menor deja de abrir los diagramas de la gente. **Usamos su render, que
+  es API pública, y nuestro parser.**
+- **Enlace vivo entre una chain y su diagrama.** `chainAMermaid` genera el esqueleto una vez,
+  a propósito: si lo reflejara en tiempo real, cualquier retoque de la chain borraría lo que
+  el autor escribió encima.
 
 ## Deuda que queda anotada
 
 - `MermaidDiagram` reinicializa mermaid cuando cambia el tema, con una variable global de
   módulo (`lastMermaidTheme`). Con el editor abierto habrá **dos** consumidores del mismo
-  singleton. Conviene mirarlo en la fase 1 antes de que dé un fallo raro.
-- Las cuatro `PLANTILLAS_DIAGRAMA` están en `diagramFromChain.js`, que tras la fase 0 deja
-  de ser el archivo del formato. Su sitio natural es `markdownInsertables.js`, con el resto
-  del catálogo del menú de `/`.
+  singleton. Mirarlo en la fase 1, antes de que dé un fallo raro.
+- `rehypeLineas` marca cada bloque de primer nivel con `data-line`, pero `MermaidDiagram` no
+  recibe esa propiedad hoy. Hay que pasársela para la fase 3.
+- No hay anotaciones sueltas en `flowchart`: lo más cercano es un nodo sin aristas, que ya
+  se conserva. Se contesta explicándolo.
