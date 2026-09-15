@@ -304,32 +304,66 @@ estaba roto.
 
 El camino de vuelta al markdown. La parte más delicada del plan.
 
-- [ ] **Botón «Editar en AmoxDiagram»** en el bloque renderizado del preview, junto al de
+- [x] **Botón «Editar en AmoxDiagram»** en el bloque renderizado del preview, junto al de
       expandir. **Sólo aparece si `parsearFlujo` devuelve algo.** Un botón que a veces da
       error es peor que un botón que a veces no está.
-- [ ] Abre **una pestaña nueva**, no un modal.
-- [ ] **La pestaña dice de dónde viene.** Un rótulo de procedencia con el nombre del
+- [x] Abre **una pestaña nueva**, no un modal.
+- [x] **La pestaña dice de dónde viene.** Un rótulo de procedencia con el nombre del
       markdown que al pulsarlo abre ese archivo. **Ninguna pestaña de esta aplicación tiene
       hoy dueño en otro archivo**: es un concepto nuevo y hay que enseñarlo, porque sin él
       guardar es un acto a ciegas.
-- [ ] **El botón de guardar dice qué va a hacer**, no «Guardar» a secas: *Guardar en
+- [x] **El botón de guardar dice qué va a hacer**, no «Guardar» a secas: *Guardar en
       `arquitectura.md`* o *Guardar el diagrama*. Es la pregunta donde se pierde la
       confianza.
-- [ ] **Guardar reescribe el bloque, no el documento.** Se localiza con `fencedBlocks` y se
+- [x] **Guardar reescribe el bloque, no el documento.** Se localiza con `fencedBlocks` y se
       sustituye. Lo de fuera del bloque no se toca.
-- [ ] **Qué pasa si el markdown cambió debajo.** El bloque se ancla por su **posición entre
+- [x] **Qué pasa si el markdown cambió debajo.** El bloque se ancla por su **posición entre
       los bloques mermaid del archivo** más el **texto original**. Si al guardar el original
       ya no coincide, **no se adivina**: se avisa y se ofrecen las dos salidas —sobrescribir,
       o guardar como archivo nuevo. Perder el trabajo de otro en silencio es el único fallo
       de este editor que no tiene arreglo.
-- [ ] **«Guardar como» → `.amoxdiagram`.** El flujo ya existe (`handleRequestSaveAs`); hay
+- [x] **«Guardar como» → `.amoxdiagram`.** El flujo ya existe (`handleRequestSaveAs`); hay
       que enseñarle la extensión. Resuelve además reutilizar un diagrama como plantilla.
-- [ ] Cancelar deja el texto intacto; cerrar con cambios sin guardar pregunta.
-- [ ] **Abrir en el editor el diagrama generado desde una chain.** Hoy `chainAMermaid`
+- [x] Cancelar deja el texto intacto; cerrar con cambios sin guardar pregunta.
+- [~] **Abrir en el editor el diagrama generado desde una chain.** Hoy `chainAMermaid`
       inserta texto; que pueda abrirlo directamente.
 
 **Criterio de hecho:** un markdown de 300 líneas con tres diagramas; se edita el segundo y
 el archivo sale byte a byte igual salvo ese bloque.
+
+**Cumplido, y comprobado sobre un archivo real** con front-matter, un diagrama con
+`classDef`, un bloque `sql`, un segundo flowchart y un `sequenceDiagram`. Se abrió el
+**segundo**, se cambió, se guardó, y quedaron intactos: la cabecera, el `classDef` del
+primero, el bloque `sql`, el diagrama de secuencia y el texto del final. El de secuencia,
+además, **no ofrece el botón**: tres diagramas, dos botones.
+
+`scripts/probarProcedenciaDiagrama.mjs` añade 40 comprobaciones sobre el ancla, que es la
+pieza que decide si se escribe o se pregunta.
+
+El conflicto se probó de verdad: se editó el documento **desde fuera** con la pestaña
+abierta, y al guardar salió el diálogo con sus tres salidas sin haber escrito nada. Sólo
+«Sobrescribir» pisa lo del otro, y lo hace dejando el resto del documento intacto.
+
+Dos cosas que conviene saber:
+
+1. **El anclaje tiene dos datos y ninguno basta solo.** La posición entre los bloques
+   sobrevive a que escriban párrafos alrededor pero no a que inserten otro diagrama antes;
+   el texto original sobrevive a que lo muevan pero no a que lo editen. Se usan los dos: la
+   posición para encontrarlo, el texto para confirmar que es el mismo. Si el texto aparece
+   una sola vez en otro sitio, **se sigue al bloque movido** — un diagrama que cambió de
+   sección sigue siendo el mismo diagrama. Con dos copias idénticas no se adivina.
+2. **Cerrar una pestaña es silencioso en toda la aplicación, y aquí no podía serlo.** Un
+   archivo con ruta conserva su borrador y sigue en el disco; un diagrama abierto desde un
+   markdown no tiene ni lo uno ni lo otro — su contenido **no existe en ningún otro sitio**
+   hasta que vuelve a su documento. Se añadió una pregunta al cerrar, sólo para este caso.
+
+La desviación: **abrir directamente el diagrama generado desde una chain** se queda en que
+`chainAMermaid` inserta su bloque en el documento y ahí ya aparece el botón de editar. Un
+camino propio ahorraría un clic y añadiría una segunda forma de llegar al mismo sitio.
+
+Y un fallo encontrado sólo al usarlo, que dejó la aplicación **en negro**: la fase 1 dejó
+`procedencia` como una ruta de texto y la fase 3 la convirtió en un objeto. Build y ESLint
+pasaron por encima sin decir nada; lo cazó la consola del navegador a la primera pulsación.
 
 ## Fase 4 — Lo que pide una arquitectura
 

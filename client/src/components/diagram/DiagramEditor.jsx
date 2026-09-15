@@ -51,6 +51,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     // posición: es la única a la que el identificador todavía puede seguir.
     const [sinBautizar, setSinBautizar] = useState(null);
     const [borrador, setBorrador] = useState(null);
+    const [conflicto, setConflicto] = useState(null);
 
     const doc = useMemo(() => leerDiagrama(content), [content]);
     const colores = useMemo(() => coloresDelTema(theme), [theme]);
@@ -116,6 +117,20 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
         setSeleccion({ tipo: 'nodo', id: r.id });
     }, [g, aplicar]);
 
+    /**
+     * Guardar, con la conversación que hace falta cuando el destino es de otro.
+     *
+     * Para un `.amoxdiagram` esto es el guardado de siempre. Cuando el diagrama
+     * vive dentro de un markdown, quien mezcla devuelve un motivo en vez de
+     * escribir, y **aquí se pregunta**: sobrescribir, guardar aparte, o dejarlo.
+     * Ninguna de las tres se elige por el usuario.
+     */
+    const guardar = useCallback(async (opciones) => {
+        const r = await onSave?.(false, opciones);
+        if (r && r.ok === false && r.motivo !== 'error') setConflicto(r);
+        else setConflicto(null);
+    }, [onSave]);
+
     const intentarMover = useCallback(() => {
         if (localStorage.getItem(AVISO_MOVER) === '1') return;
         setAvisoMover(true);
@@ -159,7 +174,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     useEffect(() => {
         const alPulsar = (e) => {
             const enCampo = e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement;
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); onSave?.(); return; }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); guardar(); return; }
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
                 e.preventDefault(); setVerTexto((v) => !v); return;
             }
@@ -173,7 +188,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
         };
         window.addEventListener('keydown', alPulsar);
         return () => window.removeEventListener('keydown', alPulsar);
-    }, [onSave, historial, seleccion, borrarSeleccion, crear]);
+    }, [guardar, historial, seleccion, borrarSeleccion, crear]);
 
     // ── lienzo ──────────────────────────────────────────────────────────────
     /**
@@ -197,7 +212,12 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     const avisos = useMemo(() => (g ? cabosSueltos(g) : []), [g]);
 
     const nombre = doc.titulo || (filePath || '').split(/[\\/]/).pop() || 'Diagrama';
-    const destino = procedencia ? `Guardar en ${procedencia.split(/[\\/]/).pop()}` : 'Guardar el diagrama';
+    // La procedencia es un objeto —qué archivo, qué posición, cómo estaba— y no
+    // sólo una ruta: guardar necesita las tres cosas para saber si el documento
+    // sigue como se abrió.
+    const archivoOrigen = procedencia?.archivo || '';
+    const nombreOrigen = archivoOrigen.split(/[\\/]/).pop();
+    const destino = procedencia ? `Guardar en ${nombreOrigen}` : 'Guardar el diagrama';
 
     return (
         <div className="dgm-editor">
@@ -208,10 +228,10 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                     es este diagrama?». Un `.amoxdiagram` no la lleva: no tiene
                     dueño, es el dueño. */}
                 {procedencia ? (
-                    <button type="button" className="dgm-origin" onClick={() => onOpenFile?.(procedencia)}
+                    <button type="button" className="dgm-origin" onClick={() => onOpenFile?.(archivoOrigen)}
                         title="Abrir el documento del que viene">
                         <LuLink size={11} strokeWidth={2.4} /> vive en
-                        <span className="dgm-origin-file">{procedencia.split(/[\\/]/).pop()}</span>
+                        <span className="dgm-origin-file">{nombreOrigen}</span>
                     </button>
                 ) : (
                     <span className="dgm-origin dgm-origin--propio">
@@ -253,7 +273,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                 <button type="button" className="dgm-btn" onClick={() => onRequestSaveAs?.(content)}>
                     Guardar como…
                 </button>
-                <button type="button" className="dgm-btn dgm-btn--primary" onClick={() => onSave?.()} disabled={!isDirty}>
+                <button type="button" className="dgm-btn dgm-btn--primary" onClick={() => guardar()} disabled={!isDirty}>
                     <LuSave size={12} strokeWidth={2.3} /> {destino}
                 </button>
             </div>
@@ -303,6 +323,32 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                     onIntentarMover={intentarMover}
                                 />
                             </ReactFlowProvider>
+                        )}
+
+                        {conflicto && (
+                            <div className="dgm-velo">
+                                <div className="dgm-dialogo">
+                                    <h5><LuTriangleAlert size={15} strokeWidth={2.1} /> El documento cambió mientras editabas</h5>
+                                    <p>{conflicto.mensaje}</p>
+                                    {/* Tres salidas, no dos. La de en medio —guardar aparte—
+                                        es la que evita tener que elegir entre perder lo tuyo
+                                        o pisar lo de otro, y es la razón de que esto no sea
+                                        un «confirmar/cancelar» de los normales. */}
+                                    <div className="dgm-dialogo-botones">
+                                        <button type="button" className="dgm-btn" onClick={() => setConflicto(null)}>
+                                            Cancelar
+                                        </button>
+                                        <button type="button" className="dgm-btn"
+                                            onClick={() => { setConflicto(null); onRequestSaveAs?.(content); }}>
+                                            Guardar como archivo nuevo
+                                        </button>
+                                        <button type="button" className="dgm-btn dgm-btn--primary"
+                                            onClick={() => guardar({ forzar: true })}>
+                                            Sobrescribir
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         )}
 
                         {avisoMover && (

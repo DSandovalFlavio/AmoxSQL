@@ -11,6 +11,8 @@ import SqlSourcePicker from './SqlSourcePicker';
 import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 import { DECK_STARTER_TEMPLATE } from '../utils/deckParser';
 import { DIAGRAMA_INICIAL } from './diagram/diagramFile';
+import { fusionar, envoltorio, MOTIVOS } from './diagram/diagramMerge';
+import { bloquesCercados } from './markdown/fencedBlocks';
 import { invalidateSchema } from '../state/sidebarCache';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 
@@ -357,10 +359,28 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         else if (rightTabs.find(t => t.id === tabId)) updateTab('right', tabId, { content: convId });
     }, [updateTab]);
 
-    const handleTabClose = useCallback((tabId) => {
+    const handleTabClose = useCallback(async (tabId) => {
         const { leftTabs, rightTabs, leftActiveId, rightActiveId } = stateRef.current;
         const inLeft = leftTabs.some(t => t.id === tabId);
         const tabs = inLeft ? leftTabs : rightTabs;
+
+        // Cerrar una pestaña es silencioso en toda la aplicación, y está bien:
+        // un archivo con ruta conserva su borrador y sigue en el disco.
+        //
+        // Un diagrama abierto desde un markdown no tiene ni lo uno ni lo otro:
+        // su contenido es un bloque que todavía no ha vuelto a su documento y
+        // **no existe en ningún otro sitio**. Cerrarlo sin preguntar sería la
+        // única forma de perder trabajo en este editor sin poder deshacerlo.
+        const cerrando = tabs.find(t => t.id === tabId);
+        if (cerrando?.procedencia && cerrando.dirty) {
+            const ok = await stateRef.current.dialog.confirmAsync({
+                title: 'Cerrar sin guardar',
+                message: `El diagrama no ha vuelto a ${cerrando.procedencia.archivo.split(/[/\\]/).pop()}. Se perderán los cambios.`,
+                confirmLabel: 'Cerrar de todos modos',
+                destructive: true,
+            });
+            if (!ok) return;
+        }
         const activeId = inLeft ? leftActiveId : rightActiveId;
         const setTabs = inLeft ? setLeftTabs : setRightTabs;
         const setActiveId = inLeft ? setLeftActiveId : setRightActiveId;
@@ -683,13 +703,69 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, [getActiveTab, executeQuery]);
 
+    /**
+     * Guarda un diagrama dentro del markdown del que salió.
+     *
+     * Se relee el documento del disco antes de tocarlo — no se usa ninguna copia
+     * en memoria— porque la pregunta que hay que contestar es «¿sigue estando
+     * como lo dejé?», y eso sólo lo sabe el archivo.
+     *
+     * Devuelve `{ ok }` o `{ ok: false, motivo }`. El editor recoge el motivo y
+     * es quien conversa con el usuario: aquí no se decide nada por él.
+     */
+    const guardarProcedencia = useCallback(async (tab, isSilent, { forzar = false } = {}) => {
+        const { toast } = stateRef.current;
+        const pane = findTabPane(tab.id);
+        if (!pane) return { ok: false, motivo: 'sin-bloques' };
+
+        // El contenido de la pestaña es el bloque envuelto en su cerca; se
+        // desenvuelve con el mismo localizador que usa todo lo demás, en vez
+        // de con una expresión regular suelta que habría que mantener aparte.
+        const cercado = bloquesCercados(tab.content, ['mermaid'])[0];
+        if (!cercado) return { ok: false, motivo: 'sin-bloques' };
+        const mermaid = cercado.cuerpo.trimEnd();
+
+        try {
+            const lectura = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(tab.procedencia.archivo)}`);
+            if (!lectura.ok) throw new Error('no se pudo leer el documento');
+            const { content: markdown } = await lectura.json();
+
+            const r = fusionar(markdown, tab.procedencia, mermaid, { forzar });
+            if (!r.ok) return { ok: false, motivo: r.motivo, mensaje: MOTIVOS[r.motivo] };
+
+            const escritura = await fetch(`${API_BASE}/api/file`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: tab.procedencia.archivo, content: r.contenido }),
+            });
+            if (!escritura.ok) throw new Error('no se pudo escribir el documento');
+
+            // El ancla se renueva con lo que acabamos de escribir: a partir de
+            // ahora «como estaba cuando lo abrí» es esto.
+            updateTab(pane, tab.id, {
+                dirty: false,
+                procedencia: { ...tab.procedencia, original: mermaid },
+            });
+            if (!isSilent) toast.success(r.movido ? 'Guardado (el diagrama había cambiado de sitio)' : 'Guardado');
+            return { ok: true };
+        } catch (e) {
+            if (!isSilent) toast.error(`Error al guardar: ${e.message}`);
+            return { ok: false, motivo: 'error', mensaje: e.message };
+        }
+    }, [findTabPane, updateTab]);
+
     // Shared by the global Save trigger (always the active tab) AND the tab
     // context menu's "Guardar" (an EXPLICIT tab, which may not be active).
     // Resolves the pane via findTabPane, not `activePane` — an inactive tab
     // being saved from the context menu can live in either pane.
-    const saveTabInternal = useCallback(async (tab, isSilent = false) => {
+    const saveTabInternal = useCallback(async (tab, isSilent = false, opciones = {}) => {
         const { onRequestSaveAs, toast } = stateRef.current;
         if (!tab || !tab.dirty) return;
+
+        // Una pestaña con procedencia guarda en OTRO archivo, y sólo el bloque
+        // que le corresponde. Va antes que nada porque no tiene `path` propia y
+        // el camino de abajo la mandaría a «Guardar como».
+        if (tab.procedencia) return guardarProcedencia(tab, isSilent, opciones);
 
         if (!tab.path) {
             if (onRequestSaveAs) {
@@ -731,7 +807,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, [findTabPane, updateTab]);
 
-    const handleSaveActive = useCallback((isSilent = false) => saveTabInternal(getActiveTab(), isSilent), [getActiveTab, saveTabInternal]);
+    const handleSaveActive = useCallback((isSilent = false, opciones) => saveTabInternal(getActiveTab(), isSilent, opciones), [getActiveTab, saveTabInternal]);
 
     const handleAnalyzeActive = useCallback(async (mode) => {
         const tab = getActiveTab();
@@ -840,6 +916,31 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             setRightActiveId(newTab.id);
         }
         setActivePane(pane);
+    }, []);
+
+    /**
+     * Abre un diagrama que vive dentro de un markdown, en su propia pestaña.
+     *
+     * La pestaña **no tiene `path`**, y es deliberado: su contenido no es un
+     * archivo, es un bloque de otro. Dejarle la ruta del markdown haría que el
+     * guardado normal escribiera el diagrama encima del documento entero.
+     * Quien sabe mezclarlos es `saveTabInternal`, mirando la procedencia.
+     */
+    const abrirDiagramaDeMarkdown = useCallback(({ archivo, indice, original, mermaid }) => {
+        const nombre = (archivo || '').split(/[/\\]/).pop() || 'documento';
+        const nueva = {
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+            path: '',
+            name: `Diagrama · ${nombre}`,
+            type: 'amoxdiagram',
+            content: envoltorio(mermaid),
+            procedencia: { archivo, indice, original },
+            results: null,
+            dirty: false,
+        };
+        const pane = stateRef.current.activePane;
+        if (pane === 'left') { setLeftTabs(prev => [...prev, nueva]); setLeftActiveId(nueva.id); }
+        else { setRightTabs(prev => [...prev, nueva]); setRightActiveId(nueva.id); }
     }, []);
 
     const createNew = useCallback((type, initialContent, targetPane) => {
@@ -1800,6 +1901,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 >
                     <EditorPane
                             onBuscarProyecto={onBuscarProyecto}
+                            onAbrirDiagrama={abrirDiagramaDeMarkdown}
                         paneId="left"
                         isActive={activePane === 'left'}
                         tabs={leftTabs}
@@ -1859,6 +1961,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         <div className="lm-pane-slot" style={{ flex: `0 0 calc((100% - ${SPLITTER_WIDTH}px) * ${1 - splitRatio})` }}>
                             <EditorPane
                             onBuscarProyecto={onBuscarProyecto}
+                            onAbrirDiagrama={abrirDiagramaDeMarkdown}
                                 paneId="right"
                                 isActive={activePane === 'right'}
                                 tabs={rightTabs}

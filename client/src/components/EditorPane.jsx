@@ -81,6 +81,7 @@ const EditorPane = ({
     onToggleAi,       // () -> toggle AI sidebar
     onOpenFile,       // (filePath) -> open a file in a new tab (used by ChainEditor)
     onBuscarProyecto, // abre el panel de busqueda del proyecto (editor de markdown)
+    onAbrirDiagrama,  // ({archivo, indice, original, mermaid}) -> abre AmoxDiagram sobre un bloque de ESTE documento
     availableTables,  // Data Diving only
     onExportNotebook, // Data Diving only
     onExportAmoxvis, // Data Diving chart export
@@ -617,6 +618,7 @@ const EditorPane = ({
                             onBuscarProyecto={onBuscarProyecto}
                             filePath={activeTab.path || null}
                             isDirty={!!activeTab.dirty}
+                            onAbrirDiagrama={onAbrirDiagrama}
                         />
                         </Suspense>
                     </div>

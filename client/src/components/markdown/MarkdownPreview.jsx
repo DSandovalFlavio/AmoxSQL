@@ -8,11 +8,12 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import { renderMermaid, idDeRender } from './mermaidRuntime';
+import { parsearFlujo } from './mermaidFlow';
 import { frontmatterRange } from './markdownModel.js';
 import 'katex/dist/katex.min.css';
 import {
     LuMaximize2, LuX, LuCopy, LuCheck, LuInfo, LuTriangleAlert, LuLightbulb,
-    LuOctagonAlert, LuCircleAlert, LuZoomIn, LuZoomOut, LuRotateCcw, LuFileCode2, LuEye,
+    LuOctagonAlert, LuCircleAlert, LuZoomIn, LuZoomOut, LuRotateCcw, LuFileCode2, LuEye, LuShare2,
 } from 'react-icons/lu';
 import { nodeToText, remarkAlerts, isExternalHref, cleanRelPath, INTERNAL_LINK_RE } from './markdownUtils';
 import { isLightTheme } from '../../theme.js';
@@ -111,9 +112,13 @@ function FullscreenViewer({ onClose, children }) {
 // pasó a ser un segundo consumidor: `mermaid.initialize()` es global al módulo,
 // así que la caché de «último tema aplicado» que había aquí dejó de ser cierta
 // en cuanto otro sitio configuró por su cuenta.
-function MermaidDiagram({ code, theme }) {
+function MermaidDiagram({ code, theme, onEditar }) {
     const [svg, setSvg] = useState('');
     const [fs, setFs] = useState(false);
+    // El boton de editar solo aparece si el diagrama SE PUEDE abrir. Un boton
+    // que a veces da error es peor que un boton que a veces no esta: un
+    // `sequenceDiagram` no es un fallo, es otro tipo de diagrama.
+    const editable = !!onEditar && !!parsearFlujo(code);
 
     useEffect(() => {
         let cancelled = false;
@@ -128,6 +133,11 @@ function MermaidDiagram({ code, theme }) {
     return (
         <>
             <div className="mde-mermaid-wrap">
+                {editable && (
+                    <button className="mde-mermaid-edit" title="Editar en AmoxDiagram" onClick={onEditar}>
+                        <LuShare2 size={12} /> Editar
+                    </button>
+                )}
                 <button className="mde-mermaid-expand" title="Expand diagram" onClick={() => setFs(true)}>
                     <LuMaximize2 size={13} />
                 </button>
@@ -375,7 +385,7 @@ function rehypeLineas() {
 // claim any other fenced language and returns null to decline. Report Flow uses
 // it for the slide's data objects (```kpis, ```metric, ```steps, ```actions,
 // ```rank), which stay plain code blocks anywhere else in the app.
-const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath, onToggleTask, taskProgress }) => {
+const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bodyRef, renderChartBlock, renderBlock, filePath, onToggleTask, taskProgress, onEditarDiagrama }) => {
     // El front-matter es metadato, no documento: ya lo enseña la columna
     // derecha con sus fichas, y aquí salía como un párrafo suelto de YAML.
     //
@@ -414,7 +424,19 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             const langClass = arr.find((c) => typeof c === 'string' && c.startsWith('language-'));
             const lang = langClass ? langClass.replace('language-', '') : '';
             const raw = codeNode ? nodeToText(codeNode).replace(/\n$/, '') : '';
-            if (lang === 'mermaid') return <MermaidDiagram code={raw} theme={theme} />;
+            if (lang === 'mermaid') {
+                // `data-line` lo pone `rehypeLineas` en cada bloque de primer
+                // nivel. Es como el editor sabe DE CUAL de los diagramas del
+                // documento se trata cuando hay varios.
+                const linea = Number(node?.properties?.['data-line']) || 0;
+                return (
+                    <MermaidDiagram
+                        code={raw}
+                        theme={theme}
+                        onEditar={onEditarDiagrama ? () => onEditarDiagrama(raw, linea) : null}
+                    />
+                );
+            }
             if (lang === 'amoxchart' && renderChartBlock) return renderChartBlock(raw);
             // Gancho genérico: quien monta el preview puede reclamar otros
             // lenguajes cercados (Report Flow usa ```kpis, ```metric, ```steps,
@@ -439,7 +461,7 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
             }
             return <blockquote className={className} {...props}>{children}</blockquote>;
         },
-    }), [onOpenFile, theme, renderChartBlock, renderBlock, baseDir, onToggleTask, taskProgress]);
+    }), [onOpenFile, theme, renderChartBlock, renderBlock, baseDir, onToggleTask, taskProgress, onEditarDiagrama]);
 
     return (
         <div className={`mde-preview-body mde-preview-body--${widthMode}`} ref={bodyRef}>

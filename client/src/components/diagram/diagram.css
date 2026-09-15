@@ -336,6 +336,26 @@ textarea.dgm-texto-cod--mal { color: var(--text-primary); box-shadow: inset 2px 
 .dgm-texto-leyenda--mal { display: flex; align-items: center; gap: 7px; color: var(--color-error, #ff7a7a); }
 .dgm-texto-leyenda--mal svg { flex: none; }
 
+/* ── el diálogo del conflicto ──────────────────────────────────────── */
+.dgm-velo {
+    position: absolute; inset: 0; z-index: 9;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in oklch, var(--surface-base) 72%, transparent);
+    padding: 20px;
+}
+.dgm-dialogo {
+    max-width: 440px; padding: 17px 18px;
+    border: 1px solid var(--border-strong); border-radius: 10px;
+    background: var(--surface-raised); box-shadow: 0 10px 34px rgba(0, 0, 0, .55);
+}
+.dgm-dialogo h5 {
+    margin: 0 0 8px; display: flex; align-items: center; gap: 8px;
+    font-size: 13.5px; color: var(--text-primary); font-weight: 700;
+}
+.dgm-dialogo h5 svg { color: var(--color-warning, oklch(.8 .14 78)); flex: none; }
+.dgm-dialogo p { margin: 0 0 14px; font-size: 12px; color: var(--text-secondary); }
+.dgm-dialogo-botones { display: flex; gap: 7px; justify-content: flex-end; flex-wrap: wrap; }
+
 /* La fila del repaso es un botón desde que salta a la caja. */
 button.dgm-repaso-fila { width: 100%; border: none; background: none; text-align: left; cursor: pointer; font: inherit; font-size: 11.5px; }
 button.dgm-repaso-fila:hover { color: var(--text-primary); }
