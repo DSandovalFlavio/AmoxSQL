@@ -20,6 +20,7 @@
  * a mano lo sigue teniendo, porque el formulario es un camino más y no el único.
  */
 import yaml from 'js-yaml';
+import { bloquesCercados, cercadoEnCursor, reemplazarCercado } from '../markdown/fencedBlocks.js';
 
 /** Los campos de cada bloque, en el orden en que se piden. */
 export const BLOQUES = {
@@ -77,28 +78,17 @@ export const LENGUAJES = Object.keys(BLOQUES);
 /**
  * Todos los bloques de dato que hay en un texto, en orden.
  *
- * Se recorre cerca por cerca en vez de con una expresión que abarque todo: así
- * un bloque **sin cerrar** no se traga el resto de la lámina, que es justo el
- * estado en el que está mientras alguien lo escribe.
- *
- * El salto contempla el retorno de carro: en Windows un `.amoxdeck` llega con
- * CRLF, y olvidarlo es el mismo descuido que una vez dejó la disposición de dos
- * columnas sin partir.
+ * El recorrido de cercas vive en `markdown/fencedBlocks.js` desde que
+ * AmoxDiagram necesitó lo mismo para los bloques ` ```mermaid `. Aquí queda
+ * sólo lo que es del deck: qué lenguajes cuentan como bloque de dato.
  */
 export function bloquesDe(texto) {
-    const re = /```([a-z]*)[ \t]*\r?\n([\s\S]*?)```/g;
-    const fuera = [];
-    let m;
-    while ((m = re.exec(texto || '')) !== null) {
-        if (!LENGUAJES.includes(m[1])) continue;
-        fuera.push({ lang: m[1], desde: m.index, hasta: m.index + m[0].length, cuerpo: m[2] });
-    }
-    return fuera;
+    return bloquesCercados(texto, LENGUAJES);
 }
 
 /** El bloque donde está el cursor, si lo hay. Una sola expresión para los dos. */
 export function bloqueEnCursor(texto, caret) {
-    return bloquesDe(texto).find((b) => caret >= b.desde && caret <= b.hasta) || null;
+    return cercadoEnCursor(texto, caret, LENGUAJES);
 }
 
 /** El cuerpo de un bloque, leído a un modelo con nombres. */
@@ -227,7 +217,5 @@ export function avisosDe(lang, modelo) {
 
 /** Sustituye el cuerpo de un bloque dentro de la prosa, dejándolo todo igual. */
 export function reemplazarBloque(texto, bloque, cuerpoNuevo) {
-    const t = texto || '';
-    const cerrado = ['```' + bloque.lang, cuerpoNuevo, '```'].join('\n');
-    return t.slice(0, bloque.desde) + cerrado + t.slice(bloque.hasta);
+    return reemplazarCercado(texto, bloque, cuerpoNuevo);
 }

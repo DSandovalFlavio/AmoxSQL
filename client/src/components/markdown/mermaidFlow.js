@@ -1,0 +1,422 @@
+/**
+ * El formato de AmoxDiagram: mermaid `flowchart` ↔ grafo.
+ *
+ * Las **dos direcciones viven aquí**, y no en dos archivos, a propósito: el ida
+ * y vuelta sólo sale exacto si las dos mitades conocen el mismo subconjunto.
+ * Separadas, se desincronizan en cuanto alguien añade una forma a una y se
+ * olvida de la otra — y el síntoma no es un error, es una caja que cambia de
+ * dibujo al guardar.
+ *
+ * ## Por qué un parser propio
+ *
+ * La API pública de mermaid (`parse`, `render`, `detectType`) valida y dice el
+ * tipo, pero **no devuelve el grafo**. Para eso hay que entrar por `mermaidAPI`,
+ * marcado `@deprecated` y `@internal` en sus propios tipos: atarse a eso
+ * significa que una subida de versión menor deja de abrir los diagramas de la
+ * gente. Se usa su render —que es API pública y estable, y de paso nos da las
+ * posiciones— y nuestro parser.
+ *
+ * ## Los tres niveles
+ *
+ * | Nivel | Qué entra | Qué se hace |
+ * |---|---|---|
+ * | **Entiendo** | nodos, aristas, formas, subgrafos, dirección | se edita |
+ * | **Conservo** | `classDef`, `class`, `style`, `linkStyle`, `click`, `%%` | se guarda tal cual y se vuelve a escribir igual |
+ * | **No abro** | otro tipo de diagrama, o algo que no se sabe leer | `null` |
+ *
+ * El nivel del medio es el que hace que esto sea seguro **sin ser cobarde**. La
+ * primera versión del plan se negaba a abrir cualquier diagrama con `classDef`,
+ * para no arriesgar pérdida de datos — pero colorear por capa es exactamente lo
+ * que hace un ingeniero de datos con una arquitectura, así que la regla
+ * protectora acababa cerrándole la puerta a sus propios diagramas.
+ *
+ * ## Sobre la forma canónica
+ *
+ * `flujoAMermaid` **normaliza**: comillas siempre, sangría de dos espacios,
+ * orden fijo de secciones. Eso significa que el primer guardado de un diagrama
+ * escrito a mano produce un diff más grande que el cambio que se hizo. Es el
+ * precio de que a partir del segundo **el diff sólo contenga lo que cambió**, y
+ * ese precio se paga una vez. Un serializador inestable ensucia cada guardado
+ * con reordenaciones que nadie pidió, y estos archivos se versionan.
+ */
+
+/** Las siete formas, y lo que significan. El orden es el de la paleta. */
+export const FORMAS = {
+    proceso: { cercos: ['[', ']'], nombre: 'Proceso' },
+    redondeado: { cercos: ['(', ')'], nombre: 'Paso suave' },
+    almacen: { cercos: ['[(', ')]'], nombre: 'Almacén' },
+    decision: { cercos: ['{', '}'], nombre: 'Decisión' },
+    entrada: { cercos: ['[/', '/]'], nombre: 'Entrada' },
+    salida: { cercos: ['[\\', '\\]'], nombre: 'Salida' },
+    hito: { cercos: ['((', '))'], nombre: 'Hito' },
+};
+
+export const FORMA_POR_DEFECTO = 'proceso';
+
+/**
+ * Los estilos de flecha, nombrados por lo que significan y no por su sintaxis.
+ * Quien dibuja una arquitectura no piensa «línea punteada», piensa «esto va
+ * evento a evento».
+ */
+export const ESTILOS_ARISTA = {
+    lotes: { flecha: '-->', nombre: 'Por lotes' },
+    continuo: { flecha: '-.->', nombre: 'Continuo' },
+    principal: { flecha: '==>', nombre: 'Camino principal' },
+    simple: { flecha: '---', nombre: 'Sin dirección' },
+};
+
+export const ESTILO_POR_DEFECTO = 'lotes';
+
+/** Las direcciones que mermaid entiende. `TD` es alias de `TB` y se respeta. */
+export const DIRECCIONES = ['TB', 'TD', 'BT', 'LR', 'RL'];
+
+/**
+ * Las líneas que no entendemos pero **no tocamos**. El orden importa: se prueban
+ * de más específica a menos, y `%%{` tiene que ir antes que `%%`.
+ */
+const CONSERVADAS = [
+    /^%%\{/,
+    /^%%/,
+    /^classDef\s/,
+    /^class\s/,
+    /^style\s/,
+    /^linkStyle\s/,
+    /^click\s/,
+];
+
+/** Los cercos ordenados por longitud: `[(` tiene que probarse antes que `[`. */
+const APERTURAS = Object.entries(FORMAS)
+    .map(([forma, { cercos }]) => ({ forma, abre: cercos[0], cierra: cercos[1] }))
+    .sort((a, b) => b.abre.length - a.abre.length);
+
+const RE_ID = /^[A-Za-z0-9_][A-Za-z0-9_-]*/;
+
+// ── leer ────────────────────────────────────────────────────────────────────
+
+/**
+ * Un nodo a partir de `pos`: el identificador y, si lo lleva, su forma y texto.
+ * Devuelve `null` si ahí no empieza un nodo.
+ */
+function leerNodo(s, pos) {
+    let i = pos;
+    while (i < s.length && s[i] === ' ') i++;
+
+    const m = RE_ID.exec(s.slice(i));
+    if (!m) return null;
+    const id = m[0];
+    i += id.length;
+
+    for (const { forma, abre, cierra } of APERTURAS) {
+        if (s.startsWith(abre, i)) {
+            const dentroDesde = i + abre.length;
+            let texto;
+            let fin;
+
+            if (s[dentroDesde] === '"') {
+                // Con comillas el texto puede llevar cualquier cosa, cercos
+                // incluidos. Es la forma que emitimos siempre.
+                const cierraComilla = s.indexOf('"', dentroDesde + 1);
+                if (cierraComilla === -1) return null;
+                texto = s.slice(dentroDesde + 1, cierraComilla);
+                if (!s.startsWith(cierra, cierraComilla + 1)) return null;
+                fin = cierraComilla + 1 + cierra.length;
+            } else {
+                const cierraEn = s.indexOf(cierra, dentroDesde);
+                if (cierraEn === -1) return null;
+                texto = s.slice(dentroDesde, cierraEn).trim();
+                fin = cierraEn + cierra.length;
+            }
+            return { id, texto, forma, conCerco: true, pos: fin };
+        }
+    }
+
+    // Sin cerco es una referencia a un nodo, no una declaración.
+    return { id, texto: null, forma: null, conCerco: false, pos: i };
+}
+
+/** Un conector a partir de `pos`, con su etiqueta si la lleva. */
+function leerConector(s, pos) {
+    let i = pos;
+    while (i < s.length && s[i] === ' ') i++;
+    const resto = s.slice(i);
+
+    // `-- texto -->` antes que `-->`, porque el primero empieza por `--`.
+    const conTexto = /^--\s+(.+?)\s+(-->|---)/.exec(resto);
+    if (conTexto) {
+        return {
+            estilo: conTexto[2] === '---' ? 'simple' : 'lotes',
+            etiqueta: conTexto[1],
+            pos: i + conTexto[0].length,
+        };
+    }
+
+    const flecha = /^(-\.->|==>|-->|---)/.exec(resto);
+    if (!flecha) return null;
+    const estilo = Object.keys(ESTILOS_ARISTA)
+        .find((k) => ESTILOS_ARISTA[k].flecha === flecha[1]);
+    let fin = i + flecha[0].length;
+
+    const etiq = /^\|([^|]*)\|/.exec(s.slice(fin));
+    if (etiq) return { estilo, etiqueta: etiq[1].trim(), pos: fin + etiq[0].length };
+
+    return { estilo, etiqueta: '', pos: fin };
+}
+
+/** La cabecera del subgrafo: `subgraph G1["Título"]`, `subgraph Origen`. */
+function leerSubgrafo(resto, cuantos) {
+    const t = resto.trim();
+    if (!t) return null;
+
+    if (/^[A-Za-z0-9_][A-Za-z0-9_-]*$/.test(t)) return { id: t, titulo: t };
+
+    const nodo = leerNodo(t, 0);
+    if (nodo && nodo.conCerco && nodo.pos === t.length) {
+        return { id: nodo.id, titulo: nodo.texto };
+    }
+    // `subgraph Zona de aterrizaje` — título con espacios y sin identificador.
+    // Se le inventa uno estable por posición; el título es lo que el autor ve.
+    return { id: `sg${cuantos + 1}`, titulo: t.replace(/^"|"$/g, '') };
+}
+
+/**
+ * Mermaid `flowchart` a grafo, o `null` si no se sabe leer.
+ *
+ * `null` es una respuesta **normal y frecuente**, no un fallo: un
+ * `sequenceDiagram` no es un diagrama roto, es otro tipo de diagrama. Quien
+ * llama decide qué hacer, y lo correcto casi siempre es no ofrecer el botón.
+ */
+export function parsearFlujo(texto) {
+    const crudo = String(texto || '');
+    const lineas = crudo.split(/\r?\n/);
+
+    const nodos = new Map();
+    const aristas = [];
+    const subgrafos = [];
+    const conservado = [];
+    let direccion = null;
+    const pila = [];
+
+    const registrar = (spec, enSubgrafo) => {
+        const previo = nodos.get(spec.id);
+        if (!previo) {
+            nodos.set(spec.id, {
+                id: spec.id,
+                texto: spec.conCerco ? spec.texto : spec.id,
+                forma: spec.conCerco ? spec.forma : FORMA_POR_DEFECTO,
+            });
+        } else if (spec.conCerco) {
+            previo.texto = spec.texto;
+            previo.forma = spec.forma;
+        }
+        if (enSubgrafo && !enSubgrafo.nodos.includes(spec.id)) enSubgrafo.nodos.push(spec.id);
+    };
+
+    for (const lineaCruda of lineas) {
+        const linea = lineaCruda.trim();
+        if (!linea) continue;
+
+        if (CONSERVADAS.some((re) => re.test(linea))) { conservado.push(linea); continue; }
+
+        if (direccion === null) {
+            const cab = /^(?:flowchart|graph)(?:\s+([A-Za-z]{2}))?$/.exec(linea);
+            if (!cab) return null;               // no es un flowchart: no se abre
+            direccion = cab[1] || 'TB';
+            if (!DIRECCIONES.includes(direccion)) return null;
+            continue;
+        }
+
+        if (/^end$/i.test(linea)) {
+            if (!pila.length) return null;
+            pila.pop();
+            continue;
+        }
+
+        const sub = /^subgraph\s+(.*)$/.exec(linea);
+        if (sub) {
+            // Un solo nivel de anidamiento. Más profundo se sabría leer, pero no
+            // se sabría dibujar sin decidir cómo se anidan las cajas, y abrir
+            // algo que luego no se guarda igual es peor que no abrirlo.
+            if (pila.length) return null;
+            const cab = leerSubgrafo(sub[1], subgrafos.length);
+            if (!cab) return null;
+            const nuevo = { id: cab.id, titulo: cab.titulo, nodos: [] };
+            subgrafos.push(nuevo);
+            pila.push(nuevo);
+            continue;
+        }
+
+        // `direction TB` dentro de un subgrafo cambia la disposición de ese
+        // grupo. Conservarlo sería mentir —se reescribiría fuera del subgrafo,
+        // donde significa otra cosa— así que el diagrama no se abre.
+        if (/^direction\s/i.test(linea)) return null;
+
+        // Nodos separados por `&` en la misma sentencia. Se sabe lo que es; no
+        // se sabe escribirlo de vuelta sin cambiar la forma del archivo.
+        if (linea.includes('&')) return null;
+
+        const enSub = pila[pila.length - 1] || null;
+        const primero = leerNodo(linea, 0);
+        if (!primero) return null;
+        registrar(primero, enSub);
+
+        let pos = primero.pos;
+        let anterior = primero.id;
+        while (pos < linea.length) {
+            const con = leerConector(linea, pos);
+            if (!con) return null;
+            const sig = leerNodo(linea, con.pos);
+            if (!sig) return null;
+            registrar(sig, enSub);
+            aristas.push({
+                desde: anterior, hasta: sig.id,
+                etiqueta: con.etiqueta || '',
+                estilo: con.estilo,
+            });
+            anterior = sig.id;
+            pos = sig.pos;
+            while (pos < linea.length && linea[pos] === ' ') pos++;
+        }
+    }
+
+    if (direccion === null) return null;         // vacío no es un diagrama
+    if (pila.length) return null;                // un `subgraph` sin `end`
+
+    return { direccion, nodos: [...nodos.values()], aristas, subgrafos, conservado };
+}
+
+// ── escribir ────────────────────────────────────────────────────────────────
+
+/**
+ * Un texto listo para ir dentro de un cerco de mermaid. Las comillas del autor
+ * pasan a simples: mermaid no las escapa dentro de una etiqueta entrecomillada,
+ * y la alternativa (`#quot;`) le sale al usuario en el dibujo.
+ */
+function textoSeguro(t) {
+    return String(t ?? '').replace(/"/g, "'").replace(/\r?\n/g, ' ').trim();
+}
+
+/** `id["texto"]` con los cercos de su forma. Siempre con comillas. */
+function declarar(nodo) {
+    const { cercos } = FORMAS[nodo.forma] || FORMAS[FORMA_POR_DEFECTO];
+    return `${nodo.id}${cercos[0]}"${textoSeguro(nodo.texto)}"${cercos[1]}`;
+}
+
+/**
+ * Grafo a mermaid, en forma canónica.
+ *
+ * Cada nodo se declara **la primera vez que aparece**: dentro de su subgrafo si
+ * pertenece a uno, en su propia línea si está suelto, y si no, en la arista
+ * donde sale por primera vez. Eso mantiene el texto cerca de lo que una persona
+ * escribiría, y sigue siendo determinista porque el orden de los nodos y las
+ * aristas es el del grafo.
+ */
+export function flujoAMermaid(grafo) {
+    if (!grafo) return '';
+    const direccion = DIRECCIONES.includes(grafo.direccion) ? grafo.direccion : 'LR';
+    const nodos = Array.isArray(grafo.nodos) ? grafo.nodos : [];
+    const aristas = Array.isArray(grafo.aristas) ? grafo.aristas : [];
+    const subgrafos = Array.isArray(grafo.subgrafos) ? grafo.subgrafos : [];
+
+    const porId = new Map(nodos.map((n) => [n.id, n]));
+    const declarados = new Set();
+    const lineas = [`flowchart ${direccion}`];
+
+    const pieza = (id) => {
+        const nodo = porId.get(id);
+        if (!nodo) return id;
+        if (declarados.has(id)) return id;
+        declarados.add(id);
+        return declarar(nodo);
+    };
+
+    for (const sg of subgrafos) {
+        const dentro = (sg.nodos || []).filter((id) => porId.has(id));
+        lineas.push(`  subgraph ${sg.id}["${textoSeguro(sg.titulo)}"]`);
+        for (const id of dentro) lineas.push(`    ${pieza(id)}`);
+        lineas.push('  end');
+    }
+
+    for (const a of aristas) {
+        const { flecha } = ESTILOS_ARISTA[a.estilo] || ESTILOS_ARISTA[ESTILO_POR_DEFECTO];
+        const etiqueta = a.etiqueta ? `|${textoSeguro(a.etiqueta)}|` : '';
+        lineas.push(`  ${pieza(a.desde)} ${flecha}${etiqueta} ${pieza(a.hasta)}`);
+    }
+
+    // Los nodos sueltos sin ninguna arista siguen apareciendo: son parte del
+    // diagrama aunque todavía no estén conectados, y quien los puso los quiere.
+    //
+    // Van **después** del flujo y no antes. Es una cuestión de diff: añadir una
+    // caja que todavía no has conectado no debería desplazar todas las líneas
+    // del flujo en el control de versiones. Y de lectura: primero lo que cuenta
+    // la historia, luego lo que quedó a medias.
+    for (const n of nodos) if (!declarados.has(n.id)) lineas.push(`  ${pieza(n.id)}`);
+
+    for (const linea of grafo.conservado || []) lineas.push(`  ${linea}`);
+
+    return lineas.join('\n');
+}
+
+// ── utilidades del modelo ───────────────────────────────────────────────────
+
+/** Un grafo vacío con el que arrancar un diagrama nuevo. */
+export function flujoVacio(direccion = 'LR') {
+    return { direccion, nodos: [], aristas: [], subgrafos: [], conservado: [] };
+}
+
+/**
+ * Un identificador libre, corto y legible.
+ *
+ * Se sanea a lo que mermaid admite y se numera si hace falta. Que sea legible
+ * importa más de lo que parece: es lo que va a leer quien abra el archivo en el
+ * control de versiones.
+ */
+export function idLibre(texto, usados) {
+    const tomados = usados instanceof Set ? usados : new Set(usados || []);
+    const base = String(texto || '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^A-Za-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .toLowerCase()
+        .slice(0, 24);
+    const raiz = base && /^[a-z]/.test(base) ? base : `n${base ? `_${base}` : ''}`;
+    if (!tomados.has(raiz)) return raiz;
+    let i = 2;
+    while (tomados.has(`${raiz}_${i}`)) i++;
+    return `${raiz}_${i}`;
+}
+
+/** El subgrafo al que pertenece un nodo, si pertenece a alguno. */
+export function grupoDe(grafo, id) {
+    return (grafo?.subgrafos || []).find((sg) => (sg.nodos || []).includes(id)) || null;
+}
+
+/**
+ * Los cabos sueltos: lo que alguien quiere mirar antes de enseñar el diagrama.
+ * No bloquea nada — un diagrama a medias es un estado legítimo de trabajo.
+ */
+export function cabosSueltos(grafo) {
+    if (!grafo) return [];
+    const avisos = [];
+    const salen = new Set(grafo.aristas.map((a) => a.desde));
+    const entran = new Set(grafo.aristas.map((a) => a.hasta));
+
+    for (const n of grafo.nodos) {
+        if (!salen.has(n.id) && !entran.has(n.id) && !grupoDe(grafo, n.id)) {
+            avisos.push({ tipo: 'suelto', id: n.id, texto: `«${n.texto}» no está conectada ni agrupada` });
+        }
+    }
+    for (const sg of grafo.subgrafos) {
+        if (!(sg.nodos || []).length) {
+            avisos.push({ tipo: 'grupo-vacio', id: sg.id, texto: `El grupo «${sg.titulo}» está vacío` });
+        }
+    }
+    const vistos = new Map();
+    for (const n of grafo.nodos) {
+        const clave = textoSeguro(n.texto).toLowerCase();
+        if (!clave) continue;
+        if (vistos.has(clave)) {
+            avisos.push({ tipo: 'repetida', id: n.id, texto: `«${n.texto}» aparece en dos cajas` });
+        } else vistos.set(clave, n.id);
+    }
+    return avisos;
+}

@@ -15,7 +15,41 @@
  * procesos y recoge notas; el análisis vive en los notebooks.
  */
 import { parse, sections } from './markdownModel.js';
-import { PLANTILLAS_DIAGRAMA } from './diagramFromChain.js';
+
+/**
+ * Plantillas para empezar un diagrama desde cero.
+ *
+ * Vivían en `diagramFromChain.js`, que tras AmoxDiagram dejó de ser el archivo
+ * del formato para ser un consumidor más. Su sitio es éste: son **contenido de
+ * menú**, no formato — texto que alguien eligió porque es lo que la gente
+ * necesita empezar a escribir, y que se cambia sin tocar el parser.
+ */
+export const PLANTILLAS_DIAGRAMA = [
+    {
+        id: 'flujo',
+        label: 'Flujo',
+        detalle: 'cajas y flechas',
+        texto: ['```mermaid', 'flowchart LR', '  A["origen"] --> B["transformación"]', '  B --> C["destino"]', '```', ''].join('\n'),
+    },
+    {
+        id: 'secuencia',
+        label: 'Secuencia',
+        detalle: 'quién llama a quién',
+        texto: ['```mermaid', 'sequenceDiagram', '  Origen->>Ingesta: entrega el fichero', '  Ingesta->>Almacén: carga', '  Almacén-->>Ingesta: confirma', '```', ''].join('\n'),
+    },
+    {
+        id: 'estados',
+        label: 'Estados',
+        detalle: 'ciclo de vida de un proceso',
+        texto: ['```mermaid', 'stateDiagram-v2', '  [*] --> Pendiente', '  Pendiente --> Ejecutando', '  Ejecutando --> Completado', '  Ejecutando --> Fallido', '  Fallido --> Pendiente: reintento', '```', ''].join('\n'),
+    },
+    {
+        id: 'er',
+        label: 'Entidad-relación',
+        detalle: 'tablas y sus claves',
+        texto: ['```mermaid', 'erDiagram', '  CLIENTE ||--o{ PEDIDO : hace', '  PEDIDO ||--|{ LINEA : contiene', '```', ''].join('\n'),
+    },
+];
 
 /** Fecha local en ISO corto, sin arrastrar la zona horaria de UTC. */
 function hoy() {
@@ -121,7 +155,10 @@ export const INSERTABLES = [
         id: 'diagrama', label: 'Diagrama · Flujo', group: 'procedimiento', icon: 'workflow',
         detail: 'cajas y flechas',
         keywords: 'mermaid flujo grafo dag pipeline',
-        snippet: '```mermaid\nflowchart LR\n  ${1:A[origen]} --> ${2:B[transformación]}\n  ${2} --> ${3:C[destino]}\n```\n',
+        // Con comillas, que es la forma canónica que escribe AmoxDiagram: así
+        // un diagrama insertado a mano y luego editado en el lienzo no produce
+        // un diff de reformateo la primera vez que se guarda.
+        snippet: '```mermaid\nflowchart LR\n  ${1:A["origen"]} --> ${2:B["transformación"]}\n  ${2} --> ${3:C["destino"]}\n```\n',
     },
     // Cuatro plantillas, no una: un diagrama de secuencia o de estados no se
     // escribe de memoria, y son justo los que documentan un proceso.

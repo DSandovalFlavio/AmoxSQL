@@ -99,42 +99,62 @@ El nivel «conservo» es lo que permite que el editor sea **seguro sin ser cobar
 Sin esto no hay editor. Con esto, aunque no se hiciera nada más, `diagramFromChain` queda
 mejor de lo que está.
 
-- [ ] **Un módulo, `markdown/mermaidFlow.js`, con las dos direcciones dentro.** No dos
+- [x] **Un módulo, `markdown/mermaidFlow.js`, con las dos direcciones dentro.** No dos
       archivos: el ida y vuelta sólo sale exacto si las dos mitades conocen el mismo
       subconjunto, y separadas se desincronizan en cuanto alguien añada una forma a una y
       se olvide de la otra.
-- [ ] `parsearFlujo(texto)` → `{ nodos, aristas, subgrafos, direccion, conservado }` o
+- [x] `parsearFlujo(texto)` → `{ nodos, aristas, subgrafos, direccion, conservado }` o
       `null`. **Devolver `null` es una respuesta válida y frecuente**, no un fallo.
-- [ ] `flujoAMermaid(grafo)` → texto. La tabla `FORMA` se muda aquí desde
+- [x] `flujoAMermaid(grafo)` → texto. La tabla `FORMA` se muda aquí desde
       `diagramFromChain.js`, que pasa a ser **consumidor**: chain → grafo → `flujoAMermaid`
       en vez de componer cadenas a mano. `PLANTILLAS_DIAGRAMA` se muda a
       `markdownInsertables.js`, con el resto del catálogo del menú de `/`.
-- [ ] **El subconjunto, declarado en el propio archivo:** `flowchart`/`graph` con dirección
+- [x] **El subconjunto, declarado en el propio archivo:** `flowchart`/`graph` con dirección
       `TB|TD|BT|LR|RL`; siete formas de nodo —las cinco que ya emite `chainAMermaid`
       (`[]`, `[()]`, `{}`, `(())`, `[//]`) más redondeado `()` y trapecio `[\\]`—; aristas
       `-->`, `---`, `-.->`, `==>` con etiqueta `|texto|` o `-- texto -->`; `subgraph`/`end`
       con un nivel de anidamiento.
-- [ ] **`conservado`: las líneas que no entendemos, en orden y verbatim.** `classDef`,
+- [x] **`conservado`: las líneas que no entendemos, en orden y verbatim.** `classDef`,
       `class`, `style`, `linkStyle`, `click`, `%%{init}%%` y los comentarios. Se vuelven a
       escribir al serializar, en su sección, sin tocar un carácter.
-- [ ] **Sólo se rechaza el tipo de diagrama**: `sequenceDiagram`, `stateDiagram`, `erDiagram`,
+- [~] **Sólo se rechaza el tipo de diagrama**: `sequenceDiagram`, `stateDiagram`, `erDiagram`,
       `gantt` y compañía devuelven `null`.
-- [ ] **El serializador es estable:** mismo grafo, mismo texto, siempre — orden de nodos,
+      **Se rechazan cuatro cosas más**, y el plan no las vio:
+      **subgrafos anidados** (se sabrían leer, pero no dibujar sin decidir cómo se anidan las
+      cajas, y abrir algo que luego no se guarda igual es peor que no abrirlo);
+      **`direction` dentro de un subgrafo** (conservarlo sería mentir — se reescribiría fuera
+      del subgrafo, donde significa otra cosa);
+      **nodos separados por `&`** (se sabe leer, no se sabe escribir de vuelta sin cambiar la
+      forma del archivo);
+      y **cualquier línea que no se sepa clasificar**, en vez de ignorarla — ignorar una línea
+      es perderla al guardar.
+- [x] **El serializador es estable:** mismo grafo, mismo texto, siempre — orden de nodos,
       de aristas y de secciones fijado. **Es un requisito, no una cualidad**: el archivo se
       versiona en git, y un serializador inestable ensucia cada diff con reordenaciones que
       nadie hizo.
-- [ ] **Extraer el localizador de bloques cercados.** `bloquesDe` y `reemplazarBloque` ya
+- [x] **Extraer el localizador de bloques cercados.** `bloquesDe` y `reemplazarBloque` ya
       existen en `deck/deckBlockModel.js`, filtrando por la lista de lenguajes del deck. La
       parte genérica se saca a `markdown/fencedBlocks.js` y la consumen los dos. *(La
       función de contraste llegó a tener tres copias en el repo y la tercera era la mala. No
       se copia un helper: se muda.)*
-- [ ] `scripts/probarMermaidFlow.mjs`. El criterio es el ida y vuelta —parsear, serializar,
+- [x] `scripts/probarMermaidFlow.mjs` — **143 comprobaciones**. El criterio es el ida y vuelta —parsear, serializar,
       volver a parsear, mismo grafo— más una batería de textos con `classDef` y `style` que
       **deben sobrevivir intactos**, y otra de tipos que deben rechazarse.
 
 **Criterio de hecho:** las cuatro plantillas y la salida de `chainAMermaid` sobre una chain
 real hacen el ida y vuelta sin perder nada, y un diagrama con cuatro `classDef` sale byte a
 byte igual que entró.
+
+**Cumplido**, con una comprobación que el criterio no pedía y hacía falta: las pruebas dicen
+que el parser es coherente **consigo mismo**, no que mermaid entienda lo que escribimos. Se
+renderizaron seis casos con mermaid 11.14 —las siete formas, los cuatro estilos de flecha,
+etiquetas con acentos y paréntesis, la arquitectura del contrato visual, un nodo suelto y la
+salida de una chain— y los seis dibujan lo que dice el modelo. De ahí salieron las dos
+trampas de la geometría anotadas en la fase 1.
+
+Una desviación deliberada en la forma canónica: **los nodos sueltos se declaran al final**, no
+antes del flujo como se escribió primero. Añadir una caja que todavía no has conectado no
+debería desplazar todas las líneas del flujo en el diff.
 
 ## Fase 1 — El archivo y la pestaña
 
@@ -164,10 +184,22 @@ Un `.amoxdiagram` que se crea, se abre, se ve y se guarda. Sin editar todavía.
       `ChainCanvas.jsx` es **referencia, no base**: importa 34 tipos de nodo atados a la
       ejecución de chains, validación de ciclos y configuración por nodo. De ahí se copia el
       montaje y el tematizado; no se extiende.
-- [ ] **Posiciones leídas del SVG de mermaid.** Se renderiza una vez en oculto, se leen los
-      `transform` y se mapean por el id del `<g>`. **Dos cosas que comprobar aquí, no
-      antes:** qué pasa cuando dos nodos distintos sanean al mismo identificador, y si el
-      índice final del id (`-0`, `-1`) es estable entre renders.
+- [ ] **Posiciones leídas del SVG de mermaid.** Se renderiza una vez en oculto y se mapean
+      por el id del `<g>`. **Dos trampas, ya medidas en la fase 0 y con respuesta:**
+
+  1. **No se parsea la cadena del SVG: se monta en el DOM.** Un diagrama con una
+     directiva `click` produce un SVG que **no es XML bien formado**, y
+     `DOMParser(svg, 'image/svg+xml')` devuelve un `parsererror` — medido: 1 nodo de 3.
+     Con `text/html` o montándolo en un contenedor salen los 3. Y hace falta montarlo de
+     todas formas por lo siguiente.
+  2. **No se lee el atributo `transform`: se llama a `getCTM()`.** Un nodo con enlace va
+     envuelto en un `<a transform="translate(…)">`, así que el `<g class="node">` **no
+     tiene `transform`** y leer el atributo devuelve `null` — la caja acabaría en el
+     origen, sin un solo error por consola. `getCTM()` da la posición esté donde esté el
+     transform, y necesita el SVG vivo.
+
+  Queda por comprobar, eso sí: qué pasa cuando dos nodos distintos sanean al mismo
+  identificador, y si el índice final del id (`-0`, `-1`) es estable entre renders.
 - [ ] **Un solo tipo de nodo propio**, `DiagramNode`, con la forma pintada en CSS desde el
       campo `forma`. Nada de un componente por forma.
 - [ ] El lienzo respeta el tema y el acento, como el de Data Flow.

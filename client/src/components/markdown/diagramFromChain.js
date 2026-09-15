@@ -7,31 +7,28 @@
  * Genera el esqueleto UNA vez. A partir de ahí es markdown editable, no un
  * enlace vivo: el documento describe el flujo, no lo refleja en tiempo real —
  * si lo reflejara, cualquier retoque de la chain borraría lo que escribiste.
+ *
+ * **Ya no compone el texto a mano.** Construye el grafo y se lo da a
+ * `mermaidFlow`, que es quien sabe cómo se escribe. Antes había aquí una tabla
+ * de cercos y un saneador de identificadores propios; los dos vivían a un paso
+ * de desincronizarse con el parser que tiene que volver a leer esto.
  */
+import { flujoAMermaid, idLibre, FORMA_POR_DEFECTO } from './mermaidFlow.js';
 
-/** Formas de mermaid según lo que hace el nodo. */
-const FORMA = {
-    import_file: ['[(', ')]'],      // fuente de datos
-    bucket_read: ['[(', ')]'],
-    gsheet_read: ['[(', ')]'],
-    table_ref: ['[(', ')]'],
-    export_file: ['[/', '/]'],      // salida
-    assert: ['{', '}'],             // decisión / control
-    checkpoint: ['((', '))'],
+/** Qué forma le toca a cada tipo de nodo de una chain. */
+const FORMA_POR_TIPO = {
+    import_file: 'almacen',      // fuente de datos
+    bucket_read: 'almacen',
+    gsheet_read: 'almacen',
+    table_ref: 'almacen',
+    export_file: 'salida',       // salida
+    assert: 'decision',          // decisión / control
+    checkpoint: 'hito',
 };
 
-const POR_DEFECTO = ['[', ']'];
-
-/** Los identificadores de mermaid no admiten según qué; se saneàn. */
-function idSeguro(id, i) {
-    const limpio = String(id || '').replace(/[^A-Za-z0-9_]/g, '');
-    return limpio && /^[A-Za-z_]/.test(limpio) ? limpio : `n${i}`;
-}
-
-/** El texto de un nodo no puede llevar corchetes ni comillas sin escapar. */
-function etiquetaSegura(texto) {
+/** El texto de un nodo, recortado a lo que cabe en una caja. */
+function etiqueta(texto) {
     return String(texto || '')
-        .replace(/["[\]{}()|]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 48) || 'sin nombre';
@@ -42,61 +39,34 @@ function etiquetaSegura(texto) {
  * Devuelve el bloque markdown completo, listo para insertar.
  */
 export function chainAMermaid(chain, { direccion = 'LR' } = {}) {
-    const nodos = Array.isArray(chain?.nodes) ? chain.nodes : [];
-    if (!nodos.length) return null;
+    const origen = Array.isArray(chain?.nodes) ? chain.nodes : [];
+    if (!origen.length) return null;
 
+    const usados = new Set();
     const ids = new Map();
-    nodos.forEach((n, i) => ids.set(n.id, idSeguro(n.id, i)));
-
-    const lineas = [`flowchart ${direccion}`];
-
-    for (const nodo of nodos) {
-        const [abre, cierra] = FORMA[nodo.type] || POR_DEFECTO;
-        const etiqueta = etiquetaSegura(nodo.label || nodo.type);
+    const nodos = origen.map((n) => {
+        const id = idLibre(n.id || n.label || n.type, usados);
+        usados.add(id);
+        ids.set(n.id, id);
         // Un nodo desactivado se marca, en vez de desaparecer: que el documento
         // cuente también lo que está apagado.
-        const sufijo = nodo.disabled ? ' ·off·' : '';
-        lineas.push(`  ${ids.get(nodo.id)}${abre}"${etiqueta}${sufijo}"${cierra}`);
-    }
+        return {
+            id,
+            texto: etiqueta(n.label || n.type) + (n.disabled ? ' ·off·' : ''),
+            forma: FORMA_POR_TIPO[n.type] || FORMA_POR_DEFECTO,
+        };
+    });
 
-    const aristas = Array.isArray(chain?.edges) ? chain.edges : [];
-    for (const arista of aristas) {
-        const de = ids.get(arista.source);
-        const a = ids.get(arista.target);
-        if (!de || !a) continue;
-        const etiqueta = arista.label ? `|${etiquetaSegura(arista.label)}|` : '';
-        lineas.push(`  ${de} -->${etiqueta} ${a}`);
+    const aristas = [];
+    for (const arista of (Array.isArray(chain?.edges) ? chain.edges : [])) {
+        const desde = ids.get(arista.source);
+        const hasta = ids.get(arista.target);
+        if (!desde || !hasta) continue;
+        aristas.push({ desde, hasta, etiqueta: etiqueta(arista.label || ''), estilo: 'lotes' });
     }
 
     // Nodos sueltos sin aristas siguen apareciendo: son parte del flujo aunque
-    // todavía no estén conectados.
-    return ['```mermaid', ...lineas, '```', ''].join('\n');
+    // todavía no estén conectados. De eso se encarga `flujoAMermaid`.
+    const texto = flujoAMermaid({ direccion, nodos, aristas, subgrafos: [], conservado: [] });
+    return ['```mermaid', texto, '```', ''].join('\n');
 }
-
-/** Plantillas para empezar un diagrama desde cero. */
-export const PLANTILLAS_DIAGRAMA = [
-    {
-        id: 'flujo',
-        label: 'Flujo',
-        detalle: 'cajas y flechas',
-        texto: ['```mermaid', 'flowchart LR', '  A[origen] --> B[transformación]', '  B --> C[destino]', '```', ''].join('\n'),
-    },
-    {
-        id: 'secuencia',
-        label: 'Secuencia',
-        detalle: 'quién llama a quién',
-        texto: ['```mermaid', 'sequenceDiagram', '  Origen->>Ingesta: entrega el fichero', '  Ingesta->>Almacén: carga', '  Almacén-->>Ingesta: confirma', '```', ''].join('\n'),
-    },
-    {
-        id: 'estados',
-        label: 'Estados',
-        detalle: 'ciclo de vida de un proceso',
-        texto: ['```mermaid', 'stateDiagram-v2', '  [*] --> Pendiente', '  Pendiente --> Ejecutando', '  Ejecutando --> Completado', '  Ejecutando --> Fallido', '  Fallido --> Pendiente: reintento', '```', ''].join('\n'),
-    },
-    {
-        id: 'er',
-        label: 'Entidad-relación',
-        detalle: 'tablas y sus claves',
-        texto: ['```mermaid', 'erDiagram', '  CLIENTE ||--o{ PEDIDO : hace', '  PEDIDO ||--|{ LINEA : contiene', '```', ''].join('\n'),
-    },
-];
