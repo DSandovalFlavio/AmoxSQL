@@ -1368,10 +1368,33 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     scrollbar-color: var(--border-default) transparent;
 }
 
+/* La barra ocupa el ancho del lienzo: anterior a la izquierda, siguiente a la
+   derecha y el contador en medio.
+
+   Antes era un grupo apretado en el centro con `gap: 12px`, y al llegar «Vista
+   limpia» en la fase 0 se quedó sin sitio — la etiqueta partía en dos líneas y
+   los cinco elementos se amontonaban. Repartirlos por los extremos aprovecha un
+   espacio que ya estaba vacío, y de paso las flechas caen donde el ratón las
+   busca: en los bordes de la lámina. */
 .deck-design-nav {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 1180px;
+}
+
+/* El contador empuja a las flechas a los extremos, y puede encogerse: en un
+   panel estrecho es preferible recortar «Lámina 2 / 17» que aplastar un botón. */
+.deck-design-nav .deck-design-counter { flex: 1; justify-content: center; min-width: 0; }
+
+/* «Vista limpia» lleva texto, así que se sale del cuadrado de 30 px que la
+   regla de arriba impone a las flechas. Sin esto se quedaba en 30 px de ancho
+   con 53 de contenido: la etiqueta desbordaba y parecía amontonada. */
+.deck-design-nav .deck-design-limpia {
+    width: auto;
+    white-space: nowrap;
     flex-shrink: 0;
 }
 .deck-design-nav button {
@@ -1499,9 +1522,18 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     font-size: var(--text-sm);
 }
 
+/* El cuadro se estira hasta llenar su región.
+
+   Traía `min-height: 100%`, y eso dejó de resolver en la fase 3: al envolverlo
+   en `.deck-rg--editando` para colgarle la barra de formato, el padre pasó a
+   tener altura automática y un `100%` contra `auto` es cero. El `textarea`
+   caía a su alto por defecto —dos filas— dentro de una lámina entera vacía.
+   Con `flex: 1` toma lo que le deja su hueco, y el suelo en unidades de diseño
+   evita que en una banda estrecha se quede en un renglón. */
 .deck-prose-editor {
     width: 100%;
-    min-height: 100%;
+    flex: 1;
+    min-height: calc(110 * var(--u, 0.7));
     resize: none;
     border: 1px solid var(--accent-primary);
     border-radius: var(--radius-sm);
@@ -1717,9 +1749,14 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 .deck-rg--sel::before { color: var(--accent-primary); }
 
+/* La región en edición llena su hueco para que el cuadro tenga de dónde
+   estirarse. Sin esto su altura la marcaría el contenido —la barra y dos filas
+   de texto— y daría igual lo que pida el `textarea`. */
 .deck-rg--editando {
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: calc(150 * var(--u, 0.7));
     outline: 2px solid var(--accent-primary);
 }
 
