@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 **AmoxSQL** is a desktop SQL IDE for local data analysis, built with Electron + React + Express + DuckDB.
-- **Version**: 5.5.0
+- **Version**: 5.6.0
 - **Author**: Flavio Sandoval (@dsandovalflavio)
 - **License**: AmoxSQL Community License (Source Available)
 - **Tagline**: "The Modern Codex for Local Data Analysis"
@@ -118,6 +118,7 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `.sqlnb.state.json` — Sidecar file for notebook visual state (results cache, chart configs)
 - `.amoxvis` — Chart configuration files
 - `.amoxdeck` — **Report Flow** deck: markdown-first presentation (front-matter + slides split by `---` + `<!-- layout: X -->` directives + fenced ` ```amoxchart ` blocks referencing a `.amoxvis`). Edited visually via the in-tab Report Flow Studio (`client/src/components/deck/`); parsed by `client/src/utils/deckParser.js`. Exports to native/editable PowerPoint (`generatePptxReport.js`) and Word.
+- `.amoxdiagram` — **AmoxDiagram** diagram: front-matter + one fenced ` ```mermaid ` flowchart block. Edited visually in its own tab (`client/src/components/diagram/`); parsed by `client/src/components/markdown/mermaidFlow.js`, which reads and writes the same subset in both directions. A mermaid block inside a `.md` opens in the same editor and is written back into that block alone (`diagramMerge.js` guards the round trip). **Positions are not stored** — mermaid computes them and the editor reads them back from the rendered SVG (`mermaidGeometria.js`), so the canvas shows what the document will draw.
 - `RULES.md` — Per-project AI behavior rules
 - `agent/skills/<id>/SKILL.md` — Project-level AI skills (markdown + YAML front-matter), loaded by `ai/skills.js`. The repo ships a starter set (eda-initial, data-quality, sql-optimization, time-series, cohort-comparison, metric-investigation, data-storytelling, analysis-planning).
 - `.amoxsql/context/*.md` — Per-project context fed to the AI (see `templates/.amoxsql/context/`)
