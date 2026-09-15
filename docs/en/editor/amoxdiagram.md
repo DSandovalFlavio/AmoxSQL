@@ -61,19 +61,52 @@ There are three ways to add a box, for three different moments:
 With a box selected, all three **chain** the new one to it. To write the text, double-click
 on the box. To connect two boxes, drag from the edge of one to the other.
 
-### The seven shapes
+### The fourteen shapes
 
-Each one means something, and the inspector names them by meaning:
+Each one means something, and the inspector names them by meaning, not by syntax:
 
 | Shape | What it usually is |
 |---|---|
 | Process | A step: a transformation, a job |
-| Soft step | A minor step, or the beginning and the end |
+| Soft step | A minor step |
 | Store | A database, a file, a bucket |
 | Decision | A fork: does it pass quality? |
 | Input | Something arriving from outside |
 | Output | Something leaving: a report, a file |
 | Milestone | A reference point: the dashboard, the deliverable |
+| Start or end | Where the flow begins or finishes |
+| Subprocess | A process documented elsewhere |
+| Preparation | What has to be ready beforehand |
+| Manual operation | A step a person performs |
+| Manual input | A value somebody types in |
+| Note | A mark alongside the flow |
+| Terminal end | It ends here, no way back |
+
+### The palette learns
+
+Fourteen is the classic flowchart set, but mermaid draws a good many more shapes with
+names of their own — cylinders, documents, hourglasses. They are deliberately not all in
+the palette: forty-six 19 px silhouettes to scan through to find "store" serve worse than
+fourteen.
+
+So the base set is short and **everyone keeps the ones they use**. If you write a box with
+a shape name by hand in the text panel:
+
+```
+report@{ shape: doc, label: "Monthly report" }
+```
+
+the editor recognises it and offers to add it to your palette. It asks mermaid how that
+shape is drawn and stores its outline, so the silhouette you see is the same line the
+document will render.
+
+Learned shapes appear at the end of the palette, with their own border to tell them from
+the fourteen. They work like any other; to remove one, click it with <kbd>Shift</kbd>. They
+travel with you from project to project and are never written into the repository: they are
+yours, not the diagram's.
+
+If the name is misspelled and mermaid can't draw anything with it, nothing is added — that
+keeps the palette free of buttons that produce nothing.
 
 ### Arrows say how it runs
 

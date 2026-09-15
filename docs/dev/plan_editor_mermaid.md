@@ -462,6 +462,56 @@ de la pantalla, y a cambio se ve igual en cualquier sitio donde acabe.
 
 ---
 
+## Después de las fases — lo que salió de usarlo
+
+Las cinco fases estaban cerradas y el editor funcionaba. Lo que sigue **no lo pidió el
+plan**: lo pidió abrir la aplicación y trabajar con ella. Queda anotado aquí porque es la
+parte del expediente que más se repite: *el build y el linter pasan por encima de pantallas
+en blanco, barras partidas y operaciones a las que no se llega.*
+
+- [x] **Agrupar no se descubría.** La pregunta fue literal: «¿cómo se agrupan dos
+      elementos?». La operación existía desde la fase 4, funcionaba, estaba probada — y no
+      tenía **ni un solo punto de entrada visible**. Había que adivinar dos cosas a la vez:
+      que <kbd>Ctrl</kbd> selecciona varias, y que entonces aparece un inspector distinto.
+      Se añadieron la tira flotante sobre la selección múltiple, la pista del
+      <kbd>Ctrl</kbd> en el inspector de una caja, y **Grupo nuevo…** como entrada directa.
+      Agrupar era la operación central de una arquitectura y estaba escondida: eso no es un
+      detalle de acabado, es la característica sin terminar.
+- [x] **La barra se partía en dos filas.** 947 px metidos en 921: **Guardar** caía a la
+      segunda fila, fuera de la vista. Lo causó la fase 5 al partir un «Exportar» en dos
+      botones. Se arregla en dos capas, y hacen falta las dos: un menú para los formatos, y
+      `flex-wrap: nowrap` con el título truncando — sin lo segundo, un nombre de archivo
+      largo volvía a partirla. Mismo fallo que ya había pasado en la barra del deck.
+- [x] **Las catorce formas clásicas.** Siete se quedaron cortas en cuanto alguien diagramó
+      un proceso de verdad: no había dónde poner «esto lo hace una persona» ni «esto acaba
+      aquí». Se subió a catorce, que es el juego clásico del diagrama de flujo.
+      **Dos de las nuevas salieron de medir, no de mirar:** `salida` y `manual` se estaban
+      dibujando **idénticas**, y otras dos siluetas estaban del revés. A 19 px ninguna
+      captura lo enseña; se encontró comparando la firma de estilo calculado de las catorce
+      —trece distintas de catorce— y se arregló leyendo la geometría real del polígono que
+      dibuja mermaid.
+- [x] **La paleta aprende.** Mermaid tiene más de cuarenta formas con nombre además de las
+      catorce, y meterlas todas convertía la paleta en un catálogo. Así que la base es corta
+      y **cada uno se queda con las que usa**: se lee y se escribe
+      `id@{ shape: X, label: "Y" }`, y si el diagrama trae una forma desconocida el editor
+      ofrece guardarla en `localStorage`, que es donde esta aplicación guarda lo que es del
+      usuario y no del proyecto.
+      La forma **vuelve en su sintaxis**, no traducida a cercos: la mayoría no tiene
+      equivalente, y aproximarla a la más parecida sería cambiarle el dibujo al autor por la
+      espalda. Y la silueta **no se dibuja a mano**: se le pregunta a mermaid cómo la dibuja
+      y se guarda su contorno — la misma decisión que con las posiciones y la exportación,
+      por la misma razón.
+      Cuatro cosas más que salieron de medir: una forma puede estar dibujada con **varias**
+      piezas (`brace` son dos trazos) y quedarse con la primera da media silueta; un `<g>`
+      colgado de un `div` **no tiene caja** y `getBBox` revienta; `currentColor` **no se
+      resuelve** dentro de un `url(data:…)` —doce siluetas negras sobre fondo negro— y por
+      eso se usa como máscara; y **mermaid no pinta etiqueta** en `hourglass` ni en `bolt`,
+      que son símbolos, así que se pregunta si la pinta **mirando el contenido** y no si el
+      elemento existe: el hueco está puesto y vacío, y comprobar la presencia seguía
+      diciendo que sí.
+
+---
+
 ## Lo que este plan deja fuera, y por qué
 
 - **Secuencia, estados, Gantt.** Sólo flowchart. Es lo que dibuja este público y lo que

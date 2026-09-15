@@ -61,19 +61,52 @@ Hay tres formas de añadir una caja, y sirven para tres momentos distintos:
 Con una caja seleccionada, las tres **encadenan** la nueva a ella. Para escribir el texto,
 doble clic encima. Para conectar dos cajas, arrastra desde el borde de una a la otra.
 
-### Las siete formas
+### Las catorce formas
 
-Cada una significa algo, y el inspector las llama por su significado:
+Cada una significa algo, y el inspector las llama por su significado, no por su sintaxis:
 
 | Forma | Qué suele ser |
 |---|---|
 | Proceso | Un paso: una transformación, un trabajo |
-| Paso suave | Un paso menor, o el principio y el final |
+| Paso suave | Un paso menor |
 | Almacén | Una base de datos, un archivo, un bucket |
 | Decisión | Una bifurcación: ¿pasa calidad? |
 | Entrada | Algo que llega de fuera |
 | Salida | Algo que sale: un informe, un fichero |
 | Hito | Un punto de referencia: el tablero, el entregable |
+| Principio o final | Donde empieza o acaba el flujo |
+| Subproceso | Un proceso documentado aparte |
+| Preparación | Lo que hay que dejar listo antes |
+| Operación manual | Un paso que hace una persona |
+| Entrada manual | Un dato que alguien teclea |
+| Nota | Una marca al margen del flujo |
+| Fin definitivo | Aquí se acaba, sin vuelta |
+
+### La paleta aprende
+
+Catorce son las clásicas del diagrama de flujo, pero mermaid dibuja bastantes más con
+nombre propio — cilindros, documentos, relojes de arena. No están todas en la paleta a
+propósito: cuarenta y seis siluetas de 19 px que hay que recorrer para encontrar «almacén»
+sirven peor que catorce.
+
+Así que la base es corta y **cada uno se queda con las que usa**. Si escribes a mano en el
+panel de texto una caja con nombre de forma:
+
+```
+informe@{ shape: doc, label: "Informe mensual" }
+```
+
+el editor la reconoce y te ofrece añadirla a tu paleta. Le pregunta a mermaid cómo la
+dibuja y se guarda su contorno, así que la silueta que ves es la misma línea que va a salir
+en el documento.
+
+Las aprendidas aparecen al final de la paleta, con su propio filete para distinguirlas de
+las catorce. Se usan igual que las demás; para quitar una, púlsala con <kbd>Mayús</kbd>.
+Viajan contigo de un proyecto a otro y no se escriben en el repositorio: son tuyas, no del
+diagrama.
+
+Si el nombre está mal escrito y mermaid no sabe dibujar nada con él, no se añade — así la
+paleta no se llena de botones que no producen nada.
 
 ### Las flechas dicen cómo corre
 
