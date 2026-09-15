@@ -41,6 +41,8 @@ import SlideDesigner from './SlideDesigner';
 import SlidePreview from './SlidePreview';
 import DeckShow from './DeckShow';
 import DeckInspector from './DeckInspector';
+import { useHistorial, esAtajoDeHistorial } from './useHistorial';
+import DeckSlideRaw from './DeckSlideRaw';
 import '../MarkdownEditor.css';
 import './deck.css';
 
@@ -94,6 +96,10 @@ const DeckEditor = ({
     const [inspectorColapsado, setInspectorColapsado] = useState(() => localStorage.getItem('amoxsql-deck-inspector-colapsado') === '1');
     // La procedencia la reporta la figura al terminar; el inspector la enseña.
     const [procedenciaActiva, setProcedenciaActiva] = useState(null);
+    // El crudo de la lamina activa, al lado del lienzo. La vista Source del
+    // archivo entero se queda como estaba: son dos cosas distintas y la queja
+    // era tener que buscar una lamina entre 260 lineas.
+    const [crudoAbierto, setCrudoAbierto] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
     const saveMenuRef = useRef(null);
     const pptxMenuRef = useRef(null);
@@ -104,6 +110,12 @@ const DeckEditor = ({
 
     const deck = useMemo(() => parseDeck(content || ''), [content]);
     const aspectRatio = SLIDE_ASPECT;
+
+    // Toda escritura del Studio pasa por `escribir`, que es lo que da el
+    // deshacer. La vista Source NO: Monaco tiene el suyo por pulsación y dos
+    // historiales encima del mismo documento se pelean.
+    const historial = useHistorial(content, onChange);
+    const escribir = historial.escribir;
 
     // El antetítulo de una lámina: el suyo si lo declara —incluso vacío, que
     // significa "aquí no"— y si no, el hilo del deck.
@@ -190,10 +202,10 @@ const DeckEditor = ({
         const snippet = buildSlideSnippet(layout);
         const trimmed = (content || '').replace(/\s*$/, '');
         const next = trimmed.length > 0 ? `${trimmed}\n\n---\n\n${snippet}\n` : `${snippet}\n`;
-        onChange(next);
+        escribir(next);
         // Focus the new slide (it becomes the last one).
         setActiveSlideIndex(deck.slides.length);
-    }, [content, onChange, deck.slides.length]);
+    }, [content, escribir, deck.slides.length]);
 
     /** Patch one slide (prose / layout / chartSrc / notes) and re-serialize losslessly. */
     const updateSlideAt = useCallback((index, patch) => {
@@ -202,7 +214,7 @@ const DeckEditor = ({
             // No slide to patch (e.g. empty deck) — seed one carrying the patch.
             const layout = patch.layout || 'content';
             const raw = buildSlideRaw({ layout, prose: patch.prose || '', chartSrc: patch.chartSrc || null, notes: patch.notes || '' });
-            onChange(serializeDeck(deck.frontMatterText, [{ raw }]));
+            escribir(serializeDeck(deck.frontMatterText, [{ raw }]));
             setActiveSlideIndex(0);
             return;
         }
@@ -218,8 +230,8 @@ const DeckEditor = ({
             notes: patch.notes !== undefined ? patch.notes : current.notes,
         });
         const nextSlides = deck.slides.map((s, i) => (i === index ? { ...s, raw } : s));
-        onChange(serializeDeck(deck.frontMatterText, nextSlides));
-    }, [deck, onChange]);
+        escribir(serializeDeck(deck.frontMatterText, nextSlides));
+    }, [deck, escribir]);
 
     const handleEditProse = useCallback((prose) => updateSlideAt(activeSlideIndex, { prose }), [updateSlideAt, activeSlideIndex]);
     const handleEditNotes = useCallback((notes) => updateSlideAt(activeSlideIndex, { notes }), [updateSlideAt, activeSlideIndex]);
@@ -232,8 +244,8 @@ const DeckEditor = ({
      * comentarios y orden incluidos. Ver la nota de esa funcion.
      */
     const handleSetFrontMatter = useCallback((cambios) => {
-        onChange(serializeDeck(setFrontMatterKeys(deck.frontMatterText, cambios), deck.slides));
-    }, [deck, onChange]);
+        escribir(serializeDeck(setFrontMatterKeys(deck.frontMatterText, cambios), deck.slides));
+    }, [deck, escribir]);
     const handleSetFooter = useCallback((footer) => updateSlideAt(activeSlideIndex, { footer }), [updateSlideAt, activeSlideIndex]);
     const alternarInspector = useCallback(() => {
         setInspectorColapsado((prev) => {
@@ -301,20 +313,57 @@ const DeckEditor = ({
         if (target < 0 || target >= deck.slides.length) return;
         const next = [...deck.slides];
         [next[index], next[target]] = [next[target], next[index]];
-        onChange(serializeDeck(deck.frontMatterText, next));
+        escribir(serializeDeck(deck.frontMatterText, next));
         setActiveSlideIndex(target);
-    }, [deck, onChange]);
+    }, [deck, escribir]);
+
+    /** Duplicar: la copia entra justo detras y queda activa. */
+    const handleDuplicateSlide = useCallback((index) => {
+        const slide = deck.slides[index];
+        if (!slide) return;
+        const next = [...deck.slides];
+        next.splice(index + 1, 0, { raw: slide.raw });
+        escribir(serializeDeck(deck.frontMatterText, next));
+        setActiveSlideIndex(index + 1);
+    }, [deck, escribir]);
+
+    /** El crudo de UNA lamina, sustituido en su sitio. */
+    const handleEditRaw = useCallback((raw) => {
+        const next = deck.slides.map((s, i) => (i === activeSlideIndex ? { ...s, raw } : s));
+        escribir(serializeDeck(deck.frontMatterText, next));
+    }, [deck, escribir, activeSlideIndex]);
 
     const handleDeleteSlide = useCallback((index) => {
         const next = deck.slides.filter((_, i) => i !== index);
-        onChange(serializeDeck(deck.frontMatterText, next));
-    }, [deck, onChange]);
+        escribir(serializeDeck(deck.frontMatterText, next));
+    }, [deck, escribir]);
 
     const goToSlide = useCallback((idx) => {
         setActiveSlideIndex(Math.max(0, Math.min(idx, deck.slides.length - 1)));
     }, [deck.slides.length]);
 
     const requestAddChart = useCallback(() => { changePanel('charts'); setSidePanelCollapsed(false); }, []);
+
+    // Los atajos del Studio. Van en captura sobre el contenedor de la pestaña y
+    // no en `window`: con dos pestañas abiertas, el deshacer de una no puede
+    // tocar el deck de la otra.
+    useEffect(() => {
+        const el = document.querySelector('.deck-studio.active') || null;
+        const onKey = (e) => {
+            const accion = esAtajoDeHistorial(e);
+            if (accion === 'deshacer') { e.preventDefault(); historial.deshacer(); return; }
+            if (accion === 'rehacer') { e.preventDefault(); historial.rehacer(); return; }
+            if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+                const k = (e.key || '').toLowerCase();
+                const enTexto = e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement;
+                if (k === 'd' && !enTexto) { e.preventDefault(); handleDuplicateSlide(activeSlideIndex); return; }
+                if (k === 'e' && e.shiftKey) { e.preventDefault(); setCrudoAbierto((v) => !v); }
+            }
+        };
+        el?.addEventListener('keydown', onKey, true);
+        return () => el?.removeEventListener('keydown', onKey, true);
+    }, [historial, handleDuplicateSlide, activeSlideIndex, isActive]);
+
 
     const handleEditorWillMount = useCallback((monaco) => {
         registerMonaco(monaco);
@@ -505,6 +554,7 @@ const DeckEditor = ({
                         onMoveSlide={handleMoveSlide}
                         onDeleteSlide={handleDeleteSlide}
                         onAddSlide={handleAddSlide}
+                        onDuplicateSlide={handleDuplicateSlide}
                         onInsertChart={handleInsertChart}
                         onInsertImage={handleInsertImage}
                     />
@@ -585,6 +635,16 @@ const DeckEditor = ({
                                     selRegionId={selRegionId}
                                     onSelectRegion={setSelRegionId}
                                     onProcedenciaChange={setProcedenciaActiva}
+                                    crudoAbierto={crudoAbierto}
+                                    onAlternarCrudo={() => setCrudoAbierto((v) => !v)}
+                                    crudo={crudoAbierto ? (
+                                        <DeckSlideRaw
+                                            raw={activeSlide.raw}
+                                            numero={activeSlideIndex + 1}
+                                            onEditar={handleEditRaw}
+                                            onCerrar={() => setCrudoAbierto(false)}
+                                        />
+                                    ) : null}
                                 />
                             )
                         )}

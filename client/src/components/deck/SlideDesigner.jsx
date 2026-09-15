@@ -18,7 +18,7 @@
  * prosa COMPLETA, así que una región nunca puede partir el archivo.
  */
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
-import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert, LuEye } from 'react-icons/lu';
+import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert, LuEye, LuCode } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta } from './SlidePreview';
 import DeckFooter from './DeckFooter';
@@ -272,6 +272,7 @@ const SlideDesigner = ({
     onOpenFile, onEditProse, onEditNotes, onRemoveChart, onRemoveChartAt,
     onRequestAddChart, onPrev, onNext,
     selRegionId = null, onSelectRegion, onProcedenciaChange,
+    crudo = null, crudoAbierto = false, onAlternarCrudo,
 }) => {
     const { prose, chartSrc, charts, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
@@ -512,6 +513,14 @@ const SlideDesigner = ({
                 >
                     <LuEye size={14} /> Vista limpia
                 </button>
+                <button
+                    type="button"
+                    className={`deck-design-limpia${crudoAbierto ? ' deck-design-limpia--on' : ''}`}
+                    onClick={onAlternarCrudo}
+                    title="El crudo de esta lámina (Ctrl+Shift+E)"
+                >
+                    <LuCode size={14} /> Crudo
+                </button>
                 <button type="button" onClick={onNext} disabled={index >= total - 1} title="Lámina siguiente">
                     <LuChevronRight size={16} />
                 </button>
@@ -532,6 +541,8 @@ const SlideDesigner = ({
                     </div>
                 )}
             </div>
+
+            {crudo}
 
             {onEditNotes && <NotesPanel notes={notes} onCommit={onEditNotes} />}
         </div>

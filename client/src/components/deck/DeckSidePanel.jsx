@@ -34,6 +34,7 @@ const DeckSidePanel = ({
     onMoveSlide,
     onDeleteSlide,
     onAddSlide,
+    onDuplicateSlide,
     onInsertChart,
     onInsertImage,
 }) => {
@@ -79,6 +80,7 @@ const DeckSidePanel = ({
                         onMove={onMoveSlide}
                         onDelete={onDeleteSlide}
                         onAddSlide={onAddSlide}
+                        onDuplicate={onDuplicateSlide}
                     />
                 )}
                 {activePanel === 'charts' && <ChartsPanel onInsertChart={onInsertChart} />}

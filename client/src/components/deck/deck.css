@@ -2339,3 +2339,100 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
+
+/* ── Fase 5 — el crudo de una lámina ───────────────────────────────────── */
+
+/* Debajo del lienzo y no en lugar de él: la queja era tener que buscar una
+   lámina entre 260 líneas, no que faltara el texto. Aquí se ve el markdown Y
+   la lámina que produce, que es lo que hace entendible una directiva. */
+.deck-crudo {
+    width: 100%;
+    max-width: 1180px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    overflow: hidden;
+}
+
+.deck-crudo-cab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 8px 6px 11px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+}
+.deck-crudo-cab > span { flex: 1; color: var(--text-secondary); }
+.deck-crudo-cab kbd {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 1px 4px;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    color: var(--text-disabled);
+}
+.deck-crudo-cab button {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.deck-crudo-cab button:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.deck-crudo-area {
+    width: 100%;
+    min-height: 190px;
+    max-height: 340px;
+    resize: vertical;
+    border: none;
+    background: var(--surface-inset);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.65;
+    padding: 10px 13px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+/* La leyenda ocupa el sitio del resaltado de sintaxis que un `textarea` no
+   puede dar. Dice qué directivas lleva ESTA lámina y qué hace cada una, que era
+   el objetivo: que no parezcan ruido que hay que aprenderse. */
+.deck-crudo-pie {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 13px 10px;
+    border-top: 1px solid var(--border-subtle);
+}
+.deck-crudo-nota,
+.deck-crudo-error {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: var(--text-disabled);
+}
+.deck-crudo-nota b { color: var(--text-tertiary); font-weight: var(--weight-medium); }
+.deck-crudo-nota code,
+.deck-crudo-error code {
+    font-family: var(--font-mono);
+    font-size: .95em;
+    color: var(--text-secondary);
+}
+.deck-crudo-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    color: var(--color-error);
+}
+.deck-crudo-error svg { flex: none; margin-top: 2px; }
+.deck-crudo-error code { color: var(--color-error); }
