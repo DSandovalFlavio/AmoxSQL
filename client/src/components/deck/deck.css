@@ -2206,3 +2206,99 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .deck-menu-item--on { background: var(--accent-subtle); color: var(--text-primary); }
 .deck-menu-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .deck-menu-detalle { font-size: 10px; color: var(--text-disabled); flex-shrink: 0; }
+
+/* ── Fase 4 — los formularios de los bloques de dato ───────────────────── */
+
+.dkb-lista { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.dkb-solapa {
+    padding: 3px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    cursor: pointer;
+}
+.dkb-solapa:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.dkb-solapa--on { background: var(--accent-muted); border-color: transparent; color: var(--accent-primary); }
+
+/* Cada registro de la lista lleva su propio marco: sin él, veinte campos
+   seguidos en una columna de 232 px son un muro y no se ve dónde acaba una
+   métrica y empieza la siguiente. */
+.dkb-registro {
+    padding: 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+}
+
+.dkb-fila {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 7px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+}
+
+.dkb-fila-cab {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-bottom: 2px;
+}
+.dkb-fila-cab > span {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--text-disabled);
+}
+.dkb-fila-cab button {
+    display: grid;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.dkb-fila-cab button:hover { background: var(--hover-bg); color: var(--text-primary); }
+.dkb-fila-cab button:disabled { opacity: .3; cursor: default; }
+.dkb-fila-cab button:last-child:hover {
+    background: color-mix(in srgb, var(--color-error) 14%, transparent);
+    color: var(--color-error);
+}
+
+.dkb-anadir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    padding: 5px;
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+.dkb-anadir:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+.dkb-num { width: 56px; text-align: right; }
+
+/* El tic de una casilla dentro de un formulario de bloque. Se dibuja con CSS y
+   no con un icono porque a 13 px un SVG de Lucide pierde el trazo. */
+.dkb-tic {
+    display: block;
+    width: 4px;
+    height: 7px;
+    margin-top: -2px;
+    border: solid var(--button-text-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}

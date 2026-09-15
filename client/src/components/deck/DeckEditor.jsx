@@ -343,8 +343,8 @@ const DeckEditor = ({
 
     const activeSlide = deck.slides[activeSlideIndex] || null;
     // Lo que el inspector necesita de la lamina activa, troceado una sola vez.
-    const { chartSrc: activeChartSrc, charts: activeCharts } = useMemo(
-        () => (activeSlide ? splitSlideContent(activeSlide.markdown) : { chartSrc: null, charts: [] }),
+    const { prose: activeProse, chartSrc: activeChartSrc, charts: activeCharts } = useMemo(
+        () => (activeSlide ? splitSlideContent(activeSlide.markdown) : { prose: '', chartSrc: null, charts: [] }),
         [activeSlide],
     );
     const showExport = viewMode !== 'source' && deck.slides.length > 0;
@@ -598,8 +598,10 @@ const DeckEditor = ({
                             onAlternarColapso={alternarInspector}
                             slide={activeSlide}
                             layout={activeSlide?.layout}
+                            prose={activeProse}
                             chartSrc={activeChartSrc}
                             charts={activeCharts}
+                            onEditProse={handleEditProse}
                             frontMatter={deck.frontMatter}
                             deckFooter={deck.frontMatter?.footer}
                             seleccion={selRegionId}

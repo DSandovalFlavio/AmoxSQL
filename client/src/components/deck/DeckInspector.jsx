@@ -24,7 +24,9 @@ import {
 } from 'react-icons/lu';
 import { DECK_LAYOUT_GALLERY_BY_FAMILY, DECK_LAYOUT_META } from './deckLayoutPreviews';
 import { FOOTER_FIELDS, resolveFooterFields, resolveTone } from '../../utils/deckParser';
-import { regionesDe } from './deckRegions';
+import { regionesDe, leerParte, escribirParte } from './deckRegions';
+import { bloquesDe, BLOQUES } from './deckBlockModel';
+import DeckBlockForm from './DeckBlockForm';
 import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../../accents.js';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';
 import { medirAcentos, PISO_CONTRASTE } from './deckColor';
@@ -256,15 +258,20 @@ function PanelDeck({ frontMatter, onSetFrontMatter }) {
 
 const DeckInspector = ({
     colapsado, onAlternarColapso,
-    slide, layout, chartSrc, charts, frontMatter, deckFooter,
+    slide, layout, prose, chartSrc, charts, frontMatter, deckFooter,
     seleccion, procedencia,
     onApplyLayout, onSetTone, onSetFooter, onRemoveChart, onRequestAddChart,
-    onOpenFile, onSetFrontMatter,
+    onOpenFile, onSetFrontMatter, onEditProse,
 }) => {
     // Lámina o deck. No es una pestaña de contexto —eso seguiría estando mal—
     // sino de ÁMBITO: son dos objetos distintos, y el deck no se puede
     // seleccionar en el lienzo porque no está dibujado en ninguna parte.
     const [ambito, setAmbito] = useState('lamina');
+    // Qué bloque de dato tiene el formulario abierto, por su orden dentro de la
+    // región. Por índice y no por objeto: el bloque se reescribe en cada
+    // pulsación y el objeto de antes deja de existir.
+    const [bloqueAbierto, setBloqueAbierto] = useState(null);
+    useEffect(() => { setBloqueAbierto(null); }, [seleccion, slide?.id]);
     const regiones = useMemo(() => regionesDe(layout), [layout]);
     const region = seleccion ? regiones.find((r) => r.id === seleccion) : null;
     const tono = resolveTone({ slideTone: slide?.tone, deckTone: frontMatter?.tone });
@@ -273,6 +280,16 @@ const DeckInspector = ({
         [slide?.footer, deckFooter, layout, chartSrc],
     );
     const sinPie = layout === 'cover' || layout === 'closing';
+
+    // Los bloques de dato de la región seleccionada. El formulario trabaja
+    // sobre la prosa CONFIRMADA: mientras se escribe manda el cuadro de texto,
+    // y dos escritores sobre la misma cadena es como se pierde lo tecleado.
+    const regionSel = seleccion ? regionesDe(layout).find((r) => r.id === seleccion) : null;
+    const textoRegion = regionSel?.tipo === 'texto' ? leerParte(prose, regionSel.parte) : '';
+    const bloques = useMemo(() => bloquesDe(textoRegion), [textoRegion]);
+
+    /** Escribe el texto de la región de vuelta en la prosa completa. */
+    const escribirRegion = (nuevoTexto) => onEditProse?.(escribirParte(prose, regionSel.parte, nuevoTexto));
 
     if (colapsado) {
         return (
@@ -337,6 +354,37 @@ const DeckInspector = ({
                             Intro para editarla · Tab para pasar a la siguiente
                         </p>
                     </Grupo>
+                )}
+
+                {/* ── Los bloques de dato de esta región ── */}
+                {ambito === 'lamina' && regionSel?.tipo === 'texto' && bloques.length > 0 && (
+                    <Grupo titulo={`Bloques de dato · ${bloques.length}`}>
+                        <div className="dkb-lista">
+                            {bloques.map((b, i) => (
+                                <button
+                                    key={`${b.lang}-${b.desde}`}
+                                    type="button"
+                                    className={`dkb-solapa${bloqueAbierto === i ? ' dkb-solapa--on' : ''}`}
+                                    onClick={() => setBloqueAbierto(bloqueAbierto === i ? null : i)}
+                                >
+                                    {BLOQUES[b.lang]?.label || b.lang}
+                                </button>
+                            ))}
+                        </div>
+                        {bloqueAbierto === null && (
+                            <p className="dki-nota dki-nota--tenue">
+                                Pulsa uno para editarlo con campos en vez de YAML.
+                            </p>
+                        )}
+                    </Grupo>
+                )}
+
+                {ambito === 'lamina' && bloqueAbierto !== null && bloques[bloqueAbierto] && (
+                    <DeckBlockForm
+                        prosa={textoRegion}
+                        bloque={bloques[bloqueAbierto]}
+                        onEscribir={escribirRegion}
+                    />
                 )}
 
                 {/* ── La figura ── */}
