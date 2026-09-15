@@ -1,6 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
+// Lo primero de todo: apunta el editor de codigo al disco en vez de al CDN.
+// Tiene que correr antes de que se monte ningun editor.
+import './editorLocal.js'
+
 // Self-hosted fonts (bundled, offline — no external CDN calls)
 import '@fontsource/manrope/400.css'
 import '@fontsource/manrope/500.css'

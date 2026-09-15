@@ -68,6 +68,9 @@ importers:
       mermaid:
         specifier: ^11.14.0
         version: 11.14.0
+      monaco-editor:
+        specifier: 0.55.1
+        version: 0.55.1
       pptxgenjs:
         specifier: ^4.0.1
         version: 4.0.1

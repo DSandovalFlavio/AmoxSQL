@@ -156,3 +156,4 @@ plan/
 !**/testRunner.js
 # Caché por proyecto del catálogo de funciones (lo genera /api/functions/refresh)
 .amox/
+client/public/vs/

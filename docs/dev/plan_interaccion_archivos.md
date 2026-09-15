@@ -47,11 +47,11 @@ Eso tiene dos caras, y las dos importan aquí:
   INI o XML **no cuesta ni un byte de nuestro paquete ni una dependencia nueva.** La fase 1
   es mucho más barata de lo que parecía.
 - **En contra, y es un hallazgo aparte:** una aplicación de escritorio para análisis
-  **local** necesita internet la primera vez que abre un editor. En un portátil corporativo
-  cerrado, en un avión o en un entorno aislado —los tres perfectamente normales para un
-  ingeniero de datos— el editor no carga. Esto **no lo destapó la auditoría de archivos**;
-  apareció al medir para esta. Va como fase 5 porque toca lo mismo, pero es una discusión
-  propia y se puede sacar de aquí sin romper nada.
+  **local** necesitaba internet la primera vez que abría un editor. En un portátil
+  corporativo cerrado, en un avión o en un entorno aislado —los tres perfectamente normales
+  para un ingeniero de datos— el editor no cargaba. Esto **no lo destapó la auditoría de
+  archivos**; apareció al medir para esta. *Arreglado en la fase 5: el editor viaja dentro
+  del instalable, y cuesta +1 MB.*
 
 ### 3. La defensa contra pisar trabajo ajeno ya existe, en un rincón
 
@@ -340,16 +340,73 @@ edición; y cuando se comprueba, comprobar con quien vaya a ejecutarlo.**
 
 ## Fase 5 — El editor sin internet
 
-Independiente de las cuatro anteriores. **Se puede sacar de este plan y tratarla aparte**,
-y quizá deba: no salió de la auditoría, salió de medir para ella.
+- [x] Servir el editor desde el paquete en vez del CDN.
+- [x] Medir el arranque y el peso **antes** de decidir.
+- [x] Decidir con el número delante.
 
-- [ ] Servir el editor desde el paquete en vez del CDN (`loader.config({ paths: { vs } })`
-      apuntando a una copia local). Pesa, y hay que medir cuánto.
-- [ ] Medir el arranque en frío antes y después. Hoy la primera carga depende de la red del
-      usuario, lo cual es a la vez malo —no funciona sin ella— y engañoso: en una conexión
-      buena parece más rápido de lo que sería empaquetado.
-- [ ] Decidir con el número delante. **Esta fase se abre con una medición, no con una
-      implementación.**
+**Los números, que es como se abría esta fase:**
+
+| | |
+|---|---|
+| Instalable antes | 111,6 MB |
+| Instalable después | 112,6 MB |
+| **Diferencia** | **+1 MB (+0,9 %)** |
+| Dentro del paquete | 100 archivos, 4,1 MB |
+| En ejecución | 11 archivos, 3,94 MB, **0 peticiones al CDN** |
+| Carga del editor | 668 ms desde el disco; el archivo grande (3,5 MB) en 70 ms |
+
+Con +1 MB sobre 111 no hay discusión que tener. La fase se abría preguntando si el peso lo
+justificaba; el peso resultó ser ruido.
+
+### De dónde venía
+
+`@monaco-editor/loader` trae una URL por omisión —`cdn.jsdelivr.net`—, nadie se la
+cambiaba, y `monaco-editor` **no era dependencia del cliente**: el editor no viajaba en el
+instalable y se descargaba al abrir por primera vez en cada equipo.
+
+No fue una decisión, fue un valor por defecto heredado. Y es el razonable **para una página
+web**: no metes megas en un sitio si un CDN te los sirve cacheado. En una aplicación de
+escritorio para análisis **local** deja de serlo — no hay ancho de banda que ahorrar, y a
+cambio se mete una dependencia de red justo donde la promesa del producto es la contraria.
+
+El CDN manda `Cache-Control: max-age=31536000, immutable`, así que después de la primera
+carga sale de la caché del disco y **nadie lo nota nunca**. Por eso llevaba ahí sin
+molestar. El que lo sufre es el que instala en un portátil con el CDN bloqueado por el
+cortafuegos, o abre por primera vez en un avión, o trabaja en una máquina aislada: ahí no
+hay editor, y sin editor no hay SQL, ni markdown, ni el crudo del deck.
+
+**El resto del producto ya lo hacía bien.** El comentario de las fuentes en `main.jsx` dice
+literalmente «bundled, offline — no external CDN calls». El principio estaba escrito y
+aplicado; el editor era la excepción que nadie había mirado.
+
+### Se copian 5,4 de los 16 MB
+
+De los 16 MB del paquete se dejan fuera unos 10 que esta aplicación no usa nunca, y el
+mayor con diferencia es el servicio de lenguaje de **TypeScript: 6,7 MB él solo**. Da
+autocompletado y comprobación de tipos; aquí un `.ts` se abre para **leerlo**, y el coloreado
+no lo da ese servicio sino la definición del lenguaje, que sí se copia. Fuera van también
+los workers de CSS y HTML y trece de las catorce traducciones.
+
+El de JSON se queda: valida mientras escribes, y un `.json` de configuración es justo lo que
+la gente abre aquí — es el caso que originó todo este plan.
+
+**Comprobado que la poda no se llevó nada por delante:** los 16 idiomas de la tabla de tipos
+están registrados, y SQL, YAML y Python colorean con varias clases de token. Un `Dockerfile`
+sale con `FROM` y `RUN` en azul, y una consulta se ejecuta y devuelve su resultado.
+
+### La trampa: un archivo que falte no da 404
+
+El esquema propio `amoxsql://` devuelve `index.html` para lo que no encuentra
+(`electron/main.js:434`). O sea que si la lista de exclusiones se pasa de ambiciosa, el
+síntoma **no es un 404**: es HTML donde se esperaba JavaScript. Queda anotado junto a la
+lista, porque es donde se va a mirar cuando pase.
+
+### Lo que no se comprobó
+
+**Qué enseña exactamente la aplicación con el CDN caído y la caché vacía**, que era la
+tercera medición prevista. Dejó de hacer falta: el camino ya no pasa por ahí, y montar el
+escenario para documentar un fallo que acabamos de retirar habría sido trabajo sobre algo
+que ya no existe. Si alguna vez se vuelve al CDN, esa medición vuelve a ser obligatoria.
 
 ---
 
