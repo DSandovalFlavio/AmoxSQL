@@ -44,7 +44,7 @@ export default function TasksPanel({ onOpenFile, currentPath, reloadToken = 0, e
         setError(null);
         try {
             const res = await fetch(`${API_BASE}/api/docs/index`);
-            if (!res.ok) throw new Error(`El servidor respondió ${res.status}`);
+            if (!res.ok) throw new Error(`The server answered ${res.status}`);
             setDocs(await res.json());
         } catch (e) {
             setError(e.message);

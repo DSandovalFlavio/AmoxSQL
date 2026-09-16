@@ -36,8 +36,8 @@ function OutlinePanel({
             <div className="mde-rail-head">
                 <span>Estructura</span>
                 {git?.size > 0 && !gitFiable && (
-                    <span className="mde-outline-git-off" title="Guarda el documento para ver qué ha cambiado por sección">
-                        sin guardar
+                    <span className="mde-outline-git-off" title="Save the document to see what changed per section">
+                        unsaved
                     </span>
                 )}
                 {onPlegar && (
@@ -48,7 +48,7 @@ function OutlinePanel({
             </div>
 
             {!sections.length && (
-                <div className="mde-rail-empty">Sin títulos todavía.</div>
+                <div className="mde-rail-empty">No headings yet.</div>
             )}
 
             {sections.map((s) => (
@@ -61,7 +61,7 @@ function OutlinePanel({
                             dragging === s.headingLine ? 'dragging' : '',
                             over === s.headingLine ? 'over' : '',
                         ].filter(Boolean).join(' ')}
-                        title={`${s.text} · línea ${s.headingLine}`}
+                        title={`${s.text} · line ${s.headingLine}`}
                         draggable
                         onClick={() => onGo?.(s)}
                         onDragStart={() => setDragging(s.headingLine)}
@@ -78,14 +78,14 @@ function OutlinePanel({
                         <span className="mde-rail-moves">
                             <button
                                 className="mde-rail-move"
-                                title="Subir esta sección"
+                                title="Move this section up"
                                 onClick={(e) => { e.stopPropagation(); onMoveBy?.(s.headingLine, 'up'); }}
                             >
                                 <LuChevronUp size={11} />
                             </button>
                             <button
                                 className="mde-rail-move"
-                                title="Bajar esta sección"
+                                title="Move this section down"
                                 onClick={(e) => { e.stopPropagation(); onMoveBy?.(s.headingLine, 'down'); }}
                             >
                                 <LuChevronDown size={11} />
@@ -97,7 +97,7 @@ function OutlinePanel({
                             esto del documento en memoria, así que con cambios sin
                             guardar los números se desplazarían. */}
                         {gitFiable && git?.get(s.headingLine) && (
-                            <span className="mde-rail-git" title="Cambios desde el último commit">
+                            <span className="mde-rail-git" title="Changes since the last commit">
                                 {git.get(s.headingLine).mas > 0 && <b className="mas">+{git.get(s.headingLine).mas}</b>}
                                 {git.get(s.headingLine).menos > 0 && <b className="menos">−{git.get(s.headingLine).menos}</b>}
                             </span>

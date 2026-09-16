@@ -105,7 +105,7 @@ function DocPanel({
                                     key={t.line}
                                     className={`mde-panel-tarea${t.done ? ' hecha' : ''}`}
                                     onClick={() => onIrALinea?.(t.line)}
-                                    title={`Línea ${t.line}`}
+                                    title={`Line ${t.line}`}
                                 >
                                     <button
                                         className={`mde-panel-box${t.done ? ' on' : ''}`}

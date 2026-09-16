@@ -5,49 +5,52 @@
  * puesta, celdas de texto, parametros en la barra derecha y «Actualizar».
  * Lo anterior hablaba de celdas «Input», de «ejecutar todo» y de exportar a
  * HTML, y ninguna de las tres existe ya.
+ *
+ * El texto va en ingles porque es interfaz; los comentarios, en espanol, como
+ * en el resto del proyecto.
  */
 import { LuLayers, LuType, LuSlidersHorizontal, LuRefreshCw } from 'react-icons/lu';
 
 export const NOTEBOOK_TOUR_STEPS = [
     {
-        icon: LuLayers, title: 'Cada celda deja una vista', tagline: 'Sin escribir un CREATE',
-        headline: 'La siguiente celda lee a la anterior por su nombre',
-        desc: 'Al ejecutar una celda, su consulta queda puesta en la sesión con el nombre de la celda. '
-            + 'La de abajo ya puede escribir FROM ese_nombre. Nadie escribe CREATE OR REPLACE TEMP VIEW.',
+        icon: LuLayers, title: 'Every cell leaves a view', tagline: 'Without writing a CREATE',
+        headline: 'The next cell reads the previous one by its name',
+        desc: 'When a cell runs, its query is left in the session under the cell\'s name. '
+            + 'The one below can already write FROM that_name. Nobody writes CREATE OR REPLACE TEMP VIEW.',
         points: [
-            'El comentario de arriba de la consulta es la descripción de la vista',
-            'Un interruptor la materializa cuando el paso es caro y cuelgan otros de él',
+            'The query\'s leading comment becomes the view\'s description',
+            'A switch materializes it when the step is expensive and others hang off it',
         ],
     },
     {
-        icon: LuType, title: 'Celdas de texto', tagline: 'Contar el porqué',
-        headline: 'El análisis se documenta al lado del análisis',
-        desc: 'El contexto, la metodología y lo que se descartó van en celdas de texto, en Markdown. '
-            + 'Sus encabezados construyen solos el índice de la barra derecha.',
+        icon: LuType, title: 'Text cells', tagline: 'Telling the why',
+        headline: 'The analysis is documented next to the analysis',
+        desc: 'The context, the method and what you ruled out go in text cells, in Markdown. '
+            + 'Their headings build the outline in the right sidebar on their own.',
         points: [
-            'Doble clic para escribir; se ve compuesto al soltar',
-            'Para la prosa larga, la celda ocupa la pestaña entera',
+            'Double-click to write; it composes when you click away',
+            'For long prose, the cell takes the whole tab',
         ],
     },
     {
-        icon: LuSlidersHorizontal, title: 'Parámetros', tagline: 'Sin tocar la consulta',
-        headline: 'Un valor que cambia todo el cuaderno',
-        desc: 'Escribe {{desde}} en una celda y en la barra derecha podrás darle valor. '
-            + 'Un texto entra entrecomillado y un número tal cual, así que se escribe f >= {{desde}}.',
+        icon: LuSlidersHorizontal, title: 'Parameters', tagline: 'Without touching the query',
+        headline: 'One value that changes the whole notebook',
+        desc: 'Write {{desde}} in a cell and the right sidebar lets you give it a value. '
+            + 'Text goes in quoted and a number goes in raw, so you write f >= {{desde}}.',
         points: [
-            'La barra separa los que se usan de los que sólo están declarados',
-            'Cambiar un valor marca como desactualizado lo que dependa de él',
+            'The sidebar separates the ones in use from the ones only declared',
+            'Changing a value marks whatever depends on it as out of date',
         ],
     },
     {
-        icon: LuRefreshCw, title: 'Actualizar', tagline: 'En orden de dependencia',
-        headline: 'Lo que se quedó viejo, y sólo eso',
-        desc: 'El cuaderno sabe qué celda lee a cuál, esté donde esté en el documento. '
-            + 'Si editas una de la que cuelgan tres, marca las tres, y «Actualizar» las ejecuta en el '
-            + 'orden correcto — que no es el de la pantalla.',
+        icon: LuRefreshCw, title: 'Refresh', tagline: 'In dependency order',
+        headline: 'What went stale, and only that',
+        desc: 'The notebook knows which cell reads which, wherever they sit in the document. '
+            + 'Edit one that three others hang off and it marks all three, and Refresh runs them in the '
+            + 'right order — which is not the order on screen.',
         points: [
-            'Dice cuántas y en qué orden antes de empezar',
-            'Lo que escribe en el disco se aparta: repetir un INSERT no es inofensivo',
+            'It says how many and in what order before starting',
+            'Anything that writes to disk is set aside: repeating an INSERT is not harmless',
         ],
     },
 ];

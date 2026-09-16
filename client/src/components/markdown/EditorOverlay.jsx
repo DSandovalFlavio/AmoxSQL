@@ -231,7 +231,7 @@ export default function EditorOverlay({ editor, content, onWrap, onLineMarker, o
                 <button
                     className={`mde-gutter-handle${insertarAbierto ? ' abierta' : ''}`}
                     style={{ top: handle.top, left: handle.left }}
-                    title="Insertar un bloque aquí"
+                    title="Insert a block here"
                     onMouseEnter={cancelarOcultar}
                     onMouseLeave={() => { if (!insertarAbierto) ocultarLuego(); }}
                     onMouseDown={keepFocus}
@@ -246,7 +246,7 @@ export default function EditorOverlay({ editor, content, onWrap, onLineMarker, o
                     <button className="mde-overlay-btn" title="Negrita (Ctrl+B)" onClick={() => onWrap('**')}><LuBold size={13} /></button>
                     <button className="mde-overlay-btn" title="Cursiva (Ctrl+I)" onClick={() => onWrap('_')}><LuItalic size={13} /></button>
                     <button className="mde-overlay-btn" title="Tachado" onClick={() => onWrap('~~')}><LuStrikethrough size={13} /></button>
-                    <button className="mde-overlay-btn" title="Código en línea (Ctrl+E)" onClick={() => onWrap('`')}><LuCode size={13} /></button>
+                    <button className="mde-overlay-btn" title="Inline code (Ctrl+E)" onClick={() => onWrap('`')}><LuCode size={13} /></button>
                     <span className="mde-overlay-sep" />
                     <button className="mde-overlay-btn" title="Enlace (Ctrl+K)" onClick={() => onWrap('link')}><LuLink size={13} /></button>
                     <button className="mde-overlay-btn" title="Cita" onClick={() => onLineMarker('> ')}><LuQuote size={13} /></button>
@@ -256,8 +256,8 @@ export default function EditorOverlay({ editor, content, onWrap, onLineMarker, o
 
             {blockBar?.type === 'table' && (
                 <div className="mde-overlay mde-blockbar" style={{ top: blockBar.top, left: blockBar.left }} onMouseDown={keepFocus}>
-                    <button className="mde-overlay-btn wide" title="Añadir fila debajo" onClick={() => applyTable('addRowBelow')}><LuPlus size={12} /> Fila</button>
-                    <button className="mde-overlay-btn wide" title="Añadir columna a la derecha" onClick={() => applyTable('addColRight')}><LuPlus size={12} /> Columna</button>
+                    <button className="mde-overlay-btn wide" title="Add a row below" onClick={() => applyTable('addRowBelow')}><LuPlus size={12} /> Fila</button>
+                    <button className="mde-overlay-btn wide" title="Add a column to the right" onClick={() => applyTable('addColRight')}><LuPlus size={12} /> Columna</button>
                     <button className="mde-overlay-btn" title="Quitar la fila del cursor" onClick={() => applyTable('removeRow')}><LuMinus size={12} /></button>
                     <span className="mde-overlay-sep" />
                     <button className="mde-overlay-btn" title="Alinear a la izquierda" onClick={() => applyTable('align', { align: 'left' })}><LuAlignLeft size={12} /></button>
