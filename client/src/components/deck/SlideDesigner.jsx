@@ -177,7 +177,7 @@ function RegionTexto({
                         onCerrar={menu.cerrar}
                     />
                 )}
-                <span className="deck-rg-ayuda"><kbd>Esc</kbd> cancelar · <kbd>Ctrl</kbd>+<kbd>Intro</kbd> confirmar</span>
+                <span className="deck-rg-ayuda"><kbd>Esc</kbd> cancel · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> confirm</span>
             </div>
         );
     }
@@ -188,7 +188,7 @@ function RegionTexto({
             data-rg={region.nombre}
             role="button"
             tabIndex={-1}
-            title={`${region.nombre} — Intro para editar`}
+            title={`${region.nombre} — Enter to edit`}
             onClick={(e) => { e.stopPropagation(); if (seleccionada) onEditar(); else onSeleccionar(); }}
             onDoubleClick={(e) => { e.stopPropagation(); onEditar(); }}
         >
@@ -216,7 +216,7 @@ function RegionFigura({
             <div {...comun} className={`${comun.className} deck-chart-slot--empty`}>
                 <button type="button" className="deck-chart-slot-cta" onClick={(e) => { e.stopPropagation(); onRequestAdd(); }}>
                     <LuChartBar size={22} />
-                    <span>Añadir una figura</span>
+                    <span>Add a figure</span>
                     <span className="deck-chart-slot-sub">{region.pista}</span>
                 </button>
             </div>
@@ -224,7 +224,7 @@ function RegionFigura({
     }
     return (
         <div {...comun}>
-            <button type="button" className="deck-chart-remove" title="Quitar la figura" onClick={(e) => { e.stopPropagation(); onRemove(); }}>
+            <button type="button" className="deck-chart-remove" title="Remove the figure" onClick={(e) => { e.stopPropagation(); onRemove(); }}>
                 <LuX size={13} />
             </button>
             {/* La paleta del deck también aquí. Sin ella el diseñador pintaba
@@ -254,14 +254,14 @@ function NotesPanel({ notes, onCommit }) {
         <div className={`deck-notes-panel${open ? ' deck-notes-panel--open' : ''}`}>
             <button type="button" className="deck-notes-toggle" onClick={() => setOpen((v) => !v)}>
                 <LuNotebookPen size={13} />
-                <span>Notas del orador{notes.trim() ? '' : ' (vacías)'}</span>
+                <span>Speaker notes{notes.trim() ? '' : ' (empty)'}</span>
                 {open ? <LuChevronUp size={13} /> : <LuChevronDown size={13} />}
             </button>
             {open && (
                 <textarea
                     className="deck-notes-editor"
                     value={draft}
-                    placeholder="Para quien presenta — no salen en la lámina, y viajan al panel de notas del PowerPoint."
+                    placeholder="For whoever presents — they do not show on the slide, and they travel to the PowerPoint notes pane."
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => e.stopPropagation()}
                     onBlur={() => { if (draft !== notes) onCommit(draft); }}
@@ -504,7 +504,7 @@ const SlideDesigner = ({
     return (
         <div className="deck-design" tabIndex={-1}>
             <div className="deck-design-nav">
-                <button type="button" onClick={onPrev} disabled={index <= 0} title="Lámina anterior">
+                <button type="button" onClick={onPrev} disabled={index <= 0} title="Previous slide">
                     <LuChevronLeft size={16} />
                 </button>
                 <span className="deck-design-counter">
@@ -515,7 +515,7 @@ const SlideDesigner = ({
                     type="button"
                     className={`deck-design-limpia${limpia ? ' deck-design-limpia--on' : ''}`}
                     onClick={() => setLimpia((v) => !v)}
-                    title="Vista limpia — apaga las regiones sin salir de Design (Ctrl+.)"
+                    title="Clean view — turns the regions off without leaving Design (Ctrl+.)"
                 >
                     <LuEye size={14} /> Vista limpia
                 </button>
@@ -523,11 +523,11 @@ const SlideDesigner = ({
                     type="button"
                     className={`deck-design-limpia${crudoAbierto ? ' deck-design-limpia--on' : ''}`}
                     onClick={onAlternarCrudo}
-                    title="El crudo de esta lámina (Ctrl+Shift+E)"
+                    title="The raw source of this slide (Ctrl+Shift+E)"
                 >
                     <LuCode size={14} /> Crudo
                 </button>
-                <button type="button" onClick={onNext} disabled={index >= total - 1} title="Lámina siguiente">
+                <button type="button" onClick={onNext} disabled={index >= total - 1} title="Next slide">
                     <LuChevronRight size={16} />
                 </button>
             </div>
@@ -539,11 +539,11 @@ const SlideDesigner = ({
             >
                 {body}
                 {desborde.px > 2 && (
-                    <div className="deck-desborde" title="Una lámina es una página: recorta en vez de hacer scroll. Mueve algo a una segunda lámina.">
+                    <div className="deck-desborde" title="A slide is a page: it crops instead of scrolling. Move something to a second slide.">
                         <LuTriangleAlert size={12} />
                         {desborde.region
-                            ? <>La región <b>{desborde.region}</b> desborda por {Math.round(desborde.px)} px</>
-                            : <>La lámina desborda por {Math.round(desborde.px)} px</>}
+                            ? <>The <b>{desborde.region}</b> region overflows by {Math.round(desborde.px)} px</>
+                            : <>The slide overflows by {Math.round(desborde.px)} px</>}
                     </div>
                 )}
             </div>

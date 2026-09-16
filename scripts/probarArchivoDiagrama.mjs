@@ -40,7 +40,7 @@ eq('sin cabecera', tituloDe(''), '');
 
 // ── leer un archivo ─────────────────────────────────────────────────────────
 const doc = leerDiagrama(DIAGRAMA_INICIAL);
-eq('la plantilla trae título', doc.titulo, 'Diagrama sin título');
+eq('la plantilla trae título', doc.titulo, 'Untitled diagram');
 eq('y se parsea', doc.grafo !== null, true);
 eq('con tres cajas', doc.grafo.nodos.length, 3);
 eq('y dos flechas', doc.grafo.aristas.length, 2);

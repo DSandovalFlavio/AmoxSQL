@@ -38,11 +38,11 @@ export function citarTexto(texto) {
  */
 export function problemaDeNombre(nombre) {
     const t = String(nombre || '').trim();
-    if (!t) return 'Sin nombre';
-    if (t.length > 120) return 'Demasiado largo';
-    if (/["]/.test(t)) return 'No puede llevar comillas dobles';
-    if (/[\r\n\t;]/.test(t)) return 'No puede llevar saltos de línea ni punto y coma';
-    if (/^\d/.test(t)) return 'No puede empezar por un número';
+    if (!t) return 'No name';
+    if (t.length > 120) return 'Too long';
+    if (/["]/.test(t)) return 'It cannot contain double quotes';
+    if (/[\r\n\t;]/.test(t)) return 'It cannot contain line breaks or semicolons';
+    if (/^\d/.test(t)) return 'It cannot start with a number';
     return null;
 }
 

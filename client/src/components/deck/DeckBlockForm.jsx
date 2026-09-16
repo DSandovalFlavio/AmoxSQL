@@ -41,10 +41,10 @@ function Campo({ campo, valor, onCambio }) {
             <div className="dki-texto">
                 <span className="dki-campo-etiqueta">{campo.label}</span>
                 <select className="dki-select" value={valor ?? ''} onChange={(e) => onCambio(e.target.value)}>
-                    <option value="">del signo</option>
-                    <option value="good">buena</option>
-                    <option value="flat">plana</option>
-                    <option value="bad">mala</option>
+                    <option value="">from the sign</option>
+                    <option value="good">good</option>
+                    <option value="flat">flat</option>
+                    <option value="bad">bad</option>
                 </select>
             </div>
         );
@@ -76,32 +76,32 @@ function FormRank({ modelo, onModelo }) {
     return (
         <>
             <div className="dki-grupo">
-                <div className="dki-grupo-titulo">Columnas</div>
+                <div className="dki-grupo-titulo">Columns</div>
                 <div className="dki-texto">
                     <input
                         type="text"
                         value={columns.join(', ')}
-                        placeholder="Campaña, Coste, Peso"
+                        placeholder="Campaign, Cost, Weight"
                         onChange={(e) => onModelo({ ...modelo, columns: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
                         onKeyDown={(e) => e.stopPropagation()}
                     />
                 </div>
                 <div className="dki-campo">
-                    <span className="dki-campo-etiqueta">Barra</span>
+                    <span className="dki-campo-etiqueta">Bar</span>
                     <select className="dki-select" value={modelo.bar || ''} onChange={(e) => onModelo({ ...modelo, bar: e.target.value })}>
                         <option value="">ninguna</option>
                         {columns.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
                 <div className="dki-campo">
-                    <span className="dki-campo-etiqueta">Semáforo</span>
+                    <span className="dki-campo-etiqueta">Status</span>
                     <select className="dki-select" value={modelo.status || ''} onChange={(e) => onModelo({ ...modelo, status: e.target.value })}>
                         <option value="">ninguno</option>
                         {columns.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
                 <div className="dki-campo">
-                    <span className="dki-campo-etiqueta">Filas destacadas</span>
+                    <span className="dki-campo-etiqueta">Highlighted rows</span>
                     <input
                         className="dki-select dkb-num"
                         type="number"
@@ -119,7 +119,7 @@ function FormRank({ modelo, onModelo }) {
                     <div key={f} className="dkb-fila">
                         <div className="dkb-fila-cab">
                             <span>{String(f + 1).padStart(2, '0')}</span>
-                            <button type="button" title="Quitar la fila" onClick={() => onModelo({ ...modelo, rows: rows.filter((_, i) => i !== f) })}>
+                            <button type="button" title="Remove the row" onClick={() => onModelo({ ...modelo, rows: rows.filter((_, i) => i !== f) })}>
                                 <LuTrash2 size={11} />
                             </button>
                         </div>
@@ -171,9 +171,9 @@ function FormLista({ lang, modelo, onModelo }) {
                 <div key={i} className="dki-grupo dkb-registro">
                     <div className="dkb-fila-cab">
                         <span>{String(i + 1).padStart(2, '0')}</span>
-                        <button type="button" title="Subir" disabled={i === 0} onClick={() => mover(i, -1)}><LuChevronUp size={11} /></button>
-                        <button type="button" title="Bajar" disabled={i === items.length - 1} onClick={() => mover(i, 1)}><LuChevronDown size={11} /></button>
-                        <button type="button" title="Quitar" onClick={() => onModelo({ ...modelo, items: items.filter((_, k) => k !== i) })}><LuTrash2 size={11} /></button>
+                        <button type="button" title="Move up" disabled={i === 0} onClick={() => mover(i, -1)}><LuChevronUp size={11} /></button>
+                        <button type="button" title="Move down" disabled={i === items.length - 1} onClick={() => mover(i, 1)}><LuChevronDown size={11} /></button>
+                        <button type="button" title="Remove" onClick={() => onModelo({ ...modelo, items: items.filter((_, k) => k !== i) })}><LuTrash2 size={11} /></button>
                     </div>
                     {def.campos.map((campo) => (
                         <Campo

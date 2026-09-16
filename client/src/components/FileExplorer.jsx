@@ -1105,7 +1105,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                 abrirComoTexto(f);
                             }}
                             className="context-menu-item"
-                            title="Se abrirá así a partir de ahora"
+                            title="It will open this way from now on"
                         >
                             <LuFileText size={14} /> Abrir como texto
                         </div>

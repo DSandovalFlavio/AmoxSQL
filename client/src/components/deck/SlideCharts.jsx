@@ -58,7 +58,7 @@ export function dominioComun(medidas) {
         if (razon > RAZON_MAXIMA) {
             return {
                 dominio: null,
-                motivo: `las figuras se diferencian en ${Math.round(razon)}×: con una escala común la más pequeña se aplana contra el eje`,
+                motivo: `the figures differ by ${Math.round(razon)}×: on a shared scale the smaller one flattens against the axis`,
             };
         }
     }

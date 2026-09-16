@@ -56,7 +56,7 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
         setError(null);
         try {
             const r = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&scope=${ambito}`);
-            if (!r.ok) throw new Error(`El servidor respondió ${r.status}`);
+            if (!r.ok) throw new Error(`The server answered ${r.status}`);
             const data = await r.json();
             // Una respuesta vieja no puede pisar a una nueva.
             if (mia !== peticion.current) return;
@@ -88,6 +88,8 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
         for (const [ruta, hits] of porArchivo) grupos.push({ ruta, hits });
     }
 
+    // `'tamaño'` es el valor que manda el servidor, no texto de interfaz: se
+    // compara tal cual y se traduce sólo lo que se enseña.
     const omitidosPorTamano = res?.omitidos?.filter(o => o.motivo === 'tamaño') || [];
     const datos = res?.datos;
 
@@ -114,7 +116,7 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
                 <button
                     className={`sp-ambito-btn${scope === 'fuente' ? ' active' : ''}`}
                     onClick={() => setScope('fuente')}
-                    title="Consultas, documentos, notebooks, chains y gráficos"
+                    title="Queries, documents, notebooks, chains and charts"
                 >
                     Fuente
                 </button>
@@ -122,8 +124,8 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
                     className={`sp-ambito-btn${scope === 'todo' ? ' active' : ''}`}
                     onClick={() => setScope('todo')}
                     title={datos
-                        ? `Incluye ${datos.n} archivos de datos (${(datos.bytes / MB).toFixed(0)} MB). Será notablemente más lento.`
-                        : 'Incluye también los archivos de datos en texto plano'}
+                        ? `Includes ${datos.n} data files (${(datos.bytes / MB).toFixed(0)} MB). It will be noticeably slower.`
+                        : 'Also includes the plain-text data files'}
                 >
                     <LuDatabase size={11} /> + datos
                 </button>
@@ -203,8 +205,8 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
 
             {omitidosPorTamano.length > 0 && (
                 <div className="sp-omitidos">
-                    {omitidosPorTamano.length} archivo{omitidosPorTamano.length > 1 ? 's' : ''} omitido
-                    {omitidosPorTamano.length > 1 ? 's' : ''} por tamaño
+                    {omitidosPorTamano.length} file{omitidosPorTamano.length > 1 ? 's' : ''} skipped
+                    {' '}for size
                     {omitidosPorTamano.length <= 3 && (
                         <>: {omitidosPorTamano.map(o => `${o.path.split('/').pop()} (${(o.size / MB).toFixed(0)} MB)`).join(', ')}</>
                     )}

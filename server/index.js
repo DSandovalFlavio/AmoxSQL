@@ -3413,7 +3413,7 @@ app.post('/api/file', (req, res) => {
         // nuevo, que es lo que el usuario espera y no destruye nada.
         if (actual !== null && actual !== firmaEsperada) {
             return res.status(409).json({
-                error: 'El archivo cambio fuera de la aplicacion desde que lo abriste.',
+                error: 'The file changed outside the app since you opened it.',
                 conflicto: true,
                 firma: actual,
             });
@@ -3847,7 +3847,7 @@ app.post('/api/query', async (req, res) => {
  */
 app.post('/api/cuaderno/celda', async (req, res) => {
     const { preparacion, lector, vista, limit, queryId, aceptarTapado } = req.body;
-    if (!lector) return res.status(400).json({ error: 'Falta la consulta de lectura' });
+    if (!lector) return res.status(400).json({ error: 'The reader query is missing' });
 
     if (vista && !aceptarTapado) {
         try {

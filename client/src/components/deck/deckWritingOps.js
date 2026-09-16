@@ -19,12 +19,12 @@ import {
 
 /** Lo que hace cada botón, y con qué tecla. */
 export const ACCIONES = [
-    { id: 'negrita', Icono: LuBold, titulo: 'Negrita', tecla: 'B', marca: '**' },
-    { id: 'cursiva', Icono: LuItalic, titulo: 'Cursiva', tecla: 'I', marca: '*' },
-    { id: 'codigo', Icono: LuCode, titulo: 'Código', marca: '`' },
-    { id: 'enlace', Icono: LuLink, titulo: 'Enlace', tecla: 'K', enlace: true },
-    { id: 'lista', Icono: LuList, titulo: 'Lista', prefijo: '- ' },
-    { id: 'cita', Icono: LuQuote, titulo: 'Conclusión destacada', prefijo: '> ' },
+    { id: 'negrita', Icono: LuBold, titulo: 'Bold', tecla: 'B', marca: '**' },
+    { id: 'cursiva', Icono: LuItalic, titulo: 'Italic', tecla: 'I', marca: '*' },
+    { id: 'codigo', Icono: LuCode, titulo: 'Code', marca: '`' },
+    { id: 'enlace', Icono: LuLink, titulo: 'Link', tecla: 'K', enlace: true },
+    { id: 'lista', Icono: LuList, titulo: 'List', prefijo: '- ' },
+    { id: 'cita', Icono: LuQuote, titulo: 'Pull quote', prefijo: '> ' },
 ];
 
 /**

@@ -107,19 +107,19 @@ eq('y el dinero de una celda sigue entero',
 const nKpis = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ label: `M${i}`, value: '1' })) });
 eq('cinco métricas no avisan', avisosDe('kpis', nKpis(5)), []);
 eq('seis sí', avisosDe('kpis', nKpis(6)).length, 1);
-eq('una sola sugiere la cifra ancla', avisosDe('kpis', nKpis(1))[0].includes('cifra ancla'), true);
+eq('una sola sugiere la cifra ancla', avisosDe('kpis', nKpis(1))[0].includes('anchor figure'), true);
 eq('dos destacadas avisan',
-    avisosDe('kpis', { items: [{ label: 'a', highlight: true }, { label: 'b', highlight: true }] }).some(t => t.includes('Destacar')), true);
+    avisosDe('kpis', { items: [{ label: 'a', highlight: true }, { label: 'b', highlight: true }] }).some(t => t.includes('Highlighting')), true);
 eq('una acción sin responsable avisa',
-    avisosDe('actions', { items: [{ action: 'X' }] })[0].includes('deseo'), true);
+    avisosDe('actions', { items: [{ action: 'X' }] })[0].includes('wish'), true);
 eq('con responsable, no',
     avisosDe('actions', { items: [{ action: 'X', owner: 'Yo' }] }), []);
 eq('dos pasos en curso avisan',
     avisosDe('steps', { items: [{ state: 'active' }, { state: 'active' }] }).length, 1);
 eq('una barra que no existe avisa',
-    avisosDe('rank', { columns: ['A'], rows: [['1']], bar: 'Z' })[0].includes('barra'), true);
+    avisosDe('rank', { columns: ['A'], rows: [['1']], bar: 'Z' })[0].includes('bar column'), true);
 eq('filas de distinto ancho avisan',
-    avisosDe('rank', { columns: ['A', 'B'], rows: [['1', '2'], ['1']] }).some(t => t.includes('celdas')), true);
+    avisosDe('rank', { columns: ['A', 'B'], rows: [['1', '2'], ['1']] }).some(t => t.includes('cells')), true);
 
 // ── sustituir el bloque dentro de la prosa ──────────────────────────────────
 const b = bloqueEnCursor(prosa, dentro);

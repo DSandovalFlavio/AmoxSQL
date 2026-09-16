@@ -204,35 +204,35 @@ const SOLO_DOCUMENTO = new Set(['cabecera', 'indice', 'tarea', 'verificacion', '
 
 export const INSERTABLES_LAMINA = [
     {
-        id: 'kpis', label: 'Tira de métricas', group: 'dato', detail: '2 a 5',
-        keywords: 'kpi metrica metricas cifra variacion delta resumen',
-        snippet: `${F}kpis\n- label: \${1:Coste}\n  value: $1.24M\n  delta: +18.4%\n  trend: bad\n  base: vs. periodo anterior\n- label: Clics\n  value: 486K\n  delta: +6.1%\n${F}`,
+        id: 'kpis', label: 'Metric strip', group: 'dato', detail: '2 to 5',
+        keywords: 'kpi metric metrics figure change delta summary strip',
+        snippet: `${F}kpis\n- label: \${1:Cost}\n  value: $1.24M\n  delta: +18.4%\n  trend: bad\n  base: vs. previous period\n- label: Clicks\n  value: 486K\n  delta: +6.1%\n${F}`,
     },
     {
-        id: 'metric', label: 'Cifra ancla', group: 'dato', detail: 'una sola',
-        keywords: 'metric numero grande dato ancla',
-        snippet: `${F}metric\nvalue: \${1:64}\nunit: "%"\nlabel: Qué significa esta cifra\n${F}`,
+        id: 'metric', label: 'Anchor figure', group: 'dato', detail: 'just one',
+        keywords: 'metric number big figure anchor',
+        snippet: `${F}metric\nvalue: \${1:64}\nunit: "%"\nlabel: What this figure means\n${F}`,
     },
     {
-        id: 'rank', label: 'Tabla clasificada', group: 'dato', detail: 'con barra',
-        keywords: 'rank tabla ranking top barra semaforo',
-        snippet: `${F}rank\ncolumns: [Nombre, Valor, Peso]\nbar: Peso\nhighlight: 1\nrows:\n  - [\${1:Primero}, $284K, 59]\n  - [Segundo, $231K, 41]\n${F}`,
+        id: 'rank', label: 'Ranked table', group: 'dato', detail: 'with a bar',
+        keywords: 'rank table ranking top bar status',
+        snippet: `${F}rank\ncolumns: [Name, Value, Weight]\nbar: Weight\nhighlight: 1\nrows:\n  - [\${1:First}, $284K, 59]\n  - [Second, $231K, 41]\n${F}`,
     },
     {
-        id: 'acciones', label: 'Acciones', group: 'dato', detail: 'con responsable',
-        keywords: 'actions acciones decisiones responsable fecha',
-        snippet: `${F}actions\n- action: \${1:Qué hay que hacer}\n  why: Por qué\n  owner: Quién\n  due: Cuándo\n${F}`,
+        id: 'acciones', label: 'Actions', group: 'dato', detail: 'with an owner',
+        keywords: 'actions decisions owner due date',
+        snippet: `${F}actions\n- action: \${1:What has to be done}\n  why: Why\n  owner: Who\n  due: When\n${F}`,
     },
     {
-        id: 'figura', label: 'Figura de Story Flow', group: 'contenido',
-        keywords: 'grafico chart amoxvis figura visualizacion',
+        id: 'figura', label: 'Story Flow figure', group: 'contenido',
+        keywords: 'chart amoxvis figure visualisation graph',
         snippet: `${F}amoxchart\nsrc: \${1:galeria_graficos/01_columnas.amoxvis}\n${F}`,
     },
 ];
 
 const GRUPOS_LAMINA = [
-    { id: 'dato', label: 'Dato' },
-    { id: 'contenido', label: 'Contenido' },
+    { id: 'dato', label: 'Data' },
+    { id: 'contenido', label: 'Content' },
     ...GRUPOS_COMPARTIDOS,
 ];
 

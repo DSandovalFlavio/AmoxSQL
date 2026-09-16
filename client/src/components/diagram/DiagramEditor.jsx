@@ -343,7 +343,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                     dueño, es el dueño. */}
                 {procedencia ? (
                     <button type="button" className="dgm-origin" onClick={() => onOpenFile?.(archivoOrigen)}
-                        title="Abrir el documento del que viene">
+                        title="Open the document it comes from">
                         <LuLink size={11} strokeWidth={2.4} /> vive en
                         <span className="dgm-origin-file">{nombreOrigen}</span>
                     </button>
@@ -355,21 +355,21 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
 
                 <div className="dgm-sep" />
                 <button type="button" className="dgm-btn dgm-btn--icono" onClick={historial.deshacer}
-                    disabled={!historial.puedeDeshacer} title="Deshacer (Ctrl+Z)">
+                    disabled={!historial.puedeDeshacer} title="Undo (Ctrl+Z)">
                     <LuUndo2 size={12} strokeWidth={2.3} />
                 </button>
                 <button type="button" className="dgm-btn dgm-btn--icono" onClick={historial.rehacer}
-                    disabled={!historial.puedeRehacer} title="Rehacer (Ctrl+Shift+Z)">
+                    disabled={!historial.puedeRehacer} title="Redo (Ctrl+Shift+Z)">
                     <LuRedo2 size={12} strokeWidth={2.3} />
                 </button>
 
                 <div className="dgm-sep" />
                 <button type="button" className={`dgm-btn${verTexto ? ' dgm-btn--on' : ''}`}
-                    onClick={() => setVerTexto((v) => !v)} title="Ver el mermaid (Ctrl+Shift+E)">
+                    onClick={() => setVerTexto((v) => !v)} title="See the mermaid (Ctrl+Shift+E)">
                     <LuCode size={12} strokeWidth={2.3} /> Texto
                 </button>
                 <button type="button" className={`dgm-btn${verRepaso ? ' dgm-btn--on' : ''}`}
-                    onClick={() => setVerRepaso((v) => !v)} title="Cabos sueltos">
+                    onClick={() => setVerRepaso((v) => !v)} title="Loose ends">
                     <LuShieldCheck size={12} strokeWidth={2.3} /> Repasar
                     {avisos.length > 0 && <span className="dgm-btn-n">{avisos.length}</span>}
                 </button>
@@ -382,15 +382,15 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                 <div className="dgm-menu">
                     <button type="button" className={`dgm-btn${menuExportar ? ' dgm-btn--on' : ''}`}
                         onClick={() => setMenuExportar((v) => !v)} disabled={!g}>
-                        <LuImage size={12} strokeWidth={2.3} /> Exportar
+                        <LuImage size={12} strokeWidth={2.3} /> Export
                     </button>
                     {menuExportar && (
                         <div className="dgm-menu-lista">
                             <button type="button" onClick={() => { setMenuExportar(false); exportarSvg(doc.mermaid, { oscuro, titulo: nombre }); }}>
-                                SVG <span>vector, para ampliar o imprimir</span>
+                                SVG <span>vector, to scale up or print</span>
                             </button>
                             <button type="button" onClick={() => { setMenuExportar(false); exportarPng(doc.mermaid, { oscuro, titulo: nombre }); }}>
-                                PNG <span>al doble, para una presentación</span>
+                                PNG <span>at double size, for a presentation</span>
                             </button>
                         </div>
                     )}
@@ -398,11 +398,11 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
 
                 <div className="dgm-spacer" />
                 <button type="button" className={`dgm-btn dgm-btn--icono${verIzq ? '' : ' dgm-btn--apagado'}`}
-                    onClick={() => setVerIzq((v) => !v)} title="Plegar la columna izquierda">
+                    onClick={() => setVerIzq((v) => !v)} title="Collapse the left column">
                     <LuPanelLeft size={12} strokeWidth={2.3} />
                 </button>
                 <button type="button" className={`dgm-btn dgm-btn--icono${verDer ? '' : ' dgm-btn--apagado'}`}
-                    onClick={() => setVerDer((v) => !v)} title="Plegar el inspector">
+                    onClick={() => setVerDer((v) => !v)} title="Collapse the inspector">
                     <LuPanelRight size={12} strokeWidth={2.3} />
                 </button>
                 <div className="dgm-sep" />
@@ -433,25 +433,25 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                         {!g ? (
                             <div className="dgm-vacio">
                                 <LuTriangleAlert size={22} strokeWidth={1.9} />
-                                <p><b>Este diagrama no se puede editar visualmente.</b></p>
+                                <p><b>This diagram cannot be edited visually.</b></p>
                                 {/* Se dice **qué línea** y **por qué**. Un
                                     «no se puede» a secas deja al usuario mirando
                                     catorce líneas sin saber cuál mirar. */}
                                 <p className="dgm-vacio-por">
-                                    {!doc.mermaid ? 'El archivo no tiene ningún bloque mermaid.'
+                                    {!doc.mermaid ? 'The file has no mermaid block.'
                                         : porque ? (porque.linea
-                                            ? `Línea ${porque.linea}: ${porque.texto}.`
+                                            ? `Line ${porque.linea}: ${porque.texto}.`
                                             : `${porque.texto[0].toUpperCase()}${porque.texto.slice(1)}.`)
-                                            : 'El texto está intacto y se puede editar a mano.'}
+                                            : 'The text is intact and can be edited by hand.'}
                                 </p>
                                 {doc.mermaid && (
                                     <button type="button" className="dgm-btn" onClick={() => setVerTexto(true)}>
-                                        <LuCode size={12} strokeWidth={2.3} /> Ver el texto
+                                        <LuCode size={12} strokeWidth={2.3} /> See the text
                                     </button>
                                 )}
                             </div>
                         ) : midiendo ? (
-                            <div className="dgm-vacio"><p>Midiendo el diagrama…</p></div>
+                            <div className="dgm-vacio"><p>Measuring the diagram…</p></div>
                         ) : (
                             <ReactFlowProvider>
                                 <DiagramCanvas
@@ -484,13 +484,13 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                         {porAprender.length > 0 && (
                             <div className="dgm-globo dgm-globo--abajo">
                                 <p>
-                                    Este diagrama usa {porAprender.length === 1 ? 'la forma' : 'las formas'}{' '}
+                                    This diagram uses the {porAprender.length === 1 ? 'shape' : 'shapes'}{' '}
                                     {porAprender.map((n) => <b key={n}>{n}</b>).reduce((a, b) => [a, ', ', b])}.
-                                    ¿{porAprender.length === 1 ? 'La añado' : 'Las añado'} a tu paleta?
+                                    Add {porAprender.length === 1 ? 'it' : 'them'} to your palette?
                                 </p>
                                 <button type="button" className="dgm-btn dgm-btn--primary"
                                     onClick={() => porAprender.forEach(aprender)}>
-                                    Añadir
+                                    Add
                                 </button>
                                 <button type="button" className="dgm-btn"
                                     onClick={() => setDescartadas((d) => [...d, ...porAprender])}>
@@ -506,7 +506,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                     onClick={() => agruparSeleccion(seleccion.ids)}>
                                     <LuLayers size={12} strokeWidth={2.3} /> Agrupar
                                 </button>
-                                <button type="button" className="dgm-btn" onClick={borrarSeleccion} title="Borrar las cajas">
+                                <button type="button" className="dgm-btn" onClick={borrarSeleccion} title="Delete the boxes">
                                     <LuTrash2 size={12} strokeWidth={2.3} />
                                 </button>
                             </div>
@@ -515,7 +515,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                         {conflicto && (
                             <div className="dgm-velo">
                                 <div className="dgm-dialogo">
-                                    <h5><LuTriangleAlert size={15} strokeWidth={2.1} /> El documento cambió mientras editabas</h5>
+                                    <h5><LuTriangleAlert size={15} strokeWidth={2.1} /> The document changed while you were editing</h5>
                                     <p>{conflicto.mensaje}</p>
                                     {/* Tres salidas, no dos. La de en medio —guardar aparte—
                                         es la que evita tener que elegir entre perder lo tuyo
@@ -546,26 +546,26 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                     exactamente la promesa incumplida que este editor
                                     existe para evitar. El aviso dice lo que hoy es cierto. */}
                                 <p>
-                                    <b>Las cajas no se colocan a mano.</b> Su posición la calcula el
-                                    diagrama a partir de cómo están conectadas, así que nunca queda
-                                    torcido — y lo que ves aquí es lo que saldrá en el documento.
+                                    <b>Boxes are not placed by hand.</b> The diagram works out their
+                                    position from how they are connected, so nothing ever ends up
+                                    crooked — and what you see here is what the document will draw.
                                 </p>
-                                <button type="button" className="dgm-btn" onClick={cerrarAvisoMover}>Entendido</button>
+                                <button type="button" className="dgm-btn" onClick={cerrarAvisoMover}>Got it</button>
                             </div>
                         )}
 
                         {verRepaso && g && (
                             <div className="dgm-repaso">
-                                <div className="dgm-repaso-tit"><LuShieldCheck size={13} strokeWidth={2.2} /> Repaso</div>
+                                <div className="dgm-repaso-tit"><LuShieldCheck size={13} strokeWidth={2.2} /> Review</div>
                                 {avisos.length === 0
-                                    ? <div className="dgm-repaso-fila dgm-repaso-fila--ok">Ningún cabo suelto.</div>
+                                    ? <div className="dgm-repaso-fila dgm-repaso-fila--ok">No loose ends.</div>
                                     : avisos.map((a) => (
                                         <button key={`${a.tipo}:${a.id}`} type="button" className="dgm-repaso-fila"
                                             onClick={() => a.tipo !== 'grupo-vacio' && setSeleccion({ tipo: 'nodo', id: a.id })}>
                                             <LuTriangleAlert size={12} strokeWidth={2.2} /> {a.texto}
                                         </button>
                                     ))}
-                                <p className="dgm-repaso-pie">No bloquea nada: un diagrama a medias es un estado legítimo.</p>
+                                <p className="dgm-repaso-pie">Nothing is blocked: a half-finished diagram is a legitimate state.</p>
                             </div>
                         )}
                     </div>

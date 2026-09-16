@@ -35,10 +35,10 @@ comprobar('texto citado', citarTexto("no vale d'nada"), "'no vale d''nada'");
 // ── nombres ─────────────────────────────────────────────────────────────────
 comprobar('un nombre normal vale', problemaDeNombre('ventas_limpias'), null);
 comprobar('con espacios y acentos también', problemaDeNombre('Caída de ventas'), null);
-comprobar('vacío no', problemaDeNombre('   '), 'Sin nombre');
-comprobar('con comillas no', problemaDeNombre('a"b'), 'No puede llevar comillas dobles');
-comprobar('con punto y coma no', problemaDeNombre('a;b'), 'No puede llevar saltos de línea ni punto y coma');
-comprobar('empezando por número no', problemaDeNombre('1paso'), 'No puede empezar por un número');
+comprobar('vacío no', problemaDeNombre('   '), 'No name');
+comprobar('con comillas no', problemaDeNombre('a"b'), 'It cannot contain double quotes');
+comprobar('con punto y coma no', problemaDeNombre('a;b'), 'It cannot contain line breaks or semicolons');
+comprobar('empezando por número no', problemaDeNombre('1paso'), 'It cannot start with a number');
 
 comprobar('el primer nombre libre', nombrePorOmision([]), 'paso_1');
 comprobar('salta los tomados', nombrePorOmision(['paso_1', 'paso_2']), 'paso_3');

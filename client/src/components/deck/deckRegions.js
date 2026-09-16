@@ -97,7 +97,7 @@ export const PARTES = {
  * La tabla. El orden de cada lista **es** el orden del tabulador, así que va
  * en orden de lectura: de arriba abajo y de izquierda a derecha.
  */
-const ANTETITULO = { id: 'eyebrow', nombre: 'antetítulo', tipo: 'directiva', pista: 'el hilo del deck' };
+const ANTETITULO = { id: 'eyebrow', nombre: 'eyebrow', tipo: 'directiva', pista: 'the deck thread' };
 
 const soloTexto = (nombre, pista) => [
     { id: 'texto', nombre, tipo: 'texto', parte: PARTES.TODO, pista },
@@ -106,10 +106,10 @@ const soloTexto = (nombre, pista) => [
 export const REGIONES_POR_DISPOSICION = {
     // ── Apertura ── Son todo título: una sola región y sin antetítulo, que
     // competiría con lo único que la lámina tiene que decir.
-    cover: soloTexto('portada', 'el título y la promesa en una línea'),
-    section: soloTexto('sección', 'el nombre del bloque que empieza'),
-    closing: soloTexto('cierre', 'dónde sigue la conversación'),
-    statement: soloTexto('afirmación', 'una sola frase, a tamaño grande'),
+    cover: soloTexto('cover', 'the title and the promise in one line'),
+    section: soloTexto('section', 'the name of the block that starts here'),
+    closing: soloTexto('closing', 'where the conversation goes next'),
+    statement: soloTexto('statement', 'a single sentence, set large'),
 
     // ── Evidencia ──
     // Ojo con los nombres: `partirCabecera` deja en la cabecera el encabezado
@@ -120,43 +120,43 @@ export const REGIONES_POR_DISPOSICION = {
     // abajo es lo que se añade junto a la figura, y se llama por su sitio.
     finding: [
         ANTETITULO,
-        { id: 'claim', nombre: 'afirmación', tipo: 'texto', parte: PARTES.CABECERA, pista: 'la afirmación que esta lámina puede defender, y su bajada' },
-        { id: 'detalle', nombre: 'detalle', tipo: 'texto', parte: PARTES.RESTO, pista: 'lo que acompaña a la figura' },
-        { id: 'figura', nombre: 'figura', tipo: 'figura', pista: 'elige una figura' },
+        { id: 'claim', nombre: 'claim', tipo: 'texto', parte: PARTES.CABECERA, pista: 'the claim this slide can defend, and its standfirst' },
+        { id: 'detalle', nombre: 'detail', tipo: 'texto', parte: PARTES.RESTO, pista: 'what goes alongside the figure' },
+        { id: 'figura', nombre: 'figure', tipo: 'figura', pista: 'pick a figure' },
     ],
     'chart-full': [
         ANTETITULO,
-        { id: 'texto', nombre: 'afirmación', tipo: 'texto', parte: PARTES.TODO, pista: 'la afirmación' },
-        { id: 'figura', nombre: 'figura', tipo: 'figura', pista: 'elige una figura' },
+        { id: 'texto', nombre: 'claim', tipo: 'texto', parte: PARTES.TODO, pista: 'the claim' },
+        { id: 'figura', nombre: 'figure', tipo: 'figura', pista: 'pick a figure' },
     ],
     'chart-grid': [
         ANTETITULO,
-        { id: 'claim', nombre: 'afirmación', tipo: 'texto', parte: PARTES.CABECERA, pista: 'qué comparan estas figuras' },
-        { id: 'figuras', nombre: 'figuras', tipo: 'figuras', tope: 4, pista: 'hasta cuatro figuras' },
-        { id: 'cierre', nombre: 'cierre', tipo: 'texto', parte: PARTES.RESTO, pista: 'qué hay que ver en ellas' },
+        { id: 'claim', nombre: 'claim', tipo: 'texto', parte: PARTES.CABECERA, pista: 'what these figures compare' },
+        { id: 'figuras', nombre: 'figures', tipo: 'figuras', tope: 4, pista: 'up to four figures' },
+        { id: 'cierre', nombre: 'closing', tipo: 'texto', parte: PARTES.RESTO, pista: 'what to look for in them' },
     ],
     compare: [
         ANTETITULO,
-        { id: 'claim', nombre: 'afirmación', tipo: 'texto', parte: PARTES.CABECERA, pista: 'qué se compara' },
-        { id: 'figuras', nombre: 'figuras', tipo: 'figuras', tope: 2, pista: 'dos figuras' },
-        { id: 'veredicto', nombre: 'veredicto', tipo: 'texto', parte: PARTES.RESTO, pista: 'cuál gana, y por qué' },
+        { id: 'claim', nombre: 'claim', tipo: 'texto', parte: PARTES.CABECERA, pista: 'what is being compared' },
+        { id: 'figuras', nombre: 'figures', tipo: 'figuras', tope: 2, pista: 'two figures' },
+        { id: 'veredicto', nombre: 'verdict', tipo: 'texto', parte: PARTES.RESTO, pista: 'which one wins, and why' },
     ],
 
     // ── Dato ── El bloque de dato vive dentro de la prosa, así que la región
     // es una sola aunque por dentro lleve YAML.
-    summary: [ANTETITULO, ...soloTexto('resumen', 'las métricas y los tres hallazgos')],
-    metric: [ANTETITULO, ...soloTexto('cifra', 'la cifra que hay que recordar mañana')],
-    table: [ANTETITULO, ...soloTexto('tabla', 'el detalle, ordenado')],
-    steps: [ANTETITULO, ...soloTexto('pasos', 'el proceso, por fases')],
-    actions: [ANTETITULO, ...soloTexto('acciones', 'qué hacer, quién y cuándo')],
+    summary: [ANTETITULO, ...soloTexto('summary', 'the metrics and the three findings')],
+    metric: [ANTETITULO, ...soloTexto('figure', 'the number to remember tomorrow')],
+    table: [ANTETITULO, ...soloTexto('table', 'the detail, in order')],
+    steps: [ANTETITULO, ...soloTexto('steps', 'the process, by stage')],
+    actions: [ANTETITULO, ...soloTexto('actions', 'what to do, who and when')],
 
     // ── Texto ──
-    content: [ANTETITULO, ...soloTexto('contenido', 'texto, viñetas o una tabla')],
-    method: [ANTETITULO, ...soloTexto('método', 'definiciones, exclusiones y salvedades')],
+    content: [ANTETITULO, ...soloTexto('content', 'text, bullets or a table')],
+    method: [ANTETITULO, ...soloTexto('method', 'definitions, exclusions and caveats')],
     'two-col': [
         ANTETITULO,
-        { id: 'col-a', nombre: 'columna izquierda', tipo: 'texto', parte: PARTES.COL_A, pista: 'la primera idea' },
-        { id: 'col-b', nombre: 'columna derecha', tipo: 'texto', parte: PARTES.COL_B, pista: 'la segunda' },
+        { id: 'col-a', nombre: 'left column', tipo: 'texto', parte: PARTES.COL_A, pista: 'the first idea' },
+        { id: 'col-b', nombre: 'right column', tipo: 'texto', parte: PARTES.COL_B, pista: 'the second' },
     ],
 };
 
