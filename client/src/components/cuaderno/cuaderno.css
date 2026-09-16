@@ -218,6 +218,27 @@
     background: var(--border-subtle);
 }
 
+/* ── modo lectura ───────────────────────────────────────────────────────── */
+/* El cuaderno sin lo que sirve para hacerlo: sin SQL, sin mandos y sin el panel
+   de edición del gráfico. Lo que se quita aquí es lo que NO se puede quitar
+   desde los componentes sin llenarlos de condiciones.
+
+   La cabecera de la celda se queda, pero pasa a ser un pie de figura: el nombre
+   del paso y su descripción. Las marcas de estado —viva, editada, escribe— son
+   del que edita, y se van desde `Celda.jsx`.
+
+   Lo que NO cambia: el canalón sigue ocupando su columna aunque esté vacío, y la
+   celda sigue midiendo lo mismo. Entrar en lectura no mueve el documento. */
+.cdn-lista--lectura .cdn-cab {
+    background: transparent;
+    border-bottom: none;
+    height: 30px;
+}
+.cdn-lista--lectura .cdn-nombre { cursor: default; }
+.cdn-lista--lectura .cdn-fila--sel::before { opacity: 0; }
+.cdn-lista--lectura .cdn-doc-titulo,
+.cdn-lista--lectura .cdn-doc-desc { cursor: default; }
+
 /* ── el hueco entre celdas es donde se añade ────────────────────────────── */
 /* Antes la barra de añadir estaba al final del cuaderno, así que meter una celda
    entre la tercera y la cuarta obligaba a bajar hasta abajo y subirla a mano.
@@ -686,6 +707,15 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 
 /* El boton Actualizar cuando hay algo que actualizar. */
 .cdn-btn--pend { border-color: var(--accent-primary); color: var(--text-primary); }
+/* «Lectura» encendido no es un botón pulsado, es DÓNDE ESTÁS. Por eso se queda
+   relleno mientras dure y no sólo mientras se pasa el ratón: si el cuaderno se
+   ve sin SQL, tiene que verse por qué. */
+.cdn-btn--modo {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary);
+    color: var(--surface-base);
+}
+.cdn-btn--modo:hover { background: var(--accent-primary); color: var(--surface-base); }
 .cdn-btn--pend .cdn-n {
     flex: none;
     min-width: 15px;

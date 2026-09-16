@@ -50,6 +50,32 @@ carries only the status dot.
 | **Full screen** | The cell takes the whole tab. `Esc` goes back, and back to where you were |
 | **Up · Down · Delete** | |
 
+## Reading
+
+An analysis is written once and read many times: by you next week, or by someone
+you are walking through it. **Reading** takes out everything that exists to build
+the notebook and leaves what it was meant to say.
+
+With the **Reading** button in the document header:
+
+- SQL cells **do not show the query**. A cell that was on a table shows the
+  table; one that was on a chart shows the chart — and **only the chart**,
+  without the Story Flow building panel.
+- The gutter controls and the table toolbars go.
+- The cell header stays, but as a figure caption: the step's name and its
+  description. State marks — live, edited, writes — belong to whoever edits, and
+  they go.
+- Text is read; double-click to edit does not respond.
+- You can still page through a table and scroll the notebook.
+
+**This is not exporting.** A Word document leaves and stops being live; this is
+undone with one click on **Edit**, and «Update» is still there — a notebook you
+just opened has nothing to show until it runs.
+
+The mode lives in the state file, not in the document: it belongs to whoever is
+looking. Reopen the notebook and it is as you left it.
+
+
 The **leading comment** of the query becomes the view's description, stored in the engine: the view explains itself to anything that reads the catalog.
 
 A cell that cannot be wrapped — several statements, an `INSERT`, a `COPY` — says «no deja vista» without treating it as a failure, because it is not one. If it also writes to disk it says so separately: that does not undo itself when the project closes.

@@ -35,6 +35,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     LuPlus, LuFileText, LuSave, LuBot, LuX, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
+    LuBookOpen, LuPencil,
 } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { leerCuaderno, escribirCuaderno, indiceDe, tituloDe } from '../../utils/cuadernoFile.js';
@@ -134,6 +135,22 @@ const CuadernoEditor = ({
     const [sacando, setSacando] = useState(null);
     /** La celda de texto que se está escribiendo ahora, o `null`. */
     const [escribiendo, setEscribiendo] = useState(null);
+    /**
+     * Lectura: el cuaderno sin el SQL, sin mandos y sin panel de edición.
+     *
+     * Un análisis se escribe una vez y se lee muchas —uno mismo la semana que
+     * viene, o alguien a quien se le enseña—, y para leerlo sobra todo lo que
+     * sirve para hacerlo: la consulta, los botones del canalón, el constructor
+     * de gráficos de 320 px. Lo que queda es el texto y la figura, que es lo que
+     * se quería contar.
+     *
+     * Esto NO es exportar. Un documento de Word se va y deja de estar vivo; aquí
+     * se puede volver a editar de un clic, y «Actualizar» sigue a mano porque un
+     * cuaderno recién abierto no tiene resultados que enseñar hasta que corre.
+     *
+     * Es estado del que mira, así que va al archivo de estado y no al documento.
+     */
+    const [lectura, setLectura] = useState(false);
     const dialog = useDialog();
     const toast = useToast();
 
@@ -180,6 +197,9 @@ const CuadernoEditor = ({
      * abrirlo. Se guarda lo ajeno al leer y se devuelve intacto al escribir.
      */
     const ajeno = useRef({});
+    /** Se lee desde el temporizador, que puede dispararse después del cambio. */
+    const lecturaRef = useRef(lectura);
+    lecturaRef.current = lectura;
     const persistirEstado = useCallback((mapa) => {
         if (!filePath) return;
         clearTimeout(guardarEstado.current);
@@ -189,7 +209,7 @@ const CuadernoEditor = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     path: filePath,
-                    state: { ...ajeno.current, celdas: mapa },
+                    state: { ...ajeno.current, celdas: mapa, lectura: lecturaRef.current },
                 }),
             }).catch(() => { /* que no se guarde una preferencia no rompe nada */ });
         }, 800);
@@ -202,9 +222,10 @@ const CuadernoEditor = ({
         pedirJson(`/api/notebook-state?path=${encodeURIComponent(filePath)}`)
             .then((s) => {
                 if (!vivo || !s || typeof s !== 'object') return;
-                const { celdas, ...resto } = s;
+                const { celdas, lectura: guardada, ...resto } = s;
                 ajeno.current = resto;
                 if (celdas) setEstados(celdas);
+                if (typeof guardada === 'boolean') setLectura(guardada);
             })
             .catch(() => { /* sin estado guardado se empieza por omisión */ });
         return () => { vivo = false; };
@@ -784,7 +805,7 @@ const CuadernoEditor = ({
 
     return (
         <div className="cdn">
-            <div className="cdn-lista">
+            <div className={`cdn-lista${lectura ? ' cdn-lista--lectura' : ''}`}>
 
                 {/* ── la cabecera del documento ──────────────────────────────
                     Un cuaderno abierto dice primero cómo se llama y de qué va.
@@ -796,7 +817,8 @@ const CuadernoEditor = ({
                         <input
                             className="cdn-doc-titulo"
                             value={doc.meta?.titulo || ''}
-                            placeholder="Sin título"
+                            readOnly={lectura}
+                            placeholder={lectura ? '' : 'Sin título'}
                             onChange={(e) => cambiarMeta('titulo', e.target.value)}
                         />
                         {/* Un `textarea` y no un `input`: una descripción larga
@@ -808,7 +830,8 @@ const CuadernoEditor = ({
                             className="cdn-doc-desc"
                             rows={1}
                             value={doc.meta?.descripcion || ''}
-                            placeholder="Añade una descripción…"
+                            readOnly={lectura}
+                            placeholder={lectura ? '' : 'Añade una descripción…'}
                             onChange={(e) => cambiarMeta('descripcion', e.target.value.replace(/\s*[\r\n]+\s*/g, ' '))}
                             ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
                         />
@@ -817,6 +840,26 @@ const CuadernoEditor = ({
                         {/* Sustituye a «ejecutar todo» y a «ejecutar hacia
                             abajo», que suponían que el orden de la pantalla es
                             el de dependencia. Aquí el orden lo pone el grafo. */}
+                        {/* Primero porque no es una acción, es en qué estás. */}
+                        <button
+                            type="button"
+                            className={`cdn-btn${lectura ? ' cdn-btn--modo' : ''}`}
+                            onClick={() => {
+                                const siguiente = !lectura;
+                                setLectura(siguiente);
+                                lecturaRef.current = siguiente;
+                                persistirEstado(estados);
+                                // Salir de una celda a medio escribir: en lectura
+                                // no hay dónde seguir escribiéndola.
+                                if (siguiente) setEscribiendo(null);
+                            }}
+                            title={lectura
+                                ? 'Volver a editar: el SQL, los mandos y el constructor de gráficos'
+                                : 'Leerlo sin el SQL: sólo el texto y las figuras'}
+                        >
+                            {lectura ? <LuPencil size={12} /> : <LuBookOpen size={12} />}
+                            {lectura ? 'Editar' : 'Lectura'}
+                        </button>
                         <button
                             type="button"
                             className={`cdn-btn${pendientes.orden.length ? ' cdn-btn--pend' : ''}`}
@@ -868,7 +911,7 @@ const CuadernoEditor = ({
 
                 {doc.celdas.map((c, i) => (
                     <Fragment key={c.id}>
-                        {i > 0 && hueco(i)}
+                        {i > 0 && !lectura && hueco(i)}
                         {/* `data-cell-id` es lo que busca el exportador a Word
                             para capturar la figura de cada celda. Sin el, el
                             documento sale con las tablas y sin ninguna figura, y
@@ -880,7 +923,10 @@ const CuadernoEditor = ({
                             onFocusCapture={() => setSeleccionada(c.id)}
                             onMouseDown={() => setSeleccionada(c.id)}
                         >
-                            <Canalon
+                            {/* El hueco del canalón se queda aunque no haya
+                                mandos: así entrar en lectura no desplaza el
+                                documento hacia un lado. */}
+                            {lectura ? <div /> : <Canalon
                                 celda={c}
                                 analisis={analisis[c.id]}
                                 resultado={resultados[c.id]}
@@ -894,12 +940,13 @@ const CuadernoEditor = ({
                                 onBajar={bajar}
                                 onBorrar={borrar}
                                 onAmpliar={ampliar}
-                            />
+                            />}
                             {c.tipo === 'texto' ? (
                                 <CeldaTexto
                                     celda={c}
                                     estado={estados[claves[c.id]]}
                                     escribiendo={escribiendo === c.id}
+                                    lectura={lectura}
                                     onCambiar={cambiarCelda}
                                     onEscribir={setEscribiendo}
                                 />
@@ -912,6 +959,7 @@ const CuadernoEditor = ({
                                     frescura={frescuras.get(c.id)}
                                     enCiclo={ciclos.includes(c.id)}
                                     precalentada={calientes.has(c.id)}
+                                    lectura={lectura}
                                     estado={estados[claves[c.id]]}
                                     theme={theme}
                                     editorSettings={editorSettings}
@@ -928,7 +976,7 @@ const CuadernoEditor = ({
                 {/* El último hueco se queda siempre visible: es el «añadir al
                     final», y sin él un cuaderno vacío no tendría por dónde
                     empezar. */}
-                {hueco(doc.celdas.length, true)}
+                {!lectura && hueco(doc.celdas.length, true)}
             </div>
 
             <Barra

@@ -38,12 +38,13 @@ const CeldaTexto = ({
     celda,
     estado = {},
     escribiendo,        // esta celda es la que se esta editando ahora
+    lectura,            // el cuaderno esta en modo lectura: solo se lee
     onCambiar,
     onEscribir,         // (id | null)
 }) => {
     // Por omisión se enseña compuesta: una celda de texto se lee mucho más de lo
     // que se escribe. Es al revés que en una de SQL.
-    const fijadaEnFuente = (estado.modo || MODOS.RESULTADO) === MODOS.CODIGO;
+    const fijadaEnFuente = !lectura && (estado.modo || MODOS.RESULTADO) === MODOS.CODIGO;
     const enFuente = fijadaEnFuente || escribiendo;
     const vacia = !String(celda.contenido || '').trim();
     const caja = useRef(null);
@@ -83,11 +84,11 @@ const CeldaTexto = ({
         <div className="cdn-celda cdn-celda--texto">
             <div
                 className="cdn-md"
-                onDoubleClick={() => onEscribir?.(celda.id)}
-                title="Doble clic para escribir"
+                onDoubleClick={lectura ? undefined : () => onEscribir?.(celda.id)}
+                title={lectura ? undefined : 'Doble clic para escribir'}
             >
                 {vacia
-                    ? <p className="cdn-md-vacio">Doble clic para escribir</p>
+                    ? (lectura ? null : <p className="cdn-md-vacio">Doble clic para escribir</p>)
                     : <MarkdownPreview content={celda.contenido} widthMode="full" />}
             </div>
         </div>

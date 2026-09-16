@@ -13,7 +13,7 @@ Eso no lo inventa la interfaz. `DatabaseManager` mantiene **una conexión viva p
 | Archivo | Responsabilidad |
 |---|---|
 | `client/src/components/cuaderno/CuadernoEditor.jsx` | El contenedor: documento, ejecución, estado visual, exportes |
-| `client/src/components/cuaderno/Celda.jsx` | Celda de SQL: 520 px fijos, reparto inicial 40/60. Su cabecera sólo IDENTIFICA —nombre, descripción, qué deja— |
+| `client/src/components/cuaderno/Celda.jsx` | Celda de SQL: 520 px fijos, reparto inicial 40/60. Modo lectura (sin SQL, sin mandos, sin panel de edicion) en el estado, no en el documento. Su cabecera sólo IDENTIFICA —nombre, descripción, qué deja— |
 | `client/src/components/cuaderno/Canalon.jsx` | Los mandos, en el canalón izquierdo. Invisibles en reposo |
 | `client/src/components/cuaderno/CeldaTexto.jsx` | Celda de texto SIN CAJA: es el documento. Sin borde, sin cabecera, sin tope de altura |
 | `client/src/components/cuaderno/PantallaCompleta.jsx` | Una celda ocupando la pestaña entera |

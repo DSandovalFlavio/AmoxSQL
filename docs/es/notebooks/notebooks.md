@@ -50,6 +50,31 @@ seleccionar la celda; en reposo el canalón sólo lleva el punto de estado.
 | **Pantalla completa** | La celda ocupa la pestaña entera. `Esc` vuelve, y vuelve por donde estabas |
 | **Subir · Bajar · Borrar** | |
 
+## Lectura
+
+Un análisis se escribe una vez y se lee muchas: uno mismo la semana que viene, o
+alguien a quien se le enseña. **Lectura** quita del cuaderno todo lo que sirve
+para hacerlo y deja lo que se quería contar.
+
+Con el botón **Lectura** de la cabecera del documento:
+
+- Las celdas de SQL **no enseñan la consulta**. La que estaba en tabla se ve como
+  tabla; la que estaba en gráfico, como gráfico —y **sólo el gráfico**, sin el
+  panel de construcción de Story Flow.
+- Los mandos del canalón y las barras de la tabla desaparecen.
+- La cabecera de la celda se queda, pero como pie de figura: el nombre del paso y
+  su descripción. Las marcas de estado —viva, editada, escribe— son de quien
+  edita, y se van.
+- El texto se lee; el doble clic para escribir no responde.
+- Se sigue pudiendo pasar páginas en una tabla y desplazarse por el cuaderno.
+
+**No es exportar.** Un documento de Word se va y deja de estar vivo; esto se
+deshace de un clic con **Editar**, y «Actualizar» sigue a mano — un cuaderno
+recién abierto no tiene nada que enseñar hasta que se ejecuta.
+
+El modo va en el archivo de estado, no en el documento: es de quien mira. Al
+volver a abrir el cuaderno, sigue como lo dejaste.
+
 El **comentario de arriba** de la consulta se convierte en la descripción de la vista, y se guarda en el motor: la vista se explica sola desde cualquier sitio que lea el catálogo.
 
 Una celda que no se puede envolver —varias sentencias, un `INSERT`, un `COPY`— lo dice con un «no deja vista», sin tratarlo como un fallo, porque no lo es. Si además escribe en el disco, lo avisa aparte: eso no se deshace al cerrar el proyecto.

@@ -24,7 +24,7 @@ const ROWNUM_WIDTH = 54;
 // match the `columnWidths[col] || 150` default used when resizing.
 const DEFAULT_COL_WIDTH = 150;
 
-const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null, lazyPanels = false }) => {
+const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null, lazyPanels = false, lectura = false }) => {
     const toast = useToast();
     // currentEditorQuery may be a string (notebook cells) or a getter function
     // (EditorPane passes a stable getter so typing doesn't break this memo).
@@ -38,6 +38,20 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
     const [vaultTags, setVaultTags] = useState('');
     const [vaultSaving, setVaultSaving] = useState(false);
     const [exportingAction, setExportingAction] = useState(null);
+
+    /**
+     * Leer no es lo mismo que empotrar.
+     *
+     * `isReportMode` existia para meter una tabla dentro de una lamina, y por eso
+     * ademas de quitar los mandos pagina de 200 en 200 y suelta la numeracion
+     * fija. Para el modo lectura del cuaderno eso seria un mal negocio: sirve
+     * dieciseis tablas a la vez, y cuadruplicar las filas de cada una deshace
+     * justo lo que se acaba de arreglar. Asi que `lectura` quita los mandos y el
+     * panel de edicion del grafico, y no toca nada mas: se sigue paginando de
+     * cincuenta en cincuenta y el pie de paginas se queda, porque pasar paginas
+     * es leer.
+     */
+    const sinMandos = isReportMode || lectura;
 
     // View State
     const vistaDeSalida = initialViewMode || (initialChartConfig ? 'chart' : (editorSettings.defaultViewMode || 'table'));
@@ -544,7 +558,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
     return (
         <div className="rt-container amox-fade-in">
             {/* Toolbar */}
-            {!isReportMode && (
+            {!sinMandos && (
                 <div className="rt-toolbar">
                     {/* Top Row: Controls & Stats */}
                     <div className="rt-toolbar-row">
@@ -874,7 +888,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                     );
                                 })}
                             </tr>
-                            {showFilters && !isReportMode && (
+                            {showFilters && !sinMandos && (
                                 <tr>
                                     {showRowNumbers && (
                                         <td
@@ -967,7 +981,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                 {/* Chart */}
                 <div className={`rt-panel chart${viewMode === 'chart' ? ' visible' : ' hidden'}`}>
-                    {montarPanel('chart') && <DataVisualizer data={data} isReportMode={isReportMode} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} />}
+                    {montarPanel('chart') && <DataVisualizer data={data} isReportMode={sinMandos} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} />}
                 </div>
 
                 {/* Profile */}

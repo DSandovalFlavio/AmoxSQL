@@ -39,6 +39,7 @@ const Celda = ({
     frescura,         // 'nunca' | 'dia' | 'cambiada' | 'arriba'
     enCiclo,          // esta celda y otra se leen entre si
     precalentada,     // el cuaderno ya le dio turno: montate aunque estes lejos
+    lectura,          // el cuaderno esta en modo lectura: solo el resultado
     estado = {},
     theme,
     editorSettings,
@@ -47,7 +48,15 @@ const Celda = ({
     onEjecutar,       // (id)
     onCreateNew,
 }) => {
-    const modo = estado.modo || MODOS.AMBOS;
+    /**
+     * En lectura manda el cuaderno, no la celda.
+     *
+     * Y se impone al pintar, **sin escribirlo en el estado**: el mando de tres
+     * posiciones de cada celda es una preferencia de quien trabaja el análisis, y
+     * mirarlo en modo lectura no puede borrarla. Al salir, cada celda vuelve a
+     * estar como estaba.
+     */
+    const modo = lectura ? MODOS.RESULTADO : (estado.modo || MODOS.AMBOS);
     /**
      * 40 % para el código y 60 % para el resultado.
      *
@@ -132,6 +141,8 @@ const Celda = ({
     }, [celda.id, onEstado, estado.vista]);
 
     const soloUno = modo !== MODOS.AMBOS;
+    /** En lectura la cabecera es un pie de figura: nombre y descripción, nada más. */
+    const marcas = !lectura;
     /** ¿Esta celda puede dejar una vista con el nombre de la celda? */
     const puedeDejarVista = !!analisis?.envolvible;
     const vieja = frescura === 'cambiada' || frescura === 'arriba';
@@ -147,6 +158,7 @@ const Celda = ({
                     value={celda.nombre || ''}
                     placeholder="sin nombre"
                     spellCheck={false}
+                    readOnly={lectura}
                     onChange={(e) => onCambiar(celda.id, { nombre: e.target.value.trim() })}
                     title={celda.nombre
                         ? `La siguiente celda puede escribir FROM ${celda.nombre}`
@@ -164,7 +176,7 @@ const Celda = ({
                 {/* Que algo esté viejo se dice con palabras, no sólo con el color
                     del punto del canalón: el punto se ve de lejos, pero no
                     explica por qué. */}
-                {vieja && (
+                {marcas && vieja && (
                     <span className="cdn-deja cdn-deja--vieja" title={frescura === 'cambiada'
                         ? 'Se editó después de ejecutarla: lo que se ve es de antes'
                         : 'Algo de lo que depende cambió: lo que se ve es de antes'}>
@@ -174,7 +186,7 @@ const Celda = ({
                 )}
                 {/* Un ciclo no tiene un orden correcto, así que «Actualizar» no
                     puede prometer nada sobre estas dos celdas. Mejor decirlo. */}
-                {enCiclo && (
+                {marcas && enCiclo && (
                     <span className="cdn-deja cdn-deja--escribe" title="Esta celda y otra se leen entre sí: no hay un orden correcto para ejecutarlas">
                         <LuTriangleAlert size={11} />
                         en bucle
@@ -182,7 +194,7 @@ const Celda = ({
                 )}
                 {/* Escribir en el disco no se deshace al cerrar, y la diferencia
                     con dejar una vista en la sesión es justo la que importa. */}
-                {analisis?.escribe === 'disco' && (
+                {marcas && analisis?.escribe === 'disco' && (
                     <span className="cdn-deja cdn-deja--escribe" title="Esta celda modifica datos guardados, no sólo la sesión">
                         <LuTriangleAlert size={11} />
                         escribe
@@ -192,7 +204,7 @@ const Celda = ({
                     verdad: una vista existe porque alguien ejecutó la celda, no
                     porque esté escrita, y pintarla igual sería prometer algo que
                     la siguiente celda no podría leer. */}
-                {puedeDejarVista && (
+                {marcas && puedeDejarVista && (
                     <span
                         className={`cdn-deja${viva ? ' cdn-deja--viva' : ''}`}
                         title={viva
@@ -205,7 +217,7 @@ const Celda = ({
                 )}
                 {/* Lo que no se puede envolver no deja nada, y eso no es un
                     fallo: hay celdas que están para cargar o para escribir. */}
-                {analisis && !analisis.vacia && !puedeDejarVista && !analisis.vistaPropia && (
+                {marcas && analisis && !analisis.vacia && !puedeDejarVista && !analisis.vistaPropia && (
                     <span className="cdn-deja cdn-deja--nada" title={
                         analisis.sentencias > 1
                             ? 'Varias sentencias: se ejecutan tal cual'
@@ -255,6 +267,7 @@ const Celda = ({
                                 rowLimit={resultado.rowLimit}
                                 onCreateNew={onCreateNew}
                                 lazyPanels
+                                lectura={lectura}
                                 initialViewMode={estado.vista || null}
                                 initialChartConfig={estado.grafico || null}
                                 onViewModeChange={alCambiarVista}
