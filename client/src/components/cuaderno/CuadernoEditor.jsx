@@ -32,7 +32,7 @@
  * — la notebook de hoy no lo hace, y por eso mover dos celdas les intercambia
  * el gráfico.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     LuPlus, LuFileText, LuSave, LuBot, LuX, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
 } from 'react-icons/lu';
@@ -46,6 +46,7 @@ import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import Celda from './Celda.jsx';
 import Barra from './Barra.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
+import Canalon from './Canalon.jsx';
 import PantallaCompleta from './PantallaCompleta.jsx';
 import { claveDeCelda, reclavar } from './claves.js';
 import { cruzarVistas, parametrosUsados, sustituirParametros } from './vistasVivas.js';
@@ -131,6 +132,8 @@ const CuadernoEditor = ({
     const [aPantalla, setAPantalla] = useState(null);
     /** `null`, `'word'` o `'tablero'` mientras se saca algo del cuaderno. */
     const [sacando, setSacando] = useState(null);
+    /** La celda de texto que se está escribiendo ahora, o `null`. */
+    const [escribiendo, setEscribiendo] = useState(null);
     const dialog = useDialog();
     const toast = useToast();
 
@@ -306,6 +309,17 @@ const CuadernoEditor = ({
      * el documento y llegan a quien lo abra. El modo de una celda no; un valor
      * de parámetro sí.
      */
+    /**
+     * El título y la descripción del documento, en la cabecera del archivo.
+     *
+     * El título ya existía (`titulo:`) y no se veía en ningún sitio; la
+     * descripción es nueva y va al mismo sitio. Los dos viajan con el archivo,
+     * que es lo que los distingue del estado visual.
+     */
+    const cambiarMeta = useCallback((clave, valor) => {
+        emitir({ ...doc, meta: { ...(doc.meta || {}), [clave]: valor } });
+    }, [doc, emitir]);
+
     const cambiarParametro = useCallback((nombre, valor) => {
         const previos = { ...(doc.meta?.parametros || {}) };
         if (valor === null) delete previos[nombre];
@@ -318,21 +332,32 @@ const CuadernoEditor = ({
         emitir({ ...doc, celdas: doc.celdas.map((c) => (c.id === id ? { ...c, ...campos } : c)) });
     }, [doc, emitir]);
 
-    const anadir = useCallback((tipo) => {
+    /**
+     * Una celda nueva, **donde se pidió**.
+     *
+     * `donde` viene del hueco que se pulsó, así que la celda nace entre las dos
+     * de al lado. Antes había una sola barra al final del cuaderno: meter una
+     * celda entre la tercera y la cuarta obligaba a bajar hasta abajo, crearla y
+     * subirla a mano.
+     */
+    const anadir = useCallback((tipo, donde) => {
         const nueva = tipo === 'texto'
             ? { id: idNuevo(), tipo: 'texto', contenido: '' }
             : { id: idNuevo(), tipo: 'sql', nombre: '', materializada: false, contenido: '' };
-        // Detrás de la seleccionada, o al final. Añadir siempre al final obliga a
-        // bajar a por la celda nueva cuando estás trabajando por la mitad.
-        const i = doc.celdas.findIndex((c) => c.id === seleccionada);
         const celdas = [...doc.celdas];
-        celdas.splice(i < 0 ? celdas.length : i + 1, 0, nueva);
+        const i = Number.isInteger(donde) ? donde : celdas.length;
+        celdas.splice(Math.min(Math.max(i, 0), celdas.length), 0, nueva);
         emitir({ ...doc, celdas });
         setSeleccionada(nueva.id);
-    }, [doc, emitir, seleccionada]);
+        // Una celda de texto recién creada entra escribiendo: nadie la crea para
+        // mirarla vacía, y sin caja no hay nada que pulsar para empezar.
+        if (tipo === 'texto') setEscribiendo(nueva.id);
+    }, [doc, emitir]);
 
+    // Se puede borrar la última: el hueco del final siempre está visible, así que
+    // de un cuaderno vacío se sale añadiendo. Antes había que dejar una celda
+    // huérfana porque no había otra forma de volver a tener una.
     const borrar = useCallback((id) => {
-        if (doc.celdas.length <= 1) return;
         emitir({ ...doc, celdas: doc.celdas.filter((c) => c.id !== id) });
     }, [doc, emitir]);
 
@@ -664,112 +689,166 @@ const CuadernoEditor = ({
         );
     }
 
+    /** El hueco entre dos celdas, que es donde se añade. */
+    const hueco = (indice, fin = false) => (
+        <div className={`cdn-hueco${fin ? ' cdn-hueco--fin' : ''}`} key={`h${indice}`}>
+            <div className="cdn-hueco-btns">
+                <button type="button" className="cdn-btn" onClick={() => anadir('sql', indice)}>
+                    <LuPlus size={11} /> SQL
+                </button>
+                <button type="button" className="cdn-btn" onClick={() => anadir('texto', indice)}>
+                    <LuFileText size={11} /> Texto
+                </button>
+            </div>
+        </div>
+    );
+
     return (
         <div className="cdn">
             <div className="cdn-lista">
-                {doc.celdas.map((c) => (
-                    // `data-cell-id` es lo que busca el exportador a Word para
-                    // capturar la figura de cada celda. Sin el, el documento sale
-                    // con las tablas y sin ninguna figura, y sin ningun error.
-                    <div key={c.id} id={`cdn-${c.id}`} data-cell-id={c.id}>
-                        {c.tipo === 'texto' ? (
-                            <CeldaTexto
-                                celda={c}
-                                estado={estados[claves[c.id]]}
-                                onEstado={cambiarEstado}
-                                seleccionada={seleccionada === c.id}
-                                onCambiar={cambiarCelda}
-                                onBorrar={borrar}
-                                onSubir={(id) => mover(id, -1)}
-                                onBajar={(id) => mover(id, 1)}
-                                onSeleccionar={setSeleccionada}
-                                onAmpliar={ampliar}
-                            />
-                        ) : (
-                            <Celda
+
+                {/* ── la cabecera del documento ──────────────────────────────
+                    Un cuaderno abierto dice primero cómo se llama y de qué va.
+                    Las acciones del documento viven aquí y no al final de la
+                    lista, donde flotaban a media página debajo de la última
+                    celda. */}
+                <div className="cdn-doc">
+                    <div className="cdn-doc-txt">
+                        <input
+                            className="cdn-doc-titulo"
+                            value={doc.meta?.titulo || ''}
+                            placeholder="Sin título"
+                            onChange={(e) => cambiarMeta('titulo', e.target.value)}
+                        />
+                        {/* Un `textarea` y no un `input`: una descripción larga
+                            en un input se corta a media palabra, y lo único que
+                            tiene que hacer esta línea es decirse entera de un
+                            vistazo. Los saltos se quitan porque la cabecera del
+                            archivo es de una línea por clave. */}
+                        <textarea
+                            className="cdn-doc-desc"
+                            rows={1}
+                            value={doc.meta?.descripcion || ''}
+                            placeholder="Añade una descripción…"
+                            onChange={(e) => cambiarMeta('descripcion', e.target.value.replace(/\s*[\r\n]+\s*/g, ' '))}
+                            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
+                        />
+                    </div>
+                    <div className="cdn-doc-acciones">
+                        {/* Sustituye a «ejecutar todo» y a «ejecutar hacia
+                            abajo», que suponían que el orden de la pantalla es
+                            el de dependencia. Aquí el orden lo pone el grafo. */}
+                        <button
+                            type="button"
+                            className={`cdn-btn${pendientes.orden.length ? ' cdn-btn--pend' : ''}`}
+                            onClick={actualizar}
+                            disabled={!pendientes.orden.length}
+                            title={pendientes.orden.length
+                                ? 'Ejecutar lo que no está al día, en orden de dependencia'
+                                : pendientes.apartadas.length
+                                    ? 'Lo único que falta escribe en el disco: eso se ejecuta a mano'
+                                    : 'Todo está al día'}
+                        >
+                            <LuRefreshCw size={12} />
+                            Actualizar
+                            {pendientes.orden.length > 0 && <span className="cdn-n">{pendientes.orden.length}</span>}
+                        </button>
+                        <button type="button" className="cdn-btn" onClick={() => onSave?.()} title="Guardar (Ctrl+S)">
+                            <LuSave size={12} /> Guardar
+                        </button>
+                        <div className="cdn-grupo">
+                            <button
+                                type="button"
+                                className="cdn-btn"
+                                onClick={aWord}
+                                disabled={!!sacando}
+                                title="Un documento que circula: se comenta, se firma, se adjunta"
+                            >
+                                {sacando === 'word' ? <LuLoaderCircle size={12} className="spin" /> : <LuFileType2 size={12} />}
+                                Word
+                            </button>
+                            <button
+                                type="button"
+                                className="cdn-btn"
+                                onClick={aTablero}
+                                disabled={!!sacando}
+                                title="Llevar el texto y las figuras a un tablero de Report Flow"
+                            >
+                                {sacando === 'tablero' ? <LuLoaderCircle size={12} className="spin" /> : <LuPresentation size={12} />}
+                                Tablero
+                            </button>
+                        </div>
+                        {onToggleAi && (
+                            <button type="button" className="cdn-btn" onClick={onToggleAi}>
+                                {showAiSidebar ? <LuX size={12} /> : <LuBot size={12} />}
+                                {showAiSidebar ? 'Cerrar Assist' : 'Assist'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {doc.celdas.map((c, i) => (
+                    <Fragment key={c.id}>
+                        {i > 0 && hueco(i)}
+                        {/* `data-cell-id` es lo que busca el exportador a Word
+                            para capturar la figura de cada celda. Sin el, el
+                            documento sale con las tablas y sin ninguna figura, y
+                            sin ningun error. */}
+                        <div
+                            id={`cdn-${c.id}`}
+                            data-cell-id={c.id}
+                            className={`cdn-fila${seleccionada === c.id ? ' cdn-fila--sel' : ''}`}
+                            onFocusCapture={() => setSeleccionada(c.id)}
+                            onMouseDown={() => setSeleccionada(c.id)}
+                        >
+                            <Canalon
                                 celda={c}
                                 analisis={analisis[c.id]}
                                 resultado={resultados[c.id]}
-                                viva={estanVivas.has(String(c.nombre || '').toLowerCase())}
                                 frescura={frescuras.get(c.id)}
-                                enCiclo={ciclos.includes(c.id)}
                                 estado={estados[claves[c.id]]}
-                                seleccionada={seleccionada === c.id}
                                 corriendo={corriendo === c.id}
-                                theme={theme}
-                                editorSettings={editorSettings}
-                                onCambiar={cambiarCelda}
                                 onEstado={cambiarEstado}
                                 onEjecutar={ejecutar}
-                                onBorrar={borrar}
+                                onCambiar={cambiarCelda}
                                 onSubir={(id) => mover(id, -1)}
                                 onBajar={(id) => mover(id, 1)}
-                                onSeleccionar={setSeleccionada}
+                                onBorrar={borrar}
                                 onAmpliar={ampliar}
-                                onCreateNew={onCreateNew}
                             />
-                        )}
-                    </div>
+                            {c.tipo === 'texto' ? (
+                                <CeldaTexto
+                                    celda={c}
+                                    estado={estados[claves[c.id]]}
+                                    escribiendo={escribiendo === c.id}
+                                    onCambiar={cambiarCelda}
+                                    onEscribir={setEscribiendo}
+                                />
+                            ) : (
+                                <Celda
+                                    celda={c}
+                                    analisis={analisis[c.id]}
+                                    resultado={resultados[c.id]}
+                                    viva={estanVivas.has(String(c.nombre || '').toLowerCase())}
+                                    frescura={frescuras.get(c.id)}
+                                    enCiclo={ciclos.includes(c.id)}
+                                    estado={estados[claves[c.id]]}
+                                    theme={theme}
+                                    editorSettings={editorSettings}
+                                    onCambiar={cambiarCelda}
+                                    onEstado={cambiarEstado}
+                                    onEjecutar={ejecutar}
+                                    onCreateNew={onCreateNew}
+                                />
+                            )}
+                        </div>
+                    </Fragment>
                 ))}
 
-                <div className="cdn-anadir">
-                    <button type="button" className="cdn-btn" onClick={() => anadir('sql')}>
-                        <LuPlus size={12} /> Celda de SQL
-                    </button>
-                    <button type="button" className="cdn-btn" onClick={() => anadir('texto')}>
-                        <LuFileText size={12} /> Texto
-                    </button>
-                    <span className="cdn-sp" />
-                    {/* Sustituye a «ejecutar todo» y a «ejecutar hacia abajo»,
-                        que suponían que el orden de la pantalla es el de
-                        dependencia. Aquí el orden lo pone el grafo. */}
-                    <button
-                        type="button"
-                        className={`cdn-btn${pendientes.orden.length ? ' cdn-btn--pend' : ''}`}
-                        onClick={actualizar}
-                        disabled={!pendientes.orden.length}
-                        title={pendientes.orden.length
-                            ? 'Ejecutar lo que no está al día, en orden de dependencia'
-                            : pendientes.apartadas.length
-                                ? 'Lo único que falta escribe en el disco: eso se ejecuta a mano'
-                                : 'Todo está al día'}
-                    >
-                        <LuRefreshCw size={12} />
-                        Actualizar
-                        {pendientes.orden.length > 0 && <span className="cdn-n">{pendientes.orden.length}</span>}
-                    </button>
-                    <button type="button" className="cdn-btn" onClick={() => onSave?.()}>
-                        <LuSave size={12} /> Guardar
-                    </button>
-                    <div className="cdn-grupo">
-                        <button
-                            type="button"
-                            className="cdn-btn"
-                            onClick={aWord}
-                            disabled={!!sacando}
-                            title="Un documento que circula: se comenta, se firma, se adjunta"
-                        >
-                            {sacando === 'word' ? <LuLoaderCircle size={12} className="spin" /> : <LuFileType2 size={12} />}
-                            Word
-                        </button>
-                        <button
-                            type="button"
-                            className="cdn-btn"
-                            onClick={aTablero}
-                            disabled={!!sacando}
-                            title="Llevar el texto y las figuras a un tablero de Report Flow"
-                        >
-                            {sacando === 'tablero' ? <LuLoaderCircle size={12} className="spin" /> : <LuPresentation size={12} />}
-                            Tablero
-                        </button>
-                    </div>
-                    {onToggleAi && (
-                        <button type="button" className="cdn-btn" onClick={onToggleAi}>
-                            {showAiSidebar ? <LuX size={12} /> : <LuBot size={12} />}
-                            {showAiSidebar ? 'Cerrar Assist' : 'Assist'}
-                        </button>
-                    )}
-                </div>
+                {/* El último hueco se queda siempre visible: es el «añadir al
+                    final», y sin él un cuaderno vacío no tendría por dónde
+                    empezar. */}
+                {hueco(doc.celdas.length, true)}
             </div>
 
             <Barra

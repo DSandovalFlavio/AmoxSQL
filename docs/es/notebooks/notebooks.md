@@ -21,19 +21,34 @@ A diferencia del [Editor SQL](../editor/sql-editor.md) —una consulta enfocada�
 
 ## Cómo usarlo
 
+### La cabecera del cuaderno
+
+Arriba, el título y una descripción: los dos viven en la cabecera del archivo y viajan con él.
+A su derecha, lo que se le hace al documento entero — **Actualizar**, guardar, y las dos
+salidas ([Word y tablero](reports.md)).
+
 ### La celda
 
 Editor a la izquierda, resultado a la derecha, y **500 px de alto, siempre los mismos** —unas veintitrés líneas de SQL y dieciocho filas de resultado—. La altura fija no es un descuido: con celdas que crecen, un cuaderno de veinte deja de poder recorrerse. Para trabajar de cerca está la pantalla completa.
 
-En la cabecera de cada celda:
+La cabecera de la celda sólo **identifica**: el nombre, la descripción y qué deja detrás.
+Los mandos viven en el **canalón de la izquierda** y aparecen al pasar el ratón o al
+seleccionar la celda; en reposo el canalón sólo lleva el punto de estado.
 
-| Mando | Qué hace |
+| En la cabecera | Qué dice |
 |---|---|
 | **Nombre** | El de la vista que la celda deja puesta. En blanco, se le pone `paso_N` al ejecutar |
+| **Descripción** | El comentario de arriba de la consulta. No se escribe dos veces |
 | **Distintivo de vista** | Apagado mientras esa vista no exista de verdad; encendido cuando el motor confirma que está viva |
+
+| En el canalón | Qué hace |
+|---|---|
+| **Punto de estado** | Lo único visible en reposo. Cuatro estados; ver más abajo |
+| **Ejecutar** | `Ctrl+Enter` |
 | **Mando de tres posiciones** | Código y resultado · sólo el código · sólo el resultado. Se recuerda, y con él si estaba en tabla o en gráfico |
 | **Materializar** | Guarda el resultado en vez de recalcularlo cada vez que se lea |
 | **Pantalla completa** | La celda ocupa la pestaña entera. `Esc` vuelve, y vuelve por donde estabas |
+| **Subir · Bajar · Borrar** | |
 
 El **comentario de arriba** de la consulta se convierte en la descripción de la vista, y se guarda en el motor: la vista se explica sola desde cualquier sitio que lea el catálogo.
 
@@ -41,7 +56,12 @@ Una celda que no se puede envolver —varias sentencias, un `INSERT`, un `COPY`�
 
 ### La celda de texto
 
-El mismo mando de tres posiciones: la fuente, el texto compuesto, o las dos. Sus encabezados (`#`, `##`, `###`) construyen solos el índice de la barra derecha. Para la prosa larga, pantalla completa.
+**No tiene caja**: ni borde, ni cabecera, ni tope de altura. Es el documento. Doble clic para
+escribir, encima del propio texto; al salir, se compone. Sus encabezados (`#`, `##`, `###`)
+construyen solos el índice de la barra derecha.
+
+Para ver la fuente y el texto compuesto a la vez, pantalla completa — en la lista no hay caja
+donde partirlos en dos.
 
 ### La barra derecha
 
@@ -86,6 +106,8 @@ Cambiar el valor de un parámetro también la pone en ámbar, aunque no hayas to
 
 ## Tips
 
+- **Añadir una celda en medio:** el aire entre dos celdas enseña `+ SQL` y `+ Texto` al pasar
+  el ratón, y la celda nace ahí. El hueco del final está siempre visible.
 - **Convertir un `.sql` en cuaderno:** si un archivo tiene varias sentencias separadas por `;`, AmoxSQL ofrece convertirlo, una celda por sentencia.
 - **Formatos antiguos:** los cuadernos en JSON v3.0, v2.0 y de marcadores (`-- !CELL:CODE!`) se leen igual y se guardan ya en el formato nuevo. Las celdas «Input» se convierten en parámetros de la cabecera.
 - **El estado visual va aparte.** El modo de cada celda, el reparto y la configuración del gráfico se guardan en `.sqlnb.state.json`, nunca en el documento: son de quien mira, no del análisis.

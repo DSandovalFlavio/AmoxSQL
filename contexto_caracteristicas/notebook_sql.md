@@ -13,8 +13,9 @@ Eso no lo inventa la interfaz. `DatabaseManager` mantiene **una conexión viva p
 | Archivo | Responsabilidad |
 |---|---|
 | `client/src/components/cuaderno/CuadernoEditor.jsx` | El contenedor: documento, ejecución, estado visual, exportes |
-| `client/src/components/cuaderno/Celda.jsx` | Celda de SQL: 500 px fijos, mando de tres posiciones, distintivos de cabecera |
-| `client/src/components/cuaderno/CeldaTexto.jsx` | Celda de texto: se ajusta al contenido, con el alto de una celda de código como tope |
+| `client/src/components/cuaderno/Celda.jsx` | Celda de SQL: 500 px fijos. Su cabecera sólo IDENTIFICA —nombre, descripción, qué deja— |
+| `client/src/components/cuaderno/Canalon.jsx` | Los mandos, en el canalón izquierdo. Invisibles en reposo |
+| `client/src/components/cuaderno/CeldaTexto.jsx` | Celda de texto SIN CAJA: es el documento. Sin borde, sin cabecera, sin tope de altura |
 | `client/src/components/cuaderno/PantallaCompleta.jsx` | Una celda ocupando la pestaña entera |
 | `client/src/components/cuaderno/Barra.jsx` | Barra derecha: índice, vistas vivas, parámetros |
 | `client/src/utils/cuadernoFile.js` | Leer y escribir el archivo; lee además los tres formatos anteriores |
@@ -84,6 +85,24 @@ Cuatro estados: `nunca`, `dia`, `cambiada` (su SQL resuelto difiere del ejecutad
 Se compara la consulta **ya resuelta**, no la escrita: cambiar un parámetro cambia la consulta sin tocar una letra de la celda.
 
 **El código se inclina a propósito.** Ante la duda, marcar como desactualizado: inventarse una dependencia cuesta una ejecución de más; perderla cuesta una cifra equivocada que nadie revisa. Al ejecutar, en cambio, se inclina al revés: una celda que escribe en disco se **aparta** de «Actualizar», porque repetir un `INSERT` duplica filas.
+
+---
+
+## La forma
+
+El contrato visual está en `docs/dev/mockup_cuaderno_2.html`. Tres reglas, y de ellas cuelga
+el resto:
+
+1. **El cromo aparece a demanda y vive en el canalón izquierdo.** En reposo una celda enseña
+   quién es y qué deja detrás; nada más. Diez botones por celda son ochenta en un cuaderno de
+   ocho, y el que de verdad se usa —Ejecutar— competía con nueve vecinos.
+2. **La prosa no vive en una caja.** Sin borde, sin cabecera, sin tope de altura, con medida
+   de lectura (70ch) y sangrada respecto al código, que sí ocupa el ancho.
+3. **La selección es una barra a la izquierda**, no un borde alrededor: un borde que cambia de
+   color compite con el de la celda de al lado.
+
+El hueco entre dos celdas es donde se añade. Antes la barra estaba al final del cuaderno, así
+que meter una celda en medio obligaba a bajar hasta abajo y subirla a mano.
 
 ---
 

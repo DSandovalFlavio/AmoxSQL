@@ -21,19 +21,34 @@ Unlike the [SQL Editor](../editor/sql-editor.md) — one focused query — a not
 
 ## How to use it
 
+### The notebook's header
+
+At the top, a title and a description: both live in the file's front matter and travel with
+it. To their right, what applies to the whole document — **Refresh**, save, and the two ways
+out ([Word and deck](reports.md)).
+
 ### The cell
 
 Editor on the left, result on the right, and **500 px tall, always the same** — about twenty-three lines of SQL and eighteen result rows. The fixed height is not an oversight: with cells that grow, a twenty-cell notebook stops being something you can scan. For close work there is full screen.
 
-In each cell's header:
+The cell's header only **identifies** it: name, description, and what it leaves behind. The
+controls live in the **left gutter** and appear on hover or selection; at rest the gutter
+carries only the status dot.
 
-| Control | What it does |
+| In the header | What it says |
 |---|---|
 | **Name** | The name of the view the cell leaves behind. Left blank, it gets `paso_N` on run |
+| **Description** | The query's leading comment. Not written twice |
 | **View badge** | Dim while that view does not actually exist; lit once the engine confirms it is live |
+
+| In the gutter | What it does |
+|---|---|
+| **Status dot** | The only thing visible at rest. Four states; see below |
+| **Run** | `Ctrl+Enter` |
 | **Three-way control** | Code and result · code only · result only. Remembered, and with it whether it was a table or a chart |
 | **Materialize** | Stores the result instead of recomputing it on every read |
 | **Full screen** | The cell takes the whole tab. `Esc` goes back, and back to where you were |
+| **Up · Down · Delete** | |
 
 The **leading comment** of the query becomes the view's description, stored in the engine: the view explains itself to anything that reads the catalog.
 
@@ -41,7 +56,12 @@ A cell that cannot be wrapped — several statements, an `INSERT`, a `COPY` — 
 
 ### The text cell
 
-The same three-way control: the source, the rendered text, or both. Its headings (`#`, `##`, `###`) build the outline in the right sidebar on their own. For long prose, full screen.
+**It has no box**: no border, no header, no height cap. It is the document. Double-click to
+write, in place; leave and it renders. Its headings (`#`, `##`, `###`) build the outline in the
+right sidebar on their own.
+
+To see the source and the rendered text at once, use full screen — in the list there is no box
+to split in two.
 
 ### The right sidebar
 
@@ -86,6 +106,8 @@ Changing a parameter's value also turns it amber, even though you did not touch 
 
 ## Tips
 
+- **Add a cell in the middle:** the space between two cells shows `+ SQL` and `+ Texto` on
+  hover, and the cell is born there. The last gap is always visible.
 - **Turn a `.sql` into a notebook:** if a file has several statements separated by `;`, AmoxSQL offers to convert it, one cell per statement.
 - **Older formats:** notebooks in JSON v3.0, v2.0 and marker form (`-- !CELL:CODE!`) still open, and are saved in the new format. «Input» cells become front-matter parameters.
 - **Visual state lives apart.** Each cell's mode, its split and its chart configuration are stored in `.sqlnb.state.json`, never in the document: they belong to the viewer, not to the analysis.
