@@ -29,6 +29,7 @@ import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory } from 'react-icons/lu
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
+import { useCerca } from './useCerca.js';
 
 const Celda = ({
     celda,
@@ -49,6 +50,16 @@ const Celda = ({
     const reparto = estado.reparto ?? 0.5;
     const raiz = useRef(null);
     const [arrastrando, setArrastrando] = useState(false);
+    /**
+     * El cuerpo sólo se monta cerca de lo que se ve.
+     *
+     * La cabecera se pinta siempre —es barata y es lo que se lee al recorrer— y
+     * la caja mide sus 500 px esté montada o no, así que el desplazamiento no se
+     * entera. Lo que se aplaza es el editor de código y la tabla de resultados
+     * con su motor de gráficos: eso es lo que cuesta, y multiplicado por
+     * dieciséis celdas es lo que dejaba el cuaderno clavado.
+     */
+    const cerca = useCerca(raiz);
 
     /**
      * El tirador mueve el reparto de ESTA celda, no el del documento.
@@ -78,6 +89,34 @@ const Celda = ({
         window.addEventListener('mousemove', mover);
         window.addEventListener('mouseup', soltar);
     }, [celda.id, onEstado]);
+
+    /**
+     * Los callbacks que van a `ResultsTable` **no pueden nacer en el render**.
+     *
+     * El avisador de cambios de Story Flow tiene su efecto dependiendo de la
+     * identidad de `onConfigChange`. Con una flecha escrita en el JSX, esa
+     * identidad cambia en cada pintado: el efecto se re-arma, a los 500 ms
+     * escribe la configuración, eso provoca otro pintado, y vuelta a empezar.
+     * Con dieciséis celdas montadas a la vez el cuaderno se queda clavado, y el
+     * archivo de estado engorda hasta 54 KB de configuraciones que nadie pidió.
+     */
+    const alCambiarVista = useCallback(
+        (v) => onEstado(celda.id, { vista: v }),
+        [celda.id, onEstado],
+    );
+
+    /**
+     * Y una configuración de gráfico sólo se guarda si la celda **está** en
+     * gráfico.
+     *
+     * `DataVisualizer` se monta siempre —sólo se oculta por CSS— así que una
+     * celda en tabla también deduce ejes y avisa. Guardar eso llenaba el archivo
+     * de estado de gráficos que nunca se vieron.
+     */
+    const alCambiarGrafico = useCallback((cfg) => {
+        if (estado.vista !== 'chart') return;
+        onEstado(celda.id, { grafico: cfg });
+    }, [celda.id, onEstado, estado.vista]);
 
     const soloUno = modo !== MODOS.AMBOS;
     /** ¿Esta celda puede dejar una vista con el nombre de la celda? */
@@ -168,7 +207,7 @@ const Celda = ({
             >
                 {modo !== MODOS.RESULTADO && (
                     <div className="cdn-editor">
-                        <SqlEditor
+                        {cerca && <SqlEditor
                             tabId={celda.id}
                             value={celda.contenido}
                             language="sql"
@@ -176,7 +215,7 @@ const Celda = ({
                             onRunQuery={() => onEjecutar(celda.id)}
                             theme={theme}
                             editorSettings={editorSettings}
-                        />
+                        />}
                     </div>
                 )}
 
@@ -190,7 +229,7 @@ const Celda = ({
 
                 {modo !== MODOS.CODIGO && (
                     <div className="cdn-res">
-                        {resultado?.error ? (
+                        {!cerca ? null : resultado?.error ? (
                             <div className="cdn-error">{resultado.error}</div>
                         ) : resultado?.data ? (
                             <ResultsTable
@@ -204,8 +243,8 @@ const Celda = ({
                                 onCreateNew={onCreateNew}
                                 initialViewMode={estado.vista || null}
                                 initialChartConfig={estado.grafico || null}
-                                onViewModeChange={(v) => onEstado(celda.id, { vista: v })}
-                                onConfigChange={(cfg) => onEstado(celda.id, { grafico: cfg })}
+                                onViewModeChange={alCambiarVista}
+                                onConfigChange={alCambiarGrafico}
                             />
                         ) : (
                             <div className="cdn-vacio">Sin ejecutar</div>

@@ -93,6 +93,14 @@ const PantallaCompleta = ({
         window.addEventListener('mouseup', soltar);
     }, [celda.id, onEstado]);
 
+    // Mismo motivo que en `Celda`: una flecha escrita en el render re-arma el
+    // avisador de Story Flow en cada pintado.
+    const alCambiarVista = useCallback((v) => onEstado(celda.id, { vista: v }), [celda.id, onEstado]);
+    const alCambiarGrafico = useCallback((cfg) => {
+        if (estado.vista !== 'chart') return;
+        onEstado(celda.id, { grafico: cfg });
+    }, [celda.id, onEstado, estado.vista]);
+
     const soloUno = modo !== MODOS.AMBOS;
     const titulo = esTexto
         ? (primeraLinea(celda.contenido) || 'Texto')
@@ -207,8 +215,8 @@ const PantallaCompleta = ({
                                 onCreateNew={onCreateNew}
                                 initialViewMode={estado.vista || null}
                                 initialChartConfig={estado.grafico || null}
-                                onViewModeChange={(v) => onEstado(celda.id, { vista: v })}
-                                onConfigChange={(cfg) => onEstado(celda.id, { grafico: cfg })}
+                                onViewModeChange={alCambiarVista}
+                                onConfigChange={alCambiarGrafico}
                             />
                         ) : (
                             <div className="cdn-vacio">Sin ejecutar</div>

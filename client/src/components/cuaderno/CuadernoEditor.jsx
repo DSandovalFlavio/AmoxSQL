@@ -241,15 +241,37 @@ const CuadernoEditor = ({
         });
     }, [doc.celdas, onChange, persistirEstado]);
 
+    /**
+     * `cambiarEstado` NO puede cambiar de identidad, y por eso lee las claves de
+     * una referencia en vez de depender de ellas.
+     *
+     * Las claves se recalculan al cambiar `doc.celdas`, o sea en **cada
+     * pulsación** dentro de un editor. Si la identidad de esta función cambiara
+     * con ellas, cambiaría también la de los callbacks que se le pasan a
+     * `ResultsTable`; y el avisador de cambios de Story Flow depende de esa
+     * identidad, así que se re-armaría en cada pintado y acabaría escribiendo
+     * una configuración de gráfico, que provoca otro pintado. En bucle, en las
+     * dieciséis celdas a la vez.
+     */
+    const clavesRef = useRef(claves);
+    clavesRef.current = claves;
+
     const cambiarEstado = useCallback((id, parcial) => {
-        const clave = claves[id];
+        const clave = clavesRef.current[id];
         if (!clave) return;
         setEstados((prev) => {
-            const siguiente = { ...prev, [clave]: { ...(prev[clave] || {}), ...parcial } };
-            persistirEstado(siguiente);
-            return siguiente;
+            const antes = prev[clave];
+            const siguiente = { ...(antes || {}), ...parcial };
+            // Si no cambia nada, no se toca el estado: un `setEstados` que
+            // devuelve contenido igual sigue provocando un pintado.
+            if (antes && Object.keys(siguiente).every(
+                (k) => JSON.stringify(antes[k]) === JSON.stringify(siguiente[k]),
+            )) return prev;
+            const mapa = { ...prev, [clave]: siguiente };
+            persistirEstado(mapa);
+            return mapa;
         });
-    }, [claves, persistirEstado]);
+    }, [persistirEstado]);
 
     const indice = useMemo(() => indiceDe(doc), [doc]);
 
@@ -369,6 +391,11 @@ const CuadernoEditor = ({
         [celdas[i], celdas[j]] = [celdas[j], celdas[i]];
         emitir({ ...doc, celdas });
     }, [doc, emitir]);
+
+    // Envueltas para que su identidad no cambie en cada pintado: `Canalon` es
+    // `memo`, y una flecha escrita en el render lo deja sin efecto.
+    const subir = useCallback((id) => mover(id, -1), [mover]);
+    const bajar = useCallback((id) => mover(id, 1), [mover]);
 
     /**
      * Ejecuta una celda dejando su vista puesta.
@@ -811,8 +838,8 @@ const CuadernoEditor = ({
                                 onEstado={cambiarEstado}
                                 onEjecutar={ejecutar}
                                 onCambiar={cambiarCelda}
-                                onSubir={(id) => mover(id, -1)}
-                                onBajar={(id) => mover(id, 1)}
+                                onSubir={subir}
+                                onBajar={bajar}
                                 onBorrar={borrar}
                                 onAmpliar={ampliar}
                             />

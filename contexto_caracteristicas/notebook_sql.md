@@ -127,6 +127,33 @@ Las ejecuciones (`{id: {en, sql}}`) viven **sólo en memoria**: guardarlas harí
 
 ---
 
+## Rendimiento: dos trampas que sólo aparecen con un cuaderno largo
+
+Las dos salieron con un EDA de 31 celdas, y ninguna se ve con tres.
+
+**Los callbacks que van a `ResultsTable` no pueden nacer en el render.** El avisador de
+cambios de Story Flow (`useConfigChangeNotifier`) tiene su efecto dependiendo de la identidad
+de `onConfigChange`. Con una flecha escrita en el JSX, esa identidad cambia en cada pintado:
+el efecto se re-arma, a los 500 ms escribe la configuración del gráfico, eso provoca otro
+pintado, y vuelta a empezar. Con dieciséis celdas montadas a la vez el cuaderno se queda
+clavado y el `.state.json` engorda a 54 KB de configuraciones que nadie pidió — incluidas las
+de celdas que están en tabla, porque **`DataVisualizer` se monta siempre y sólo se oculta por
+CSS**.
+
+Por lo mismo, `cambiarEstado` lee las claves de una referencia en vez de depender de ellas:
+las claves se recalculan al cambiar `doc.celdas`, o sea en cada pulsación.
+
+**El cuerpo de la celda se monta sólo cerca de lo que se ve** (`useCerca.js`). Treinta celdas
+son treinta editores de código y treinta tablas de resultado con su motor de gráficos detrás;
+medido, dieciséis instancias de Monaco antes de tocar nada. Con el gancho quedan una o dos.
+
+Esto **no es virtualizar una lista** —que el proyecto prohíbe, y con razón—: aquí no se mide
+ninguna altura. La celda de SQL tiene un alto fijo, así que su hueco ocupa lo mismo esté
+montada o no y el contenedor de desplazamiento no cambia de tamaño jamás. Medido: 12.700 px
+arriba, a mitad y de vuelta. Es el premio de haber fijado la altura.
+
+---
+
 ## Trampas conocidas
 
 - Los objetos temporales son **por conexión**. El asistente corre por otra vía, así que no ve las vistas del cuaderno: puede contestar «no existe» sobre algo que sí existe desde donde mira la persona.
