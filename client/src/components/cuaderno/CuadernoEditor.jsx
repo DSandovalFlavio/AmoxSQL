@@ -275,6 +275,58 @@ const CuadernoEditor = ({
 
     const indice = useMemo(() => indiceDe(doc), [doc]);
 
+    /**
+     * Las celdas se van montando solas mientras nadie está esperando.
+     *
+     * ## El problema que resuelve
+     *
+     * Montar el panel de resultados de una celda cuesta unos 60-90 ms —medido, y
+     * es coste fijo: con cuarenta filas cuesta lo mismo que con cinco mil, así
+     * que no es la tabla, es el panel—. Montarlas al acercarse está bien hasta
+     * que alguien baja de corrido: entonces se pagan quince de golpe, una por
+     * cada celda que entra, y el desplazamiento da tirones de un cuarto de
+     * segundo justo mientras se mira.
+     *
+     * Aquí se le da turno a una celda por **hueco de inactividad**. Si hay algo
+     * que hacer —escribir, desplazarse, ejecutar— el navegador no concede el
+     * turno y esto no corre; cuando se para, monta una y vuelve a ponerse a la
+     * cola. El trabajo sigue siendo el mismo, pero se hace mientras se lee la
+     * primera celda en vez de mientras se baja a la décima.
+     *
+     * Una por turno a propósito: encadenar varias sin soltar el hilo reconstruye
+     * el mismo tirón que esto viene a quitar.
+     */
+    const [calientes, setCalientes] = useState(() => new Set());
+    /** Sólo la LISTA de celdas de SQL, para que teclear no rearme el turno. */
+    const idsSql = useMemo(
+        () => doc.celdas.filter((c) => c.tipo === 'sql').map((c) => c.id).join(','),
+        [doc.celdas],
+    );
+    useEffect(() => {
+        const ids = idsSql ? idsSql.split(',') : [];
+        if (!ids.length) return undefined;
+        // `requestIdleCallback` no existe en todas partes; el respaldo es un
+        // temporizador holgado, que no es lo mismo pero tampoco estorba.
+        const pedir = window.requestIdleCallback
+            ? (f) => window.requestIdleCallback(f, { timeout: 3000 })
+            : (f) => setTimeout(f, 300);
+        const soltar = window.cancelIdleCallback
+            ? (h) => window.cancelIdleCallback(h)
+            : (h) => clearTimeout(h);
+
+        let i = 0;
+        let turno = null;
+        let vivo = true;
+        const paso = () => {
+            if (!vivo || i >= ids.length) return;
+            const id = ids[i++];
+            setCalientes((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+            turno = pedir(paso);
+        };
+        turno = pedir(paso);
+        return () => { vivo = false; soltar(turno); };
+    }, [idsSql]);
+
     // ── análisis de cada celda: de aquí salen la descripción y el grafo. Se
     //    recalcula sólo cuando cambia el SQL. ─────────────────────────────────
     const analisis = useMemo(() => {
@@ -859,6 +911,7 @@ const CuadernoEditor = ({
                                     viva={estanVivas.has(String(c.nombre || '').toLowerCase())}
                                     frescura={frescuras.get(c.id)}
                                     enCiclo={ciclos.includes(c.id)}
+                                    precalentada={calientes.has(c.id)}
                                     estado={estados[claves[c.id]]}
                                     theme={theme}
                                     editorSettings={editorSettings}

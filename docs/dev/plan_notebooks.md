@@ -715,6 +715,18 @@ lo que más callado falla: que el `.docx` sale con su figura entera.
   que es cierto desde donde él mira y falso desde donde mira la persona. No se arregla
   dentro de este plan —toca la separación de vías, que existe por buenos motivos— pero es
   una confusión garantizada en cuanto las dos funciones se usen juntas.
+- **Lo que se monta no se vuelve a soltar.** Al arreglar el desplazamiento (ver abajo) las
+  celdas pasaron a montarse una vez y quedarse. En un cuaderno de dieciséis eso es lo que se
+  quiere; en uno de ciento cincuenta serían ciento cincuenta editores y ciento cincuenta
+  tablas vivas a la vez, y el problema dejaría de ser el tiempo para ser la memoria. El
+  reparto por turnos ya está escrito en un solo sitio (`CuadernoEditor`), así que ponerle un
+  tope —o soltar lo que lleve mucho rato lejos— es un cambio local el día que haga falta.
+  Hoy no hay ningún cuaderno así, y adelantarlo costaría volver a tener celdas que se
+  reconstruyen.
+- **El panel de resultados cuesta 60-90 ms fijos.** Medido: con cuarenta filas cuesta lo
+  mismo que con cinco mil, así que no es la tabla ni los datos, es armar el panel. Se ha
+  rodeado montándolo cuando nadie espera, que es lo que se podía hacer desde aquí; abaratarlo
+  es un trabajo dentro de `ResultsTable` y beneficia también al editor de `.sql`.
 - **Una celda que falla a medias deja lo anterior hecho.** También medido: no hay
   transacción, así que si la vista se crea y el `SELECT` falla, la vista queda. Hoy es
   inofensivo —la vista es la que se pidió— pero conviene tenerlo presente al llegar al grafo

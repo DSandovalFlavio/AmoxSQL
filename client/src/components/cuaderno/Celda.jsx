@@ -38,6 +38,7 @@ const Celda = ({
     viva,             // la vista de esta celda existe AHORA en la sesion
     frescura,         // 'nunca' | 'dia' | 'cambiada' | 'arriba'
     enCiclo,          // esta celda y otra se leen entre si
+    precalentada,     // el cuaderno ya le dio turno: montate aunque estes lejos
     estado = {},
     theme,
     editorSettings,
@@ -59,15 +60,19 @@ const Celda = ({
     const raiz = useRef(null);
     const [arrastrando, setArrastrando] = useState(false);
     /**
-     * El cuerpo sólo se monta cerca de lo que se ve.
+     * El cuerpo se monta al acercarse —o cuando el cuaderno le da turno— y ya
+     * no se desmonta.
      *
      * La cabecera se pinta siempre —es barata y es lo que se lee al recorrer— y
      * la caja mide sus 520 px esté montada o no, así que el desplazamiento no se
      * entera. Lo que se aplaza es el editor de código y la tabla de resultados
      * con su motor de gráficos: eso es lo que cuesta, y multiplicado por
      * dieciséis celdas es lo que dejaba el cuaderno clavado.
+     *
+     * Lo que NO se hace es deshacerlo al alejarse: el porqué está en
+     * `useCerca.js`, y el turno que reparte el cuaderno, en `CuadernoEditor`.
      */
-    const cerca = useCerca(raiz);
+    const cerca = useCerca(raiz, precalentada);
 
     /**
      * El tirador mueve el reparto de ESTA celda, no el del documento.
@@ -249,6 +254,7 @@ const Celda = ({
                                 truncated={resultado.truncated}
                                 rowLimit={resultado.rowLimit}
                                 onCreateNew={onCreateNew}
+                                lazyPanels
                                 initialViewMode={estado.vista || null}
                                 initialChartConfig={estado.grafico || null}
                                 onViewModeChange={alCambiarVista}

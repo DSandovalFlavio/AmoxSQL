@@ -221,6 +221,7 @@ const PantallaCompleta = ({
                                 truncated={resultado.truncated}
                                 rowLimit={resultado.rowLimit}
                                 onCreateNew={onCreateNew}
+                                lazyPanels
                                 initialViewMode={estado.vista || null}
                                 initialChartConfig={estado.grafico || null}
                                 onViewModeChange={alCambiarVista}
