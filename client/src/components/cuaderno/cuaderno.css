@@ -19,7 +19,7 @@
  *
  * ## El alto de la celda de SQL
  *
- * **500 px**: 464 de cuerpo, o sea unas veintitrés líneas de SQL y dieciocho
+ * **520 px**: 484 de cuerpo, o sea unas veinticuatro líneas de SQL y diecinueve
  * filas de resultado. El contrato lo derivaba en 280 —36 de cabecera + 34 de la
  * barra del resultado + 27 de la cabecera de la tabla + ocho filas de 22— y la
  * aritmética era correcta: ése es el mínimo con el que se RECONOCE un paso al
@@ -33,13 +33,15 @@
 :root {
     /* El canalón: siempre presente, aunque en reposo sólo lleve el punto. */
     --cdn-canalon: 34px;
-    /* La medida de lectura de la prosa. */
+    /* La medida de lectura. Ya sólo la usa la descripción del documento, que es
+       un subtítulo de una línea y con 1.400 px de ancho quedaría ridícula. La
+       prosa de las celdas NO la usa: ver `.cdn-celda--texto`. */
     --cdn-medida: 70ch;
     /* El margen lateral de cada fila. Sale a variable porque de él cuelgan tres
        cosas que tienen que moverse juntas: la fila, la cabecera del documento y
        la barra de selección. Con 20 px la celda parecía encajada a la fuerza
        contra el borde; un documento necesita margen, no encaje. */
-    --cdn-margen: 60px;
+    --cdn-margen: 80px;
 }
 
 .cdn {
@@ -266,7 +268,7 @@
     border-radius: var(--radius-lg);
     background: var(--surface-raised);
     overflow: hidden;
-    height: 500px;
+    height: 520px;
     display: flex;
     flex-direction: column;
     flex: none;
@@ -275,7 +277,7 @@
 /* ── la celda de texto: SIN CAJA ────────────────────────────────────────── */
 /* Ni borde, ni fondo, ni cabecera, ni tope de altura. Es el documento.
    El tope existía para que un texto largo no empujara el cuaderno fuera de la
-   pantalla, y esa regla se cae con la caja: cortar la prosa a 500 px con una
+   pantalla, y esa regla se cae con la caja: cortar la prosa con una
    barra de desplazamiento en mitad de una frase es peor que dejarla correr.
    Recorrer los PASOS sigue funcionando, porque los pasos son las celdas de SQL
    y ésas siguen midiendo todas lo mismo. */
@@ -285,9 +287,18 @@
     border: none;
     background: transparent;
     overflow: visible;
-    max-width: var(--cdn-medida);
     padding: var(--space-1) 0 var(--space-2);
 }
+
+/* SIN medida de lectura, y es un cambio de opinión.
+   La llevaba —70ch, unos 490 px— porque es la medida en la que se lee cómodo, y
+   porque en marimo la prosa va más estrecha que el código. Pero allí el código
+   también está dentro de una columna de documento; aquí la celda de SQL ocupa
+   todo el ancho, así que 490 contra 1.400 no se lee como ritmo: se lee como una
+   celda partida por la mitad.
+   Entre respetar la medida tipográfica y que el cuaderno no parezca roto, gana
+   lo segundo. Si una línea de 1.400 px acaba costando de leer, el arreglo es
+   poner aquí `max-width: var(--cdn-medida)` otra vez. */
 
 .cdn-cab {
     display: flex;
@@ -733,7 +744,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 @media (max-width: 1080px) {
     .cdn { grid-template-columns: minmax(0, 1fr); }
     .cdn-lado { display: none; }
-    .cdn-celda { height: 750px; }
+    .cdn-celda { height: 780px; }
     /* Sin sitio para el canalón: los mandos se quedan, pero estrechos. */
     /* Sin sitio para el margen grande: en estrecho el aire estorba más de lo
        que ayuda, así que vuelve a lo justo. */

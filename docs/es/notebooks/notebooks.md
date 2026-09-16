@@ -29,7 +29,7 @@ salidas ([Word y tablero](reports.md)).
 
 ### La celda
 
-Editor a la izquierda, resultado a la derecha, y **500 px de alto, siempre los mismos** —unas veintitrés líneas de SQL y dieciocho filas de resultado—. La altura fija no es un descuido: con celdas que crecen, un cuaderno de veinte deja de poder recorrerse. Para trabajar de cerca está la pantalla completa.
+Editor a la izquierda, resultado a la derecha, y **520 px de alto, siempre los mismos** —unas veinticuatro líneas de SQL y diecinueve filas de resultado—. La altura fija no es un descuido: con celdas que crecen, un cuaderno de veinte deja de poder recorrerse. Para trabajar de cerca está la pantalla completa.
 
 La cabecera de la celda sólo **identifica**: el nombre, la descripción y qué deja detrás.
 Los mandos viven en el **canalón de la izquierda** y aparecen al pasar el ratón o al
@@ -45,7 +45,7 @@ seleccionar la celda; en reposo el canalón sólo lleva el punto de estado.
 |---|---|
 | **Punto de estado** | Lo único visible en reposo. Cuatro estados; ver más abajo |
 | **Ejecutar** | `Ctrl+Enter` |
-| **Mando de tres posiciones** | Código y resultado · sólo el código · sólo el resultado. Se recuerda, y con él si estaba en tabla o en gráfico |
+| **Mando de tres posiciones** | Código y resultado · sólo el código · sólo el resultado. Se recuerda, y con él si estaba en tabla o en gráfico. El reparto parte de 40 % para el código y 60 % para el resultado, y el tirador del medio lo cambia |
 | **Materializar** | Guarda el resultado en vez de recalcularlo cada vez que se lea |
 | **Pantalla completa** | La celda ocupa la pestaña entera. `Esc` vuelve, y vuelve por donde estabas |
 | **Subir · Bajar · Borrar** | |
@@ -56,8 +56,9 @@ Una celda que no se puede envolver —varias sentencias, un `INSERT`, un `COPY`�
 
 ### La celda de texto
 
-**No tiene caja**: ni borde, ni cabecera, ni tope de altura. Es el documento. Doble clic para
-escribir, encima del propio texto; al salir, se compone. Sus encabezados (`#`, `##`, `###`)
+**No tiene caja**: ni borde, ni cabecera, ni tope de altura, y ocupa el mismo ancho que las
+demás. Es el documento. Doble clic para escribir, encima del propio texto; al salir, se
+compone. Sus encabezados (`#`, `##`, `###`)
 construyen solos el índice de la barra derecha.
 
 Para ver la fuente y el texto compuesto a la vez, pantalla completa — en la lista no hay caja

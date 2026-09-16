@@ -20,7 +20,7 @@
  *
  * ## La altura no es negociable
  *
- * 500 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
+ * 520 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
  * la vía de escape es la pantalla completa, no que la celda crezca. Con celdas
  * que crecen, un cuaderno de veinte deja de poder recorrerse.
  */
@@ -47,14 +47,22 @@ const Celda = ({
     onCreateNew,
 }) => {
     const modo = estado.modo || MODOS.AMBOS;
-    const reparto = estado.reparto ?? 0.5;
+    /**
+     * 40 % para el código y 60 % para el resultado.
+     *
+     * No es simetría lo que hace falta: el código de un paso cabe en pocas
+     * líneas y el resultado trae columnas, y una tabla estrecha obliga a
+     * desplazarse en horizontal, que es peor que leer el SQL en líneas más
+     * cortas. El tirador sigue estando: esto es sólo de dónde se parte.
+     */
+    const reparto = estado.reparto ?? 0.4;
     const raiz = useRef(null);
     const [arrastrando, setArrastrando] = useState(false);
     /**
      * El cuerpo sólo se monta cerca de lo que se ve.
      *
      * La cabecera se pinta siempre —es barata y es lo que se lee al recorrer— y
-     * la caja mide sus 500 px esté montada o no, así que el desplazamiento no se
+     * la caja mide sus 520 px esté montada o no, así que el desplazamiento no se
      * entera. Lo que se aplaza es el editor de código y la tabla de resultados
      * con su motor de gráficos: eso es lo que cuesta, y multiplicado por
      * dieciséis celdas es lo que dejaba el cuaderno clavado.

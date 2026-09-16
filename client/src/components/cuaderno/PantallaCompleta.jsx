@@ -57,7 +57,15 @@ const PantallaCompleta = ({
 }) => {
     const esTexto = celda.tipo === 'texto';
     const modo = estado.modo || MODOS.AMBOS;
-    const reparto = estado.reparto ?? 0.5;
+    /**
+     * 40 % para el código y 60 % para el resultado.
+     *
+     * No es simetría lo que hace falta: el código de un paso cabe en pocas
+     * líneas y el resultado trae columnas, y una tabla estrecha obliga a
+     * desplazarse en horizontal, que es peor que leer el SQL en líneas más
+     * cortas. El tirador sigue estando: esto es sólo de dónde se parte.
+     */
+    const reparto = estado.reparto ?? 0.4;
     const raiz = useRef(null);
     const [arrastrando, setArrastrando] = useState(false);
 

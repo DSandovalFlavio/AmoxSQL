@@ -29,7 +29,7 @@ out ([Word and deck](reports.md)).
 
 ### The cell
 
-Editor on the left, result on the right, and **500 px tall, always the same** — about twenty-three lines of SQL and eighteen result rows. The fixed height is not an oversight: with cells that grow, a twenty-cell notebook stops being something you can scan. For close work there is full screen.
+Editor on the left, result on the right, and **520 px tall, always the same** — about twenty-four lines of SQL and nineteen result rows. The fixed height is not an oversight: with cells that grow, a twenty-cell notebook stops being something you can scan. For close work there is full screen.
 
 The cell's header only **identifies** it: name, description, and what it leaves behind. The
 controls live in the **left gutter** and appear on hover or selection; at rest the gutter
@@ -45,7 +45,7 @@ carries only the status dot.
 |---|---|
 | **Status dot** | The only thing visible at rest. Four states; see below |
 | **Run** | `Ctrl+Enter` |
-| **Three-way control** | Code and result · code only · result only. Remembered, and with it whether it was a table or a chart |
+| **Three-way control** | Code and result · code only · result only. Remembered, and with it whether it was a table or a chart. The split starts at 40 % code / 60 % result, and the handle in the middle changes it |
 | **Materialize** | Stores the result instead of recomputing it on every read |
 | **Full screen** | The cell takes the whole tab. `Esc` goes back, and back to where you were |
 | **Up · Down · Delete** | |
@@ -56,8 +56,8 @@ A cell that cannot be wrapped — several statements, an `INSERT`, a `COPY` — 
 
 ### The text cell
 
-**It has no box**: no border, no header, no height cap. It is the document. Double-click to
-write, in place; leave and it renders. Its headings (`#`, `##`, `###`) build the outline in the
+**It has no box**: no border, no header, no height cap, and it takes the same width as the
+others. It is the document. Double-click to write, in place; leave and it renders. Its headings (`#`, `##`, `###`) build the outline in the
 right sidebar on their own.
 
 To see the source and the rendered text at once, use full screen — in the list there is no box

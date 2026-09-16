@@ -13,7 +13,7 @@ Eso no lo inventa la interfaz. `DatabaseManager` mantiene **una conexión viva p
 | Archivo | Responsabilidad |
 |---|---|
 | `client/src/components/cuaderno/CuadernoEditor.jsx` | El contenedor: documento, ejecución, estado visual, exportes |
-| `client/src/components/cuaderno/Celda.jsx` | Celda de SQL: 500 px fijos. Su cabecera sólo IDENTIFICA —nombre, descripción, qué deja— |
+| `client/src/components/cuaderno/Celda.jsx` | Celda de SQL: 520 px fijos, reparto inicial 40/60. Su cabecera sólo IDENTIFICA —nombre, descripción, qué deja— |
 | `client/src/components/cuaderno/Canalon.jsx` | Los mandos, en el canalón izquierdo. Invisibles en reposo |
 | `client/src/components/cuaderno/CeldaTexto.jsx` | Celda de texto SIN CAJA: es el documento. Sin borde, sin cabecera, sin tope de altura |
 | `client/src/components/cuaderno/PantallaCompleta.jsx` | Una celda ocupando la pestaña entera |
@@ -96,8 +96,11 @@ el resto:
 1. **El cromo aparece a demanda y vive en el canalón izquierdo.** En reposo una celda enseña
    quién es y qué deja detrás; nada más. Diez botones por celda son ochenta en un cuaderno de
    ocho, y el que de verdad se usa —Ejecutar— competía con nueve vecinos.
-2. **La prosa no vive en una caja.** Sin borde, sin cabecera, sin tope de altura, con medida
-   de lectura (70ch) y sangrada respecto al código, que sí ocupa el ancho.
+2. **La prosa no vive en una caja.** Sin borde, sin cabecera y sin tope de altura. Llevó una
+   medida de lectura de 70ch —como en las referencias, donde la prosa va más estrecha que el
+   código— y se quitó: allí el código también está dentro de una columna de documento, y aquí
+   ocupa todo el ancho, así que 490 px contra 1.400 no se leía como ritmo sino como una celda
+   partida.
 3. **La selección es una barra a la izquierda**, no un borde alrededor: un borde que cambia de
    color compite con el de la celda de al lado.
 

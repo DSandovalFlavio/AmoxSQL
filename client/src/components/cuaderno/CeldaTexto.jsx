@@ -8,7 +8,7 @@
  * ## Por qué pierde el tope de altura
  *
  * Lo tenía para que un texto largo no empujara el cuaderno fuera de la pantalla,
- * y esa regla se cae con la caja: cortar la prosa a 500 px con una barra de
+ * y esa regla se cae con la caja: cortar la prosa con una barra de
  * desplazamiento en mitad de una frase es peor que dejarla correr. Poder
  * **recorrer los pasos** sigue funcionando, porque los pasos son las celdas de
  * SQL y ésas siguen midiendo todas lo mismo. Un texto no es un paso.
