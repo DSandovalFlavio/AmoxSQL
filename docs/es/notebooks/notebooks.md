@@ -23,7 +23,7 @@ A diferencia del [Editor SQL](../editor/sql-editor.md) —una consulta enfocada�
 
 ### La celda
 
-Editor a la izquierda, resultado a la derecha, y **280 px de alto, siempre los mismos**. No es una limitación por descuido: con celdas que crecen, un cuaderno de veinte deja de poder recorrerse. Para trabajar de cerca está la pantalla completa.
+Editor a la izquierda, resultado a la derecha, y **420 px de alto, siempre los mismos** —unas diecinueve líneas de SQL y catorce filas de resultado—. La altura fija no es un descuido: con celdas que crecen, un cuaderno de veinte deja de poder recorrerse. Para trabajar de cerca está la pantalla completa.
 
 En la cabecera de cada celda:
 

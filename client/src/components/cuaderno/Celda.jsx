@@ -26,7 +26,7 @@
  *
  * ## La altura no es negociable
  *
- * 280 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
+ * 420 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
  * la vía de escape es la pantalla completa, no que la celda crezca. Con
  * celdas que crecen, un cuaderno de veinte deja de poder recorrerse.
  */
@@ -235,7 +235,7 @@ const Celda = ({
                     </div>
                 )}
 
-                {/* La vía de escape de los 280 px. La celda no crece: se pide
+                {/* La vía de escape del alto fijo. La celda no crece: se pide
                     la pantalla entera para la que se está trabajando. */}
                 <div className="cdn-grupo">
                     <button

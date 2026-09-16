@@ -1,9 +1,9 @@
 /**
  * Una celda de texto.
  *
- * **Se ajusta a su contenido, con 280 px de tope.** Ésa es la única diferencia
+ * **Se ajusta a su contenido, con 420 px de tope.** Ésa es la única diferencia
  * de forma con una de código, y no es un capricho: un encabezado suelto no debe
- * reservar 280 px de vacío, y un texto largo no debe empujar el resto del
+ * reservar 420 px de vacío, y un texto largo no debe empujar el resto del
  * cuaderno fuera de la pantalla. Crece hasta el tope y ahí se desplaza por
  * dentro.
  *
@@ -17,7 +17,7 @@
  * ## Para la prosa larga está la pantalla completa
  *
  * Documentar un análisis a fondo —el contexto, la metodología, lo que se
- * descartó— no cabe en 280 px, y no debe: aquí se reconoce de qué va la sección,
+ * descartó— no cabe en una celda, y no debe: aquí se reconoce de qué va la sección,
  * y para escribirla se pide la pantalla entera, igual que con una consulta de
  * cuarenta líneas.
  */

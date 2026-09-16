@@ -3,7 +3,7 @@
  *
  * ## Para qué existe
  *
- * Porque la celda mide 280 px **y eso no se negocia**: con celdas que crecen, un
+ * Porque la celda tiene un alto fijo **y eso no se negocia**: con celdas que crecen, un
  * cuaderno de veinte deja de poder recorrerse. La vía de escape no es que la
  * celda engorde, es pedir la pantalla entera para la que estás trabajando.
  *

@@ -180,6 +180,11 @@ Medido en la aplicación con un `.sqlnb` del formato viejo: las celdas de códig
 columnas a una y la altura no se mueve, y al ponerle nombre a una celda el archivo se
 reescribió en el formato nuevo.
 
+> **Corregido después, usándolo:** 280 px era el mínimo con el que se reconoce un paso, y en
+> la pantalla de verdad se quedaba corto —ocho filas obligan a desplazarse por dentro para
+> casi todo—. Ahora son **420**, el mismo número a escala 1,5: unas diecinueve líneas de SQL
+> y catorce filas. La regla no cambia; el número sí, y hacía falta usarlo para verlo.
+
 ### Lo que se desvió, y por qué
 
 **El editor de markdown completo no cabe en una celda.** Trae tres columnas, índice, modo
