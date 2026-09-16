@@ -110,7 +110,24 @@ export function componerCelda({ sql, analisis, nombre, descripcion, materializar
     // El salto de línea tras el paréntesis no es estética: si la consulta
     // empieza por un comentario `--`, pegarlo a `AS (` dejaría el paréntesis
     // dentro del comentario.
-    const sentencias = [`CREATE OR REPLACE ${clase} ${id} AS (\n${cuerpo}\n);`];
+    //
+    // Y antes de crear se tira lo temporal **del otro tipo**. `CREATE OR
+    // REPLACE` no cambia de tipo: con una vista temporal puesta, `CREATE OR
+    // REPLACE TEMP TABLE` responde «Existing object x is of type View, trying
+    // to replace with type Table» y la celda se queda rota hasta cerrar el
+    // proyecto. El caso no es raro: lo provoca el botón «Materializar» del
+    // canalón, que existe justo para eso.
+    //
+    // Va calificado a `temp.main` A PROPÓSITO. Un `DROP VIEW IF EXISTS x` a
+    // secas borraría la vista PERMANENTE del mismo nombre —la de quien abrió el
+    // proyecto, que no es nuestra y no vuelve al cerrar—. Medido contra el
+    // motor: con el nombre calificado la permanente sigue en su sitio en todos
+    // los casos, y cuando no hay nada que tirar los `DROP` no estorban.
+    const otro = materializar ? 'VIEW' : 'TABLE';
+    const sentencias = [
+        `DROP ${otro} IF EXISTS temp.main.${id};`,
+        `CREATE OR REPLACE ${clase} ${id} AS (\n${cuerpo}\n);`,
+    ];
 
     // La descripción se guarda EN EL MOTOR, no sólo en el documento: así la
     // vista se explica sola desde cualquier sitio que lea el catálogo.

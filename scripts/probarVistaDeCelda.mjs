@@ -54,7 +54,8 @@ comprobar('los nombres puestos a mano no estorban', nombrePorOmision(['ventas'])
     comprobar(
         'la preparación crea la vista y le pone la descripción',
         r.preparacion,
-        'CREATE OR REPLACE TEMP VIEW "ventas_limpias" AS (\n-- Quito devoluciones\nSELECT * FROM ventas\n);\n'
+        'DROP TABLE IF EXISTS temp.main."ventas_limpias";\n'
+        + 'CREATE OR REPLACE TEMP VIEW "ventas_limpias" AS (\n-- Quito devoluciones\nSELECT * FROM ventas\n);\n'
         + 'COMMENT ON VIEW "ventas_limpias" IS \'Quito devoluciones\';',
     );
     comprobar('el lector empieza por SELECT, que es lo que el límite sabe recortar', r.lector.startsWith('SELECT'), true);
@@ -71,8 +72,27 @@ comprobar('los nombres puestos a mano no estorban', nombrePorOmision(['ventas'])
 comprobar(
     'sin descripción no se manda COMMENT ON',
     componer('SELECT 1', { nombre: 'p' }).preparacion,
-    'CREATE OR REPLACE TEMP VIEW "p" AS (\nSELECT 1\n);',
+    'DROP TABLE IF EXISTS temp.main."p";\nCREATE OR REPLACE TEMP VIEW "p" AS (\nSELECT 1\n);',
 );
+
+// ── cambiar de tipo: lo que rompía «Materializar» ───────────────────────────
+// `CREATE OR REPLACE` no cambia el tipo de un objeto. Medido contra el motor:
+// con una vista temporal puesta, `CREATE OR REPLACE TEMP TABLE` responde
+// «Existing object x is of type View, trying to replace with type Table», y la
+// celda se queda rota hasta cerrar el proyecto. Por eso se tira antes lo
+// temporal del OTRO tipo.
+{
+    const vista = componer('SELECT 1', { nombre: 'p' }).preparacion;
+    const tabla = componer('SELECT 1', { nombre: 'p', materializar: true }).preparacion;
+    comprobar('una celda normal tira la TABLA temporal que hubiera', vista.includes('DROP TABLE IF EXISTS temp.main."p";'), true);
+    comprobar('y una materializada tira la VISTA temporal', tabla.includes('DROP VIEW IF EXISTS temp.main."p";'), true);
+    comprobar('el DROP va ANTES del CREATE', vista.indexOf('DROP') < vista.indexOf('CREATE'), true);
+    // Calificar a `temp.main` es lo único que separa esto de borrarle a alguien
+    // una vista suya del mismo nombre, que no vuelve al cerrar el proyecto.
+    comprobar('nunca se tira un objeto sin calificar', /DROP \w+ IF EXISTS (?!temp\.main\.)/.test(vista), false);
+    comprobar('ni en la materializada', /DROP \w+ IF EXISTS (?!temp\.main\.)/.test(tabla), false);
+    comprobar('y el nombre va entrecomillado dentro del calificador', tabla.includes('temp.main."p"'), true);
+}
 
 // ── materializar ────────────────────────────────────────────────────────────
 {

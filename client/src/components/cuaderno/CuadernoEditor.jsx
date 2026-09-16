@@ -151,6 +151,8 @@ const CuadernoEditor = ({
      * Es estado del que mira, así que va al archivo de estado y no al documento.
      */
     const [lectura, setLectura] = useState(false);
+    /** Nombres que ya se aceptó tapar en este cuaderno; ver `ejecutar`. */
+    const tapadosOk = useRef(new Set());
     const dialog = useDialog();
     const toast = useToast();
 
@@ -532,7 +534,12 @@ const CuadernoEditor = ({
                 }),
             });
 
-            let r = await pedir(false);
+            // Un nombre que ya se aceptó tapar no se vuelve a preguntar. El
+            // aviso es para enterarse, no para pedir permiso cada vez: sin esto,
+            // «Actualizar» pregunta lo mismo en cada pasada, y lo que empezó
+            // siendo una advertencia útil acaba siendo un botón más que pulsar.
+            // Vive en el editor, así que al cerrar el cuaderno vuelve a avisar.
+            let r = await pedir(tapadosOk.current.has(vista?.toLowerCase()));
 
             // El nombre tapa algo real. Se pregunta ANTES de haber ejecutado
             // nada: una vista temporal esconde a la tabla del mismo nombre
@@ -551,7 +558,10 @@ const CuadernoEditor = ({
                     cancelLabel: 'Cambio el nombre',
                     destructive: true,
                 });
-                if (!seguir) { setCorriendo(null); return; }
+                // `null` y no `false`: quien cancela no ha fallado, ha decidido.
+                // «Actualizar» necesita distinguirlo para decir lo que pasó.
+                if (!seguir) { setCorriendo(null); return null; }
+                if (vista) tapadosOk.current.add(vista.toLowerCase());
                 r = await pedir(true);
             }
 
@@ -618,13 +628,29 @@ const CuadernoEditor = ({
         });
         if (!seguir) return;
 
-        for (const id of orden) {
+        for (let i = 0; i < orden.length; i++) {
             // En serie y parando al primer fallo: seguir ejecutando lo que
             // cuelga de algo que acaba de romperse sólo produce más errores, y
             // entierra el primero, que es el que explica todos los demás.
-            if (!(await ejecutar(id))) break;
+            const salida = await ejecutar(orden[i]);
+            if (salida === true) continue;
+
+            // Pararse está bien; **callarlo no**. Quien pulsó «Actualizar 16»
+            // ve unas cuantas celdas llenas y el resto en blanco, y nada en
+            // pantalla dice dónde se cortó ni por qué. El error está en la
+            // celda, pero puede estar a diez pantallas de aquí.
+            const quedaban = orden.length - i - 1;
+            const cola = quedaban
+                ? ` ${quedaban === 1 ? 'Queda una celda' : `Quedan ${quedaban} celdas`} sin ejecutar.`
+                : '';
+            if (salida === null) {
+                toast.info(`Se paró en «${nombreDe(orden[i])}»: cámbiale el nombre y vuelve a intentarlo.${cola}`);
+            } else {
+                toast.error(`«${nombreDe(orden[i])}» falló, así que se paró ahí: lo que cuelga de ella habría fallado igual. El error está en la celda.${cola}`);
+            }
+            return;
         }
-    }, [pendientes, doc.celdas, dialog, ejecutar]);
+    }, [pendientes, doc.celdas, dialog, ejecutar, toast]);
 
     /**
      * Abrir y cerrar la pantalla completa, **volviendo por donde se estaba**.
