@@ -657,7 +657,10 @@ const EditorPane = ({
                             key={activeTab.id}
                             content={activeTab.content}
                             onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
-                            onRunQuery={(q) => handleRunWithTimestamp(activeTab.id, q)}
+                            /* El cuaderno ejecuta por su cuenta —tiene que mandar la vista
+                               junto a la consulta—, asi que de aqui solo se lleva la marca
+                               de tiempo que alimenta el «Ran hace X» de la pestana. */
+                            onEjecutada={() => { lastRunTimeRef.current = new Date(); }}
                             onSave={() => onSave && onSave()}
                             filePath={activeTab.path || null}
                             theme={theme}

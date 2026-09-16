@@ -3821,6 +3821,125 @@ app.post('/api/query', async (req, res) => {
     }
 });
 
+/**
+ * Ejecuta una celda de cuaderno: deja la vista puesta y devuelve sus filas.
+ *
+ * ## Por que no basta con /api/query
+ *
+ * Por el limite de filas. `applyRowLimit` solo recorta un texto que EMPIECE por
+ * `SELECT` o `WITH`; si se mandara todo junto empezaria por `CREATE`, pasaria de
+ * largo, y la celda se traeria la tabla entera al navegador sin que nadie lo
+ * pidiera. Por eso llegan dos piezas: `preparacion` deja la vista y `lector`
+ * —que si empieza por SELECT— trae las filas ya recortadas.
+ *
+ * Van en UNA llamada y no en dos porque la via es una conexion viva: entre dos
+ * llamadas cabria una cancelacion, y la celda quedaria con la vista creada y sin
+ * filas que ensenar.
+ *
+ * ## El aviso de nombre tapado
+ *
+ * Medido contra el motor: una vista temporal llamada `ventas` tapa a la tabla
+ * real `ventas` **y tambien a `main.ventas`**; solo se escapa escribiendo el
+ * catalogo entero (`memory.main.ventas`). Asi que crear la vista en silencio
+ * dejaria la tabla de verdad fuera del alcance de quien escriba `FROM ventas`
+ * mas abajo, sin un solo error. Se avisa ANTES de ejecutar y no se ejecuta nada
+ * hasta que el aviso se acepta.
+ */
+app.post('/api/cuaderno/celda', async (req, res) => {
+    const { preparacion, lector, vista, limit, queryId, aceptarTapado } = req.body;
+    if (!lector) return res.status(400).json({ error: 'Falta la consulta de lectura' });
+
+    if (vista && !aceptarTapado) {
+        try {
+            const choque = await dbManager.systemQuery(`
+                SELECT name, tipo FROM (
+                    SELECT table_name AS name, 'tabla' AS tipo, temporary FROM duckdb_tables()
+                    UNION ALL
+                    SELECT view_name, 'vista', temporary FROM duckdb_views() WHERE NOT internal
+                ) WHERE NOT temporary AND lower(name) = lower('${String(vista).replace(/'/g, "''")}')
+                LIMIT 1
+            `);
+            if (choque.length) {
+                return res.json({ tapado: { nombre: choque[0].name, tipo: choque[0].tipo } });
+            }
+        } catch (err) {
+            // Que no se pueda mirar el catalogo no debe impedir trabajar; se
+            // sigue sin el aviso, que es lo que pasaba hasta hoy de todos modos.
+            console.warn('[cuaderno] no se pudo comprobar el nombre:', err.message);
+        }
+    }
+
+    const { sql: lectorLimitado, limited, limit: rowLimit } = applyRowLimit(lector, limit);
+    const qid = queryId || require('crypto').randomUUID();
+    activeQueries.set(qid, {
+        interrupt: () => {
+            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
+        },
+    });
+    req.on('close', () => {
+        if (activeQueries.has(qid) && !res.headersSent && dbManager.isRunning('main', qid)) {
+            dbManager.interruptQuery('main');
+        }
+        activeQueries.delete(qid);
+    });
+
+    try {
+        const start = performance.now();
+        if (preparacion) await dbManager.queryWithMetadata(preparacion, { trackId: qid });
+        const result = await dbManager.queryWithMetadata(lectorLimitado, { trackId: qid });
+        const end = performance.now();
+
+        let rows = result.rows;
+        let truncated = false;
+        if (limited && rows.length > rowLimit) {
+            rows = rows.slice(0, rowLimit);
+            truncated = true;
+        }
+
+        // La celda ha podido crear o tapar objetos: el contexto de tablas que
+        // alimenta el autocompletado y a la IA deja de valer.
+        if (preparacion) invalidateTableContextCache();
+
+        res.json({
+            data: rows,
+            types: result.types,
+            executionTime: (end - start).toFixed(2),
+            rowCount: rows.length,
+            truncated,
+            rowLimit: limited ? rowLimit : null,
+            queryId: qid,
+            vista: vista || null,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    } finally {
+        activeQueries.delete(qid);
+    }
+});
+
+/**
+ * Las vistas y tablas temporales vivas de la sesion, con su descripcion.
+ *
+ * Son el equivalente al dataframe que ya existia y que la interfaz nunca conto.
+ * `NOT internal` deja fuera las del propio motor.
+ */
+app.get('/api/cuaderno/vistas', async (req, res) => {
+    try {
+        const filas = await dbManager.systemQuery(`
+            SELECT view_name AS nombre, 'vista' AS tipo, comment AS descripcion
+            FROM duckdb_views() WHERE temporary AND NOT internal
+            UNION ALL
+            SELECT table_name, 'tabla', comment
+            FROM duckdb_tables() WHERE temporary AND NOT internal
+            ORDER BY nombre
+        `);
+        res.json(filas);
+    } catch (err) {
+        console.warn('[cuaderno] no se pudieron listar las vistas vivas:', err.message);
+        res.json([]);
+    }
+});
+
 app.post('/api/query/cancel/:queryId', (req, res) => {
     const { queryId } = req.params;
     const entry = activeQueries.get(queryId);

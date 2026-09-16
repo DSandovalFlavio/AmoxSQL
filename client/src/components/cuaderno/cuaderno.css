@@ -109,6 +109,32 @@
 
 .cdn-sp { flex: 1; }
 
+/* Lo que la celda deja detrás. Apagado mientras no exista de verdad en la
+   sesión: pintarlo igual prometería algo que la celda de abajo no podría leer. */
+.cdn-deja {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    height: 18px;
+    padding: 0 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs, 11px);
+    color: var(--text-disabled);
+    white-space: nowrap;
+}
+.cdn-deja--viva {
+    color: var(--accent-primary);
+    border-color: color-mix(in oklch, var(--accent-primary) 40%, transparent);
+    background: color-mix(in oklch, var(--accent-primary) 10%, transparent);
+}
+.cdn-deja--nada { border-style: dashed; }
+.cdn-deja--escribe {
+    color: var(--color-warning, var(--feedback-warning-text));
+    border-color: color-mix(in oklch, var(--color-warning, #d08700) 40%, transparent);
+}
+
 /* Los botones van PEGADOS compartiendo borde, como en el editor de .sql. */
 .cdn-grupo { display: flex; align-items: center; flex: none; }
 .cdn-grupo .cdn-btn { border-radius: 0; border-left: none; }

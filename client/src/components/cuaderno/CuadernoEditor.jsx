@@ -7,12 +7,18 @@
  * celdas miden todas lo mismo**, que cada una decide qué enseña, y que a la
  * derecha hay un índice que se mantiene solo.
  *
- * ## Lo que esta fase trae y lo que no
+ * ## La vista implícita
  *
- * Trae la celda: su altura, su mando de tres posiciones, su reparto y el índice.
- * **La vista implícita es la fase 2**, así que por ahora una celda se ejecuta tal
- * cual se escribe; el nombre ya se puede poner y es lo que después creará la
- * vista.
+ * Es lo que justifica que el cuaderno sea un formato y no un `.sql` con adornos:
+ * **nadie escribe `CREATE OR REPLACE TEMP VIEW`**. Se escribe la consulta, la
+ * celda le pone nombre —uno puesto a mano, o `paso_N` si se ejecuta sin él— y la
+ * celda de abajo ya puede escribir `FROM ese_nombre`. El comentario de arriba de
+ * la consulta se convierte en la descripción de la vista, y se guarda en el
+ * motor, no sólo en el documento.
+ *
+ * Esto no inventa nada: la sesión de AmoxSQL ya era una conexión viva donde una
+ * vista temporal sobrevive de una consulta a la siguiente. Lo único que faltaba
+ * era que la interfaz lo contara.
  *
  * ## El estado visual va aparte, y por identidad
  *
@@ -31,6 +37,8 @@ import { LuPlus, LuFileText, LuSave, LuBot, LuX } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { leerCuaderno, escribirCuaderno, indiceDe } from '../../utils/cuadernoFile.js';
 import { analizarCelda } from '../../utils/celdaSql.js';
+import { componerCelda, nombrePorOmision } from '../../utils/vistaDeCelda.js';
+import { useDialog } from '../dialogs/DialogProvider';
 import Celda from './Celda.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
 import { claveDeCelda, reclavar } from './claves.js';
@@ -41,7 +49,7 @@ const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).s
 const CuadernoEditor = ({
     content,
     onChange,
-    onRunQuery,
+    onEjecutada,      // () -> solo para la marca de tiempo de la pestana
     onSave,
     filePath = null,
     theme,
@@ -55,6 +63,25 @@ const CuadernoEditor = ({
     const [estados, setEstados] = useState({});
     const [corriendo, setCorriendo] = useState(null);
     const [seleccionada, setSeleccionada] = useState(null);
+    /**
+     * Lo que está vivo en la sesión ahora mismo.
+     *
+     * No se deduce del documento, **se le pregunta al motor**: una vista existe
+     * porque alguien ejecutó la celda, no porque est'e escrita. Un cuaderno
+     * reci'en abierto tiene todas sus celdas y ninguna vista, y enseñar lo
+     * contrario sería mentir sobre lo que se puede consultar.
+     */
+    const [vivas, setVivas] = useState([]);
+    const dialog = useDialog();
+
+    const refrescarVistas = useCallback(() => {
+        fetch(`${API_BASE}/api/cuaderno/vistas`)
+            .then((r) => r.json())
+            .then((v) => setVivas(Array.isArray(v) ? v : []))
+            .catch(() => { /* sin listado se sigue trabajando igual */ });
+    }, []);
+
+    useEffect(() => { refrescarVistas(); }, [refrescarVistas]);
 
     /**
      * El texto del documento se rehace al cambiar las celdas, no al revés.
@@ -167,6 +194,12 @@ const CuadernoEditor = ({
 
     const indice = useMemo(() => indiceDe(doc), [doc]);
 
+    /** Los nombres vivos, en minusculas: el motor no distingue mayusculas. */
+    const estanVivas = useMemo(
+        () => new Set(vivas.map((v) => String(v.nombre || '').toLowerCase())),
+        [vivas],
+    );
+
     // ── operaciones sobre las celdas ────────────────────────────────────────
     const cambiarCelda = useCallback((id, campos) => {
         emitir({ ...doc, celdas: doc.celdas.map((c) => (c.id === id ? { ...c, ...campos } : c)) });
@@ -199,17 +232,86 @@ const CuadernoEditor = ({
         emitir({ ...doc, celdas });
     }, [doc, emitir]);
 
+    /**
+     * Ejecuta una celda dejando su vista puesta.
+     *
+     * Ésta es la fase que justifica el formato: **nadie escribe un `CREATE`**.
+     * Si la celda se puede envolver y no tiene nombre, se le pone uno aquí y
+     * **se escribe en el documento**, porque a partir de ese momento existe de
+     * verdad en la sesión y la celda de abajo puede escribir `FROM ese_nombre`.
+     * Un nombre que viviera sólo en la memoria sería una vista fantasma.
+     */
     const ejecutar = useCallback(async (id) => {
         const celda = doc.celdas.find((c) => c.id === id);
         if (!celda || celda.tipo !== 'sql' || !celda.contenido.trim()) return;
+
+        const an = analizarCelda(celda.contenido);
+
+        // El bautizo, si hace falta, y antes de componer nada.
+        let nombre = String(celda.nombre || '').trim();
+        if (an.envolvible && !nombre) {
+            const usados = doc.celdas.filter((c) => c.id !== id).map((c) => c.nombre);
+            nombre = nombrePorOmision(usados);
+            cambiarCelda(id, { nombre });
+        }
+
+        const { preparacion, lector, vista, deja } = componerCelda({
+            sql: celda.contenido,
+            analisis: an,
+            nombre,
+            descripcion: an.comentario,
+            materializar: !!celda.materializada,
+        });
+
         setCorriendo(id);
+        onEjecutada?.();
         try {
-            const r = await onRunQuery?.(celda.contenido);
-            setResultados((prev) => ({ ...prev, [id]: { ...(r || {}), consulta: celda.contenido } }));
+            const pedir = (aceptarTapado) => fetch(`${API_BASE}/api/cuaderno/celda`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    preparacion,
+                    lector,
+                    vista,
+                    aceptarTapado,
+                    limit: editorSettings?.queryResultLimit ?? 10000,
+                }),
+            }).then((r) => r.json());
+
+            let r = await pedir(false);
+
+            // El nombre tapa algo real. Se pregunta ANTES de haber ejecutado
+            // nada: una vista temporal esconde a la tabla del mismo nombre
+            // incluso escribiendo `main.ventas`, así que hacerlo en silencio
+            // dejaría a quien escriba `FROM ventas` más abajo leyendo otra cosa
+            // sin un solo error.
+            if (r?.tapado) {
+                const seguir = await dialog.confirmAsync({
+                    title: `Ya existe ${r.tapado.tipo === 'tabla' ? 'una tabla' : 'una vista'} «${r.tapado.nombre}»`,
+                    message: 'Si esta celda usa ese nombre, la tapará durante toda la sesión: '
+                        + `lo que lea «FROM ${r.tapado.nombre}» verá el resultado de la celda y no `
+                        + `${r.tapado.tipo === 'tabla' ? 'la tabla' : 'la vista'} original, `
+                        + 'ni siquiera escribiendo el esquema delante. '
+                        + 'Nada se borra, y al cerrar el proyecto vuelve todo a su sitio.',
+                    confirmLabel: 'Taparla igualmente',
+                    cancelLabel: 'Cambio el nombre',
+                    destructive: true,
+                });
+                if (!seguir) { setCorriendo(null); return; }
+                r = await pedir(true);
+            }
+
+            setResultados((prev) => ({
+                ...prev,
+                [id]: { ...(r || {}), consulta: celda.contenido, deja, vista },
+            }));
+            if (preparacion) refrescarVistas();
+        } catch (e) {
+            setResultados((prev) => ({ ...prev, [id]: { error: e?.message || String(e), consulta: celda.contenido, deja } }));
         } finally {
             setCorriendo(null);
         }
-    }, [doc.celdas, onRunQuery]);
+    }, [doc.celdas, cambiarCelda, dialog, editorSettings, refrescarVistas, onEjecutada]);
 
     const irA = useCallback((idCelda) => {
         const el = document.getElementById(`cdn-${idCelda}`);
@@ -237,6 +339,7 @@ const CuadernoEditor = ({
                                 celda={c}
                                 analisis={analisis[c.id]}
                                 resultado={resultados[c.id]}
+                                viva={estanVivas.has(String(c.nombre || '').toLowerCase())}
                                 estado={estados[claves[c.id]]}
                                 seleccionada={seleccionada === c.id}
                                 corriendo={corriendo === c.id}

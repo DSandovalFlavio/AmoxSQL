@@ -1,6 +1,17 @@
 /**
  * Una celda de código: editor a la izquierda, resultado a la derecha.
  *
+ * ## La cabecera dice qué deja detrás
+ *
+ * El nombre no es una etiqueta: es el de la vista que la celda pone en la sesión
+ * al ejecutarse. Al lado, un distintivo apagado mientras esa vista **no exista
+ * de verdad** —una vista existe porque alguien ejecutó la celda, no porque esté
+ * escrita—, y encendido cuando el motor confirma que está viva.
+ *
+ * Una celda que no se puede envolver lo dice —«no deja vista»— sin tratarlo como
+ * un fallo, porque no lo es: hay celdas que están para cargar o para escribir. Y
+ * si escribe en el disco lo avisa aparte, porque eso no se deshace al cerrar.
+ *
  * ## El mando de tres posiciones
  *
  * Código y resultado / sólo código / sólo resultado. Existe porque **no siempre
@@ -22,6 +33,7 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import {
     LuPlay, LuColumns2, LuCode, LuTable, LuTrash2, LuChevronUp, LuChevronDown, LuLoaderCircle,
+    LuDatabase, LuLayers, LuTriangleAlert,
 } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
@@ -31,6 +43,7 @@ const Celda = ({
     celda,
     analisis,
     resultado,
+    viva,             // la vista de esta celda existe AHORA en la sesion
     estado = {},
     seleccionada,
     corriendo,
@@ -81,6 +94,8 @@ const Celda = ({
 
     const estadoPunto = resultado?.error ? 'falla' : resultado ? 'dia' : 'nunca';
     const soloUno = modo !== MODOS.AMBOS;
+    /** ¿Esta celda puede dejar una vista con el nombre de la celda? */
+    const puedeDejarVista = !!analisis?.envolvible;
 
     return (
         <div
@@ -92,17 +107,51 @@ const Celda = ({
                 <span className={`cdn-est cdn-est--${estadoPunto}`} title={
                     estadoPunto === 'falla' ? 'Falló' : estadoPunto === 'dia' ? 'Ejecutada' : 'Sin ejecutar'
                 } />
-                {/* El nombre se escribe aquí y no en el SQL. En la fase 2 será el
-                    de la vista que la celda crea sola; por ahora es la etiqueta
-                    con la que aparece en el cuaderno. */}
+                {/* El nombre se escribe aquí y NO en el SQL: es el de la vista
+                    que la celda deja puesta al ejecutarse. Si se deja en blanco
+                    se bautiza sola al ejecutar. */}
                 <input
                     className="cdn-nombre"
                     value={celda.nombre || ''}
                     placeholder="sin nombre"
                     spellCheck={false}
                     onChange={(e) => onCambiar(celda.id, { nombre: e.target.value.trim() })}
-                    title="El nombre de esta celda"
+                    title={celda.nombre
+                        ? `La siguiente celda puede escribir FROM ${celda.nombre}`
+                        : 'Se le pondrá uno al ejecutar'}
                 />
+                {/* Qué deja esta celda detrás. Apagado mientras no exista de
+                    verdad: una vista existe porque alguien ejecutó la celda, no
+                    porque esté escrita, y pintarla igual sería prometer algo
+                    que la siguiente celda no podría leer. */}
+                {puedeDejarVista && (
+                    <span
+                        className={`cdn-deja${viva ? ' cdn-deja--viva' : ''}`}
+                        title={viva
+                            ? `${celda.materializada ? 'Tabla' : 'Vista'} viva en la sesión`
+                            : 'Aún no existe: ejecuta la celda'}
+                    >
+                        {celda.materializada ? <LuDatabase size={11} /> : <LuLayers size={11} />}
+                        {celda.materializada ? 'tabla' : 'vista'}
+                    </span>
+                )}
+                {/* Lo que no se puede envolver no deja nada, y eso no es un
+                    fallo: hay celdas que están para cargar o para escribir. */}
+                {analisis && !analisis.vacia && !puedeDejarVista && !analisis.vistaPropia && (
+                    <span className="cdn-deja cdn-deja--nada" title={
+                        analisis.sentencias > 1
+                            ? 'Varias sentencias: se ejecutan tal cual'
+                            : 'No es una consulta: se ejecuta tal cual'
+                    }>no deja vista</span>
+                )}
+                {/* Escribir en el disco no se deshace al cerrar, y la diferencia
+                    con dejar una vista en la sesión es justo la que importa. */}
+                {analisis?.escribe === 'disco' && (
+                    <span className="cdn-deja cdn-deja--escribe" title="Esta celda modifica datos guardados, no sólo la sesión">
+                        <LuTriangleAlert size={11} />
+                        escribe
+                    </span>
+                )}
                 {/* La descripción sale del comentario de cabecera de la consulta:
                     no se escribe dos veces. */}
                 {analisis?.comentario && (
@@ -132,6 +181,24 @@ const Celda = ({
                         title="Sólo el resultado"
                     ><LuTable size={13} /></button>
                 </div>
+
+                {/* Materializar. Una vista es PEREZOSA: leerla vuelve a ejecutar
+                    su cadena entera, asi que un paso caro del que cuelgan otros
+                    cinco se paga cinco veces. Materializar lo cobra una vez —a
+                    cambio de que el resultado pueda quedarse viejo, que es
+                    exactamente lo que una vista nunca puede. */}
+                {puedeDejarVista && (
+                    <div className="cdn-grupo">
+                        <button
+                            type="button"
+                            className={`cdn-btn cdn-btn--icono${celda.materializada ? ' cdn-btn--on' : ''}`}
+                            onClick={() => onCambiar(celda.id, { materializada: !celda.materializada })}
+                            title={celda.materializada
+                                ? 'Materializada: el resultado se guarda. Vuelve a ejecutarla si cambian los datos de origen'
+                                : 'Materializar: guarda el resultado en vez de recalcularlo cada vez que se lea'}
+                        ><LuDatabase size={13} /></button>
+                    </div>
+                )}
 
                 <div className="cdn-grupo">
                     <button type="button" className="cdn-btn cdn-btn--icono" onClick={() => onSubir(celda.id)} title="Subir"><LuChevronUp size={13} /></button>

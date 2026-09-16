@@ -241,22 +241,103 @@ hubo funciones que compilaban, pasaban el linter y no se veían.
 
 La fase que justifica el formato.
 
-- [ ] Al ejecutar una celda envolvible, se manda **en una sola llamada**:
+- [x] Al ejecutar una celda envolvible, se manda **en una sola llamada**:
       `CREATE OR REPLACE TEMP VIEW <nombre> AS (…)`, el `COMMENT ON VIEW` con la
       descripción, y el `SELECT` que trae las filas.
-- [ ] **Nombre por omisión** y renombrado en el sitio desde la cabecera.
-- [ ] **La descripción sale del comentario de arriba** de la consulta, y va al motor.
-- [ ] Los tres bordes, cada uno con su salida:
+- [x] **Nombre por omisión** y renombrado en el sitio desde la cabecera.
+- [x] **La descripción sale del comentario de arriba** de la consulta, y va al motor.
+- [x] Los tres bordes, cada uno con su salida:
       - **No envolvible** → se ejecuta tal cual y la celda dice **«no deja vista»**, sin
         drama y sin error.
       - **Ya trae su `CREATE … VIEW`** → se respeta, y el nombre de la celda pasa a ser ése.
       - **El nombre choca** con algo del esquema → se avisa **antes** de ejecutar. Tapar una
         tabla real en silencio sería peor que fallar.
-- [ ] Interruptor de **materializar** (tabla temporal en vez de vista).
-- [ ] La celda avisa si **escribe** en la base — el dato ya lo da la fase 0.
+- [x] Interruptor de **materializar** (tabla temporal en vez de vista).
+- [x] La celda avisa si **escribe** en la base — el dato ya lo da la fase 0.
 
 **Criterio de terminado:** se escribe un `SELECT` con un comentario encima, se ejecuta, y la
 siguiente celda puede escribir `FROM <nombre>` sin que nadie haya escrito un `CREATE`.
+
+### Bitácora
+
+`client/src/utils/vistaDeCelda.js` compone lo que se manda —puro, con 40 pruebas en
+`scripts/probarVistaDeCelda.mjs`—, y el servidor recibe dos rutas nuevas:
+`POST /api/cuaderno/celda` y `GET /api/cuaderno/vistas`. La cabecera de la celda gana el
+distintivo de lo que deja, el interruptor de materializar y el aviso de escritura.
+
+El criterio se comprobó contra el servidor en marcha, con tres celdas encadenadas y sin un
+solo `CREATE` escrito a mano: la segunda leyó `FROM ventas_limpias`, la tercera leyó
+`FROM por_region`, y `duckdb_views()` devolvió las tres con su descripción puesta.
+
+### Lo que se midió antes de diseñar
+
+Todo lo de abajo se comprobó contra el motor, en una base desechable, antes de escribir el
+código — no se supuso:
+
+| Lo que se preguntó | Lo que contestó |
+|---|---|
+| ¿Tres sentencias en una llamada devuelven las filas de la última? | Sí |
+| ¿`COMMENT ON VIEW` vale en una vista temporal y se lee? | Sí, por `duckdb_views()` |
+| ¿Y en una tabla temporal? | Sí, con `COMMENT ON TABLE` y `duckdb_tables()` |
+| ¿Citar siempre el nombre da problemas al leerlo sin comillas? | No; `"select"` también vale |
+| ¿Los objetos temporales se ven entre vías? | **No**, son por conexión |
+| Si una sentencia falla, ¿se deshacen las anteriores? | **No**, no hay transacción |
+
+### Lo que se mandaba en una pieza, y por qué van en dos
+
+La idea inicial era mandar las tres sentencias juntas. **No se puede**, y el motivo es el
+límite de filas: `applyRowLimit` sólo recorta un texto que *empiece* por `SELECT` o `WITH`,
+y ese texto habría empezado por `CREATE`. Habría pasado de largo sin recortar nada, y una
+celda se habría traído la tabla entera al navegador sin que nadie lo pidiera.
+
+Así que van dos piezas en una sola llamada: `preparacion` deja la vista y `lector` —que sí
+empieza por `SELECT`— trae las filas ya recortadas. En una llamada y no en dos porque entre
+dos cabría una cancelación, y la celda quedaría con la vista creada y sin filas que enseñar.
+
+Ésta es la clase de detalle que no aparece leyendo el plan: apareció leyendo
+`applyRowLimit`.
+
+### El aviso de nombre tapado es más necesario de lo que el plan suponía
+
+El plan decía «tapar una tabla real en silencio sería peor que fallar». Medido, resulta ser
+peor de lo que sugería: una vista temporal llamada `ventas` tapa a la tabla `ventas` **y
+también a `main.ventas`**. Sólo se escapa escribiendo el catálogo entero
+(`memory.main.ventas`), que no lo escribe nadie.
+
+Es decir: alguien que ejecute una celda llamada `ventas` deja, durante toda la sesión, a
+cualquier consulta que diga `FROM ventas` leyendo el resultado de su celda en lugar de sus
+datos. Sin error, sin aviso, y con el nombre calificado dando el mismo resultado equivocado.
+
+Por eso el aviso llega **antes de ejecutar nada** —el servidor mira el catálogo y devuelve
+`{tapado}` sin tocar la sesión— y el texto dice exactamente qué va a pasar y que nada se
+borra.
+
+### Los nombres se escriben en el documento al bautizarlos
+
+Una celda sin nombre que se ejecuta recibe el primer `paso_N` libre, **y se escribe en el
+archivo**. Podría haberse quedado en memoria, y era más discreto; pero a partir de ese
+momento la vista existe de verdad en la sesión y la celda de abajo puede escribir
+`FROM paso_2`. Un nombre que sólo viviera en la memoria sería una vista fantasma: real en el
+motor, invisible en el documento, y perdida al reabrir.
+
+Se busca el hueco más bajo y no se cuenta celdas, para que **el nombre no dependa de la
+posición**: uno que cambiara al reordenar rompería el `FROM paso_3` de la celda de abajo.
+
+### Lo que se adelantó de la fase 3, y por qué
+
+`GET /api/cuaderno/vistas` y el listado de vistas vivas son material de la fase 3, pero la
+cabecera de la celda los necesitaba ya: el distintivo de «deja una vista» sólo dice la
+verdad si puede distinguir una vista **escrita** de una vista **viva**. Una vista existe
+porque alguien ejecutó la celda, no porque esté en el documento, y pintarlas igual sería
+prometer algo que la celda de abajo no podría leer. La barra que las lista sigue siendo
+fase 3.
+
+### Lo que no se pudo comprobar con las manos
+
+Igual que en la fase 1, el acceso a la pantalla estaba denegado, así que lo de arriba se
+comprobó por HTTP contra un servidor levantado aparte —nunca contra la instancia del
+usuario, que tenía tomado el 3001— y no haciendo clic. Queda sin ver con los ojos: el
+diálogo del nombre tapado, los distintivos de la cabecera y el interruptor de materializar.
 
 ---
 
@@ -336,12 +417,22 @@ faltan antes de que nada falle.
   están sucias, «notebook» describe la forma que estamos quitando. El producto ya tiene una
   convención —Data Flow, Story Flow, Report Flow— y **la decisión se toma con los cuatro
   nombres juntos delante**, no dentro de una fase.
-- **El `.state.json` y los 500 resultados guardados.** La separación es correcta y no se
-  toca, pero con celdas que ahora tienen nombre conviene revisar si la clave sigue siendo la
-  del identificador de celda o pasa a ser el nombre.
+- ~~**El `.state.json` y la clave del estado.**~~ Resuelto en la fase 1: la clave es el
+  nombre, y la posición sólo mientras no haya nombre. Lo que sigue en pie es revisar los 500
+  resultados guardados, que es un asunto distinto.
 - **Aserciones con veredicto** (preguntas 52-54 de la auditoría). Es lo único que el
   ingeniero de datos pide de aquí que no cubre otra herramienta, y hoy no existe —lo que
   parecía una aserción resultó ser el campo del valor de un parámetro. Candidata clara para
   después.
-- **El explorador de esquema y las vistas del cuaderno.** Ahora habrá objetos temporales con
+- **El explorador de esquema y las vistas del cuaderno.** Ahora hay objetos temporales con
   descripción; mirar si el explorador debería enseñarlos aparte de las tablas reales.
+- **El asistente no ve las vistas del cuaderno.** Medido en la fase 2: los objetos
+  temporales son **por conexión**, y el asistente corre por una vía distinta de la del
+  cuaderno. Así que alguien puede pedirle que mire `ventas_limpias` y recibir un «no existe»
+  que es cierto desde donde él mira y falso desde donde mira la persona. No se arregla
+  dentro de este plan —toca la separación de vías, que existe por buenos motivos— pero es
+  una confusión garantizada en cuanto las dos funciones se usen juntas.
+- **Una celda que falla a medias deja lo anterior hecho.** También medido: no hay
+  transacción, así que si la vista se crea y el `SELECT` falla, la vista queda. Hoy es
+  inofensivo —la vista es la que se pidió— pero conviene tenerlo presente al llegar al grafo
+  de la fase 4, donde «existe» y «está al día» dejan de ser lo mismo.
