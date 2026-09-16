@@ -343,18 +343,82 @@ diálogo del nombre tapado, los distintivos de la cabecera y el interruptor de m
 
 ## Fase 3 — La barra derecha
 
-- [ ] **A la derecha**, 260 px fijos. El cuaderno se lee de izquierda a derecha; lo que se
+- [x] **A la derecha**, 260 px fijos. El cuaderno se lee de izquierda a derecha; lo que se
       consulta de reojo va al margen que no interrumpe.
-- [ ] **Índice**, construido de los `#`, `##` y `###` de las celdas de texto. Se mantiene
+- [x] **Índice**, construido de los `#`, `##` y `###` de las celdas de texto. Se mantiene
       solo: nadie sostiene un índice a mano.
-- [ ] **Vistas vivas**, leídas **del motor** (`duckdb_views()` con
+- [x] **Vistas vivas**, leídas **del motor** (`duckdb_views()` con
       `temporary AND NOT internal`), con su descripción, y marcando las materializadas.
-- [ ] Lo que el cuaderno espera y **no está** —porque la sesión murió— se dice ahí, en vez de
+- [x] Lo que el cuaderno espera y **no está** —porque la sesión murió— se dice ahí, en vez de
       dejar que lo descubras al fallar una celda de en medio.
-- [ ] **Parámetros** en su zona, y la palabra «Input» desaparece.
+- [x] **Parámetros** en su zona, y la palabra «Input» desaparece.
 
 **Criterio de terminado:** al reabrir el cuaderno al día siguiente, la barra dice qué vistas
 faltan antes de que nada falle.
+
+### Bitácora
+
+`Barra.jsx` pinta las tres secciones y `vistasVivas.js` hace las cuentas, puro y con 30
+pruebas en `scripts/probarVistasVivas.mjs`.
+
+El criterio se comprobó contra el motor con un cuaderno de dos celdas con nombre y un
+parámetro. Antes de ejecutar nada, la barra decía **«Vistas 0/2 — faltan 2»** con las dos
+tachadas; después de ejecutarlas, «2/2» con la descripción que cada una tiene puesta *en el
+catálogo*; y una vista creada desde fuera apareció en su propia sección. El parámetro entró
+en la consulta y filtró la fila de agosto, que es como se sabe que entró de verdad.
+
+### La barra dice dos verdades y antes sólo se contaba una
+
+El documento dice qué celdas hay; **el motor dice qué se puede consultar**. Son dos cosas
+distintas y nadie las comparaba. Al reabrir un cuaderno al día siguiente el documento está
+intacto y la sesión vacía, y la única manera de enterarse era ejecutar una celda de en medio
+y verla fallar con un «no existe» sobre una vista que el documento enseña con toda
+naturalidad.
+
+Por eso una vista declarada y no viva sale **tachada y apagada**, y el aviso va arriba de la
+lista y no dentro de cada fila: se trata de enterarse de un vistazo, no de investigar.
+
+También salen las vistas que **no** son del cuaderno. La sesión es una sola, y una vista
+creada desde un `.sql` se consulta desde aquí igual de bien; esconderla haría creer que el
+cuaderno es un mundo cerrado, que es justo lo que no es.
+
+### El error que casi rompe todos los cuadernos guardados
+
+Se escribió la sustitución de parámetros con la sintaxis `${'{'}nombre}` de las variables del
+editor de consultas, por parecer «la del producto». **No lo es, para esto.** Los cuadernos
+que existen y los tableros de Report Flow usan `{{nombre}}`, con una función de sustitución
+compartida (`injectEnvironmentVariables`), y el cambio no habría dado ningún error: el
+marcador se habría quedado sin sustituir y la consulta se habría ejecutado con él dentro.
+
+Salió al abrir un cuaderno del formato viejo y mirar qué parámetros detectaba —ninguno—. No
+lo cazó ninguna prueba porque las pruebas estaban escritas contra la convención equivocada:
+comprobaban que el código hacía lo que yo creía, no lo que el producto ya hacía.
+
+Ahora se reutiliza la función compartida tal cual, y hay una prueba que fija que la otra
+convención **no** se sustituye, para que nadie la reintroduzca por simetría.
+
+Con ella viene su trato, que la barra explica porque es fuente de confusión: **un texto entra
+entrecomillado y un número tal cual**. Se escribe `f >= {{desde}}`, no `f >= '{{desde}}'`. Se
+midió contra el motor que eso basta para lo normal —`LIMIT '2'`, `x > '5'` y
+`fecha >= '2026-09-01'` funcionan— y que sólo se queda corto cuando el parámetro querría
+nombrar una tabla; limitación heredada y compartida con los tableros, no de esta fase.
+
+### Dos «fallos» que eran de la prueba
+
+Al probar la lectura de un cuaderno viejo parecía que se perdían el valor de una celda Input
+y el nombre de una celda de código. Ninguna de las dos cosas: el formato guarda el parámetro
+en `metadata.varName` —que el lector ya leía— y **las celdas de código nunca tuvieron
+nombre**. El archivo de prueba se había inventado los dos campos.
+
+Merece quedar escrito porque el reflejo fue ir a arreglar el lector. Con un archivo fiel al
+real, la celda Input se convierte en parámetro de cabecera, los dos parámetros salen en la
+barra, y la palabra «Input» desaparece sin que haya que quitarla de ningún sitio.
+
+### Lo que no se pudo comprobar con las manos
+
+Como en las dos fases anteriores, sin acceso a la pantalla. Lo de arriba se comprobó por HTTP
+contra un servidor levantado aparte. Queda sin ver: la barra pintada, el aviso de lo que
+falta, y los campos de parámetros.
 
 ---
 
@@ -426,6 +490,11 @@ faltan antes de que nada falle.
   después.
 - **El explorador de esquema y las vistas del cuaderno.** Ahora hay objetos temporales con
   descripción; mirar si el explorador debería enseñarlos aparte de las tablas reales.
+- **El producto arrastra dos convenciones de variable.** `{{nombre}}` en cuadernos y
+  tableros, con entrecomillado automático; `${'{'}nombre}` en las variables del editor de
+  consultas, en crudo. El cuaderno se queda con la suya —cambiarla rompería en silencio los
+  archivos guardados— pero unificarlas es una decisión que se toma con las tres funciones
+  delante, no dentro de una fase.
 - **El asistente no ve las vistas del cuaderno.** Medido en la fase 2: los objetos
   temporales son **por conexión**, y el asistente corre por una vía distinta de la del
   cuaderno. Así que alguien puede pedirle que mire `ventas_limpias` y recibir un «no existe»

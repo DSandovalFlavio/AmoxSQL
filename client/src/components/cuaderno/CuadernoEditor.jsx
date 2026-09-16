@@ -40,8 +40,10 @@ import { analizarCelda } from '../../utils/celdaSql.js';
 import { componerCelda, nombrePorOmision } from '../../utils/vistaDeCelda.js';
 import { useDialog } from '../dialogs/DialogProvider';
 import Celda from './Celda.jsx';
+import Barra from './Barra.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
 import { claveDeCelda, reclavar } from './claves.js';
+import { cruzarVistas, parametrosUsados, sustituirParametros } from './vistasVivas.js';
 import './cuaderno.css';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -194,11 +196,28 @@ const CuadernoEditor = ({
 
     const indice = useMemo(() => indiceDe(doc), [doc]);
 
-    /** Los nombres vivos, en minusculas: el motor no distingue mayusculas. */
+    /** Lo que el documento declara, cruzado con lo que el motor tiene vivo. */
+    const vistas = useMemo(() => cruzarVistas(doc.celdas, vivas), [doc.celdas, vivas]);
     const estanVivas = useMemo(
-        () => new Set(vivas.map((v) => String(v.nombre || '').toLowerCase())),
-        [vivas],
+        () => new Set(vistas.propias.filter((v) => v.viva).map((v) => v.nombre.toLowerCase())),
+        [vistas],
     );
+    const usados = useMemo(() => parametrosUsados(doc.celdas), [doc.celdas]);
+    const parametros = doc.meta?.parametros || {};
+
+    /**
+     * Los parámetros viven en la cabecera del archivo, no en el estado visual.
+     *
+     * Son parte del análisis —cambiarlos cambia el resultado— así que viajan con
+     * el documento y llegan a quien lo abra. El modo de una celda no; un valor
+     * de parámetro sí.
+     */
+    const cambiarParametro = useCallback((nombre, valor) => {
+        const previos = { ...(doc.meta?.parametros || {}) };
+        if (valor === null) delete previos[nombre];
+        else previos[nombre] = valor;
+        emitir({ ...doc, meta: { ...(doc.meta || {}), parametros: previos } });
+    }, [doc, emitir]);
 
     // ── operaciones sobre las celdas ────────────────────────────────────────
     const cambiarCelda = useCallback((id, campos) => {
@@ -245,7 +264,12 @@ const CuadernoEditor = ({
         const celda = doc.celdas.find((c) => c.id === id);
         if (!celda || celda.tipo !== 'sql' || !celda.contenido.trim()) return;
 
-        const an = analizarCelda(celda.contenido);
+        // Los parámetros entran ANTES de analizar y de componer: lo que se
+        // guarda en la vista es la consulta ya resuelta. Cambiar un parámetro
+        // después no cambia la vista puesta — hay que volver a ejecutar, y de
+        // eso se encarga «Actualizar» en la fase siguiente.
+        const texto = sustituirParametros(celda.contenido, doc.meta?.parametros);
+        const an = analizarCelda(texto);
 
         // El bautizo, si hace falta, y antes de componer nada.
         let nombre = String(celda.nombre || '').trim();
@@ -256,7 +280,7 @@ const CuadernoEditor = ({
         }
 
         const { preparacion, lector, vista, deja } = componerCelda({
-            sql: celda.contenido,
+            sql: texto,
             analisis: an,
             nombre,
             descripcion: an.comentario,
@@ -311,7 +335,7 @@ const CuadernoEditor = ({
         } finally {
             setCorriendo(null);
         }
-    }, [doc.celdas, cambiarCelda, dialog, editorSettings, refrescarVistas, onEjecutada]);
+    }, [doc.celdas, doc.meta, cambiarCelda, dialog, editorSettings, refrescarVistas, onEjecutada]);
 
     const irA = useCallback((idCelda) => {
         const el = document.getElementById(`cdn-${idCelda}`);
@@ -378,33 +402,15 @@ const CuadernoEditor = ({
                 </div>
             </div>
 
-            {/* La barra derecha. En esta fase sólo el índice; las vistas vivas y
-                los parámetros llegan en la fase 3, cuando haya vistas que listar. */}
-            <div className="cdn-lado">
-                <div className="cdn-seccion">
-                    Índice <span className="cdn-sp" /><span className="cdn-n">{indice.length}</span>
-                </div>
-                {indice.length > 0 ? (
-                    <div className="cdn-indice">
-                        {indice.map((e, i) => (
-                            <button
-                                key={`${e.celda}-${i}`}
-                                type="button"
-                                className={`cdn-idx cdn-idx--${e.nivel}`}
-                                onClick={() => irA(e.celda)}
-                                title={e.texto}
-                            >
-                                {e.texto}
-                            </button>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="cdn-lista-vacia">
-                        Los encabezados de las celdas de texto —<code>#</code>, <code>##</code>,
-                        <code> ###</code>— construyen este índice.
-                    </p>
-                )}
-            </div>
+            <Barra
+                indice={indice}
+                vistas={vistas}
+                usados={usados}
+                parametros={parametros}
+                onIrA={irA}
+                onRefrescar={refrescarVistas}
+                onParametro={cambiarParametro}
+            />
         </div>
     );
 };

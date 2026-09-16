@@ -278,6 +278,135 @@
 .cdn-idx--2 { padding-left: 20px; font-size: 11.5px; }
 .cdn-idx--3 { padding-left: 32px; font-size: 11.5px; }
 
+/* Un botoncito al final de una cabecera de sección. */
+.cdn-mini {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: none;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-disabled);
+    cursor: pointer;
+}
+.cdn-mini:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.cdn-seccion--sub {
+    padding-top: 4px;
+    font-weight: var(--weight-regular, 400);
+    color: var(--text-disabled);
+}
+
+/* El aviso de lo que falta. Va arriba de la lista y no dentro de cada fila:
+   se trata de enterarse de un vistazo, antes de que una celda falle. */
+.cdn-falta-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin: 0 10px 6px;
+    padding: 7px 9px;
+    border: 1px solid color-mix(in oklch, var(--color-warning, #d08700) 35%, transparent);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--color-warning, #d08700) 10%, transparent);
+    color: var(--color-warning-text, var(--feedback-warning-text));
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+/* Una vista de la lista. Apagada mientras no exista: el documento la declara,
+   pero sólo el motor puede decir que se puede consultar. */
+.cdn-vista {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm, 12px);
+    color: var(--text-disabled);
+    cursor: pointer;
+    min-width: 0;
+}
+button.cdn-vista:hover { background: var(--hover-bg); }
+.cdn-vista--viva { color: var(--text-secondary); }
+.cdn-vista--viva svg { color: var(--accent-primary); }
+.cdn-vista--ajena { cursor: default; }
+.cdn-vista-n {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: none;
+    max-width: 130px;
+}
+.cdn-vista-d {
+    font-size: 11px;
+    color: var(--text-disabled);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.cdn-vista:not(.cdn-vista--viva) .cdn-vista-n { text-decoration: line-through; }
+
+/* ── parámetros ─────────────────────────────────────────────────────────── */
+.cdn-params { padding: 0 10px 8px; display: flex; flex-direction: column; gap: 8px; }
+.cdn-param-n {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+}
+.cdn-param-huerfano {
+    font-family: var(--font-sans, inherit);
+    font-size: 10px;
+    color: var(--text-disabled);
+    border: 1px dashed var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0 4px;
+}
+.cdn-param-fila { display: flex; align-items: center; gap: 4px; }
+.cdn-param-v {
+    flex: 1;
+    min-width: 0;
+    height: 24px;
+    padding: 0 7px;
+    background: var(--surface-base);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+}
+.cdn-param-v:focus { border-color: var(--accent-primary); outline: none; }
+
+.cdn-declarar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    padding: 4px 7px;
+    border: 1px dashed var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 11.5px;
+    cursor: pointer;
+}
+.cdn-declarar:hover { border-style: solid; color: var(--text-primary); background: var(--hover-bg); }
+.cdn-declarar code { font-size: 11px; color: var(--accent-primary); }
+
 .cdn-lista-vacia {
     padding: 4px 12px 10px;
     font-size: 11.5px;
