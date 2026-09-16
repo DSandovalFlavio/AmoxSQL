@@ -73,36 +73,80 @@ Sin esto las demás no tienen dónde apoyarse. **Todo en esta fase es puro y se 
 desde Node**, que es lo que permite que la lógica que no puede fallar no dependa de abrir
 la aplicación.
 
-- [ ] **`cuadernoFile.js`** — el archivo: front-matter más celdas en markdown, como el deck
+- [x] **`cuadernoFile.js`** — el archivo: front-matter más celdas en markdown, como el deck
       y el diagrama. Lee el formato nuevo **y los tres viejos** (JSON v3, v2 y los
-      marcadores `-- !CELL:`), que ya están escritos en `notebookParser.js`.
-- [ ] **Serializador estable.** Son archivos versionados: un guardado que reordena o
-      reformatea convierte cada commit en ruido. Mismo requisito que en AmoxDiagram.
-- [ ] **`celdaSql.js`** — lo que se deduce de la consulta de una celda, sin ejecutarla:
-      - `envolvible` — ¿es **un único `SELECT`/`WITH`**? Es la condición de la fase 2.
-      - `comentario` — el bloque de `--` del principio, que será la descripción.
-      - `lee` — los nombres que aparecen en `FROM`/`JOIN`. **Es el grafo de dependencias.**
-      - `escribe` — ¿hay `CREATE`/`INSERT`/`COPY`/`DROP`? La celda tiene que poder avisar de
-        que toca el disco: hoy un `SELECT` y un `CREATE TABLE` se ven exactamente igual.
-      - `vistaPropia` — ¿ya trae su propio `CREATE … VIEW`? Entonces no se envuelve.
-- [ ] Pruebas desde Node (`scripts/probarCuaderno.mjs`, `scripts/probarCeldaSql.mjs`): ida y
-      vuelta del formato, los tres formatos viejos, y los casos raros de SQL — comentarios
-      dentro de cadenas, `WITH` encadenados, `FROM` con subconsulta, `UNION`, punto y coma
-      dentro de una cadena, celda vacía, celda que es sólo un comentario.
+      marcadores `-- !CELL:`).
+- [x] **Serializador estable.** Leer y volver a escribir sin tocar nada devuelve el mismo
+      texto, y una segunda vuelta tampoco lo mueve.
+- [x] **`celdaSql.js`** — `envolvible`, `comentario`, `lee`, `escribe`, `vistaPropia`.
+- [x] Pruebas desde Node: **70** en `probarCeldaSql.mjs` y **42** en `probarCuaderno.mjs`.
 
-**Criterio de terminado:** un `.sqlnb` de los de hoy se abre, se guarda en el formato nuevo
-y se vuelve a abrir sin perder nada; y dada la consulta de una celda, se sabe si deja vista,
-qué lee y si escribe.
+**Criterio cumplido:** la plantilla exacta que la aplicación crea hoy —la de los marcadores,
+`LayoutManager.jsx:1144`— se abre, se convierte al formato nuevo, y releerla devuelve lo
+mismo. Y de una consulta realista salen su descripción, lo que lee y que no escribe.
 
-### La decisión de migración, y su riesgo
+### Lo que se decidió por el camino
 
-El formato nuevo **reutiliza la extensión `.sqlnb`**: el lector entiende los cuatro
-formatos y el guardado escribe el nuevo. La alternativa —extensión nueva— obligaría a
-mantener dos editores vivos, que es peor.
+**`escribe` no es un sí o un no, son tres valores:** `no`, `sesion` y `disco`. La pregunta
+63 de la auditoría era «¿avisa si un paso escribe en la base?», pero **no es lo mismo una
+tabla temporal que una real**: la primera se va al cerrar y la segunda se queda. Con un
+booleano, la celda tendría que avisar igual de las dos, y un aviso que sale siempre deja de
+leerse.
 
-**El riesgo hay que decirlo:** el primer guardado reescribe el archivo. Se avisa una vez,
-con la salida de siempre —guardar una copia antes—, y los resultados no corren peligro
-porque viven en el `.state.json` aparte.
+**Lo que no se reconoce se trata como si escribiera.** Es la suposición que no hace daño:
+callarse un `CREATE` sería peor que avisar de más sobre un `SELECT` raro.
+
+**Las celdas de «Input» desaparecen al convertir.** Eran un parámetro disfrazado de celda:
+al leer un `.sqlnb` viejo suben al front-matter como parámetros de verdad y dejan de ocupar
+sitio en el cuerpo. Es la única conversión que **cambia la forma** del documento, y es a
+mejor.
+
+**Un archivo que no se entiende se abre como texto**, no se rechaza. Perder el archivo de
+alguien por no reconocer su forma sería el peor fallo posible de esta fase.
+
+### La dirección del error no es simétrica, y el código se inclina a propósito
+
+En `lee` —que es el grafo de dependencias— los dos fallos posibles no valen lo mismo:
+
+- **Inventarse una dependencia** marca algo como desactualizado sin serlo: se recalcula de
+  más. Molesto e inofensivo.
+- **Perderse una dependencia** deja un número viejo con pinta de nuevo, y ese número acaba
+  en un informe. **Ése sí hace daño.**
+
+Por eso, ante la duda, se añade el nombre en vez de descartarlo, y sólo se quitan los tres
+casos de los que hay certeza: subconsultas, llamadas a función y los nombres definidos en el
+`WITH` de la propia consulta.
+
+### El fallo que las pruebas no cazaron
+
+Con las 63 comprobaciones en verde, pasé por el lector una consulta **realista** —de las que
+escribe alguien aquí— y salió mal:
+
+```sql
+SELECT region, sum(costo) FROM 'Data/dataset.csv' JOIN campanas c ON c.id = id
+```
+
+`lee` devolvía `["JOIN", "campanas"]`. Al enmascarar, el literal `'Data/dataset.csv'` deja
+un hueco de espacios, y el escáner se saltaba el hueco y se tragaba la palabra siguiente
+como si fuera una tabla.
+
+Lo que falla aquí no es el código: **son mis pruebas.** Había cubierto comillas escapadas,
+cadenas con dólar y comentarios dentro de literales —los casos raros que se me ocurrieron—
+y me había saltado **el caso más común de esta aplicación**, que es consultar un CSV
+directamente. Arreglado con una lista de palabras que nunca son un nombre de tabla, y
+añadidas las siete comprobaciones que faltaban.
+
+**La lección, que ya salió en el plan de archivos:** escribir la prueba y escribir el código
+es el mismo acto mental, así que los dos comparten los mismos puntos ciegos. Lo que los
+rompe es meter una entrada que no ha inventado uno mismo.
+
+### Lo que no se hizo, y por qué
+
+**Las dependencias de archivo no entran en el grafo.** `FROM 'ventas.csv'` es una
+dependencia real, pero de un archivo, no de un paso — y el grafo de esta fase existe para
+saber qué celda depende de qué celda. Queda anotado: con el vigilante de archivos que se
+construyó en la iniciativa anterior, **marcar una celda como desactualizada porque cambió el
+CSV que lee es una continuación natural**, y las dos piezas ya existen.
 
 ---
 
