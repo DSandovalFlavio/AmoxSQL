@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El cuaderno repensado — contrato visual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* ═══════════════════════════════════════════════════════════════
+     Los tokens son LITERALMENTE los de client/src/index.css (tema
+     obsidian, el oscuro por omision). Copiados, no aproximados: un
+     contrato visual que inventa su paleta no es un contrato.
+
+     Tres cosas que un mockup a ojo se salta y aqui importan:
+       - las superficies van en oklch, tono 270 y croma bajisimo — son
+         neutros ELEGIDOS, no gris puro;
+       - bordes y texto son BLANCO CON ALFA, no colores solidos: se
+         asientan sobre la superficie en vez de competir con ella;
+       - el acento es cian (tono 195), y sus variantes se derivan con
+         color-mix igual que en la aplicacion.
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* superficies */
+  --surface-base:    oklch(0.145 0.012 270);
+  --surface-raised:  oklch(0.175 0.014 270);
+  --surface-overlay: oklch(0.195 0.014 270);
+  --surface-inset:   oklch(0.160 0.013 270);
+
+  /* bordes — opacidad, no color */
+  --border-subtle:  rgba(255,255,255,0.085);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.16);
+
+  /* texto — opacidad, no color */
+  --text-primary:   rgba(255,255,255,0.92);
+  --text-secondary: rgba(255,255,255,0.56);
+  --text-tertiary:  rgba(255,255,255,0.36);
+  --text-disabled:  rgba(255,255,255,0.20);
+
+  /* acento: cian, compuesto y derivado como en la aplicacion */
+  --acc-l: 0.730;
+  --acc-c: 0.155;
+  --acc-h: 195;
+  --accent-primary: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+  --accent: var(--accent-primary);
+  --accent-muted:  color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle: color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --accent-ink: oklch(0.145 0.012 270);
+
+  /* interaccion */
+  --hover-bg:  rgba(255,255,255,0.06);
+  --active-bg: rgba(255,255,255,0.10);
+
+  /* estados */
+  --ok:   oklch(0.78 0.17 155);
+  --warn: oklch(0.80 0.14 70);
+  --err:  oklch(0.72 0.18 25);
+
+  /* sintaxis — los mismos que usa el editor */
+  --syntax-keyword:  oklch(0.72 0.12 280);
+  --syntax-string:   oklch(0.76 0.10 70);
+  --syntax-function: oklch(0.80 0.09 200);
+  --syntax-comment:  oklch(0.46 0.01 270);
+  --syntax-type:     oklch(0.79 0.12 235);
+
+  /* tipografia y forma */
+  --sans: 'Manrope','Inter',system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono: 'JetBrains Mono','Consolas','Courier New',monospace;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-base);color:var(--text-secondary);font-family:var(--sans);font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:default;padding:0;text-align:left}
+a{color:var(--accent);text-decoration:none}
+code{font-family:var(--mono);font-size:.9em;color:var(--text-primary);background:var(--surface-inset);padding:.1em .36em;border-radius:4px}
+svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+svg.i.xs{width:11px;height:11px}
+svg.i.sm{width:12px;height:12px}
+.sprite{display:none}
+
+/* ── armazón del documento ─────────────────────────────────────── */
+.page{display:grid;grid-template-columns:236px minmax(0,1fr);gap:46px;max-width:1560px;margin:0 auto;padding:0 30px 130px}
+.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:34px 0 40px;border-right:1px solid var(--border-subtle)}
+.toc-brand{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--text-primary);letter-spacing:-.012em;font-size:14px}
+.toc-brand svg{color:var(--accent)}
+.toc-sub{font-size:11px;color:var(--text-tertiary);margin:2px 0 22px;padding-left:22px}
+.toc a{display:block;padding:5px 10px 5px 22px;border-radius:6px;color:var(--text-secondary);font-size:12px;border-left:2px solid transparent}
+.toc a:hover{background:var(--hover-bg);color:var(--text-primary)}
+.toc .grp{margin:19px 0 6px;padding-left:22px;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--text-disabled)}
+main{padding-top:34px;min-width:0}
+
+h1.doc{font-size:33px;line-height:1.12;letter-spacing:-.026em;color:var(--text-primary);margin:0 0 14px;font-weight:800;text-wrap:balance}
+.lede{font-size:15px;line-height:1.62;max-width:74ch;color:var(--text-secondary)}
+.lede strong{color:var(--text-primary);font-weight:600}
+h2.sec{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin:78px 0 14px;font-weight:700;display:flex;align-items:center;gap:10px}
+h2.sec::after{content:'';flex:1;height:1px;background:var(--border-subtle)}
+h3.sub{font-size:19px;color:var(--text-primary);margin:38px 0 9px;font-weight:700;letter-spacing:-.016em}
+p{max-width:74ch}
+.note{border-left:2px solid var(--accent);padding:2px 0 2px 15px;margin:20px 0;color:var(--text-secondary);max-width:72ch}
+.note b{color:var(--text-primary)}
+.bad{border-left-color:var(--err)}
+.warnbox{border-left-color:var(--warn)}
+.caption{font-size:11.5px;color:var(--text-tertiary);margin:7px 0 0;max-width:72ch}
+.caption b{color:var(--text-secondary);font-weight:600}
+ul.tight{max-width:74ch;padding-left:19px;margin:12px 0}
+ul.tight li{margin:5px 0}
+ul.tight li b{color:var(--text-primary);font-weight:600}
+table.spec{border-collapse:collapse;margin:18px 0;font-size:12px;width:100%;max-width:74ch}
+table.spec th{text-align:left;padding:6px 12px 6px 0;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-disabled);border-bottom:1px solid var(--border-default);font-weight:700}
+table.spec td{padding:7px 12px 7px 0;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+table.spec td b{color:var(--text-primary);font-weight:600}
+table.spec td.n{font-family:var(--mono);color:var(--accent);white-space:nowrap}
+
+/* ── maqueta de la aplicación ──────────────────────────────────────
+   Las medidas salen de client/src/index.css, no de mirar una captura:
+   barra de 40 px, botones de 24, los botones PEGADOS compartiendo
+   borde, y la tabla con su canal de números y el tipo debajo del
+   nombre. Si el contrato no reproduce la anatomía que ya existe, lo
+   que se acuerda aquí no es lo que se construye.                     */
+.app{border:1px solid var(--border-default);border-radius:var(--radius-xl);overflow:hidden;background:var(--surface-base);box-shadow:var(--shadow-lg);margin:22px 0 8px}
+
+.app-bar{display:flex;align-items:center;gap:8px;padding:0 12px;height:40px;background:transparent;border-bottom:1px solid var(--border-subtle);flex-wrap:nowrap;overflow:hidden}
+.app-title{display:flex;align-items:center;gap:7px;color:var(--text-primary);font-weight:600;font-size:12px;min-width:0}
+.app-title .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spacer{flex:1}
+.grupo{display:flex;align-items:center;flex:none}
+.grupo .btn{border-radius:0;border-left:none}
+.grupo .btn:first-child{border-left:1px solid var(--border-subtle);border-radius:var(--radius-md) 0 0 var(--radius-md)}
+.grupo .btn:last-child{border-radius:0 var(--radius-md) var(--radius-md) 0}
+.grupo .btn:only-child{border-radius:var(--radius-md)}
+.btn{display:inline-flex;align-items:center;gap:4px;height:24px;padding:4px 10px;background:transparent;border:1px solid var(--border-subtle);border-radius:var(--radius-md);color:var(--text-secondary);font-size:12px;white-space:nowrap;flex:none}
+.btn.run{background:var(--accent-primary);color:var(--surface-base);border:none;font-weight:500;padding:4px 14px}
+.btn.on{background:var(--active-bg);color:var(--text-primary)}
+.btn.ghost{border-color:transparent}
+.btn.icon{padding:0;width:26px;justify-content:center}
+.mando .btn{width:28px;padding:0;justify-content:center}
+.meta{font-size:11px;color:var(--text-tertiary);white-space:nowrap}
+.vsep{width:1px;height:16px;background:var(--border-subtle);margin:0 2px;flex:none}
+
+/* el cuaderno a la izquierda, la barra a la DERECHA */
+.app-body{display:grid;grid-template-columns:minmax(0,1fr) 260px;min-height:620px}
+.col{min-width:0;display:flex;flex-direction:column}
+.col--cuaderno{background:var(--surface-base);padding:10px;gap:10px;overflow:hidden}
+.col--lado{border-left:1px solid var(--border-subtle);background:var(--surface-raised);overflow:hidden}
+
+.colhead{display:flex;align-items:center;gap:6px;padding:9px 12px 5px;font-size:11px;color:var(--text-tertiary);font-weight:600}
+.colhead .spacer{flex:1}
+.colhead .n{color:var(--text-disabled);font-size:11px}
+
+/* ── la celda ──────────────────────────────────────────────────── */
+.celda{border:1px solid var(--border-subtle);border-radius:var(--radius-lg);background:var(--surface-raised);overflow:hidden;height:280px;display:flex;flex-direction:column;flex:none}
+.celda.md{height:auto;max-height:280px}
+.celda-cab{display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border-bottom:1px solid var(--border-subtle);background:var(--surface-inset);flex:none}
+.cnombre{font-family:var(--mono);font-size:12.5px;color:var(--text-primary);font-weight:600;white-space:nowrap}
+.cnombre.sans{font-family:var(--sans);font-size:13px}
+.lapiz{color:var(--text-disabled)}
+.cdesc{font-size:11.5px;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.celda-cuerpo{display:grid;grid-template-columns:minmax(0,1fr) 7px minmax(0,1fr);flex:1;min-height:0}
+.celda-cuerpo.solo-res{grid-template-columns:minmax(0,1fr)}
+.celda-cuerpo.solo-cod{grid-template-columns:minmax(0,1fr)}
+
+.est{width:7px;height:7px;border-radius:50%;flex:none;background:var(--text-disabled)}
+.est.dia{background:var(--ok)}
+.est.sucio{background:var(--warn)}
+.est.nunca{background:transparent;border:1.5px solid var(--text-disabled)}
+.est.falla{background:var(--err)}
+.est.mat{border-radius:2px}
+.sello{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;white-space:nowrap}
+.sello.dia{color:var(--ok)}
+.sello.sucio{color:var(--warn)}
+
+.tirador{border-left:1px solid var(--border-subtle);border-right:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:center}
+.tirador::after{content:"";width:2px;height:22px;border-radius:2px;background:var(--border-strong)}
+
+.editor{padding:8px 0 8px 4px;font-family:var(--mono);font-size:12px;line-height:1.58;color:var(--text-secondary);overflow:hidden;background:var(--surface-base)}
+.k{color:var(--syntax-keyword)}
+.f{color:var(--syntax-function)}
+.s{color:var(--syntax-string)}
+.c{color:var(--syntax-comment)}
+.v{color:var(--syntax-type)}
+.editor .ln{display:flex;gap:12px}
+.editor .ln i{color:var(--text-disabled);font-style:normal;width:20px;text-align:right;flex:none;font-size:11px}
+
+.tabla{display:flex;flex-direction:column;min-width:0;overflow:hidden;background:var(--surface-base)}
+.tabla-cab{display:flex;align-items:center;gap:8px;padding:0 10px;height:34px;border-bottom:1px solid var(--border-subtle);flex:none}
+.tabla-cuerpo{overflow:hidden;min-height:0}
+.grid{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+.grid th{background:var(--surface-raised);border-bottom:1px solid var(--border-default);padding:5px 8px;text-align:left;font-family:var(--sans)}
+.grid th .cn{display:block;color:var(--text-primary);font-weight:600;font-size:11px}
+.grid th .ct{display:block;color:var(--text-disabled);font-size:9.5px;margin-top:1px;letter-spacing:.04em}
+.grid td{padding:3px 8px;border-bottom:1px solid var(--border-subtle);color:var(--text-secondary);white-space:nowrap}
+.grid td.num{text-align:right;font-variant-numeric:tabular-nums}
+.grid .gut{width:34px;text-align:right;color:var(--text-disabled);font-size:11px;padding-right:9px}
+
+.barras{display:flex;align-items:flex-end;gap:10px;flex:1;padding:14px 16px 12px;min-height:0}
+.barras span{flex:1;background:var(--accent-primary);opacity:.8;border-radius:3px 3px 0 0}
+.barras.grande{padding:26px 40px 22px;gap:26px}
+
+.md-cuerpo{padding:12px 14px 14px;overflow:hidden}
+.md-cuerpo h4{margin:0 0 7px;font-size:14px;color:var(--text-primary);font-weight:700;letter-spacing:-.01em}
+.md-cuerpo p{margin:0;font-size:12.5px;line-height:1.6;color:var(--text-secondary);max-width:62ch}
+
+.anadir{display:flex;gap:7px;padding:2px 0 4px}
+
+/* ── la barra derecha ──────────────────────────────────────────── */
+.indice{padding:0 6px 8px}
+.idx{padding:4px 8px;border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.idx:hover{background:var(--hover-bg)}
+.idx.on{background:var(--active-bg);color:var(--text-primary)}
+.idx.n1{font-weight:600;color:var(--text-primary)}
+.idx.n2{padding-left:20px;font-size:11.5px}
+
+.vistas{padding:0 6px 8px;border-top:1px solid var(--border-subtle);padding-top:2px}
+.vv{display:flex;align-items:flex-start;gap:8px;padding:5px 8px;border-radius:var(--radius-sm)}
+.vv:hover{background:var(--hover-bg)}
+.vv .est{margin-top:5px}
+.vtxt{min-width:0}
+.vn{display:block;font-family:var(--mono);font-size:11.5px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vd{display:block;font-size:10.5px;color:var(--text-tertiary);line-height:1.4;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vv.falta .vn{color:var(--text-tertiary)}
+.tag{font-family:var(--sans);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-disabled);border:1px solid var(--border-subtle);border-radius:3px;padding:0 4px;margin-left:5px}
+
+.params{border-top:1px solid var(--border-subtle);padding:2px 12px 12px;margin-top:auto}
+.param{display:flex;align-items:center;gap:8px;margin-top:6px}
+.param .et{font-size:11px;color:var(--text-tertiary);width:52px;flex:none}
+.param .caja{flex:1;height:24px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--surface-inset);display:flex;align-items:center;padding:0 8px;font-family:var(--mono);font-size:11px;color:var(--text-primary)}
+
+/* ── bloque de código del documento ────────────────────────────── */
+.codeblock{border:1px solid var(--border-subtle);border-radius:var(--radius-lg);background:var(--surface-inset);padding:14px 16px;font-family:var(--mono);font-size:11.5px;line-height:1.75;color:var(--text-secondary);white-space:pre;overflow-x:auto;margin:18px 0 6px;max-width:74ch}
+
+/* ── la paleta ─────────────────────────────────────────────────── */
+.paleta{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px;margin:18px 0 6px}
+.tono{border:1px solid var(--border-subtle);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface-raised)}
+.tono .muestra{height:44px;border-bottom:1px solid var(--border-subtle)}
+.tono .et{padding:6px 9px 7px}
+.tono .nom{font-family:var(--mono);font-size:10px;color:var(--text-secondary);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tono .val{font-family:var(--mono);font-size:9.5px;color:var(--text-disabled);display:block;margin-top:1px}
+
+/* ── antes / después ───────────────────────────────────────────── */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0;align-items:start}
+.duo>div{min-width:0}
+.rot-duo{font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;margin-bottom:8px}
+.rot-duo.antes{color:var(--err)}
+.rot-duo.despues{color:var(--ok)}
+.viejo{border:1px solid var(--border-default);border-radius:var(--radius-lg);background:var(--surface-base);padding:9px;display:flex;flex-direction:column;gap:7px}
+.vcode{padding:7px 9px;font-family:var(--mono);font-size:10.5px;color:var(--text-tertiary);line-height:1.7}
+
+@media (max-width:1080px){
+  .page{grid-template-columns:1fr;gap:0}
+  .toc{display:none}
+  .app-body{grid-template-columns:1fr}
+  .col--lado{border-left:none;border-top:1px solid var(--border-subtle)}
+  .celda{height:auto}
+  .celda-cuerpo{grid-template-columns:none;grid-template-rows:1fr 7px 1fr;min-height:420px}
+  .duo{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24"><path d="M6 3l14 9-14 9z"/></symbol>
+  <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="ic-chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="ic-warn" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="ic-cols" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></symbol>
+  <symbol id="ic-code" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></symbol>
+  <symbol id="ic-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
+  <symbol id="ic-max" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></symbol>
+  <symbol id="ic-min" viewBox="0 0 24 24"><path d="M9 3v6H3"/><path d="M15 21v-6h6"/><path d="M3 9l7-7"/><path d="M21 15l-7 7"/></symbol>
+</svg>
+
+<div class="page">
+<nav class="toc">
+  <div class="toc-brand"><svg class="i"><use href="#ic-book"/></svg> Contrato visual</div>
+  <div class="toc-sub">El cuaderno, repensado</div>
+  <div class="grp">La base</div>
+  <a href="#paleta">La paleta</a>
+  <div class="grp">La idea</div>
+  <a href="#vista">La vista implícita</a>
+  <a href="#celda">La celda y sus estados</a>
+  <a href="#altura">La altura de la celda</a>
+  <a href="#lado">La barra derecha</a>
+  <a href="#completa">Pantalla completa</a>
+  <div class="grp">El contrato</div>
+  <a href="#quita">Lo que desaparece</a>
+  <a href="#medidas">Medidas</a>
+  <a href="#intacto">Lo que no cambia</a>
+</nav>
+
+<main>
+  <h1 class="doc">El cuaderno, repensado</h1>
+  <p class="lede">
+    Sigue siendo un cuaderno de celdas que se recorre hacia abajo — eso estaba bien y
+    quitarlo fue un error de la primera versión de este documento. Lo que cambia es todo lo
+    demás: <strong>cada celda produce algo con nombre sin que tengas que escribirlo</strong>,
+    la celda tiene una altura que no se desmadra, y la barra lateral deja de ser decorado para
+    convertirse en el índice del análisis y el inventario de lo que has construido.
+  </p>
+  <div class="note">
+    <b>Qué fija este documento y qué no.</b> Fija la anatomía de la celda, sus estados, las
+    zonas de la barra derecha y las medidas. No fija los textos definitivos ni el nombre del
+    formato.
+  </div>
+
+  <h2 class="sec" id="paleta">La paleta es la de la aplicación</h2>
+  <p>
+    No es una paleta parecida ni una interpretación: son los tokens de
+    <code>client/src/index.css</code>, tema <b>obsidian</b> —el oscuro por omisión—, copiados
+    uno a uno y cotejados con un script. <b>Un contrato visual que inventa sus colores no es
+    un contrato</b>, porque lo que se acuerda mirándolo no se puede construir después.
+  </p>
+  <div class="paleta">
+    <div class="tono"><div class="muestra" style="background:var(--surface-base)"></div><div class="et"><span class="nom">surface-base</span><span class="val">oklch(.145 .012 270)</span></div></div>
+    <div class="tono"><div class="muestra" style="background:var(--surface-raised)"></div><div class="et"><span class="nom">surface-raised</span><span class="val">oklch(.175 .014 270)</span></div></div>
+    <div class="tono"><div class="muestra" style="background:var(--surface-overlay)"></div><div class="et"><span class="nom">surface-overlay</span><span class="val">oklch(.195 .014 270)</span></div></div>
+    <div class="tono"><div class="muestra" style="background:var(--surface-inset)"></div><div class="et"><span class="nom">surface-inset</span><span class="val">oklch(.160 .013 270)</span></div></div>
+    <div class="tono"><div class="muestra" style="background:var(--accent-primary)"></div><div class="et"><span class="nom">accent-primary</span><span class="val">oklch(.73 .155 195)</span></div></div>
+    <div class="tono"><div class="muestra" style="background:var(--ok)"></div><div class="et"><span class="nom">al día</span><span class="val">oklch(.78 .17 155)</span></div></div>
+    <div class="tono"><div class="muestra" style="background:var(--warn)"></div><div class="et"><span class="nom">desactualizado</span><span class="val">oklch(.80 .14 70)</span></div></div>
+    <div class="tono"><div class="muestra" style="background:var(--err)"></div><div class="et"><span class="nom">falló</span><span class="val">oklch(.72 .18 25)</span></div></div>
+  </div>
+  <p class="caption">
+    Bordes y texto son <b>blanco con alfa</b> (.085 / .10 / .16 y .92 / .56 / .36 / .20), no
+    colores sólidos: se asientan sobre la superficie en vez de competir con ella, y siguen
+    funcionando al cambiar de tema. El acento no es fijo — el usuario cambia su tono y su
+    luminosidad desde los ajustes, y todo aquí está escrito con tokens.
+  </p>
+
+  <h2 class="sec" id="vista">La vista implícita: no escribes el CREATE</h2>
+  <p>
+    Ésta es la pieza que convierte el cuaderno en otra cosa. <b>Cada celda de código, al
+    ejecutarse, deja una vista temporal con su nombre</b> — y tú no escribes ni una palabra
+    de más.
+  </p>
+
+  <div class="duo">
+    <div>
+      <div class="rot-duo antes">Lo que escribes hoy</div>
+      <div class="viejo" style="padding:11px 13px">
+        <div class="vcode" style="padding:0;font-size:11.5px;color:var(--text-secondary)">
+          <span class="k">CREATE OR REPLACE TEMP VIEW</span> ventas_limpias <span class="k">AS</span><br>
+          <span class="k">SELECT</span> * <span class="k">FROM</span> ventas<br>
+          &nbsp;<span class="k">WHERE</span> estado &lt;&gt; <span class="s">'devuelto'</span>;<br><br>
+          <span class="c">-- y ahora, para ver algo:</span><br>
+          <span class="k">SELECT</span> * <span class="k">FROM</span> ventas_limpias;
+        </div>
+      </div>
+      <p class="caption" style="margin-top:9px">Cinco líneas de ceremonia para una consulta de dos.</p>
+    </div>
+    <div>
+      <div class="rot-duo despues">Lo que escribirías</div>
+      <div class="viejo" style="padding:11px 13px">
+        <div class="vcode" style="padding:0;font-size:11.5px;color:var(--text-secondary)">
+          <span class="c">-- Quito devoluciones y pedidos de prueba</span><br>
+          <span class="k">SELECT</span> * <span class="k">FROM</span> ventas<br>
+          &nbsp;<span class="k">WHERE</span> estado &lt;&gt; <span class="s">'devuelto'</span>;
+        </div>
+      </div>
+      <p class="caption" style="margin-top:9px">
+        La celda se llama <code>ventas_limpias</code> y <b>el comentario de arriba es su
+        descripción</b>. La vista la crea ella.
+      </p>
+    </div>
+  </div>
+
+  <h3 class="sub">Qué hace la celda por dentro</h3>
+  <div class="codeblock">
+<span class="c">-- lo que tú ves en la celda</span>
+<span class="c">-- Quito devoluciones y pedidos de prueba</span>
+<span class="k">SELECT</span> * <span class="k">FROM</span> ventas <span class="k">WHERE</span> estado &lt;&gt; <span class="s">'devuelto'</span>;
+
+<span class="c">-- lo que se manda al motor, en una sola llamada</span>
+<span class="k">CREATE OR REPLACE TEMP VIEW</span> <span class="v">ventas_limpias</span> <span class="k">AS</span> (
+  <span class="k">SELECT</span> * <span class="k">FROM</span> ventas <span class="k">WHERE</span> estado &lt;&gt; <span class="s">'devuelto'</span>
+);
+<span class="k">COMMENT ON VIEW</span> <span class="v">ventas_limpias</span> <span class="k">IS</span> <span class="s">'Quito devoluciones y pedidos de prueba'</span>;
+<span class="k">SELECT</span> * <span class="k">FROM</span> <span class="v">ventas_limpias</span> <span class="k">LIMIT</span> 500;
+  </div>
+  <p class="caption">
+    <b>Comprobado contra el motor, no supuesto.</b> Las tres sentencias van en una llamada y
+    devuelven las filas. El <code>COMMENT ON VIEW</code> funciona y se lee después con
+    <code>duckdb_views()</code> — o sea que <b>la descripción no vive sólo en nuestro archivo:
+    vive en la base</b>, y el explorador de esquema la ve.
+  </p>
+
+  <h3 class="sub">Los tres bordes filosos, y qué se hace con cada uno</h3>
+  <table class="spec">
+    <tr><th>El borde</th><th>Qué pasa</th><th>Qué hace la celda</th></tr>
+    <tr>
+      <td><b>No todo se puede envolver</b></td>
+      <td>Un <code>CREATE TABLE</code>, un <code>COPY</code>, un <code>INSTALL</code> dentro de un <code>CREATE VIEW AS (…)</code> <b>falla</b> — medido.</td>
+      <td>Sólo se envuelve si la celda es <b>un único <code>SELECT</code> o <code>WITH</code></b>. Si no, se ejecuta tal cual y la celda se marca <b>«no deja vista»</b>, sin drama.</td>
+    </tr>
+    <tr>
+      <td><b>Ya lo escribiste tú</b></td>
+      <td>Si la celda ya trae su propio <code>CREATE … VIEW</code>, envolverlo otra vez sería absurdo.</td>
+      <td>Se respeta lo escrito y el nombre de la celda pasa a ser el de esa vista.</td>
+    </tr>
+    <tr>
+      <td><b>El nombre ya existe</b></td>
+      <td>Chocar con una tabla real del esquema sería peor que un error: la taparía.</td>
+      <td>Se avisa en la celda <b>antes</b> de ejecutar, y se propone otro.</td>
+    </tr>
+  </table>
+
+  <h3 class="sub">Vista o tabla: la decisión que conviene tener escrita</h3>
+  <p>
+    Una vista es <b>perezosa</b>: no guarda datos, se recalcula cada vez que alguien la lee.
+    Con una cadena de cinco pasos, leer el quinto reejecuta los cinco. En este motor casi
+    siempre da igual —es rápido y aplana la cadena—, pero con una tabla grande de por medio se
+    nota.
+  </p>
+  <p style="margin-top:12px">
+    Por eso cada celda lleva un interruptor de <b>materializar</b>: en vez de una vista, una
+    tabla temporal. Y no es sólo rendimiento — <b>cambia el significado del estado</b>:
+  </p>
+  <table class="spec">
+    <tr><th></th><th>Vista <span style="color:var(--text-disabled)">(por omisión)</span></th><th>Materializada</th></tr>
+    <tr><td><b>Guarda datos</b></td><td>No</td><td>Sí</td></tr>
+    <tr><td><b>Coste de leerla</b></td><td>Recalcula la cadena</td><td>Sólo leer</td></tr>
+    <tr><td><b>¿Puede quedarse vieja?</b></td><td><b>No</b> — siempre refleja el origen</td><td><b>Sí</b>, y por eso se marca <span style="color:var(--warn)">desactualizada</span></td></tr>
+    <tr><td><b>Cuándo</b></td><td>Casi siempre</td><td>Cuando el paso es caro y lo leen varios</td></tr>
+  </table>
+
+  <h2 class="sec" id="celda">La celda, y sus tres estados</h2>
+  <p>
+    Editor a la izquierda, resultado a la derecha. Y un mando de tres posiciones que decide
+    qué se ve — <b>porque no siempre quieres lo mismo</b>: mientras escribes quieres las dos;
+    al repasar el análisis, sólo el resultado; al revisar la lógica de un <code>CASE</code>,
+    sólo el código.
+  </p>
+
+  <div class="app">
+    <div class="app-bar">
+      <div class="app-title"><svg class="i"><use href="#ic-book"/></svg> <span class="txt">caida-septiembre</span></div>
+      <span class="vsep"></span>
+      <div class="grupo">
+        <button class="btn run"><svg class="i sm"><use href="#ic-refresh"/></svg> Actualizar</button>
+        <button class="btn"><svg class="i sm"><use href="#ic-chev"/></svg></button>
+      </div>
+      <span class="meta">2 celdas por recalcular</span>
+      <span class="spacer"></span>
+      <div class="grupo"><button class="btn"><svg class="i sm"><use href="#ic-doc"/></svg> Word</button></div>
+    </div>
+
+    <div class="app-body">
+      <div class="col col--cuaderno">
+        <!-- celda de código, estado: las dos mitades -->
+        <div class="celda">
+          <div class="celda-cab">
+            <span class="est dia"></span>
+            <span class="cnombre">ventas_limpias</span>
+            <svg class="i xs lapiz"><use href="#ic-pencil"/></svg>
+            <span class="cdesc">Quito devoluciones y pedidos de prueba</span>
+            <span class="spacer"></span>
+            <div class="grupo mando">
+              <button class="btn on" title="Código y resultado"><svg class="i xs"><use href="#ic-cols"/></svg></button>
+              <button class="btn" title="Sólo código"><svg class="i xs"><use href="#ic-code"/></svg></button>
+              <button class="btn" title="Sólo resultado"><svg class="i xs"><use href="#ic-table"/></svg></button>
+            </div>
+            <div class="grupo">
+              <button class="btn icon" title="A pantalla completa"><svg class="i xs"><use href="#ic-max"/></svg></button>
+              <button class="btn icon"><svg class="i xs"><use href="#ic-play"/></svg></button>
+            </div>
+          </div>
+          <div class="celda-cuerpo">
+            <div class="editor">
+              <div class="ln"><i>1</i><span class="c">-- Quito devoluciones y pedidos de prueba</span></div>
+              <div class="ln"><i>2</i><span><span class="k">SELECT</span> id, categoria, importe, fecha</span></div>
+              <div class="ln"><i>3</i><span>  <span class="k">FROM</span> <span class="f">ventas</span></span></div>
+              <div class="ln"><i>4</i><span> <span class="k">WHERE</span> fecha &gt;= <span class="s">{{desde}}</span></span></div>
+              <div class="ln"><i>5</i><span>   <span class="k">AND</span> estado &lt;&gt; <span class="s">'devuelto'</span></span></div>
+              <div class="ln"><i>6</i><span>   <span class="k">AND</span> <span class="k">NOT</span> es_prueba;</span></div>
+            </div>
+            <div class="tirador"></div>
+            <div class="tabla">
+              <div class="tabla-cab">
+                <div class="grupo">
+                  <button class="btn on">Tabla</button>
+                  <button class="btn">Gráfico</button>
+                </div>
+                <span class="meta">18.432 &times; 4 (41 ms)</span>
+              </div>
+              <div class="tabla-cuerpo">
+                <table class="grid">
+                  <thead><tr>
+                    <th class="gut">#</th>
+                    <th><span class="cn">id</span><span class="ct">BIGINT</span></th>
+                    <th><span class="cn">categoria</span><span class="ct">VARCHAR</span></th>
+                    <th><span class="cn">importe</span><span class="ct">DECIMAL</span></th>
+                  </tr></thead>
+                  <tbody>
+                    <tr><td class="gut">1</td><td>1041</td><td>Bebidas</td><td class="num">120,00</td></tr>
+                    <tr><td class="gut">2</td><td>1042</td><td>Snacks</td><td class="num">98,50</td></tr>
+                    <tr><td class="gut">3</td><td>1043</td><td>Bebidas</td><td class="num">240,15</td></tr>
+                    <tr><td class="gut">4</td><td>1044</td><td>Limpieza</td><td class="num">61,00</td></tr>
+                    <tr><td class="gut">5</td><td>1045</td><td>Snacks</td><td class="num">17,90</td></tr>
+                    <tr><td class="gut">6</td><td>1046</td><td>Bebidas</td><td class="num">312,40</td></tr>
+                    <tr><td class="gut">7</td><td>1047</td><td>Limpieza</td><td class="num">44,05</td></tr>
+                    <tr><td class="gut">8</td><td>1048</td><td>Snacks</td><td class="num">129,90</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- celda de markdown: se ajusta al contenido, con tope -->
+        <div class="celda md">
+          <div class="celda-cab">
+            <svg class="i xs" style="color:var(--text-disabled)"><use href="#ic-doc"/></svg>
+            <span class="cnombre sans">Dónde se fue el dinero</span>
+            <span class="spacer"></span>
+            <div class="grupo mando">
+              <button class="btn on" title="Sólo lectura"><svg class="i xs"><use href="#ic-eye"/></svg></button>
+              <button class="btn" title="Fuente y vista previa"><svg class="i xs"><use href="#ic-cols"/></svg></button>
+              <button class="btn" title="Sólo fuente"><svg class="i xs"><use href="#ic-code"/></svg></button>
+            </div>
+            <div class="grupo"><button class="btn icon"><svg class="i xs"><use href="#ic-max"/></svg></button></div>
+          </div>
+          <div class="md-cuerpo">
+            <h4>Dónde se fue el dinero</h4>
+            <p>Comparo por categoría antes de mirar campañas: si la caída estuviera repartida,
+            el problema sería de precio y no de mezcla.</p>
+          </div>
+        </div>
+
+        <!-- celda desactualizada, estado: sólo resultado -->
+        <div class="celda">
+          <div class="celda-cab">
+            <span class="est sucio"></span>
+            <span class="cnombre">por_categoria</span>
+            <span class="cdesc">Gasto acumulado por región</span>
+            <span class="spacer"></span>
+            <span class="sello sucio"><svg class="i xs"><use href="#ic-warn"/></svg> de antes</span>
+            <div class="grupo mando">
+              <button class="btn" title="Código y resultado"><svg class="i xs"><use href="#ic-cols"/></svg></button>
+              <button class="btn" title="Sólo código"><svg class="i xs"><use href="#ic-code"/></svg></button>
+              <button class="btn on" title="Sólo resultado"><svg class="i xs"><use href="#ic-table"/></svg></button>
+            </div>
+            <div class="grupo">
+              <button class="btn icon"><svg class="i xs"><use href="#ic-max"/></svg></button>
+              <button class="btn icon"><svg class="i xs"><use href="#ic-play"/></svg></button>
+            </div>
+          </div>
+          <div class="celda-cuerpo solo-res">
+            <div class="tabla">
+              <div class="tabla-cab">
+                <div class="grupo">
+                  <button class="btn">Tabla</button>
+                  <button class="btn on">Gráfico</button>
+                </div>
+                <span class="meta" style="color:var(--warn)">calculado con la versión anterior</span>
+              </div>
+              <div class="barras"><span style="height:72%"></span><span style="height:94%"></span><span style="height:41%"></span><span style="height:58%"></span><span style="height:23%"></span><span style="height:66%"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anadir">
+          <button class="btn"><svg class="i xs"><use href="#ic-plus"/></svg> Celda de SQL</button>
+          <button class="btn"><svg class="i xs"><use href="#ic-plus"/></svg> Texto</button>
+        </div>
+      </div>
+
+      <!-- LA BARRA, AHORA A LA DERECHA -->
+      <div class="col col--lado">
+        <div class="colhead">Índice</div>
+        <div class="indice">
+          <div class="idx n1 on">¿Por qué cayó septiembre?</div>
+          <div class="idx n2">De dónde salen los datos</div>
+          <div class="idx n2">Qué cuento como venta</div>
+          <div class="idx n1">Dónde se fue el dinero</div>
+          <div class="idx n2">Por categoría</div>
+          <div class="idx n2">Lo que descarté</div>
+        </div>
+
+        <div class="colhead">Vistas vivas <span class="spacer"></span><span class="n">3</span></div>
+        <div class="vistas">
+          <div class="vv">
+            <span class="est dia"></span>
+            <div class="vtxt"><span class="vn">ventas_limpias</span><span class="vd">Quito devoluciones y pedidos de prueba</span></div>
+          </div>
+          <div class="vv">
+            <span class="est sucio"></span>
+            <div class="vtxt"><span class="vn">por_categoria</span><span class="vd">Gasto acumulado por región</span></div>
+          </div>
+          <div class="vv">
+            <span class="est dia mat"></span>
+            <div class="vtxt"><span class="vn">base_campanas <span class="tag">tabla</span></span><span class="vd">Materializada · 1,2 M filas</span></div>
+          </div>
+          <div class="vv falta">
+            <span class="est nunca"></span>
+            <div class="vtxt"><span class="vn">comparativa</span><span class="vd">Todavía no se ha ejecutado</span></div>
+          </div>
+        </div>
+
+        <div class="params">
+          <div class="colhead" style="padding-left:0;padding-right:0">Parámetros</div>
+          <div class="param"><span class="et">desde</span><span class="caja">2026-09-01</span></div>
+          <div class="param"><span class="et">región</span><span class="caja">Norte</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption">
+    <b>La barra a la derecha, y no por capricho.</b> El cuaderno se lee de izquierda a
+    derecha y de arriba abajo; lo que consultas de reojo —dónde estoy, qué he construido, qué
+    parámetros hay— va al margen que no interrumpe esa lectura. A la izquierda partía el
+    documento en dos.
+  </p>
+
+  <h2 class="sec" id="altura">La altura de la celda</h2>
+  <p>
+    <b>280 px, fija, y no crece nunca.</b> No es un número redondo elegido a ojo: sale de
+    contar lo que tiene que caber, con las medidas que la tabla de resultados ya usa hoy.
+  </p>
+  <table class="spec">
+    <tr><th>Pieza</th><th>Alto</th><th>De dónde sale</th></tr>
+    <tr><td>Cabecera de la celda</td><td class="n">36 px</td><td>Nombre, descripción, estado y los mandos.</td></tr>
+    <tr><td>Barra del resultado</td><td class="n">34 px</td><td>Tabla / Gráfico y el recuento.</td></tr>
+    <tr><td>Cabecera de la tabla</td><td class="n">27 px</td><td>Nombre de columna (11 px) + tipo (9,5 px) + relleno.</td></tr>
+    <tr><td>Ocho filas</td><td class="n">176 px</td><td>22 px cada una — <code>padding: 3px 8px</code> con texto de 12 px.</td></tr>
+    <tr><td><b>Total</b></td><td class="n"><b>280 px</b></td><td>36 + 34 + 27 + 176 = 273, redondeado a 280.</td></tr>
+  </table>
+  <p>
+    Con eso, el lado del editor tiene <b>244 px</b> — <b>doce líneas de SQL</b> a 19 px de
+    interlineado. Doce líneas y ocho filas es lo que hace falta para <i>reconocer</i> un paso
+    de un vistazo, que es para lo que sirve el desplazamiento.
+  </p>
+  <div class="note">
+    <b>Y si la consulta tiene cuarenta líneas?</b> Se desplaza dentro de la celda, como en
+    cualquier editor. <b>La pantalla completa es la vía de escape</b>, y por eso la altura fija
+    no aprieta: no es «todo tiene que caber en 280», es «en la lista todo mide igual, y cuando
+    necesitas espacio lo pides».
+  </div>
+  <div class="note warnbox">
+    <b>El índice pasa a ser carga estructural, no adorno.</b> Con celdas de 280 px, un análisis
+    de veinte celdas son 5.600 px de recorrido. Sin el índice de la derecha eso es
+    impracticable — <b>es la pieza que hace navegable la decisión de mantener la lista.</b>
+  </div>
+
+  <h3 class="sub">Las de texto son la excepción</h3>
+  <p>
+    Una celda de markdown <b>se ajusta a su contenido, con 280 px de tope</b>. Un encabezado
+    suelto no debe reservar 280 px de vacío, y un texto largo no debe empujar el resto del
+    cuaderno fuera de la pantalla. Crece hasta el tope y ahí se desplaza por dentro.
+  </p>
+
+  <h2 class="sec" id="lado">La barra derecha: tres zonas</h2>
+  <table class="spec">
+    <tr><th>Zona</th><th>De dónde sale</th><th>Para qué</th></tr>
+    <tr>
+      <td><b>Índice</b></td>
+      <td>De los <code>#</code>, <code>##</code> y <code>###</code> de las celdas de texto</td>
+      <td>La estructura <b>narrativa</b>. Se construye sola escribiendo, que es como debe ser: nadie mantiene un índice a mano.</td>
+    </tr>
+    <tr>
+      <td><b>Vistas vivas</b></td>
+      <td>Del motor: <code>duckdb_views()</code> filtrando <code>temporary AND NOT internal</code></td>
+      <td>La estructura <b>de datos</b>. Es el inventario de lo que has construido, con su descripción — y es a la vez la lista de celdas de código.</td>
+    </tr>
+    <tr>
+      <td><b>Parámetros</b></td>
+      <td>De las variables del cuaderno</td>
+      <td>Los mandos. Juntos y arriba del todo, no intercalados entre consultas.</td>
+    </tr>
+  </table>
+  <div class="note">
+    <b>Dos listas, dos propósitos, cero duplicación.</b> El índice lo dan los encabezados; el
+    inventario lo dan las vistas. Una celda de texto aparece en el primero, una de código en el
+    segundo. No hay que decidir en cuál va cada cosa.
+  </div>
+  <p>
+    Las vistas vivas se leen <b>del motor, no de nuestro archivo</b>, y ésa es la diferencia
+    que hace que sirvan: enseñan lo que <i>existe de verdad ahora</i>. Al reabrir el cuaderno
+    mañana, las temporales murieron con la sesión — y la lista lo dice en vez de dejarte
+    descubrirlo al fallar una celda de en medio.
+  </p>
+
+  <h2 class="sec" id="completa">La celda a pantalla completa</h2>
+  <p>
+    El mismo mando de tres posiciones, sin desplazamiento y con todo el ancho. Es donde se
+    tantea una consulta larga o se mira una tabla ancha de verdad.
+  </p>
+
+  <div class="app">
+    <div class="app-bar">
+      <div class="grupo"><button class="btn"><svg class="i sm"><use href="#ic-min"/></svg> Volver al cuaderno</button></div>
+      <span class="vsep"></span>
+      <span class="cnombre">por_categoria</span>
+      <span class="meta">celda 4 de 11</span>
+      <span class="spacer"></span>
+      <div class="grupo mando">
+        <button class="btn"><svg class="i xs"><use href="#ic-cols"/></svg></button>
+        <button class="btn"><svg class="i xs"><use href="#ic-code"/></svg></button>
+        <button class="btn on"><svg class="i xs"><use href="#ic-table"/></svg></button>
+      </div>
+      <div class="grupo"><button class="btn run"><svg class="i sm"><use href="#ic-play"/></svg> Ejecutar</button></div>
+    </div>
+    <div style="height:330px;display:flex;flex-direction:column">
+      <div class="tabla-cab">
+        <div class="grupo">
+          <button class="btn">Tabla</button>
+          <button class="btn on">Gráfico</button>
+          <button class="btn">Perfil</button>
+        </div>
+        <span class="meta">4 &times; 2 (12 ms)</span>
+        <span class="spacer"></span>
+        <div class="grupo"><button class="btn">Guardar como figura</button></div>
+      </div>
+      <div class="barras grande">
+        <span style="height:72%"></span><span style="height:94%"></span><span style="height:41%"></span><span style="height:58%"></span>
+      </div>
+    </div>
+  </div>
+  <p class="caption">
+    Aquí «sólo resultado» significa <b>un gráfico del tamaño de la pantalla</b>, con sitio para
+    configurarlo. Es el estado en el que se afina una figura antes de mandarla al deck.
+  </p>
+
+  <h2 class="sec" id="quita">Lo que desaparece</h2>
+  <table class="spec">
+    <tr><th>Se va</th><th>Por qué</th></tr>
+    <tr><td><b>Escribir <code>CREATE OR REPLACE TEMP VIEW</code></b></td><td>Lo hace la celda. Es la ceremonia que impedía que nadie usara la única característica diferencial que ya existía.</td></tr>
+    <tr><td><b>La caja de resultados que hay que arrastrar</b></td><td>Altura fija y mando de tres posiciones. Nadie tiene que redimensionar nada para leer.</td></tr>
+    <tr><td><b>La barra de ocho botones por celda</b></td><td>Quedan cuatro: el mando de tres, ejecutar, pantalla completa y el menú. Subir/bajar es arrastrar.</td></tr>
+    <tr><td><b>«Ejecutar todo / arriba / abajo»</b></td><td>Con las dependencias deducidas del <code>FROM</code>, queda <b>Actualizar</b>: lo que está desactualizado, en orden.</td></tr>
+    <tr><td><b>El modo Report y el export a HTML</b></td><td>Duplican al deck, que lo hace mejor y ya tiene el puente. <b>El export a Word se queda</b>: un deck se proyecta, un Word circula.</td></tr>
+    <tr><td><b>La palabra «Input»</b></td><td>Son <b>parámetros</b>, y viven en su zona.</td></tr>
+    <tr><td><b>El JSON como formato principal</b></td><td>No se revisa en un PR. Markdown con front-matter, como el deck y el diagrama.</td></tr>
+  </table>
+
+  <h2 class="sec" id="medidas">Medidas</h2>
+  <table class="spec">
+    <tr><th>Elemento</th><th>Valor</th><th>Nota</th></tr>
+    <tr><td>Celda de código</td><td class="n">280 px</td><td>Fija. Ver el desglose de arriba.</td></tr>
+    <tr><td>Celda de texto</td><td class="n">≤ 280 px</td><td>Se ajusta al contenido; al llegar al tope, se desplaza por dentro.</td></tr>
+    <tr><td>Cabecera de celda</td><td class="n">36 px</td><td>Estado, nombre, descripción, mandos.</td></tr>
+    <tr><td>Barra derecha</td><td class="n">260 px</td><td>Fija. Necesita sitio para nombre + descripción de cada vista.</td></tr>
+    <tr><td>Reparto de la celda</td><td class="n">50 / 50</td><td>Arrastrable y recordado <b>por celda</b>, no por documento.</td></tr>
+    <tr><td>Tirador</td><td class="n">7 px</td><td>El mismo del editor de <code>.sql</code>.</td></tr>
+    <tr><td>Separación entre celdas</td><td class="n">10 px</td><td>Suficiente para que se lean como objetos, sin desperdiciar recorrido.</td></tr>
+    <tr><td>Punto de estado</td><td class="n">7 px</td><td>A 6 px no se distingue el relleno del borde.</td></tr>
+    <tr><td>Barra superior</td><td class="n">40 px</td><td><code>flex-wrap: nowrap</code> y título que trunca — la del deck y la del diagrama se partieron en dos filas por no ponerlo.</td></tr>
+    <tr><td>Umbral apilado</td><td class="n">1080 px</td><td>Por debajo, el resultado va debajo del editor y la barra derecha se pliega.</td></tr>
+  </table>
+
+  <h2 class="sec" id="intacto">Lo que no cambia</h2>
+  <ul class="tight">
+    <li><b>El editor de celda</b> — el mismo <code>SqlEditor</code> del <code>.sql</code>, con autocompletado contra el esquema vivo. Y las celdas de texto montan el <code>MarkdownEditor</code>, con sus modos y su índice. Ninguno se construye aquí.</li>
+    <li><b>La tabla de resultados</b> con su vista de gráfico y la configuración recordada por celda.</li>
+    <li><b>El estado en archivo aparte</b> (<code>.state.json</code>): la separación ya era correcta.</li>
+    <li><b>El export a Word.</b></li>
+    <li><b>Los <code>.sqlnb</code> que ya existen se siguen abriendo.</b> El lector del formato antiguo ya está escrito.</li>
+  </ul>
+
+  <div class="note" style="margin-top:34px">
+    <b>Lo que este contrato no decide:</b> el nombre. El producto ya tiene una convención
+    —Data Flow, Story Flow, Report Flow— y la decisión se toma con los cuatro nombres juntos
+    delante, no aquí.
+  </div>
+</main>
+</div>
+</body>
+</html>
