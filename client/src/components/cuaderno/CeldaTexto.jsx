@@ -1,9 +1,9 @@
 /**
  * Una celda de texto.
  *
- * **Se ajusta a su contenido, con 420 px de tope.** Ésa es la única diferencia
+ * **Se ajusta a su contenido, con 500 px de tope.** Ésa es la única diferencia
  * de forma con una de código, y no es un capricho: un encabezado suelto no debe
- * reservar 420 px de vacío, y un texto largo no debe empujar el resto del
+ * reservar 500 px de vacío, y un texto largo no debe empujar el resto del
  * cuaderno fuera de la pantalla. Crece hasta el tope y ahí se desplaza por
  * dentro.
  *

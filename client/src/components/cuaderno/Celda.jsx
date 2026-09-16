@@ -26,7 +26,7 @@
  *
  * ## La altura no es negociable
  *
- * 420 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
+ * 500 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
  * la vía de escape es la pantalla completa, no que la celda crezca. Con
  * celdas que crecen, un cuaderno de veinte deja de poder recorrerse.
  */

@@ -14,7 +14,7 @@
 |---|---|---|---|
 | **Fases de la app** (WELCOME → IDE) | `App.jsx`, `WelcomeScreen.jsx`, `WorkspaceWizard.jsx` | `/api/project/*` | — |
 | **Editor SQL** — Monaco + autocomplete DuckDB + CTE debug + variables `${VAR}` | `SqlEditor.jsx` (57KB), `EditorPane.jsx`, `VariablesBar.jsx` | `POST /api/query`, `/api/query/cancel/:id`, `/api/db/describe` | `.sql` |
-| **Cuaderno** — celdas de alto fijo (420 px) que dejan su vista temporal en la sesión; grafo de dependencias y «Actualizar» | `cuaderno/` (`CuadernoEditor`, `Celda`, `CeldaTexto`, `PantallaCompleta`, `Barra`, + `grafo.js`/`claves.js`/`vistasVivas.js`) | `/api/cuaderno/celda`, `/api/cuaderno/vistas`, `/api/notebook-state`, `/api/file` | `.sqlnb` (markdown + cabecera) + `.sqlnb.state.json` |
+| **Cuaderno** — celdas de alto fijo (500 px) que dejan su vista temporal en la sesión; grafo de dependencias y «Actualizar» | `cuaderno/` (`CuadernoEditor`, `Celda`, `CeldaTexto`, `PantallaCompleta`, `Barra`, + `grafo.js`/`claves.js`/`vistasVivas.js`) | `/api/cuaderno/celda`, `/api/cuaderno/vistas`, `/api/notebook-state`, `/api/file` | `.sqlnb` (markdown + cabecera) + `.sqlnb.state.json` |
 | **ResultsTable** — resultados paginados (NO virtualizar — vetado), sort/filter, pop-out | `ResultsTable.jsx` (38KB), `PopoutResultsPage.jsx` | `/api/export-data`, `/api/profile` | — |
 | **Data Profiler** — perfilado estadístico (SUMMARIZE) | `DataProfiler.jsx` | `POST /api/profile` | — |
 | **Story Flow** — visualización narrativa en 6 etapas (Type→Data→Format→Style→Story→Export), 15+ tipos Recharts, anotaciones/takeaway/énfasis, tour | `DataVisualizer/` (~17 comps), `StoryFlowGuide.jsx`, `AmoxvisPane.jsx` | `/api/ai/chart-story`, `/api/files/write-binary` | `.amoxvis` |

@@ -23,7 +23,7 @@ Unlike the [SQL Editor](../editor/sql-editor.md) — one focused query — a not
 
 ### The cell
 
-Editor on the left, result on the right, and **420 px tall, always the same** — about nineteen lines of SQL and fourteen result rows. The fixed height is not an oversight: with cells that grow, a twenty-cell notebook stops being something you can scan. For close work there is full screen.
+Editor on the left, result on the right, and **500 px tall, always the same** — about twenty-three lines of SQL and eighteen result rows. The fixed height is not an oversight: with cells that grow, a twenty-cell notebook stops being something you can scan. For close work there is full screen.
 
 In each cell's header:
 

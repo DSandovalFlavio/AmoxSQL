@@ -1,17 +1,19 @@
 /**
  * El cuaderno. Las medidas salen del contrato visual
- * (`docs/dev/mockup_notebooks.html`), con una corrección hecha ya en uso.
+ * (`docs/dev/mockup_notebooks.html`), salvo el alto de la celda, que se ajustó
+ * usándolo.
  *
- * La celda se dibujó primero a 280 px, que era el mínimo con el que se
- * RECONOCE un paso al pasar: 36 de cabecera + 34 de la barra del resultado + 27
- * de la cabecera de la tabla + ocho filas de 22. El número estaba bien razonado
- * y aun así se quedaba corto en la pantalla de verdad, donde sobra alto y ocho
- * filas obligan a desplazarse por dentro para casi todo.
+ * **500 px**: 464 de cuerpo, o sea unas veintitrés líneas de SQL y dieciocho
+ * filas de resultado.
  *
- * Ahora son **420** —el mismo número a escala 1,5—: 384 px de cuerpo, o sea unas
- * diecinueve líneas de SQL y catorce filas de resultado. Lo que no cambia es la
- * regla: **una altura fija, la misma para todas**. Con celdas que crecen, un
- * cuaderno de veinte deja de poder recorrerse.
+ * El contrato lo derivaba en 280 —36 de cabecera + 34 de la barra del resultado
+ * + 27 de la cabecera de la tabla + ocho filas de 22— y la aritmética era
+ * correcta: ése es el mínimo con el que se RECONOCE un paso al pasar. Lo que el
+ * papel no dice es que en una pantalla de verdad sobra alto, y que el mínimo
+ * obliga a desplazarse por dentro para casi todo.
+ *
+ * Lo que no cambia es la regla: **una altura fija, la misma para todas**. Con
+ * celdas que crecen, un cuaderno de veinte deja de poder recorrerse.
  */
 
 .cdn {
@@ -47,7 +49,7 @@
     border-radius: var(--radius-lg);
     background: var(--surface-raised);
     overflow: hidden;
-    height: 420px;
+    height: 500px;
     display: flex;
     flex-direction: column;
     flex: none;
@@ -58,12 +60,12 @@
 }
 
 /* Las de texto son la excepción: se ajustan a su contenido con el alto de una
-   celda de código como tope. Un encabezado suelto no debe reservar 420 px de
+   celda de código como tope. Un encabezado suelto no debe reservar 500 px de
    vacío, y un texto largo no debe empujar el resto del cuaderno fuera de la
    pantalla. */
 .cdn-celda--texto {
     height: auto;
-    max-height: 420px;
+    max-height: 500px;
 }
 
 .cdn-cab {
@@ -513,7 +515,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 @media (max-width: 1080px) {
     .cdn { grid-template-columns: minmax(0, 1fr); }
     .cdn-lado { display: none; }
-    .cdn-celda { height: 630px; }
+    .cdn-celda { height: 750px; }
     .cdn-cuerpo { grid-template-columns: none; grid-template-rows: minmax(0, 1fr) 7px minmax(0, 1fr); }
     .cdn-cuerpo--solo { grid-template-rows: minmax(0, 1fr); }
     .cdn-tirador { cursor: row-resize; border: none; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
