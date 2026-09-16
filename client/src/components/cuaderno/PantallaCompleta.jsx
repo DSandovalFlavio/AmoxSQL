@@ -111,7 +111,7 @@ const PantallaCompleta = ({
 
     const soloUno = modo !== MODOS.AMBOS;
     const titulo = esTexto
-        ? (primeraLinea(celda.contenido) || 'Texto')
+        ? (primeraLinea(celda.contenido) || 'Text')
         : (String(celda.nombre || '').trim() || 'sin nombre');
 
     const mando = (valor, Icono, ayuda) => (
@@ -130,7 +130,7 @@ const PantallaCompleta = ({
                     type="button"
                     className="cdn-btn cdn-btn--icono"
                     onClick={onCerrar}
-                    title="Volver al cuaderno (Esc)"
+                    title="Back to the notebook (Esc)"
                 ><LuMinimize2 size={13} /></button>
 
                 <span className={esTexto ? 'cdn-desc' : 'cdn-pc-nombre'}>{titulo}</span>
@@ -142,9 +142,9 @@ const PantallaCompleta = ({
                 <span className="cdn-sp" />
 
                 <div className="cdn-grupo">
-                    {mando(MODOS.AMBOS, LuColumns2, esTexto ? 'Fuente y texto' : 'Código y resultado')}
-                    {mando(MODOS.CODIGO, LuCode, esTexto ? 'Sólo la fuente' : 'Sólo el código')}
-                    {mando(MODOS.RESULTADO, esTexto ? LuEye : LuTable, esTexto ? 'Sólo el texto' : 'Sólo el resultado')}
+                    {mando(MODOS.AMBOS, LuColumns2, esTexto ? 'Source and text' : 'Code and result')}
+                    {mando(MODOS.CODIGO, LuCode, esTexto ? 'Source only' : 'Code only')}
+                    {mando(MODOS.RESULTADO, esTexto ? LuEye : LuTable, esTexto ? 'Text only' : 'Result only')}
                 </div>
 
                 {!esTexto && (
@@ -154,7 +154,7 @@ const PantallaCompleta = ({
                             className="cdn-btn cdn-btn--corre"
                             onClick={() => onEjecutar(celda.id)}
                             disabled={corriendo || analisis?.vacia}
-                            title="Ejecutar (Ctrl+Enter)"
+                            title="Run (Ctrl+Enter)"
                         >
                             {corriendo ? <LuLoaderCircle size={12} className="spin" /> : <LuPlay size={12} />}
                             Ejecutar
@@ -174,7 +174,7 @@ const PantallaCompleta = ({
                                 className="cdn-texto-fuente"
                                 value={celda.contenido || ''}
                                 spellCheck
-                                placeholder="Aquí cabe el contexto, la metodología y lo que se descartó. Los encabezados construyen el índice de la derecha."
+                                placeholder="Room here for the context, the method, and what you ruled out. Headings build the outline on the right."
                                 onChange={(e) => onCambiar(celda.id, { contenido: e.target.value })}
                             />
                         ) : (
@@ -228,7 +228,7 @@ const PantallaCompleta = ({
                                 onConfigChange={alCambiarGrafico}
                             />
                         ) : (
-                            <div className="cdn-vacio">Sin ejecutar</div>
+                            <div className="cdn-vacio">Not run yet</div>
                         )}
                     </div>
                 )}

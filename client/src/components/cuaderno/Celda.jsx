@@ -156,13 +156,13 @@ const Celda = ({
                 <input
                     className="cdn-nombre"
                     value={celda.nombre || ''}
-                    placeholder="sin nombre"
+                    placeholder="unnamed"
                     spellCheck={false}
                     readOnly={lectura}
                     onChange={(e) => onCambiar(celda.id, { nombre: e.target.value.trim() })}
                     title={celda.nombre
-                        ? `La siguiente celda puede escribir FROM ${celda.nombre}`
-                        : 'Se le pondrá uno al ejecutar'}
+                        ? `The next cell can write FROM ${celda.nombre}`
+                        : 'It gets one when you run it'}
                 />
                 {/* La descripción sale del comentario de cabecera de la consulta:
                     no se escribe dos veces. */}
@@ -178,26 +178,26 @@ const Celda = ({
                     explica por qué. */}
                 {marcas && vieja && (
                     <span className="cdn-deja cdn-deja--vieja" title={frescura === 'cambiada'
-                        ? 'Se editó después de ejecutarla: lo que se ve es de antes'
-                        : 'Algo de lo que depende cambió: lo que se ve es de antes'}>
+                        ? 'Edited after it ran: what you see is from before'
+                        : 'Something it depends on changed: what you see is from before'}>
                         <LuHistory size={11} />
-                        {frescura === 'cambiada' ? 'editada' : 'desfasada'}
+                        {frescura === 'cambiada' ? 'edited' : 'stale'}
                     </span>
                 )}
                 {/* Un ciclo no tiene un orden correcto, así que «Actualizar» no
                     puede prometer nada sobre estas dos celdas. Mejor decirlo. */}
                 {marcas && enCiclo && (
-                    <span className="cdn-deja cdn-deja--escribe" title="Esta celda y otra se leen entre sí: no hay un orden correcto para ejecutarlas">
+                    <span className="cdn-deja cdn-deja--escribe" title="This cell and another read each other: there is no correct order to run them in">
                         <LuTriangleAlert size={11} />
-                        en bucle
+                        in a loop
                     </span>
                 )}
                 {/* Escribir en el disco no se deshace al cerrar, y la diferencia
                     con dejar una vista en la sesión es justo la que importa. */}
                 {marcas && analisis?.escribe === 'disco' && (
-                    <span className="cdn-deja cdn-deja--escribe" title="Esta celda modifica datos guardados, no sólo la sesión">
+                    <span className="cdn-deja cdn-deja--escribe" title="This cell changes stored data, not just the session">
                         <LuTriangleAlert size={11} />
-                        escribe
+                        writes
                     </span>
                 )}
                 {/* Qué deja esta celda detrás. Apagado mientras no exista de
@@ -208,11 +208,11 @@ const Celda = ({
                     <span
                         className={`cdn-deja${viva ? ' cdn-deja--viva' : ''}`}
                         title={viva
-                            ? `${celda.materializada ? 'Tabla' : 'Vista'} viva en la sesión`
-                            : 'Aún no existe: ejecuta la celda'}
+                            ? `${celda.materializada ? 'Table' : 'View'} live in the session`
+                            : 'Does not exist yet: run the cell'}
                     >
                         {celda.materializada ? <LuDatabase size={11} /> : <LuLayers size={11} />}
-                        {celda.materializada ? 'tabla' : 'vista'}
+                        {celda.materializada ? 'table' : 'view'}
                     </span>
                 )}
                 {/* Lo que no se puede envolver no deja nada, y eso no es un
@@ -220,9 +220,9 @@ const Celda = ({
                 {marcas && analisis && !analisis.vacia && !puedeDejarVista && !analisis.vistaPropia && (
                     <span className="cdn-deja cdn-deja--nada" title={
                         analisis.sentencias > 1
-                            ? 'Varias sentencias: se ejecutan tal cual'
-                            : 'No es una consulta: se ejecuta tal cual'
-                    }>no deja vista</span>
+                            ? 'Several statements: they run as written'
+                            : 'Not a query: it runs as written'
+                    }>leaves no view</span>
                 )}
             </div>
 
@@ -274,7 +274,7 @@ const Celda = ({
                                 onConfigChange={alCambiarGrafico}
                             />
                         ) : (
-                            <div className="cdn-vacio">Sin ejecutar</div>
+                            <div className="cdn-vacio">Not run yet</div>
                         )}
                     </div>
                 )}

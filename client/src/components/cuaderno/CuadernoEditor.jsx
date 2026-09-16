@@ -76,18 +76,18 @@ async function pedirJson(ruta, opciones) {
     try {
         r = await fetch(`${API_BASE}${ruta}`, opciones);
     } catch (e) {
-        throw new Error(`No se pudo hablar con el servidor de AmoxSQL (${API_BASE}). ${e?.message || e}`);
+        throw new Error(`Could not reach the AmoxSQL server (${API_BASE}). ${e?.message || e}`);
     }
     const tipo = r.headers.get('content-type') || '';
     if (!tipo.includes('application/json')) {
         if (r.status === 404) {
             throw new Error(
-                `El servidor no conoce «${ruta}». Suele pasar cuando la aplicación lleva `
-                + 'abierta desde antes de que esa ruta existiera: el servidor va en un proceso '
-                + 'aparte y no se recarga solo. Cierra AmoxSQL y vuelve a abrirlo.',
+                `The server does not know "${ruta}". That usually means the app has been `
+                + 'open since before that route existed: the server runs in a separate process '
+                + 'and does not reload on its own. Close AmoxSQL and open it again.',
             );
         }
-        throw new Error(`El servidor respondió ${r.status} sin JSON al pedir «${ruta}».`);
+        throw new Error(`The server answered ${r.status} with no JSON for "${ruta}".`);
     }
     const cuerpo = await r.json();
     // Un 500 del endpoint SÍ trae JSON con `error`: eso se devuelve tal cual,
@@ -548,14 +548,14 @@ const CuadernoEditor = ({
             // sin un solo error.
             if (r?.tapado) {
                 const seguir = await dialog.confirmAsync({
-                    title: `Ya existe ${r.tapado.tipo === 'tabla' ? 'una tabla' : 'una vista'} «${r.tapado.nombre}»`,
-                    message: 'Si esta celda usa ese nombre, la tapará durante toda la sesión: '
-                        + `lo que lea «FROM ${r.tapado.nombre}» verá el resultado de la celda y no `
-                        + `${r.tapado.tipo === 'tabla' ? 'la tabla' : 'la vista'} original, `
-                        + 'ni siquiera escribiendo el esquema delante. '
-                        + 'Nada se borra, y al cerrar el proyecto vuelve todo a su sitio.',
-                    confirmLabel: 'Taparla igualmente',
-                    cancelLabel: 'Cambio el nombre',
+                    title: `${r.tapado.tipo === 'tabla' ? 'A table' : 'A view'} named "${r.tapado.nombre}" already exists`,
+                    message: 'If this cell uses that name, it shadows it for the whole session: '
+                        + `anything reading "FROM ${r.tapado.nombre}" sees this cell result and not `
+                        + `the original ${r.tapado.tipo === 'tabla' ? 'table' : 'view'}, `
+                        + 'not even by writing the schema in front. '
+                        + 'Nothing is deleted, and closing the project puts it all back.',
+                    confirmLabel: 'Shadow it anyway',
+                    cancelLabel: 'I will rename it',
                     destructive: true,
                 });
                 // `null` y no `false`: quien cancela no ha fallado, ha decidido.
@@ -606,15 +606,15 @@ const CuadernoEditor = ({
 
         const nombreDe = (id) => {
             const c = doc.celdas.find((x) => x.id === id);
-            return String(c?.nombre || '').trim() || 'sin nombre';
+            return String(c?.nombre || '').trim() || 'unnamed';
         };
 
         const lineas = orden.map((id, i) => `${i + 1}. ${nombreDe(id)}`).join('\n');
         const aviso = apartadas.length
-            ? `\n\nSe quedan fuera ${apartadas.length === 1 ? 'la celda' : `${apartadas.length} celdas`} `
-              + `${apartadas.map((x) => `«${nombreDe(x.id)}»`).join(', ')}: `
-              + 'escriben en el disco, y volver a ejecutarlas no es inofensivo. '
-              + 'Si hace falta, se ejecutan a mano.'
+            ? `\n\nLeft out: ${apartadas.length === 1 ? 'the cell' : `${apartadas.length} cells`} `
+              + `${apartadas.map((x) => `"${nombreDe(x.id)}"`).join(', ')}. `
+              + 'They write to disk, and running them again is not harmless. '
+              + 'Run them by hand if you need to.'
             : '';
 
         // Sin nada que ejecutar el botón está apagado y esto no se alcanza; se
@@ -622,9 +622,9 @@ const CuadernoEditor = ({
         if (!orden.length) return;
 
         const seguir = await dialog.confirmAsync({
-            title: orden.length === 1 ? 'Actualizar una celda' : `Actualizar ${orden.length} celdas`,
-            message: `En este orden, que es el de sus dependencias y no el de la pantalla:\n\n${lineas}${aviso}`,
-            confirmLabel: 'Actualizar',
+            title: orden.length === 1 ? 'Refresh one cell' : `Refresh ${orden.length} cells`,
+            message: `In this order, which is their dependency order and not the order on screen:\n\n${lineas}${aviso}`,
+            confirmLabel: 'Refresh',
         });
         if (!seguir) return;
 
@@ -641,12 +641,12 @@ const CuadernoEditor = ({
             // celda, pero puede estar a diez pantallas de aquí.
             const quedaban = orden.length - i - 1;
             const cola = quedaban
-                ? ` ${quedaban === 1 ? 'Queda una celda' : `Quedan ${quedaban} celdas`} sin ejecutar.`
+                ? ` ${quedaban === 1 ? 'One cell is' : `${quedaban} cells are`} left unrun.`
                 : '';
             if (salida === null) {
-                toast.info(`Se paró en «${nombreDe(orden[i])}»: cámbiale el nombre y vuelve a intentarlo.${cola}`);
+                toast.info(`Stopped at "${nombreDe(orden[i])}": rename it and try again.${cola}`);
             } else {
-                toast.error(`«${nombreDe(orden[i])}» falló, así que se paró ahí: lo que cuelga de ella habría fallado igual. El error está en la celda.${cola}`);
+                toast.error(`"${nombreDe(orden[i])}" failed, so it stopped there: whatever hangs off it would have failed too. The error is in the cell.${cola}`);
             }
             return;
         }
@@ -707,18 +707,18 @@ const CuadernoEditor = ({
         // el codigo, sin el, y no exportar. Con una pregunta de si o no, pulsar
         // Escape contaria como «sin el codigo» y el documento saldria igual.
         const elegido = await dialog.chooseAsync({
-            title: 'Exportar a Word',
+            title: 'Export to Word',
             options: [
-                { value: 'con', label: 'Con las consultas', primary: true, description: 'El documento lleva el SQL de cada celda, como un anexo del analisis.' },
-                { value: 'sin', label: 'Solo texto y resultados', description: 'Para quien lee las conclusiones y no el camino.' },
+                { value: 'con', label: 'With the queries', primary: true, description: 'The document carries the SQL of every cell, as an appendix to the analysis.' },
+                { value: 'sin', label: 'Text and results only', description: 'For whoever reads the conclusions and not the path.' },
             ],
-            cancelLabel: 'Ahora no',
+            cancelLabel: 'Not now',
             message: (mudas.length
-                ? `${mudas.length === 1 ? 'La celda' : 'Las celdas'} ${mudas.map((n) => `«${n}»`).join(', ')} `
-                  + `${mudas.length === 1 ? 'tiene' : 'tienen'} un grafico pero esta plegada en «solo el codigo», `
-                  + 'asi que su figura no se puede capturar. Abrela antes si la quieres en el documento.\n\n'
+                ? `${mudas.length === 1 ? 'Cell' : 'Cells'} ${mudas.map((n) => `"${n}"`).join(', ')} `
+                  + `${mudas.length === 1 ? 'has' : 'have'} a chart but ${mudas.length === 1 ? 'is' : 'are'} folded to "code only", `
+                  + 'so the figure cannot be captured. Open it first if you want it in the document.\n\n'
                 : '')
-                + 'Cada celda aporta su texto y su tabla o su figura.',
+                + 'Each cell contributes its text and its table or its figure.',
         });
         if (!elegido?.value) return;
 
@@ -732,7 +732,7 @@ const CuadernoEditor = ({
                 tituloDe(doc),
             );
         } catch (e) {
-            toast.error(`No se pudo exportar: ${e?.message || e}`);
+            toast.error(`Could not export: ${e?.message || e}`);
         } finally {
             setSacando(null);
         }
@@ -751,8 +751,8 @@ const CuadernoEditor = ({
         const plan = planDeTablero(doc.celdas, claves, estados, resultados, tituloDe(doc));
         if (!plan.trozos.length) {
             toast.info(
-                'Un tablero se hace con las celdas de texto y con las que tengan un grafico '
-                + 'configurado y ejecutado. Escribe algo o construye una figura primero.',
+                'A deck is made from the text cells and from the ones with a chart '
+                + 'configured and run. Write something or build a figure first.',
             );
             return;
         }
@@ -784,7 +784,7 @@ const CuadernoEditor = ({
             const cabecera = `---\ntitle: ${plan.nombre}\ntheme: dark\naspect: "16:9"\n---`;
             onCreateNew?.('amoxdeck', serializeDeck(cabecera, diapositivas));
         } catch (e) {
-            toast.error(`No se pudo convertir: ${e?.message || e}`);
+            toast.error(`Could not convert: ${e?.message || e}`);
         } finally {
             setSacando(null);
         }
@@ -834,7 +834,7 @@ const CuadernoEditor = ({
                     <LuPlus size={11} /> SQL
                 </button>
                 <button type="button" className="cdn-btn" onClick={() => anadir('texto', indice)}>
-                    <LuFileText size={11} /> Texto
+                    <LuFileText size={11} /> Text
                 </button>
             </div>
         </div>
@@ -855,7 +855,7 @@ const CuadernoEditor = ({
                             className="cdn-doc-titulo"
                             value={doc.meta?.titulo || ''}
                             readOnly={lectura}
-                            placeholder={lectura ? '' : 'Sin título'}
+                            placeholder={lectura ? '' : 'Untitled'}
                             onChange={(e) => cambiarMeta('titulo', e.target.value)}
                         />
                         {/* Un `textarea` y no un `input`: una descripción larga
@@ -868,7 +868,7 @@ const CuadernoEditor = ({
                             rows={1}
                             value={doc.meta?.descripcion || ''}
                             readOnly={lectura}
-                            placeholder={lectura ? '' : 'Añade una descripción…'}
+                            placeholder={lectura ? '' : 'Add a description…'}
                             onChange={(e) => cambiarMeta('descripcion', e.target.value.replace(/\s*[\r\n]+\s*/g, ' '))}
                             ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
                         />
@@ -891,11 +891,11 @@ const CuadernoEditor = ({
                                 if (siguiente) setEscribiendo(null);
                             }}
                             title={lectura
-                                ? 'Volver a editar: el SQL, los mandos y el constructor de gráficos'
-                                : 'Leerlo sin el SQL: sólo el texto y las figuras'}
+                                ? 'Back to editing: the SQL, the controls and the chart builder'
+                                : 'Read it without the SQL: just the text and the figures'}
                         >
                             {lectura ? <LuPencil size={12} /> : <LuBookOpen size={12} />}
-                            {lectura ? 'Editar' : 'Lectura'}
+                            {lectura ? 'Edit' : 'Reading'}
                         </button>
                         <button
                             type="button"
@@ -903,17 +903,17 @@ const CuadernoEditor = ({
                             onClick={actualizar}
                             disabled={!pendientes.orden.length}
                             title={pendientes.orden.length
-                                ? 'Ejecutar lo que no está al día, en orden de dependencia'
+                                ? 'Run what is not up to date, in dependency order'
                                 : pendientes.apartadas.length
-                                    ? 'Lo único que falta escribe en el disco: eso se ejecuta a mano'
-                                    : 'Todo está al día'}
+                                    ? 'All that is left writes to disk: that one runs by hand'
+                                    : 'Everything is up to date'}
                         >
                             <LuRefreshCw size={12} />
-                            Actualizar
+                            Refresh
                             {pendientes.orden.length > 0 && <span className="cdn-n">{pendientes.orden.length}</span>}
                         </button>
-                        <button type="button" className="cdn-btn" onClick={() => onSave?.()} title="Guardar (Ctrl+S)">
-                            <LuSave size={12} /> Guardar
+                        <button type="button" className="cdn-btn" onClick={() => onSave?.()} title="Save (Ctrl+S)">
+                            <LuSave size={12} /> Save
                         </button>
                         <div className="cdn-grupo">
                             <button
@@ -921,7 +921,7 @@ const CuadernoEditor = ({
                                 className="cdn-btn"
                                 onClick={aWord}
                                 disabled={!!sacando}
-                                title="Un documento que circula: se comenta, se firma, se adjunta"
+                                title="A document that travels: it gets commented on, signed, attached"
                             >
                                 {sacando === 'word' ? <LuLoaderCircle size={12} className="spin" /> : <LuFileType2 size={12} />}
                                 Word
@@ -931,16 +931,16 @@ const CuadernoEditor = ({
                                 className="cdn-btn"
                                 onClick={aTablero}
                                 disabled={!!sacando}
-                                title="Llevar el texto y las figuras a un tablero de Report Flow"
+                                title="Take the text and the figures to a Report Flow deck"
                             >
                                 {sacando === 'tablero' ? <LuLoaderCircle size={12} className="spin" /> : <LuPresentation size={12} />}
-                                Tablero
+                                Deck
                             </button>
                         </div>
                         {onToggleAi && (
                             <button type="button" className="cdn-btn" onClick={onToggleAi}>
                                 {showAiSidebar ? <LuX size={12} /> : <LuBot size={12} />}
-                                {showAiSidebar ? 'Cerrar Assist' : 'Assist'}
+                                {showAiSidebar ? 'Close Assist' : 'Assist'}
                             </button>
                         )}
                     </div>

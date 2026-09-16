@@ -49,7 +49,7 @@ const Barra = ({
         <div className="cdn-lado">
             {/* ── índice ─────────────────────────────────────────────────── */}
             <div className="cdn-seccion">
-                Índice <span className="cdn-sp" /><span className="cdn-n">{indice.length}</span>
+                Outline <span className="cdn-sp" /><span className="cdn-n">{indice.length}</span>
             </div>
             {indice.length > 0 ? (
                 <div className="cdn-indice">
@@ -67,21 +67,21 @@ const Barra = ({
                 </div>
             ) : (
                 <p className="cdn-lista-vacia">
-                    Los encabezados de las celdas de texto —<code>#</code>, <code>##</code>,
-                    <code> ###</code>— construyen este índice.
+                    The headings of text cells —<code>#</code>, <code>##</code>,
+                    <code> ###</code>— build this outline.
                 </p>
             )}
 
             {/* ── vistas ─────────────────────────────────────────────────── */}
             <div className="cdn-seccion">
-                Vistas
+                Views
                 <span className="cdn-sp" />
                 <span className="cdn-n">{vistas.vivasPropias}/{vistas.propias.length}</span>
                 <button
                     type="button"
                     className="cdn-mini"
                     onClick={onRefrescar}
-                    title="Volver a preguntarle al motor"
+                    title="Ask the engine again"
                 ><LuRotateCw size={11} /></button>
             </div>
 
@@ -93,8 +93,8 @@ const Barra = ({
                 <div className="cdn-falta-aviso cdn-falta-aviso--vieja">
                     <LuHistory size={12} style={{ flex: 'none' }} />
                     <span>
-                        {viejas === 1 ? 'Una está puesta' : `${viejas} están puestas`} con una
-                        definición anterior a la última edición. Lo que se ve es de antes.
+                        {viejas === 1 ? 'One is in place' : `${viejas} are in place`} with a
+                        definition older than the last edit. What you see is from before.
                     </span>
                 </div>
             )}
@@ -104,9 +104,9 @@ const Barra = ({
                     <LuCircleAlert size={12} style={{ flex: 'none' }} />
                     <span>
                         {vistas.faltan === vistas.propias.length
-                            ? 'La sesión no tiene ninguna. Ejecuta las celdas para volver a ponerlas.'
-                            : `${vistas.faltan === 1 ? 'Falta una' : `Faltan ${vistas.faltan}`}: hasta que se ejecuten, `
-                              + 'lo que las lea fallará.'}
+                            ? 'The session has none. Run the cells to put them back.'
+                            : `${vistas.faltan === 1 ? 'One is missing' : `${vistas.faltan} are missing`}: until they run, `
+                              + 'anything reading them will fail.'}
                     </span>
                 </div>
             )}
@@ -120,10 +120,10 @@ const Barra = ({
                             className={`cdn-vista${v.viva ? ' cdn-vista--viva' : ''}`}
                             onClick={() => onIrA(v.celda)}
                             title={!v.viva
-                                ? 'Todavía no existe: ir a su celda y ejecutarla'
+                                ? 'Does not exist yet: go to its cell and run it'
                                 : ['cambiada', 'arriba'].includes(frescuras?.get(v.celda))
-                                    ? `${v.descripcion || 'Sin descripción'}\nPuesta, pero con una definición anterior a la última edición`
-                                    : `${v.descripcion || 'Sin descripción'}\nViva y al día — ir a su celda`}
+                                    ? `${v.descripcion || 'No description'}\nIn place, but with a definition older than the last edit`
+                                    : `${v.descripcion || 'No description'}\nLive and up to date — go to its cell`}
                         >
                             {v.tipo === 'tabla' ? <LuDatabase size={11} /> : <LuLayers size={11} />}
                             <span className="cdn-vista-n">{v.nombre}</span>
@@ -135,8 +135,8 @@ const Barra = ({
                 </div>
             ) : (
                 <p className="cdn-lista-vacia">
-                    Cada celda con nombre deja una vista aquí al ejecutarse, y la siguiente
-                    puede leerla por ese nombre.
+                    Every named cell leaves a view here when it runs, and the next one
+                    can read it by that name.
                 </p>
             )}
 
@@ -145,7 +145,7 @@ const Barra = ({
             {vistas.ajenas.length > 0 && (
                 <>
                     <div className="cdn-seccion cdn-seccion--sub">
-                        También en la sesión <span className="cdn-sp" />
+                        Also in the session <span className="cdn-sp" />
                         <span className="cdn-n">{vistas.ajenas.length}</span>
                     </div>
                     <div className="cdn-indice">
@@ -153,7 +153,7 @@ const Barra = ({
                             <span
                                 key={v.nombre}
                                 className="cdn-vista cdn-vista--viva cdn-vista--ajena"
-                                title={`${v.descripcion || 'Sin descripción'}\nCreada fuera de este cuaderno`}
+                                title={`${v.descripcion || 'No description'}\nCreated outside this notebook`}
                             >
                                 {v.tipo === 'tabla' ? <LuDatabase size={11} /> : <LuLayers size={11} />}
                                 <span className="cdn-vista-n">{v.nombre}</span>
@@ -165,7 +165,7 @@ const Barra = ({
 
             {/* ── parámetros ─────────────────────────────────────────────── */}
             <div className="cdn-seccion">
-                Parámetros <span className="cdn-sp" />
+                Parameters <span className="cdn-sp" />
                 <span className="cdn-n">{nombresDeclarados.length}</span>
             </div>
 
@@ -175,11 +175,11 @@ const Barra = ({
                         <div className="cdn-param" key={n}>
                             <label className="cdn-param-n" htmlFor={`cdn-p-${n}`} title={
                                 usados.includes(n)
-                                    ? `Se usa escribiendo {{${n}}} en una celda`
-                                    : 'Declarado, pero ninguna celda lo usa'
+                                    ? `Use it by writing {{${n}}} in a cell`
+                                    : 'Declared, but no cell uses it'
                             }>
                                 {n}
-                                {!usados.includes(n) && <span className="cdn-param-huerfano">sin usar</span>}
+                                {!usados.includes(n) && <span className="cdn-param-huerfano">unused</span>}
                             </label>
                             <div className="cdn-param-fila">
                                 {/* La regla del entrecomillado se dice AQUI y no en un
@@ -193,15 +193,15 @@ const Barra = ({
                                     value={parametros[n] ?? ''}
                                     spellCheck={false}
                                     onChange={(e) => onParametro(n, e.target.value)}
-                                    title={'Un texto entra entrecomillado y un número tal cual: '
-                                        + `se escribe «f >= {{${n}}}», sin comillas alrededor. `
-                                        + 'Por eso un parámetro no sirve para nombrar una tabla.'}
+                                    title={'Text goes in quoted and a number goes in raw: '
+                                        + `you write "f >= {{${n}}}", with no quotes around it. `
+                                        + 'That is also why a parameter cannot name a table.'}
                                 />
                                 <button
                                     type="button"
                                     className="cdn-mini"
                                     onClick={() => onParametro(n, null)}
-                                    title="Quitar este parámetro"
+                                    title="Remove this parameter"
                                 ><LuTrash2 size={11} /></button>
                             </div>
                         </div>
@@ -209,7 +209,7 @@ const Barra = ({
                 </div>
             ) : (
                 <p className="cdn-lista-vacia">
-                    Escribe <code>{'{{desde}}'}</code> en una celda para darle valor aquí.
+                    Write <code>{'{{desde}}'}</code> in a cell to give it a value here.
                 </p>
             )}
 
@@ -223,10 +223,10 @@ const Barra = ({
                             type="button"
                             className="cdn-declarar"
                             onClick={() => onParametro(n, '')}
-                            title="Alguna celda lo usa pero no tiene valor. Declararlo aquí."
+                            title="A cell uses it but it has no value. Declare it here."
                         >
                             <LuPlus size={11} />
-                            Declarar <code>{n}</code>
+                            Declare <code>{n}</code>
                         </button>
                     ))}
                 </div>

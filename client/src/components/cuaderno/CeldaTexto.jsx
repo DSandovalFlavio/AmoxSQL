@@ -70,7 +70,7 @@ const CeldaTexto = ({
                     className="cdn-texto-fuente"
                     value={celda.contenido || ''}
                     spellCheck
-                    placeholder="Escribe aquí. Los encabezados (#, ##, ###) construyen el índice de la derecha."
+                    placeholder="Write here. Headings (#, ##, ###) build the outline on the right."
                     onChange={(e) => { onCambiar(celda.id, { contenido: e.target.value }); ajustar(); }}
                     // Salir compone el texto, salvo que el mando del canalón la
                     // tenga fijada en la fuente a propósito.
@@ -85,10 +85,10 @@ const CeldaTexto = ({
             <div
                 className="cdn-md"
                 onDoubleClick={lectura ? undefined : () => onEscribir?.(celda.id)}
-                title={lectura ? undefined : 'Doble clic para escribir'}
+                title={lectura ? undefined : 'Double-click to write'}
             >
                 {vacia
-                    ? (lectura ? null : <p className="cdn-md-vacio">Doble clic para escribir</p>)
+                    ? (lectura ? null : <p className="cdn-md-vacio">Double-click to write</p>)
                     : <MarkdownPreview content={celda.contenido} widthMode="full" />}
             </div>
         </div>

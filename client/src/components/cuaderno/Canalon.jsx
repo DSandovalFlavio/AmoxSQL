@@ -29,11 +29,11 @@ import { MODOS } from './modos.js';
 
 /** Qué color tiene el punto, y qué se dice al posarse en él. */
 function estadoDelPunto(resultado, frescura) {
-    if (resultado?.error) return ['falla', 'Falló'];
-    if (frescura === 'cambiada') return ['vieja', 'Se editó después de ejecutarla: lo que se ve es de antes'];
-    if (frescura === 'arriba') return ['vieja', 'Algo de lo que depende cambió: lo que se ve es de antes'];
-    if (frescura === 'dia') return ['dia', 'Al día'];
-    return ['nunca', 'Sin ejecutar'];
+    if (resultado?.error) return ['falla', 'Failed'];
+    if (frescura === 'cambiada') return ['vieja', 'Edited after it ran: what you see is from before'];
+    if (frescura === 'arriba') return ['vieja', 'Something it depends on changed: what you see is from before'];
+    if (frescura === 'dia') return ['dia', 'Up to date'];
+    return ['nunca', 'Never run'];
 }
 
 const Canalon = ({
@@ -85,7 +85,7 @@ const Canalon = ({
                             className="cdn-mando cdn-mando--corre"
                             onClick={() => onEjecutar(celda.id)}
                             disabled={corriendo || analisis?.vacia}
-                            title="Ejecutar (Ctrl+Enter)"
+                            title="Run (Ctrl+Enter)"
                         >
                             {corriendo ? <LuLoaderCircle size={13} className="spin" /> : <LuPlay size={12} />}
                         </button>
@@ -99,11 +99,11 @@ const Canalon = ({
                     solo sitio en vez de repartido entre el canalón y la cabecera. */}
                 {esSql ? (
                     <>
-                        {mando(LuColumns2, 'Código y resultado', () => onEstado(celda.id, { modo: MODOS.AMBOS }),
+                        {mando(LuColumns2, 'Code and result', () => onEstado(celda.id, { modo: MODOS.AMBOS }),
                             modo === MODOS.AMBOS ? ' cdn-mando--on' : '')}
-                        {mando(LuCode, 'Sólo el código', () => onEstado(celda.id, { modo: MODOS.CODIGO }),
+                        {mando(LuCode, 'Code only', () => onEstado(celda.id, { modo: MODOS.CODIGO }),
                             modo === MODOS.CODIGO ? ' cdn-mando--on' : '')}
-                        {mando(LuTable, 'Sólo el resultado', () => onEstado(celda.id, { modo: MODOS.RESULTADO }),
+                        {mando(LuTable, 'Result only', () => onEstado(celda.id, { modo: MODOS.RESULTADO }),
                             modo === MODOS.RESULTADO ? ' cdn-mando--on' : '')}
                     </>
                 ) : (
@@ -113,7 +113,7 @@ const Canalon = ({
                        pantalla completa, que sí tiene sitio. */
                     mando(
                         modo === MODOS.CODIGO ? LuEye : LuCode,
-                        modo === MODOS.CODIGO ? 'Ver el texto' : 'Ver la fuente',
+                        modo === MODOS.CODIGO ? 'Show the text' : 'Show the source',
                         () => onEstado(celda.id, { modo: modo === MODOS.CODIGO ? MODOS.RESULTADO : MODOS.CODIGO }),
                     )
                 )}
@@ -121,18 +121,18 @@ const Canalon = ({
                 {esSql && puedeDejarVista && mando(
                     LuDatabase,
                     celda.materializada
-                        ? 'Materializada: el resultado se guarda. Vuelve a ejecutarla si cambian los datos de origen'
-                        : 'Materializar: guarda el resultado en vez de recalcularlo cada vez que se lea',
+                        ? 'Materialized: the result is stored. Run it again if the source data changes'
+                        : 'Materialize: store the result instead of recomputing it on every read',
                     () => onCambiar(celda.id, { materializada: !celda.materializada }),
                     celda.materializada ? ' cdn-mando--on cdn-mando--sep' : ' cdn-mando--sep',
                 )}
 
-                {mando(LuMaximize2, 'Ocupar la pestaña entera', () => onAmpliar?.(celda.id),
+                {mando(LuMaximize2, 'Take the whole tab', () => onAmpliar?.(celda.id),
                     esSql && puedeDejarVista ? '' : ' cdn-mando--sep')}
 
-                {mando(LuChevronUp, 'Subir', () => onSubir(celda.id), ' cdn-mando--sep')}
-                {mando(LuChevronDown, 'Bajar', () => onBajar(celda.id))}
-                {mando(LuTrash2, 'Borrar', () => onBorrar(celda.id))}
+                {mando(LuChevronUp, 'Move up', () => onSubir(celda.id), ' cdn-mando--sep')}
+                {mando(LuChevronDown, 'Move down', () => onBajar(celda.id))}
+                {mando(LuTrash2, 'Delete', () => onBorrar(celda.id))}
             </div>
         </div>
     );
