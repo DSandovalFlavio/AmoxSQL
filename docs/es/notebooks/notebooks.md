@@ -111,7 +111,7 @@ Escribe `{{desde}}` en una celda y en la barra derecha podrás darle valor sin t
 
 El cuaderno sabe **qué celda lee a cuál**, esté donde esté en el documento: la dependencia sale de los nombres, no del orden de la pantalla. Si editas una celda de la que cuelgan tres, marca las tres, y **Actualizar** las ejecuta en el orden correcto —que casi nunca es el de arriba abajo— diciendo antes cuántas y en qué orden.
 
-También entra lo que falta: al reabrir el cuaderno, «Actualizar» vuelve a poner las vistas que la sesión perdió.
+También entra lo que falta: al reabrir el cuaderno, «Actualizar» vuelve a poner las vistas que la sesión perdió, y **también las celdas que no enseñan nada**. Al cerrar la pestaña y volver a abrir el archivo, la sesión sigue entera —las vistas siguen vivas— pero los resultados no vuelven: viven en memoria a propósito, porque guardarlos haría que un cuaderno reabierto se diera por ejecutado sobre una sesión que podría estar vacía. Que la vista esté puesta no basta si la celda está en blanco.
 
 Lo que escribe en el disco se **aparta** y se dice: repetir un `INSERT` duplica filas, y eso no se deshace cerrando el proyecto.
 

@@ -203,8 +203,19 @@ export function celdasEnCiclo(celdas, grafo) {
  * barra lo dice, y lo que quien abre quiere es volver a ponerlo. Si «Actualizar»
  * sólo mirara lo desfasado, en el caso más común del mundo no haría nada.
  *
- * Así que una celda sin ejecutar entra **si su vista no está viva**. Si lo está
- * —porque la puso otra cosa— no hace falta tocarla.
+ * Así que una celda sin ejecutar entra **si no hay nada que enseñar, o si su
+ * vista no está viva**.
+ *
+ * Las dos condiciones, y la primera es la que faltaba. Cerrar la pestaña y
+ * volver a abrir el mismo archivo **sin cerrar la aplicación** deja la sesión
+ * intacta —las vistas siguen vivas— pero los resultados no vuelven: viven en
+ * memoria y a propósito, porque guardarlos haría que un cuaderno reabierto se
+ * diera por ejecutado sobre una sesión que podría estar vacía. Mirando sólo las
+ * vistas, «Actualizar» se apagaba entero mientras las dieciséis celdas decían
+ * «Sin ejecutar». Las dos cosas eran ciertas y juntas no servían de nada.
+ *
+ * Ejecutar una celda cuyo resultado no está en pantalla **no es sólo un efecto**:
+ * es lo único que lo pone. Que la vista ya estuviera puesta no lo cambia.
  *
  * ## Lo que escribe en disco se aparta, y se dice
  *
@@ -216,19 +227,26 @@ export function celdasEnCiclo(celdas, grafo) {
  * @param {Object} [opciones]
  * @param {Set<string>} [opciones.vivas] nombres vivos, en minúsculas
  * @param {Object} [opciones.analisis] mapa `id -> analizarCelda(...)`
+ * @param {Set<string>} [opciones.conResultado] ids que YA enseñan algo en pantalla
  * @returns {{orden: Array<string>, apartadas: Array<{id: string, motivo: string}>}}
  */
-export function queActualizar(celdas, grafo, estado, { vivas, analisis } = {}) {
+export function queActualizar(celdas, grafo, estado, { vivas, analisis, conResultado } = {}) {
     const porId = new Map((celdas || []).map((c) => [c.id, c]));
     const hayQue = new Set();
 
     for (const [id, e] of estado) {
         if (e === 'cambiada' || e === 'arriba') { hayQue.add(id); continue; }
-        if (e !== 'nunca' || !vivas) continue;
-        // Sin ejecutar: sólo si lo que debería dejar no está puesto. Una celda
-        // sin nombre no deja nada, así que ejecutarla sería sólo un efecto.
+        if (e !== 'nunca') continue;
+
+        // Sin ejecutar y sin nada en pantalla: entra. Es el caso de reabrir el
+        // archivo, y ejecutarla es lo único que llena la celda.
+        if (conResultado && !conResultado.has(id)) { hayQue.add(id); continue; }
+
+        // Y si hay algo en pantalla, entra sólo si lo que debería dejar puesto
+        // no está. Una celda sin nombre no deja nada, así que ahí ejecutarla
+        // sería sólo un efecto.
         const nombre = llave(porId.get(id)?.nombre);
-        if (nombre && !vivas.has(nombre)) hayQue.add(id);
+        if (vivas && nombre && !vivas.has(nombre)) hayQue.add(id);
     }
 
     // Arrastre hacia abajo: los hijos de algo que se va a ejecutar también.

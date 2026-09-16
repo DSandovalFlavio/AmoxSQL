@@ -387,12 +387,23 @@ const CuadernoEditor = ({
         () => frescura(doc.celdas, grafo, ejecuciones, textos),
         [doc.celdas, grafo, ejecuciones, textos],
     );
+    /**
+     * Qué celdas enseñan algo AHORA MISMO.
+     *
+     * Va a `queActualizar` porque «ya está puesto» y «ya se ve» dejaron de ser
+     * lo mismo: cerrar la pestaña y reabrir el archivo sin cerrar la aplicación
+     * conserva las vistas de la sesión y no los resultados, que viven en memoria
+     * a propósito. Sin esto, «Actualizar» se apagaba entero mientras todas las
+     * celdas decían «Sin ejecutar».
+     */
+    const conResultado = useMemo(() => new Set(Object.keys(resultados)), [resultados]);
     const pendientes = useMemo(
         () => queActualizar(doc.celdas, grafo, frescuras, {
             vivas: new Set(vistas.propias.filter((v) => v.viva).map((v) => v.nombre.toLowerCase())),
             analisis,
+            conResultado,
         }),
-        [doc.celdas, grafo, frescuras, vistas, analisis],
+        [doc.celdas, grafo, frescuras, vistas, analisis, conResultado],
     );
     const ciclos = useMemo(() => celdasEnCiclo(doc.celdas, grafo), [doc.celdas, grafo]);
     const parametros = doc.meta?.parametros || {};

@@ -297,6 +297,39 @@ comprobar(
         queActualizar(celdas, grafo, f, { vivas: new Set(['hija']), analisis }).orden,
         ['a', 'b'],
     );
+
+    // ── reabrir el ARCHIVO sin cerrar la aplicación ──────────────────────
+    // La sesión sigue entera, así que las vistas están vivas; los resultados
+    // no, porque viven en memoria. Mirando sólo las vistas, «Actualizar» se
+    // apagaba mientras todas las celdas decían «Sin ejecutar».
+    comprobar(
+        'la vista viva NO basta si la celda no enseña nada',
+        queActualizar(celdas, grafo, f, {
+            vivas: new Set(['base', 'hija']), analisis, conResultado: new Set(),
+        }).orden,
+        ['a', 'b'],
+    );
+    comprobar(
+        'y con la vista viva y el resultado en pantalla, no hay nada que hacer',
+        queActualizar(celdas, grafo, f, {
+            vivas: new Set(['base', 'hija']), analisis, conResultado: new Set(['a', 'b']),
+        }).orden,
+        [],
+    );
+    comprobar(
+        'la que enseña algo pero perdió su vista sigue entrando',
+        queActualizar(celdas, grafo, f, {
+            vivas: new Set(['hija']), analisis, conResultado: new Set(['a', 'b']),
+        }).orden,
+        ['a', 'b'],
+    );
+    comprobar(
+        'y si sólo a una le falta el resultado, la de abajo entra por arrastre',
+        queActualizar(celdas, grafo, f, {
+            vivas: new Set(['base', 'hija']), analisis, conResultado: new Set(['b']),
+        }).orden,
+        ['a', 'b'],
+    );
 }
 {
     const { celdas, grafo, analisis } = montar([['a', '', 'SELECT 1']]);

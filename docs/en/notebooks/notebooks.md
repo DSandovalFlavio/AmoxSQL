@@ -111,7 +111,7 @@ Write `{{desde}}` in a cell and the right sidebar lets you give it a value witho
 
 The notebook knows **which cell reads which**, wherever they sit in the document: dependencies come from names, not from screen order. Edit a cell that three others hang off and it marks all three; **Refresh** runs them in the right order — which is rarely top to bottom — telling you how many and in what order first.
 
-What is missing counts too: on reopening, Refresh puts back the views the session lost.
+What is missing counts too: on reopening, Refresh puts back the views the session lost, and **also the cells that show nothing**. Close the tab and open the file again and the session is untouched — the views are still live — but the results do not come back: they live in memory on purpose, because saving them would make a reopened notebook count itself as run over a session that might be empty. A live view is not enough when the cell is blank.
 
 Anything that writes to disk is **set aside** and named: re-running an `INSERT` duplicates rows, and that does not undo itself when the project closes.
 
