@@ -175,9 +175,12 @@
 .cdn-btn:disabled { opacity: .45; cursor: default; }
 
 /* ── el cuerpo: editor | resultado ──────────────────────────────────────── */
+/* DOS variables y no una. Con `var(--reparto) 7px minmax(0,1fr)`, un reparto de
+   0.5 daba `0.5fr` contra `1fr`, o sea un tercio y dos tercios: la mitad y la
+   mitad exigen que las dos fracciones se escriban. */
 .cdn-cuerpo {
     display: grid;
-    grid-template-columns: var(--cdn-reparto, 1fr) 7px minmax(0, 1fr);
+    grid-template-columns: minmax(0, var(--cdn-izq, 1fr)) 7px minmax(0, var(--cdn-der, 1fr));
     flex: 1;
     min-height: 0;
 }
@@ -225,7 +228,19 @@
 }
 
 /* ── celda de texto ─────────────────────────────────────────────────────── */
+/* SIN `flex: 1`, a proposito. La celda de texto tiene altura automatica, y en un
+   contenedor de altura indefinida `flex: 1` implica `flex-basis: 0`: el hijo
+   aportaria cero al calculo y la celda se quedaria en la cabecera sola. Aqui lo
+   que manda es el contenido, que es justo lo que distingue a estas celdas. */
 .cdn-texto-cuerpo { overflow: auto; min-height: 0; }
+/* Fuente y texto compuesto, lado a lado. Dentro de 280 px van justos: para la
+   prosa larga esta la pantalla completa. */
+.cdn-texto-dos {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 0;
+}
+.cdn-texto-dos > :first-child { border-right: 1px solid var(--border-subtle); }
 .cdn-texto-fuente {
     width: 100%;
     height: 100%;
@@ -245,13 +260,58 @@
    Hereda la hoja del editor de documentos —para que el markdown se vea igual en
    todo el producto— pero con los encabezados a escala de celda: los de un
    documento estan pensados para una pagina entera y aqui se comen los 280 px. */
-.cdn-md { padding: 12px 14px; cursor: text; }
+.cdn-md { cursor: text; }
+/* La vista previa trae el relleno de una pagina (24/32). A escala de celda
+   sobra: se baja, y el ancho se deja al contenedor. */
+.cdn-md .mde-preview-body { padding: 12px 14px; }
 .cdn-md h1 { font-size: 17px; margin: 0 0 6px; }
 .cdn-md h2 { font-size: 15px; margin: 10px 0 5px; }
 .cdn-md h3 { font-size: 13.5px; margin: 9px 0 4px; }
 .cdn-md h1:first-child, .cdn-md h2:first-child, .cdn-md h3:first-child { margin-top: 0; }
 .cdn-md p { font-size: 12.5px; line-height: 1.6; margin: 0 0 9px; }
 .cdn-md > :last-child { margin-bottom: 0; }
+
+/* ── pantalla completa ──────────────────────────────────────────────────── */
+/* La celda sola, ocupando la pestaña. Sin desplazamiento vertical: lo que se
+   desplaza es el editor por dentro, como en la lista, pero con 700 px en vez de
+   244. La lista es para reconocer; esto es para trabajar. */
+.cdn-pc {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--surface-base);
+}
+
+.cdn-pc-nombre {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: var(--weight-semibold, 600);
+    color: var(--text-primary);
+    flex: none;
+}
+
+.cdn-pc-cuerpo {
+    display: grid;
+    grid-template-columns: minmax(0, var(--cdn-izq, 1fr)) 7px minmax(0, var(--cdn-der, 1fr));
+    flex: 1;
+    min-height: 0;
+}
+/* Con las dos clases, no sólo con `--solo`: esta regla va DESPUÉS de
+   `.cdn-cuerpo--solo` en el archivo, así que con igual especificidad ganaba la
+   de tres columnas y «sólo el código» dejaba media pantalla en blanco. */
+.cdn-pc-cuerpo.cdn-cuerpo--solo { grid-template-columns: minmax(0, 1fr); }
+
+/* El texto compuesto a pantalla completa se lee como un documento: una columna
+   con medida, no una línea de borde a borde. */
+.cdn-pc-md { overflow: auto; height: 100%; }
+
+@media (max-width: 1080px) {
+    .cdn-pc-cuerpo {
+        grid-template-columns: none;
+        grid-template-rows: minmax(0, 1fr) 7px minmax(0, 1fr);
+    }
+}
 
 /* ── la barra derecha ───────────────────────────────────────────────────── */
 .cdn-seccion {

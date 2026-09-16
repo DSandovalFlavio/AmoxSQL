@@ -42,6 +42,7 @@ import { useDialog } from '../dialogs/DialogProvider';
 import Celda from './Celda.jsx';
 import Barra from './Barra.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
+import PantallaCompleta from './PantallaCompleta.jsx';
 import { claveDeCelda, reclavar } from './claves.js';
 import { cruzarVistas, parametrosUsados, sustituirParametros } from './vistasVivas.js';
 import { construirGrafo, frescura, queActualizar, celdasEnCiclo } from './grafo.js';
@@ -83,6 +84,8 @@ const CuadernoEditor = ({
      * vacía — la mentira exacta que la barra derecha existe para no contar.
      */
     const [ejecuciones, setEjecuciones] = useState({});
+    /** La celda que ocupa la pestaña entera, o `null`. */
+    const [aPantalla, setAPantalla] = useState(null);
     const dialog = useDialog();
 
     const refrescarVistas = useCallback(() => {
@@ -435,11 +438,77 @@ const CuadernoEditor = ({
         }
     }, [pendientes, doc.celdas, dialog, ejecutar]);
 
-    const irA = useCallback((idCelda) => {
-        const el = document.getElementById(`cdn-${idCelda}`);
-        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        setSeleccionada(idCelda);
+    /**
+     * Abrir y cerrar la pantalla completa, **volviendo por donde se estaba**.
+     *
+     * El desplazamiento de la lista se guarda al salir y se repone al volver.
+     * Sin esto, ampliar la celda catorce y cerrar te devuelve al principio del
+     * cuaderno, y hay que volver a buscarla: el precio de mirar una cosa de
+     * cerca sería perder el sitio, que es exactamente lo que no debe costar.
+     */
+    const desplazamiento = useRef(0);
+    const ampliar = useCallback((id) => {
+        desplazamiento.current = document.querySelector('.cdn-lista')?.scrollTop ?? 0;
+        setAPantalla(id);
     }, []);
+
+    const volver = useCallback(() => {
+        setAPantalla(null);
+        // Tras el siguiente pintado: la lista todavía no existe en el DOM.
+        requestAnimationFrame(() => {
+            const lista = document.querySelector('.cdn-lista');
+            if (lista) lista.scrollTop = desplazamiento.current;
+        });
+    }, []);
+
+    const irA = useCallback((idCelda) => {
+        // Desde la pantalla completa, ir a otra celda devuelve al cuaderno: es
+        // lo que se está pidiendo al pulsar en el índice. Y el desplazamiento
+        // espera al siguiente pintado, porque hasta entonces la lista no existe
+        // en el DOM y `getElementById` devolvería nada.
+        setAPantalla(null);
+        setSeleccionada(idCelda);
+        requestAnimationFrame(() => {
+            document.getElementById(`cdn-${idCelda}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }, []);
+
+    const ampliada = aPantalla ? doc.celdas.find((c) => c.id === aPantalla) : null;
+
+    if (ampliada) {
+        // La barra derecha se queda: el índice y las vistas vivas siguen siendo
+        // útiles mientras se trabaja una celda de cerca, y quitarla convertiría
+        // la pantalla completa en un sitio del que hay que salir para orientarse.
+        return (
+            <div className="cdn">
+                <PantallaCompleta
+                    celda={ampliada}
+                    analisis={analisis[ampliada.id]}
+                    resultado={resultados[ampliada.id]}
+                    estado={estados[claves[ampliada.id]]}
+                    corriendo={corriendo === ampliada.id}
+                    theme={theme}
+                    editorSettings={editorSettings}
+                    onCambiar={cambiarCelda}
+                    onEstado={cambiarEstado}
+                    onEjecutar={ejecutar}
+                    onCerrar={volver}
+                    onCreateNew={onCreateNew}
+                />
+                <Barra
+                    indice={indice}
+                    vistas={vistas}
+                    frescuras={frescuras}
+                    usados={usados}
+                    parametros={parametros}
+                    onIrA={irA}
+                    onRefrescar={refrescarVistas}
+                    onParametro={cambiarParametro}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="cdn">
@@ -449,12 +518,15 @@ const CuadernoEditor = ({
                         {c.tipo === 'texto' ? (
                             <CeldaTexto
                                 celda={c}
+                                estado={estados[claves[c.id]]}
+                                onEstado={cambiarEstado}
                                 seleccionada={seleccionada === c.id}
                                 onCambiar={cambiarCelda}
                                 onBorrar={borrar}
                                 onSubir={(id) => mover(id, -1)}
                                 onBajar={(id) => mover(id, 1)}
                                 onSeleccionar={setSeleccionada}
+                                onAmpliar={ampliar}
                             />
                         ) : (
                             <Celda
@@ -476,6 +548,7 @@ const CuadernoEditor = ({
                                 onSubir={(id) => mover(id, -1)}
                                 onBajar={(id) => mover(id, 1)}
                                 onSeleccionar={setSeleccionada}
+                                onAmpliar={ampliar}
                                 onCreateNew={onCreateNew}
                             />
                         )}

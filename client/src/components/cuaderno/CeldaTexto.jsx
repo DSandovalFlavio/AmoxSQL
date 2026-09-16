@@ -7,37 +7,84 @@
  * cuaderno fuera de la pantalla. Crece hasta el tope y ahí se desplaza por
  * dentro.
  *
- * ## Por qué aquí no se monta el editor de markdown entero
+ * ## El mando es el mismo que en una celda de código
  *
- * El `MarkdownEditor` del producto trae tres columnas, índice, modo
- * concentración y su propia barra. Dentro de una caja de 280 px eso no cabe: se
- * vería el cromo y no el texto.
+ * Tres posiciones: la fuente, el texto compuesto, o las dos. No es una analogía
+ * forzada — en una celda de SQL son «lo que escribo», «lo que sale» y «las dos
+ * cosas», y aquí también. Una sola distinción que recordar para todo el
+ * cuaderno, y se recuerda al cerrar y abrir igual que la de las otras.
  *
- * Así que en la celda va **lo mínimo** —leer o escribir— y el editor completo se
- * monta en la pantalla completa (fase 5), que es donde hay sitio para él. Es la
- * misma idea que el resto del rediseño: en la lista se reconoce, y para trabajar
- * de verdad se pide espacio.
+ * ## Para la prosa larga está la pantalla completa
+ *
+ * Documentar un análisis a fondo —el contexto, la metodología, lo que se
+ * descartó— no cabe en 280 px, y no debe: aquí se reconoce de qué va la sección,
+ * y para escribirla se pide la pantalla entera, igual que con una consulta de
+ * cuarenta líneas.
  */
-import { memo, useState } from 'react';
-import { LuEye, LuCode, LuTrash2, LuChevronUp, LuChevronDown, LuFileText } from 'react-icons/lu';
+import { memo } from 'react';
+import {
+    LuEye, LuCode, LuColumns2, LuTrash2, LuChevronUp, LuChevronDown, LuFileText, LuMaximize2,
+} from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
+import { MODOS } from './modos.js';
 // El markdown se ve igual en todo el producto: se trae la hoja del editor de
 // documentos en vez de escribir una propia. Sin ella, el ancla de los
 // encabezados —que alli se oculta hasta pasar el raton— sale como una almohadilla
 // suelta delante del titulo.
+//
+// `widthMode="full"` porque la vista previa trae de serie la maquetacion de una
+// PAGINA: 860 px centrados con margenes automaticos. En un documento es lo
+// correcto; dentro de una celda dejaba 177 px muertos a cada lado.
 import '../MarkdownEditor.css';
 
 const CeldaTexto = ({
     celda,
+    estado = {},
     seleccionada,
     onCambiar,
+    onEstado,
     onBorrar,
     onSubir,
     onBajar,
     onSeleccionar,
+    onAmpliar,
 }) => {
-    const [editando, setEditando] = useState(false);
+    // Una celda de texto se lee más de lo que se escribe, así que por omisión se
+    // enseña compuesta y no la fuente. Es al revés que en una de SQL, donde lo
+    // normal es estar escribiendo.
+    const modo = estado.modo || MODOS.RESULTADO;
     const vacia = !String(celda.contenido || '').trim();
+
+    const mando = (valor, Icono, ayuda) => (
+        <button
+            type="button"
+            className={`cdn-btn cdn-btn--icono${modo === valor ? ' cdn-btn--on' : ''}`}
+            onClick={() => onEstado(celda.id, { modo: valor })}
+            title={ayuda}
+        ><Icono size={13} /></button>
+    );
+
+    const fuente = (
+        <textarea
+            className="cdn-texto-fuente"
+            value={celda.contenido || ''}
+            spellCheck
+            placeholder="Escribe aquí. Los encabezados (#, ##, ###) construyen el índice de la derecha."
+            onChange={(e) => onCambiar(celda.id, { contenido: e.target.value })}
+        />
+    );
+
+    const compuesto = (
+        <div
+            className="cdn-md"
+            onDoubleClick={() => onEstado(celda.id, { modo: MODOS.AMBOS })}
+            title="Doble clic para escribir"
+        >
+            {vacia
+                ? <span style={{ color: 'var(--text-disabled)', fontSize: 12 }}>Doble clic para escribir</span>
+                : <MarkdownPreview content={celda.contenido} widthMode="full" />}
+        </div>
+    );
 
     return (
         <div
@@ -50,20 +97,22 @@ const CeldaTexto = ({
                     {primeraLinea(celda.contenido) || 'Texto'}
                 </span>
                 <span className="cdn-sp" />
+
+                <div className="cdn-grupo">
+                    {mando(MODOS.AMBOS, LuColumns2, 'Fuente y texto')}
+                    {mando(MODOS.CODIGO, LuCode, 'Sólo la fuente')}
+                    {mando(MODOS.RESULTADO, LuEye, 'Sólo el texto')}
+                </div>
+
                 <div className="cdn-grupo">
                     <button
                         type="button"
-                        className={`cdn-btn cdn-btn--icono${!editando ? ' cdn-btn--on' : ''}`}
-                        onClick={() => setEditando(false)}
-                        title="Leer"
-                    ><LuEye size={13} /></button>
-                    <button
-                        type="button"
-                        className={`cdn-btn cdn-btn--icono${editando ? ' cdn-btn--on' : ''}`}
-                        onClick={() => setEditando(true)}
-                        title="Escribir"
-                    ><LuCode size={13} /></button>
+                        className="cdn-btn cdn-btn--icono"
+                        onClick={() => onAmpliar?.(celda.id)}
+                        title="Ocupar la pestaña entera"
+                    ><LuMaximize2 size={13} /></button>
                 </div>
+
                 <div className="cdn-grupo">
                     <button type="button" className="cdn-btn cdn-btn--icono" onClick={() => onSubir(celda.id)} title="Subir"><LuChevronUp size={13} /></button>
                     <button type="button" className="cdn-btn cdn-btn--icono" onClick={() => onBajar(celda.id)} title="Bajar"><LuChevronDown size={13} /></button>
@@ -71,31 +120,16 @@ const CeldaTexto = ({
                 </div>
             </div>
 
-            <div className="cdn-texto-cuerpo">
-                {editando ? (
-                    <textarea
-                        className="cdn-texto-fuente"
-                        value={celda.contenido || ''}
-                        autoFocus
-                        spellCheck
-                        placeholder="Escribe aquí. Los encabezados (#, ##, ###) construyen el índice de la derecha."
-                        onChange={(e) => onCambiar(celda.id, { contenido: e.target.value })}
-                        // Al salir se vuelve a leer: escribir es el estado
-                        // excepcional, leer es el normal.
-                        onBlur={() => setEditando(false)}
-                    />
-                ) : (
-                    <div
-                        className="mde-preview-body cdn-md"
-                        onDoubleClick={() => setEditando(true)}
-                        title="Doble clic para escribir"
-                    >
-                        {vacia
-                            ? <span style={{ color: 'var(--text-disabled)', fontSize: 12 }}>Doble clic para escribir</span>
-                            : <MarkdownPreview content={celda.contenido} />}
-                    </div>
-                )}
-            </div>
+            {modo === MODOS.AMBOS ? (
+                <div className="cdn-texto-dos">
+                    <div className="cdn-texto-cuerpo">{fuente}</div>
+                    <div className="cdn-texto-cuerpo">{compuesto}</div>
+                </div>
+            ) : (
+                <div className="cdn-texto-cuerpo">
+                    {modo === MODOS.CODIGO ? fuente : compuesto}
+                </div>
+            )}
         </div>
     );
 };

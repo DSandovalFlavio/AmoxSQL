@@ -27,13 +27,13 @@
  * ## La altura no es negociable
  *
  * 280 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
- * la vía de escape es la pantalla completa (fase 5), no que la celda crezca. Con
+ * la vía de escape es la pantalla completa, no que la celda crezca. Con
  * celdas que crecen, un cuaderno de veinte deja de poder recorrerse.
  */
 import { memo, useCallback, useRef, useState } from 'react';
 import {
     LuPlay, LuColumns2, LuCode, LuTable, LuTrash2, LuChevronUp, LuChevronDown, LuLoaderCircle,
-    LuDatabase, LuLayers, LuTriangleAlert, LuHistory,
+    LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuMaximize2,
 } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
@@ -58,6 +58,7 @@ const Celda = ({
     onSubir,
     onBajar,
     onSeleccionar,
+    onAmpliar,
     onCreateNew,
 }) => {
     const modo = estado.modo || MODOS.AMBOS;
@@ -234,6 +235,17 @@ const Celda = ({
                     </div>
                 )}
 
+                {/* La vía de escape de los 280 px. La celda no crece: se pide
+                    la pantalla entera para la que se está trabajando. */}
+                <div className="cdn-grupo">
+                    <button
+                        type="button"
+                        className="cdn-btn cdn-btn--icono"
+                        onClick={() => onAmpliar?.(celda.id)}
+                        title="Ocupar la pestaña entera"
+                    ><LuMaximize2 size={13} /></button>
+                </div>
+
                 <div className="cdn-grupo">
                     <button type="button" className="cdn-btn cdn-btn--icono" onClick={() => onSubir(celda.id)} title="Subir"><LuChevronUp size={13} /></button>
                     <button type="button" className="cdn-btn cdn-btn--icono" onClick={() => onBajar(celda.id)} title="Bajar"><LuChevronDown size={13} /></button>
@@ -256,7 +268,7 @@ const Celda = ({
 
             <div
                 className={`cdn-cuerpo${soloUno ? ' cdn-cuerpo--solo' : ''}`}
-                style={soloUno ? undefined : { '--cdn-reparto': `${reparto}fr` }}
+                style={soloUno ? undefined : { '--cdn-izq': `${reparto}fr`, '--cdn-der': `${1 - reparto}fr` }}
             >
                 {modo !== MODOS.RESULTADO && (
                     <div className="cdn-editor">

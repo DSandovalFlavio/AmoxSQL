@@ -517,13 +517,79 @@ y «desfasada», el aviso de la barra y el diálogo con la lista ordenada.
 
 ## Fase 5 — Pantalla completa
 
-- [ ] La celda ocupa la pestaña entera, sin desplazamiento, con **el mismo mando de tres
+- [x] La celda ocupa la pestaña entera, sin desplazamiento, con **el mismo mando de tres
       posiciones**.
-- [ ] «Sólo resultado» en pantalla completa es un gráfico del tamaño de la pantalla, con
-      sitio para configurarlo — el estado en el que se afina una figura antes de mandarla al
-      deck.
-- [ ] Vale igual para las celdas de texto: ahí es donde se escribe la prosa larga.
-- [ ] Se vuelve al cuaderno **por donde se estaba**.
+- [x] «Sólo resultado» en pantalla completa es un gráfico del tamaño de la pantalla, con
+      sitio para configurarlo — el estado en el que se afina una figura antes de mandarla a
+      un tablero.
+- [x] Vale igual para las celdas de texto: ahí es donde se escribe la prosa larga. Y el mando
+      de tres posiciones llega también a la celda de texto **en la lista**, que antes tenía
+      un interruptor de dos.
+- [x] Se vuelve al cuaderno **por donde se estaba**.
+
+**Criterio de terminado** (no lo traía el plan; se fija aquí): desde una celda de en medio se
+abre la pantalla completa, se trabaja, y al cerrar el cuaderno está por donde se dejó.
+
+### Bitácora
+
+`PantallaCompleta.jsx` monta la celda sola; el botón de ampliar está en las dos clases de
+celda y la barra derecha se queda, porque el índice y las vistas vivas siguen siendo útiles
+mientras se trabaja de cerca. `Escape` cierra, y el índice de la barra también: pulsar en un
+encabezado devuelve al cuaderno y baja hasta él.
+
+La celda de texto de la lista pasa de un interruptor de dos posiciones a **el mismo mando de
+tres** que una de SQL. No es una analogía forzada: en una de SQL son «lo que escribo», «lo
+que sale» y «las dos cosas», y en una de texto también.
+
+### Esta fase sí se miró con los ojos, y por eso aparecieron tres cosas
+
+Las cuatro fases anteriores se comprobaron por HTTP, sin ver nada. Ésta es puramente visual,
+así que se montó un **banco de pruebas aparte** —una página de Vite en un puerto propio que
+monta los componentes con props inventadas, sin tocar ningún servidor— y se miró. No se
+apuntó a la aplicación del usuario: sin Electron, la API del cliente cae al 3001, que es
+justo donde vive su instancia.
+
+Salieron tres fallos, y **ninguno de los tres da error ni lo caza una prueba**:
+
+**El texto compuesto se pintaba en media celda.** `MarkdownPreview` trae de serie la
+maquetación de una página —860 px centrados con márgenes automáticos— que en un documento es
+lo correcto y dentro de una celda dejaba **177 px muertos a cada lado**. Medido en el
+navegador: la caja empezaba en x=202 dentro de un contenedor que empezaba en x=11. Se arregla
+con `widthMode="full"` en la celda; en la pantalla completa se deja la página, que ahí sí se
+quiere.
+
+Esto venía **desde la fase 1** y se entregó tres veces sin verlo.
+
+**El reparto por omisión no era mitad y mitad.** El estilo decía
+`var(--cdn-reparto, 1fr) 7px minmax(0,1fr)` y el componente ponía `0.5fr`: contra `1fr` eso
+es un tercio y dos tercios, no la mitad. Medido: 421 px contra 843. Ahora van dos variables,
+`--cdn-izq` y `--cdn-der`, y el reparto de 0.5 da 632,5 y 632,5.
+
+También venía de la fase 1.
+
+**En pantalla completa, «sólo el código» dejaba media pantalla en blanco.** La regla de una
+sola columna es `.cdn-cuerpo--solo`, y `.cdn-pc-cuerpo` está más abajo en el archivo: con la
+misma especificidad ganaba la de tres columnas. Se arregla apuntando a las dos clases juntas.
+Medido antes y después: 632+7+632 → 1272 de una pieza.
+
+### Lo que se prometió en la fase 1 y no se hace
+
+Allí se escribió que aquí se montaría **el editor de documentos del producto**. Mirado de
+cerca, ese editor está atado a *un archivo*: pide los cambios de git de ese archivo, busca
+sus retroenlaces y escribe su nombre en la barra. Con la ruta del cuaderno etiquetaría la
+celda con el nombre del cuaderno entero; sin ella pone «documento sin guardar», que es una
+mentira en pantalla.
+
+Lo que hacía falta para escribir prosa larga era **sitio**, y eso está: fuente y texto
+compuesto, lado a lado, en toda la pantalla. El comentario de la fase 1 se corrigió para que
+el código no siga prometiendo algo que no va a llegar.
+
+### Lo que sigue sin comprobarse
+
+El banco de pruebas monta los componentes sueltos. **No se ha visto la pantalla completa
+dentro de la aplicación**: ni el paso de la lista a la celda ampliada, ni la vuelta por donde
+se estaba, ni «sólo resultado» con un gráfico de verdad dentro. Eso necesita la aplicación en
+marcha, que sigue sin poder verse.
 
 ---
 
