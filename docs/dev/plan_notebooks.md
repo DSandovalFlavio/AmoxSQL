@@ -424,18 +424,94 @@ falta, y los campos de parámetros.
 
 ## Fase 4 — El grafo y «Actualizar»
 
-- [ ] Dependencias **deducidas** del `lee` de la fase 0: si una celda lee `ventas_limpias`,
+- [x] Dependencias **deducidas** del `lee` de la fase 0: si una celda lee `ventas_limpias`,
       depende de la que la crea, **esté donde esté en el documento**.
-- [ ] Marcar lo **desactualizado** en cascada, en la cabecera de la celda y en la barra.
-- [ ] **Un botón: «Actualizar»**, que ejecuta lo desactualizado en orden de dependencia y
+- [x] Marcar lo **desactualizado** en cascada, en la cabecera de la celda y en la barra.
+- [x] **Un botón: «Actualizar»**, que ejecuta lo desactualizado en orden de dependencia y
       **dice cuántos y en qué orden antes de empezar**.
-- [ ] Se retiran *ejecutar todo*, *arriba* y *abajo*: los tres suponían que el orden de la
-      pantalla es el de dependencia.
-- [ ] Pruebas desde Node del grafo y del orden: **es la parte que al fallar no da un error,
-      deja un número viejo con pinta de nuevo.**
+- [~] Se retiran *ejecutar todo*, *arriba* y *abajo*. En el cuaderno nuevo **no había nada
+      que retirar**: nunca llegaron a existir, y «Actualizar» ocupa su sitio. Siguen en el
+      componente anterior, que se va en la fase 6.
+- [x] Pruebas desde Node del grafo y del orden: **es la parte que al fallar no da un error,
+      deja un número viejo con pinta de nuevo.** Son 47.
 
 **Criterio de terminado:** cambiar una celda de la que cuelgan tres marca las tres, y
 «Actualizar» ejecuta esas tres y ninguna más.
+
+### Bitácora
+
+`grafo.js` hace las cuentas —puro, con 47 comprobaciones en
+`scripts/probarGrafoCuaderno.mjs`— y el resto es enseñarlas: el punto de la celda pasa de
+dos estados a cinco, la barra avisa de lo que está puesto pero viejo, y la barra de
+herramientas gana «Actualizar» con el número de celdas pendientes.
+
+El criterio se comprobó contra el motor con cinco celdas encadenadas. Editar la de la que
+cuelgan tres las marcó **a las tres y sólo a ellas** —la quinta, sin relación, siguió al
+día— y «Actualizar» ejecutó cuatro en orden de dependencia. El resultado cambió de
+`{n: 100, s: 50}` a `{n: 100, s: null}`, que es como se sabe que se ejecutó de verdad y no
+que el código parecía correcto.
+
+### Qué significa «desactualizado» cuando una vista es perezosa
+
+Hubo que definirlo antes de escribir nada, porque no es lo obvio. Una vista **no guarda
+datos**: leerla vuelve a ejecutar su cadena, así que si cambian los datos de origen ya da el
+resultado nuevo sin que nadie la toque. En ese sentido una vista no se queda vieja nunca.
+
+Lo que sí se queda viejo son dos cosas:
+
+1. **La definición puesta en la sesión**, congelada al ejecutar. Se edita el SQL, no se
+   vuelve a ejecutar, y la vista viva sigue siendo la de antes — la celda de abajo está
+   leyendo algo que ya no es lo que el documento enseña.
+2. **El resultado que se ve en pantalla**, que es del último `SELECT`.
+
+Lo segundo es lo que hace daño y es lo que se marca. Por eso el punto de la celda pasó de
+deducirse del resultado —había resultado o no lo había— a mirar la frescura: una celda
+ejecutada ayer y editada hoy tenía su resultado ahí, **tan verde como el de al lado**.
+
+### Cambiar un parámetro desactualiza sin tocar una letra
+
+Es el caso que más fácil se cuela, y el primer diseño lo dejaba pasar: se compara el texto
+de la celda con el que se ejecutó, y cambiar `desde` de septiembre a agosto no cambia una
+sola letra de ninguna celda. Todas seguirían «al día» enseñando las cifras de septiembre.
+
+Se arregló comparando la consulta **ya resuelta**, no la escrita. Comprobado en vivo: cambiar
+el parámetro marcó la celda como editada y las tres de debajo como desfasadas, y tras
+«Actualizar» el resumen pasó de 100 a 170 porque entró agosto.
+
+### Dos huecos que las pruebas no vieron porque yo las escribí
+
+**Al reabrir el cuaderno, «Actualizar» no habría hecho nada.** Todas las celdas están «sin
+ejecutar», que no es lo mismo que desactualizada, así que el botón quedaba apagado justo en
+el caso más común del mundo. Ahora una celda sin ejecutar entra si **su vista no está viva**;
+si lo está —porque la puso otra cosa— se deja en paz.
+
+**Y volver a ejecutar un `INSERT` duplica filas.** Aquí el código se inclina al revés que en
+el marcado: marcar de más cuesta una ejecución, ejecutar de más no se deshace cerrando el
+proyecto. Una celda que escribe en disco se marca como desfasada —para que se vea— pero se
+**aparta** de «Actualizar», y el diálogo la nombra y dice por qué. Comprobado: con un
+`INSERT` entre dos celdas, «Actualizar» propone `base, hija` y aparta la del medio.
+
+### Lo que el código se inclina a marcar de más, a propósito
+
+Si una celda tiene padre en el cuaderno y ese padre no se ha ejecutado en esta sesión, la
+hija se marca aunque parezca al día. Puede ser falsa alarma —la vista podría venir de un
+`.sql`— pero entonces la hija leyó algo que **no es lo que su celda madre dice que es**.
+Inventarse una dependencia cuesta una ejecución; perderla cuesta una cifra mala que nadie
+revisa.
+
+Los ciclos no se ordenan, así que no se esconden: las celdas atrapadas salen al final del
+orden y la cabecera las marca «en bucle».
+
+### Un cambio en el diálogo compartido
+
+El mensaje de `confirmAsync` se pintaba en un `<p>` sin `white-space`, así que la lista del
+orden de ejecución habría salido en un párrafo corrido. Se le puso `pre-line`: los mensajes
+de una sola línea no cambian.
+
+### Lo que no se pudo comprobar con las manos
+
+Como en las tres fases anteriores. Queda sin ver: el punto ámbar, los distintivos «editada»
+y «desfasada», el aviso de la barra y el diálogo con la lista ordenada.
 
 ---
 

@@ -171,6 +171,11 @@ export function DialogProvider({ children }) {
                                 fontSize: '13px',
                                 color: 'var(--text-primary, #bdbdc4)',
                                 lineHeight: 1.5,
+                                // Un mensaje puede traer una lista —el orden en
+                                // que se va a ejecutar algo, por ejemplo— y sin
+                                // esto se pinta todo en un párrafo corrido. Los
+                                // mensajes de una sola línea no cambian.
+                                whiteSpace: 'pre-line',
                             }}>
                                 {dialog.message}
                             </p>

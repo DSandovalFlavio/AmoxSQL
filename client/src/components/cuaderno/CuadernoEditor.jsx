@@ -33,7 +33,7 @@
  * el gráfico.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LuPlus, LuFileText, LuSave, LuBot, LuX } from 'react-icons/lu';
+import { LuPlus, LuFileText, LuSave, LuBot, LuX, LuRefreshCw } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { leerCuaderno, escribirCuaderno, indiceDe } from '../../utils/cuadernoFile.js';
 import { analizarCelda } from '../../utils/celdaSql.js';
@@ -44,6 +44,7 @@ import Barra from './Barra.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
 import { claveDeCelda, reclavar } from './claves.js';
 import { cruzarVistas, parametrosUsados, sustituirParametros } from './vistasVivas.js';
+import { construirGrafo, frescura, queActualizar, celdasEnCiclo } from './grafo.js';
 import './cuaderno.css';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -69,11 +70,19 @@ const CuadernoEditor = ({
      * Lo que está vivo en la sesión ahora mismo.
      *
      * No se deduce del documento, **se le pregunta al motor**: una vista existe
-     * porque alguien ejecutó la celda, no porque est'e escrita. Un cuaderno
-     * reci'en abierto tiene todas sus celdas y ninguna vista, y enseñar lo
+     * porque alguien ejecutó la celda, no porque esté escrita. Un cuaderno
+     * recién abierto tiene todas sus celdas y ninguna vista, y enseñar lo
      * contrario sería mentir sobre lo que se puede consultar.
      */
     const [vivas, setVivas] = useState([]);
+    /**
+     * Qué se ejecutó y cuándo: `id -> {en, sql}`, con el SQL **ya resuelto**.
+     *
+     * Vive sólo en memoria y a propósito. Guardarlo en disco haría que al
+     * reabrir mañana las celdas se dieran por ejecutadas mientras la sesión está
+     * vacía — la mentira exacta que la barra derecha existe para no contar.
+     */
+    const [ejecuciones, setEjecuciones] = useState({});
     const dialog = useDialog();
 
     const refrescarVistas = useCallback(() => {
@@ -184,8 +193,10 @@ const CuadernoEditor = ({
         });
     }, [claves, persistirEstado]);
 
-    // ── análisis de cada celda: de aquí salen la descripción y, en la fase 4,
-    //    el grafo. Se recalcula sólo cuando cambia el SQL. ────────────────────
+    const indice = useMemo(() => indiceDe(doc), [doc]);
+
+    // ── análisis de cada celda: de aquí salen la descripción y el grafo. Se
+    //    recalcula sólo cuando cambia el SQL. ─────────────────────────────────
     const analisis = useMemo(() => {
         const mapa = {};
         for (const c of doc.celdas) {
@@ -194,7 +205,20 @@ const CuadernoEditor = ({
         return mapa;
     }, [doc.celdas]);
 
-    const indice = useMemo(() => indiceDe(doc), [doc]);
+    /**
+     * El SQL de cada celda con los parámetros ya dentro.
+     *
+     * Es lo que se manda al motor y lo que se compara para saber si algo se ha
+     * quedado viejo: cambiar un parámetro cambia la consulta sin tocar una letra
+     * de la celda.
+     */
+    const textos = useMemo(() => {
+        const mapa = {};
+        for (const c of doc.celdas) {
+            if (c.tipo === 'sql') mapa[c.id] = sustituirParametros(c.contenido, doc.meta?.parametros);
+        }
+        return mapa;
+    }, [doc.celdas, doc.meta]);
 
     /** Lo que el documento declara, cruzado con lo que el motor tiene vivo. */
     const vistas = useMemo(() => cruzarVistas(doc.celdas, vivas), [doc.celdas, vivas]);
@@ -203,6 +227,21 @@ const CuadernoEditor = ({
         [vistas],
     );
     const usados = useMemo(() => parametrosUsados(doc.celdas), [doc.celdas]);
+
+    // ── el grafo, y qué se ha quedado viejo ─────────────────────────────────
+    const grafo = useMemo(() => construirGrafo(doc.celdas, analisis), [doc.celdas, analisis]);
+    const frescuras = useMemo(
+        () => frescura(doc.celdas, grafo, ejecuciones, textos),
+        [doc.celdas, grafo, ejecuciones, textos],
+    );
+    const pendientes = useMemo(
+        () => queActualizar(doc.celdas, grafo, frescuras, {
+            vivas: new Set(vistas.propias.filter((v) => v.viva).map((v) => v.nombre.toLowerCase())),
+            analisis,
+        }),
+        [doc.celdas, grafo, frescuras, vistas, analisis],
+    );
+    const ciclos = useMemo(() => celdasEnCiclo(doc.celdas, grafo), [doc.celdas, grafo]);
     const parametros = doc.meta?.parametros || {};
 
     /**
@@ -266,8 +305,8 @@ const CuadernoEditor = ({
 
         // Los parámetros entran ANTES de analizar y de componer: lo que se
         // guarda en la vista es la consulta ya resuelta. Cambiar un parámetro
-        // después no cambia la vista puesta — hay que volver a ejecutar, y de
-        // eso se encarga «Actualizar» en la fase siguiente.
+        // después no cambia la vista puesta, y por eso la celda pasa a estar
+        // desactualizada y «Actualizar» la vuelve a poner.
         const texto = sustituirParametros(celda.contenido, doc.meta?.parametros);
         const an = analizarCelda(texto);
 
@@ -327,15 +366,74 @@ const CuadernoEditor = ({
 
             setResultados((prev) => ({
                 ...prev,
-                [id]: { ...(r || {}), consulta: celda.contenido, deja, vista },
+                [id]: { ...(r || {}), consulta: texto, deja, vista },
             }));
+            // Se anota lo ejecutado SÓLO si salió bien. Una celda que falló no
+            // dejó su vista puesta, así que darla por ejecutada haría que las de
+            // abajo se creyeran al día sobre algo que no existe.
+            if (!r?.error) {
+                setEjecuciones((prev) => ({ ...prev, [id]: { en: Date.now(), sql: texto } }));
+            }
             if (preparacion) refrescarVistas();
+            return !r?.error;
         } catch (e) {
-            setResultados((prev) => ({ ...prev, [id]: { error: e?.message || String(e), consulta: celda.contenido, deja } }));
+            setResultados((prev) => ({ ...prev, [id]: { error: e?.message || String(e), consulta: texto, deja } }));
+            return false;
         } finally {
             setCorriendo(null);
         }
     }, [doc.celdas, doc.meta, cambiarCelda, dialog, editorSettings, refrescarVistas, onEjecutada]);
+
+    /**
+     * Ejecuta lo que no está al día, en orden de dependencia.
+     *
+     * ## Por qué esto sustituye a «ejecutar todo» y a «ejecutar hacia abajo»
+     *
+     * Los dos suponían que **el orden de la pantalla es el de dependencia**, y
+     * no lo es: una celda puede leer una vista que crea otra celda escrita más
+     * abajo. Aquí el orden sale del grafo, así que da igual dónde estén.
+     *
+     * ## Por qué se dice antes de empezar
+     *
+     * Porque lo que va a pasar no se deduce mirando: son N celdas, en un orden
+     * que no es el que se ve, y algunas quizá caras. Un botón que arranca a
+     * ejecutar sin decir qué obliga a mirar el reloj y esperar a ver.
+     */
+    const actualizar = useCallback(async () => {
+        const { orden, apartadas } = pendientes;
+        if (!orden.length && !apartadas.length) return;
+
+        const nombreDe = (id) => {
+            const c = doc.celdas.find((x) => x.id === id);
+            return String(c?.nombre || '').trim() || 'sin nombre';
+        };
+
+        const lineas = orden.map((id, i) => `${i + 1}. ${nombreDe(id)}`).join('\n');
+        const aviso = apartadas.length
+            ? `\n\nSe quedan fuera ${apartadas.length === 1 ? 'la celda' : `${apartadas.length} celdas`} `
+              + `${apartadas.map((x) => `«${nombreDe(x.id)}»`).join(', ')}: `
+              + 'escriben en el disco, y volver a ejecutarlas no es inofensivo. '
+              + 'Si hace falta, se ejecutan a mano.'
+            : '';
+
+        // Sin nada que ejecutar el botón está apagado y esto no se alcanza; se
+        // comprueba igual porque un botón apagado no es una garantía.
+        if (!orden.length) return;
+
+        const seguir = await dialog.confirmAsync({
+            title: orden.length === 1 ? 'Actualizar una celda' : `Actualizar ${orden.length} celdas`,
+            message: `En este orden, que es el de sus dependencias y no el de la pantalla:\n\n${lineas}${aviso}`,
+            confirmLabel: 'Actualizar',
+        });
+        if (!seguir) return;
+
+        for (const id of orden) {
+            // En serie y parando al primer fallo: seguir ejecutando lo que
+            // cuelga de algo que acaba de romperse sólo produce más errores, y
+            // entierra el primero, que es el que explica todos los demás.
+            if (!(await ejecutar(id))) break;
+        }
+    }, [pendientes, doc.celdas, dialog, ejecutar]);
 
     const irA = useCallback((idCelda) => {
         const el = document.getElementById(`cdn-${idCelda}`);
@@ -364,6 +462,8 @@ const CuadernoEditor = ({
                                 analisis={analisis[c.id]}
                                 resultado={resultados[c.id]}
                                 viva={estanVivas.has(String(c.nombre || '').toLowerCase())}
+                                frescura={frescuras.get(c.id)}
+                                enCiclo={ciclos.includes(c.id)}
                                 estado={estados[claves[c.id]]}
                                 seleccionada={seleccionada === c.id}
                                 corriendo={corriendo === c.id}
@@ -390,6 +490,24 @@ const CuadernoEditor = ({
                         <LuFileText size={12} /> Texto
                     </button>
                     <span className="cdn-sp" />
+                    {/* Sustituye a «ejecutar todo» y a «ejecutar hacia abajo»,
+                        que suponían que el orden de la pantalla es el de
+                        dependencia. Aquí el orden lo pone el grafo. */}
+                    <button
+                        type="button"
+                        className={`cdn-btn${pendientes.orden.length ? ' cdn-btn--pend' : ''}`}
+                        onClick={actualizar}
+                        disabled={!pendientes.orden.length}
+                        title={pendientes.orden.length
+                            ? 'Ejecutar lo que no está al día, en orden de dependencia'
+                            : pendientes.apartadas.length
+                                ? 'Lo único que falta escribe en el disco: eso se ejecuta a mano'
+                                : 'Todo está al día'}
+                    >
+                        <LuRefreshCw size={12} />
+                        Actualizar
+                        {pendientes.orden.length > 0 && <span className="cdn-n">{pendientes.orden.length}</span>}
+                    </button>
                     <button type="button" className="cdn-btn" onClick={() => onSave?.()}>
                         <LuSave size={12} /> Guardar
                     </button>
@@ -405,6 +523,7 @@ const CuadernoEditor = ({
             <Barra
                 indice={indice}
                 vistas={vistas}
+                frescuras={frescuras}
                 usados={usados}
                 parametros={parametros}
                 onIrA={irA}

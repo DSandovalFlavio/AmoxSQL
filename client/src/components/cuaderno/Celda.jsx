@@ -33,7 +33,7 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import {
     LuPlay, LuColumns2, LuCode, LuTable, LuTrash2, LuChevronUp, LuChevronDown, LuLoaderCircle,
-    LuDatabase, LuLayers, LuTriangleAlert,
+    LuDatabase, LuLayers, LuTriangleAlert, LuHistory,
 } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
@@ -44,6 +44,8 @@ const Celda = ({
     analisis,
     resultado,
     viva,             // la vista de esta celda existe AHORA en la sesion
+    frescura,         // 'nunca' | 'dia' | 'cambiada' | 'arriba'
+    enCiclo,          // esta celda y otra se leen entre si
     estado = {},
     seleccionada,
     corriendo,
@@ -92,7 +94,25 @@ const Celda = ({
         window.addEventListener('mouseup', soltar);
     }, [celda.id, onEstado]);
 
-    const estadoPunto = resultado?.error ? 'falla' : resultado ? 'dia' : 'nunca';
+    /**
+     * El punto de la izquierda. Cinco estados, no dos.
+     *
+     * Antes se deducía del resultado —había resultado o no lo había— y eso
+     * mentía en el caso que importa: una celda ejecutada ayer, editada hoy y no
+     * vuelta a ejecutar tiene su resultado ahí, tan verde como el de al lado, y
+     * el número que enseña ya no es el que su consulta daría.
+     */
+    const estadoPunto = resultado?.error ? 'falla'
+        : frescura === 'cambiada' || frescura === 'arriba' ? 'vieja'
+            : frescura === 'dia' ? 'dia' : 'nunca';
+    const tituloPunto = {
+        falla: 'Falló',
+        vieja: frescura === 'cambiada'
+            ? 'Se editó después de ejecutarla: lo que se ve es de antes'
+            : 'Algo de lo que depende cambió: lo que se ve es de antes',
+        dia: 'Al día',
+        nunca: 'Sin ejecutar',
+    }[estadoPunto];
     const soloUno = modo !== MODOS.AMBOS;
     /** ¿Esta celda puede dejar una vista con el nombre de la celda? */
     const puedeDejarVista = !!analisis?.envolvible;
@@ -104,9 +124,7 @@ const Celda = ({
             onFocusCapture={() => onSeleccionar?.(celda.id)}
         >
             <div className="cdn-cab">
-                <span className={`cdn-est cdn-est--${estadoPunto}`} title={
-                    estadoPunto === 'falla' ? 'Falló' : estadoPunto === 'dia' ? 'Ejecutada' : 'Sin ejecutar'
-                } />
+                <span className={`cdn-est cdn-est--${estadoPunto}`} title={tituloPunto} />
                 {/* El nombre se escribe aquí y NO en el SQL: es el de la vista
                     que la celda deja puesta al ejecutarse. Si se deja en blanco
                     se bautiza sola al ejecutar. */}
@@ -143,6 +161,22 @@ const Celda = ({
                             ? 'Varias sentencias: se ejecutan tal cual'
                             : 'No es una consulta: se ejecuta tal cual'
                     }>no deja vista</span>
+                )}
+                {/* Que algo esté viejo se dice con palabras, no sólo con un
+                    color: el punto se ve de lejos, pero no explica por qué. */}
+                {(frescura === 'cambiada' || frescura === 'arriba') && (
+                    <span className="cdn-deja cdn-deja--vieja" title={tituloPunto}>
+                        <LuHistory size={11} />
+                        {frescura === 'cambiada' ? 'editada' : 'desfasada'}
+                    </span>
+                )}
+                {/* Un ciclo no tiene un orden correcto, así que «Actualizar» no
+                    puede prometer nada sobre estas dos celdas. Mejor decirlo. */}
+                {enCiclo && (
+                    <span className="cdn-deja cdn-deja--escribe" title="Esta celda y otra se leen entre sí: no hay un orden correcto para ejecutarlas">
+                        <LuTriangleAlert size={11} />
+                        en bucle
+                    </span>
                 )}
                 {/* Escribir en el disco no se deshace al cerrar, y la diferencia
                     con dejar una vista en la sesión es justo la que importa. */}

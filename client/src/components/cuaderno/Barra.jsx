@@ -23,19 +23,26 @@
  */
 import { memo } from 'react';
 import {
-    LuLayers, LuDatabase, LuRotateCw, LuCircleAlert, LuPlus, LuTrash2,
+    LuLayers, LuDatabase, LuRotateCw, LuCircleAlert, LuPlus, LuTrash2, LuHistory,
 } from 'react-icons/lu';
 
 const Barra = ({
     indice,
     vistas,            // lo que devolvió cruzarVistas
-    usados,            // los `${...}` que aparecen en las celdas
+    frescuras,         // Map id -> 'nunca'|'dia'|'cambiada'|'arriba'
+    usados,            // los `{{...}}` que aparecen en las celdas
     parametros,        // los declarados en la cabecera
     onIrA,
     onRefrescar,
     onParametro,       // (nombre, valor) — valor null borra
 }) => {
     const nombresDeclarados = Object.keys(parametros || {});
+    // Una vista puede estar viva Y vieja a la vez: existe en la sesión, pero su
+    // definición es de antes de la última edición. Es el caso que más engaña,
+    // porque la lista la enseñaría encendida sin más.
+    const viejas = vistas.propias.filter(
+        (v) => v.viva && ['cambiada', 'arriba'].includes(frescuras?.get(v.celda)),
+    ).length;
     const sinDeclarar = usados.filter((u) => !nombresDeclarados.includes(u));
 
     return (
@@ -78,8 +85,20 @@ const Barra = ({
                 ><LuRotateCw size={11} /></button>
             </div>
 
-            {/* El aviso de la fase: lo que el cuaderno espera y no está. Se dice
-                aquí, arriba, en vez de dejar que lo descubra una celda al fallar. */}
+            {/* Dos avisos, y son cosas distintas. Arriba: lo que está puesto
+                pero con una definición vieja —el caso que engaña, porque existe
+                y responde—. Abajo: lo que directamente no está. Los dos se dicen
+                aquí en vez de dejar que los descubra una celda al fallar. */}
+            {viejas > 0 && (
+                <div className="cdn-falta-aviso cdn-falta-aviso--vieja">
+                    <LuHistory size={12} style={{ flex: 'none' }} />
+                    <span>
+                        {viejas === 1 ? 'Una está puesta' : `${viejas} están puestas`} con una
+                        definición anterior a la última edición. Lo que se ve es de antes.
+                    </span>
+                </div>
+            )}
+
             {vistas.faltan > 0 && (
                 <div className="cdn-falta-aviso">
                     <LuCircleAlert size={12} style={{ flex: 'none' }} />
@@ -100,12 +119,16 @@ const Barra = ({
                             type="button"
                             className={`cdn-vista${v.viva ? ' cdn-vista--viva' : ''}`}
                             onClick={() => onIrA(v.celda)}
-                            title={v.viva
-                                ? `${v.descripcion || 'Sin descripción'}\nViva en la sesión — ir a su celda`
-                                : 'Todavía no existe: ir a su celda y ejecutarla'}
+                            title={!v.viva
+                                ? 'Todavía no existe: ir a su celda y ejecutarla'
+                                : ['cambiada', 'arriba'].includes(frescuras?.get(v.celda))
+                                    ? `${v.descripcion || 'Sin descripción'}\nPuesta, pero con una definición anterior a la última edición`
+                                    : `${v.descripcion || 'Sin descripción'}\nViva y al día — ir a su celda`}
                         >
                             {v.tipo === 'tabla' ? <LuDatabase size={11} /> : <LuLayers size={11} />}
                             <span className="cdn-vista-n">{v.nombre}</span>
+                            {v.viva && ['cambiada', 'arriba'].includes(frescuras?.get(v.celda))
+                                && <LuHistory size={10} className="cdn-vista-vieja" />}
                             {v.descripcion && <span className="cdn-vista-d">{v.descripcion.split('\n')[0]}</span>}
                         </button>
                     ))}

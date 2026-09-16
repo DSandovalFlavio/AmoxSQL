@@ -81,6 +81,7 @@
 .cdn-est--dia { background: var(--color-success, var(--feedback-success-text)); }
 .cdn-est--falla { background: var(--color-error, var(--feedback-error-text)); }
 .cdn-est--nunca { background: transparent; border: 1.5px solid var(--text-disabled); }
+.cdn-est--vieja { background: var(--color-warning, var(--feedback-warning-text)); }
 
 .cdn-nombre {
     font-family: var(--font-mono);
@@ -130,6 +131,13 @@
     background: color-mix(in oklch, var(--accent-primary) 10%, transparent);
 }
 .cdn-deja--nada { border-style: dashed; }
+/* Vieja: existe, pero lo que enseña es de antes de la ultima edicion. Es el
+   estado que mas enganya, porque sin marcarlo se ve igual que uno al dia. */
+.cdn-deja--vieja {
+    color: var(--color-warning, var(--feedback-warning-text));
+    border-color: color-mix(in oklch, var(--color-warning, #d08700) 40%, transparent);
+    background: color-mix(in oklch, var(--color-warning, #d08700) 10%, transparent);
+}
 .cdn-deja--escribe {
     color: var(--color-warning, var(--feedback-warning-text));
     border-color: color-mix(in oklch, var(--color-warning, #d08700) 40%, transparent);
@@ -356,6 +364,24 @@ button.cdn-vista:hover { background: var(--hover-bg); }
     min-width: 0;
 }
 .cdn-vista:not(.cdn-vista--viva) .cdn-vista-n { text-decoration: line-through; }
+.cdn-vista-vieja { color: var(--color-warning, var(--feedback-warning-text)); flex: none; }
+
+.cdn-falta-aviso--vieja {
+    border-color: color-mix(in oklch, var(--color-warning, #d08700) 30%, transparent);
+}
+
+/* El boton Actualizar cuando hay algo que actualizar. */
+.cdn-btn--pend { border-color: var(--accent-primary); color: var(--text-primary); }
+.cdn-btn--pend .cdn-n {
+    flex: none;
+    min-width: 15px;
+    padding: 0 4px;
+    border-radius: 7px;
+    background: var(--accent-primary);
+    color: var(--surface-base);
+    font-size: 10.5px;
+    font-weight: var(--weight-semibold, 600);
+}
 
 /* ── parámetros ─────────────────────────────────────────────────────────── */
 .cdn-params { padding: 0 10px 8px; display: flex; flex-direction: column; gap: 8px; }
