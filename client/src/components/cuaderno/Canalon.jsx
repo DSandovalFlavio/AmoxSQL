@@ -69,21 +69,31 @@ const Canalon = ({
 
     return (
         <div className="cdn-canalon">
-            {esSql && <span className={`cdn-est cdn-est--${clase}`} title={ayuda} />}
+            {/* El punto de estado y «Ejecutar» comparten la primera ranura: en
+                reposo se ve el punto, al acercarse se ve el botón. Ocupan el
+                mismo sitio a propósito —el sitio donde miras para saber cómo
+                está la celda es el mismo al que vas a pulsar para arreglarlo— y
+                además así la ranura queda centrada con la cabecera de la celda.
+                Antes el punto iba ENCIMA y empujaba el botón 16 px hacia abajo,
+                que es lo que se veía torcido. */}
+            {esSql && (
+                <div className="cdn-ranura">
+                    <span className={`cdn-est cdn-est--${clase}`} title={ayuda} />
+                    <div className="cdn-mandos">
+                        <button
+                            type="button"
+                            className="cdn-mando cdn-mando--corre"
+                            onClick={() => onEjecutar(celda.id)}
+                            disabled={corriendo || analisis?.vacia}
+                            title="Ejecutar (Ctrl+Enter)"
+                        >
+                            {corriendo ? <LuLoaderCircle size={13} className="spin" /> : <LuPlay size={12} />}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="cdn-mandos">
-                {esSql && (
-                    <button
-                        type="button"
-                        className="cdn-mando cdn-mando--corre"
-                        onClick={() => onEjecutar(celda.id)}
-                        disabled={corriendo || analisis?.vacia}
-                        title="Ejecutar (Ctrl+Enter)"
-                    >
-                        {corriendo ? <LuLoaderCircle size={13} className="spin" /> : <LuPlay size={12} />}
-                    </button>
-                )}
-
                 {/* El mando de tres posiciones, en vertical. Se lee peor así que
                     en horizontal, y es el precio de tener todo lo operativo en un
                     solo sitio en vez de repartido entre el canalón y la cabecera. */}

@@ -35,6 +35,11 @@
     --cdn-canalon: 34px;
     /* La medida de lectura de la prosa. */
     --cdn-medida: 70ch;
+    /* El margen lateral de cada fila. Sale a variable porque de él cuelgan tres
+       cosas que tienen que moverse juntas: la fila, la cabecera del documento y
+       la barra de selección. Con 20 px la celda parecía encajada a la fuerza
+       contra el borde; un documento necesita margen, no encaje. */
+    --cdn-margen: 60px;
 }
 
 .cdn {
@@ -63,8 +68,8 @@
     display: flex;
     align-items: flex-start;
     gap: var(--space-4);
-    padding: var(--space-6) var(--space-5) var(--space-4);
-    padding-left: calc(var(--space-5) + var(--cdn-canalon) + 10px);
+    padding: var(--space-6) var(--cdn-margen) var(--space-4);
+    padding-left: calc(var(--cdn-margen) + var(--cdn-canalon) + 10px);
     border-bottom: 1px solid var(--border-subtle);
     margin-bottom: var(--space-2);
 }
@@ -104,7 +109,7 @@
     display: grid;
     grid-template-columns: var(--cdn-canalon) minmax(0, 1fr);
     gap: 10px;
-    padding: 0 var(--space-5);
+    padding: 0 var(--cdn-margen);
     position: relative;
 }
 
@@ -112,7 +117,9 @@
 .cdn-fila::before {
     content: '';
     position: absolute;
-    left: 8px;
+    /* Pegada al canalón, no al borde de la ventana: con el margen a 60 px una
+       barra en el borde ya no señalaría nada. */
+    left: calc(var(--cdn-margen) - 14px);
     top: 2px;
     bottom: 2px;
     width: 2px;
@@ -123,13 +130,38 @@
 .cdn-fila--sel::before { background: var(--accent-primary); }
 
 /* ── el canalón ─────────────────────────────────────────────────────────── */
+/* 5 px de margen y ranuras de 26: la primera queda centrada a 18, que es
+   exactamente el centro de la cabecera de 36 de la celda. Antes el punto de
+   estado iba encima del botón y lo empujaba 16 px hacia abajo, así que «Ejecutar»
+   no alineaba con nada. */
 .cdn-canalon {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding-top: 9px;
+    gap: 1px;
+    padding-top: 5px;
 }
+
+/* La primera ranura la comparten el punto de estado y «Ejecutar»: en reposo se
+   ve el punto, al acercarse se ve el botón. Ocupan el mismo sitio a propósito —
+   así el sitio donde miras para saber cómo está la celda es el mismo al que vas
+   a pulsar para arreglarlo. */
+.cdn-ranura {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    flex: none;
+}
+.cdn-ranura .cdn-est {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity var(--transition-fast);
+}
+.cdn-ranura .cdn-mando { position: absolute; inset: 0; }
+.cdn-fila:hover .cdn-ranura .cdn-est,
+.cdn-fila--sel .cdn-ranura .cdn-est { opacity: 0; }
 /* Los mandos: invisibles en reposo. Es lo que hace que un cuaderno de ocho
    celdas no parezca una cabina de avión. `visibility` además de `opacity` para
    que en reposo no se puedan pulsar sin verlos. */
@@ -181,7 +213,7 @@
    entre la tercera y la cuarta obligaba a bajar hasta abajo y subirla a mano. */
 .cdn-hueco {
     height: var(--space-4);
-    margin: 0 var(--space-5);
+    margin: 0 var(--cdn-margen);
     display: grid;
     place-items: center;
     position: relative;
@@ -697,9 +729,11 @@ button.cdn-vista:hover { background: var(--hover-bg); }
     .cdn-lado { display: none; }
     .cdn-celda { height: 750px; }
     /* Sin sitio para el canalón: los mandos se quedan, pero estrechos. */
-    .cdn-fila { --cdn-canalon: 28px; gap: 6px; padding: 0 var(--space-3); }
+    /* Sin sitio para el margen grande: en estrecho el aire estorba más de lo
+       que ayuda, así que vuelve a lo justo. */
+    .cdn { --cdn-margen: var(--space-4); --cdn-canalon: 28px; }
+    .cdn-fila { gap: 6px; }
     .cdn-mando { width: 24px; height: 24px; }
-    .cdn-doc { padding-left: calc(var(--space-3) + 28px + 6px); }
     .cdn-cuerpo { grid-template-columns: none; grid-template-rows: minmax(0, 1fr) 7px minmax(0, 1fr); }
     .cdn-cuerpo--solo { grid-template-rows: minmax(0, 1fr); }
     .cdn-tirador { cursor: row-resize; border: none; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
