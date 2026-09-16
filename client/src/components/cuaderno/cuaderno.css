@@ -182,6 +182,12 @@
     height: 26px;
     display: grid;
     place-items: center;
+    /* `padding: 0` NO sobra. La hoja del producto le da a todo `button` un
+       `padding: 5px 12px`, y con `border-box` eso deja 2 px de caja de contenido
+       dentro de los 26: el icono se desbordaba hacia la derecha y quedaba a 12 px
+       del borde izquierdo y a 1 del derecho. Se veía como si los botones
+       estuvieran torcidos, y lo que estaba torcido era el icono dentro. */
+    padding: 0;
     border: none;
     background: transparent;
     color: var(--text-tertiary);
