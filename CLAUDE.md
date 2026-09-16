@@ -70,8 +70,7 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 ### Frontend (client/src/components/)
 - `App.jsx` (44KB) — Root, phases: WELCOME → SELECTING_DB → IDE
 - `SqlEditor.jsx` (57KB) — Monaco editor, autocomplete, CTE debug
-- `SqlNotebook.jsx` (20KB) — Notebook interface with cells
-- `NotebookCell.jsx` (28KB) — Individual cell (SQL, Markdown, Input)
+- `cuaderno/` — **the notebook**, rebuilt: `CuadernoEditor.jsx` (container), `Celda.jsx` / `CeldaTexto.jsx` (fixed-height cells), `PantallaCompleta.jsx` (one cell, whole tab), `Barra.jsx` (right sidebar: outline, live views, parameters), plus the pure halves `claves.js`, `vistasVivas.js`, `grafo.js` and `exportar.js`. Each SQL cell leaves a temp view named after the cell; `grafo.js` derives dependencies from what each cell reads and drives «Actualizar»
 - `ResultsTable.jsx` (38KB) — Paginated results with sort/filter
 - `DataVisualizer/` — **"Story Flow"**, the data-visualization section (official name): 15+ Recharts chart types organized in a 6-stage flow (Type → Data → Format → Style → Story → Export), with storytelling layer (annotations, takeaway, emphasis), bundled fonts, an in-app guide + first-run tour (`StoryFlowGuide.jsx`). Config persists to `.amoxvis`.
 - `DataProfiler.jsx` (30KB) — Statistical profiling
@@ -109,13 +108,14 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `ai/_sqlHelpers.js` — Shared SQL utilities for tools
 
 ### Utilities
-- `client/src/utils/notebookParser.js` — Parse/serialize .sqlnb files (JSON v3.0; backward-compatible with v2.0 JSON + legacy `-- !CELL:` marker format, migrates v2→v3 sidecar state)
-- `client/src/utils/generateHtmlReport.js` — Self-contained HTML report export with charts as PNG
+- `client/src/utils/cuadernoFile.js` — Read/write `.sqlnb` (markdown + front matter); also reads JSON v3.0, v2.0 and the legacy `-- !CELL:` markers, and saves them in the new format
+- `client/src/utils/celdaSql.js` — What can be known about a cell before running it (wrappable? what does it read? does it write?)
+- `client/src/utils/vistaDeCelda.js` — Composes the implicit view: `CREATE OR REPLACE TEMP VIEW` + `COMMENT ON` + the reader
 
 ## File Formats
 - `.sql` — Plain SQL files
-- `.sqlnb` — SQL Notebook (JSON v3.0 with cells array + environment; reads v2.0 + legacy markers)
-- `.sqlnb.state.json` — Sidecar file for notebook visual state (results cache, chart configs)
+- `.sqlnb` — Notebook: **markdown with front matter** (`parametros`), SQL cells as fenced ` ```sql ` blocks preceded by `<!-- celda: nombre -->`. Reads JSON v3.0, v2.0 and legacy markers, and saves them in the new format. Parameters use `{{name}}`, shared with `.amoxdeck`
+- `.sqlnb.state.json` — Visual state alongside the notebook (cell mode, split, chart configs), keyed by cell **name**, never by position
 - `.amoxvis` — Chart configuration files
 - `.amoxdeck` — **Report Flow** deck: markdown-first presentation (front-matter + slides split by `---` + `<!-- layout: X -->` directives + fenced ` ```amoxchart ` blocks referencing a `.amoxvis`). Edited visually via the in-tab Report Flow Studio (`client/src/components/deck/`); parsed by `client/src/utils/deckParser.js`. Exports to native/editable PowerPoint (`generatePptxReport.js`) and Word.
 - `.amoxdiagram` — **AmoxDiagram** diagram: front-matter + one fenced ` ```mermaid ` flowchart block. Edited visually in its own tab (`client/src/components/diagram/`); parsed by `client/src/components/markdown/mermaidFlow.js`, which reads and writes the same subset in both directions. A mermaid block inside a `.md` opens in the same editor and is written back into that block alone (`diagramMerge.js` guards the round trip). **Positions are not stored** — mermaid computes them and the editor reads them back from the rendered SVG (`mermaidGeometria.js`), so the canvas shows what the document will draw.
@@ -137,7 +137,9 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `/api/ai/*` — AI chat, conversations, config
 - `/api/dbt/*` — DBT integration
 - `/api/export-data` — Data export (CSV, Parquet, Excel)
-- `/api/notebook-state` — Notebook sidecar state persistence
+- `/api/cuaderno/celda` — Runs a notebook cell: leaves its temp view and returns the rows (two pieces in one call, so the row limit still applies to the reader)
+- `/api/cuaderno/vistas` — The session's live temp views and tables, with their descriptions
+- `/api/notebook-state` — Notebook visual state persistence (the endpoint REWRITES the whole file; callers must preserve keys that are not theirs)
 - `/api/snippets`, `/api/bookmarks` — User snippets and bookmarks
 - `/api/settings/*` — Config and Ollama model management
 

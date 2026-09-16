@@ -50,38 +50,36 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const DEFAULT_RESULT_HEIGHT = 400; // matches NotebookCell's own drag-resize default
-
-// Report mode renders the chart inside `.nb-results-height--report`, which is
-// `height: auto; min-height: 300px` in CSS — it ignores the height the user
-// dragged the cell to in edit mode (`resultHeight`), so an export captured
-// as-is comes out at a generic, often much smaller, size. We temporarily pin
-// this container to the user's actual resultHeight before capturing, wait for
-// Recharts' ResponsiveContainer (which debounces resize by 120ms) to redraw
-// at the new size, capture, then restore the report-mode default.
-async function captureCellChart(cellId, desiredHeight = DEFAULT_RESULT_HEIGHT) {
+/**
+ * La figura de una celda, capturada del DOM vivo.
+ *
+ * ## Se captura la figura, no la caja que la contiene
+ *
+ * Antes se apuntaba a la caja del resultado y se le fijaba el alto para que
+ * Recharts redibujara mas grande. Medido en el cuaderno, eso hacia dos danos:
+ * la caja del resultado **incluye la barra de «Tabla / Grafico / Perfil»**, que
+ * acababa dentro del documento; y la figura se dibuja a su propio tamano
+ * —757x429 dentro de una caja de 686x242— asi que capturar la caja la recortaba
+ * por los dos lados.
+ *
+ * Apuntar al envoltorio de la figura no puede recortar: es exactamente la
+ * figura, al tamano al que se dibujo. El titulo, el subtitulo y la nota los
+ * recoge `captureChartAnnotations` y se escriben como parrafos del documento, no
+ * como pixeles.
+ */
+async function captureCellChart(cellId) {
     const cellEl = document.querySelector(`[data-cell-id="${cellId}"]`);
     if (!cellEl) return null;
 
-    const wrapper = cellEl.querySelector('.recharts-wrapper');
-    if (!wrapper) return null;
-
-    const chartContainer = cellEl.querySelector('.nb-results-height--report')
-        || wrapper.closest('[style*="flex"]')
-        || wrapper.parentElement?.parentElement
-        || wrapper.parentElement;
+    const figura = cellEl.querySelector('.recharts-wrapper');
+    if (!figura) return null;
 
     const restoreTheme = forceLightTheme();
-    const previousHeight = chartContainer.style.height;
-    const previousMinHeight = chartContainer.style.minHeight;
-    chartContainer.style.height = `${desiredHeight}px`;
-    chartContainer.style.minHeight = `${desiredHeight}px`;
-
     try {
-        // Covers both the CSS var() theme repaint and ResponsiveContainer's
-        // 120ms resize debounce, so Recharts redraws at the new height first.
-        await sleep(200);
-        const canvas = await html2canvas(chartContainer, {
+        // Solo por el repintado del tema: aqui no se cambia ningun tamano, asi
+        // que no hay que esperar a que Recharts vuelva a dibujar.
+        await sleep(120);
+        const canvas = await html2canvas(figura, {
             backgroundColor: '#ffffff',
             scale: 2,
             logging: false,
@@ -90,11 +88,9 @@ async function captureCellChart(cellId, desiredHeight = DEFAULT_RESULT_HEIGHT) {
         });
         return { dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
     } catch (err) {
-        console.error('Chart capture failed for Word export:', cellId, err);
+        console.error('No se pudo capturar la figura de la celda', cellId, err);
         return null;
     } finally {
-        chartContainer.style.height = previousHeight;
-        chartContainer.style.minHeight = previousMinHeight;
         restoreTheme();
     }
 }
@@ -417,15 +413,14 @@ async function markdownToDocxNodes(markdown) {
     return out;
 }
 
-// ── Main export function — called from SqlNotebook ─────────────────────────
+// ── Main export function — la llama el cuaderno ────────────────────────────
 
 /**
  * @param {Array} cells - Array of { id, type, content }
  * @param {Object} results - Map of cellId → { data, executionTime, error }
  * @param {boolean} hideCode - Whether SQL code blocks should be hidden
- * @param {Object} cellStates - Map of cellId → { resultHeight, ... } (the height the user drag-resized the cell to)
  */
-export async function generateWordReport(cells, results, hideCode = false, cellStates = {}, baseName = '') {
+export async function generateWordReport(cells, results, hideCode = false, baseName = '') {
     const docChildren = [
         new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: 'AmoxSQL Report' })], spacing: { after: 80 } }),
         new Paragraph({ children: [new TextRun({ text: `Generated on ${new Date().toLocaleString()}`, color: '888888', size: 18 })], spacing: { after: 320 } }),
@@ -452,8 +447,7 @@ export async function generateWordReport(cells, results, hideCode = false, cellS
             if (result?.data?.length > 0) {
                 const activeView = detectCellViewMode(cell.id);
                 if (activeView === 'chart') {
-                    const desiredHeight = cellStates?.[cell.id]?.resultHeight || DEFAULT_RESULT_HEIGHT;
-                    const captured = await captureCellChart(cell.id, desiredHeight);
+                    const captured = await captureCellChart(cell.id);
                     if (captured) {
                         const { width, height } = fitDimensions(captured.width, captured.height);
                         const annotations = captureChartAnnotations(cell.id);

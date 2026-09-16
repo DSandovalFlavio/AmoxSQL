@@ -37,8 +37,8 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 ## Notebooks
 | Page | Español | English | Status |
 |---|---|---|---|
-| Notebooks (.sqlnb) | [es](es/notebooks/notebooks.md) | [en](en/notebooks/notebooks.md) | 🟢 |
-| Reports from a notebook | [es](es/notebooks/reports.md) | [en](en/notebooks/reports.md) | 🟢 |
+| Cuadernos · Notebooks (.sqlnb) | [es](es/notebooks/notebooks.md) | [en](en/notebooks/notebooks.md) | 🟢 |
+| Sacar el cuaderno de AmoxSQL · Taking the notebook out | [es](es/notebooks/reports.md) | [en](en/notebooks/reports.md) | 🟢 |
 
 ## Results & analysis · Resultados
 | Page | Español | English | Status |

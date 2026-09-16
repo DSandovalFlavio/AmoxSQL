@@ -1,72 +1,44 @@
-# Informes desde un notebook
+# Sacar el cuaderno de AmoxSQL
 
 **🌐 [English](../../en/notebooks/reports.md) · Español**
 
-> Convierte tu notebook en un documento limpio para leer, presentar o exportar a HTML y Word.
+> Dos salidas, y hacen cosas distintas: un documento de Word que circula, y un tablero que se proyecta.
 
 ## Qué es
 
-Todo [SQL Notebook](notebooks.md) tiene, además del modo **Edit**, un modo **Report** y un modo **Present** que lo transforman en un documento pulido: sin barras de herramientas de celda, con el texto y los resultados centrados en una página tipo "hoja". Desde ahí puedes ocultar el código, imprimir, o **exportar** a un archivo HTML autocontenido o a Word.
+Cuando el análisis está hecho, hay que sacarlo de la herramienta. El [cuaderno](notebooks.md) tiene dos botones para eso, y la diferencia entre ellos no es de formato sino de uso:
 
-Es la forma de compartir el análisis con alguien que no va a abrir AmoxSQL: el mismo notebook con el que trabajaste se vuelve el entregable.
+- **Word** — un documento que **circula**. Se comenta, se firma, se adjunta a un correo. El expediente de un análisis acaba muchas veces ahí.
+- **Tablero** — un tablero de [Report Flow](../reports/report-flow.md), que se **proyecta**. Diapositivas, una figura por página, para contarlo delante de gente.
 
-## Cuándo usarlo
+## Word
 
-- Para presentar los hallazgos de un notebook a otra persona o proyectarlos.
-- Para generar un informe HTML o Word que puedas enviar por correo o archivar.
-- Cuando quieras un PDF: se obtiene imprimiendo el modo Report.
-- Para un entregable con plantillas y diapositivas editables (PowerPoint/Word nativo), usa en cambio [Report Flow](../reports/report-flow.md).
+El documento lleva, en el orden del cuaderno: el texto de las celdas de texto, y de cada celda de SQL su tabla o su figura.
 
-## Cómo usarlo
+Antes de empezar pregunta una cosa: **si van las consultas o no**.
 
-### Cambiar a vista de informe
-1. En la barra del notebook, usa el conmutador **Edit / Report**. En **Report** el documento se muestra centrado, sin las herramientas de edición de cada celda.
-2. Pulsa **Present** para entrar en pantalla completa (modo presentación). Sal con **Esc** o el botón **Exit**.
+| Opción | Para quién |
+|---|---|
+| Con las consultas | Para quien va a revisar el camino. El SQL queda como anexo del análisis |
+| Sólo texto y resultados | Para quien lee las conclusiones |
 
-### Mostrar u ocultar el código
-El botón **Show Code / Code Hidden** alterna la visibilidad de los bloques SQL. Con el código oculto, el informe muestra solo el texto y los resultados (tablas y gráficos) —ideal para una audiencia de negocio—.
+Las figuras se capturan **de lo que hay en pantalla**, así que una celda plegada en «sólo el código» no tiene figura que capturar. El cuaderno lo avisa por su nombre antes de exportar, en vez de dejar que lo descubras en el documento —que es donde nadie vuelve a mirar—.
 
-### Imprimir / PDF
-Pulsa **Print** para abrir el diálogo de impresión del sistema. Elige "Guardar como PDF" para obtener un PDF del informe.
+## Tablero
 
-### Exportar a HTML
-El botón **Export HTML** genera un **archivo `.html` autocontenido** (todo embebido, sin dependencias externas) que se descarga directamente. Incluye:
+Cada celda de texto se convierte en una diapositiva de prosa, y cada celda **con un gráfico configurado y ejecutado** en una diapositiva de figura. Los gráficos se guardan como archivos `.amoxvis` en la carpeta `charts/` del proyecto, así que la diapositiva no lleva una imagen pegada: lleva **una referencia viva** que se puede volver a abrir y refrescar.
 
-- **Tabla de contenido** construida a partir de los encabezados Markdown (con enlaces internos).
-- **Tablas ordenables**: haz clic en el encabezado de columna para ordenar (muestra hasta 200 filas por tabla).
-- **Gráficos como imagen PNG**: cada gráfico se captura tal como se ve y se incrusta como imagen de alta resolución (2x), con su título, subtítulo y nota al pie.
-- **Tema claro/oscuro**: el HTML adopta el tema activo de la app en el momento de exportar.
+Qué celdas tienen gráfico se lee del estado del cuaderno, no de lo que se ve: una celda plegada o fuera de la vista entra igual.
 
-### Exportar a Word
-El botón **Export Word** genera un documento **`.docx`** del informe del notebook: respeta el ajuste de "ocultar código", incluye el texto, las tablas y los gráficos con su configuración. Es un documento editable, no una imagen.
+El tablero se abre en una pestaña nueva y desde ahí se edita con el estudio de [Report Flow](../reports/report-flow.md), que exporta a PowerPoint nativo y editable.
 
-> **Alcance:** *Export Word* aquí cubre el **informe del notebook**. Para presentaciones y documentos de Office con plantillas y gráficos refrescables desde un deck, mira [Exportar a Office](../reports/export-to-office.md).
+## Qué ya no está, y por qué
 
-## Referencia de acciones (barra en modo Report/Present)
+El cuaderno tenía antes un **modo Informe**, un **modo Presentación** y un **export a HTML**. Los tres se retiraron: eran una versión más pobre de lo que hace un tablero, que además ya tenía su puente desde aquí. Mantener dos caminos hacia lo mismo obliga a elegir sin motivo y hace que uno de los dos envejezca.
 
-| Botón | Qué hace | Notas |
-|---|---|---|
-| **Edit / Report** | Cambia entre edición y vista de informe | — |
-| **Present** | Pantalla completa | Salir con Esc |
-| **Show Code / Code Hidden** | Muestra u oculta los bloques SQL | Afecta también a las exportaciones |
-| **Print** | Diálogo de impresión del sistema | Ruta hacia PDF |
-| **Export HTML** | Descarga un `.html` autocontenido | TOC, tablas ordenables, gráficos PNG, tema |
-| **Export Word** | Descarga un `.docx` del informe | Editable; respeta "ocultar código" |
-
-## Tips y gemas
-
-- **El "mostrar/ocultar código" se propaga:** si ocultas el código antes de exportar, el HTML y el Word salen igualmente sin SQL.
-- **Los gráficos se exportan como se ven:** ajusta cada gráfico (tipo, colores, título) en la vista de la celda antes de exportar; la exportación captura ese estado exacto.
-- **Límite de filas en tablas exportadas:** el HTML incrusta hasta 200 filas por tabla para mantener el archivo ligero. Para el conjunto completo, exporta los datos desde el editor o la tabla de resultados (ver [Guardar resultados](../results/saving-results.md)).
-- **Reproducibilidad:** como los resultados se guardan dentro del `.sqlnb`, puedes exportar un informe sin volver a ejecutar las consultas.
-
-## Atajos y formatos relacionados
-
-- **Esc** sale del modo Presentación.
-- Salidas: `.html` (autocontenido) y `.docx` (Word). Ver [Formatos de archivo](../reference/file-formats.md).
+El export a PowerPoint del cuaderno también se fue, por lo mismo: un tablero exporta a PowerPoint mejor, y el puente para llegar hasta él está a un botón.
 
 ## Relacionado
 
-- [Notebooks (.sqlnb)](notebooks.md) · [Tabla de resultados](../results/results-table.md)
-- [Report Flow (decks)](../reports/report-flow.md) · [Exportar a Office](../reports/export-to-office.md)
-- [Guardar resultados](../results/saving-results.md)
+- [Cuadernos](notebooks.md) · [Report Flow](../reports/report-flow.md)
+- [Exportar a Office](../reports/export-to-office.md) · [Story Flow](../visualization/story-flow.md)

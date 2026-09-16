@@ -13,7 +13,6 @@ import { idiomaDe } from '../utils/tiposDeArchivo';
 // Lazy pane types (G10): each of these pulls a heavy dependency tree
 // (Recharts, mermaid/katex/highlight via MarkdownPreview, @xyflow/react…).
 // SqlEditor + ResultsTable stay eager — they are the default editor path.
-const SqlNotebook = lazy(() => import('./SqlNotebook'));
 const ErDiagram = lazy(() => import('./ErDiagram'));
 const DbtLineageGraph = lazy(() => import('./DbtLineageGraph'));
 const AmoxvisPane = lazy(() => import('./AmoxvisPane'));
@@ -648,9 +647,6 @@ const EditorPane = ({
                         </Suspense>
                     </div>
                 ) : isNotebook ? (
-                    /* El cuaderno repensado. `SqlNotebook` sigue en el arbol
-                       hasta la fase 6 —la limpieza— para no perder de vista lo
-                       que todavia hay que traerse de el. */
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <Suspense fallback={<PaneLoading />}>
                         <CuadernoEditor

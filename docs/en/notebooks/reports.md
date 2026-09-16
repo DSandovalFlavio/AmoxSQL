@@ -1,72 +1,44 @@
-# Reports from a notebook
+# Taking the notebook out of AmoxSQL
 
 **🌐 English · [Español](../../es/notebooks/reports.md)**
 
-> Turn your notebook into a clean document to read, present, or export to HTML and Word.
+> Two ways out, and they do different jobs: a Word document that circulates, and a deck that gets projected.
 
 ## What it is
 
-Every [SQL Notebook](notebooks.md) has, besides the **Edit** mode, a **Report** mode and a **Present** mode that turn it into a polished document: no per-cell toolbars, with prose and results centered on a sheet-like page. From there you can hide the code, print, or **export** to a self-contained HTML file or to Word.
+Once the analysis is done it has to leave the tool. The [notebook](notebooks.md) has two buttons for that, and the difference between them is not the format but the use:
 
-It's how you share the analysis with someone who won't open AmoxSQL: the same notebook you worked in becomes the deliverable.
+- **Word** — a document that **circulates**. It gets commented on, signed, attached to an email. The record of an analysis often ends up there.
+- **Deck** — a [Report Flow](../reports/report-flow.md) deck, which gets **projected**. Slides, one figure per page, for telling it in front of people.
 
-## When to use it
+## Word
 
-- To present a notebook's findings to someone else or project them.
-- To generate an HTML or Word report you can email or archive.
-- When you want a PDF: get it by printing the Report mode.
-- For a deliverable with templates and editable slides (native PowerPoint/Word), use [Report Flow](../reports/report-flow.md) instead.
+The document carries, in the notebook's own order: the text of the text cells, and for each SQL cell its table or its figure.
 
-## How to use it
+Before starting it asks one thing: **whether the queries go in**.
 
-### Switch to report view
-1. In the notebook bar, use the **Edit / Report** switch. In **Report**, the document is shown centered, without each cell's editing tools.
-2. Press **Present** to enter full screen (presentation mode). Leave with **Esc** or the **Exit** button.
+| Option | For whom |
+|---|---|
+| With the queries | For whoever will review the path. The SQL stays as an appendix |
+| Text and results only | For whoever reads the conclusions |
 
-### Show or hide the code
-The **Show Code / Code Hidden** button toggles the visibility of the SQL blocks. With code hidden, the report shows only the prose and results (tables and charts) — ideal for a business audience.
+Figures are captured **from what is on screen**, so a cell collapsed to "code only" has no figure to capture. The notebook names those cells before exporting, instead of letting you find out in the document — which is where nobody looks twice.
 
-### Print / PDF
-Press **Print** to open the system print dialog. Choose "Save as PDF" to get a PDF of the report.
+## Deck
 
-### Export to HTML
-The **Export HTML** button generates a **self-contained `.html` file** (everything embedded, no external dependencies) that downloads directly. It includes:
+Each text cell becomes a prose slide, and each cell **with a chart configured and run** becomes a figure slide. Charts are written as `.amoxvis` files in the project's `charts/` folder, so the slide does not carry a pasted image: it carries a **live reference** that can be reopened and refreshed.
 
-- **Table of contents** built from the Markdown headings (with in-page links).
-- **Sortable tables**: click a column header to sort (shows up to 200 rows per table).
-- **Charts as PNG images**: each chart is captured as it looks and embedded as a high-resolution image (2x), with its title, subtitle, and footnote.
-- **Light/dark theme**: the HTML adopts the app's active theme at export time.
+Which cells have a chart is read from the notebook's state, not from what is visible: a collapsed or scrolled-away cell counts just the same.
 
-### Export to Word
-The **Export Word** button generates a **`.docx`** document of the notebook report: it respects the "hide code" setting and includes the prose, tables, and charts with their configuration. It's an editable document, not an image.
+The deck opens in a new tab and is edited from there with the [Report Flow](../reports/report-flow.md) studio, which exports to native, editable PowerPoint.
 
-> **Scope:** *Export Word* here covers the **notebook report**. For Office presentations and documents with templates and deck-refreshable charts, see [Export to Office](../reports/export-to-office.md).
+## What is gone, and why
 
-## Action reference (Report/Present bar)
+The notebook used to have a **Report mode**, a **Present mode** and an **HTML export**. All three were retired: they were a poorer version of what a deck does, and a deck already had its bridge from here. Keeping two paths to the same place forces a choice for no reason, and makes one of them rot.
 
-| Button | What it does | Notes |
-|---|---|---|
-| **Edit / Report** | Toggle between editing and report view | — |
-| **Present** | Full screen | Exit with Esc |
-| **Show Code / Code Hidden** | Show or hide the SQL blocks | Also affects exports |
-| **Print** | System print dialog | Path to PDF |
-| **Export HTML** | Download a self-contained `.html` | TOC, sortable tables, PNG charts, theme |
-| **Export Word** | Download a `.docx` of the report | Editable; respects "hide code" |
-
-## Tips & gems
-
-- **"Show/hide code" propagates:** if you hide the code before exporting, the HTML and Word come out without SQL too.
-- **Charts export as they look:** tune each chart (type, colors, title) in the cell view before exporting; the export captures that exact state.
-- **Row limit in exported tables:** the HTML embeds up to 200 rows per table to keep the file light. For the full set, export the data from the editor or the results table (see [Saving results](../results/saving-results.md)).
-- **Reproducibility:** because results are saved inside the `.sqlnb`, you can export a report without re-running the queries.
-
-## Shortcuts & related formats
-
-- **Esc** exits Presentation mode.
-- Outputs: `.html` (self-contained) and `.docx` (Word). See [File formats](../reference/file-formats.md).
+The notebook's PowerPoint export went for the same reason: a deck exports to PowerPoint better, and the bridge to it is one button away.
 
 ## Related
 
-- [Notebooks (.sqlnb)](notebooks.md) · [Results table](../results/results-table.md)
-- [Report Flow (decks)](../reports/report-flow.md) · [Export to Office](../reports/export-to-office.md)
-- [Saving results](../results/saving-results.md)
+- [Notebooks](notebooks.md) · [Report Flow](../reports/report-flow.md)
+- [Export to Office](../reports/export-to-office.md) · [Story Flow](../visualization/story-flow.md)

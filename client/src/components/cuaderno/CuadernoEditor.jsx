@@ -33,12 +33,16 @@
  * el gráfico.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LuPlus, LuFileText, LuSave, LuBot, LuX, LuRefreshCw } from 'react-icons/lu';
+import {
+    LuPlus, LuFileText, LuSave, LuBot, LuX, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
+} from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
-import { leerCuaderno, escribirCuaderno, indiceDe } from '../../utils/cuadernoFile.js';
+import { leerCuaderno, escribirCuaderno, indiceDe, tituloDe } from '../../utils/cuadernoFile.js';
 import { analizarCelda } from '../../utils/celdaSql.js';
 import { componerCelda, nombrePorOmision } from '../../utils/vistaDeCelda.js';
 import { useDialog } from '../dialogs/DialogProvider';
+import { useToast } from '../ToastProvider';
+import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import Celda from './Celda.jsx';
 import Barra from './Barra.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
@@ -46,6 +50,9 @@ import PantallaCompleta from './PantallaCompleta.jsx';
 import { claveDeCelda, reclavar } from './claves.js';
 import { cruzarVistas, parametrosUsados, sustituirParametros } from './vistasVivas.js';
 import { construirGrafo, frescura, queActualizar, celdasEnCiclo } from './grafo.js';
+import { celdasParaExportar, graficosQueNoSalen, planDeTablero } from './exportar.js';
+import { buildSlideRaw } from '../../utils/deckTemplates';
+import { serializeDeck } from '../../utils/deckParser';
 import './cuaderno.css';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -86,7 +93,10 @@ const CuadernoEditor = ({
     const [ejecuciones, setEjecuciones] = useState({});
     /** La celda que ocupa la pestaña entera, o `null`. */
     const [aPantalla, setAPantalla] = useState(null);
+    /** `null`, `'word'` o `'tablero'` mientras se saca algo del cuaderno. */
+    const [sacando, setSacando] = useState(null);
     const dialog = useDialog();
+    const toast = useToast();
 
     const refrescarVistas = useCallback(() => {
         fetch(`${API_BASE}/api/cuaderno/vistas`)
@@ -96,6 +106,12 @@ const CuadernoEditor = ({
     }, []);
 
     useEffect(() => { refrescarVistas(); }, [refrescarVistas]);
+
+    // El recorrido de la primera vez lo lanzaba el componente anterior; al
+    // retirarlo se quedaba sin quien lo abriera.
+    useEffect(() => {
+        if (!hasSeenTour('notebooks')) openTour('notebooks');
+    }, []);
 
     /**
      * El texto del documento se rehace al cambiar las celdas, no al revés.
@@ -474,6 +490,108 @@ const CuadernoEditor = ({
         });
     }, []);
 
+    /**
+     * A un documento de Word.
+     *
+     * Se queda de todo lo que exportaba la notebook anterior, y es el unico que
+     * se queda: **un tablero se proyecta, un documento circula**. Se comenta, se
+     * firma, se adjunta, y el expediente de un analisis acaba muchas veces ahi.
+     */
+    const aWord = useCallback(async () => {
+        if (sacando) return;
+
+        // El exportador captura las figuras del DOM vivo, asi que una celda
+        // plegada en «solo el codigo» no tiene nada que capturar. Se dice antes
+        // y no despues: un grafico que falta en el documento no da ningun error
+        // y se descubre cuando ya lo esta leyendo otra persona.
+        const mudas = graficosQueNoSalen(doc.celdas, claves, estados);
+        // `chooseAsync` y no `confirmAsync` porque hacen falta TRES salidas: con
+        // el codigo, sin el, y no exportar. Con una pregunta de si o no, pulsar
+        // Escape contaria como «sin el codigo» y el documento saldria igual.
+        const elegido = await dialog.chooseAsync({
+            title: 'Exportar a Word',
+            options: [
+                { value: 'con', label: 'Con las consultas', primary: true, description: 'El documento lleva el SQL de cada celda, como un anexo del analisis.' },
+                { value: 'sin', label: 'Solo texto y resultados', description: 'Para quien lee las conclusiones y no el camino.' },
+            ],
+            cancelLabel: 'Ahora no',
+            message: (mudas.length
+                ? `${mudas.length === 1 ? 'La celda' : 'Las celdas'} ${mudas.map((n) => `«${n}»`).join(', ')} `
+                  + `${mudas.length === 1 ? 'tiene' : 'tienen'} un grafico pero esta plegada en «solo el codigo», `
+                  + 'asi que su figura no se puede capturar. Abrela antes si la quieres en el documento.\n\n'
+                : '')
+                + 'Cada celda aporta su texto y su tabla o su figura.',
+        });
+        if (!elegido?.value) return;
+
+        setSacando('word');
+        try {
+            const { generateWordReport } = await import('../../utils/generateWordReport');
+            await generateWordReport(
+                celdasParaExportar(doc.celdas),
+                resultados,
+                elegido.value === 'sin',
+                tituloDe(doc),
+            );
+        } catch (e) {
+            toast.error(`No se pudo exportar: ${e?.message || e}`);
+        } finally {
+            setSacando(null);
+        }
+    }, [sacando, doc, claves, estados, resultados, dialog, toast]);
+
+    /**
+     * A un tablero de Report Flow.
+     *
+     * El texto se vuelve prosa y cada celda con grafico una diapositiva de
+     * figura. **Que celdas tienen grafico se lee del estado, no de la pantalla**:
+     * el puente anterior miraba el DOM, asi que una celda plegada o fuera de
+     * vista no entraba y nadie sabia por que.
+     */
+    const aTablero = useCallback(async () => {
+        if (sacando) return;
+        const plan = planDeTablero(doc.celdas, claves, estados, resultados, tituloDe(doc));
+        if (!plan.trozos.length) {
+            toast.info(
+                'Un tablero se hace con las celdas de texto y con las que tengan un grafico '
+                + 'configurado y ejecutado. Escribe algo o construye una figura primero.',
+            );
+            return;
+        }
+
+        setSacando('tablero');
+        try {
+            const diapositivas = [];
+            let carpeta = false;
+            for (const t of plan.trozos) {
+                if (t.clase === 'prosa') {
+                    diapositivas.push({ raw: buildSlideRaw({ layout: 'content', prose: t.texto }) });
+                    continue;
+                }
+                if (!carpeta) {
+                    await fetch(`${API_BASE}/api/folder`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: 'charts' }),
+                    });
+                    carpeta = true;
+                }
+                await fetch(`${API_BASE}/api/file`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: t.archivo, content: t.contenido }),
+                });
+                diapositivas.push({ raw: buildSlideRaw({ layout: 'chart-full', chartSrc: t.archivo }) });
+            }
+            const cabecera = `---\ntitle: ${plan.nombre}\ntheme: dark\naspect: "16:9"\n---`;
+            onCreateNew?.('amoxdeck', serializeDeck(cabecera, diapositivas));
+        } catch (e) {
+            toast.error(`No se pudo convertir: ${e?.message || e}`);
+        } finally {
+            setSacando(null);
+        }
+    }, [sacando, doc, claves, estados, resultados, toast, onCreateNew]);
+
     const ampliada = aPantalla ? doc.celdas.find((c) => c.id === aPantalla) : null;
 
     if (ampliada) {
@@ -514,7 +632,10 @@ const CuadernoEditor = ({
         <div className="cdn">
             <div className="cdn-lista">
                 {doc.celdas.map((c) => (
-                    <div key={c.id} id={`cdn-${c.id}`}>
+                    // `data-cell-id` es lo que busca el exportador a Word para
+                    // capturar la figura de cada celda. Sin el, el documento sale
+                    // con las tablas y sin ninguna figura, y sin ningun error.
+                    <div key={c.id} id={`cdn-${c.id}`} data-cell-id={c.id}>
                         {c.tipo === 'texto' ? (
                             <CeldaTexto
                                 celda={c}
@@ -584,6 +705,28 @@ const CuadernoEditor = ({
                     <button type="button" className="cdn-btn" onClick={() => onSave?.()}>
                         <LuSave size={12} /> Guardar
                     </button>
+                    <div className="cdn-grupo">
+                        <button
+                            type="button"
+                            className="cdn-btn"
+                            onClick={aWord}
+                            disabled={!!sacando}
+                            title="Un documento que circula: se comenta, se firma, se adjunta"
+                        >
+                            {sacando === 'word' ? <LuLoaderCircle size={12} className="spin" /> : <LuFileType2 size={12} />}
+                            Word
+                        </button>
+                        <button
+                            type="button"
+                            className="cdn-btn"
+                            onClick={aTablero}
+                            disabled={!!sacando}
+                            title="Llevar el texto y las figuras a un tablero de Report Flow"
+                        >
+                            {sacando === 'tablero' ? <LuLoaderCircle size={12} className="spin" /> : <LuPresentation size={12} />}
+                            Tablero
+                        </button>
+                    </div>
                     {onToggleAi && (
                         <button type="button" className="cdn-btn" onClick={onToggleAi}>
                             {showAiSidebar ? <LuX size={12} /> : <LuBot size={12} />}

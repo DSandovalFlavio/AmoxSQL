@@ -1,261 +1,115 @@
-# Sistema de SQL Notebook (.sqlnb)
+# El cuaderno (.sqlnb)
 
-## Arquitectura General
+## De qué va
 
-El sistema de notebooks permite crear documentos interactivos con celdas SQL, Markdown e Input, con ejecucion secuencial, variables reactivas y persistencia de estado embebida.
+Un cuaderno es un análisis partido en celdas donde **cada celda de SQL deja su consulta puesta en la sesión con el nombre de la celda**, para que la siguiente la lea por ese nombre. Nadie escribe `CREATE OR REPLACE TEMP VIEW`.
+
+Eso no lo inventa la interfaz. `DatabaseManager` mantiene **una conexión viva por vía** (`main`, `meta`, `ai`), así que una vista temporal creada en una llamada sobrevive a la siguiente y encadena. La sesión ya era el dataframe; lo que faltaba era que la interfaz lo contara.
 
 ---
 
-## Archivos Clave
+## Archivos
 
 | Archivo | Responsabilidad |
-|---------|----------------|
-| `client/src/components/SqlNotebook.jsx` (627 lineas) | Orquestador: celdas, ejecucion, estado, serializacion |
-| `client/src/components/NotebookCell.jsx` (512 lineas) | Celda individual: SQL editor, Markdown, Input, CTE debug |
-| `client/src/utils/notebookParser.js` (143 lineas) | Formato de archivo JSON v3.0, legacy v2.0, migracion sidecar |
-| `client/src/components/EditorPane.jsx` (lineas 277-413) | Deteccion de .sqlnb y renderizado de notebook |
-| `server/index.js` (lineas 1974-2006) | Endpoints de notebook-state (sidecar) |
+|---|---|
+| `client/src/components/cuaderno/CuadernoEditor.jsx` | El contenedor: documento, ejecución, estado visual, exportes |
+| `client/src/components/cuaderno/Celda.jsx` | Celda de SQL: 280 px, mando de tres posiciones, distintivos de cabecera |
+| `client/src/components/cuaderno/CeldaTexto.jsx` | Celda de texto: se ajusta al contenido con 280 de tope |
+| `client/src/components/cuaderno/PantallaCompleta.jsx` | Una celda ocupando la pestaña entera |
+| `client/src/components/cuaderno/Barra.jsx` | Barra derecha: índice, vistas vivas, parámetros |
+| `client/src/utils/cuadernoFile.js` | Leer y escribir el archivo; lee además los tres formatos anteriores |
+| `client/src/utils/celdaSql.js` | Qué se sabe de una celda antes de ejecutarla |
+| `client/src/utils/vistaDeCelda.js` | Compone la vista implícita |
+| `client/src/components/cuaderno/claves.js` | Con qué clave se guarda el estado visual, y cómo se reclava |
+| `client/src/components/cuaderno/vistasVivas.js` | Cruza lo declarado con lo que el motor tiene vivo; parámetros |
+| `client/src/components/cuaderno/grafo.js` | Dependencias, frescura y el orden de «Actualizar» |
+| `client/src/components/cuaderno/exportar.js` | Traducción a Word y plan de tablero |
+| `server/index.js` | `/api/cuaderno/celda`, `/api/cuaderno/vistas`, `/api/notebook-state` |
+
+Las partes puras tienen prueba desde Node: `probarCuaderno`, `probarCeldaSql`, `probarVistaDeCelda`, `probarClavesCuaderno`, `probarVistasVivas`, `probarGrafoCuaderno`, `probarExportarCuaderno`.
 
 ---
 
-## Formato de Archivo (.sqlnb)
+## El formato
 
-### JSON v3.0 (Actual)
+Markdown con cabecera. Se lee tal cual en cualquier editor y un diff enseña el análisis, no llaves de JSON.
 
-```json
-{
-  "version": "3.0",
-  "cells": [
-    {
-      "id": "1234567890",
-      "type": "code",
-      "content": "SELECT * FROM table WHERE date = {{startDate}}",
-      "metadata": {},
-      "state": {
-        "chartConfig": { ... },
-        "viewMode": "chart",
-        "resultHeight": 500,
-        "result": {
-          "data": [...],
-          "executionTime": 245,
-          "totalRows": 100,
-          "truncated": false
-        }
-      }
-    },
-    {
-      "id": "1234567891",
-      "type": "input",
-      "content": "2024-01-01",
-      "metadata": { "varName": "startDate", "inputType": "date" }
-    },
-    {
-      "id": "1234567892",
-      "type": "markdown",
-      "content": "# Analisis de ventas\nResumen del periodo..."
-    }
-  ],
-  "environment": {
-    "startDate": "2024-01-01"
-  }
-}
-```
+```markdown
+---
+titulo: Caída de septiembre
+parametros:
+  desde: 2026-09-01
+---
 
-### Legacy v2.0 (Marcadores)
+# ¿Por qué cayeron las ventas?
+
+<!-- celda: ventas_limpias -->
 ```sql
--- !CELL:CODE!
-SELECT * FROM users;
--- !CELL:MARKDOWN!
--- # Titulo
--- Descripcion aqui
+-- Quito devoluciones
+SELECT * FROM ventas WHERE NOT devuelta AND f >= {{desde}};
 ```
-- Sin estado embebido (se persiste en `.sqlnb.state.json` sidecar)
-- Migracion automatica one-time a v3.0 al abrir
+```
 
-### Constantes
-- `MAX_CACHED_ROWS = 500` — Resultados truncados en serializacion
-- IDs generados: `Date.now().toString() + Math.random().toString()`
+- El comentario `<!-- celda: nombre -->` da nombre a la celda; con ` materializada` detrás, la celda deja una tabla en vez de una vista.
+- Se leen también JSON v3.0, v2.0 y el formato de marcadores `-- !CELL:CODE!`. Los tres se **guardan ya en el formato nuevo**, y las celdas `input` pasan a ser parámetros de la cabecera.
+- Los parámetros usan `{{nombre}}`, la convención que ya compartían los cuadernos y los tableros (`injectEnvironmentVariables`). **No** la `${...}` del editor de consultas.
 
 ---
 
-## Tipos de Celda
+## La vista implícita
 
-### 1. Code (SQL)
-- Editor Monaco embebido con autocompletado completo
-- Ejecucion: Ctrl+Enter o boton Run
-- Resultados en `ResultsTable` con chart/profile
-- CTE Debugging: extrae definicion CTE y ejecuta aislada
-- Popout: envia resultados a ventana Electron separada
-- Resize de panel de resultados (150px - 1200px, default 400px)
+`analizarCelda` decide si la celda es envolvible —**una sola sentencia que empiece por `SELECT` o `WITH`**— y `componerCelda` produce dos piezas:
 
-### 2. Markdown
-- Doble click para editar (textarea)
-- Preview con ReactMarkdown
-- Blur para guardar
-- Prefijo `-- ` en formato legacy v2.0
+- `preparacion`: `CREATE OR REPLACE TEMP VIEW "nombre" AS (…)` más `COMMENT ON VIEW` con el comentario de cabecera.
+- `lector`: `SELECT * FROM "nombre"`.
 
-### 3. Input (Variables)
-- Variable con nombre en `{{ }}` brackets
-- Tipos: text, number, date
-- Dispara ejecucion reactiva de celdas dependientes
-- Metadata: `{ varName, inputType }`
+**Van dos piezas y no una** porque `applyRowLimit` sólo recorta un texto que empiece por `SELECT`: mandadas juntas, el texto empezaría por `CREATE` y la celda se traería la tabla entera al navegador. Y van en **una sola llamada** porque entre dos cabría una cancelación que dejaría la vista creada y las filas sin traer.
+
+Los nombres van siempre entre comillas dobles: crear `"paso_1"` y leerlo como `paso_1` funciona, y así no hace falta llevar la lista de palabras reservadas.
+
+### El aviso de nombre tapado
+
+Medido contra el motor: una vista temporal llamada `ventas` tapa a la tabla `ventas` **y también a `main.ventas`**; sólo se escapa escribiendo el catálogo entero (`memory.main.ventas`). Por eso el servidor mira el catálogo y devuelve `{tapado}` **sin ejecutar nada** cuando el nombre choca con algo permanente.
 
 ---
 
-## Motor de Ejecucion
+## El grafo y la frescura
 
-### Ejecucion Individual (`handleRun`, lineas 272-293)
-```
-1. injectEnvironmentVariables(query, env) — Reemplaza {{varName}}
-2. setResults[cellId] = { loading: true }
-3. await onRunQuery(injectedQuery) — POST /api/query
-4. setResults[cellId] = { data, types, executionTime, executedQuery }
-5. saveStateOnly() — Debounced 1000ms
-```
+Las dependencias salen de `analisis.lee` —los nombres que cada celda consulta— cruzados con los nombres de celda: **por nombre, no por posición**.
 
-### Inyeccion de Variables (`injectEnvironmentVariables`, lineas 262-270)
-```javascript
-// Regex: \{\{\s*varName\s*\}\}
-// Strings: 'value' (con comillas)
-// Numbers: 123 (sin comillas)
-// Ejemplo: "WHERE date = {{startDate}}" -> "WHERE date = '2024-01-01'"
-```
+Qué significa «desactualizado» hay que decirlo con cuidado. Una vista no guarda datos: leerla vuelve a ejecutar su cadena, así que en datos no envejece. Lo que envejece es la **definición puesta en la sesión** (se editó el SQL y no se volvió a ejecutar) y el **resultado que se ve en pantalla**. Lo segundo es lo que hace daño.
 
-### Ejecucion Batch (`runCellsSequentially`, lineas 296-324)
-- Filtra solo celdas code no vacias
-- Ejecuta secuencialmente
-- **Se detiene en el primer error**: `if (result?.error) break;`
-- Tracking de progreso: `batchProgress = { current, total }`
+Cuatro estados: `nunca`, `dia`, `cambiada` (su SQL resuelto difiere del ejecutado) y `arriba` (algo de lo que depende cambió o corrió después).
 
-### Atajos de Ejecucion (lineas 326-340)
-- `runAll()` — Todas las celdas en orden
-- `runAbove(cellId)` — Desde la primera hasta la celda indicada
-- `runBelow(cellId)` — Desde la celda indicada hasta la ultima
+Se compara la consulta **ya resuelta**, no la escrita: cambiar un parámetro cambia la consulta sin tocar una letra de la celda.
 
-### Ejecucion Reactiva / DAG (lineas 350-365)
-```
-Input cell cambia valor
-  -> handleEnvironmentChange(key, value)
-  -> setEnvironment(newEnv)
-  -> Scan ALL cells: regex.test(cell.content) para {{key}}
-  -> Para cada match: handleRun(cell.id, null, newEnv)
-```
-- **No hay grafo de dependencias explicito** — inferencia por regex
-- Ejecucion secuencial de celdas dependientes
+**El código se inclina a propósito.** Ante la duda, marcar como desactualizado: inventarse una dependencia cuesta una ejecución de más; perderla cuesta una cifra equivocada que nadie revisa. Al ejecutar, en cambio, se inclina al revés: una celda que escribe en disco se **aparta** de «Actualizar», porque repetir un `INSERT` duplica filas.
 
 ---
 
-## Persistencia de Estado
+## El estado visual
 
-### Timeline de Guardado
-1. **Mount** (lineas 53-87): Parse JSON, extrae cells/environment/state, migracion sidecar
-2. **Cambio de contenido**: Debounce 500ms → `save(updatedCells)`
-3. **Cambio de estado visual**: Debounce 1000ms → `saveStateOnly()`
-4. **Boton Save**: Inmediato → `onSave()` → App escribe via `/api/file`
+Va en `.sqlnb.state.json`, bajo la clave `celdas`, **nunca en el documento**: el modo de cada celda, el reparto y la configuración del gráfico son de quien mira, no del análisis.
 
-### Serializacion (`serializeNotebookContent`, parser lineas 103-142)
-- Extrae `.state` de cada celda
-- Limpia state: solo `chartConfig`, `viewMode`, `resultHeight`, `result`
-- Solo incluye `resultHeight` si != 400 (default)
-- Trunca resultados cacheados a 500 filas
-- Si data > 500: `{ data: data.slice(0,500), totalRows, truncated: true }`
-- Retorna JSON pretty-printed (2-space indent)
+Dos cosas que no son obvias:
 
-### Migracion Sidecar (lineas 89-129)
-- Busca `{filePath}.state.json` via GET `/api/notebook-state`
-- Mapea estado index-based (v2.0) a ID-based (v3.0)
-- Solo aplica si estado v3.0 esta vacio
-- **Prioridad**: v3.0 embebido > v2.0 sidecar
+- **La clave es el nombre de la celda**, y la posición sólo mientras no tenga uno. No puede ser el identificador: se genera al leer el archivo, así que cambia en cada apertura. Como añadir, borrar, mover y renombrar corren las posiciones, toda modificación **reclava** el mapa (`reclavar` en `claves.js`).
+- **El endpoint reescribe el archivo entero**, no fusiona. El mismo archivo puede llevar el `cells` de la notebook anterior, así que el editor guarda lo que no es suyo al leer y lo devuelve intacto al escribir.
+
+Las ejecuciones (`{id: {en, sql}}`) viven **sólo en memoria**: guardarlas haría que al reabrir mañana las celdas se dieran por ejecutadas con la sesión vacía.
 
 ---
 
-## CTE Debugging (NotebookCell.jsx, lineas 169-228)
+## Salidas
 
-```
-1. Click "Debug CTE" en menu contextual
-2. Parsea definicion CTE por matching de parentesis balanceados
-3. Construye query: {CTE parcial} SELECT * FROM cteName LIMIT 100
-4. Inyecta variables de ambiente
-5. POST /api/query
-6. Muestra resultados en DebugResultModal
-```
+- **Word** (`generateWordReport`) — se queda. Un tablero se proyecta; un documento circula. Las figuras se capturan del DOM vivo apuntando al `.recharts-wrapper` de cada celda, que es exactamente la figura y no puede recortarse; la celda necesita `data-cell-id`.
+- **Tablero** — el texto se vuelve prosa y cada celda con gráfico una diapositiva, con su `.amoxvis` escrito en `charts/`. Qué celdas tienen gráfico se lee **del estado**, no del DOM.
+- **Retirados**: modo Informe, modo Presentación, export a HTML y export a PowerPoint del cuaderno. Duplicaban al tablero, que lo hace mejor y tiene el puente a un botón.
 
 ---
 
-## Popout Window (NotebookCell.jsx, lineas 47-82)
+## Trampas conocidas
 
-- Electron API: `window.electronAPI.openPopout(payload)`
-- Payload: `{ data, types, executionTime, query, cellTitle }`
-- Auto-update cuando cambian resultados
-- Placeholder en celda: "Results are actively displayed in a detached window"
-
----
-
-## Modos de Vista
-
-### Edit Mode (default)
-- Todas las celdas editables
-- Toolbar completo con controles
-- Drag & drop para reordenar
-
-### Report Mode
-- Layout centrado, fondo blanco, max-width 900px
-- Toggle "Show Code" / "Code Hidden"
-- Boton Print para impresion
-- Export HTML con `generateHtmlReport()`
-
-### Presentation Mode (lineas 480-487)
-- Overlay fullscreen (z-index: 99999)
-- Portal rendering a document.body
-- Esc para salir
-
----
-
-## Operaciones de Celda
-
-| Operacion | Metodo | Detalle |
-|-----------|--------|---------|
-| Agregar | `addCell(type)` | ID = timestamp, se inserta al final |
-| Eliminar | `deleteCell(id)` → `confirmDeleteCell()` | Modal de confirmacion, limpia state/results |
-| Mover | `moveCell(id, direction)` | Reordena up/down en array |
-| Editar | `updateCell(id, content, metadata)` | Debounced 500ms |
-| Drag & Drop | `handleCellDrag*` | Calcula indice de drop, guarda despues |
-
----
-
-## Integracion con EditorPane
-
-```javascript
-// EditorPane.jsx lineas 277-279
-const isNotebook = activeTab.name.endsWith('.sqlnb') || activeTab.type === 'sqlnb';
-
-// Renderizado lineas 401-413
-<SqlNotebook
-  key={activeTab.id}
-  content={activeTab.content}
-  onChange={(val) => onContentChange(activeTab.id, val)}
-  onRunQuery={(q) => onRunQuery(activeTab.id, q)}
-  onSave={() => onSave && onSave()}
-  filePath={activeTab.path || null}
-  onToggleAi={onToggleAi}
-  showAiSidebar={showAiSidebar}
-/>
-```
-
----
-
-## CSS Classes Principales
-
-| Clase | Proposito |
-|-------|-----------|
-| `.snb-toolbar` | Toolbar principal del notebook |
-| `.snb-mode-switcher` | Toggle Edit/Report (pill) |
-| `.snb-btn--run`, `.snb-btn--stop` | Botones de ejecucion |
-| `.nb-cell` | Contenedor de celda |
-| `.nb-cell.dragging` | Opacity 0.4 durante drag |
-| `.nb-accent--code/input/text` | Borde izquierdo por tipo |
-| `.nb-type-badge` | Indicador de tipo de celda |
-| `.nb-results-height` | Panel de resultados scrollable |
-| `.nb-resize-handle` | Handle para redimensionar |
-| `.nb-input-var-wrap` | Variable `{{}}` con estilo |
-| `.notebook-fullview-overlay` | Overlay de presentacion |
+- Los objetos temporales son **por conexión**. El asistente corre por otra vía, así que no ve las vistas del cuaderno: puede contestar «no existe» sobre algo que sí existe desde donde mira la persona.
+- **No hay transacción**: si la vista se crea y el `SELECT` falla, la vista queda puesta.
+- Una celda plegada en «sólo el código» no monta su resultado, así que su figura no se puede capturar al exportar. El cuaderno lo avisa por su nombre antes de empezar.

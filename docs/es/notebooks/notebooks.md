@@ -1,78 +1,102 @@
-# Notebooks (.sqlnb)
+# Cuadernos (.sqlnb)
 
 **🌐 [English](../../en/notebooks/notebooks.md) · Español**
 
-> Documentos interactivos que combinan celdas de SQL, texto y variables de entrada, con ejecución secuencial y re-ejecución reactiva.
-
-<img src="../../../images/05_sql_notebook.png" alt="SQL Notebook de AmoxSQL" width="100%" />
+> Celdas que dejan su consulta puesta en la sesión con un nombre, para que la siguiente la lea. Con índice, parámetros y un botón que actualiza solo lo que se quedó viejo.
 
 ## Qué es
 
-Un **SQL Notebook** (`.sqlnb`) es un documento vivo hecho de **celdas**. Cada celda es de código (SQL), de texto (Markdown) o de entrada (una variable con nombre). Mezclas explicación y análisis en un solo archivo: cada celda de código lleva sus **propios resultados** debajo (tabla, gráfico o perfil), y el texto entre ellas cuenta la historia.
+Un **cuaderno** (`.sqlnb`) es un análisis partido en **celdas**. Cada celda de SQL, al ejecutarse, deja su consulta puesta en la sesión con el nombre de la celda; la de abajo ya puede escribir `FROM ese_nombre`. Entre medias, las celdas de texto cuentan el porqué.
 
-A diferencia del [Editor SQL](../editor/sql-editor.md) —una sola query enfocada—, el notebook está pensado para un análisis narrado de varios pasos: cargas datos en una celda, los transformas en la siguiente, los visualizas en otra y describes las conclusiones en Markdown.
+Eso es lo diferencial y conviene decirlo claro: **nadie escribe `CREATE OR REPLACE TEMP VIEW`**. La sesión de AmoxSQL siempre fue una conexión viva donde una vista temporal sobrevive de una consulta a la siguiente; el cuaderno se limita a contarlo.
 
-Cualquier archivo `.sqlnb` que abras se renderiza como notebook automáticamente (AmoxSQL lo detecta por la extensión). El estado —resultados en caché, configuración de gráficos, valores de variables— se guarda **dentro del propio archivo**, así que reabrirlo te devuelve exactamente donde lo dejaste.
+A diferencia del [Editor SQL](../editor/sql-editor.md) —una consulta enfocada— el cuaderno está pensado para un análisis de varios pasos que se lee de arriba abajo y del que alguien tiene que poder fiarse dentro de tres meses.
 
 ## Cuándo usarlo
 
-- Para un análisis exploratorio de varios pasos que quieras leer de arriba abajo.
-- Cuando quieras parametrizar una consulta con **variables de entrada** y recalcular al cambiarlas.
-- Para armar un **informe** reproducible que luego exportas a HTML o Word (ver [Informes desde un notebook](reports.md)).
-- Si solo necesitas una consulta suelta, usa el [Editor SQL](../editor/sql-editor.md). Para encadenar transformaciones visualmente, usa [Data Flow](../data-flow/data-flow.md).
+- Un análisis de varios pasos donde cada paso se apoya en el anterior.
+- Cuando haga falta documentar el contexto, la metodología y **lo que se descartó**, al lado del análisis y no en otro sitio.
+- Cuando el mismo análisis se repita con otro periodo o umbral: eso son [parámetros](#parámetros).
+- Si sólo necesitas una consulta suelta, usa el [Editor SQL](../editor/sql-editor.md). Para encadenar transformaciones visualmente, [Data Flow](../data-flow/data-flow.md).
 
 ## Cómo usarlo
 
-### Añadir y organizar celdas
-1. Usa los botones **+ SQL**, **+ Text** e **Input** (en la barra superior o al final del notebook) para crear celdas.
-2. Reordénalas arrastrándolas por el cuerpo de la celda, o con las flechas **Subir/Bajar** de la barra de la celda.
-3. Elimínalas con el botón de papelera (pide confirmación).
+### La celda
 
-### Celda de código (SQL)
-Escribe SQL con el mismo editor y autocompletado del editor principal. Ejecútala con el botón **Run** o **Ctrl+Enter**; los resultados aparecen debajo con los modos Tabla / Gráfico / Perfil (ver [Tabla de resultados](../results/results-table.md)). El panel de resultados es **redimensionable** (arrastra el asa inferior) y puedes **sacarlo a una ventana aparte** con Pop-out. El glifo ▶ del margen depura CTEs igual que en el editor.
+Editor a la izquierda, resultado a la derecha, y **280 px de alto, siempre los mismos**. No es una limitación por descuido: con celdas que crecen, un cuaderno de veinte deja de poder recorrerse. Para trabajar de cerca está la pantalla completa.
 
-### Celda de texto (Markdown)
-Haz **doble clic** para editar; escribe Markdown (soporta GFM: tablas, listas de tareas, etc.). Haz clic fuera para volver a la vista renderizada.
+En la cabecera de cada celda:
 
-### Celda de entrada (variable)
-Define una variable con un **nombre** (se referencia como `{{nombre}}`) y un **valor** con tipo **Texto / Número / Fecha**. Cualquier celda de código que contenga `{{nombre}}` recibe ese valor al ejecutarse: las cadenas se insertan entre comillas y los números tal cual.
+| Mando | Qué hace |
+|---|---|
+| **Nombre** | El de la vista que la celda deja puesta. En blanco, se le pone `paso_N` al ejecutar |
+| **Distintivo de vista** | Apagado mientras esa vista no exista de verdad; encendido cuando el motor confirma que está viva |
+| **Mando de tres posiciones** | Código y resultado · sólo el código · sólo el resultado. Se recuerda, y con él si estaba en tabla o en gráfico |
+| **Materializar** | Guarda el resultado en vez de recalcularlo cada vez que se lea |
+| **Pantalla completa** | La celda ocupa la pestaña entera. `Esc` vuelve, y vuelve por donde estabas |
 
-> **`{{var}}` vs `${var}`:** las variables de entrada del notebook usan llaves dobles `{{ }}` y viven en el archivo `.sqlnb`. No las confundas con las variables `${...}` del editor SQL, que se gestionan en su propio panel (ver [Variables](../editor/variables.md)).
+El **comentario de arriba** de la consulta se convierte en la descripción de la vista, y se guarda en el motor: la vista se explica sola desde cualquier sitio que lea el catálogo.
 
-### Ejecutar el notebook
-| Acción | Cómo | Qué hace |
-|---|---|---|
-| Ejecutar una celda | Botón **Run** · **Ctrl+Enter** | Corre solo esa celda de código |
-| Ejecutar todo | **Run All** · **Ctrl+Shift+Enter** | Corre todas las celdas de código en orden |
-| Ejecutar esta y las de arriba | Botón ▲▲ de la celda | Desde la primera hasta esta, en secuencia |
-| Ejecutar esta y las de abajo | Botón ▼▼ de la celda | Desde esta hasta la última, en secuencia |
+Una celda que no se puede envolver —varias sentencias, un `INSERT`, un `COPY`— lo dice con un «no deja vista», sin tratarlo como un fallo, porque no lo es. Si además escribe en el disco, lo avisa aparte: eso no se deshace al cerrar el proyecto.
 
-Las ejecuciones en lote van **secuenciales y se detienen en el primer error**; el botón **Stop** muestra el progreso `(actual/total)` y permite cancelar.
+### La celda de texto
 
-### Gema: re-ejecución reactiva (DAG)
-Al **cambiar el valor de una celda de entrada**, AmoxSQL vuelve a ejecutar automáticamente **solo** las celdas de código que referencian esa `{{variable}}` —no todo el notebook—. Es como una mini hoja de cálculo: mueves un parámetro y los pasos que dependen de él se recalculan solos. Las dependencias se infieren buscando `{{variable}}` en el texto de cada celda.
+El mismo mando de tres posiciones: la fuente, el texto compuesto, o las dos. Sus encabezados (`#`, `##`, `###`) construyen solos el índice de la barra derecha. Para la prosa larga, pantalla completa.
 
-## Referencia de tipos de celda
+### La barra derecha
 
-| Tipo | Contenido | Edición | Resultados |
-|---|---|---|---|
-| **Code** | SQL de DuckDB | Editor Monaco con autocompletado | Tabla / Gráfico / Perfil debajo |
-| **Text** | Markdown (GFM) | Doble clic para editar | — (se renderiza) |
-| **Input** | Valor de variable `{{ }}` | Nombre + Valor + tipo (texto/número/fecha) | Dispara re-ejecución reactiva |
+Tres secciones, y dicen tres cosas distintas:
 
-## Tips y gemas
+- **Índice** — de los encabezados de las celdas de texto. Nadie sostiene un índice a mano.
+- **Vistas** — lo único que no sale del documento: sale del motor. El documento dice qué celdas hay; el motor dice **qué se puede consultar**. Al reabrir el cuaderno al día siguiente la sesión está vacía, y la barra lo dice antes de que falle nada.
+- **Parámetros** — ver abajo.
 
-- **Resultados persistidos:** cada celda guarda su último resultado (hasta 500 filas), la configuración de su gráfico y el modo de vista dentro del `.sqlnb`. Reabrir el archivo no requiere volver a ejecutar.
-- **Convierte un `.sql` en notebook:** si un archivo del editor tiene varias sentencias separadas por `;`, AmoxSQL ofrece convertirlo en un notebook (una celda por sentencia).
-- **Compatibilidad hacia atrás:** el formato actual es JSON v3.0; los notebooks antiguos v2.0 y de marcadores (`-- !CELL:CODE!`) se migran automáticamente al abrirlos, incluido el estado del sidecar `.sqlnb.state.json`.
+Las vistas creadas fuera del cuaderno —desde un `.sql`, desde otro cuaderno— también salen, en su propia sección: la sesión es una sola.
 
-## Atajos y formatos relacionados
+### Parámetros
 
-- **Ctrl+Enter** ejecuta la celda activa · **Ctrl+Shift+Enter** ejecuta todo · **Ctrl+S** guarda · **Esc** sale del modo Presentación.
-- Formatos: `.sqlnb` (JSON v3.0 con `cells` + `environment`) y su sidecar heredado `.sqlnb.state.json`. Ver [Formatos de archivo](../reference/file-formats.md).
+Escribe `{{desde}}` en una celda y en la barra derecha podrás darle valor sin tocar la consulta. Los valores viven en la cabecera del archivo, así que viajan con él.
+
+**Un texto entra entrecomillado y un número tal cual**, así que se escribe `f >= {{desde}}` y no `f >= '{{desde}}'`. Por eso un parámetro no sirve para nombrar una tabla.
+
+> **`{{var}}` y `${var}` no son lo mismo.** Las llaves dobles son las del cuaderno y los tableros de [Report Flow](../reports/report-flow.md); `${...}` son las variables del editor de consultas, que tienen su propio panel (ver [Variables](../editor/variables.md)).
+
+### Actualizar
+
+El cuaderno sabe **qué celda lee a cuál**, esté donde esté en el documento: la dependencia sale de los nombres, no del orden de la pantalla. Si editas una celda de la que cuelgan tres, marca las tres, y **Actualizar** las ejecuta en el orden correcto —que casi nunca es el de arriba abajo— diciendo antes cuántas y en qué orden.
+
+También entra lo que falta: al reabrir el cuaderno, «Actualizar» vuelve a poner las vistas que la sesión perdió.
+
+Lo que escribe en el disco se **aparta** y se dice: repetir un `INSERT` duplica filas, y eso no se deshace cerrando el proyecto.
+
+## Cómo saber que algo se quedó viejo
+
+Una vista no guarda datos: leerla vuelve a ejecutar su cadena, así que si cambian los datos de origen ya da el resultado nuevo. Lo que sí envejece es **la definición puesta en la sesión** —si editas el SQL y no vuelves a ejecutar— y **el número que estás viendo**, que es del último `SELECT`.
+
+El punto de la izquierda de cada celda lo distingue:
+
+| Punto | Significa |
+|---|---|
+| Vacío | Sin ejecutar |
+| Verde | Al día |
+| Ámbar | Se editó después de ejecutarla, o algo de lo que depende cambió |
+| Rojo | Falló |
+
+Cambiar el valor de un parámetro también la pone en ámbar, aunque no hayas tocado una letra de la celda.
+
+## Tips
+
+- **Convertir un `.sql` en cuaderno:** si un archivo tiene varias sentencias separadas por `;`, AmoxSQL ofrece convertirlo, una celda por sentencia.
+- **Formatos antiguos:** los cuadernos en JSON v3.0, v2.0 y de marcadores (`-- !CELL:CODE!`) se leen igual y se guardan ya en el formato nuevo. Las celdas «Input» se convierten en parámetros de la cabecera.
+- **El estado visual va aparte.** El modo de cada celda, el reparto y la configuración del gráfico se guardan en `.sqlnb.state.json`, nunca en el documento: son de quien mira, no del análisis.
+
+## Atajos y formatos
+
+- **Ctrl+Enter** ejecuta la celda activa · **Ctrl+S** guarda · **Esc** sale de la pantalla completa.
+- Formatos: `.sqlnb` (markdown con cabecera) y su archivo de estado `.sqlnb.state.json`. Ver [Formatos de archivo](../reference/file-formats.md).
 
 ## Relacionado
 
-- [Informes desde un notebook](reports.md) · [Editor SQL](../editor/sql-editor.md) · [Variables](../editor/variables.md)
+- [Sacar el cuaderno de AmoxSQL](reports.md) · [Editor SQL](../editor/sql-editor.md) · [Variables](../editor/variables.md)
 - [Tabla de resultados](../results/results-table.md) · [Perfil de datos](../results/data-profiler.md)
 - [Formatos de archivo](../reference/file-formats.md)

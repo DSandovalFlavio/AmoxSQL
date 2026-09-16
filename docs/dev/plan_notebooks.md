@@ -595,13 +595,79 @@ marcha, que sigue sin poder verse.
 
 ## Fase 6 — La limpieza, y la documentación
 
-- [ ] Se retiran el **modo Report** y el **export a HTML**. Duplican al deck, que lo hace
-      mejor y ya tiene el puente.
-- [ ] **El export a Word se queda.** Un deck se *proyecta*; un documento de Word *circula* —
-      se comenta, se firma, se adjunta. El expediente de un análisis acaba muchas veces ahí.
-- [ ] Documentación de usuario en `docs/es|en/editor/`, con su fila en el índice.
-- [ ] Repasar `contexto_caracteristicas/` y `CLAUDE.md`: el formato cambia y ahí está
-      descrito el viejo.
+- [x] Se retiran el **modo Report** y el **export a HTML**. Duplican al deck, que lo hace
+      mejor y ya tiene el puente. Con ellos se van `SqlNotebook.jsx`, `NotebookCell.jsx`,
+      `generateHtmlReport.js`, `generateNotebookPptxReport.js` y `notebookParser.js`.
+- [x] **El export a Word se queda**, y con él el puente al tablero. Un deck se *proyecta*; un
+      documento de Word *circula* — se comenta, se firma, se adjunta.
+- [~] Documentación de usuario **reescrita en su sitio**, `docs/es|en/notebooks/`, no movida a
+      `editor/`: 35 archivos enlazan a esas rutas y moverlas no aportaba nada. Las dos filas
+      del índice se renombraron.
+- [x] Repasados `contexto_caracteristicas/notebook_sql.md` y `formatos_archivo.md`,
+      `CLAUDE.md` y `docs/dev/mapa_aplicacion.md`. También el recorrido de bienvenida, que
+      hablaba de celdas «Input», de «ejecutar todo» y del export a HTML.
+
+**Criterio de terminado** (no lo traía el plan; se fija aquí): no queda ninguna referencia al
+componente anterior en el código, y lo que la documentación describe es lo que hay.
+
+### Bitácora
+
+Se retiran cinco archivos y se conservan dos salidas: Word y el puente al tablero.
+`exportar.js` hace la traducción —puro, con 13 comprobaciones— y `CuadernoEditor` gana los
+dos botones.
+
+**El export a PowerPoint del cuaderno también se fue, y eso el plan no lo decía.** Vivía sólo
+dentro del modo Informe, así que desaparecía con él de todos modos; y el razonamiento del
+plan para quedarse con Word —«un tablero se proyecta, un documento circula»— apunta al
+tablero justamente para el caso de proyectar. Queda dicho por si la decisión se quiere del
+revés: reponerlo es volver a exponer el módulo, no reescribirlo.
+
+### Lo que se descubrió al mover el export a Word
+
+El exportador captura las figuras **del DOM vivo**, y eso lo ata a la forma de la interfaz.
+Tres cosas salieron de mirarlo de cerca, y ninguna la habría contado una prueba:
+
+**Buscaba una clase que ya no existe.** `.nb-results-height--report` era del componente
+retirado; sin encontrarla, la captura caía en una cadena de alternativas que da con «algún»
+ancestro. Se apuntó a la caja de verdad.
+
+**Pero apuntar a la caja del resultado era malo dos veces.** Esa caja incluye la barra de
+«Tabla / Gráfico / Perfil», que habría acabado dentro del documento de Word; y la figura se
+dibuja a su propio tamaño —757×429 dentro de una caja de 686×242— así que capturar la caja la
+recortaba por los dos lados. Ahora se captura el envoltorio de la figura, que no puede
+recortar.
+
+**Y sobraba la mitad del código.** El apaño de fijar el alto para que Recharts redibujara ya
+no hacía falta, y con él se fue el parámetro `cellStates` del exportador, que había dejado de
+usarse.
+
+Comprobado de verdad, no por deducción: se generó un `.docx` desde el navegador con una celda
+del cuaderno nuevo y se abrió el zip. Dentro hay un `word/media/*.png` de **1514×858**, que es
+exactamente la figura a escala 2. Sin recortar.
+
+### Un fallo que compilaba y habría reventado al pulsar
+
+Se escribió `toast.showToast(...)`. La API real es `toast.error(...)` / `toast.info(...)`.
+Ni el linter ni la compilación dicen nada de un método inventado sobre un objeto: sólo
+revienta al hacer clic. Salió al ir a comprobar la forma del proveedor antes de darlo por
+bueno.
+
+### Dos cosas que no eran del plan y había que hacer igual
+
+**El recorrido de la primera vez.** Lo lanzaba el componente retirado, así que se quedaba sin
+quien lo abriera; y sus cuatro pasos describían celdas «Input», «ejecutar todo» y el export a
+HTML. Reescrito y enganchado al cuaderno nuevo.
+
+**El diálogo de exportar.** `confirmAsync` es binario y aquí hacían falta tres salidas: con el
+código, sin él, y no exportar. Con una pregunta de sí o no, pulsar Escape habría contado como
+«sin el código» y el documento habría salido igual.
+
+### Lo que no se pudo comprobar con las manos
+
+El banco de pruebas monta los componentes sueltos, así que **dentro de la aplicación no se ha
+visto nada de esta fase**: ni los dos botones, ni el diálogo de exportar, ni el aviso de las
+celdas plegadas, ni el tablero abriéndose en una pestaña nueva. Lo que sí está comprobado es
+lo que más callado falla: que el `.docx` sale con su figura entera.
 
 ---
 
