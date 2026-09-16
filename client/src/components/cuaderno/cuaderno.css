@@ -42,6 +42,8 @@
        la barra de selección. Con 20 px la celda parecía encajada a la fuerza
        contra el borde; un documento necesita margen, no encaje. */
     --cdn-margen: 80px;
+    /* El hueco de «añadir»: el alto del botón (22) más doce de aire por lado. */
+    --cdn-hueco: 46px;
 }
 
 .cdn {
@@ -218,9 +220,14 @@
 
 /* ── el hueco entre celdas es donde se añade ────────────────────────────── */
 /* Antes la barra de añadir estaba al final del cuaderno, así que meter una celda
-   entre la tercera y la cuarta obligaba a bajar hasta abajo y subirla a mano. */
+   entre la tercera y la cuarta obligaba a bajar hasta abajo y subirla a mano.
+
+   El alto lo manda el CONTENIDO del hueco, no al revés. Estaba en 16 px con unos
+   botones de 22: seis px más altos que el sitio donde viven, así que se metían
+   tres dentro de la celda de arriba y tres dentro de la de abajo y se veían
+   aplastados contra las dos. 46 = 22 del botón + 12 de aire a cada lado. */
 .cdn-hueco {
-    height: var(--space-4);
+    height: var(--cdn-hueco);
     margin: 0 var(--cdn-margen);
     display: grid;
     place-items: center;
@@ -242,7 +249,9 @@
     gap: 4px;
     position: relative;
     background: var(--surface-base);
-    padding: 0 8px;
+    /* El relleno vertical no es adorno: este fondo es lo que corta la línea que
+       cruza el hueco, y sin él la corta justo a ras del botón. */
+    padding: 6px 8px;
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--transition-fast);
@@ -252,7 +261,7 @@
 .cdn-hueco-btns .cdn-btn { height: 22px; padding: 0 10px; font-size: 11.5px; }
 /* El último hueco se queda siempre visible: es el «añadir al final», y sin él un
    cuaderno vacío no tendría por dónde empezar. */
-.cdn-hueco--fin { height: 34px; }
+.cdn-hueco--fin { height: calc(var(--cdn-hueco) + var(--space-2)); }
 .cdn-hueco--fin .cdn-hueco-btns { opacity: 1; visibility: visible; }
 
 .cdn-lado {
@@ -500,6 +509,13 @@
 .cdn-md p { font-size: 14.5px; line-height: 1.72; margin: 0 0 12px; }
 .cdn-md ul, .cdn-md ol { font-size: 14.5px; line-height: 1.72; margin: 0 0 12px; }
 .cdn-md > :last-child { margin-bottom: 0; }
+/* Sin la almohadilla de los encabezados.
+   El visor de markdown la saca al pasar el ratón para enlazar a una sección, y
+   eso tiene sentido en un documento con dirección propia. En una celda no hay
+   adónde enlazar, y además va en `left: -1.1em`, o sea que sale del texto y cae
+   justo encima de los mandos del canalón. A un encabezado se salta por el índice
+   de la derecha, que es el que los recoge. */
+.cdn-md .mde-anchor { display: none; }
 /* Una celda de texto vacía no es un error ni un hueco: es un párrafo por
    escribir, y se dice con la misma voz que el resto. */
 .cdn-md-vacio {
