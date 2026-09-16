@@ -22,6 +22,7 @@ const DeckEditor = lazy(() => import('./deck/DeckEditor'));
 const DiagramEditor = lazy(() => import('./diagram/DiagramEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 const TextEditor = lazy(() => import('./TextEditor'));
+const CuadernoEditor = lazy(() => import('./cuaderno/CuadernoEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
 
 // Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
@@ -647,15 +648,20 @@ const EditorPane = ({
                         </Suspense>
                     </div>
                 ) : isNotebook ? (
+                    /* El cuaderno repensado. `SqlNotebook` sigue en el arbol
+                       hasta la fase 6 —la limpieza— para no perder de vista lo
+                       que todavia hay que traerse de el. */
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <Suspense fallback={<PaneLoading />}>
-                        <SqlNotebook
+                        <CuadernoEditor
                             key={activeTab.id}
                             content={activeTab.content}
-                            onChange={(val) => onContentChange(activeTab.id, val)}
-                            onRunQuery={(q) => onRunQuery(activeTab.id, q)}
+                            onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                            onRunQuery={(q) => handleRunWithTimestamp(activeTab.id, q)}
                             onSave={() => onSave && onSave()}
                             filePath={activeTab.path || null}
+                            theme={theme}
+                            editorSettings={editorSettings}
                             onToggleAi={onToggleAi}
                             showAiSidebar={showAiSidebar}
                             onCreateNew={onCreateNew}

@@ -152,21 +152,88 @@ CSV que lee es una continuación natural**, y las dos piezas ya existen.
 
 ## Fase 1 — La celda
 
-- [ ] Celda de **280 px fijos**: cabecera de 36 y cuerpo de 244. El desglose está en el
+- [x] Celda de **280 px fijos**: cabecera de 36 y cuerpo de 244. El desglose está en el
       contrato visual; en corto, son doce líneas de SQL y ocho filas de resultado — lo justo
       para **reconocer** un paso al pasar.
-- [ ] **Editor a la izquierda, resultado a la derecha**, con tirador de 7 px y el reparto
+- [x] **Editor a la izquierda, resultado a la derecha**, con tirador de 7 px y el reparto
       recordado **por celda**, no por documento.
-- [ ] **Mando de tres posiciones**: código y resultado / sólo código / sólo resultado. Se
+- [x] **Mando de tres posiciones**: código y resultado / sólo código / sólo resultado. Se
       recuerda, y con él se recuerda si el resultado estaba en tabla o en gráfico.
-- [ ] Cabecera: punto de estado, nombre, descripción, y los mandos.
-- [ ] Celda de **texto**: se ajusta al contenido con **280 de tope**. Un encabezado suelto no
+- [x] Cabecera: punto de estado, nombre, descripción, y los mandos.
+- [x] Celda de **texto**: se ajusta al contenido con **280 de tope**. Un encabezado suelto no
       reserva 280 px de vacío; un texto largo no empuja el cuaderno fuera de la pantalla.
-- [ ] **Se monta el `SqlEditor` del `.sql`** y el `MarkdownEditor` de los documentos.
-      Ninguno de los dos se construye aquí: hacerlo sería rehacer peor lo que ya está.
+- [~] **Se monta el `SqlEditor` del `.sql`**; del lado del texto va **lo mínimo** y no el
+      `MarkdownEditor` entero. Ver «Lo que se desvió» más abajo.
 
 **Criterio de terminado:** un cuaderno con seis celdas se recorre, todas miden lo mismo, y
 el mando de tres posiciones funciona y se recuerda al cerrar y abrir.
+
+### Bitácora
+
+`client/src/components/cuaderno/`: `CuadernoEditor.jsx` (el contenedor), `Celda.jsx`,
+`CeldaTexto.jsx`, `claves.js`, `modos.js` y `cuaderno.css`. `EditorPane.jsx` monta el
+cuaderno nuevo en la rama de `.sqlnb`; el componente anterior sigue en el árbol hasta la
+fase 6.
+
+Medido en la aplicación con un `.sqlnb` del formato viejo: las celdas de código miden
+**exactamente 280**, la de texto 172 —se ajusta, por debajo del tope—, el mando pasa de tres
+columnas a una y la altura no se mueve, y al ponerle nombre a una celda el archivo se
+reescribió en el formato nuevo.
+
+### Lo que se desvió, y por qué
+
+**El editor de markdown completo no cabe en una celda.** Trae tres columnas, índice, modo
+concentración y su propia barra; dentro de 280 px se vería el cromo y no el texto. En la
+celda va lo mínimo —leer o escribir— y el editor entero se monta en la pantalla completa
+(fase 5), que es donde hay sitio. Es la misma idea que el resto del rediseño: en la lista se
+reconoce, y para trabajar de verdad se pide espacio.
+
+Sí se trae **su hoja de estilos**, para que el markdown se vea igual en todo el producto.
+Sin ella salía una almohadilla suelta delante de cada encabezado: es el ancla del título,
+que allí se oculta hasta pasar el ratón con una regla que la celda no cargaba.
+
+### El estado se guardaba con una clave que se inventaba en cada apertura
+
+El primer `.state.json` que escribió el cuaderno quedó así:
+
+```json
+{ "celdas": { "cmu485aadd": { "vista": "chart", "grafico": { ... } } } }
+```
+
+Ese identificador **no está en el archivo**: se genera al leerlo, así que cambia cada vez
+que se abre. Guardar el estado bajo él equivale a no guardarlo — el gráfico que alguien
+configuró hoy aparecería mañana como una tabla, sin error y sin nada que relacionar con la
+causa. Y la promesa de guardar «por identidad, no por posición» era justo lo que el plan le
+reprochaba a la notebook anterior.
+
+La clave pasó a ser **el nombre de la celda**, y la posición sólo mientras no tenga uno.
+Pero entonces añadir, borrar, mover y renombrar corren las posiciones, así que toda
+modificación del documento **reclava** el mapa: `claves.js` lo hace en una función pura, y
+`emitir` la llama en el único sitio por el que pasan los cuatro casos, en lugar de un parche
+por operación. `scripts/probarClavesCuaderno.mjs` los cubre con 18 comprobaciones, incluida
+la que describe el fallo de siempre: mover una celda una fila hacia arriba no debe darle el
+gráfico de su vecina.
+
+### Guardar el estado borraba del disco el trabajo de la notebook anterior
+
+El endpoint `/api/notebook-state` **reescribe el archivo entero**, no fusiona. El cuaderno
+guarda lo suyo bajo `celdas`, pero el mismo archivo lleva el `cells` de la notebook de
+siempre, con sus gráficos ya configurados: escribir sin conservarlo los habría borrado, y
+quien abriera su cuaderno de siempre habría perdido ese trabajo por el mero hecho de
+abrirlo. Un comentario en el código llegó a afirmar que los dos formatos «pueden convivir»,
+lo cual era falso tal y como estaba escrito.
+
+Ahora el editor se queda con lo que no es suyo al leer y lo devuelve intacto al escribir.
+Comprobado contra el servidor en marcha: tras guardar, el `cells` sigue en el archivo, letra
+por letra.
+
+### Lo que no se pudo comprobar con las manos
+
+El acceso a la pantalla estaba denegado al cerrar la fase, así que «se recuerda al cerrar y
+abrir» se comprobó por sus tres tramos —el `GET` y el `POST` contra el servidor vivo, las
+claves que el editor calcula para ese archivo, y la lectura `estados[claves[c.id]]` del
+render— y no haciendo clic. **Es una comprobación más floja**: en esta misma iniciativa ya
+hubo funciones que compilaban, pasaban el linter y no se veían.
 
 ---
 

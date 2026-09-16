@@ -1,0 +1,274 @@
+/**
+ * El cuaderno. Todas las medidas salen del contrato visual
+ * (`docs/dev/mockup_notebooks.html`), y la de la celda no es un número redondo
+ * elegido a ojo: son 36 de cabecera + 34 de la barra del resultado + 27 de la
+ * cabecera de la tabla + ocho filas de 22 = 273, redondeado a 280.
+ *
+ * Con eso, el lado del editor tiene 244 px, o sea **doce líneas de SQL y ocho
+ * filas de resultado** — lo justo para RECONOCER un paso al pasar, que es para
+ * lo que sirve el desplazamiento.
+ */
+
+.cdn {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    height: 100%;
+    min-height: 0;
+    background: var(--surface-base);
+}
+
+/* La barra va a la DERECHA: el cuaderno se lee de izquierda a derecha, y lo que
+   se consulta de reojo tiene que ir al margen que no interrumpe esa lectura. */
+.cdn-lista {
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cdn-lado {
+    border-left: 1px solid var(--border-subtle);
+    background: var(--surface-raised);
+    overflow-y: auto;
+    min-width: 0;
+}
+
+/* ── la celda ───────────────────────────────────────────────────────────── */
+.cdn-celda {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--surface-raised);
+    overflow: hidden;
+    height: 280px;
+    display: flex;
+    flex-direction: column;
+    flex: none;
+}
+
+.cdn-celda--sel {
+    border-color: var(--border-strong);
+}
+
+/* Las de texto son la excepción: se ajustan a su contenido con 280 de tope. Un
+   encabezado suelto no debe reservar 280 px de vacío, y un texto largo no debe
+   empujar el resto del cuaderno fuera de la pantalla. */
+.cdn-celda--texto {
+    height: auto;
+    max-height: 280px;
+}
+
+.cdn-cab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--surface-inset);
+    flex: none;
+}
+
+.cdn-est {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--text-disabled);
+}
+.cdn-est--dia { background: var(--color-success, var(--feedback-success-text)); }
+.cdn-est--falla { background: var(--color-error, var(--feedback-error-text)); }
+.cdn-est--nunca { background: transparent; border: 1.5px solid var(--text-disabled); }
+
+.cdn-nombre {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--text-primary);
+    font-weight: var(--weight-semibold, 600);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    min-width: 40px;
+    max-width: 220px;
+}
+.cdn-nombre:hover { border-color: var(--border-subtle); }
+.cdn-nombre:focus { border-color: var(--accent-primary); outline: none; background: var(--surface-base); }
+.cdn-nombre::placeholder { color: var(--text-disabled); font-style: italic; }
+
+.cdn-desc {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.cdn-sp { flex: 1; }
+
+/* Los botones van PEGADOS compartiendo borde, como en el editor de .sql. */
+.cdn-grupo { display: flex; align-items: center; flex: none; }
+.cdn-grupo .cdn-btn { border-radius: 0; border-left: none; }
+.cdn-grupo .cdn-btn:first-child { border-left: 1px solid var(--border-subtle); border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.cdn-grupo .cdn-btn:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.cdn-grupo .cdn-btn:only-child { border-radius: var(--radius-md); }
+
+.cdn-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 9px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--text-sm, 12px);
+    white-space: nowrap;
+    flex: none;
+    cursor: pointer;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+.cdn-btn:hover { background: var(--hover-bg); color: var(--text-primary); }
+.cdn-btn--on { background: var(--active-bg); color: var(--text-primary); }
+.cdn-btn--icono { width: 26px; padding: 0; }
+.cdn-btn--corre { background: var(--accent-primary); color: var(--surface-base); border-color: transparent; }
+.cdn-btn--corre:hover { background: color-mix(in oklch, var(--accent-primary) 85%, black); color: var(--surface-base); }
+.cdn-btn:disabled { opacity: .45; cursor: default; }
+
+/* ── el cuerpo: editor | resultado ──────────────────────────────────────── */
+.cdn-cuerpo {
+    display: grid;
+    grid-template-columns: var(--cdn-reparto, 1fr) 7px minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+}
+.cdn-cuerpo--solo { grid-template-columns: minmax(0, 1fr); }
+
+.cdn-editor { min-width: 0; overflow: hidden; background: var(--surface-base); }
+.cdn-res { min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-base); }
+
+.cdn-tirador {
+    border-left: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    background: transparent;
+}
+.cdn-tirador::after {
+    content: '';
+    width: 2px;
+    height: 22px;
+    border-radius: 2px;
+    background: var(--border-strong);
+}
+.cdn-tirador:hover::after { background: var(--accent-primary); }
+
+.cdn-vacio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-disabled);
+    font-size: var(--text-sm, 12px);
+    padding: 0 14px;
+    text-align: center;
+}
+
+.cdn-error {
+    padding: 10px 12px;
+    color: var(--color-error, var(--feedback-error-text));
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    overflow: auto;
+}
+
+/* ── celda de texto ─────────────────────────────────────────────────────── */
+.cdn-texto-cuerpo { overflow: auto; min-height: 0; }
+.cdn-texto-fuente {
+    width: 100%;
+    height: 100%;
+    min-height: 120px;
+    resize: none;
+    border: none;
+    outline: none;
+    background: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    padding: 12px 14px;
+}
+
+/* La vista previa dentro de una celda.
+   Hereda la hoja del editor de documentos —para que el markdown se vea igual en
+   todo el producto— pero con los encabezados a escala de celda: los de un
+   documento estan pensados para una pagina entera y aqui se comen los 280 px. */
+.cdn-md { padding: 12px 14px; cursor: text; }
+.cdn-md h1 { font-size: 17px; margin: 0 0 6px; }
+.cdn-md h2 { font-size: 15px; margin: 10px 0 5px; }
+.cdn-md h3 { font-size: 13.5px; margin: 9px 0 4px; }
+.cdn-md h1:first-child, .cdn-md h2:first-child, .cdn-md h3:first-child { margin-top: 0; }
+.cdn-md p { font-size: 12.5px; line-height: 1.6; margin: 0 0 9px; }
+.cdn-md > :last-child { margin-bottom: 0; }
+
+/* ── la barra derecha ───────────────────────────────────────────────────── */
+.cdn-seccion {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 12px 5px;
+    font-size: var(--text-xs, 11px);
+    color: var(--text-tertiary);
+    font-weight: var(--weight-semibold, 600);
+}
+.cdn-seccion .cdn-n { color: var(--text-disabled); }
+
+.cdn-indice { padding: 0 6px 8px; }
+.cdn-idx {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm, 12px);
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.cdn-idx:hover { background: var(--hover-bg); color: var(--text-primary); }
+.cdn-idx--1 { font-weight: var(--weight-semibold, 600); color: var(--text-primary); }
+.cdn-idx--2 { padding-left: 20px; font-size: 11.5px; }
+.cdn-idx--3 { padding-left: 32px; font-size: 11.5px; }
+
+.cdn-lista-vacia {
+    padding: 4px 12px 10px;
+    font-size: 11.5px;
+    color: var(--text-disabled);
+    line-height: 1.5;
+}
+
+.cdn-anadir { display: flex; gap: 7px; padding: 2px 0 6px; }
+
+/* Por debajo de este ancho el resultado va debajo del editor y la barra se
+   pliega: el mismo umbral que usa el editor de .sql. */
+@media (max-width: 1080px) {
+    .cdn { grid-template-columns: minmax(0, 1fr); }
+    .cdn-lado { display: none; }
+    .cdn-celda { height: 420px; }
+    .cdn-cuerpo { grid-template-columns: none; grid-template-rows: minmax(0, 1fr) 7px minmax(0, 1fr); }
+    .cdn-cuerpo--solo { grid-template-rows: minmax(0, 1fr); }
+    .cdn-tirador { cursor: row-resize; border: none; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+    .cdn-tirador::after { width: 22px; height: 2px; }
+}
