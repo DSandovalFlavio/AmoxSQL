@@ -30,10 +30,14 @@
     min-width: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 10px;
+    /* Mas aire a los lados que arriba: una celda pegada al borde y a la barra
+       parece encajada a la fuerza, y son 500 px de alto los que se apoyan en ese
+       margen. El hueco entre celdas es mayor que el margen superior para que se
+       lean como piezas sueltas y no como una lista continua. */
+    padding: var(--space-3) var(--space-5) var(--space-5);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-4);
 }
 
 .cdn-lado {
@@ -508,7 +512,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
     line-height: 1.5;
 }
 
-.cdn-anadir { display: flex; gap: 7px; padding: 2px 0 6px; }
+.cdn-anadir { display: flex; gap: 7px; padding: var(--space-1) 0 var(--space-2); }
 
 /* Por debajo de este ancho el resultado va debajo del editor y la barra se
    pliega: el mismo umbral que usa el editor de .sql. */
