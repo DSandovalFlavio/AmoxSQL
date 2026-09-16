@@ -182,12 +182,20 @@ const Barra = ({
                                 {!usados.includes(n) && <span className="cdn-param-huerfano">sin usar</span>}
                             </label>
                             <div className="cdn-param-fila">
+                                {/* La regla del entrecomillado se dice AQUI y no en un
+                                    parrafo permanente de la barra: hace falta justo al
+                                    escribir el valor, y como texto fijo era un muro que
+                                    ocupaba un tercio de la barra sin que hubiera ni un
+                                    parametro. */}
                                 <input
                                     id={`cdn-p-${n}`}
                                     className="cdn-param-v"
                                     value={parametros[n] ?? ''}
                                     spellCheck={false}
                                     onChange={(e) => onParametro(n, e.target.value)}
+                                    title={'Un texto entra entrecomillado y un número tal cual: '
+                                        + `se escribe «f >= {{${n}}}», sin comillas alrededor. `
+                                        + 'Por eso un parámetro no sirve para nombrar una tabla.'}
                                 />
                                 <button
                                     type="button"
@@ -201,8 +209,7 @@ const Barra = ({
                 </div>
             ) : (
                 <p className="cdn-lista-vacia">
-                    Escribe <code>{'{{desde}}'}</code> en una celda y aquí podrás darle valor
-                    sin tocar la consulta.
+                    Escribe <code>{'{{desde}}'}</code> en una celda para darle valor aquí.
                 </p>
             )}
 
@@ -225,14 +232,6 @@ const Barra = ({
                 </div>
             )}
 
-            {/* Lo del entrecomillado automático hay que decirlo: es la fuente de
-                la confusión de «por qué me sobran comillas» con un parámetro que
-                nombra una tabla. */}
-            <p className="cdn-lista-vacia">
-                Un texto entra <strong>entrecomillado</strong> y un número tal cual, así que
-                se escribe <code>{'f >= {{desde}}'}</code> y no <code>{"f >= '{{desde}}'"}</code>.
-                Por eso un parámetro no sirve para nombrar una tabla.
-            </p>
         </div>
     );
 };
