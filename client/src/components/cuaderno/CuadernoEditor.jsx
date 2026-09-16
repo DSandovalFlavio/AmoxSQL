@@ -57,6 +57,42 @@ import './cuaderno.css';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
+/**
+ * Una llamada al servidor que **explica lo que pasó** cuando no pasa lo previsto.
+ *
+ * Sin esto, un servidor que no conoce la ruta devuelve su página de error en
+ * HTML, `r.json()` se atraganta con el primer `<`, y lo que llega a la celda es
+ * «Unexpected token '<'». Eso no dice nada de lo que hay que hacer.
+ *
+ * Y el caso no es raro: el servidor vive en un proceso aparte que **no se
+ * recarga en caliente**, así que una aplicación abierta desde antes de que la
+ * ruta existiera tiene el cliente al día y el servidor de ayer. Merece la pena
+ * decirlo con esas palabras.
+ */
+async function pedirJson(ruta, opciones) {
+    let r;
+    try {
+        r = await fetch(`${API_BASE}${ruta}`, opciones);
+    } catch (e) {
+        throw new Error(`No se pudo hablar con el servidor de AmoxSQL (${API_BASE}). ${e?.message || e}`);
+    }
+    const tipo = r.headers.get('content-type') || '';
+    if (!tipo.includes('application/json')) {
+        if (r.status === 404) {
+            throw new Error(
+                `El servidor no conoce «${ruta}». Suele pasar cuando la aplicación lleva `
+                + 'abierta desde antes de que esa ruta existiera: el servidor va en un proceso '
+                + 'aparte y no se recarga solo. Cierra AmoxSQL y vuelve a abrirlo.',
+            );
+        }
+        throw new Error(`El servidor respondió ${r.status} sin JSON al pedir «${ruta}».`);
+    }
+    const cuerpo = await r.json();
+    // Un 500 del endpoint SÍ trae JSON con `error`: eso se devuelve tal cual,
+    // porque es el mensaje del motor y es lo que hay que leer.
+    return cuerpo;
+}
+
 const CuadernoEditor = ({
     content,
     onChange,
@@ -99,10 +135,11 @@ const CuadernoEditor = ({
     const toast = useToast();
 
     const refrescarVistas = useCallback(() => {
-        fetch(`${API_BASE}/api/cuaderno/vistas`)
-            .then((r) => r.json())
+        pedirJson('/api/cuaderno/vistas')
             .then((v) => setVivas(Array.isArray(v) ? v : []))
-            .catch(() => { /* sin listado se sigue trabajando igual */ });
+            // Sin listado se sigue trabajando: la barra dira que no hay vistas
+            // vivas, que es menos util pero no impide nada.
+            .catch(() => setVivas([]));
     }, []);
 
     useEffect(() => { refrescarVistas(); }, [refrescarVistas]);
@@ -159,8 +196,7 @@ const CuadernoEditor = ({
         if (!filePath) return;
         let vivo = true;
         ajeno.current = {};
-        fetch(`${API_BASE}/api/notebook-state?path=${encodeURIComponent(filePath)}`)
-            .then((r) => r.json())
+        pedirJson(`/api/notebook-state?path=${encodeURIComponent(filePath)}`)
             .then((s) => {
                 if (!vivo || !s || typeof s !== 'object') return;
                 const { celdas, ...resto } = s;
@@ -348,7 +384,7 @@ const CuadernoEditor = ({
         setCorriendo(id);
         onEjecutada?.();
         try {
-            const pedir = (aceptarTapado) => fetch(`${API_BASE}/api/cuaderno/celda`, {
+            const pedir = (aceptarTapado) => pedirJson('/api/cuaderno/celda', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -358,7 +394,7 @@ const CuadernoEditor = ({
                     aceptarTapado,
                     limit: editorSettings?.queryResultLimit ?? 10000,
                 }),
-            }).then((r) => r.json());
+            });
 
             let r = await pedir(false);
 
