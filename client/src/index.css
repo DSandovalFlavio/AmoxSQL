@@ -1199,17 +1199,25 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
    que el de Onyx.
    ═══════════════════════════════════════════════ */
 .theme-deepdark {
-  --surface-base:    #050505;
-  /* El techo baja. La primera version iba de #000000 a #1a1a1a, un recorrido de
-     0,218 de claridad: el DOBLE que el siguiente tema mas estirado (Nord, 0,112)
-     y cuatro veces el de Obsidian (0,050). Acababa en un gris mas claro que los
-     paneles de Amox Dark, y como el lienzo es negro puro, cada panel aparecia
-     como un gris salido de la nada en vez de como el mismo material un poco mas
-     alto. Ahora el salto del lienzo al panel es de 0,030 y del panel al modal de
-     0,028, que es exactamente lo que hace Obsidian (0,029). El suelo no se toca:
-     sigue siendo negro. Lo que se corrige es hasta donde sube. */
-  --surface-raised:  #0a0a0a;
-  --surface-overlay: #101010;
+  /* Recorrido 0,140, y la escalera entera baja un peldano.
+     La primera version iba de #000000 a #1a1a1a: 0,218 de claridad, el DOBLE
+     que el siguiente tema mas estirado (Nord, 0,112) y cuatro veces el de
+     Obsidian (0,050). Acababa en un gris mas claro que los paneles de Amox Dark,
+     y como el lienzo es negro puro, cada panel aparecia como un gris salido de
+     la nada en vez de como el mismo material un poco mas alto.
+     Bajar solo el techo no cabia: con el lienzo en #050505 y el techo en
+     #090909, sRGB deja dos grises por medio y el escalon lienzo->panel se queda
+     en 1,012, por debajo del minimo de 1,02 que pide checkThemeContrast. Asi que
+     baja la escalera entera: el que era el lienzo (#050505) pasa a ser el panel,
+     y el lienzo se va a #010101. Los dos escalones quedan en 1,024 exactos, que
+     es lo mas parejo que permite sRGB a esta profundidad.
+     Aun asi el relleno separa poco —1,024 contra el 1,04-1,07 del resto de
+     temas—, de modo que aqui la estructura la llevan los FILETES y no los
+     fondos. Por eso --border-subtle esta al 10 % y no al 8,5 % como en los
+     demas: es lo unico que dibuja los limites. */
+  --surface-base:    #010101;
+  --surface-raised:  #050505;
+  --surface-overlay: #090909;
   /* Los huecos donde se escribe SI llegan al negro absoluto: es el unico sitio
      donde hundirse por debajo del fondo todavia es posible. */
   --surface-inset:   #000000;
