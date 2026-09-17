@@ -44,6 +44,9 @@
     --cdn-margen: 80px;
     /* El hueco de «añadir»: el alto del botón (22) más doce de aire por lado. */
     --cdn-hueco: 46px;
+    /* El alto de una celda de SQL, en un solo sitio: lo usa la celda y lo usa
+       `contain-intrinsic-size`, y si se separan el desplazamiento da saltos. */
+    --cdn-alto: 520px;
 }
 
 .cdn {
@@ -229,12 +232,35 @@
 
    Lo que NO cambia: el canalón sigue ocupando su columna aunque esté vacío, y la
    celda sigue midiendo lo mismo. Entrar en lectura no mueve el documento. */
-.cdn-lista--lectura .cdn-cab {
+/* El aire entre celdas lo ponía el hueco de «añadir», y en lectura no hay
+   huecos: las celdas quedaban pegadas unas a otras y el cuaderno se leía como
+   un bloque. El ritmo vertical de un documento no puede depender de dónde va un
+   botón, así que aquí lo pone la fila. */
+.cdn-lista--lectura .cdn-fila + .cdn-fila { margin-top: var(--cdn-hueco); }
+
+/* En lectura, la celda de SQL tampoco tiene caja.
+   Era una caja dentro de otra: el marco de la celda, y dentro la tarjeta de la
+   figura con su propio borde y su propio título. La de fuera no aportaba nada
+   —repetía el nombre del paso que la figura ya dice mejor— y hacía que un
+   documento pareciera un panel de control. Es la misma decisión que ya tenía la
+   celda de texto, aplicada donde faltaba.
+   La cabecera se va con ella: lo que identificaba el paso mientras se trabaja
+   no es lo que titula una figura cuando se lee. */
+.cdn-lista--lectura .cdn-celda--figura {
+    border: none;
     background: transparent;
-    border-bottom: none;
-    height: 30px;
+    border-radius: 0;
 }
-.cdn-lista--lectura .cdn-nombre { cursor: default; }
+.cdn-lista--lectura .cdn-celda--figura .cdn-cab { display: none; }
+.cdn-lista--lectura .cdn-celda--figura .cdn-res { background: transparent; }
+
+/* La TABLA se queda con su caja, y no es una excepción caprichosa: una figura
+   trae su propia tarjeta y su propio título, y una tabla no trae ninguna de las
+   dos. Quitarle el marco la deja flotando sin decir de qué paso viene. */
+.cdn-lista--lectura .cdn-celda:not(.cdn-celda--figura) .cdn-cab {
+    background: transparent;
+    border-bottom: 1px solid var(--border-subtle);
+}
 .cdn-lista--lectura .cdn-fila--sel::before { opacity: 0; }
 .cdn-lista--lectura .cdn-doc-titulo,
 .cdn-lista--lectura .cdn-doc-desc { cursor: default; }
@@ -298,7 +324,7 @@
     border-radius: var(--radius-lg);
     background: var(--surface-raised);
     overflow: hidden;
-    height: 520px;
+    height: var(--cdn-alto);
     display: flex;
     flex-direction: column;
     flex: none;
@@ -790,7 +816,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 @media (max-width: 1080px) {
     .cdn { grid-template-columns: minmax(0, 1fr); }
     .cdn-lado { display: none; }
-    .cdn-celda { height: 780px; }
+    .cdn { --cdn-alto: 780px; }
     /* Sin sitio para el canalón: los mandos se quedan, pero estrechos. */
     /* Sin sitio para el margen grande: en estrecho el aire estorba más de lo
        que ayuda, así que vuelve a lo justo. */

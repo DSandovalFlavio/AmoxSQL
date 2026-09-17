@@ -62,9 +62,14 @@ With the **Reading** button in the document header:
   table; one that was on a chart shows the chart — and **only the chart**,
   without the Story Flow building panel.
 - The gutter controls and the table toolbars go.
-- The cell header stays, but as a figure caption: the step's name and its
-  description. State marks — live, edited, writes — belong to whoever edits, and
-  they go.
+- **A figure loses the cell's box**: no border, no background, no header. It was
+  a box inside a box — the cell's frame and, inside it, the figure's own card
+  with its own title — and the outer one repeated what the figure already says
+  better. And it takes the height its aspect ratio asks for: 4:3 by default, and
+  if you change it to 16:9 that is respected.
+- **A table keeps its own box**, with its header. It carries no title of its own,
+  so without the frame it would float with nothing saying which step it came
+  from.
 - Text is read; double-click to edit does not respond.
 - You can still page through a table and scroll the notebook.
 

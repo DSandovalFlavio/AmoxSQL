@@ -30,6 +30,49 @@ import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
 import { useCerca } from './useCerca.js';
+import { CANVAS_SIZES } from '../DataVisualizer/constants';
+
+// Medido contra la tabla de resultados de verdad, no estimado: la fila de
+// títulos lleva el tipo debajo, de ahí los 44.
+const ALTO_CAB = 30;            // la cabecera de la celda
+const ALTO_CABEZA_TABLA = 44;   // la fila de títulos de la tabla
+const ALTO_FILA = 28;
+const ALTO_PIE = 21;            // el pie de páginas, sólo con más de una
+/**
+ * Unos píxeles de más para la tabla.
+ *
+ * La fila de títulos no siempre mide lo mismo —depende de lo largo que sea el
+ * nombre de la columna y de si el tipo cabe debajo—, así que la cuenta se queda
+ * corta por unos pocos píxeles según los datos. Equivocarse por arriba deja un
+ * dedo de aire; equivocarse por abajo saca una barra de desplazamiento dentro de
+ * una tabla que cabía entera. No son simétricos.
+ */
+const HOLGURA_TABLA = 10;
+
+/**
+ * El alto que pide una figura de Story Flow, **sin montarla**.
+ *
+ * Son los mismos números que usa `DataVisualizer` para dar tamaño a la tarjeta:
+ * `ancho = min(880, 620 × razón)` y `alto = ancho / razón`, o sea
+ * `min(880 / razón, 620)`. Con 4:3 salen 620; con 16:9, 495.
+ *
+ * Están copiados a propósito, no importados: importar `DataVisualizer` desde
+ * aquí traería Recharts entero a una celda que a lo mejor sólo enseña una tabla.
+ * Lo que sí se importa es la lista de proporciones, que es un dato.
+ */
+const ANCHO_DISENO_FIGURA = 880;
+const ALTO_DISENO_FIGURA = 620;
+/** El aire de la tarjeta: 12 de relleno arriba y abajo, 14 + 16 de margen. */
+const AIRE_FIGURA = 12 * 2 + 14 + 16;
+
+function altoDeFigura(config) {
+    const etiqueta = config?.canvasSize || '4:3';
+    const prop = CANVAS_SIZES.find((c) => c.label === etiqueta);
+    // «Libre» no fija tamaño: la tarjeta ocupa el hueco, así que manda el tope.
+    if (!prop || !prop.w || !prop.h) return null;
+    const razon = prop.w / prop.h;
+    return Math.round(Math.min(ANCHO_DISENO_FIGURA / razon, ALTO_DISENO_FIGURA)) + AIRE_FIGURA;
+}
 
 const Celda = ({
     celda,
@@ -140,6 +183,50 @@ const Celda = ({
         onEstado(celda.id, { grafico: cfg });
     }, [celda.id, onEstado, estado.vista]);
 
+    /**
+     * En lectura, el alto lo pide el resultado. Y **se sabe sin montarlo**.
+     *
+     * El alto fijo es lo que hace barato recorrer el cuaderno: el hueco de una
+     * celda mide lo mismo esté montada o no, así que la barra de desplazamiento
+     * nunca salta. Eso vale mientras hay un editor al lado; en lectura no lo
+     * hay, y una tabla de una fila dentro de una caja de 520 px no es una
+     * decisión de diseño, es un agujero.
+     *
+     * Así que aquí el alto sale de la CUENTA DE FILAS, que ya está en memoria
+     * antes de pintar nada. No se mide el DOM y no hace falta que la celda esté
+     * montada: el hueco sigue siendo exacto y el desplazamiento sigue sin
+     * saltar. Las medidas salen del motor de verdad, no de la cabeza:
+     * cabecera 44, fila 28, pie de páginas 21.
+     *
+     * Una figura se queda con todo el alto: un gráfico aplastado no se lee, y
+     * ahí el espacio no sobra, se usa.
+     */
+    const altoDeLectura = () => {
+        if (!lectura) return undefined;
+        if (!resultado?.data?.length) return undefined;
+
+        // Una figura pide lo que pide. Si no se le da, la tarjeta no cabe en la
+        // celda y aparece una barra de desplazamiento DENTRO del gráfico, que en
+        // un documento no significa nada: lo que se lee es la figura entera o no
+        // se lee. Aquí NO hay tope de 520 — el tope existe para poder recorrer
+        // el cuaderno mientras se trabaja, y leyendo no se recorre, se lee.
+        if (esFigura) {
+            const alto = altoDeFigura(estado.grafico);
+            return alto ? `${alto}px` : undefined;
+        }
+
+        const filas = resultado.data.length;
+        const enPantalla = Math.min(filas, 50);          // lo que cabe en una página
+        const pie = filas > 50 ? ALTO_PIE : 0;
+        // La tabla SÍ conserva su caja y su cabecera: no trae título propio, así
+        // que sin ellas se queda sin decir de qué paso viene.
+        const cuerpo = ALTO_CAB + ALTO_CABEZA_TABLA + enPantalla * ALTO_FILA + pie + HOLGURA_TABLA;
+        return `min(var(--cdn-alto), ${cuerpo}px)`;
+    };
+
+    /** En lectura, una figura y una tabla no se presentan igual. */
+    const esFigura = estado.vista === 'chart';
+
     const soloUno = modo !== MODOS.AMBOS;
     /** En lectura la cabecera es un pie de figura: nombre y descripción, nada más. */
     const marcas = !lectura;
@@ -148,7 +235,11 @@ const Celda = ({
     const vieja = frescura === 'cambiada' || frescura === 'arriba';
 
     return (
-        <div ref={raiz} className="cdn-celda">
+        <div
+            ref={raiz}
+            className={`cdn-celda${lectura && esFigura ? ' cdn-celda--figura' : ''}`}
+            style={{ height: altoDeLectura() }}
+        >
             <div className="cdn-cab">
                 {/* El nombre se escribe aquí y NO en el SQL: es el de la vista
                     que la celda deja puesta al ejecutarse. Si se deja en blanco

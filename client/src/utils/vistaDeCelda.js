@@ -111,21 +111,18 @@ export function componerCelda({ sql, analisis, nombre, descripcion, materializar
     // empieza por un comentario `--`, pegarlo a `AS (` dejaría el paréntesis
     // dentro del comentario.
     //
-    // Y antes de crear se tira lo temporal **del otro tipo**. `CREATE OR
-    // REPLACE` no cambia de tipo: con una vista temporal puesta, `CREATE OR
-    // REPLACE TEMP TABLE` responde «Existing object x is of type View, trying
-    // to replace with type Table» y la celda se queda rota hasta cerrar el
-    // proyecto. El caso no es raro: lo provoca el botón «Materializar» del
-    // canalón, que existe justo para eso.
+    // Aquí NO se tira nada. `CREATE OR REPLACE` no sabe cambiar de tipo —con
+    // una vista puesta, `CREATE OR REPLACE TEMP TABLE` responde «Existing
+    // object x is of type View»— pero saber si hay que relevarla exige mirar el
+    // catálogo, y eso es estado del motor: lo decide el servidor, al ejecutar.
     //
-    // Va calificado a `temp.main` A PROPÓSITO. Un `DROP VIEW IF EXISTS x` a
-    // secas borraría la vista PERMANENTE del mismo nombre —la de quien abrió el
-    // proyecto, que no es nuestra y no vuelve al cerrar—. Medido contra el
-    // motor: con el nombre calificado la permanente sigue en su sitio en todos
-    // los casos, y cuando no hay nada que tirar los `DROP` no estorban.
-    const otro = materializar ? 'VIEW' : 'TABLE';
+    // La primera versión lo resolvía aquí, mandando siempre un `DROP` del otro
+    // tipo. Estaba mal: `DROP ... IF EXISTS` **no perdona el desajuste de
+    // tipo**, sólo la ausencia. Con la vista ya creada, el `DROP TABLE IF
+    // EXISTS` de la segunda ejecución fallaba, así que ninguna celda se podía
+    // ejecutar dos veces. Seis pruebas contra el motor y ninguna cubría eso,
+    // que es lo que pasa siempre.
     const sentencias = [
-        `DROP ${otro} IF EXISTS temp.main.${id};`,
         `CREATE OR REPLACE ${clase} ${id} AS (\n${cuerpo}\n);`,
     ];
 

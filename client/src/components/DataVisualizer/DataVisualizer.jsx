@@ -156,7 +156,21 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null }) => {
+    /**
+     * Sin mandos, pero NO empotrada.
+     *
+     * El modo lectura del cuaderno y una lamina de Report Flow coinciden en una
+     * cosa —ninguno quiere botones— y se separan en otra: una lamina tiene el
+     * tamano que tiene y quiere TODAS las piezas, mientras que una celda de
+     * cuaderno mide 520 px y ahi caben la figura o el adorno, no los dos.
+     *
+     * Reusar `isReportMode` para las dos cosas apagaba `calcularRetiradas`, y el
+     * lienzo se quedaba en sesenta pixeles con el titulo, el KPI y la conclusion
+     * comiendose el resto. Se veia como un grafico aplastado, que es justo lo que
+     * esa funcion existe para evitar.
+     */
+    const sinMandos = isReportMode || lectura;
     // 'none' disuelve la tarjeta y deja sólo el lienzo: lo que necesita una
     // lámina de Report Flow, que ya aporta el marco. `isReportMode` NO sirve
     // para esto — sólo oculta los controles y transparenta el fondo.
@@ -323,9 +337,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
     // First-run Story Flow tour (editor only, not report mode). Rendering +
     // replay are owned by the global OnboardingHost via the tour registry.
     useEffect(() => {
-        if (isReportMode) return;
+        if (sinMandos) return;
         if (!hasSeenTour('storyflow')) openTour('storyflow');
-    }, [isReportMode]);
+    }, [sinMandos]);
 
     // ── Font family resolution ──
     const fontFamily = useMemo(() => {
@@ -777,7 +791,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
             />
 
             {/* ━━━ Controls Panel ━━━ */}
-            {!isReportMode && (
+            {!sinMandos && (
                 <div style={{
                     width: '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
                     padding: '12px', overflowY: 'auto',
@@ -939,7 +953,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                     zIndex: 9999, padding: '40px',
                 } : {}),
             }}>
-                {!isReportMode && (
+                {!sinMandos && (
                     /* data-export-hide: la fila de botones no sale en la foto. Sin
                        esto, aunque html2canvas ignora los <button>, el contenedor
                        seguiría reservando su alto y el PNG saldría con una banda
@@ -1007,7 +1021,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                 La forma a la que se dibuja la figura y el zoom para mirarla de
                 cerca. El zoom es solo para VER: no entra en la exportación, que
                 usa siempre la proporción elegida aquí. */}
-            {!isReportMode && !isFullscreen && (
+            {!sinMandos && !isFullscreen && (
                 <div data-export-hide="true" style={{
                     display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
                     padding: '6px 16px 10px', flex: 'none',

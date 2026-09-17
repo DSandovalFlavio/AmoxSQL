@@ -1233,6 +1233,36 @@ function App() {
     }
   };
 
+  /**
+   * `onBuscarProyecto`, con identidad estable.
+   *
+   * Las nueve props de `memo(LayoutManager)` son estables a proposito —las ocho
+   * de abajo llevan `useCallback` justamente por eso— y esta era la unica
+   * escrita como flecha en el render. Con ella, el `memo` no podia cortar
+   * NUNCA: cada pintado de App volvia a dibujar LayoutManager, EditorPane y lo
+   * que hubiera dentro.
+   *
+   * Con un `.sql` eso es un editor y una tabla y no se nota. Con un cuaderno son
+   * dieciseis celdas montadas, y plegar la barra lateral se sentia a tirones.
+   *
+   * Medido DENTRO de la aplicacion —16 celdas ejecutadas, 16 tablas, 16
+   * editores—, seis pliegues seguidos:
+   *
+   *     sin esto   132 ms de bloqueo en CADA pliegue (138,133,132,128,135,132)
+   *     con esto   0 ms, ni una sola tarea larga
+   *
+   * Ciento treinta y dos milisegundos son ocho fotogramas perdidos, y por eso se
+   * sentia a tirones y no simplemente lento. La cifra es identica pliegue tras
+   * pliegue: es un re-render del arbol entero, no una animacion cara.
+   *
+   * No se puede envolver `handleSidebarTabClick` y ya: depende de
+   * `sidebarCollapsed`, o sea que cambiaria de identidad justo en el momento que
+   * importa. Por eso va por referencia, como el `stateRef` de LayoutManager.
+   */
+  const buscarRef = useRef(null);
+  buscarRef.current = () => handleSidebarTabClick('search');
+  const handleBuscarProyecto = useCallback(() => buscarRef.current?.(), []);
+
   // ── Stable callbacks for LayoutManager (avoid re-rendering the editor on nav) ──
   const handleDbChange = useCallback(() => setRefreshDbTrigger(p => p + 1), []);
   const handleRequestSaveAs = useCallback((content, tab) => {
@@ -1789,7 +1819,7 @@ function App() {
               <div style={{ flex: 1, overflow: 'hidden', display: 'block' }}>
                 <LayoutManager
                   ref={layoutRef}
-                  onBuscarProyecto={() => handleSidebarTabClick('search')}
+                  onBuscarProyecto={handleBuscarProyecto}
                   projectPath={projectPath}
                   theme={theme}
                   editorLayout={editorLayout}

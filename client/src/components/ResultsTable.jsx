@@ -981,7 +981,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                 {/* Chart */}
                 <div className={`rt-panel chart${viewMode === 'chart' ? ' visible' : ' hidden'}`}>
-                    {montarPanel('chart') && <DataVisualizer data={data} isReportMode={sinMandos} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} />}
+                    {montarPanel('chart') && <DataVisualizer data={data} isReportMode={isReportMode} lectura={lectura} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} />}
                 </div>
 
                 {/* Profile */}
