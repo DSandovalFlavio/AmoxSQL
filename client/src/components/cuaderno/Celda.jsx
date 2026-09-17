@@ -31,6 +31,13 @@ import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
 import { useCerca } from './useCerca.js';
 
+// Medido contra la tabla de resultados de verdad, no estimado: la fila de
+// títulos lleva el tipo debajo, de ahí los 44.
+const ALTO_CAB = 30;            // la cabecera de la celda
+const ALTO_CABEZA_TABLA = 44;   // la fila de títulos de la tabla
+const ALTO_FILA = 28;
+const ALTO_PIE = 21;            // el pie de páginas, sólo con más de una
+
 const Celda = ({
     celda,
     analisis,
@@ -140,6 +147,36 @@ const Celda = ({
         onEstado(celda.id, { grafico: cfg });
     }, [celda.id, onEstado, estado.vista]);
 
+    /**
+     * En lectura, el alto lo pide el resultado. Y **se sabe sin montarlo**.
+     *
+     * El alto fijo es lo que hace barato recorrer el cuaderno: el hueco de una
+     * celda mide lo mismo esté montada o no, así que la barra de desplazamiento
+     * nunca salta. Eso vale mientras hay un editor al lado; en lectura no lo
+     * hay, y una tabla de una fila dentro de una caja de 520 px no es una
+     * decisión de diseño, es un agujero.
+     *
+     * Así que aquí el alto sale de la CUENTA DE FILAS, que ya está en memoria
+     * antes de pintar nada. No se mide el DOM y no hace falta que la celda esté
+     * montada: el hueco sigue siendo exacto y el desplazamiento sigue sin
+     * saltar. Las medidas salen del motor de verdad, no de la cabeza:
+     * cabecera 44, fila 28, pie de páginas 21.
+     *
+     * Una figura se queda con todo el alto: un gráfico aplastado no se lee, y
+     * ahí el espacio no sobra, se usa.
+     */
+    const altoDeLectura = () => {
+        if (!lectura || estado.vista === 'chart') return undefined;
+        const filas = resultado?.data?.length;
+        if (!filas) return undefined;
+        const enPantalla = Math.min(filas, 50);          // lo que cabe en una página
+        const pie = filas > 50 ? ALTO_PIE : 0;
+        const cuerpo = ALTO_CABEZA_TABLA + enPantalla * ALTO_FILA + pie;
+        // El tope sigue siendo el de siempre, y se lee del CSS para que la
+        // pantalla estrecha —que lo sube a 780— siga mandando.
+        return `min(var(--cdn-alto), ${ALTO_CAB + cuerpo}px)`;
+    };
+
     const soloUno = modo !== MODOS.AMBOS;
     /** En lectura la cabecera es un pie de figura: nombre y descripción, nada más. */
     const marcas = !lectura;
@@ -148,7 +185,7 @@ const Celda = ({
     const vieja = frescura === 'cambiada' || frescura === 'arriba';
 
     return (
-        <div ref={raiz} className="cdn-celda">
+        <div ref={raiz} className="cdn-celda" style={{ height: altoDeLectura() }}>
             <div className="cdn-cab">
                 {/* El nombre se escribe aquí y NO en el SQL: es el de la vista
                     que la celda deja puesta al ejecutarse. Si se deja en blanco

@@ -723,6 +723,33 @@ lo que más callado falla: que el `.docx` sale con su figura entera.
   tope —o soltar lo que lleve mucho rato lejos— es un cambio local el día que haga falta.
   Hoy no hay ningún cuaderno así, y adelantarlo costaría volver a tener celdas que se
   reconstruyen.
+- **¿Un esquema por cuaderno?** La pregunta es buena y la respuesta salió de
+  medir el motor, no de razonar: **no se puede hacer con objetos temporales**.
+  `CREATE SCHEMA temp.eda_ventas` responde «Cannot create non-temporary entry in
+  temporary catalog», y `CREATE TEMP VIEW un_esquema.paso_1` tampoco vale. Un
+  esquema por cuaderno **tiene que ser permanente**, y eso cambia el trato:
+  comprobado cerrando y reabriendo el archivo, `eda_ventas.paso_1` sigue ahí.
+
+  Lo que se gana es real: se acaban los choques de nombres entre cuadernos, se
+  acaba el aviso de «esto tapa tu vista», y el asistente —que hoy no ve nada,
+  porque los objetos temporales son por conexión— podría leer `eda_ventas.paso_1`
+  calificado. Medido: la otra conexión NO hereda el `search_path`, pero sí lee el
+  esquema si se le nombra entero.
+
+  Lo que se pierde es la promesa central: **hoy un cuaderno no escribe nada**.
+  Se cierra el proyecto y todo vuelve a su sitio, y por eso la celda que sí
+  escribe en disco lleva una marca de aviso. Con esquema, todos los cuadernos
+  escriben siempre, y aparece trabajo nuevo que hoy no existe: borrar el esquema
+  al cerrar —¿y si el proyecto se cerró de golpe?—, renombrar el esquema cuando
+  se renombra el archivo, y qué hacer con una base de sólo lectura.
+
+  También hace falta `SET search_path` por conexión para que `FROM paso_1` siga
+  funcionando sin calificar; comprobado que funciona y que `ventas` sigue
+  resolviendo a la tabla real.
+
+  **No es una fase más de este plan**: es un cambio en qué promete el formato, y
+  se decide con las dos propiedades delante —no chocar nunca, contra no dejar
+  rastro— y no dentro de un arreglo.
 - **El panel de resultados cuesta 60-90 ms fijos.** Medido: con cuarenta filas cuesta lo
   mismo que con cinco mil, así que no es la tabla ni los datos, es armar el panel. Se ha
   rodeado montándolo cuando nadie espera, que es lo que se podía hacer desde aquí; abaratarlo
